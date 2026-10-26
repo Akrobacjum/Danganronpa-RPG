@@ -3162,6 +3162,9 @@
       }
     },
     "Bridge": {
+      "noHelp": "Bez pomocy.",
+      "refuseAttempt": "Odrzuć próbę",
+      "attemptRefused": "Próba odrzucona.",
       "what": {
         "project.progress": "Postęp projektu",
         "project.sabotage": "Sabotaż",

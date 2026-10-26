@@ -4849,6 +4849,20 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
 }
 
 /**
+ * The request window alone, for a caller whose card to the GMs is another's (E16 part 2 C1,
+ * 26.10.2026; audit S02-34: a Dynamic action, whose one card is its difficulty's). Answers the
+ * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
+ * says it, before the window), or the player closed it. Posts nothing.
+ */
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT } = {}) {
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent: true });
+        return null;
+    }
+    return askForRequest({ title, prompt, placeholder, intro, required });
+}
+
+/**
  * Ask the player what they want, then send it to the GM. Returns the text, or
  * null if nothing was sent.
  */
@@ -4873,12 +4887,7 @@ export async function promptAndCallGm(actor, {
      * not go. Every caller of this spends nothing before it, which is why the refusal may
      * say so.
      */
-    if (!gmOnline()) {
-        sayNotDone(what, "noGm", { nothingSpent: true });
-        return null;
-    }
-
-    const text = await askForRequest({ title, prompt, placeholder, intro, required });
+    const text = await promptForRequest({ title, prompt, placeholder, intro, required, what });
     if (text === null) return null;
 
     /*

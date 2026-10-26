@@ -1006,6 +1006,28 @@ async function ruleReply(action, data) {
 }
 
 /*
+ * "NOTHING WAS THERE" IS A SEARCH'S RESULT, AND "NO HELP" A HINT'S (E16 part 2 C1, 26.10.2026;
+ * audit S02-16). The "something specific" Search's card and the hint's said there was nothing
+ * only through the refusal (`ruleDecline`), which gave the price back. This answer keeps it - the
+ * character looked, or asked - and says the GM's ruling in the button's words, as
+ * `ruleObserveMiss` does: the card settles as answered. Nothing is charged here: the price was
+ * paid before the card was posted. `words` is the card's (the player's to rewrite), and picks
+ * between two sentences only.
+ */
+async function ruleSearchMiss(action, data) {
+    const actor = game.actors.get(data.by);
+    if (!actor) return null;
+    const { postToThread } = await import("./messenger.mjs");
+    const owner = ownerOf(actor);
+    if (owner) {
+        await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
+            foundry.utils.escapeHTML(game.i18n.localize(data.words === "help" ? "DRPG.Bridge.noHelp" : "DRPG.Bridge.nothingThere"))}</p>`);
+    }
+    return settled("DRPG.Bridge.settledAnswered");
+}
+
+/*
  * "NOTHING WAS THERE" IS AN OBSERVE'S RESULT, NOT A REFUSAL (ACT-17, 20.09).
  *
  * The scored road charges `OBSERVE_FAIL_STRESS` for this outcome and the tile's
@@ -1122,7 +1144,10 @@ async function ruleDecline(action, data) {
            a card that names none was posted before 1.2.71, when both cards' button read "Nothing
            was there" (read in the code at 1.2.70). The card is the player's (see `declineAction`), so `words` picks between
            these two sentences and nothing else. */
-        const words = data.words === "more" ? "DRPG.Bridge.nothingMore" : "DRPG.Bridge.nothingThere";
+        /* "refused" since E16 part 2 C1: the refusal's button reads "Refuse the attempt" there, and
+           "Nothing was there" is its own answer (`ruleSearchMiss`). */
+        const words = data.words === "more" ? "DRPG.Bridge.nothingMore"
+            : data.words === "refused" ? "DRPG.Bridge.attemptRefused" : "DRPG.Bridge.nothingThere";
         if (owner) {
             await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
                 game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
@@ -1220,6 +1245,7 @@ const CARD_ACTIONS = {
     refuseObserveTrace: ruleRefuseObserveTrace,
     reply: ruleReply,
     observeMiss: ruleObserveMiss,
+    searchMiss: ruleSearchMiss,
     decline: ruleDecline,
     createItem: ruleCreateItem,
     giveItem: ruleGiveItem,

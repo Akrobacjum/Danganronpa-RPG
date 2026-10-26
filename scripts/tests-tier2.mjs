@@ -25953,11 +25953,13 @@ const SCENARIOS = [
         const esc = foundry.utils.escapeHTML;
         const line = key => `${esc(game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
             esc(game.i18n.localize(key))}`;
-        const THERE = { button: "DRPG.Bridge.nothingThere", line: "DRPG.Bridge.nothingThere" };
-        const MORE = { button: "DRPG.Analyze.critNothingMore", line: "DRPG.Bridge.nothingMore" };
+        // The Search card's "Nothing was there." is its own answer since E16 part 2 C1 (`searchMiss`, paid);
+        // the Analyze critical's "Nothing more to add" is still a `decline` that gives nothing back.
+        const THERE = { button: "DRPG.Bridge.nothingThere", line: "DRPG.Bridge.nothingThere", action: "searchMiss" };
+        const MORE = { button: "DRPG.Analyze.critNothingMore", line: "DRPG.Bridge.nothingMore", action: "decline" };
         const pressDecline = async (had, own, other) => {
             const withDecline = () => game.messages.contents.find(m => !had.has(m.id)
-                && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+                && String(contentOf(m) ?? "").includes(`data-drpg-call="${own.action}"`));
             await until(withDecline, 8000);
             const card = withDecline();
             must(card, "the action put no card with a second button to the GMs");
@@ -25965,8 +25967,8 @@ const SCENARIOS = [
             const body = document.createElement("div");
             body.innerHTML = contentOf(card);
             wireCallActions(body, card);
-            const button = body.querySelector('[data-drpg-call="decline"]');
-            must(button, "the card's second button was not drawn");
+            const button = body.querySelector(`[data-drpg-call="${own.action}"]`);
+            must(button, "the card's button was not drawn");
             const words = button.textContent.trim();
             button.click();
             await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
@@ -68792,6 +68794,167 @@ const SCENARIOS = [
         equal(stableJson([said.length, said[0]?.includes(line) ?? false, said[1]?.includes(game.i18n.localize("DRPG.Calls.resolveNext")) ?? false]),
             stableJson([2, true, true]),
             `the Reroll's window does not name the roll ("${line}") or Resolve's does not say the next roll asks [windows, Reroll, Resolve]: ${stableJson(said)}`);
+    }],
+
+    ["E16-T24 - 'Nothing was there.' is paid, 'Refuse the attempt' gives the price back, and the hint's 'No help' keeps it (audit S02-16)", async () => {
+        /*
+         * E16 part 2 C1, 26.10.2026. A missed "something specific" Search told the GM "The roll found
+         * nothing. Say so", and the card's natural answer, "Nothing was there.", was the refusal
+         * (action-rolls.mjs `declineAction`): it gave the action back and told the thread "turned the
+         * attempt down", so a specific Search was a free lottery; the hint of an Analyze had the same
+         * button. Observe's miss was split off as its own answer in ACT-17 (`ruleObserveMiss`); this is
+         * the same split. A student with a player, stood alone in a room with an action to spend: a
+         * paid Search for something specific, its roll a miss, its card's "Nothing was there." pressed
+         * as a GM presses it (`wireCallActions`); then two paid hints asked of the GM, the first
+         * answered "No help", the second "Refuse the attempt". Read per card: its buttons, the actions
+         * left after the press against before the action, the thread's line, and whether it settled.
+         * Red before C1: no `searchMiss` button, and "Nothing was there." gave the action back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "each card goes to a player's thread");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen - this would measure nothing");
+        const esc = foundry.utils.escapeHTML;
+        const ruling = key => `${esc(game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${esc(game.i18n.localize(key))}`;
+        const refused = esc(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
+        const PATH = "system.resources.actions.value";
+        const left = actionsLeft(student);
+        const pressOn = async (had, action) => {
+            const withButtons = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call="));
+            await until(withButtons, 8000);
+            const card = withButtons();
+            must(card, "the action put no card with buttons to the GMs - this would measure nothing");
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const buttons = [...body.querySelectorAll("[data-drpg-call]")].map(b => [b.dataset.drpgCall, b.textContent.trim()]);
+            const button = body.querySelector(`[data-drpg-call="${action}"]`);
+            const since = new Set(game.messages.contents.map(m => m.id));
+            if (button) {
+                button.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            }
+            await settle();
+            const said = game.messages.contents.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            return { buttons, said, settled: Boolean(cardFlag(game.messages.get(card.id), "settled")) };
+        };
+        const read = {};
+        const stood = await standAlone(student);
+        let ask = "search";
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector(`input[name="variant"][value="${ask === "search" ? "specific" : "hint"}"]`);
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "E16-T24 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const run = async (key, action) => {
+            await trustedWrite(student, { [PATH]: 3 }, { reason: "gmRuling" });
+            const had = new Set(game.messages.contents.map(m => m.id));
+            ask = key;
+            await rolls.performAction(student, key);
+            const spent = actionsLeft(student);
+            const out = await pressOn(had, action);
+            return { ...out, spent: 3 - spent, back: actionsLeft(student) - spent };
+        };
+        try {
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) - 1;
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                options: { roll: { trait: "instinct" } } } });
+            const search = await run("search", "searchMiss");
+            read.search = [search.buttons.map(([a]) => a), search.spent, search.back, search.said.some(w => w.includes(ruling("DRPG.Bridge.nothingThere"))),
+                search.said.some(w => w.includes(refused)), search.settled];
+            const noHelp = await run("analyze", "searchMiss");
+            read.noHelp = [noHelp.buttons, noHelp.spent, noHelp.back, noHelp.said.some(w => w.includes(ruling("DRPG.Bridge.noHelp"))), noHelp.settled];
+            const refuse = await run("analyze", "decline");
+            read.refuse = [refuse.spent, refuse.back, refuse.said.some(w => w.includes(refused)), refuse.settled];
+        } finally {
+            windows.restore();
+            delete student.rollTrait;
+            if (actionsLeft(student) !== left) await trustedWrite(student, { [PATH]: left }, { reason: "gmRuling" });
+            await stood.back();
+        }
+        const t = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({
+            search: [["createItem", "giveItem", "searchMiss", "decline"], 1, 0, true, false, true],
+            noHelp: [[["reply", t("DRPG.Bridge.reply")], ["searchMiss", t("DRPG.Bridge.noHelp")], ["decline", t("DRPG.Bridge.refuseAttempt")]], 1, 0, true, true],
+            refuse: [1, 1, true, true]
+        }), "a GM's 'Nothing was there.' or 'No help' gave the price back, or 'Refuse the attempt' did not [search: buttons, spent, given back, "
+            + "the ruling's line, the refusal's line, settled; noHelp: buttons, spent, given back, the line, settled; refuse: spent, given back, the refusal's line, settled]");
+    }],
+
+    ["E16-T25 - a Dynamic action asks the GMs with one card, and no card is left 'Awaiting a ruling.' (audit S02-34)", async () => {
+        /*
+         * E16 part 2 C1, 26.10.2026. performDynamic asked for the description through gm-bridge.mjs
+         * `promptAndCallGm`, which posts a card with a Reply alone, and then asked the difficulty
+         * (`requestDynamicDifficulty`), whose card (`askDynamicByCard`) carries Set difficulty and
+         * Refuse: the GMs got two cards with one description, and the first stayed "Awaiting a
+         * ruling." in the thread to the season's end. The window is asked alone now
+         * (`promptForRequest`). Read here: this GM's own Dynamic action, free, its windows answered
+         * and its roll window closed, posts no card (a GM rules its own in a window); the description
+         * window asked alone posts nothing and answers the words; and a player's request for the
+         * difficulty, judged as the primary judges it, posts one card, with Set difficulty and
+         * Refuse. Red before C1: the GM's own action left a card awaiting a ruling, and
+         * `promptForRequest` was no export.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action is taken where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's");
+        const { performAction } = await import("./action-rolls.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { actor, player } = await playerInRoom();
+        const seen = new Set(game.messages.map(m => m.id));
+        const RID = `E16T25${foundry.utils.randomID(10)}`;
+        const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = "E16-T25 picks the archive's lock";
+            if (tier) tier.value = "0";
+            return press(cfg, root);
+        });
+        actor.rollTrait = async () => null;
+        const read = {};
+        try {
+            await performAction(actor, "dynamic", { free: true });
+            await settle();
+            const own = game.messages.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            read.own = [own.filter(c => c.includes("data-drpg-call=")).length, own.filter(c => c.includes(awaiting)).length];
+            const before = new Set(game.messages.map(m => m.id));
+            const asked = typeof B.promptForRequest === "function"
+                ? await B.promptForRequest({ title: "E16-T25", prompt: "E16-T25 what do you do?" }) : "no export";
+            await settle();
+            read.alone = [asked, game.messages.filter(m => !before.has(m.id)).length];
+            const beforeCard = new Set(game.messages.map(m => m.id));
+            await G.judge(B.BRIDGE_ACTIONS, { action: "dynamic.difficulty", requestId: RID, actorId: actor.id, actorName: actor.name,
+                description: "E16-T25 a player's description", room: "" }, player.id, { send: () => {} });
+            await until(() => game.messages.some(m => !beforeCard.has(m.id)), 8000);
+            await settle();
+            const cards = game.messages.filter(m => !beforeCard.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            read.player = [cards.length, cards.filter(c => c.includes('data-drpg-call="setDifficulty"') && c.includes('data-drpg-call="refuseDynamic"')).length];
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            // The held ask ended as a GM's Refuse ends it, so no later ask of this character is answered "already asked".
+            try { await B.answerDynamic(RID, player.id, false); } catch { /* never asked */ }
+            await settle();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ own: [0, 0], alone: ["E16-T25 picks the archive's lock", 0], player: [1, 1] }),
+            "a Dynamic action posted more than the difficulty's card [the GM's own: cards with buttons, cards awaiting a ruling; the window "
+            + "asked alone: its answer, messages posted; a player's ask judged: cards, cards with Set difficulty and Refuse]");
     }],
 
     ...GRID

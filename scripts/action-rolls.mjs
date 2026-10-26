@@ -38,7 +38,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
-import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
+import { callGm, promptAndCallGm, promptForRequest } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
@@ -1998,6 +1998,8 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
                 label: game.i18n.localize("DRPG.Bridge.giveItem"),
                 data: { by: actor.id }
             },
+            // The GM's "there is none" is the Search's result, paid; the refusal is its own button (E16 C1).
+            ruledMissAction(actor),
             declineAction(actor, paid)
         ]
     });
@@ -4745,7 +4747,7 @@ function roomAudience(actor) {
 function declineAction(actor, receipt = null) {
     return {
         action: "decline",
-        label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+        label: game.i18n.localize("DRPG.Bridge.refuseAttempt"),
         data: {
             by: actor.id,
             paid: receipt ? (receipt.pay ?? "action") : "none",
@@ -4754,9 +4756,29 @@ function declineAction(actor, receipt = null) {
             // cannot work out for itself.
             grant: String(Boolean(receipt?.grant)),
             // The words the far side answers a free card with - this button's own
-            // (`ruleDecline`, E09 fix r2-G7).
-            words: "there"
+            // (`ruleDecline`, E09 fix r2-G7; "refused" since E16 C1, when the
+            // button stopped reading "Nothing was there").
+            words: "refused"
         }
+    };
+}
+
+/**
+ * "NOTHING WAS THERE" IS A SEARCH'S RESULT, AND "NO HELP" A HINT'S (E16 part 2 C1, 26.10.2026;
+ * audit S02-16). The "something specific" card and the hint card offered one way to say there
+ * was nothing, and it was the refusal (`declineAction`): it handed the action back and told the
+ * thread the GM "turned the attempt down", so a specific Search that found nothing cost nothing
+ * but the room's token, and a hint the GM had no help for was free. The split ACT-17 made for
+ * Observe (`missAction`), made here: this button keeps the price and says the GM's ruling in its
+ * own words (messenger-app.mjs `ruleSearchMiss`); "Refuse the attempt" beside it still gives the
+ * price back. `words` picks between the two sentences and nothing else - the card is the
+ * player's to rewrite, and either sentence costs nothing more than the other.
+ */
+function ruledMissAction(actor, words = "there") {
+    return {
+        action: "searchMiss",
+        label: game.i18n.localize(words === "help" ? "DRPG.Bridge.noHelp" : "DRPG.Bridge.nothingThere"),
+        data: { by: actor.id, words }
     };
 }
 
@@ -4783,8 +4805,9 @@ function missAction(actor) {
  * The two buttons every ruling gets when there is nothing mechanical to apply.
  *
  * "Reply" posts the GM's sentence into the thread the question arrived in;
- * "There is nothing" hands the price back, because a question that is never
- * answered has not been paid for. Both are handled in `runCallAction`.
+ * "No help" is an answer, and keeps the price (`ruledMissAction`, E16 C1);
+ * "Refuse the attempt" hands the price back, because a question that is never
+ * answered has not been paid for. All three are handled in `runCallAction`.
  *
  * THE STEP TRAVELS, AND THE FAR SIDE PRICES IT (T-1). This card is authored on
  * the PLAYER's client - `callGm` posts it into their own thread - so anything
@@ -4801,6 +4824,7 @@ function gmRulingActions(actor, receipt = null) {
             label: game.i18n.localize("DRPG.Bridge.reply"),
             data: { by: actor.id }
         },
+        ruledMissAction(actor, "help"),
         declineAction(actor, receipt)
     ];
 }
@@ -5925,23 +5949,22 @@ async function performDynamic(actor, options) {
     // they have not heard yet, and asking the player to pick a threshold before
     // saying what they are doing is backwards.
     const dynDef = dynamicDef();
-    const description = await promptAndCallGm(actor, {
+    /*
+     * ONE CARD (E16 part 2 C1, 26.10.2026; audit S02-34). The description went out through
+     * `promptAndCallGm`, a card with a Reply alone, and the difficulty below asked again with the
+     * card that carries Set difficulty and Refuse (gm-bridge.mjs `askDynamicByCard`): two cards
+     * with one description, and the first stayed "Awaiting a ruling." in the thread for the rest of
+     * the season. The window is asked alone now (`promptForRequest`, no card), and the GMs' one
+     * card is the difficulty's; a GM's own action is ruled in a window and posts none. Tier 2's
+     * E16-T25 counts the cards.
+     */
+    const description = await promptForRequest({
         title: dynDef.label,
         intro: briefingBlock(actor, "dynamic", dynDef),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
-        required: true,
-        room: roomOfActor(actor),
-        // Only "reply" here, and no refusal: nothing has been spent yet at this
-        // point - the difficulty window that follows is where this action is
-        // accepted or not, and it already refunds nothing because it has
-        // charged nothing.
-        actions: [{
-            action: "reply",
-            label: game.i18n.localize("DRPG.Bridge.reply"),
-            data: { by: actor.id }
-        }]
+        required: true
     });
     if (description === null) return null;
 

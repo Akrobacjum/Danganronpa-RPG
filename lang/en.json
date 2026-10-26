@@ -3040,6 +3040,9 @@
       }
     },
     "Bridge": {
+      "noHelp": "No help.",
+      "refuseAttempt": "Refuse the attempt",
+      "attemptRefused": "The attempt is turned down.",
       "what": {
         "project.progress": "Project progress",
         "project.sabotage": "Sabotage",

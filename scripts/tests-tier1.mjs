@@ -21137,8 +21137,9 @@ const INVARIANTS = [
 
         const sources = await moduleSources();
         const needsWords = {};
-        for (const [file, fn] of [["action-rolls.mjs", "performDynamic"], ["use-items.mjs", "useCreatively"]]) {
-            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), "promptAndCallGm(", { until: "\n    });" });
+        // A Dynamic action asks its words through `promptForRequest` since E16 part 2 C1 (its one card is the difficulty's).
+        for (const [file, fn, asks] of [["action-rolls.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
+            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), asks, { until: "\n    });" });
             needsWords[fn] = /\brequired: true\b/.test(call);
         }
         const reply = fnSource(stripComments(sources.get("messenger-app.mjs") ?? ""), "ruleReply");
