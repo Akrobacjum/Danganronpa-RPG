@@ -1959,10 +1959,15 @@ export const DYNAMIC_THRESHOLDS = [
  * explicit that the short-rest pool "depends entirely on the map prepared for
  * the season", and a `bedroomOnly: true` constant could only ever contradict
  * whatever the GM actually flagged.
+ *
+ * `perSession` and `perTimeOfDay` are flags: the rest's window is the session or the time of day, and once in it
+ * (rest.mjs `restSpent`, one stamp a kind). They were the number 1, read only as "is there a limit", so a 2 set
+ * here changed nothing (E17 C9, 26.10.2026; audit S07-23; R1002). Twice a window would need a count beside the
+ * stamp, which nothing here keeps.
  */
 export const REST = {
-    long: { actionCost: 2, picks: 2, perSession: 1 },
-    short: { actionCost: 1, picks: 1, perTimeOfDay: 1 },
+    long: { actionCost: 2, picks: 2, perSession: true },
+    short: { actionCost: 1, picks: 1, perTimeOfDay: true },
     options: {
         sleep: { label: "Sleep", long: "Restores all Health", short: "Restores half Health" },
         meal: { label: "Meal", long: "Restores all Sanity", short: "Restores half Sanity" },

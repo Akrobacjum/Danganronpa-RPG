@@ -102,9 +102,18 @@ export async function setRestRoom(roomName, { short = null, long = null, scene =
  * their own when the clock moves rather than needing a reset pass.
  * ========================================================================== */
 
-/** The stamp that identifies "this rest, in this window" (read by the GMs' audit too: sheet-audit.mjs `restCovers`). */
+/**
+ * The stamp that identifies "this rest, in this window" (read by the GMs' audit too: sheet-audit.mjs `restCovers`).
+ *
+ * THE CHAPTER IS IN IT (E17 C9, 26.10.2026; audit S07-23). It was `d${day}:${timeOfDay}` and `s${session}`: a
+ * chapter's end sets the day back to 1 and may keep the session (chapter.mjs, its "next session" box), so a
+ * character who rested on chapter 1's first morning was told "already taken" on chapter 2's, and a long rest
+ * carried across the chapter's end (R1002). A stamp written before this reads as another window, so a rest taken
+ * in the time of day the module was updated in can be taken once more.
+ */
 export function restStamp(kind, clock) {
-    return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
+    const chapter = `c${clock.chapter ?? 1}`;
+    return kind === "long" ? `${chapter}s${clock.session}` : `${chapter}d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
 function restsTaken(actor) {

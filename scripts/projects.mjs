@@ -1750,6 +1750,23 @@ export function projectEditChange(patch = {}) {
 }
 
 /**
+ * A GM's patch of a project's row from the console or a macro (`game.drpg.setProjectMeta`): one change of the
+ * entry, `{ meta }`, made on the primary in the one queue as every other road of a project's row since E36 (E17
+ * C9, 26.10.2026; audit S09-31). The API handed out projects-secrecy.mjs `setProjectMeta` itself, which writes
+ * projectMeta whole, outside the queue, on whichever GM's browser runs it - two GMs' macros, or a macro and the
+ * primary's step, landing together lost one. Tier 0's census of the one queue (R991, its project row) does not see
+ * this road: api.mjs takes the name through projects.mjs's re-export, which the census does not follow; it was
+ * found reading the API while the row was added. The secret fields still go to the GMs' store, as `changeStep`
+ * hands `meta` to `setProjectMeta`. GM only; answers the project's row, both halves, as this browser
+ * reads it once the change has run (another GM's copy of the setting may arrive a moment after the reply).
+ */
+export async function patchProjectMeta(countdownId, data) {
+    if (!game.user?.isGM) return null;
+    await applyProjectChange(countdownId, { meta: data ?? {} }, { by: { kind: "gm" } });
+    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
+}
+
+/**
  * Delete a project and its metadata. GM only; one change of the entry, `{ remove: true }` (E36 C2): the step
  * (`removeInStep`) takes the countdown, its row and its secrets, and thaws what it repaired, in one step on
  * the primary; after it, outside the queue, its tokens (found by their own flags, every copy - E11 C7's orphan

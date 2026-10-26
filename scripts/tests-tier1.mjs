@@ -23194,6 +23194,138 @@ const INVARIANTS = [
             JSON.stringify(["string", true, true, true]),
             "[what locateActor answers for the room, whether it is the token's room, whether roomOfActor answers a name or none, whether the incident's line names it]");
     }],
+    ["R1002 - a rest is spent in its own chapter (E17 C9): rest.mjs `restStamp` carries the chapter for both kinds, so a new chapter at the same day and time of day, or the same session, finds no rest taken; config.mjs `REST`'s frequencies are flags", async () => {
+        /*
+         * E17 C9, 26.10.2026; E17-41, audit S07-23. A short rest was stamped `d${day}:${timeOfDay}` and a long one
+         * `s${session}`, with no chapter: a chapter's end sets the day back to 1 (chapter.mjs), and can keep the session
+         * (its "next session" box unticked), so a character who rested on day 1's morning of chapter 1 was told "already
+         * taken" on day 1's morning of chapter 2, and a long rest of a session carried across the chapter's end. And
+         * `REST.long.perSession` and `REST.short.perTimeOfDay` were 1, read only as "is there a limit": a GM who set 2
+         * changed nothing. Read on plain clocks and a plain actor, so the answer is `restStamp`'s and `restSpent`'s and
+         * not a world's; sheet-audit.mjs `restCovers` asks the same `restStamp`, so the GMs' audit moves with it. Red at
+         * d2397718 (E17 C8) on the first assertion: both kinds' stamps equal across the two chapters, the chapter-1 rest
+         * spent in chapter 2 ([[true,true,true],[true,true,true]]); the frequencies were the number 1 there (read).
+         */
+        const { restStamp, restSpent } = await import("./rest.mjs");
+        const { REST } = await import("./config.mjs");
+        const first = { chapter: 1, session: 3, day: 1, timeOfDay: "morning" }, next = { ...first, chapter: 2 };
+        const actorWith = stamps => ({ getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.restsTaken ? stamps : undefined) });
+        const rested = actorWith({ short: restStamp("short", first), long: restStamp("long", first) });
+        equal(JSON.stringify(["short", "long"].map(kind => [restStamp(kind, first) === restStamp(kind, next), restSpent(rested, kind, first),
+            restSpent(rested, kind, next)])), JSON.stringify([[false, true, false], [false, true, false]]),
+            "[for a short and a long rest: whether chapter 1 and chapter 2 at the same day, time of day and session share a stamp, "
+            + "whether the rest taken in chapter 1 is spent there, and whether it is spent in chapter 2]");
+        equal(JSON.stringify([restStamp("short", { ...first, day: 2 }) === restStamp("short", first),
+            restStamp("short", { ...first, timeOfDay: "evening" }) === restStamp("short", first),
+            restStamp("long", { ...first, session: 4 }) === restStamp("long", first), restStamp("long", { ...first, day: 2 }) === restStamp("long", first)]),
+            JSON.stringify([false, false, false, true]),
+            "[whether a short rest's stamp is shared by another day, by another time of day; a long rest's by another session, by another day of the session]");
+        equal(JSON.stringify([typeof REST.long.perSession, typeof REST.short.perTimeOfDay, REST.long.perSession, REST.short.perTimeOfDay]),
+            JSON.stringify(["boolean", "boolean", true, true]), "[the long rest's and the short rest's frequency: their types and values]");
+    }],
+
+    ["R1003 - the fog's dissolve never frees what the next one mixes from, and a scene left mid-dissolve gets nothing back (E17 C9): fog.mjs `swapInFog` on a fake ticker settles a dissolve's own sprites before it lets the queued repaint start, and `endDissolves` stands a running one down", async () => {
+        /*
+         * E17 C9, 26.10.2026; E17-42, audit S07-09. Repaints come in pairs (a move settles, then the GM's write comes
+         * back), and the second queues behind the running dissolve. The dissolve's `done` let the queued repaint start
+         * FIRST: that repaint's dissolve took the finished one's mix as the picture it fades from - the mix was still the
+         * last fog sprite on the layer - and `done`, going on, found itself stale and destroyed that mix. The next
+         * dissolve then mixed from a freed texture (PIXI draws `Texture.WHITE`, or nothing), so the fog fell to the new
+         * state times t: for its 180 ms the map showed through the rooms nobody had found. And a scene left mid-dissolve
+         * (`canvasTearDown`, the trial's scene among them) had the dissolve's end put the raster back on a hidden layer.
+         * Run here on a fake ticker with fake textures, through the `io` fog.mjs hands its dissolve (`DISSOLVE_IO`): the
+         * module's own code, with nothing of the layer on screen touched. The real canvas is not measured headless:
+         * LIVE-E17-06. Red at d2397718 (E17 C8) with `io` already threaded through and nothing else changed: 3 of the second
+         * dissolve's 4 frames mixed from a freed texture, mix0 (the first is drawn before `done` frees it); and, run on its
+         * own, the torn-down dissolve's end started the queued repaint, showed its texture and put the raster back on the
+         * hidden layer (there was no `endDissolves`).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const textures = [];
+        const texture = label => { const t = { label, destroyed: false, destroy() { this.destroyed = true; } }; textures.push(t); return t; };
+        const run = () => {
+            const state = { generation: 0, busy: false, queued: false, previous: null };
+            const anims = [], frames = [], log = [];
+            let mixes = 0, layer = null;
+            const io = {
+                state,
+                PIXI: { Container: Node, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.tick = t => { attributes[0].parent.t = t; options.ontick(); };
+                    anim.finish = () => { anim.tick(1); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (!once) { once = true; cleanUp(); } }; },
+                renderer: () => ({ render: scratch => frames.push({ generation: state.generation, from: scratch.children[0]?.texture?.label,
+                    freed: Boolean(scratch.children[0]?.texture?.destroyed) }) }),
+                layer: () => layer,
+                ensureRaster: (container, mask) => log.push(`raster ${mask?.label} ${container.visible ? "shown" : "hidden"}`),
+                dropSprite: sprite => {
+                    if (!sprite || sprite.destroyed) return;
+                    const t = sprite.drpgTexture, m = sprite.drpgMaskTexture;
+                    sprite.destroy();
+                    for (const x of [t, m]) if (x && !x.destroyed) x.destroy();
+                },
+                showing: t => log.push(`showing ${t?.label}`),
+                motionOff: () => false,
+                fadeMs: () => 180,
+                repaint: null
+            };
+            const container = layer = new Node();
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            const fog = () => container.children.filter(c => c.drpgTexture).map(c => c.drpgTexture.label);
+            return { state, anims, frames, log, io, container, swap, fog };
+        };
+
+        // A: a dissolve A -> B, a repaint queued behind it (C), B's end, then C's frames and C's end.
+        const a = run();
+        a.swap("A");
+        a.swap("B");
+        a.io.repaint = () => a.swap("C");
+        const queued = F.queueBehindDissolve(a.io);
+        a.anims[0].tick(0.5);
+        a.anims[0].finish();
+        const second = a.anims.length === 2 ? a.anims[1] : null;
+        second?.tick(0.25);
+        second?.tick(0.75);
+        second?.finish();
+        const theirs = a.frames.filter(f => f.generation === 2);
+        equal(JSON.stringify([queued, a.anims.length, theirs.length, theirs.filter(f => f.freed).length, [...new Set(theirs.map(f => f.from))]]),
+            JSON.stringify([true, 2, 4, 0, ["B"]]),
+            "[whether the repaint was queued behind the dissolve, the dissolves run, the second's frames, its frames mixed from a freed texture, what it mixed from]");
+        equal(JSON.stringify([a.fog(), textures.filter(t => /^(?:A|B|mix\d)$/.test(t.label) && !t.destroyed).map(t => t.label), a.state.busy, a.state.queued]),
+            JSON.stringify([["C"], [], false, false]),
+            "[the fog sprites left on the layer, the textures of A, B and the mixes not freed, whether a dissolve is still busy, still queued]");
+
+        // B: a dissolve D -> E, the scene left mid-way (`canvasTearDown`: the layer emptied and hidden), then its end.
+        const b = run();
+        b.swap("D");
+        b.swap("E");
+        b.io.repaint = () => b.log.push("repainted");
+        F.queueBehindDissolve(b.io);
+        const stood = typeof F.endDissolves === "function" ? (F.endDissolves(b.io), true) : false;
+        for (const child of [...b.container.children]) b.io.dropSprite(child);
+        b.container.visible = false;
+        const mark = b.log.length;
+        b.anims[0].tick(0.5);
+        b.anims[0].finish();
+        equal(JSON.stringify([stood, b.log.slice(mark), b.state.busy, b.state.queued, b.frames.filter(f => f.generation === 1).length]),
+            JSON.stringify([true, [], false, false, 1]),
+            "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
+    }],
 ];
 
 /**

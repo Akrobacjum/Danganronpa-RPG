@@ -14988,14 +14988,20 @@ const REGRESSIONS = [
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
     }],
 
-    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price and every seizure of the trial's floor lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
         /*
          * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
          * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
          * when the server answers, so two read-modify-write steps of one setting begun within a round trip both read
          * the old value and the second overwrites the first: a Despair point lost, a room searched twice on one token,
-         * a clock field dropped. E36 queued the projects (R977 holds those, and this test does not read them again);
-         * this is the census of the rest of session 0's list. Read in the module's files without the suite's own
+         * a clock field dropped. E36 queued the projects (R977 holds their roads, field by field); this is the census of
+         * the rest of session 0's list, and since E17 C9 (E17-43, audit S09-31; session 0: "R-test 'jedna kolejka'
+         * obejmuje ruch, Eclipse, Despair, zmiany projektu (E36)") of the projects too, as one row: a write of
+         * projectMeta or of Daggerheart's Countdowns (`COUNTDOWNS`, "Countdowns", relay-guard.mjs `countdownsKey()`)
+         * stands in a step of `COUNTDOWNS_KEY`, read as every other row. The row read the module clean at d2397718 but
+         * for one use: fog.mjs `carryRoomInWorld` bound `setProjectMeta` out of its `import(` outside the step it calls it
+         * in, a name the reader cannot follow; it is named in the step now. Its planted twin writes both, in a step; its
+         * fault writes both outside one. Read in the module's files without the suite's own
          * (tests.mjs, tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const) on its own:
          *   (a) a write - `game.settings.set(` whose key is one of the row's settings, an `overflowStore.patch(` or
          *       `eclipseMoveStore.patch(`, a call of movement.mjs `settleCrossingOnGm`/`refundCrossingOnGm` (a tunnel's
@@ -15022,10 +15028,12 @@ const REGRESSIONS = [
         const KEYS = {
             despair: /^(?:[\w$]+\s*\.\s*)?DESPAIR_KEY$/, searchTokens: /^(?:[\w$]+\s*\.\s*)?SEARCH_KEY$/,
             clock: /^(?:[\w$]+\s*\.\s*)?CLOCK_KEY$/, overflow: /^(?:[\w$]+\s*\.\s*)?OVERFLOW_KEY$/,
-            seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/
+            seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/,
+            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/
         };
         const SETS = [["despair", /^SETTINGS\s*\.\s*(?:despairPools|poolNames|extraPoolUsers)$/], ["searchTokens", /^SETTINGS\s*\.\s*searchTokens$/],
-            ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/]];
+            ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/],
+            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/]];
         const CALLS = [["overflow", /(?<![\w$])overflowStore\s*\.\s*patch\s*\(/g], ["crossing", /(?<![\w$])eclipseMoveStore\s*\.\s*patch\s*\(/g],
             ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
             ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
@@ -15191,6 +15199,12 @@ const REGRESSIONS = [
                 "}",
                 "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
             ],
+            "projects-secrecy.mjs": [
+                "export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;",
+                "export async function writeAllCountdowns(data) { await game.settings.set(DH, COUNTDOWNS, data); }",
+                "export async function setProjectMeta(id, data) { await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { [id]: data }); }",
+                "export async function liftAll(data) { await serialWrite(COUNTDOWNS_KEY, async () => { await writeAllCountdowns(data); await setProjectMeta(\"a\", {}); }); }"
+            ],
             "tests-tier2.mjs": [
                 "export const T = async () => { await game.settings.set(MODULE_ID, SETTINGS.despairPools, {}); };"
             ]
@@ -15231,6 +15245,11 @@ const REGRESSIONS = [
                 "export function registerTrial() { Hooks.on(\"createChatMessage\", message => { seizing = seizing.then(() => seizeFloor(message)); }); }",
                 "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
             ] }, ["chain trial.mjs seizing", "seize outside trial.mjs#registerTrial"]],
+            "a project's row and the Countdowns written outside the queue": [{ "projects.mjs": [
+                "import { setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "export async function moveProject(id, room) { await setProjectMeta(id, { room }); }",
+                "export async function wipeCountdowns() { await game.settings.set(DH, \"Countdowns\", {}); }"
+            ] }, ["projects outside projects-secrecy.mjs#setProjectMeta", "projects outside projects.mjs#wipeCountdowns"]],
             "a setting handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
                 "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
                 "export const RESETS = { searchTokens: wipe(SETTINGS.searchTokens, {}) };"
@@ -15238,8 +15257,8 @@ const REGRESSIONS = [
         };
         const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
         const twin = censusOf(planted(clean));
-        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3 }]),
-            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings') - it would read the module wrong too");
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3, projects: 2 }]),
+            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings', 2 projects') - it would read the module wrong too");
         const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
             .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
         equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
@@ -15248,7 +15267,8 @@ const REGRESSIONS = [
         must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs"].every(file => sources.has(file)),
             "a file of the census is not served - this test reads nothing until it is");
         const { broken, read, table } = censusOf(sources);
-        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4,
+        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4
+            && read.projects >= 6,
             `${JSON.stringify(read)} writes read in the module - this would measure nothing`);
         log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
         equal(JSON.stringify(broken), "[]",

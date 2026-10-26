@@ -91,7 +91,7 @@ import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
     allProjects, visibleProjects, knownProjects, knowsProject, canSee,
     projectsAvailableIn, projectsListedIn,
-    isComplete, addProgress, setProjectMeta,
+    isComplete, addProgress, patchProjectMeta,
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
 } from "./projects.mjs";
 import { openProjectManager, openShareDialog } from "./projects-ui.mjs";
@@ -490,7 +490,8 @@ export const DrpgApi = {
     /** Is this project already at its target? */
     isComplete,
     addProgress,
-    setProjectMeta,
+    /** A patch of a project's row, made on the primary in the one queue as every other change of it (E17 C9). */
+    setProjectMeta: patchProjectMeta,
     /** Refuses a room no place scene holds, and says so (`createProjectNamed`). */
     createProject: createProjectNamed,
 
