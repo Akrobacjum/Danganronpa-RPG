@@ -22857,6 +22857,142 @@ const INVARIANTS = [
             "[searchMax for (base, penalty, floor) (3,0,1) (3,1,1) (3,5,1) (1,1,1) (0,1,1) (0,0,1) (2,1,2) (4,2,3); the getter asks it; left() of a "
                 + "counter stored 3, 1, 0 and none under a maximum of 2; STARTING still holds freeMoves]");
     }],
+    ["R995 - the clock's bus (E17 C6): a setting's change and its broadcast give one run with the newest data, a stream runs by its maxWait, and only a calendar change is a drpgTimeOfDayChanged - a phase its own hook, an Eclipse's flip once", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-33, audit S01-30. sync.mjs `apply` ran the first event of a kind at once and one more
+         * after `TIMING.coalesceMs`, so the clock setting's `onChange` and the GM's `broadcast(SYNC.clock)` of the same
+         * write were two whole refreshes on every browser, and `drpgTimeOfDayChanged` went out on each of them - and on a
+         * pause, a campaign's new name, a phase - to listeners that read it as the time of day moving (the owed Despair, the
+         * betrayal windows, the trace digest). `coalescer` is `apply`'s rule, driven here with a clock and timers of the
+         * test's own: a trailing wait per kind, reset by each event, never past `maxWait` from the burst's first; the
+         * fields of the burst's events merged, the newest winning. `clockNews(heard, clock)` is the clock branch's reading
+         * against what this browser last told its listeners. Both pure; the two branches are read in the source.
+         * Red at 3efafbd0: neither exists.
+         */
+        const J = stableJson;
+        const S = await import("./sync.mjs");
+        const got = {};
+        if (typeof S.coalescer === "function") {
+            let t = 0, id = 0;
+            const timers = new Map();
+            const schedule = (fn, ms) => { timers.set(++id, { at: t + ms, fn }); return id; };
+            const cancel = i => timers.delete(i);
+            const advance = ms => {
+                const end = t + ms;
+                for (;;) {
+                    const next = [...timers.entries()].filter(([, v]) => v.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+                    if (!next) break;
+                    timers.delete(next[0]);
+                    t = next[1].at;
+                    next[1].fn();
+                }
+                t = end;
+            };
+            const runs = [];
+            const push = S.coalescer((kind, data) => runs.push([kind, t, data]), { wait: 120, maxWait: 360, now: () => t, schedule, cancel });
+            push("clock", {});
+            advance(30);
+            push("clock", { clock: { day: 2 }, summary: { rolledOver: false } });
+            push("eclipse", { active: true });
+            advance(500);
+            got.pair = runs.splice(0);
+            for (let i = 0; i < 10; i++) { push("clock", { n: i }); advance(100); }
+            advance(500);
+            got.stream = runs.splice(0).map(([, at, data]) => [at - 530, data.n]);
+        }
+        const C0 = { season: 1, chapter: 1, session: 1, day: 1, timeOfDay: "morning", phase: "dailyLife", eclipse: false, pausedAt: null, campaignName: "A" };
+        const heard = typeof S.clockNews === "function" ? S.clockNews(null, C0).heard : null;
+        const news = c => {
+            const n = S.clockNews(heard, c);
+            return [n.same, n.timeOfDay, n.phase, n.eclipse].map(Number).join("");
+        };
+        got.news = heard ? [{ ...C0 }, { ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, timeOfDay: "noon" },
+            { ...C0, chapter: 2 }, { ...C0, session: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }].map(news) : null;
+        const src = stripComments(new Map(await moduleSources()).get("sync.mjs") ?? "");
+        const clockCase = bodyOf(src, "case SYNC.clock:", { until: "case SYNC.eclipse:" });
+        const eclipseCase = bodyOf(src, "case SYNC.eclipse:", { until: "case SYNC.visibility:" });
+        got.source = [/const apply = coalescer\(/.test(src), /clockNews\(/.test(clockCase),
+            /if \(news\.timeOfDay\)[^]*?"drpgTimeOfDayChanged"/.test(clockCase), /"drpgPhaseChanged"/.test(clockCase),
+            /if \(news\.eclipse\)[^]*?"drpgEclipseChanged"/.test(clockCase), /heard\.eclipse/.test(eclipseCase),
+            typeof S.clockHeard === "function" && S.clockHeard() !== null];
+        equal(J(got), J({
+            pair: [["clock", 150, { clock: { day: 2 }, summary: { rolledOver: false } }], ["eclipse", 150, { active: true }]],
+            stream: [[360, 3], [760, 7], [1020, 9]],
+            news: ["1000", "0000", "0000", "0100", "0100", "0100", "0100", "0010", "0001"],
+            source: [true, true, true, true, true, true, true]
+        }), "{pair: the runs of an onChange and its broadcast 30 ms apart, and another kind's; stream: [ms after the first, the run's n] for ten "
+            + "events 100 ms apart; news: [same, time of day, phase, Eclipse] for the clock unchanged, paused, renamed, day, time of day, chapter, "
+            + "session, phase, Eclipse; source: apply is the coalescer, the clock branch reads clockNews and fires the time of day's, the phase's and "
+            + "the Eclipse's hooks by it, the Eclipse branch reads what was heard, this browser holds what it heard of the clock since its ready}");
+    }],
+
+    ["R996 - the stopwatch's reading (E17 C6): a pause is frozen and then subtracted, the start of the time of day never moves, a reload and the gap since the primary's last beat add nothing, an Eclipse shows none, and no summary without a stamp", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-32, audit S10-16. One field was two things: `timeOfDayStartedAt` was the stopwatch's
+         * start, pushed forward by every pause, and the day's summary's window, so a Search before a pause fell out of
+         * "What you did" after it; a world that loads paused fires no `pauseGame`, so the gap between two sessions counted
+         * ("19900 min in" on the sandbox, the issue's reading); an Eclipse kept counting the time of day it closes, in red;
+         * and a clock with no stamp summed the whole log. Read here pure: `elapsedOf(clock, { now, paused })` (what
+         * `paintElapsed` prints), `unpausePatch(clock, now)` (what `settleElapsedPause` writes), `readyPatch(clock,
+         * { paused, beat, now })` (the primary's stamp at ready, `beat` the GMs' "clockBeat" record), `showsStopwatch`
+         * (the HUD's line) and day-summary.mjs `summarySince`. Red at 3efafbd0: none of them exists.
+         */
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const DS = await import("./day-summary.mjs");
+        const M = 60000, T = 1_000_000_000;
+        const c = extra => ({ timeOfDayStartedAt: T, pausedTotalMs: 0, pausedAt: null, eclipse: false, phase: "dailyLife", ...extra });
+        const min = ms => (ms === null || ms === undefined ? null : Math.floor(ms / M));
+        const has = name => typeof H[name] === "function";
+        const got = {
+            elapsed: has("elapsedOf") ? [
+                H.elapsedOf(c(), { now: T + 10 * M, paused: false }),
+                H.elapsedOf(c({ pausedAt: T + 10 * M }), { now: T + 70 * M, paused: true }),
+                H.elapsedOf(c({ pausedTotalMs: 30 * M }), { now: T + 40 * M, paused: false }),
+                H.elapsedOf(c({ pausedAt: T - 5 * M }), { now: T + 20 * M, paused: true }),
+                H.elapsedOf(c({ pausedAt: T + 3 * M }), { now: T + 5 * M, paused: false }),
+                H.elapsedOf(c({ eclipse: true }), { now: T + 10 * M, paused: false }),
+                H.elapsedOf(c({ timeOfDayStartedAt: null }), { now: T + 10 * M, paused: false })
+            ].map(min) : null,
+            unpause: has("unpausePatch") ? [
+                H.unpausePatch(c({ pausedAt: T + 10 * M, pausedTotalMs: M }), T + 40 * M),
+                H.unpausePatch(c(), T + 40 * M),
+                H.unpausePatch(c({ pausedAt: T - 5 * M }), T + 10 * M),
+                H.unpausePatch(c({ timeOfDayStartedAt: null, pausedAt: T }), T + 10 * M)
+            ] : null,
+            ready: has("readyPatch") ? [
+                H.readyPatch(c(), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: true, beat: null, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: true, beat: T - 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ pausedAt: T + 20 * M }), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: false, beat: T + 70 * M - 30000, now: T + 70 * M }),
+                H.readyPatch(c({ pausedAt: T + 20 * M, pausedTotalMs: M }), { paused: false, beat: null, now: T + 70 * M }),
+                H.readyPatch(c({ timeOfDayStartedAt: null }), { paused: true, beat: null, now: T })
+            ] : null,
+            shows: has("showsStopwatch") ? [c(), c({ eclipse: true }), c({ phase: "classTrial" })].map(x => H.showsStopwatch(x)) : null,
+            since: typeof DS.summarySince === "function" ? [DS.summarySince(c()), DS.summarySince(c({ timeOfDayStartedAt: null })), DS.summarySince(null)] : null
+        };
+        const sources = new Map(await moduleSources());
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), summary = stripComments(sources.get("day-summary.mjs") ?? "");
+        got.source = [/elapsedOf\(/.test(fnSource(hud, "paintElapsed")), /unpausePatch\(/.test(fnSource(hud, "settleElapsedPause")),
+            /timeOfDayStartedAt\s*:/.test(fnSource(hud, "settleElapsedPause")), /showsStopwatch\(/.test(fnSource(hud, "renderHud")),
+            /summarySince\(/.test(fnSource(summary, "showDaySummary"))];
+        equal(J(got), J({
+            elapsed: [10, 10, 10, 0, 5, null, null],
+            unpause: [{ pausedTotalMs: 31 * M, pausedAt: null }, null, { pausedTotalMs: 10 * M, pausedAt: null }, null],
+            ready: [{ pausedAt: T + 10 * M }, { pausedAt: T + 70 * M }, { pausedAt: T }, null, { pausedTotalMs: 60 * M }, null,
+                { pausedTotalMs: 51 * M, pausedAt: null }, null],
+            shows: [true, false, false],
+            since: [T, null, null],
+            source: [true, true, false, true, true]
+        }), "{elapsed: minutes running 10, paused at 10 an hour later, after 30 paused, paused since before the stamp, a stale stamp while "
+            + "running, an Eclipse, no stamp; unpause: the patch after 30 minutes paused, with no stamp, from before the start, no start; ready: "
+            + "the patch of a world loaded paused with a beat, with none, with a beat before the start, paused with its stamp, running with a beat "
+            + "an hour old, half a minute old, running with a stale pause, no start; shows: the line in Daily Life, an Eclipse, a trial; since: "
+            + "the summary's start with a stamp, without, no clock; source: paintElapsed reads elapsedOf, settleElapsedPause writes unpausePatch and "
+            + "writes no start, renderHud asks showsStopwatch, showDaySummary asks summarySince}");
+    }],
 ];
 
 /**

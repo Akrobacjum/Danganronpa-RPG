@@ -71606,6 +71606,87 @@ const SCENARIOS = [
             + "and the room's tokens here before it judged, the player's spend's answer, the gone pool still held, then the pool and the overflow's rise after its judgement]}");
     }],
 
+    ["the stopwatch (E17-T9): a pause, a reload of the primary and the gap since its last beat add nothing to the time of day's minutes, unpaused they run on, and the time of day's start never moves", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-30, E17-31, E17-32, audit S10-16 (the sandbox's clock read "19900 min in" after a week
+         * away). Driven on this GM as the primary, with the game's own pause: (a) ten minutes played, then a pause of
+         * thirty, a reload in it (`settleClockAtReady`, what the primary runs at `ready`) and the unpause; (b) a world
+         * that loads paused - no `pauseGame` fires, so no stamp - with the primary's last beat an hour old, after ten
+         * minutes of the time of day: the reload and the unpause; (c) the same gap with the world running at ready. Each
+         * reads the minutes the HUD's line prints (`elapsedOf`, for the clock out of an Eclipse: the line is none in one,
+         * R996). At 3efafbd0, which has neither the reading nor the ready stamp, the old line's own arithmetic is read
+         * (the stamp less the start, frozen at `pausedAt`). The beat is the primary's `beatClock`. The clock, the pause
+         * and the beat are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const beats = stores.clockBeatStore ?? null;
+        const M = 60000;
+        const was = foundry.utils.deepClone(getClock()), wasPaused = game.paused;
+        const beatWas = beats ? foundry.utils.deepClone(beats.record()) : null;
+        const reading = c => (typeof H.elapsedOf === "function"
+            ? H.elapsedOf({ ...c, eclipse: false }, { now: serverNow(), paused: game.paused })
+            : Math.max(0, (game.paused && c.pausedAt ? c.pausedAt : serverNow()) - c.timeOfDayStartedAt));
+        const minutes = () => Math.floor((reading(getClock()) ?? NaN) / M);
+        const pause = async on => {
+            await game.togglePause(on);
+            await until(() => Boolean(getClock().pausedAt) === on, 3000);
+        };
+        const read = {};
+        try {
+            if (game.paused) await pause(false);
+            // (a) a pause and a reload in it
+            const now0 = serverNow();
+            await setClock({ timeOfDayStartedAt: now0 - 40 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: now0 - 30 * M });
+            const paused = minutes();
+            await H.settleClockAtReady?.();
+            const reloaded = minutes();
+            await pause(false);
+            read.pause = [paused, reloaded, minutes(), getClock().timeOfDayStartedAt === now0 - 40 * M];
+            // (b) a world that loads paused, the last beat an hour old
+            const now1 = serverNow();
+            await setClock({ timeOfDayStartedAt: now1 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: null });
+            if (beats) await beats.patch(RECORD, { at: now1 - 60 * M });
+            await H.settleClockAtReady?.();
+            const atReady = minutes();
+            await game.togglePause(false);
+            await until(() => !getClock().pausedAt, 3000);
+            read.gap = [atReady, minutes()];
+            // (c) the same gap, the world running at ready. The beat is written last: the primary's own beat runs
+            // every 60 s while the world runs, and would write over it in between (in (b) the world is paused).
+            const now2 = serverNow();
+            await setClock({ timeOfDayStartedAt: now2 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            if (beats) await beats.patch(RECORD, { at: now2 - 60 * M });
+            await H.settleClockAtReady?.();
+            read.running = minutes();
+            // They run on: two minutes later, unpaused, the line reads two more.
+            read.runsOn = typeof H.elapsedOf === "function"
+                ? Math.floor(H.elapsedOf({ ...getClock(), eclipse: false }, { now: serverNow() + 2 * M, paused: false }) / M) : null;
+            await H.beatClock?.();
+            read.beat = beats ? Math.abs(Number(beats.record().at) - serverNow()) < 5000 : false;
+        } finally {
+            if (game.paused !== wasPaused) {
+                await game.togglePause(wasPaused);
+                await until(() => Boolean(getClock().pausedAt) === wasPaused, 3000);
+            }
+            await setClock(was);
+            if (beats) await beats.patch(RECORD, { at: beatWas?.at ?? null });
+            await settle();
+        }
+        equal(J(read), J({ pause: [10, 10, 10, true], gap: [10, 10], running: 10, runsOn: 12, beat: true }),
+            "{pause: [the minutes paused after ten played, after the reload, unpaused, the start where it was]; gap: [the minutes at the "
+            + "reload of a world loaded paused with the last beat an hour old, unpaused]; running: the same gap with the world running; "
+            + "runsOn: the minutes two minutes later; beat: the primary's beat written now}");
+    }],
+
     ...GRID
 ];
 

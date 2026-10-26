@@ -1595,6 +1595,11 @@ const DUMP_RULES = [
             + "`putBackSecretDoor`), and since E80 fix r2-G9 the GMs' state of a secret door, a flag on it (`DOOR_SET`); R159 "
             + "read \"Wall at Scene.*.walls.* (ids only)\" on C5's tree (18.10.2026, at eedf9d7) while walls were ids only. "
             + "The rest of a wall the module does not write, and walls are most of a scene's size" },
+    { match: `client:${MODULE_ID}.gmClockBeat`, skip: true, until: "never",
+        why: "the primary GM's beat (gm-stores.mjs `clockBeatStore`, E17 C6) is written by itself every 60 s while the world "
+            + "runs, as a playing track's pausedTime moves: measured 26.10.2026 on tiers 0-1 at 3efafbd0 with C6's code "
+            + "(213.9 s), the dump read two leaves of the store's record go from none to a stamp, and failed \"tier 0/1 changed nothing\". "
+            + "Its value and whether this browser stores it are both left out; tier 2 E17-T9 reads the beat itself" },
     { match: "*", emptyFlagScopes: "absent", until: "never",
         why: "Foundry keeps a flag scope its last flag leaves as {}, and getFlag reads an empty scope and no scope alike; "
             + "measured 24.09.2026 on the dump's second run, after restore deleted the last grant a student had (Actor "
@@ -1713,9 +1718,14 @@ async function worldDump() {
         // The scope after the read: the harness registers a foreign setting on first
         // read, and before it the first dump filed core.globalPlaylistVolume as world.
         const def = game.settings.settings.get(full);
-        out.set(`${def?.scope === "client" ? "client" : "world"}:${full}`, stableJson(value));
+        const unit = `${def?.scope === "client" ? "client" : "world"}:${full}`;
+        if (DUMP_RULES.some(r => r.skip && r.match === unit)) continue;
+        out.set(unit, stableJson(value));
     }
-    for (const [full, raw] of clientStored()) out.set(`client-stored:${full}`, stableJson(raw !== null));
+    for (const [full, raw] of clientStored()) {
+        if (DUMP_RULES.some(r => r.skip && r.match === `client:${full}`)) continue;
+        out.set(`client-stored:${full}`, stableJson(raw !== null));
+    }
     const client = game.settings.storage?.get?.("client");
     if (client && typeof client.key === "function") {
         for (let i = 0; i < client.length; i++) {

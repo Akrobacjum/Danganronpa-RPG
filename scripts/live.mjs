@@ -62,7 +62,9 @@ import { debug, error } from "./utils.mjs";
  * Actor hooks are opt-in (`watch.actors`) because they are noisy - a Daggerheart
  * roll writes an actor several times - and most windows print nothing off one.
  */
-const WORLD_HOOKS = ["drpgTimeOfDayChanged", "drpgEclipseChanged"];
+// The phase has its own hook since E17 C6 (sync.mjs): `drpgTimeOfDayChanged` is the calendar's alone, and a window
+// that prints the phase - the GM panel's - hears it here (audit S01-30).
+const WORLD_HOOKS = ["drpgTimeOfDayChanged", "drpgEclipseChanged", "drpgPhaseChanged"];
 const ACTOR_HOOKS = ["updateActor", "createActor", "deleteActor"];
 const TOKEN_HOOKS = ["createToken", "deleteToken", "updateToken"];
 const ITEM_HOOKS = ["createItem", "deleteItem", "updateItem"];

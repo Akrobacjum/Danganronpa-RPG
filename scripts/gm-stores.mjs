@@ -870,6 +870,20 @@ export const crossingStore = defineGmStore({
 });
 
 /**
+ * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16). A record, `{ at }`: `serverNow()` written by the primary GM
+ * every `CLOCK_BEAT_MS` (60 s, a design number: the stopwatch's error bound across two sessions) while the world runs
+ * (hud.mjs `beatClock`) - the last moment a primary is known to have been at the table. A world that loads paused fires
+ * no `pauseGame`, so the week between two sessions was time of day; at `ready` the primary reads this and counts the gap
+ * since it as a pause (`settleClockAtReady`). Synced, so the next session's primary may be another GM's browser; not
+ * backed up (a restore's old beat would only shorten what is subtracted, and a beat from before the time of day began
+ * is not read); no reset group: a beat older than the clock's `timeOfDayStartedAt` reads as none. No player copy.
+ */
+export const clockBeatStore = defineGmStore({
+    name: "clockBeat", key: SETTINGS.gmClockBeat,
+    kind: "record", fields: ["at"], backup: false, sync: true
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

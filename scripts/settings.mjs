@@ -406,6 +406,14 @@ export const SETTINGS = {
      */
     gmCrossings: "gmCrossings",
     /**
+     * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16): a GM store (gm-stores.mjs `clockBeatStore`), one record
+     * `{ at }` - `serverNow()` every 60 s while the world runs (hud.mjs `beatClock`), the last moment a primary GM is
+     * known to have been there. At the next `ready` the gap since it is no time of day's (`settleClockAtReady`). A GM
+     * store and no world setting: a world write every minute would redraw every player's HUD. Synced, not backed up;
+     * no player copy.
+     */
+    gmClockBeat: "gmClockBeat",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -935,11 +943,16 @@ export const DEFAULT_CLOCK = {
     phase: "dailyLife",
     timeOfDay: TIMES_OF_DAY[0],
     /**
-     * When the current time of day started, as `Date.now()`. Drives the HUD's
-     * elapsed timer; `null` until the clock is moved for the first time, which
+     * When the current time of day started, as `serverNow()`. The HUD's
+     * elapsed timer counts from it, and the day's summary (day-summary.mjs) is
+     * bounded by it; `null` until the clock is moved for the first time, which
      * the HUD reads as "not started yet" rather than as "zero minutes ago".
      * Written by `setClock` on any change of `timeOfDay`, whichever route moved
      * it - Eclipse, panel, or a rewind.
+     * IT NEVER MOVES IN A TIME OF DAY (E17 C6, 26.10.2026; audit S10-16). Until
+     * then an unpause pushed it forward by the pause, which kept the stopwatch
+     * right and cut the summary's window: a Search made before a pause was gone
+     * from "What you did" after it. The pauses are `pausedTotalMs` now.
      */
     timeOfDayStartedAt: null,
     /**
@@ -949,12 +962,24 @@ export const DEFAULT_CLOCK = {
      */
     trialEndedAt: null,
     /**
-     * When the game was paused, as `Date.now()`, or `null` while it runs. The
-     * elapsed timer freezes here, and `timeOfDayStartedAt` is pushed forward by
-     * the length of the break when play resumes - a pause is not time the table
-     * spent on this time of day.
+     * When the game was paused, as `serverNow()`, or `null` while it runs. The
+     * elapsed timer freezes here, and the break's length goes into
+     * `pausedTotalMs` when play resumes - a pause is not time the table spent
+     * on this time of day. Written by the primary GM on `pauseGame` and, for a
+     * world that loads paused (no `pauseGame` fires then), at `ready` (hud.mjs
+     * `settleClockAtReady`).
      */
     pausedAt: null,
+    /**
+     * THE PAUSES OF THIS TIME OF DAY, in ms (E17 C6, 26.10.2026; audit S10-16):
+     * what the stopwatch subtracts from the time since `timeOfDayStartedAt`.
+     * Added to on an unpause (hud.mjs `unpausePatch`) and at the primary's
+     * `ready`, when the gap since its last beat (the GMs' "clockBeat", every
+     * 60 s while the world runs) was nobody's play; 0 again with every new
+     * time of day (`setClock`). E37's summary at every boundary reads it by
+     * this name.
+     */
+    pausedTotalMs: 0,
     /**
      * The season finale is running: the vote is for the Mastermind, not a
      * Blackened. Purely a flavour flag for the floor/panel text - announcing
@@ -1651,6 +1676,13 @@ export function registerSettings() {
         default: {},
         onChange: () => Hooks.callAll("drpgCrossingsChanged")
     });
+    // The primary's beat (E17 C6): no `onChange` - read at `ready` alone, shown nowhere.
+    game.settings.register(MODULE_ID, SETTINGS.gmClockBeat, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The Cleaning Tools a clean-up used (E32+E07 C12): no `onChange` either - read by the
     // body's discovery, on the GM that runs it, and shown nowhere.
     game.settings.register(MODULE_ID, SETTINGS.gmUsedTools, {
@@ -1765,7 +1797,9 @@ export function registerSettings() {
        on a GM's page and Foundry's two rails stay where Foundry puts them (THE WORLD SWITCH there). A reload, because
        the windows are built once at ready and hold Foundry's own nodes. A player's page is the same either way. */
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
-       "log" until a table has shown that "sendBack" puts nobody back wrongly (E17 decides the default). */
+       "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
+       for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
+       default after a table's session is E82's. */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",

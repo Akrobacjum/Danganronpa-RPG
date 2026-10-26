@@ -5981,6 +5981,7 @@
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
         "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
+        "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",

@@ -283,7 +283,9 @@ export function registerA11y() {
            read at call time, so deferring makes it more accurate rather than less. */
         requestAnimationFrame(() => focusIntoWindow(el));
     });
-    for (const hook of ["canvasReady", "drpgTimeOfDayChanged", "drpgEclipseChanged"]) {
+    // The phase's own hook since E17 C6: the HUD's controls change with it (a trial's slot), and the time of day's hook
+    // no longer fires for a phase alone.
+    for (const hook of ["canvasReady", "drpgTimeOfDayChanged", "drpgEclipseChanged", "drpgPhaseChanged"]) {
         Hooks.on(hook, () => nameControls());
     }
     /* The blocks are not applications and fire no render hook of their own, so the

@@ -147,6 +147,12 @@ export async function setClock(patch = {}) {
         if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
             && patch.timeOfDayStartedAt === undefined) {
             next.timeOfDayStartedAt = serverNow();
+            /* AND ITS PAUSES START AT NONE (E17 C6, 26.10.2026; audit S10-16): the stopwatch is the time since the stamp
+               less `pausedTotalMs`, so the last time of day's pauses go with it. A pause running across the change
+               belongs from now on to the new time of day: its stamp moves to the new start, and the unpause adds only
+               what came after (hud.mjs `unpausePatch` reads from the later of the two as well). */
+            if (patch.pausedTotalMs === undefined) next.pausedTotalMs = 0;
+            if (next.pausedAt && patch.pausedAt === undefined) next.pausedAt = next.timeOfDayStartedAt;
         }
         // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
         // E11 fix r1-G3). `patch` wins here too, so a restored clock keeps its own.

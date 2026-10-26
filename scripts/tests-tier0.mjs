@@ -5964,10 +5964,13 @@ const REGRESSIONS = [
            is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). E80 fix
            r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. The
            GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
-           with its actor, dropped as the actor is deleted. */
+           with its actor, dropped as the actor is deleted. The primary's beat (E17 C6, 26.10.2026) is the last moment a
+           primary was at the table, which a season does not change: a beat older than the clock's time of day reads as
+           none (hud.mjs `readyPatch`). */
         const UNCUT = {
             "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
-            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor"
+            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
+            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none"
         };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);

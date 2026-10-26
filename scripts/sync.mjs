@@ -19,6 +19,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
+import { getClock, isEclipse } from "./settings.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION = "sync";
@@ -137,6 +138,9 @@ export function registerSync() {
         if (!game.users.get(senderId)?.isGM) return;
         apply(payload.kind, payload.data);
     });
+    // The clock as this browser found it (E17 C6): what its first change is news against. Read here, at once:
+    // module.mjs registers this inside `ready`, where a `Hooks.once("ready")` would never be called.
+    try { heard ??= clockNews(null, getClock()).heard; } catch (err) { error("Could not read the clock at ready", err); }
 }
 
 /**
@@ -189,41 +193,100 @@ export function broadcast(kind, data = {}) {
  *
  * The socket announcement and the setting's own `onChange` describe the same
  * event, and on a healthy connection both arrive. Doing the work twice is
- * wasteful - re-rendering every open sheet is not cheap - so events arriving
- * inside a short window are merged.
+ * wasteful - re-rendering every open sheet is not cheap - so events of one kind
+ * arriving close together are merged into one run.
  *
  * Merged, NOT discarded. This used to return early and throw the second event
  * away, which is only safe when the two describe the same state. They often do
  * not: a Despair Call spends and then refunds within a few milliseconds, and
  * clearing the seals writes two settings back to back. In both cases the screen
  * was left showing the state *before* the final write, with no further event
- * coming to correct it. The trailing run below always applies the newest data.
+ * coming to correct it. The run always applies the newest data.
+ *
+ * AND MERGED NOW, WHICH IT WAS NOT (E17 C6, 26.10.2026; audit S01-30). What this said
+ * was a first event run at once and a second one `coalesceMs` later: the clock
+ * setting's `onChange` and the GM's broadcast of the same write were two whole
+ * refreshes on every browser, `drpgTimeOfDayChanged` twice and the visibility pass
+ * four times. `coalescer` is a trailing wait per kind: each event of the kind
+ * restarts it, the run comes `coalesceMs` after the burst's last event and never
+ * later than `COALESCE_MAX_WAIT_MS` after its first, with the burst's fields merged,
+ * the newest winning (R995). Every redraw comes `coalesceMs` later than its first
+ * event did before: 120 ms, against the 400 ms the suite's `settle` waits.
  */
-const lastRun = new Map();
-const queued = new Map();
 const COALESCE_MS = TIMING.coalesceMs;
 
-function apply(kind, data = {}) {
-    const now = Date.now();
-    const since = now - (lastRun.get(kind) ?? 0);
+/**
+ * The longest a kind's run waits for a burst to end, in ms (E17 C6): three waits. A
+ * design number, not a measured one - no scenario reads how long a burst of the
+ * clock's writes lasts; it holds a stream of events (a trial's floor ticking, a run of
+ * Despair spends) to a redraw at least every 360 ms, inside the suite's 400 ms settle.
+ */
+export const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
 
-    if (since < COALESCE_MS) {
-        const alreadyQueued = queued.has(kind);
-        queued.set(kind, data);                 // newest state wins
-        if (alreadyQueued) return;
+/**
+ * A trailing debounce per kind (E17 C6; R995): `push(kind, data)` returns at once, and
+ * `run(kind, merged)` is called `wait` ms after the kind's last push, at most `maxWait`
+ * ms after the first push of the burst; `merged` is the burst's data, each field the
+ * newest push's. The clock and the timers are parameters so the suite can drive it
+ * without waiting.
+ */
+export function coalescer(run, {
+    wait = COALESCE_MS, maxWait = COALESCE_MAX_WAIT_MS, now = () => Date.now(),
+    schedule = (fn, ms) => setTimeout(fn, ms), cancel = id => clearTimeout(id)
+} = {}) {
+    const pending = new Map();
+    return (kind, data = {}) => {
+        const at = now();
+        const held = pending.get(kind);
+        const entry = held ?? { first: at, data: {}, timer: null };
+        if (held) cancel(held.timer);
+        entry.data = { ...entry.data, ...(data ?? {}) };
+        const due = Math.min(at + wait, entry.first + maxWait);
+        entry.timer = schedule(() => {
+            pending.delete(kind);
+            run(kind, entry.data);
+        }, Math.max(0, due - at));
+        pending.set(kind, entry);
+        if (held) debug(`sync: ${kind} merged`);
+    };
+}
 
-        debug(`sync: ${kind} deferred`);
-        setTimeout(() => {
-            const pending = queued.get(kind) ?? {};
-            queued.delete(kind);
-            lastRun.set(kind, Date.now());
-            refresh(kind, pending);
-        }, COALESCE_MS - since);
-        return;
-    }
+const apply = coalescer((kind, data) => refresh(kind, data));
 
-    lastRun.set(kind, now);
-    refresh(kind, data);
+/**
+ * WHAT THIS BROWSER LAST TOLD ITS LISTENERS ABOUT THE CLOCK (E17 C6, 26.10.2026; audit
+ * S01-30): `{ json, calendar, phase, eclipse }`, or null before `ready`. The clock branch
+ * hung `drpgTimeOfDayChanged` on every write of the clock - a pause, a campaign's new
+ * name, a phase, the Eclipse's flag - to listeners that read it as the time moving
+ * (the owed Despair paid, the betrayal windows swept, the trace digest sent). Read at
+ * `ready` (`registerSync`), so a browser that loads mid-Eclipse is not told the
+ * Eclipse began (`clockHeard`, R995, reads that it was); the Eclipse branch reads
+ * and writes its `eclipse` too, so whichever of the clock's write and
+ * `broadcastEclipse` lands first tells the listeners, once.
+ */
+let heard = null;
+
+/** What this browser last told its listeners of the clock (`heard`), or null: for the suite (R995). */
+export const clockHeard = () => heard;
+
+/**
+ * The clock branch's reading (R995): `same` (nothing in the clock moved since `heard`),
+ * `timeOfDay` (the season, chapter, day, session or time of day moved), `phase`,
+ * `eclipse` (its flag flipped), and `heard`, the reading to keep. With no `heard`
+ * everything is news, as every run was before E17 C6. Pure.
+ */
+export function clockNews(before, clock) {
+    const calendar = JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.day ?? null,
+        clock?.session ?? null, clock?.timeOfDay ?? null]);
+    const next = { json: JSON.stringify(clock ?? null), calendar, phase: clock?.phase ?? null, eclipse: clock?.eclipse === true };
+    if (!before) return { same: false, timeOfDay: true, phase: true, eclipse: true, heard: next };
+    return {
+        same: next.json === before.json,
+        timeOfDay: next.calendar !== before.calendar,
+        phase: next.phase !== before.phase,
+        eclipse: next.eclipse !== before.eclipse,
+        heard: next
+    };
 }
 
 function refresh(kind, data = {}) {
@@ -239,7 +302,24 @@ function refresh(kind, data = {}) {
     };
 
     switch (kind) {
-        case SYNC.clock:
+        case SYNC.clock: {
+            /*
+             * ONE RUN PER CHANGE OF THE CLOCK, AND EACH HOOK FOR WHAT IT NAMES (E17 C6, 26.10.2026; audit S01-30).
+             * The clock is the setting as it stands when the run comes, never the socket's copy: the copy can arrive
+             * before the setting lands here, and the setting's own `onChange` always follows it. A run that finds
+             * nothing moved since the last one this browser made (`clockNews`: the copy before its setting, the
+             * second of a pair the coalescer did not merge) redraws nothing. `drpgTimeOfDayChanged` only when the
+             * calendar moved - season, chapter, day, session, time of day; `drpgPhaseChanged` (new) for the phase,
+             * whose readers of the old hook had other roads already (music.mjs and voice.mjs hear the clock's
+             * `updateSetting`, visibility is called below; a11y.mjs and live.mjs listen to it now); and
+             * `drpgEclipseChanged` when the flag flipped - here, at the clock's own write, so a GM gone before
+             * `broadcastEclipse` (sent after the whispers) leaves no browser dark without its fog, summary and voice
+             * told. The Eclipse branch below reads the same `heard` and tells nobody twice.
+             */
+            const clock = getClock();
+            const news = clockNews(heard, clock);
+            if (news.same) break;
+            heard = news.heard;
             /*
              * A CALLED ASSEMBLY IS HELD HERE, AND BY ONE CLIENT ONLY.
              *
@@ -280,31 +360,40 @@ function refresh(kind, data = {}) {
             /* The body class only; the HUD and the visibility pass are the two
                lines either side of it (CORE-12).
                NOT "once each", which is what this said until 16.09. `applyAll`
-               is bound to `drpgTimeOfDayChanged` as well (visibility.mjs:57), and
-               that hook is fired eight lines below - so a clock tick runs the
+               is bound to `drpgTimeOfDayChanged` as well (visibility.mjs:61), and
+               that hook is fired below - so a change of the time of day runs the
                visibility pass TWICE on every client, and an Eclipse change does
                the same through `drpgEclipseChanged`. Left as it is rather than
                fixed: dropping the direct call would make room visibility depend
                on hook ordering, and coalescing `applyAll` touches the one path
                that gives other people's hidden tokens back (see its own note).
                It is once per time of day, not per frame, and it has not been
-               priced - but the claim had to stop being made. */
+               priced - but the claim had to stop being made. Since E17 C6 a
+               write of the clock that moves neither (a pause, a name) runs it
+               once, and a write already told runs nothing. */
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // Local listeners (other modules, macros) still get their hook - but
             // now they get it on every client, which is what they always meant.
-            //
-            // The clock is read back from the setting when the announcement did
-            // not carry one: this path is also reached from the setting's own
-            // `onChange`, which knows the value changed but not what was in the
-            // socket payload. A listener must never be handed an empty object.
-            run("hook", async () => {
-                const { getClock } = await import("./clock.mjs");
-                Hooks.callAll("drpgTimeOfDayChanged", data.clock ?? getClock(), data.summary ?? {});
-            });
+            // A listener is handed the clock as the setting holds it, never an
+            // empty object, and the summary when the burst held the GM's broadcast.
+            // Each hook goes out through a module's import, as it did before C6, so
+            // it comes after the redraws queued above it (`later`).
+            const later = fire => import("./clock.mjs").then(fire);
+            if (news.timeOfDay) run("hook", () => later(() => Hooks.callAll("drpgTimeOfDayChanged", clock, data.summary ?? {})));
+            if (news.phase) run("phase", () => later(() => Hooks.callAll("drpgPhaseChanged", clock.phase ?? null)));
+            if (news.eclipse) run("eclipseHook", () => later(() => Hooks.callAll("drpgEclipseChanged", clock.eclipse === true)));
             break;
+        }
 
-        case SYNC.eclipse:
+        case SYNC.eclipse: {
+            /* ONCE PER CHANGE (E17 C6, 26.10.2026; audit S01-30). The clock's own write of the flag reaches the
+               clock branch above, which redraws all of what follows and tells `drpgEclipseChanged`; the GM's
+               `broadcastEclipse` comes later, after the whispers, and finds the change told (`heard.eclipse`).
+               Whichever lands first tells it. Before `ready` (no `heard`) every one runs, as before. */
+            const active = data.active ?? isEclipse();
+            if (heard && heard.eclipse === active) break;
+            if (heard) heard = { ...heard, eclipse: active };
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             // The same caption, and the same reason. `overflowEffect()` has an
             // Eclipse branch: while one runs the clock has not moved yet, so a
@@ -321,11 +410,9 @@ function refresh(kind, data = {}) {
             // actions and Calls looking normally clickable when they are not,
             // or still greyed out a whole time of day after they came back.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            run("hook", async () => {
-                const { isEclipse } = await import("./eclipse.mjs");
-                Hooks.callAll("drpgEclipseChanged", data.active ?? isEclipse());
-            });
+            run("hook", () => import("./eclipse.mjs").then(() => Hooks.callAll("drpgEclipseChanged", active)));
             break;
+        }
 
         case SYNC.visibility:
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
