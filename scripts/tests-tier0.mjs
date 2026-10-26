@@ -2317,10 +2317,11 @@ const REGRESSIONS = [
         const seize = bodyOf(src, "async function seizeFloor");
         ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
 
-        ok(/let seizing = Promise\.resolve\(\);/.test(src),
+        // One key of the one queue since E17 C0 (`SEIZE_KEY`; the hand-made `seizing` chain before it); R991 reads the rest.
+        ok(/export const SEIZE_KEY = "trial\.seize";/.test(src),
             "the seizures are no longer serialised, so two cards can both buy the same minute");
-        ok(/seizing = seizing\s*\n?\s*\.then\(/.test(src),
-            "the hook no longer chains onto the serialising promise");
+        ok(/serialWrite\(SEIZE_KEY, \(\) => seizeFloor\(/.test(src),
+            "the hook no longer queues its seizure on the seizures' key");
 
         ok(seize.includes("payPrice(") && seize.includes("refundPrice("),
             "the seizure stopped paying, or stopped handing it back when the floor did not move");
@@ -14974,6 +14975,243 @@ const REGRESSIONS = [
         log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
         equal(JSON.stringify(broken), "[]",
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
+    }],
+
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price and every seizure of the trial's floor lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
+         * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
+         * when the server answers, so two read-modify-write steps of one setting begun within a round trip both read
+         * the old value and the second overwrites the first: a Despair point lost, a room searched twice on one token,
+         * a clock field dropped. E36 queued the projects (R977 holds those, and this test does not read them again);
+         * this is the census of the rest of session 0's list. Read in the module's files without the suite's own
+         * (tests.mjs, tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const) on its own:
+         *   (a) a write - `game.settings.set(` whose key is one of the row's settings, an `overflowStore.patch(` or
+         *       `eclipseMoveStore.patch(`, a call of movement.mjs `settleCrossingOnGm`/`refundCrossingOnGm` (a tunnel's
+         *       price, A10), of trial.mjs `seizeFloor`/`refusePlayersCard` (a seizure) - stands in a step of its
+         *       row's key: inside the arguments of a `serialWrite(` whose first argument is that key (`KEY`,
+         *       `x.KEY`, or for the crossings `crossingKey(...)`), or in a top-level statement every use of whose name -
+         *       in its own file and in the files that import it, statically or through `import(` - lies in such a step
+         *       or in another statement read so (R977's reading); the table it prints is (row, file#statement, key);
+         *   (b) movement.mjs `settleRoute` and trial.mjs `objectOnPrimary` each hold a step of their key (the primary's
+         *       charge of a door move when no owner is connected, and the Objection held across its whole judgement);
+         *   (c) trial.mjs names no `seizing` (the chain E79 left, which ordered the hook's seizures and not the bridge's).
+         * What it does not read: a key held in a variable, a setting key built in one, a name imported under another
+         * name, and a crossing the owner's browser pays (`shouldCharge`: the owner's spend stays the owner's stamped
+         * write, as at Base; design note 20). The Eclipse's `patchMany` (an owner's copy merged) and `clear` (the
+         * Eclipse's end) are not rows. The reader is shown planted source first: a clean twin that must read clean,
+         * then one fault of each rule alone. Red at 9f727e07 (1.2.86): no key of the six exists, so every write of
+         * every row stands outside a step, settleRoute and objectOnPrimary hold none, and trial.mjs keeps `seizing`.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const KEYS = {
+            despair: /^(?:[\w$]+\s*\.\s*)?DESPAIR_KEY$/, searchTokens: /^(?:[\w$]+\s*\.\s*)?SEARCH_KEY$/,
+            clock: /^(?:[\w$]+\s*\.\s*)?CLOCK_KEY$/, overflow: /^(?:[\w$]+\s*\.\s*)?OVERFLOW_KEY$/,
+            seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/
+        };
+        const SETS = [["despair", /^SETTINGS\s*\.\s*(?:despairPools|poolNames|extraPoolUsers)$/], ["searchTokens", /^SETTINGS\s*\.\s*searchTokens$/],
+            ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/]];
+        const CALLS = [["overflow", /(?<![\w$])overflowStore\s*\.\s*patch\s*\(/g], ["crossing", /(?<![\w$])eclipseMoveStore\s*\.\s*patch\s*\(/g],
+            ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
+            ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
+        const HOLDS = [["movement.mjs", "settleRoute", "crossing"], ["trial.mjs", "objectOnPrimary", "seize"]];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const blankOut = s => s.replace(/[^\n]/g, " ");
+
+        const censusOf = sources => {
+            const read = Object.fromEntries(Object.keys(KEYS).map(k => [k, 0]));
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => {
+                    d.end = decls[i + 1]?.start ?? blank.length;
+                    d.id = `${file}#${d.name ?? `L${lineAt(code, d.start)}`}`;
+                });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                const uses = blank.replace(/^import\s[^;]*;|^export\s*\{[^}]*\}[^;\n]*;?/gm, blankOut);
+                const names = new Map();
+                for (const m of uses.matchAll(/[A-Za-z_$][\w$]*/g)) {
+                    if (!names.has(m[0])) names.set(m[0], []);
+                    names.get(m[0]).push(m.index);
+                }
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    const key = args[0] ? Object.keys(KEYS).find(k => KEYS[k].test(code.slice(args[0].start, args[0].end).trim())) : null;
+                    if (key) steps.push([m.index, close, key]);
+                }
+                return { file, code, blank, decls, declAt, names, imports, steps };
+            });
+            const named = files.flatMap(f => f.decls.filter(d => d.name).map(d => ({ f, d })));
+            const usesOf = ({ f: home, d }) => files.flatMap(f => f === home || f.imports.has(home.file)
+                ? (f.names.get(d.name) ?? []).filter(i => f !== home || i < d.start || i >= d.end).map(i => ({ f, i, at: f.declAt(i)?.id })) : []);
+            const usesBy = new Map(named.map(n => [n.d.id, usesOf(n)]));
+            const inStepOf = key => {
+                const rootAt = (f, i) => f.steps.some(([a, b, k]) => k === key && i > a && i < b);
+                const held = new Set();
+                const marked = [...usesBy].map(([id, list]) => [id, list.map(u => [rootAt(u.f, u.i), u.at])]);
+                for (let grew = true; grew;) {
+                    grew = false;
+                    for (const [id, list] of marked) {
+                        if (held.has(id) || !list.length || !list.every(([root, at]) => root || held.has(at))) continue;
+                        held.add(id);
+                        grew = true;
+                    }
+                }
+                return (f, i) => rootAt(f, i) || held.has(f.declAt(i)?.id);
+            };
+            const inStep = Object.fromEntries(Object.keys(KEYS).map(k => [k, inStepOf(k)]));
+
+            const table = [], broken = new Set();
+            const note = (key, f, i) => {
+                const where = f.declAt(i)?.id ?? `${f.file}#L${lineAt(f.code, i)}`;
+                read[key]++;
+                const queued = inStep[key](f, i);
+                table.push(`${key} ${where} ${queued ? key : "outside"}`);
+                if (!queued) broken.add(`${key} outside ${where}`);
+            };
+            for (const f of files) {
+                for (const m of f.blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    const text = args[1] ? f.code.slice(args[1].start, args[1].end).trim() : "";
+                    const row = SETS.find(([, setting]) => setting.test(text));
+                    if (row) note(row[0], f, m.index);
+                }
+                for (const [key, re] of CALLS) for (const m of f.blank.matchAll(re)) note(key, f, m.index);
+                if (f.file === "trial.mjs" && f.names.has("seizing")) broken.add("chain trial.mjs seizing");
+            }
+            for (const [file, name, key] of HOLDS) {
+                const f = files.find(g => g.file === file), d = f?.decls.find(e => e.name === name);
+                if (!d || !f.steps.some(([a, , k]) => k === key && a > d.start && a < d.end)) broken.add(`holds ${file}#${name} ${key}`);
+            }
+            return { broken: [...broken].sort(), read, table: table.sort() };
+        };
+
+        const clean = {
+            "despair.mjs": [
+                "import { serialWrite } from \"./utils.mjs\";",
+                "export const DESPAIR_KEY = \"despair\";",
+                "async function writePools(store) { await game.settings.set(MODULE_ID, SETTINGS.despairPools, store); }",
+                "export function setDespair(id, n) { return serialWrite(DESPAIR_KEY, () => writePools({ [id]: n })); }",
+                "export async function prunePools() { await serialWrite(DESPAIR_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.poolNames, {}); }); }",
+                "export function shown() {",
+                "    // await game.settings.set(MODULE_ID, SETTINGS.despairPools, {});",
+                "    return \"game.settings.set(MODULE_ID, SETTINGS.despairPools, {})\";",
+                "}",
+                "export async function setShown() { await game.settings.set(MODULE_ID, SETTINGS.despairShown, {}); }"
+            ],
+            "search-tokens.mjs": [
+                "export const SEARCH_KEY = \"searchTokens\";",
+                "export class SearchTokens {",
+                "    static async reset() { return serialWrite(SEARCH_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}); return true; }); }",
+                "}"
+            ],
+            "clock.mjs": [
+                "export const CLOCK_KEY = \"clock\";",
+                "export async function setClock(patch) {",
+                "    const next = await serialWrite(CLOCK_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.clock, patch); return patch; });",
+                "    return next;",
+                "}"
+            ],
+            "overflow.mjs": [
+                "export const OVERFLOW_KEY = \"overflow\";",
+                "export async function addOverflow(n) { await serialWrite(OVERFLOW_KEY, () => overflowStore.patch(RECORD, { count: n })); }",
+                "export async function resetOverflow() {",
+                "    await serialWrite(OVERFLOW_KEY, async () => { await overflowStore.patch(RECORD, { count: 0 }); await game.settings.set(MODULE_ID, SETTINGS.overflow, {}); });",
+                "}"
+            ],
+            "eclipse.mjs": [
+                "import { crossingKey } from \"./movement.mjs\";",
+                "export async function countInStep(id) { await eclipseMoveStore.patch(id, { used: 1 }); }",
+                "export function applyRecordedMove(id) { return serialWrite(crossingKey(id), () => countInStep(id)); }"
+            ],
+            "movement.mjs": [
+                "export function crossingKey(id) { return `crossing/${id}`; }",
+                "export async function settleCrossingOnGm(actor) { const E = await import(\"./eclipse.mjs\"); return E.countInStep(actor.id); }",
+                "export async function refundCrossingOnGm(actor) { return actor; }",
+                "async function settleRoute(tokenDoc, actor) { return serialWrite(crossingKey(actor.id), () => actor); }"
+            ],
+            "passages-gm.mjs": [
+                "export async function crossTunnel({ actorId }) {",
+                "    const { crossingKey } = await import(\"./movement.mjs\");",
+                "    return serialWrite(crossingKey(actorId), async () => {",
+                "        const M = await import(\"./movement.mjs\");",
+                "        const paid = await M.settleCrossingOnGm(actorId);",
+                "        await M.refundCrossingOnGm(actorId, paid);",
+                "    });",
+                "}"
+            ],
+            "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "async function seizeFloor(message) { return message; }",
+                "async function refusePlayersCard(message) { return message; }",
+                "export function registerTrial() {",
+                "    Hooks.on(\"createChatMessage\", message => {",
+                "        if (message.player) { serialWrite(SEIZE_KEY, () => refusePlayersCard(message)).catch(() => {}); return; }",
+                "        serialWrite(SEIZE_KEY, () => seizeFloor(message)).catch(() => {});",
+                "    });",
+                "}",
+                "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
+            ],
+            "tests-tier2.mjs": [
+                "export const T = async () => { await game.settings.set(MODULE_ID, SETTINGS.despairPools, {}); };"
+            ]
+        };
+        const faults = {
+            "a Despair write outside a step": [{ "despair.mjs": [...clean["despair.mjs"],
+                "export async function fillAllDespair() { await game.settings.set(MODULE_ID, SETTINGS.despairPools, {}); }"
+            ] }, ["despair outside despair.mjs#fillAllDespair"]],
+            "a step of another key": [{ "search-tokens.mjs": [...clean["search-tokens.mjs"].slice(0, -1),
+                "    static async exhaust(room) { return serialWrite(DESPAIR_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { [room]: 0 }); }); }",
+                "}"
+            ] }, ["searchTokens outside search-tokens.mjs#SearchTokens"]],
+            "a writer reached outside a step": [{ "despair.mjs": [...clean["despair.mjs"],
+                "export async function zeroAllDespair() { await writePools({}); }"
+            ] }, ["despair outside despair.mjs#writePools"]],
+            "the clock written outside": [{ "clock.mjs": [
+                "export async function setClock(patch) { await game.settings.set(MODULE_ID, SETTINGS.clock, patch); return patch; }"
+            ] }, ["clock outside clock.mjs#setClock"]],
+            "the overflow's count outside": [{ "overflow.mjs": [...clean["overflow.mjs"],
+                "export async function takeOverflow(n) { await overflowStore.patch(RECORD, { count: n }); }"
+            ] }, ["overflow outside overflow.mjs#takeOverflow"]],
+            "the Eclipse's count on another key": [{ "eclipse.mjs": [...clean["eclipse.mjs"].slice(0, -1),
+                "export function applyRecordedMove(id) { return serialWrite(`passage.cross/${id}`, () => countInStep(id)); }"
+            ] }, ["crossing outside eclipse.mjs#countInStep"]],
+            "a tunnel's price outside the queue": [{ "passages-gm.mjs": [
+                "export async function crossTunnel({ actorId }) {",
+                "    const M = await import(\"./movement.mjs\");",
+                "    return M.settleCrossingOnGm(actorId);",
+                "}"
+            ] }, ["crossing outside eclipse.mjs#countInStep", "crossing outside passages-gm.mjs#crossTunnel"]],
+            "the primary's door charge outside the queue": [{ "movement.mjs": [...clean["movement.mjs"].slice(0, -1),
+                "async function settleRoute(tokenDoc, actor) { return actor; }"
+            ] }, ["holds movement.mjs#settleRoute crossing"]],
+            "a hand-made seizure chain": [{ "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "let seizing = Promise.resolve();",
+                "async function seizeFloor(message) { return message; }",
+                "export function registerTrial() { Hooks.on(\"createChatMessage\", message => { seizing = seizing.then(() => seizeFloor(message)); }); }",
+                "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
+            ] }, ["chain trial.mjs seizing", "seize outside trial.mjs#registerTrial"]]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const twin = censusOf(planted(clean));
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3 }]),
+            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings') - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs"].every(file => sources.has(file)),
+            "a file of the census is not served - this test reads nothing until it is");
+        const { broken, read, table } = censusOf(sources);
+        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4,
+            `${JSON.stringify(read)} writes read in the module - this would measure nothing`);
+        log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
+        equal(JSON.stringify(broken), "[]",
+            "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
     }]
 ];
 

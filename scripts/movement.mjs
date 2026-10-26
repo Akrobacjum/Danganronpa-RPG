@@ -43,7 +43,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -2082,7 +2082,25 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
         ? owner.id === game.user.id
         : isPrimaryGm();
     if (!shouldCharge) return;
+    /* THE PRIMARY'S CHARGE IS A STEP OF THE CHARACTER'S KEY (E17 C0, 26.10.2026; A10: "a door move the primary settles and
+       a `passage.cross` of one character share one key"). With no owner connected the primary pays the route, and a
+       tunnel's crossing of the same character (passages-gm.mjs `crossTunnel`) read the same budget or the same Eclipse
+       count beside it; both are steps of `crossingKey(actor.id)` now, and the route's Eclipse crossings are counted in
+       this step (`countCrossingInStep`), not in a second one of the key it holds. A route the owner's browser pays stays
+       the owner's, as at Base: its count is the primary's step through `eclipse.move`, and its spend the owner's
+       stamped write (design note 20). */
+    if (owner) return chargeRoute(tokenDoc, actor, { before, previous, crossings });
+    return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }, {
+        record: async (who, to) => {
+            const { countCrossingInStep } = await import("./eclipse.mjs");
+            const out = await countCrossingInStep(who.id, { to });
+            return out?.refused ? false : out ? true : null;
+        }
+    }));
+}
 
+/** `settleRoute`'s charge, on the browser that pays it; `record` is the primary's count inside its step of the key. */
+async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { record = null } = {}) {
     // During an Eclipse the action economy is suspended: two free crossings
     // instead, judged by eclipse.mjs.
     //
@@ -2098,7 +2116,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
         // CROSSINGS, and settling a whole route as one would have let a
         // multi-waypoint drag walk the map on a single allowance.
         for (const [from, to, floors] of crossings) {
-            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc) });
+            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc), ...(record ? { record } : {}) });
             if (!allowed) {
                 await sendBack(tokenDoc, previous, before);
                 return false;
@@ -2670,14 +2688,26 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  */
 
 /**
+ * THE ONE QUEUE'S KEY FOR A CHARACTER'S CROSSINGS ON THE PRIMARY (E17 C0, 26.10.2026; A10, session 0). One key per
+ * character, so a crossing waits only for that character's: the Eclipse's count (eclipse.mjs `applyRecordedMove`,
+ * `unrecordMove`), a tunnel's 'Go through' (passages-gm.mjs `crossTunnel`, keyed ``passage.cross/${actorId}`` until
+ * this commit) and the primary's charge of a door's route (`settleRoute`). `settleCrossingOnGm` and
+ * `refundCrossingOnGm` run inside `crossTunnel`'s step and count through the in-step functions, as a second step of a
+ * key its holder awaits would never start. Tier 0 R991 holds the census, tier 1 R992 the keys.
+ */
+export function crossingKey(actorId) {
+    return `crossing/${actorId ?? ""}`;
+}
+
+/**
  * Take a tunnel crossing's price: `{ cost }` ("eclipse", "none", or `takeMove`'s answer), or `{ code }` refused. An
  * Eclipse's crossing also answers `tell`, its veiled card to the owner, which the caller posts once the token is
  * written (E80 fix r1-G2): posted with the count, it stayed when the write failed.
  */
 export async function settleCrossingOnGm(actor, to) {
     if (isEclipse()) {
-        const { applyRecordedMove } = await import("./eclipse.mjs");
-        const out = await applyRecordedMove(actor.id, { to, card: false });
+        const { countCrossingInStep } = await import("./eclipse.mjs");
+        const out = await countCrossingInStep(actor.id, { to, card: false });
         if (!out) return { code: "cannotNow" };
         return out.refused ? { code: "eclipseSpent" } : { cost: "eclipse", tell: out.tell ?? null };
     }
@@ -2686,12 +2716,12 @@ export async function settleCrossingOnGm(actor, to) {
     return cost ? { cost } : { code: "noBudget" };
 }
 
-/** Give back what `settleCrossingOnGm` took, `cost`, for a crossing that was not written. */
+/** Give back what `settleCrossingOnGm` took, `cost`, for a crossing that was not written; inside the step that took it. */
 export async function refundCrossingOnGm(actor, cost) {
     if (cost === "none") return true;
     if (cost === "eclipse") {
-        const { unrecordMove } = await import("./eclipse.mjs");
-        return unrecordMove(actor.id);
+        const { uncountCrossingInStep } = await import("./eclipse.mjs");
+        return uncountCrossingInStep(actor.id);
     }
     return giveMoveBack(actor, cost);
 }

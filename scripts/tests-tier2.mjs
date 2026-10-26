@@ -69941,6 +69941,101 @@ const SCENARIOS = [
             + "[performAction refuses before the first price, the exempt set, exempt actions that call a GM, callGm's refusal, the Palm's and the Plant's refund, the refund reads noGm]");
     }],
 
+    ["one queue on the primary (E17-T1): ten Despair +1 together end ten up, each reading the one before; ten Searches of a room together spend exactly its tokens; two clock writes together both land; ten Eclipse crossings together count the allowance and refuse the rest; a character's count and 'Go through' wait while its crossing key is held, and another character's does not", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-01 and E17-04, audit S10-23, S07-24. Foundry changes a setting's cached value only
+         * when the server answers, so changes begun within one round trip read the same old value: two rolls' Fear
+         * points gave the Monokuma +1, two Searches of a room both spent its last token, and a write of the clock
+         * dropped another's field. Read on this primary's browser: (1) the primary's own pool set to 0 and ten
+         * `adjustDespair(+1)` started together (as many as the pool holds, if fewer): each answers one more than the
+         * one before and the pool ends there; (2) ten `SearchTokens.spend` of a room of the suite's own on a scene id
+         * no scene has (unsealed, absent from the counters, so full): exactly the room's tokens are spent and it ends
+         * at 0; (3) two `setClock` of two fields of the suite's own, together: both are in the clock after; (4) in an
+         * Eclipse leading into noon (an allowance, as "a crossing beyond the allowance is refused on the GM" reads it),
+         * a step of this test held on the first student's `crossingKey`: that student's count and 'Go through' (a
+         * passage id no row has, so refused) wait, the second student's crossing is counted meanwhile, and the held
+         * count lands once the step opens; then ten crossings of the first student together: the count ends at the
+         * allowance and the rest are refused, nothing past it. Red at 9f727e07 on (1) to (3): every Despair answer
+         * read 0 and the pool ended at 1, every Search spent a token, and the second clock write dropped the first's
+         * field; (4)'s count was already exact (the GMs' store patches in this browser before it awaits) but no key
+         * held it. The settings are written back as found.
+         */
+        const D = await import("./despair.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const E = await import("./eclipse.mjs");
+        const M = await import("./movement.mjs");
+        const PG = await import("./passages-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the queue it reads is the primary's");
+        const [first, second] = cast(2);
+        const saved = {
+            pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
+            tokens: foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {}),
+            clock: foundry.utils.deepClone(getClock())
+        };
+        const seen = {};
+        let open = () => {};
+        try {
+            const n = Math.min(10, D.despairMax());
+            await D.setDespair(game.user.id, 0);
+            const answers = await Promise.all(Array.from({ length: n }, () => D.adjustDespair(game.user.id, 1)));
+            seen.despair = { answers, end: D.getDespair(game.user.id) };
+
+            const room = "SUITE E17 T1 room", sceneId = "zE17T1noScene00", max = SearchTokens.max;
+            const spent = await Promise.all(Array.from({ length: 10 }, () => SearchTokens.spend(room, sceneId)));
+            seen.search = { spent: spent.filter(Boolean).length, left: SearchTokens.store[SearchTokens.key(room, sceneId)] ?? null };
+
+            await Promise.all([setClock({ suiteE17a: 1 }), setClock({ suiteE17b: 2 })]);
+            const clock = getClock();
+            seen.clock = [clock.suiteE17a ?? null, clock.suiteE17b ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.clock, saved.clock);
+
+            await setClock({ timeOfDay: "morning" });
+            await E.startEclipse();
+            await settle();
+            const allowance = E.eclipseAllowance();
+            ok(E.eclipseId() && Number.isInteger(allowance) && allowance >= 1, `the Eclipse has no name, or no allowance to count against (${E.eclipseId()}, ${allowance})`);
+            const keyed = typeof M.crossingKey === "function";
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = keyed ? serialWrite(M.crossingKey(first.id), () => gate) : Promise.resolve();
+            let counted = "waiting", went = "waiting";
+            const count = E.applyRecordedMove(first.id).then(out => { counted = out?.used ?? null; });
+            const go = PG.crossTunnel({ actorId: first.id, passageId: "zE17T1noPassage" }).then(out => { went = out?.refused ? "refused" : stableJson(out); });
+            const other = await E.applyRecordedMove(second.id);
+            await settle();
+            seen.held = { other: other?.used ?? null, counted, went, row: S.eclipseMoveStore.get(first.id)?.used ?? 0 };
+            open();
+            await held;
+            await Promise.all([count, go]);
+            seen.held.after = [counted, went];
+            const ten = await Promise.all(Array.from({ length: 10 }, () => E.applyRecordedMove(first.id)));
+            seen.eclipse = { counted: ten.filter(out => out && !out.refused).length, refused: ten.filter(out => out?.refused).length,
+                end: S.eclipseMoveStore.get(first.id)?.used ?? 0, allowance };
+            seen.want = { counted: allowance - 1, refused: 11 - allowance, end: allowance, allowance };
+        } finally {
+            open();
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await S.eclipseMoveStore.drop(first.id);
+            await S.eclipseMoveStore.drop(second.id);
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, saved.clock);
+            await settle();
+        }
+        const max = SearchTokens.max, n = Math.min(10, D.despairMax());
+        equal(stableJson({ ...seen, want: null }), stableJson({
+            despair: { answers: Array.from({ length: n }, (_, i) => i + 1), end: n },
+            search: { spent: Math.min(10, max), left: Math.max(0, max - 10) },
+            clock: [1, 2],
+            held: { other: 1, counted: "waiting", went: "waiting", row: 0, after: [1, "refused"] },
+            eclipse: seen.want,
+            want: null
+        }), "the primary's writes are not one queue a key each [Despair: what each +1 answered, the pool; Search: tokens spent, left; "
+            + "the clock's two fields; a held crossing key: the other student's count, the held count and 'Go through' while held, the "
+            + "first student's row, both after; ten crossings together: counted, refused, the count, the allowance]");
+    }],
+
     ...GRID
 ];
 

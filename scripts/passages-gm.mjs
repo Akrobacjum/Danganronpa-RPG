@@ -2169,7 +2169,7 @@ export function crossingWhy(code) {
 
 /**
  * Carry out a 'Go through': answers `{ crossed: true }` or `{ refused }` (`crossingWhy`'s reason, or the
- * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character at a
+ * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character (`crossingKey`) at a
  * time, so two asks in one breath read the price and the count each after the other's write. The tunnel is
  * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
  * does not know (`notKnown`) otherwise; the token is the character's on that scene, standing where the GMs
@@ -2192,7 +2192,10 @@ export function crossingWhy(code) {
  */
 export async function crossTunnel({ actorId, passageId } = {}, { asker = null, stores = PASSAGE_STORES, users = game.users,
     write = (doc, data, options) => doc.update(data, options) } = {}) {
-    return serialWrite(`passage.cross/${actorId}`, async () => {
+    // The character's one key (movement.mjs `crossingKey`, E17 C0; A10), shared with its Eclipse count and with a door
+    // route the primary pays: read through `import(`, as movement.mjs imports this file (R161 holds no static cycle).
+    const { crossingKey } = await import("./movement.mjs");
+    return serialWrite(crossingKey(actorId), async () => {
         // The bridge runs it on the primary GM alone, and the local road only there.
         if (!isPrimaryGm()) return { refused: "nothing was carried out: the token is moved on the primary GM's browser" };
         const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;

@@ -23,9 +23,9 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough } from "./movement.mjs";
+import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
-    primaryGmId, ownerIdsOf } from "./utils.mjs";
+    primaryGmId, ownerIdsOf, serialWrite } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
@@ -1004,6 +1004,19 @@ async function recordMove(actor, to = null) {
 export async function applyRecordedMove(actorId, { to = null, card = true } = {}) {
     if (!game.user.isGM) return null;
     await eclipseMoveStore.whenHydrated();
+    return serialWrite(crossingKey(actorId), () => countCrossingInStep(actorId, { to, card }));
+}
+
+/**
+ * `applyRecordedMove`'s count, inside a step of the character's movement.mjs `crossingKey` (E17 C0, 26.10.2026; A10:
+ * the Eclipse's count, a `passage.cross` and a door move the primary settles share the character's one key). Called
+ * by `applyRecordedMove`'s own step, and by the steps that already hold the key: passages-gm.mjs `crossTunnel`'s,
+ * through movement.mjs `settleCrossingOnGm`, and the primary's charge of a door's route (movement.mjs `settleRoute`).
+ * Asked outside such a step it would count beside one, which tier 0 R991 refuses.
+ */
+export async function countCrossingInStep(actorId, { to = null, card = true } = {}) {
+    if (!game.user.isGM) return null;
+    await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);
     const id = eclipseId();
     if (!actor || !id) return null;
@@ -1041,6 +1054,13 @@ export async function applyRecordedMove(actorId, { to = null, card = true } = {}
  * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back.
  */
 export async function unrecordMove(actorId) {
+    if (!game.user.isGM) return false;
+    await eclipseMoveStore.whenHydrated();
+    return serialWrite(crossingKey(actorId), () => uncountCrossingInStep(actorId));
+}
+
+/** `unrecordMove`'s, inside a step of the character's `crossingKey`: its own, or `crossTunnel`'s (`refundCrossingOnGm`). */
+export async function uncountCrossingInStep(actorId) {
     if (!game.user.isGM) return false;
     await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);

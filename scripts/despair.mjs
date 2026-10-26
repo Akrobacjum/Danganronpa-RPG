@@ -19,7 +19,7 @@
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, warn, error, isPrimaryGm, plural } from "./utils.mjs";
+import { announce, whisperToOwner, log, warn, error, isPrimaryGm, plural, serialWrite } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -64,7 +64,10 @@ export function registerDespair() {
 /** Drop pool entries for users who no longer exist. GM only. */
 export async function prunePools(removedId = null) {
     if (!game.user.isGM) return null;
+    return serialWrite(DESPAIR_KEY, () => pruneInStep(removedId));
+}
 
+async function pruneInStep(removedId) {
     const store = pools();
     const cleaned = {};
     for (const [userId, value] of Object.entries(store)) {
@@ -152,12 +155,14 @@ export async function addPool(userId) {
     const user = game.users.get(userId);
     if (!user?.isGM || user.role === CONST.USER_ROLES.GAMEMASTER) return null;
 
-    const extra = new Set(extraPoolUserIds());
-    if (extra.has(userId)) return null;
-    extra.add(userId);
-    await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, Array.from(extra));
-    log(`${user.name} granted a Despair pool.`);
-    return true;
+    return serialWrite(DESPAIR_KEY, async () => {
+        const extra = new Set(extraPoolUserIds());
+        if (extra.has(userId)) return null;
+        extra.add(userId);
+        await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, Array.from(extra));
+        log(`${user.name} granted a Despair pool.`);
+        return true;
+    });
 }
 
 /**
@@ -168,18 +173,20 @@ export async function addPool(userId) {
 export async function removePool(userId) {
     if (!game.user.isGM) return null;
 
-    const extra = new Set(extraPoolUserIds());
-    if (!extra.delete(userId)) return null;
-    await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, Array.from(extra));
+    return serialWrite(DESPAIR_KEY, async () => {
+        const extra = new Set(extraPoolUserIds());
+        if (!extra.delete(userId)) return null;
+        await game.settings.set(MODULE_ID, SETTINGS.extraPoolUsers, Array.from(extra));
 
-    // The number and the custom label are dead state once the pool is gone.
-    const store = { ...pools() };
-    delete store[userId];
-    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
-    await setPoolLabel(userId, null);
+        // The number and the custom label are dead state once the pool is gone.
+        const store = { ...pools() };
+        delete store[userId];
+        await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
+        await writePoolLabel(userId, null);
 
-    log(`Despair pool revoked for user ${userId}.`);
-    return true;
+        log(`Despair pool revoked for user ${userId}.`);
+        return true;
+    });
 }
 
 /* ---- naming --------------------------------------------------------------
@@ -207,6 +214,11 @@ export function poolLabel(user) {
 /** Set (or clear, with `null`/empty) a pool's custom label. GM only. */
 export async function setPoolLabel(userId, label) {
     if (!game.user.isGM) return null;
+    return serialWrite(DESPAIR_KEY, () => writePoolLabel(userId, label));
+}
+
+/** `setPoolLabel`'s write, inside a step of `DESPAIR_KEY` (its own, or `removePool`'s). */
+async function writePoolLabel(userId, label) {
     const store = { ...poolNames() };
     if (label && label.trim()) store[userId] = label.trim();
     else delete store[userId];
@@ -236,8 +248,24 @@ export function getDespair(userId) {
     return Math.min(Math.max(Math.round(raw), 0), despairMax());
 }
 
+/**
+ * THE ONE QUEUE'S KEY FOR THE POOLS (E17 C0, 26.10.2026; audit S10-23, S09-32; session 0's list). The pools, their
+ * labels and the extra pools are three world settings, each read here and written whole, and Foundry changes a
+ * setting's cached value only when the server answers: ten +1 begun together on the primary each read 0 and the
+ * pool ended at 1 (tier 2 E17-T1 at 9f727e07). Every write of the three is a step of utils.mjs `serialWrite` under
+ * this key and reads what it changes inside its step (tier 0 R991 holds the census); the overflow, the clock and
+ * the search tokens have keys of their own, so a pip never waits for them.
+ */
+export const DESPAIR_KEY = "despair";
+
 /** Set one Monokuma's pool. GM only. */
 export async function setDespair(userId, value) {
+    if (!game.user.isGM) return null;
+    return serialWrite(DESPAIR_KEY, () => writePool(userId, value));
+}
+
+/** One pool written, inside a step of `DESPAIR_KEY`: `setDespair`'s, and `adjustDespair`'s read and write. */
+async function writePool(userId, value) {
     if (!game.user.isGM) return null;
 
     // A User object handed to this signature used to be stringified into a
@@ -289,9 +317,11 @@ export async function adjustDespair(userId, delta) {
         }
     }
 
-    const before = getDespair(userId);
-    const wanted = before + delta;
-    const applied = await setDespair(userId, wanted);
+    // Read inside the step that writes (E17 C0): read before it, ten +1 together all read the same pool.
+    const { before, wanted, applied } = await serialWrite(DESPAIR_KEY, async () => {
+        const held = getDespair(userId);
+        return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta) };
+    });
 
     const max = despairMax();
     if (delta > 0 && wanted > max) {
@@ -315,11 +345,15 @@ export async function adjustDespair(userId, delta) {
 export async function fillAllDespair() {
     if (!game.user.isGM) return null;
 
-    const store = { ...pools() };
-    for (const user of monokumas()) store[user.id] = despairMax();
-    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
-    // A full pool owes nothing (E05 C12): what a conversion took is inside the fill.
-    await clearOwed();
+    const store = await serialWrite(DESPAIR_KEY, async () => {
+        const full = { ...pools() };
+        for (const user of monokumas()) full[user.id] = despairMax();
+        await game.settings.set(MODULE_ID, SETTINGS.despairPools, full);
+        // A full pool owes nothing (E05 C12): what a conversion took is inside the fill - and in its step, so a
+        // settlement queued behind it finds no row to take out of the full pool.
+        await clearOwed();
+        return full;
+    });
 
     log("Every Monokuma's Despair pool filled to maximum.");
     return store;
@@ -345,12 +379,15 @@ export async function fillAllDespair() {
 export async function zeroAllDespair() {
     if (!game.user.isGM) return null;
 
-    const store = { ...pools() };
-    for (const id of Object.keys(store)) if (id !== SETTLED) store[id] = 0;
-    for (const user of monokumas()) store[user.id] = 0;
-    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
-    // An empty pool has nothing left to pay (E05 C12).
-    await clearOwed();
+    const store = await serialWrite(DESPAIR_KEY, async () => {
+        const empty = { ...pools() };
+        for (const id of Object.keys(empty)) if (id !== SETTLED) empty[id] = 0;
+        for (const user of monokumas()) empty[user.id] = 0;
+        await game.settings.set(MODULE_ID, SETTINGS.despairPools, empty);
+        // An empty pool has nothing left to pay (E05 C12).
+        await clearOwed();
+        return empty;
+    });
 
     log("Every Despair pool emptied.");
     return store;
@@ -554,11 +591,14 @@ export function settleOwed() {
 async function settleOnce() {
     if (!isPrimaryGm()) return 0;
     await despairOwedStore.whenHydrated();
-    const plan = settlementOf(Object.entries(despairOwedStore.entries()), pools(), timeOfDayMark());
-    if (plan.write) await game.settings.set(MODULE_ID, SETTINGS.despairPools, plan.pools);
-    if (plan.drop.length) await despairOwedStore.dropMany(plan.drop);
-    if (plan.paid) log(`Paid the Despair ${plan.paid} row(s) owed for conversions to Hope.`);
-    return plan.paid;
+    // The pools read in the step that writes them (E17 C0), so a +1 queued beside the settlement is not written over.
+    return serialWrite(DESPAIR_KEY, async () => {
+        const plan = settlementOf(Object.entries(despairOwedStore.entries()), pools(), timeOfDayMark());
+        if (plan.write) await game.settings.set(MODULE_ID, SETTINGS.despairPools, plan.pools);
+        if (plan.drop.length) await despairOwedStore.dropMany(plan.drop);
+        if (plan.paid) log(`Paid the Despair ${plan.paid} row(s) owed for conversions to Hope.`);
+        return plan.paid;
+    });
 }
 
 /**

@@ -14249,9 +14249,10 @@ const INVARIANTS = [
         ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
         // The route's caller hands the Eclipse's judge the floors of each crossing (review r2, goal O19): five arguments,
         // `floors` the crossing's own, as `crossingVerdict` is asked; and since H81 fix r1 the crossing token's height, at
-        // which a passage in a wall is read (movement.mjs `passageRooms`' note), as its sixth.
-        const settle = fnSource(src, "settleRoute");
-        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors, \{ elevation: ownElevation\(tokenDoc\) \}\);/.test(settle),
+        // which a passage in a wall is read (movement.mjs `passageRooms`' note), as its sixth. Since E17 C0 the charge is
+        // `settleRoute`'s `chargeRoute`, and the sixth carries the primary's in-step count (`record`) when it holds the key.
+        const settle = fnSource(src, "chargeRoute");
+        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors, \{ elevation: ownElevation\(tokenDoc\), \.\.\.\(record \? \{ record \} : \{\}\) \}\);/.test(settle),
             "the route's Eclipse judge is not handed each crossing's floors as its fifth argument");
     }],
     ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM; a route through a point on a wall's line crosses it, the spot a put-back leaves is in no GM's record of the token, and the audit keeps a counted row of every crossing with one whisper per token and mover in 30 s; a GM's send-back for a player is judged as that player's move, an exempt landing on a wall's line keeps its side, a move before the put-back lands is judged from where the token is sent, and a row says sent back only once it is written", async () => {
@@ -22766,6 +22767,55 @@ const INVARIANTS = [
                 { at: drawings.length + 1, stored: outside, shown: outside, last: drawings.length + 1, cellShows: outside }]),
             "a preset's picture does not light its drawing's cell, or a file that is no drawing does not light Another file "
             + "and show the file there [a preset holding a drawing, a preset holding another file]");
+    }],
+    ["R992 - the one queue holds no click (E17 C0): its keys are five strings and `crossingKey`, one per character; a step held on a character's key holds that character's Eclipse count and 'Go through' and nothing else - another character's count and another key's step run meanwhile; a step of the key that throws fails only its own caller", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-03 and E17-04 (A10: a door move the primary settles and a `passage.cross` of one
+         * character share one key). The harm is the RISK row's: one queue for everything would make a Despair pip
+         * wait for a tunnel's write, and a key shared by two characters would make one's crossing wait for the
+         * other's. Read on this GM's browser with two actor ids no actor has, so each queued call finds nobody and
+         * writes nothing (`applyRecordedMove` answers null, `crossTunnel` refuses): a step of this test held shut on
+         * the first id's `crossingKey`; the first id's count and 'Go through' wait behind it, the second id's count
+         * and a step of `DESPAIR_KEY` settle meanwhile, and the two held calls settle once it opens; then a step of
+         * the first id's key that throws rejects its own caller and the count behind it answers. 1000 ms bounds each
+         * wait as R593's does: a ceiling, not a time measured. Red at 9f727e07: no key is exported and passages-gm.mjs
+         * keys `passage.cross/` apart from the Eclipse's count, which no key holds.
+         */
+        const J = stableJson;
+        const U = await import("./utils.mjs"), M = await import("./movement.mjs"), E = await import("./eclipse.mjs");
+        const PG = await import("./passages-gm.mjs"), D = await import("./despair.mjs"), ST = await import("./search-tokens.mjs");
+        const C = await import("./clock.mjs"), O = await import("./overflow.mjs"), T = await import("./trial.mjs");
+        const keys = [D.DESPAIR_KEY, ST.SEARCH_KEY, C.CLOCK_KEY, O.OVERFLOW_KEY, T.SEIZE_KEY];
+        const one = `zR992${foundry.utils.randomID(11)}`, two = `zR992${foundry.utils.randomID(11)}`;
+        const keyed = typeof M.crossingKey === "function";
+        equal(J({ keys: keys.map(k => typeof k), distinct: new Set(keys).size, crossing: keyed && M.crossingKey(one) !== M.crossingKey(two)
+            && M.crossingKey(one) === M.crossingKey(one) && !keys.includes(M.crossingKey(one)) }),
+        J({ keys: ["string", "string", "string", "string", "string"], distinct: 5, crossing: true }),
+        "the one queue's keys are not five strings apart and one crossing key per character [their types, how many differ, the crossing key]");
+        if (!keyed) return;
+        const bounded = promise => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve("still waiting"), 1000))]);
+        const seen = [];
+        let open = () => {};
+        const gate = new Promise(resolve => { open = resolve; });
+        try {
+            const held = U.serialWrite(M.crossingKey(one), () => gate);
+            const count = E.applyRecordedMove(one).then(out => { seen.push(`count ${J(out)}`); });
+            const go = PG.crossTunnel({ actorId: one, passageId: "zR992noPassage0" }).then(out => { seen.push(`go ${out?.refused ? "refused" : J(out)}`); });
+            const other = await bounded(E.applyRecordedMove(two).then(out => `other ${J(out)}`));
+            const despair = await bounded(U.serialWrite(D.DESPAIR_KEY, () => "despair ran"));
+            seen.push(other, despair, "open");
+            open();
+            await held;
+            await bounded(Promise.all([count, go]));
+            const thrown = U.serialWrite(M.crossingKey(one), () => { throw new Error("r992 a step threw"); });
+            const behind = E.applyRecordedMove(one);
+            const [threw, after] = await Promise.allSettled([thrown, bounded(behind)]);
+            seen.push(threw.status === "rejected" ? `threw: ${threw.reason?.message}` : "did not throw", `behind ${J(after.value)}`);
+        } finally {
+            open();
+        }
+        equal(J(seen), J(["other null", "despair ran", "open", "count null", "go refused", "threw: r992 a step threw", "behind null"]),
+            "[around a step held on one character's crossing key: another character's count, another key's step, the held count and 'Go through' once it opened; a step of the key that throws, and the count behind it]");
     }],
 ];
 

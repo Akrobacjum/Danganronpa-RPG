@@ -22,7 +22,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, error, plural, serverNow } from "./utils.mjs";
+import { announce, log, warn, error, plural, serverNow, serialWrite } from "./utils.mjs";
 
 /**
  * Current clock, always with every field present. Defined in settings.mjs -
@@ -105,70 +105,86 @@ export function clockSummary(clock = getClock(), { time = true } = {}) {
         : summary;
 }
 
+/**
+ * THE ONE QUEUE'S KEY FOR THE CLOCK (E17 C0, 26.10.2026; session 0's list): `setClock`, the clock's one writer, reads
+ * and writes inside a step of utils.mjs `serialWrite` under it (tier 0 R991).
+ */
+export const CLOCK_KEY = "clock";
+
 /** Write clock fields. GM only. */
 export async function setClock(patch = {}) {
     if (!game.user.isGM) {
         warn("Only a GM can move the campaign clock.");
         return null;
     }
-    const before = getClock();
-    const next = { ...before, ...patch };
+    /* ONE STEP OF `CLOCK_KEY` FROM THE READ TO THE WRITE (E17 C0, 26.10.2026; audit S10-23). Two writes begun within a
+       server round trip each spread their patch over the clock they read, and the second wrote over the first's field
+       (tier 2 E17-T1 at 9f727e07: of two fields written together one was left). What follows the write - the
+       discovery's end, the phase's and the Eclipse's reconciling - runs after the step, so a write of the clock they
+       make waits for no step of its own key. */
+    const written = await serialWrite(CLOCK_KEY, async () => {
+        const before = getClock();
+        const next = { ...before, ...patch };
 
-    // Stamp when this time of day began, so the HUD can say how long it has run.
-    // Written here rather than in `advanceTimeOfDay` because the GM also moves
-    // the clock by hand from the panel and by rewinding, and a timer that only
-    // reset on one of those three routes would quietly lie on the other two.
-    // `patch` wins if a caller sets the stamp itself - that is how a correction
-    // can move the clock without pretending the pause never happened.
-    //
-    // AND WHEN THE PHASE CROSSES THE TRIAL'S EDGE (E10 C12, 1.2.71; audit S06-36). Start the
-    // Class Trial and End the trial stamped it themselves; the other roads in and out - the
-    // trial ended from Edit campaign, a debate opened outside a trial (`startFloor` ->
-    // `setPhase`), `game.drpg.setPhase` - did not, and the HUD went on counting the time of
-    // day from before the trial, in red. Only a move into or out of the Class Trial: a body
-    // found turns Daily Life into the Investigation in the middle of a time of day, and the
-    // day's summary (day-summary.mjs) is bounded by this stamp. Measured in tier 2 "the trial's
-    // exits say what happened". The stamp is the server's clock (utils.mjs `serverNow`, E10 C13), as
-    // is every reader's count from it: the HUD's elapsed line on a player's machine counts from a GM's.
-    const trialEdge = patch.phase !== undefined && patch.phase !== before.phase
-        && (patch.phase === "classTrial" || before.phase === "classTrial");
-    if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
-        && patch.timeOfDayStartedAt === undefined) {
-        next.timeOfDayStartedAt = serverNow();
-    }
-    // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
-    // E11 fix r1-G3). `patch` wins here too, so a restored clock keeps its own.
-    if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
-        next.trialEndedAt = serverNow();
-    }
-    /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
-       Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
-       trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
-       Objection refused in the dark. Every one of them writes through here, so the check is here once:
-       the whole write is refused, nothing written, and the GM told. Read on the clock as it would be
-       after the write, so a write that ends the Eclipse may open the trial, and tier 2's restore of a
-       clock from before an Eclipse is not refused. Measured in tier 2 "no road opens the trial in an
-       Eclipse" (red at c494855 on every road it drives). */
-    if (trialEdge && next.phase === "classTrial" && next.eclipse === true) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
-        return null;
-    }
-    /* AND NO ECLIPSE BEGINS IN A TRIAL, BY THIS DOOR EITHER (E13 fix r1-G1, 12.10.2026; the orchestrator's
-       default of the same day). r1-F3 refused it in eclipse.mjs `startEclipse`, the module's one writer of
-       `eclipse: true`; a clock written here with it - the API's `setClock` from a console, a macro - still
-       began one inside a running trial, and the trial's one voice room (D8) split into a room each. Refused
-       with `startEclipse`'s words, only when the Eclipse would begin: a write that keeps one already on (from
-       before this check) or ends it goes through, and a write that also opens the trial is the edge's refusal
-       above. Tier 2 "the clock refuses an Eclipse in the Class Trial" (red at 5b2b2ed). */
-    if (!trialEdge && next.phase === "classTrial" && next.eclipse === true && before.eclipse !== true) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
-        return null;
-    }
-    // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
-    // flag set again later by hand must not inherit the last Eclipse's name.
-    if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
+        // Stamp when this time of day began, so the HUD can say how long it has run.
+        // Written here rather than in `advanceTimeOfDay` because the GM also moves
+        // the clock by hand from the panel and by rewinding, and a timer that only
+        // reset on one of those three routes would quietly lie on the other two.
+        // `patch` wins if a caller sets the stamp itself - that is how a correction
+        // can move the clock without pretending the pause never happened.
+        //
+        // AND WHEN THE PHASE CROSSES THE TRIAL'S EDGE (E10 C12, 1.2.71; audit S06-36). Start the
+        // Class Trial and End the trial stamped it themselves; the other roads in and out - the
+        // trial ended from Edit campaign, a debate opened outside a trial (`startFloor` ->
+        // `setPhase`), `game.drpg.setPhase` - did not, and the HUD went on counting the time of
+        // day from before the trial, in red. Only a move into or out of the Class Trial: a body
+        // found turns Daily Life into the Investigation in the middle of a time of day, and the
+        // day's summary (day-summary.mjs) is bounded by this stamp. Measured in tier 2 "the trial's
+        // exits say what happened". The stamp is the server's clock (utils.mjs `serverNow`, E10 C13), as
+        // is every reader's count from it: the HUD's elapsed line on a player's machine counts from a GM's.
+        const trialEdge = patch.phase !== undefined && patch.phase !== before.phase
+            && (patch.phase === "classTrial" || before.phase === "classTrial");
+        if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
+            && patch.timeOfDayStartedAt === undefined) {
+            next.timeOfDayStartedAt = serverNow();
+        }
+        // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
+        // E11 fix r1-G3). `patch` wins here too, so a restored clock keeps its own.
+        if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
+            next.trialEndedAt = serverNow();
+        }
+        /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
+           Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
+           trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
+           Objection refused in the dark. Every one of them writes through here, so the check is here once:
+           the whole write is refused, nothing written, and the GM told. Read on the clock as it would be
+           after the write, so a write that ends the Eclipse may open the trial, and tier 2's restore of a
+           clock from before an Eclipse is not refused. Measured in tier 2 "no road opens the trial in an
+           Eclipse" (red at c494855 on every road it drives). */
+        if (trialEdge && next.phase === "classTrial" && next.eclipse === true) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+            return null;
+        }
+        /* AND NO ECLIPSE BEGINS IN A TRIAL, BY THIS DOOR EITHER (E13 fix r1-G1, 12.10.2026; the orchestrator's
+           default of the same day). r1-F3 refused it in eclipse.mjs `startEclipse`, the module's one writer of
+           `eclipse: true`; a clock written here with it - the API's `setClock` from a console, a macro - still
+           began one inside a running trial, and the trial's one voice room (D8) split into a room each. Refused
+           with `startEclipse`'s words, only when the Eclipse would begin: a write that keeps one already on (from
+           before this check) or ends it goes through, and a write that also opens the trial is the edge's refusal
+           above. Tier 2 "the clock refuses an Eclipse in the Class Trial" (red at 5b2b2ed). */
+        if (!trialEdge && next.phase === "classTrial" && next.eclipse === true && before.eclipse !== true) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
+            return null;
+        }
+        // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
+        // flag set again later by hand must not inherit the last Eclipse's name.
+        if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
 
-    await game.settings.set(MODULE_ID, SETTINGS.clock, next);
+        await game.settings.set(MODULE_ID, SETTINGS.clock, next);
+        return { before, next };
+    });
+    if (!written) return null;
+    const { before, next } = written;
 
     /*
      * STAGE 7 STARTING IS WHAT ENDS THE DISCOVERY (D5).

@@ -12,7 +12,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, error, serialWrite } from "./utils.mjs";
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
@@ -29,6 +29,14 @@ export const SEARCH_FLAGS = {
     /** This room cannot be searched at all. Not "not right now" - at all. */
     sealed: "drpgNoSearch"
 };
+
+/**
+ * THE ONE QUEUE'S KEY FOR THE COUNTERS (E17 C0, 26.10.2026; audit S07-24, S10-23). The counters are one world setting
+ * read and written whole, so two Searches of a room begun within a server round trip both read its last token and
+ * both spent it: ten together in a room of three spent ten (tier 2 E17-T1 at 9f727e07). Every write of the setting
+ * is a step of utils.mjs `serialWrite` under this key, reading the store inside its step (tier 0 R991).
+ */
+export const SEARCH_KEY = "searchTokens";
 
 export class SearchTokens {
 
@@ -253,32 +261,36 @@ export class SearchTokens {
         // is a few seconds out of date.
         if (this.sealed(roomName, sceneId)) return false;
 
-        const store = foundry.utils.duplicate(this.store);
-        const key = this.key(roomName, sceneId);
-        const current = store[key] ?? store[roomName] ?? this.max;
-        if (current <= 0) return false;
+        return serialWrite(SEARCH_KEY, async () => {
+            const store = foundry.utils.duplicate(this.store);
+            const key = this.key(roomName, sceneId);
+            const current = store[key] ?? store[roomName] ?? this.max;
+            if (current <= 0) return false;
 
-        store[key] = current - 1;
-        // Migrate off the legacy plain-name key - but only when it IS a different
-        // key. With no scene to key against, `key()` falls back to the bare room
-        // name, and deleting it here erased the spend that had just been written
-        // one line above: the counter never moved and the room could be searched
-        // for ever.
-        if (key !== roomName) delete store[roomName];
-        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
-        debug(`Search token spent in "${roomName}". Left: ${store[key]}`);
-        return true;
+            store[key] = current - 1;
+            // Migrate off the legacy plain-name key - but only when it IS a different
+            // key. With no scene to key against, `key()` falls back to the bare room
+            // name, and deleting it here erased the spend that had just been written
+            // one line above: the counter never moved and the room could be searched
+            // for ever.
+            if (key !== roomName) delete store[roomName];
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+            debug(`Search token spent in "${roomName}". Left: ${store[key]}`);
+            return true;
+        });
     }
 
     /** Zero out a single room for the rest of the day (project "Tidy the room"). */
     static async exhaust(roomName, scene) {
         if (!game.user.isGM || !roomName) return false;
-        const store = foundry.utils.duplicate(this.store);
-        const key = this.key(roomName, scene);
-        store[key] = 0;
-        if (key !== roomName) delete store[roomName];   // same reasoning as above
-        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
-        return true;
+        return serialWrite(SEARCH_KEY, async () => {
+            const store = foundry.utils.duplicate(this.store);
+            const key = this.key(roomName, scene);
+            store[key] = 0;
+            if (key !== roomName) delete store[roomName];   // same reasoning as above
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+            return true;
+        });
     }
 
     /**
@@ -300,21 +312,23 @@ export class SearchTokens {
         const max = this.max;
         const n = Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
 
-        const store = foundry.utils.duplicate(this.store);
-        const key = this.key(roomName, scene);
-        store[key] = n;
-        // Same reasoning as `#spendAsGm`: drop the legacy plain-name key only
-        // when it is genuinely a different key, or this erases the write above.
-        if (key !== roomName) delete store[roomName];
-        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
-        debug(`Search tokens in "${roomName}" set to ${n}.`);
-        return n;
+        return serialWrite(SEARCH_KEY, async () => {
+            const store = foundry.utils.duplicate(this.store);
+            const key = this.key(roomName, scene);
+            store[key] = n;
+            // Same reasoning as `#spendAsGm`: drop the legacy plain-name key only
+            // when it is genuinely a different key, or this erases the write above.
+            if (key !== roomName) delete store[roomName];
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+            debug(`Search tokens in "${roomName}" set to ${n}.`);
+            return n;
+        });
     }
 
     /** Refill everything. Called whenever the clock advances a time of day. */
     static async reset({ notify = true } = {}) {
         if (!game.user.isGM) return false;
-        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, {});
+        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
         if (notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
         return true;
     }
