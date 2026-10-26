@@ -626,7 +626,8 @@ export const trapPlantStore = defineGmStore({
  * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05 C1; audit S09-05, D3). A row per
  * countdown id: `killerId`, `by`, `condition`, `trigger` - projectMeta's four fields until 1.2.64,
  * which every browser held - and, on a repair's row, `saboteur`, the user who asked for the sabotage
- * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
+ * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`), and beside it `sabotageAsk`, the request a
+ * player's Sabotage came under (E18 C7; projects.mjs `sabotageOfRequest`: its resend is answered this repair). `trigger` is split, a stamp per part, so the primary stamping a trap fired
  * and another GM re-arming it keep theirs (projects-secrecy.mjs `patchTrigger`). No old key: the first rows
  * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
  * project - its row in projectMeta, or its countdown. Since E36 C1 also `keptFor`, `{ actorId, messageId }`:
