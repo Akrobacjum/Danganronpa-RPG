@@ -45,7 +45,7 @@
 import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerIdsOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, findOf, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
-    sabotageExtrasHeld } from "./action-rolls.mjs";
+    sabotageExtrasHeld, dynamicBar, offerDynamicFind } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
@@ -631,7 +631,7 @@ async function makeReroll(actor, sender) {
     // Reroll subtracted a number the project no longer held.
     await journal({ phase: "replaying", total: after.total ?? null });
     if (cutHere("replaying")) return { cut: "replaying" };
-    const patch = await replayAction(actor, bookmark, after, done, rerolled);
+    const patch = await replayAction(actor, bookmark, after, done, rerolled, before);
     if (patch === null) {
         await giveBack(actor, message, firstRolls, cost);
         return { refused: "the replay was refused; its Hope and the first roll are given back", say: "DRPG.Reroll.failed" };
@@ -1041,7 +1041,7 @@ async function settleCritHope(actor, before, after, done) {
  * (`settleCrisis`), and the Reroll is then taken back whole (`giveBack`).
  * ========================================================================== */
 
-async function replayAction(actor, bookmark, after, done, rerolled = null) {
+async function replayAction(actor, bookmark, after, done, rerolled = null, before = null) {
     const key = bookmark?.actionKey ?? null;
 
     try {
@@ -1052,7 +1052,7 @@ async function replayAction(actor, bookmark, after, done, rerolled = null) {
             case "project": return await settleProgress(actor, bookmark, after, done);
             case "search": return await settleSearch(actor, bookmark, after, done, rerolled);
             case "sabotage": return await settleSabotage(actor, bookmark, after, done);
-            case "dynamic": return await settleDynamic(actor, bookmark, after, done);
+            case "dynamic": return await settleDynamic(actor, bookmark, after, done, before);
             case "listen": return await settleListen(actor, bookmark, after, done);
             case "observe": return await settleObserve(actor, bookmark, after, done);
             case "analyze": return await settleAnalyze(actor, bookmark, after, done);
@@ -1449,7 +1449,7 @@ async function settleSabotage(actor, bookmark, after, done) {
  * (gm-bridge.mjs `dynamicRulingOf`). Fix r2-H3 (the round-2 review's M1): the row's
  * `bandIndex` was the roller's claim, and a Reroll was scored at any of the four bands.
  */
-async function settleDynamic(actor, bookmark, after, done) {
+async function settleDynamic(actor, bookmark, after, done, before = null) {
     const { dynamicRulingOf } = await import("./gm-bridge.mjs");
     const band = DYNAMIC_THRESHOLDS[bookmark.bandIndex ?? dynamicRulingOf(await claimedOn(actor, bookmark))?.tier];
     if (!band) {
@@ -1457,7 +1457,8 @@ async function settleDynamic(actor, bookmark, after, done) {
         return {};
     }
 
-    const success = after.isCritical || after.total >= band.range[0];
+    const passes = roll => Boolean(roll) && (roll.isCritical || roll.total >= dynamicBar(band));
+    const success = passes(after);
     const trace = await settleRemnant(actor, bookmark, success ? band.remnant : null, done, {
         type: "prep",
         faint: true,
@@ -1472,8 +1473,16 @@ async function settleDynamic(actor, bookmark, after, done) {
     }, after);
 
     done.push(success
-        ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
+        ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
         : game.i18n.localize("DRPG.Action.nothing"));
+    /* A MISS TURNED INTO A SUCCESS GETS THE SUCCESS'S CARD (E16 part 2 C2, 26.10.2026; audit S02-09).
+       The first throw's success posted the GMs' card (action-rolls.mjs `offerDynamicFind`); a Reroll
+       of it that succeeds again posts no second one, and a Reroll that misses leaves the first card
+       for the GMs to answer. `before` is the roll the GMs kept; a Reroll with none read posts none. */
+    if (success && before && !passes(before)) {
+        await offerDynamicFind(actor, { tier: band.tier, room: bookmark.room ?? null, description: String(bookmark.description ?? ""),
+            roll: { ...after, trait: bookmark.trait ?? null } });
+    }
 
     return trace;
 }

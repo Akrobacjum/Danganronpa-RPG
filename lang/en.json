@@ -818,7 +818,8 @@
       },
       "noRoom": "Your token is outside every room. Move it into one, or ask the GM.",
       "found": "Found a Tier {tier} item: <strong>{item}</strong>",
-      "tierFound": "Tier {tier}",
+      "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
+      "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
       "leavesRemnant": "Leaves a trace behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",

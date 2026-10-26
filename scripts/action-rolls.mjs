@@ -6049,9 +6049,10 @@ async function performDynamic(actor, options) {
         success,
         tier: success ? band.tier : null,
         leftTrace,
-        text: success ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
+        text: success ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
+    if (success) await offerDynamicFind(actor, { tier: band.tier, room: roomOfActor(actor), description, roll });
 
     // The GM's difficulty band is the one thing a reroll must NOT re-ask for:
     // the ruling was about what the player described, not about the dice.
@@ -6066,6 +6067,45 @@ async function performDynamic(actor, options) {
     await report(actor, def, roll, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "dynamic", roll, outcome });
     return outcome;
+}
+
+/**
+ * The GMs' card for a Dynamic action that succeeded: Create an item, prefilled with the band's tier,
+ * the room and the player's words; Give an existing item; and Reply, for a success that is no item.
+ *
+ * A SUCCESS THE GM CAN GIVE (E16 part 2 C2, 26.10.2026; audit S02-09, the owner's D16: "przy sukcesie
+ * Dynamic GM dostaje kartę z przyciskiem createItem, jak w searchSpecific"). A success told the player
+ * "Tier 1" and nothing else, and the GMs had no card to answer it from; the handbook's Dynamic action
+ * "can yield" an item, so whether one is made stays the GM's. The card is searchSpecific's shape, read
+ * by the same rules (messenger-app.mjs `ruleCreateItem` opens the tables prefilled and gives nothing;
+ * `ruleGiveItem` opens the GM's give window), with Reply in place of its two "nothing" answers: the
+ * roll succeeded, and the action stays paid. Posted by the client that judged the success - the
+ * roller's own here, a GM's for a Reroll that turns a miss (reroll.mjs `settleDynamic`). Tier 2's
+ * E16-T26 reads the card's data after a success, a Reroll of it and a Reroll from a miss.
+ */
+export async function offerDynamicFind(actor, { tier, room = null, description = "", roll = null } = {}) {
+    const sent = await callGm(actor, {
+        title: dynamicDef().label,
+        request: description,
+        roll,
+        room,
+        gmBody: `<p>${game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+        // Lowercase data keys only, as searchSpecific's: `dataset` lowercases them.
+        actions: [
+            {
+                action: "createItem",
+                label: game.i18n.localize("DRPG.Bridge.createItem"),
+                data: { by: actor.id, tier: String(tier), room: room ?? "", want: description ?? "" }
+            },
+            { action: "giveItem", label: game.i18n.localize("DRPG.Bridge.giveItem"), data: { by: actor.id } },
+            { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } }
+        ]
+    });
+    // Not posted (no GM connected, said once by `callGm`): the roll and its price stand - the success is the
+    // roll's, not the card's - and the player asks a GM for the item once one is back.
+    if (!sent) return false;
+    return true;
 }
 
 /**

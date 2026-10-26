@@ -68956,6 +68956,104 @@ const SCENARIOS = [
             "a Dynamic action posted more than the difficulty's card [the GM's own: cards with buttons, cards awaiting a ruling; the window "
             + "asked alone: its answer, messages posted; a player's ask judged: cards, cards with Set difficulty and Refuse]");
     }],
+    ["E16-T26 - a Dynamic success hands the GM a card that makes the item, also after a Reroll that turns a miss (audit S02-09, the owner's D16)", async () => {
+        /*
+         * E16 part 2 C2, 26.10.2026. A Dynamic action that succeeded told the player "Tier 1" and
+         * nothing else: no item, and no card a GM could make one from, where a specific Search
+         * hands the GM a Create an item button with the tier, the room and the player's words
+         * (the owner's D16: "przy sukcesie Dynamic GM dostaje kartę z przyciskiem createItem, jak w
+         * searchSpecific"). This GM takes a Dynamic action for a player's character standing in a
+         * room, free, its windows answered with the first band (beat 8) and its dice forced to 8
+         * and 5; then rerolls it as its own from 8 and 5 into 11 and 9 (a success again); then
+         * takes a second one at the third band (beat 16) on 5 and 4, a miss, and rerolls that into
+         * 11 and 9. Read after each step: the new cards with a Create an item button, each one's
+         * tier, room and words and whether it also offers Give an existing item and Reply; the
+         * player's line. Red before C2: no card at all, and the line read "Tier 0".
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const R = await import("./reroll.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { DYNAMIC_THRESHOLDS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const hope = actor.system.resources.hope.value;
+        const WORDS = "E16-T26 a lockpick bent out of a hairpin";
+        let band = "0";
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = WORDS;
+            if (tier) tier.value = band;
+            return press(cfg, root);
+        });
+        // The cards with a Create an item button posted since `since`: each one's data and its other buttons.
+        const cardsSince = since => game.messages.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? ""))
+            .filter(c => c.includes('data-drpg-call="createItem"')).map(c => {
+                const box = document.createElement("div");
+                box.innerHTML = c;
+                const b = box.querySelector('[data-drpg-call="createItem"]');
+                return { tier: b.dataset.tier ?? null, room: b.dataset.room ?? null, want: b.dataset.want ?? null,
+                    give: Boolean(box.querySelector('[data-drpg-call="giveItem"]')), reply: Boolean(box.querySelector('[data-drpg-call="reply"]')) };
+            });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        const reroll = async (first, next) => {
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "dynamic" && message, `the Dynamic action was not kept on its row - this would measure nothing: ${stableJson(row)}`);
+            const stand = rerollableRoll(message, { first, next });
+            try {
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const before = new Set(game.messages.map(m => m.id));
+                const out = await R.rerollOnGm(actor, game.user);
+                await settle();
+                return { stood: Array.isArray(out?.lines), lines: out?.lines ?? [], cards: cardsSince(before) };
+            } finally { stand.putBack(); }
+        };
+        const read = {};
+        try {
+            let before = new Set(game.messages.map(m => m.id));
+            globalThis.__forceRoll = { hope: 8, fear: 5 };
+            let outcome;
+            try { outcome = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            must(outcome && typeof outcome.success === "boolean", `the Dynamic action threw no roll - this would measure nothing: ${stableJson(outcome)}`);
+            read.success = [outcome.success, outcome.text, cardsSince(before)];
+            const again = await reroll({ hope: 8, fear: 5 }, { hope: 11, fear: 9 });
+            read.again = [again.stood, again.cards.length];
+            band = "2";
+            before = new Set(game.messages.map(m => m.id));
+            globalThis.__forceRoll = { hope: 5, fear: 4 };
+            try { outcome = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            read.miss = [outcome?.success ?? null, cardsSince(before).length];
+            const turned = await reroll({ hope: 5, fear: 4 }, { hope: 11, fear: 9 });
+            read.turned = [turned.stood, turned.lines.includes(game.i18n.format("DRPG.Action.dynamicSuccess", { tier: DYNAMIC_THRESHOLDS[2].tier })), turned.cards];
+        } finally {
+            forceBack();
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await settle();
+        }
+        const room = where.room;
+        const card = tier => ({ tier: String(tier), room, want: WORDS, give: true, reply: true });
+        equal(stableJson(read), stableJson({
+            success: [true, game.i18n.format("DRPG.Action.dynamicSuccess", { tier: DYNAMIC_THRESHOLDS[0].tier }), [card(DYNAMIC_THRESHOLDS[0].tier)]],
+            again: [true, 0],
+            miss: [false, 0],
+            turned: [true, true, [card(DYNAMIC_THRESHOLDS[2].tier)]]
+        }), "a Dynamic success gave the GM no card to make its item from, or one too many [a success: its line, its cards (tier, room, words, "
+            + "Give, Reply); its Reroll into a success again: stood, new cards; a miss: success, cards; its Reroll into a success: stood, the "
+            + "success line among its lines, its cards]");
+    }],
 
     ...GRID
 ];

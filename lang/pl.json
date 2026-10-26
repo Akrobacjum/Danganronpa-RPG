@@ -801,7 +801,8 @@
       },
       "noRoom": "Twój token jest poza wszystkimi pokojami. Przesuń go do któregoś albo zapytaj GM-a.",
       "found": "Znaleziono przedmiot Tier {tier}: <strong>{item}</strong>",
-      "tierFound": "Tier {tier}",
+      "dynamicSuccess": "Sukces - GM zdecyduje, co daje ci wynik Tier {tier}.",
+      "dynamicFound": "Rzut się udał na Tier {tier}. Zdecyduj, co daje: przedmiot albo coś, co powiesz.",
       "leavesRemnant": "Zostawia ślad.",
       "tokensLeft": {
         "one": "{room}: został {n} Search Token o tej porze dnia.",
