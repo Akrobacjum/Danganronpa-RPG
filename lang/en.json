@@ -3114,6 +3114,7 @@
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
+        "searchTokens.returnToken": "Give back a search token spent too late",
         "floor.now": "The floor's next step now, run on the primary GM",
         "vote.run": "A step of the vote, run on the primary GM",
         "vote.cast": "Cast your vote",

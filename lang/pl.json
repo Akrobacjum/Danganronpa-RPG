@@ -3239,6 +3239,7 @@
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
+        "searchTokens.returnToken": "Zwrot Search Tokena wydanego za późno",
         "floor.now": "Następny krok debaty od razu, wykonywany przez głównego GM-a",
         "vote.run": "Krok głosowania, wykonywany przez głównego GM-a",
         "vote.cast": "Oddanie głosu",

@@ -268,10 +268,9 @@ export const STARTING = {
     hopeMax: 6,
     /** Per-GM Despair pool cap (Daggerheart "Max Fear"). */
     despairMax: 12,
-    /** Base actions per time of day. */
+    /** Base actions per time of day. The one free Move a time of day is a flag (`FLAGS.freeMoveUsed`), not a count: no
+     *  `freeMoves` here, which nothing read (E17 C4; audit S07-21). */
     actions: 2,
-    /** One free Move per time of day, on top of the action budget. */
-    freeMoves: 1,
     /** Two experiences at +2 each. */
     experiences: 2,
     experienceValue: 2,

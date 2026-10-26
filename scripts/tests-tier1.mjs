@@ -22818,6 +22818,45 @@ const INVARIANTS = [
         equal(J(seen), J(["other null", "despair ran", "open", "count null", "go refused", "threw: r992 a step threw", "behind null"]),
             "[around a step held on one character's crossing key: another character's count, another key's step, the held count and 'Go through' once it opened; a step of the key that throws, and the count behind it]");
     }],
+
+    ["R994 - a darkening's Shift takes search tokens off, never adds one (E17 C4): a room maximum of 0 stays 0, a counter saved above a lowered maximum reads the maximum, and STARTING holds no free Move nothing reads", async () => {
+        /*
+         * E17 C4, 26.10.2026; E17-23, audit S07-21. `SearchTokens.max` under a Shift answered
+         * `Math.max(overflowFloor("shift"), base - dark)`, so a GM who set 0 tokens a room (no searching at all) got 1
+         * back from the debuff that was meant to take one away; and `left()` answered the stored counter as it was, so a
+         * room saved at 3 read "3 / 2" once the maximum went down. `searchMax(base, dark, floor)` is the getter's rule,
+         * pure: no penalty or a base of 0 or less is the base, else the base less the penalty, floored at the smaller of
+         * the floor and the base. `left()` is read with the class's own `store` and `max` getters replaced for the read
+         * (a room name and a scene id no world has; put back in `finally`), so nothing is written. `STARTING.freeMoves`
+         * had no reader (git grep at 9f727e07: only config.mjs's own line; the free Move is one flag, `freeMoveUsed`).
+         * Red at 38b232c9: no `searchMax`, the stored 3 read 3 under a maximum of 2, and `STARTING.freeMoves` was 1.
+         */
+        const J = stableJson;
+        const ST = await import("./search-tokens.mjs");
+        const { STARTING } = await import("./config.mjs");
+        const { SearchTokens } = ST;
+        const pure = typeof ST.searchMax === "function"
+            ? [[3, 0, 1], [3, 1, 1], [3, 5, 1], [1, 1, 1], [0, 1, 1], [0, 0, 1], [2, 1, 2], [4, 2, 3]].map(([base, dark, floor]) => ST.searchMax(base, dark, floor))
+            : null;
+        const max = bodyOf(stripComments(new Map(await moduleSources()).get("search-tokens.mjs") ?? ""), "static get max()", { until: "static key(" });
+        const ROOM = "SUITE R994 room", SCENE = "zR994noScene000";
+        const was = { store: Object.getOwnPropertyDescriptor(SearchTokens, "store"), max: Object.getOwnPropertyDescriptor(SearchTokens, "max") };
+        const read = [];
+        try {
+            for (const [stored, cap] of [[3, 2], [1, 2], [0, 2], [undefined, 2]]) {
+                Object.defineProperty(SearchTokens, "store", { get: () => (stored === undefined ? {} : { [SearchTokens.key(ROOM, SCENE)]: stored }), configurable: true });
+                Object.defineProperty(SearchTokens, "max", { get: () => cap, configurable: true });
+                read.push(SearchTokens.left(ROOM, SCENE));
+            }
+        } finally {
+            Object.defineProperty(SearchTokens, "store", was.store);
+            Object.defineProperty(SearchTokens, "max", was.max);
+        }
+        equal(J({ pure, getter: /searchMax\(/.test(max), left: read, freeMoves: Object.hasOwn(STARTING, "freeMoves") }),
+            J({ pure: [3, 2, 1, 1, 0, 0, 2, 3], getter: true, left: [2, 1, 0, 2], freeMoves: false }),
+            "[searchMax for (base, penalty, floor) (3,0,1) (3,1,1) (3,5,1) (1,1,1) (0,1,1) (0,0,1) (2,1,2) (4,2,3); the getter asks it; left() of a "
+                + "counter stored 3, 1, 0 and none under a maximum of 2; STARTING still holds freeMoves]");
+    }],
 ];
 
 /**

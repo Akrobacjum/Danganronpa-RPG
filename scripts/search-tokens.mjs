@@ -38,6 +38,17 @@ export const SEARCH_FLAGS = {
  */
 export const SEARCH_KEY = "searchTokens";
 
+/**
+ * A room's maximum under a Shift: `base` tokens a room as the GM set it, `dark` the Shift's penalty, `floor` the
+ * fewest a darkened room keeps (E17 C4, 26.10.2026; audit S07-21). No penalty, or a base of 0 or less, is the base;
+ * else the base less the penalty, floored at the smaller of `floor` and the base - so a darkening never gives a room
+ * a token the GM did not set (0 stays 0, 1 stays 1). Pure (tier 1 R994).
+ */
+export function searchMax(base, dark, floor) {
+    if (!dark || base <= 0) return base;
+    return Math.max(Math.min(base, floor), base - dark);
+}
+
 export class SearchTokens {
 
     /**
@@ -48,12 +59,15 @@ export class SearchTokens {
      * at all, which is a different game rather than a harder one. Applied here
      * because this getter is already the single answer: the restock reads it,
      * the room-setup table reads it, and the "searched out" test reads it.
+     *
+     * NEVER ONE MORE THAN THE GM SET (E17 C4, 26.10.2026; audit S07-21). The floor was the floor of every room,
+     * so a world set to 0 tokens a room - no searching at all - got 1 back from the debuff meant to take one away.
+     * The floor now holds only what the GM set (`searchMax`, tier 1 R994).
      */
     static get max() {
         const base = game.settings.get(MODULE_ID, SETTINGS.searchTokensPerRoom);
         const dark = overflowTokenPenalty();
-        if (!dark) return base;
-        return Math.max(overflowFloor("shift"), base - dark);
+        return searchMax(base, dark, dark ? overflowFloor("shift") : 1);
     }
 
     /**
@@ -198,9 +212,16 @@ export class SearchTokens {
             this.#freshCounts.delete(scoped);
         }
 
-        const store = this.store;
-        // Scene-scoped key first, then the legacy plain-name key.
-        return store[scoped] ?? store[roomName] ?? this.max;
+        // Scene-scoped key first, then the legacy plain-name key; never above the maximum (E17 C4; S07-21): a room
+        // saved at 3 read "3 / 2" once a Shift or the GM lowered the maximum, and searched three times.
+        return this.storedLeft(this.store, scoped, roomName);
+    }
+
+    /** A room's count in `store` (its scene's key, then the plain name), the maximum when it holds none, never above it. */
+    static storedLeft(store, key, roomName) {
+        const max = this.max;
+        const stored = store[key] ?? store[roomName];
+        return stored === undefined || stored === null ? max : Math.min(stored, max);
     }
 
     /**
@@ -233,7 +254,17 @@ export class SearchTokens {
      * exhausted. Safe to call from a player client - it forwards to the GM.
      */
     static async spend(roomName, sceneId, { actorId = null } = {}) {
-        if (!roomName) return false;
+        return (await this.claim(roomName, sceneId, { actorId })).ok;
+    }
+
+    /**
+     * Spend one token and say why not: `{ ok, why }`, `why` one of "sealed", "empty", "unanswered", "refused", null
+     * when spent (E17 C4, 26.10.2026; audit S07-20). The GM's refusal of a sealed room came back to the player as a
+     * bare false, read as an unanswered request ("The search was not counted."); the reply names it now
+     * (`runSpend`) and the Search says the seal (action-rolls.mjs `unclaimedOutcome`).
+     */
+    static async claim(roomName, sceneId, { actorId = null } = {}) {
+        if (!roomName) return { ok: false, why: "empty" };
         if (!game.user.isGM) {
             // The searching character travels with the request: the GM spends a
             // room's token only for somebody standing in it (E03).
@@ -247,9 +278,34 @@ export class SearchTokens {
             if (typeof left === "number") {
                 this.#freshCounts.set(this.key(roomName, sceneId), { value: left, at: Date.now() });
             }
-            return res.ok && Boolean(res.value?.ok);
+            return claimOf({ ok: res.ok, value: res.value, refused: res.refused });
         }
-        return this.#spendAsGm(roomName, sceneId);
+        const ok = await this.#spendAsGm(roomName, sceneId);
+        return { ok, why: ok ? null : this.refusalOf(roomName, sceneId) };
+    }
+
+    /** Why the GM's spend in this room was refused: sealed, or out of tokens (`runSpend`'s reply, `claim`). */
+    static refusalOf(roomName, sceneId) {
+        return this.sealed(roomName, sceneId) ? "sealed" : "empty";
+    }
+
+    /**
+     * A token the GM spent for a request the player's browser stopped waiting for, back in its room (E17 C4; S07-20):
+     * the return a late answer asks (`returnToken`). One more, never above the maximum - a time of day that refilled
+     * the room meanwhile leaves it full. In a step of `SEARCH_KEY`, as every write of the counters is (R991).
+     */
+    static async giveBack(roomName, sceneId) {
+        if (!game.user.isGM || !roomName) return null;
+        return serialWrite(SEARCH_KEY, async () => {
+            const store = foundry.utils.duplicate(this.store);
+            const key = this.key(roomName, sceneId);
+            const next = Math.min(this.max, this.storedLeft(store, key, roomName) + 1);
+            store[key] = next;
+            if (key !== roomName) delete store[roomName];   // same reasoning as `#spendAsGm`
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+            debug(`A search token came back to "${roomName}". Left: ${next}`);
+            return next;
+        });
     }
 
     static async #spendAsGm(roomName, sceneId) {
@@ -264,7 +320,7 @@ export class SearchTokens {
         return serialWrite(SEARCH_KEY, async () => {
             const store = foundry.utils.duplicate(this.store);
             const key = this.key(roomName, sceneId);
-            const current = store[key] ?? store[roomName] ?? this.max;
+            const current = this.storedLeft(store, key, roomName);
             if (current <= 0) return false;
 
             store[key] = current - 1;
@@ -387,6 +443,8 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SPEND = "searchTokens.spend";
 const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
+/** player -> primary GM: the token of a spend whose answer came after this browser stopped waiting, back (E17 C4). */
+const ACTION_RETURN_TOKEN = "searchTokens.returnToken";
 
 /**
  * Who spent a token where, on the primary GM's client: `user::scene::room` ->
@@ -398,7 +456,9 @@ const PLANT_WINDOW_MS = TIMING.plantWindowMs;
 
 /**
  * Plants handed out and not yet known to have arrived, on the primary GM's
- * client: the plant check's request id -> `{ userId, roomName, sceneId, plant, at }`.
+ * client: the plant check's request id -> `{ kind: "plant", userId, roomName, sceneId, plant, at }`.
+ * And, in the same ledger (E17 C4), the tokens a player's spend took: the spend's request id ->
+ * `{ kind: "token", userId, roomName, sceneId, actorId, at }`, for the return its late answer asks.
  *
  * A REPLY THAT LANDS AFTER THE PLAYER GAVE UP (review of ACT-03, 17.09). The
  * plant leaves the store as it is handed over, and a player who stopped waiting
@@ -414,6 +474,23 @@ const PLANT_WINDOW_MS = TIMING.plantWindowMs;
  */
 const handedOut = new Map();
 const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
+
+/** The ledger's entries older than a return is taken for, gone. */
+function pruneLedger() {
+    for (const [id, entry] of handedOut) {
+        if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
+    }
+}
+
+/** The ledger's entry under `id`, taken out of it: null when there is none, or it is older than a return is taken for. */
+function takeEntry(id) {
+    const entry = handedOut.get(id ?? "") ?? null;
+    handedOut.delete(id ?? "");
+    // A late reply comes back within seconds; a return long after the fact is
+    // not one, and would put an item back that has been in a pocket all along.
+    if (!entry || Date.now() - entry.at > PLANT_WINDOW_MS) return null;
+    return entry;
+}
 
 /** The primary GM judges what a player asks here, by the declarations below. */
 export function registerSearchTokenSocket() {
@@ -492,11 +569,29 @@ export function searchSceneOf(sender, payload, ctx, judged = judgedPlace) {
  */
 export function guardPlantReturn(sender, payload, ctx) {
     const entry = handedOut.get(payload?.plantRequestId ?? "");
-    if (!entry) return "no plant was handed out under that request";
+    if (entry?.kind !== "plant") return "no plant was handed out under that request";
     return entry.userId === sender?.id ? null : "that plant was handed to somebody else";
 }
 
-/** Spend a token for the sender, on the scene its guard judged; the answer is `{ ok, left }`. */
+/**
+ * A token's return may be asked only by the user whose spend took it, once (E17 C4): the ledger's entry under the
+ * spend's request id, of the kind "token". Quiet, as a plant's return is: nobody waits on it.
+ */
+export function guardTokenReturn(sender, payload, ctx) {
+    const entry = handedOut.get(payload?.spendRequestId ?? "");
+    if (entry?.kind !== "token") return "no token was spent under that request";
+    return entry.userId === sender?.id ? null : "that token was spent by somebody else";
+}
+
+/**
+ * Spend a token for the sender, on the scene its guard judged; the answer is `{ ok, left, why }`, `why` "sealed" or
+ * "empty" when refused (E17 C4; S07-20: a seal read as no answer on the player's side).
+ *
+ * A SPEND IS WRITTEN IN THE LEDGER (E17 C4, 26.10.2026; audit S07-20). A player's browser waits five seconds for
+ * this answer and then ends the Search unclaimed, its action back; an answer after that still spent the room's
+ * token. The spend is kept under its request id for `PLANT_WINDOW_MS`, so the late answer's return
+ * (`ACTION_RETURN_TOKEN`) finds what to give back, and to whom.
+ */
 async function runSpend(payload, sender, ctx) {
     const sceneId = searchSceneOf(sender, payload, ctx);
     const ok = await SearchTokens.spend(payload.roomName, sceneId);
@@ -506,10 +601,15 @@ async function runSpend(payload, sender, ctx) {
     // Search that found something - see `SearchTokens.takePlant`. And only it
     // marks the Search's record a find may stand on (`SearchTokens.markSpent`).
     if (ok) {
-        searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+        const at = Date.now();
+        searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), at);
+        if (ctx?.requestId) {
+            pruneLedger();
+            handedOut.set(ctx.requestId, { kind: "token", userId: sender.id, roomName: payload.roomName, sceneId, actorId: payload.actorId ?? null, at });
+        }
         await SearchTokens.markSpent(sender, payload.actorId);
     } else await settleUnclaimed(sender, payload.actorId);
-    return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId) } };
+    return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId), why: ok ? null : SearchTokens.refusalOf(payload.roomName, sceneId) } };
 }
 
 /*
@@ -580,10 +680,8 @@ async function runTakePlant(payload, sender, ctx) {
     // The store's row as it was taken, not the GM's own way back (`back`): this road's is the request id.
     const plant = taken ? taken.back?.row ?? taken : null;
     if (plant) {
-        for (const [id, entry] of handedOut) {
-            if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
-        }
-        handedOut.set(ctx.requestId, { userId: sender.id, roomName: payload.roomName, sceneId, plant, at: Date.now() });
+        pruneLedger();
+        handedOut.set(ctx.requestId, { kind: "plant", userId: sender.id, roomName: payload.roomName, sceneId, plant, at: Date.now() });
     }
     // The request's id goes back with the plant, for the return a refused grant asks (C4): the one `handedOut` keys.
     return { reply: { ok: Boolean(plant), plant: plantForFinder(plant), plantRequestId: plant ? ctx.requestId ?? null : null,
@@ -605,12 +703,29 @@ export function plantForFinder(plant) {
 
 /** Put a plant the asker never received back in its room. */
 async function returnPlant(payload, sender, ctx) {
-    const entry = handedOut.get(payload.plantRequestId);
-    handedOut.delete(payload.plantRequestId);
-    // A late reply comes back within seconds; a return long after the fact is
-    // not one, and would put an item back that has been in a pocket all along.
-    if (Date.now() - entry.at > PLANT_WINDOW_MS) return;
+    const entry = takeEntry(payload.plantRequestId);
+    if (!entry) return;
     await putPlantBack(entry.roomName, entry.sceneId, entry.plant);
+}
+
+/**
+ * A TOKEN SPENT AFTER THE PLAYER'S BROWSER GAVE UP COMES BACK (E17 C4, 26.10.2026; audit S07-20). The spend's
+ * answer came after its five seconds: the searcher's browser had ended the Search unclaimed (action-rolls.mjs
+ * `searchUnclaimed`, the action given back), and asks the token back (`spendWaitOptions`). Given back once, to
+ * the spender, inside `PLANT_WINDOW_MS` (`takeEntry`) and only while the look for a plant that spend earned is
+ * still unasked - a browser that gave up asks none, so a plant check before the return is a Search that went on.
+ * The Search's record is settled as a refused spend's is (`settleUnclaimed`), so no find stands on it. Measured by
+ * tier 2 E17-T7.
+ */
+async function returnToken(payload, sender, ctx) {
+    const entry = takeEntry(payload.spendRequestId);
+    if (!entry) return { refused: "nothing was carried out: that search token's return came too late" };
+    const key = searchKey(sender.id, entry.sceneId, entry.roomName);
+    if (searchedBy.get(key) !== entry.at) return { refused: "nothing was carried out: the Search that token paid for went on" };
+    searchedBy.delete(key);
+    await SearchTokens.giveBack(entry.roomName, entry.sceneId);
+    await settleUnclaimed(sender, entry.actorId);
+    return null;
 }
 
 /**
@@ -682,6 +797,14 @@ export const SEARCH_ACTIONS = table({
         run: returnPlant,
         answer: "none", quiet: true,
         claims: { plantRequestId: guardPlantReturn }
+    },
+    [ACTION_RETURN_TOKEN]: {
+        label: "DRPG.Bridge.what.searchTokens.returnToken",
+        guards: [knownSender, guardTokenReturn],
+        sanitize: pick({ spendRequestId: as.id }),
+        run: returnToken,
+        answer: "none", quiet: true,
+        claims: { spendRequestId: guardTokenReturn }
     }
 });
 
@@ -698,10 +821,36 @@ function askSearch(action, payload, opts = {}) {
 /**
  * Ask the GM to spend a token on our behalf. A GM who does not answer in time
  * cannot grant a free search: the answer is not ok, and the one message has said
- * why.
+ * why. A spend the GM carried out after that asks its token back (`spendWaitOptions`).
  */
 function requestSpend(roomName, sceneId, actorId = null) {
-    return askSearch(ACTION_SPEND, { roomName, sceneId, actorId });
+    return askSearch(ACTION_SPEND, { roomName, sceneId, actorId }, spendWaitOptions());
+}
+
+/**
+ * How a spend waits past its clock (E17 C4, 26.10.2026; audit S07-20), as a plant check does (`requestPlantCheck`):
+ * an answer that comes within `PLANT_WINDOW_MS` of the give-up goes to `late`, and a spend the GM carried out asks
+ * the token back under its request id - the one the ledger keeps it by. A refused spend's late answer asks nothing.
+ * Only the browser that asked is handed a late answer (the one wait's `closed`), so another tab of the same user
+ * sends nothing. `ask` is the bridge's, or tier 2 E17-T7's.
+ */
+export function spendWaitOptions(ask = askSearch) {
+    return {
+        lateMs: PLANT_WINDOW_MS,
+        late: (value, spendRequestId) => {
+            if (value?.ok === true && spendRequestId) void ask(ACTION_RETURN_TOKEN, { spendRequestId });
+        }
+    };
+}
+
+/**
+ * What a Search reads of its spend's bridge result, `{ ok, why }` (E17 C4; `SearchTokens.claim`): a spend carried
+ * out; the GM's refusal and its why ("sealed", "empty"); no answer in time; a refusal of the request itself (the
+ * character not in the room), which the one wait has told already.
+ */
+export function claimOf(res) {
+    if (res?.ok) return res.value?.ok ? { ok: true, why: null } : { ok: false, why: res.value?.why === "sealed" ? "sealed" : "empty" };
+    return { ok: false, why: res?.refused ? "refused" : "unanswered" };
 }
 
 /**

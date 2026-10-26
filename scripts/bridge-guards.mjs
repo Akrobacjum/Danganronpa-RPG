@@ -190,6 +190,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no such Observe$/],
     ["missing", /^no character left it$/],
     ["missing", /^no plant was handed out under that request$/],
+    // E17 C4: a search token's return after a late answer (search-tokens.mjs `guardTokenReturn`), quiet as a plant's.
+    ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
@@ -206,6 +208,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that roll does not list several statistics$/],
     ["badRequest", /^that is not the table the character rolls$/],
     ["badRequest", /^that plant was handed to somebody else$/],
+    ["badRequest", /^that token was spent by somebody else$/],
     // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
     // E08+E28 fix r2-H5: a card a player asks the GM to post (gm-bridge.mjs `card.post`).

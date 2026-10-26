@@ -70819,6 +70819,130 @@ const SCENARIOS = [
                 + "or the Eclipse's count, a second refund], row: [the player's ask, the token's room, the purse, this GM's ask, the token, the purse, a second ask]} - a price given back was not the one paid, or given twice, the token stayed, or a player's ask was carried out");
     }],
 
+    ["a search token spent after the player's browser gave up comes back (E17-T7): the late answer asks it back, and the primary gives it to the spender alone, once, inside the window and not after that spend's plant check; a sealed room's refusal says why, and the player reads the seal", async () => {
+        /*
+         * E17 C4, 26.10.2026; E17-22, audit S07-20. A player's spend waits five seconds; on a slow server the answer
+         * came later, the player's browser had ended the Search unclaimed ("The search was not counted.", the action
+         * back) and the room had lost the token all the same. And a spend the GM refused because the room is sealed
+         * came back as a bare false, which the player read as an unanswered request. Read on this primary's browser,
+         * the player the world's first: (a) the spend as the bridge runs it for that player (`SEARCH_ACTIONS`, a room
+         * of the suite's own on a scene id no scene has, so unsealed and full); the player's half is the bridge's own
+         * waiter (`createWaiter`) with a clock this test fires and the options the spend waits with
+         * (`spendWaitOptions`, its ask captured): the clock ends the wait, then the late answer arrives - a done asks
+         * the token back under the spend's request id, a refused spend's late answer asks nothing; (b) the return as the
+         * bridge judges it from this GM (another account) and from the player, twice; (c) a second spend, its return
+         * judged with `Date.now` moved past `TIMING.plantWindowMs`; (d) a third, whose plant check the player asked
+         * before the return (a console's order: the browser that gave up asks none); (e) a spend in a sealed room of a
+         * scene of the suite's own and in an empty room: the reply's `why`; (f) what the player's browser reads of a
+         * bridge result (`claimOf`) and what a refused claim shows and keeps (action-rolls.mjs `unclaimedOutcome`).
+         * Red at 38b232c9: no wait options, no return row, the reply named no why, nothing read a seal.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const A = await import("./action-rolls.mjs");
+        const R = await import("./rooms.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { SearchTokens, SEARCH_ACTIONS, SEARCH_FLAGS } = ST;
+        must(isPrimaryGm(), "this browser is not the primary GM, which judges the spend and its return - this would measure nothing");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose spend and return are judged");
+        const ROOM = "SUITE E17 T7 room", SCENE = "zE17T7noScene00", SEALED = "SUITE E17 T7 sealed", RETURN = "searchTokens.returnToken";
+        const saved = foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {});
+        const full = async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved); await settle(); };
+        const spendAs = SEARCH_ACTIONS["searchTokens.spend"], take = SEARCH_ACTIONS["searchTokens.takePlant"];
+        const count = () => SearchTokens.store[SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const spend = async (rid, room = ROOM, scene = SCENE, who = player) =>
+            (await spendAs.run(spendAs.sanitize({ roomName: room, sceneId: scene }, who), who, { requestId: rid }))?.reply ?? null;
+        // The return is quiet (nobody waits on it): the runner's own answer says whether it was carried out - true, or null refused.
+        const back = async (rid, from) => {
+            const said = [];
+            const judged = await G.judge(SEARCH_ACTIONS, { action: RETURN, spendRequestId: rid, userId: from }, from,
+                { send: (to, reply) => said.push(reply?.action ?? null) });
+            await settle();
+            return [judged === true ? "taken" : judged === null ? "refused" : "no row", said.length, count()];
+        };
+        const now = Date.now;
+        const max = SearchTokens.max;
+        must(Number.isInteger(max) && max >= 1, `a room holds ${max} search tokens - a spend would measure nothing`);
+        const read = {};
+        let scene = null;
+        try {
+            await full();
+            const reply = await spend("suite-e17t7-a");
+            read.spent = [reply?.ok ?? null, reply?.left === max - 1, count() === max - 1];
+            const asked = [];
+            if (typeof ST.spendWaitOptions === "function") {
+                const timers = [], ids = ["suite-e17t7-a", "suite-e17t7-n"];
+                const clock = { set: (fn, ms) => timers.push({ fn, ms }), clear: h => { if (timers[h - 1]) timers[h - 1].fn = null; } };
+                const waiter = G.createWaiter({ emit: () => {}, gmIds: () => [game.user.id], me: () => ({ id: player.id, isGM: false, isPrimary: false }),
+                    notify: () => {}, fromGm: () => true, clock, newId: () => ids.shift() });
+                const opts = ST.spendWaitOptions((action, payload) => { asked.push([action, payload?.spendRequestId ?? null]); });
+                const ends = [];
+                for (const [rid, value] of [["suite-e17t7-a", reply], ["suite-e17t7-n", { ok: false, left: 0, why: "empty" }]]) {
+                    const wait = waiter.request("searchTokens.spend", { roomName: ROOM, sceneId: SCENE }, { settle: "reply", timeoutMs: 5000, ackMs: 5000, ...opts });
+                    for (const t of timers.filter(t => t.ms === 5000)) { const fn = t.fn; t.fn = null; fn?.(); }
+                    ends.push((await wait).reason ?? null);
+                    waiter.onReply({ action: "bridge.done", requestId: rid, userId: player.id, value }, game.user.id);
+                }
+                read.late = { ends, asked, lateMs: opts.lateMs === TIMING.plantWindowMs };
+            } else read.late = null;
+            read.other = await back("suite-e17t7-a", game.user.id);
+            read.mine = await back("suite-e17t7-a", player.id);
+            read.again = await back("suite-e17t7-a", player.id);
+
+            await full();
+            await spend("suite-e17t7-b");
+            Date.now = () => now() + TIMING.plantWindowMs + 1000;
+            try {
+                read.late2 = await back("suite-e17t7-b", player.id);
+            } finally {
+                Date.now = now;
+            }
+
+            await full();
+            await spend("suite-e17t7-c");
+            await take.run(take.sanitize({ roomName: ROOM, sceneId: SCENE }), player, { requestId: "suite-e17t7-c-take" });
+            read.looked = await back("suite-e17t7-c", player.id);
+
+            scene = await Scene.create({ name: "SUITE E17 T7", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: SEALED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [SEARCH_FLAGS.sealed]: true } }, behaviors: [] }]);
+            const sealed = await spend("suite-e17t7-s", SEALED, scene.id, game.user);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { ...saved, [SearchTokens.key(ROOM, SCENE)]: 0 });
+            await settle();
+            const empty = await spend("suite-e17t7-e");
+            read.why = [[sealed?.ok ?? null, sealed?.why ?? null], [empty?.ok ?? null, empty?.why ?? null]];
+
+            read.claim = typeof ST.claimOf === "function" ? [
+                { ok: true, value: { ok: true, left: 1, why: null } }, { ok: true, value: { ok: false, left: 2, why: "sealed" } },
+                { ok: true, value: { ok: false, left: 0, why: "empty" } }, { ok: false, reason: "noAnswer" }, { ok: false, refused: true, reason: "notYours" }
+            ].map(res => stableJson(ST.claimOf(res))) : null;
+            read.outcome = typeof A.unclaimedOutcome === "function"
+                ? [["sealed", 2], ["empty", 0], ["unanswered", 2], ["refused", 2], [null, 0]].map(([why, left]) => stableJson(A.unclaimedOutcome(why, left)))
+                : null;
+        } finally {
+            Date.now = now;
+            await scene?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved);
+            await settle();
+        }
+        const o = (key, refund, exhausted) => stableJson({ text: `DRPG.SearchTokens.${key}`, refund, exhausted });
+        equal(stableJson(read), stableJson({
+            spent: [true, true, true],
+            late: { ends: ["noAnswer", "noAnswer"], asked: [[RETURN, "suite-e17t7-a"]], lateMs: true },
+            other: ["refused", 0, max - 1], mine: ["taken", 0, max], again: ["refused", 0, max],
+            late2: ["refused", 0, max - 1],
+            looked: ["refused", 0, max - 1],
+            why: [[false, "sealed"], [false, "empty"]],
+            claim: [{ ok: true, why: null }, { ok: false, why: "sealed" }, { ok: false, why: "empty" }, { ok: false, why: "unanswered" }, { ok: false, why: "refused" }].map(stableJson),
+            outcome: [o("sealed", true, false), o("pickedClean", false, true), o("timeout", true, false), o("timeout", true, false), o("pickedClean", false, true)]
+        }), "a late search token did not come back to its spender alone, once, inside the window and before its plant check, or a refusal did not say "
+            + "why [the spend: ok, the reply's count, the room's; the player's waits: how each ended, what the late answers asked, the window; the return "
+            + "from another account, the spender's, again: carried out or refused, what was told, the room's count; past the window; after the plant check; why a sealed and an "
+            + "empty room refused; what the player reads of five results; what five refused claims show, give back and call exhausted]");
+    }],
+
     ...GRID
 ];
 

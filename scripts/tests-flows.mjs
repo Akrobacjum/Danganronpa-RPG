@@ -234,8 +234,11 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "20-crit-hope", "30-security", "33-bridge-paths", "40-flow"], status: "covered", stage: "1.2.67" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
+    // E17 C4 (26.10.2026): a token the GM spent after the searcher's browser stopped waiting, asked back by the late answer
+    // (`searchTokens.returnToken`, the spender's, once); tier 2 E17-T7 judges it. No scenario sends one yet.
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
-        entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],
+        entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
+            "searchTokens.returnToken"],
             sockets: ["search-tokens.mjs"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
