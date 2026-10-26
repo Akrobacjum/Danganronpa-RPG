@@ -2890,7 +2890,10 @@
       "noBudget": "Brak Free Move i brak akcji.",
       "notConnected": "{to} nie łączy się z: {from}. Stąd dojdziesz do: {rooms}",
       "noBudgetLong": "Brak Free Move i brak akcji - to przejście nie zostało opłacone. Token wraca; zapytaj GM-a.",
-      "refunded": "GM cofnął twoje ostatnie przejście: token stoi tam, gdzie stał przed nim, a to, co przejście kosztowało, wraca do ciebie.",
+      "refundedBack": "GM cofnął twoje ostatnie przejście: token stoi tam, gdzie stał przed nim.",
+      "refundedStays": "GM cofnął twoje ostatnie przejście, ale tokenu nie dało się postawić tam, gdzie stał przed nim - zapytaj GM-a.",
+      "refundedPrice": "To, co przejście kosztowało, wraca do ciebie.",
+      "refundedNoPrice": "GM-owie nie widzieli, żeby cokolwiek kosztowało, więc nic więcej nie wraca - zapytaj GM-a, jeśli coś cię kosztowało.",
       "locked": "Drzwi są zamknięte.",
       "noStairs": "Stąd ({from}) nie prowadzą na to piętro żadne schody.",
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."

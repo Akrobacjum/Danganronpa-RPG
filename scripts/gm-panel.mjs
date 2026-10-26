@@ -911,7 +911,8 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
     }
 }
 
-async function openWhoIsAliveDialog() {
+/** The Students window (the panel's tile); exported for tier 2's click of its Refund last crossing (E17 fix e1-G2). */
+export async function openWhoIsAliveDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing

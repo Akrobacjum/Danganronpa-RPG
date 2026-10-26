@@ -49263,8 +49263,9 @@ const SCENARIOS = [
             await student.update(Object.fromEntries(paths.map((path, i) => [path, was[i]])));
             await sheetAuditIdle();
         }
-        const spend = [true, { reason: "spend", ref: null }, "stands"];
-        equal(stableJson(read), stableJson([[spend, spend, spend], [0, 0, true], [], [1, 1]]),
+        // A crossing's spend is stamped as the move's since E17 fix e1-G2 (actions.mjs `MOVE_SPEND`): the price the primary reads.
+        const spend = [true, { reason: "spend", ref: null }, "stands"], move = [true, { reason: "spend", ref: "move" }, "stands"];
+        equal(stableJson(read), stableJson([[spend, move, move], [0, 0, true], [], [1, 1]]),
             "a player's Burst, free Move or Sprint spent was not the module's write named `spend`, or the GMs' audit did not let it stand as credit "
                 + "(per write: the module's, the stamp, the verdict; the Burst, Sprint and free Move after; the rows; the credit each grant gained)");
     }],
@@ -70676,6 +70677,119 @@ const SCENARIOS = [
             "[[what the put-back of the crossing past the allowance wrote, the count], the same with the store's write held]");
     }],
 
+    ["the Eclipse counts what the primary carried out itself, a console's jump of two rooms in one write and its REVERT hops between rooms it stood in (E17-T4): one past the allowance is put back, eclipseSpent sent; only the undo of the newest crossing is free", async () => {
+        /*
+         * E17 fix e1-G2, 26.10.2026; the review's E17R-01 (a tunnel's count raised `used` alone, and the sightings were judged
+         * against `seen` alone, so after a 'Go through' two unasked door moves stood on an allowance of two), E17R-02,
+         * E17P1-R2 and E17P1-SEC-5 (a console's jump into a room that does not touch its last lawful one was refused by the
+         * connected-rooms rule alone: no sighting, nothing counted, nothing put back), and E17P1-SEC-3 (a REVERT onto a spot
+         * the GMs saw within the minute was honoured and counted nothing, so a console hopped between the rooms of the last
+         * minute for the rest of the Eclipse). On a scene of the suite's own: a row of rooms that touch, no walls, in an
+         * Eclipse that is no free placement, moveAudit "log". A player's move as the primary hears it is a GM's write naming
+         * the player (`SENT_BACK`), a REVERT that write marked so too. Read per move: the room the token stands in, whether
+         * it was put back, the codes its player was sent and the count. (e) a tunnel's price taken on the primary
+         * (movement.mjs `settleCrossingOnGm` in a step of the character's key, as passages-gm.mjs `crossTunnel` takes it),
+         * then the console's door moves; (f) a jump of two rooms in one write, and one of a room more than the allowance; (g)
+         * the allowance walked, a REVERT to the room before (the undo of the newest crossing, free) and one more REVERT to
+         * the room before that. Red at 9cc97aad: (e) one door move more stood, (f) every jump stood counted 0, (g) the
+         * second REVERT stood counted as before.
+         */
+        needs(env.primaryGm(), "the sighting, the count and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { ownerOf, serialWrite } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            const ROOMS = Array.from({ length: allowance + 3 }, (_, i) => `SUITE E17 T4 more R${i}`);
+            const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+            scene = await Scene.create({ name: "SUITE E17 T4 more", width: 400 * ROOMS.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", ROOMS.map((name, i) => ({ name, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === ROOMS[0] && M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const count = () => E.movesUsed(student);
+            let y = 100;
+            const fresh = async () => {
+                await S.eclipseMoveStore.drop(student.id);
+                await token.update({ x: 100, y: 100 }, PLACE);
+                await settle();
+            };
+            const spot = i => ({ x: 400 * i + 100, y: (y += 7) });
+            const go = async (to, { revert = false } = {}) => {
+                const sent = told.length, before = { x: token.x, y: token.y };
+                await token.update(to, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await settle();
+                await until(() => token.x !== to.x || token.y !== to.y || M.standingOf(token)?.lawful !== false, 1200);
+                await settle();
+                return [M.roomOfToken(token), token.x === before.x && token.y === before.y, told.slice(sent), count()];
+            };
+            // (e) a tunnel's price on the primary, then the console's door moves
+            await fresh();
+            await serialWrite(M.crossingKey(student.id), () => M.settleCrossingOnGm(student, ROOMS[1]));
+            const tunnel = [count()];
+            for (let i = 1; i <= allowance; i++) tunnel.push(await go(spot(i)));
+            // (f) a jump of two rooms in one write; and of a room more than the allowance
+            await fresh();
+            const jumps = [await go(spot(2))];
+            await fresh();
+            jumps.push(await go(spot(allowance + 1)));
+            // (g) the allowance walked, a REVERT to the room before, one more to the room before that
+            await fresh();
+            const walked = [{ x: 100, y: 100 }];
+            const hops = [];
+            for (let i = 1; i <= allowance; i++) {
+                walked.push(spot(i));
+                hops.push(await go(walked[i]));
+            }
+            hops.push(await go(walked[allowance - 1], { revert: true }));
+            if (allowance >= 2) hops.push(await go(walked[allowance - 2], { revert: true }));
+            read = { tunnel, jumps, hops };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const name = i => `SUITE E17 T4 more R${i}`, A = allowance;
+        const tunnel = [1, ...Array.from({ length: A }, (_, k) => k + 1 < A ? [name(k + 1), false, [], k + 2] : [name(k), true, ["eclipseSpent"], A])];
+        const jumps = [A >= 2 ? [name(2), false, [], 2] : [name(0), true, ["eclipseSpent"], 0], [name(0), true, ["eclipseSpent"], 0]];
+        const hops = [...Array.from({ length: A }, (_, k) => [name(k + 1), false, [], k + 1]), [name(A - 1), false, [], A],
+            ...(A >= 2 ? [[name(A - 1), true, ["eclipseSpent"], A]] : [])];
+        equal(stableJson(read), stableJson({ tunnel, jumps, hops }),
+            "{tunnel: [the count after a tunnel's price, then each door move as [the room it stands in, put back, the codes its player was sent, the count]], "
+                + "jumps: [a jump of two rooms, of a room more than the allowance], hops: [the allowance walked, a REVERT to the room before, one to the room before that]}");
+    }],
+
     ["a route whose continuation was vetoed settles the crossing it made at rest: charged, the traps told, and in an Eclipse counted (E17-T5)", async () => {
         /*
          * E17 C2, 26.10.2026; E17-18, audit S07-07. A drag's steps with waypoints pending were only noted (`notePathRoom`),
@@ -70838,26 +70952,36 @@ const SCENARIOS = [
                 await until(() => (S.crossingStore.get(student.id)?.at ?? 0) >= at, 1500);
             };
             // The player's own write of the price, as the primary hears it: Foundry's user id, the module's stamp.
-            const spend = async write => {
+            // A crossing's price is stamped as the move's (actions.mjs `takeMove`, ref MOVE_SPEND; fix e1-G2), any other spend not.
+            const spend = async (write, ref = ACT.MOVE_SPEND) => {
                 await student.update(write, { noHook: true });
-                Hooks.callAll("updateActor", student, foundry.utils.expandObject(write), { drpgWrite: { reason: "spend", ref: null } }, asker.id);
+                Hooks.callAll("updateActor", student, foundry.utils.expandObject(write), { drpgWrite: { reason: "spend", ref: ref ?? null } }, asker.id);
                 await settle();
             };
+            // What the owner was told (fix e1-G2, the review's E17R-05): whether the token stands back, whether a price came back.
+            const SEC = await import("./secret.mjs");
+            const LINES = { back: "DRPG.Move.refundedBack", stays: "DRPG.Move.refundedStays", price: "DRPG.Move.refundedPrice", noPrice: "DRPG.Move.refundedNoPrice" };
+            const linesSince = from => Object.entries(LINES).filter(([, key]) => made.slice(from).some(id => {
+                const m = game.messages.get(id);
+                return String(SEC.secretHtml(m) ?? m?.content ?? "").includes(game.i18n.localize(key));
+            })).map(([k]) => k);
             const answer = out => out?.refused ? G.reasonOf(out.refused) : out?.reply ? "given" : stableJson(out);
             const steps = [];
-            const step = async (what, money, paid, { between = null, read: reading = purse, x = 300, y = 300, walk = cross } = {}) => {
+            const step = async (what, money, paid, { between = null, read: reading = purse, x = 300, y = 300, walk = cross, ref = ACT.MOVE_SPEND } = {}) => {
                 if (money) await budget(money);
                 await start(x, y);
                 await walk();
-                if (paid) await spend(paid);
+                if (paid) await spend(paid, ref);
                 await until(() => !paid || S.crossingStore.get(student.id)?.kind, 1500);
                 const kind = S.crossingStore.get(student.id)?.kind ?? null;
                 if (between) await between();
+                const said = made.length;
                 const out = await M.refundLastCrossing(student.id);
                 await settle();
+                const lines = linesSince(said);
                 const again = await M.refundLastCrossing(student.id);
                 await settle();
-                steps.push([what, kind, answer(out), `${token.x},${token.y}`, ...reading(), answer(again)]);
+                steps.push([what, kind, answer(out), `${token.x},${token.y}`, ...reading(), answer(again), lines]);
             };
             const nextTime = async () => {
                 const now = getClock()?.timeOfDay;
@@ -70869,6 +70993,8 @@ const SCENARIOS = [
             await step("a Burst", { burst: 1 }, { [F(FLAGS.freeActionGrants)]: 0 });
             await step("an action", { actions: 2 }, { [ACTIONS]: 1 });
             await step("a spend stamp that spent nothing", { actions: 2 }, { [F(FLAGS.freeMoveUsed)]: true });
+            // The review's E17P1-SEC-6: a Search's action paid within the price's wait is not the crossing's price.
+            await step("another spend first, then the move's", { actions: 2 }, { [ACTIONS]: 1 }, { ref: null });
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
             await step("crossing rooms costs nothing", { actions: 1 }, null);
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
@@ -70927,20 +71053,100 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({ steps: [
-            ["the free Move", "free", "given", "300,300", 2, true, 0, 0, "alreadyDone"],
-            ["a Sprint", "sprint", "given", "300,300", 2, false, 1, 0, "alreadyDone"],
-            ["a Burst", "burst", "given", "300,300", 2, false, 0, 1, "alreadyDone"],
-            ["an action", "action", "given", "300,300", 2, false, 0, 0, "alreadyDone"],
-            ["a spend stamp that spent nothing", null, "given", "300,300", 2, false, 0, 0, "alreadyDone"],
-            ["crossing rooms costs nothing", "none", "given", "300,300", 1, false, 0, 0, "alreadyDone"],
-            ["an action, then a time of day", "action", "given", "300,300", 2, true, 0, 0, "alreadyDone"],
-            ["a Sprint, then a time of day", "sprint", "given", "300,300", 2, true, 1, 0, "alreadyDone"],
-            ["an Eclipse's crossing", "eclipse", "given", "300,300", 0, "alreadyDone"],
-            ["an Eclipse's crossing, given back in the next Eclipse", "eclipse", "given", "300,300", 1, "alreadyDone"],
-            ["a tunnel's action", "action", "given", "200,200", 2, false, 0, 0, "alreadyDone"]],
+            ["the free Move", "free", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a Sprint", "sprint", "given", "300,300", 2, false, 1, 0, "alreadyDone", ["back", "price"]],
+            ["a Burst", "burst", "given", "300,300", 2, false, 0, 1, "alreadyDone", ["back", "price"]],
+            ["an action", "action", "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a spend stamp that spent nothing", null, "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["another spend first, then the move's", null, "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["crossing rooms costs nothing", "none", "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["an action, then a time of day", "action", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a Sprint, then a time of day", "sprint", "given", "300,300", 2, true, 1, 0, "alreadyDone", ["back", "price"]],
+            ["an Eclipse's crossing", "eclipse", "given", "300,300", 0, "alreadyDone", ["back", "price"]],
+            ["an Eclipse's crossing, given back in the next Eclipse", "eclipse", "given", "300,300", 1, "alreadyDone", ["back", "noPrice"]],
+            ["a tunnel's action", "action", "given", "200,200", 2, false, 0, 0, "alreadyDone", ["back", "price"]]],
             row: ["gmOnly", LAB, 1, false, 0, 0, "bridge.done", "300,300", 2, false, 0, 0, "alreadyDone"] }),
             "{steps: [what, the kind recorded, the refund, where the token stands, the purse after it as [actions, the free Move left, Sprints, Bursts] "
-                + "or the Eclipse's count, a second refund], row: [the player's ask, the token's room, the purse, this GM's ask, the token, the purse, a second ask]} - a price given back was not the one paid, or given twice, the token stayed, or a player's ask was carried out");
+                + "or the Eclipse's count, a second refund, what the owner was told: the token back or not, a price back or none seen], row: [the player's ask, the token's room, the purse, this GM's ask, the token, the purse, a second ask]} - a price given back was not the one paid, or given twice, the token stayed, or a player's ask was carried out");
+    }],
+
+    ["Refund last crossing is one click in the Students window (E17-T6): the button stands on the student's row, its click gives the crossing back, and the row's redraw takes the button away", async () => {
+        /*
+         * E17 fix e1-G2, 26.10.2026; the review's E17R-08: E17-T6 called `refundLastCrossing` and judged the bridge's row,
+         * and no test opened the window, found the button (gm-panel.mjs `refundButton`) or clicked it (`wireAliveTable`'s
+         * `data-drpg-refund`), so a typo between the two, or a row not drawn, left the GM without the one click the promise
+         * names. A scene of the suite's own, a Hall and a Lab side by side, crossing rooms costing a Move: a player's
+         * crossing as the primary hears it (`SENT_BACK`, as E17-T6's), its action stamped as the move's, then the Students
+         * window opened as its tile opens it. Read: the button on the row before, the record given back and the token and
+         * the actions after the click, and the button after the row's redraw.
+         */
+        needs(env.primaryGm(), "the record and the refund are the primary GM's (`judgeArrival`, `refundLastCrossing`)");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        const R = await import("./rooms.mjs");
+        const ACT = await import("./actions.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the crossing is a player's");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T6 button Hall", LAB = "SUITE E17 T6 button Lab";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const ACTIONS = "system.resources.actions.value";
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const button = () => drawn()?.element?.querySelector(`[data-drpg-refund="${CSS.escape(student.id)}"]`) ?? null;
+        let scene = null, token = null, read = null, answer = null;
+        const was = { actions: student.system?.resources?.actions?.value, max: student.system?.resources?.actions?.max };
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            scene = await Scene.create({ name: "SUITE E17 T6 button", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(LAB, 1000)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            await S.crossingStore.drop(student.id);
+            await student.update({ [ACTIONS]: 2, "system.resources.actions.max": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true,
+                [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 });
+            const at = Date.now();
+            await token.update({ x: 1310, y: 310 }, { ...PLACE, [M.SENT_BACK]: asker.id });
+            await settle();
+            await until(() => (S.crossingStore.get(student.id)?.at ?? 0) >= at, 1500);
+            await student.update({ [ACTIONS]: 1 }, { noHook: true });
+            Hooks.callAll("updateActor", student, { system: { resources: { actions: { value: 1 } } } }, { drpgWrite: { reason: "spend", ref: ACT.MOVE_SPEND } }, asker.id);
+            await until(() => S.crossingStore.get(student.id)?.kind, 1500);
+            must(S.crossingStore.get(student.id)?.kind === "action", "the crossing's price was not recorded - this would measure nothing");
+            answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000);
+            const before = Boolean(button());
+            button()?.click();
+            await until(() => S.crossingStore.get(student.id)?.refunded && !button(), 3000);
+            await settle();
+            read = [before, S.crossingStore.get(student.id)?.refunded ?? null, `${token.x},${token.y}`, ACT.actionsLeft(student), Boolean(button())];
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a.options?.classes?.includes("drpg-window-alive"))) await a.close().catch(() => {});
+            await answer;
+            Hooks.off("createChatMessage", onMessage);
+            await S.crossingStore.drop(student.id);
+            await student.update({ [ACTIONS]: was.actions ?? 0, "system.resources.actions.max": was.max ?? 0 });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, "300,300", 2, false]),
+            "[the button on the student's row, the record given back after its click, where the token stands, the actions, the button after the redraw]");
     }],
 
     ["a search token spent after the player's browser gave up comes back (E17-T7): the late answer asks it back, and the primary gives it to the spender alone, once, inside the window and not after that spend's plant check; a sealed room's refusal says why, and the player reads the seal", async () => {

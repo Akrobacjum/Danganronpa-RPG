@@ -2780,7 +2780,10 @@
       "noBudget": "No Free Move and no actions left.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "noBudgetLong": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
-      "refunded": "The GM gave back your last crossing: your token stands where it was before it, and what the crossing cost is yours again.",
+      "refundedBack": "The GM gave back your last crossing: your token stands where it was before it.",
+      "refundedStays": "The GM gave back your last crossing, but your token could not be stood where it was before it - ask the GM.",
+      "refundedPrice": "What the crossing cost is yours again.",
+      "refundedNoPrice": "The GMs saw nothing it cost, so nothing else came back - ask the GM if it cost you something.",
       "locked": "The door is locked.",
       "noStairs": "No stairs lead from {from} to that floor.",
       "dead": "They are dead. The body stays where it fell."

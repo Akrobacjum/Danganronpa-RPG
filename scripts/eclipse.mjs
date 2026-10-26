@@ -979,7 +979,8 @@ async function recordMove(actor, to = null) {
         if (res.ok) return true;
         return res.refused && res.reason === "nothingLeft" ? false : null;
     }
-    const out = await applyRecordedMove(actor.id, { to });
+    // A GM's own crossing: no sighting counts it (`made`, `countCrossingInStep`).
+    const out = await applyRecordedMove(actor.id, { to, made: true });
     if (out?.refused) return false;
     return out ? true : null;
 }
@@ -1012,10 +1013,10 @@ async function recordMove(actor, to = null) {
  *
  * @returns {Promise<null|{refused: string}|{used: number, left: number|null, tell?: () => Promise<void>}>}
  */
-export async function applyRecordedMove(actorId, { to = null, card = true } = {}) {
+export async function applyRecordedMove(actorId, { to = null, card = true, made = false } = {}) {
     if (!game.user.isGM) return null;
     await eclipseMoveStore.whenHydrated();
-    return serialWrite(crossingKey(actorId), () => countCrossingInStep(actorId, { to, card }));
+    return serialWrite(crossingKey(actorId), () => countCrossingInStep(actorId, { to, card, made }));
 }
 
 /**
@@ -1024,8 +1025,15 @@ export async function applyRecordedMove(actorId, { to = null, card = true } = {}
  * by `applyRecordedMove`'s own step, and by the steps that already hold the key: passages-gm.mjs `crossTunnel`'s,
  * through movement.mjs `settleCrossingOnGm`, and the primary's charge of a door's route (movement.mjs `settleRoute`).
  * Asked outside such a step it would count beside one, which tier 0 R991 refuses.
+ *
+ * `made`: a crossing a GM's browser carries out or makes itself - a tunnel's 'Go through' (`settleCrossingOnGm`), a route
+ * the primary pays (`settleRoute`), a GM's own move (`recordMove` on a GM) - which no sighting of a player's move counts.
+ * It raises the sightings' count as well as the asks' (E17 fix e1-G2, 26.10.2026; the review's E17R-01): the sightings are
+ * judged against themselves (movement.mjs `eclipseSighting`), and after a tunnel counted in `used` alone a console's two
+ * unasked door moves were judged 0 -> 1 and 1 -> 2 and both stood on an allowance of two, three crossings in all. Judged
+ * against the whole count, never taken for an ask the sightings already hold.
  */
-export async function countCrossingInStep(actorId, { to = null, card = true } = {}) {
+export async function countCrossingInStep(actorId, { to = null, card = true, made = false } = {}) {
     if (!game.user.isGM) return null;
     await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);
@@ -1038,11 +1046,11 @@ export async function countCrossingInStep(actorId, { to = null, card = true } = 
        hold (`asked < seen`) is the same crossing told late, judged when it was seen, and is counted without the
        allowance asked again; any other is judged against the count, as before. */
     const { used: asked, seen, count: before } = eclipseCountOf(eclipseMoveStore.get(actorId), id);
-    if (asked >= seen) {
+    if (made || asked >= seen) {
         if (allowance !== null && before >= allowance) return { refused: "no crossings left this Eclipse" };
     }
-    const used = Math.max(asked + 1, seen);
-    await eclipseMoveStore.patch(actorId, { used: asked + 1, seen, eclipse: id });
+    const used = Math.max(asked + 1, made ? seen + 1 : seen);
+    await eclipseMoveStore.patch(actorId, { used: asked + 1, seen: made ? seen + 1 : seen, eclipse: id });
 
     // A free-placement Eclipse is still counted: the placement table reads it to see
     // who has put a token down. The ALLOWANCE, not the constant: under a darkening

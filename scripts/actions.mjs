@@ -137,7 +137,7 @@ export async function grantFreeMoves(actor, n = 1, { reason = "call", ref = null
  * Burst came back as an action, an action as a Burst, or the second refund found
  * nothing. The receipt travels with the action that holds it instead.
  */
-export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
+export async function spendAction(actor, amount = 1, { quiet = false, ref = null } = {}) {
     if (!actor || amount <= 0) return false;
 
     /*
@@ -153,7 +153,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
      * anything else at all for four Hope - trap 97.
      */
     if (freeActionsLeft(actor) > 0) {
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) - 1 }, { reason: "spend" });
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) - 1 }, { reason: "spend", ref });
         // Same sound, and it is worth saying why the comment below no longer
         // covers this branch: the pips do NOT move here. What the player is
         // listening for is the cost being paid, and on the one turn they spent
@@ -184,7 +184,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
         return false;
     }
 
-    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount }, { reason: "spend" });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount }, { reason: "spend", ref });
 
     /*
      * EVERY SPEND, NOT ONLY THE ACTION GRID - trap 44, decided here.
@@ -298,6 +298,16 @@ export function hasFreeMove(actor) {
  * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
  * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
  */
+/**
+ * The ref a crossing's price is stamped with (`takeMove`; E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-6). The primary
+ * reads a door crossing's price off the player's next write of the purse (movement.mjs `noteCrossingPrice`), and took the
+ * first write that lowered any of it - a Search's action paid within the wait was the crossing's, which the GM's Refund
+ * then gave back. Only a spend stamped so is a crossing's price; any other write of the purse ends the wait with none.
+ * A ref is a claim, as every stamp's words are: a console that stamps another spend so has that spend read as the move's,
+ * and the price it pays is still its own (the field it lowered), never more than one crossing's.
+ */
+export const MOVE_SPEND = "move";
+
 export async function takeMove(actor, { quiet = false } = {}) {
     if (!actor) return null;
 
@@ -311,16 +321,16 @@ export async function takeMove(actor, { quiet = false } = {}) {
      * waiting to be filed, whether or not it costs anything.
      */
     if (hasFreeMove(actor)) {
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true }, { reason: "spend" });
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true }, { reason: "spend", ref: MOVE_SPEND });
         return "free";
     }
 
     if (freeMovesLeft(actor) > 0) {
-        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) - 1 }, { reason: "spend" });
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) - 1 }, { reason: "spend", ref: MOVE_SPEND });
         return "sprint";
     }
 
-    const paid = await spendAction(actor, 1, { quiet });
+    const paid = await spendAction(actor, 1, { quiet, ref: MOVE_SPEND });
     return paid ? (paid.grant ? "burst" : "action") : null;
 }
 

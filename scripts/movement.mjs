@@ -30,7 +30,8 @@ import {
 // The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
 // that reaches neither this file nor vault.mjs (bedroom-keys.mjs's header).
 import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
-import { hasFreeMove, takeMove, giveMoveBack, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
+import { hasFreeMove, takeMove, giveMoveBack, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft, MOVE_SPEND } from "./actions.mjs";
+import { WRITE_STAMP } from "./resource-guard.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
@@ -988,7 +989,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const spot = positionOf(tokenDoc);
         const accepted = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
         const back = accepted ? (standingHistory.get(tokenDoc.id) ?? []).findLast(s => samePlace(s, spot)) : null;
-        if (back) honoured = { ...back, x: spot.x, y: spot.y, elevation: spot.elevation, level: spot.level };
+        if (back) honoured = { ...back, x: spot.x, y: spot.y, elevation: spot.elevation, level: spot.level, sighted: null };
     } else if (mover?.isGM) now = standingHere(tokenDoc);
     if (!now) {
         // One synchronous step from the reads to the verdict (H3), nothing awaited (H17).
@@ -1022,14 +1023,25 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
             const rule = player && verdict !== true ? ruleOf(verdict) : null;
             if (!rule || (verdict.rule === "bedroomShut" && honoured.lawful !== false)) now = honoured;
         }
-        // An Eclipse's crossing the primary sees (E17 C2; `eclipseSighting`): counted, or past the allowance a rule's refusal.
-        const sighting = !now && verdict === true && putBack && player ? eclipseSighting(student, was?.last?.room ?? null, tokenDoc) : null;
-        if (sighting?.spent) verdict = sighting.spent;
-        else if (sighting) noteSeenCrossing(sighting);
+        /* An Eclipse's crossing the primary sees (E17 C2; `eclipseSighting`): counted, or past the allowance a rule's refusal.
+           Since E17 fix e1-G2 (the review's E17R-02, E17P1-R2, E17P1-SEC-5, E17P1-SEC-3) also a player's change of room the
+           connected-rooms rule alone refuses - a jump that crossed rooms the token never stood in, counted as the rooms
+           between (`roomsApart`) - and an honoured put-back that changes room, but for the undo of the newest crossing
+           (`undoesSighting`). Walls and floors stay `moveAudit`'s. */
+        const from = was?.last?.room ?? null;
+        const counted = putBack && player && (now || verdict === true || !ruleOf(verdict)) && !(now && undoesSighting(own, now, tokenDoc));
+        const sighting = counted ? eclipseSighting(student, from, tokenDoc, { adjacent: verdict === true }) : null;
+        if (sighting?.spent) {
+            verdict = sighting.spent;
+            now = null;
+        } else if (sighting) noteSeenCrossing(sighting);
+        const sighted = sighting && !sighting.spent ? { eclipse: sighting.eclipse, from, at: Date.now() } : null;
         if (now) {
             // The put-back honoured (above): it stands as the judge last left that spot, and is no crossing recorded.
+            if (sighted) now.sighted = sighted;
         } else if (verdict === true) {
             now = standingHere(tokenDoc);
+            now.sighted = sighted;
             // The GMs' record of the crossing, for "Refund last crossing" (E17 C3; `noteCrossing`).
             if (putBack && !created && player) noteCrossing(tokenDoc, actor, student, was?.last?.room ?? null, own, sighting);
         } else {
@@ -1041,6 +1053,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
             const back = rule && !created ? lastLawfulSpot(tokenDoc, own) : null;
             now = standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict.text ?? null,
                 rule, back, mark: rule ? verdict.rule ?? null : null });
+            if (sighted && !rule) now.sighted = sighted;
             if (putBack && rule && (created || back)) now.told = true;
         }
     }
@@ -1095,8 +1108,11 @@ function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
  */
 const seenTally = new Map();
 
-/** The sighting of an Eclipse crossing in this judged landing, `{ actorId, eclipse, seen }`, `{ spent }` past the allowance, or null. */
-function eclipseSighting(student, from, tokenDoc) {
+/**
+ * The sighting of an Eclipse crossing in this judged landing, `{ actorId, eclipse, seen }`, `{ spent }` past the allowance, or
+ * null. `adjacent` false: the rooms do not touch, and the landing counts the rooms between (`roomsApart`, at least one).
+ */
+function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
     if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
     const to = roomOfToken(tokenDoc), id = eclipseId(clock);
@@ -1104,8 +1120,45 @@ function eclipseSighting(student, from, tokenDoc) {
     const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
     const tally = seenTally.get(student.id);
     const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
-    if (allowance !== null && seen >= allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
-    return { actorId: student.id, eclipse: id, seen: seen + 1 };
+    const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);
+    if (allowance !== null && seen + crossings > allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
+    return { actorId: student.id, eclipse: id, seen: seen + crossings };
+}
+
+/**
+ * How many crossings the fewest doors between two rooms take (E17 fix e1-G2), by the connected-rooms rule's own neighbours
+ * (`neighbourAnswer`; a room no rule decided touches every room); 1 where no way is found within `most`. Floors are not
+ * read: a jump across them is at least one crossing.
+ */
+function roomsApart(scene, from, to, most = 12) {
+    let ring = [from];
+    const met = new Set(ring);
+    for (let far = 1; far <= most && ring.length; far++) {
+        const next = [];
+        for (const room of ring) {
+            const { rooms, decided } = neighbourAnswer(scene, room);
+            if ((!rooms.length && !decided) || rooms.includes(to)) return far;
+            for (const near of rooms) if (!met.has(near)) { met.add(near); next.push(near); }
+        }
+        ring = next;
+    }
+    return 1;
+}
+
+/*
+ * THE UNDO OF THE NEWEST CROSSING (E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-3). An honoured put-back that changes
+ * room in an Eclipse is a sighting since this fix: a console's REVERT onto spots the GMs saw within the minute hopped between
+ * rooms for the rest of the Eclipse with the count where it stood. One is not: the put-back, within `UNDO_MS` of a counted
+ * sighting, to the room that sighting came from - the owner's browser putting back a crossing it refused after the primary
+ * counted it (its ask refused, its route refused at rest). That crossing stays counted, as it was before this fix, and the
+ * standing it returns to carries no sighting of its own, so a second step back is counted. How long a real table's put-back
+ * takes after its move is not measured (5 s is the crossing price's wait, `CROSSING_PRICE_MS`; a table's reading is owed).
+ */
+const UNDO_MS = 5000;
+
+function undoesSighting(own, honoured, tokenDoc) {
+    const mark = own?.sighted;
+    return Boolean(mark && mark.eclipse === eclipseId() && Date.now() - mark.at <= UNDO_MS && roomAtSpot(tokenDoc, honoured) === mark.from);
 }
 
 /** Write a sighting (`eclipseSighting`) into the store, in a step of the character's key, and tell its owners their count. */
@@ -1217,10 +1270,17 @@ function noteCrossingPrice(actor, changes, options, userId) {
     if (!waiting) return;
     if (!isPrimaryGm() || Date.now() - waiting.at > CROSSING_PRICE_MS) return void awaitingPrice.delete(actor.id);
     if (!userId || game.users?.get(userId)?.isGM) return;
-    const kind = pricePaid(waiting.purse, purseOf(actor));
-    if (!kind) return;
+    /* THE FIRST WRITE OF THE PURSE, STAMPED AS THE MOVE'S (E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-6). The first
+       write that lowered any of the purse was the price, so a console that crossed paying nothing and then paid a Search's
+       action within the wait had that action given back by the GM's Refund. Now the player's first write that changes the
+       purse ends the wait, and names the price only when it is the move's charge (`MOVE_SPEND`, actions.mjs `takeMove`);
+       a write that touches none of it is not the price's and the wait goes on. */
+    const now = purseOf(actor), was = waiting.purse;
+    if (now.used === was.used && now.sprints === was.sprints && now.bursts === was.bursts && now.actions === was.actions) return;
     awaitingPrice.delete(actor.id);
-    setCrossingKind(actor.id, waiting.id, kind);
+    const stamp = options?.[WRITE_STAMP];
+    const kind = stamp?.reason === "spend" && stamp.ref === MOVE_SPEND ? pricePaid(was, now) : null;
+    if (kind) setCrossingKind(actor.id, waiting.id, kind);
 }
 
 /** A crossing this primary paid itself (`chargeForCrossing`, no owner connected): its own `takeMove` names the price. */
@@ -1272,8 +1332,13 @@ export async function refundLastCrossing(actorId) {
             }
         }
         log(`${actor.name}'s crossing ${row.from ?? "-"} -> ${row.to ?? "-"} given back (${kind ?? "nothing seen paid"}${back ? "" : ", the token not moved"}).`);
+        /* What came back, as it came back (E17 fix e1-G2; the review's E17R-05): the owner was told the token stood back and the
+           price was theirs again also when the token could not be moved, or when no price was seen or none was given. */
+        const priced = given && kind !== "none";
         await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title"), room: row.from })}<p>${
-            game.i18n.localize("DRPG.Move.refunded")}</p>`).catch(err => error("Could not tell the owner of a crossing given back", err));
+            game.i18n.localize(back ? "DRPG.Move.refundedBack" : "DRPG.Move.refundedStays")} ${
+            game.i18n.localize(priced ? "DRPG.Move.refundedPrice" : "DRPG.Move.refundedNoPrice")}</p>`)
+            .catch(err => error("Could not tell the owner of a crossing given back", err));
         return { reply: { kind, given, back, boundary: row.mark !== timeOfDayMark() } };
     });
 }
@@ -2435,7 +2500,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     return serialWrite(crossingKey(actor.id), () => chargeRoute(tokenDoc, actor, { before, previous, crossings }, {
         record: async (who, to) => {
             const { countCrossingInStep } = await import("./eclipse.mjs");
-            const out = await countCrossingInStep(who.id, { to });
+            const out = await countCrossingInStep(who.id, { to, made: true });
             return out?.refused ? false : out ? true : null;
         }
     }));
@@ -3061,7 +3126,7 @@ export function crossingKey(actorId) {
 export async function settleCrossingOnGm(actor, to) {
     if (isEclipse()) {
         const { countCrossingInStep } = await import("./eclipse.mjs");
-        const out = await countCrossingInStep(actor.id, { to, card: false });
+        const out = await countCrossingInStep(actor.id, { to, card: false, made: true });
         if (!out) return { code: "cannotNow" };
         return out.refused ? { code: "eclipseSpent" } : { cost: "eclipse", tell: out.tell ?? null };
     }
