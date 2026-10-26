@@ -747,12 +747,26 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const wait = async (until, ms) => { const start = Date.now(); while (!until() && Date.now() - start < ms) await new Promise(r => setTimeout(r, 100));
             return Date.now() - start; };
         const standing = () => { const s = M.standingOf?.(t); return { lawful: s?.lawful ?? null, reason: s?.reason ?? null }; };`;
+    /* WHERE p1'S OWN WRITE LANDED, READ AS IT LANDS (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, P2 red). I1,
+       I3 and P2 read p1's jump by `roomOfToken` once its `await t.update(...)` returned - but since E17 C1 the primary puts
+       the jump back at once, and that write can reach p1 before its own update's await does: the reading is then the Hall
+       the jump was put back to, and the check fails on a jump that did land in the Storage. Measured at f7ac1e9d: I1 red
+       in 1 of 7 local runs of this file with `jump.room` "Hall" and the put-back and its notice already there when the GM
+       first looked (`readI1.ms` 0, `ruled` 1; the rest of that detail was cut in the log); P2's CI detail is cut at 300
+       characters past `hallP2`, so which of its readings failed there is not read. p1's own update is the first `updateToken` of the token p1 hears - the GM answers it only once it has
+       heard it itself, and the put-back comes after it on p1's socket (read in the cluster's relay, not measured on a
+       v14 server) - so the room read in that hook is where the write landed; the room read after the await is kept
+       beside it (`atReturn`), so a run shows when the put-back came first. */
+    const LANDED = `const landed = [], landing = Hooks.on("updateToken", doc => { if (doc.id === "TOKAIKO000000000") landed.push(M.roomOfToken(doc)); });
+        const landedRoom = () => { Hooks.off("updateToken", landing); return landed[0] ?? null; };`;
     const baseI = await gm.eval(`${AIKO} return { told: told(), ruled: ruled(), rows: putBacks() };`, { timeout: 30000 });
     const jump = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
         const spot = M.positionIn("Storage", t);
+        ${LANDED}
         await t.update(spot, { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
-        return { room: M.roomOfToken(t), spot: { x: spot.x, y: spot.y } };`, { timeout: 30000 });
+        const atReturn = M.roomOfToken(t);
+        return { room: landedRoom(), atReturn, spot: { x: spot.x, y: spot.y } };`, { timeout: 30000 });
     const readI1 = await gm.eval(`${AIKO}
         const ms = await wait(() => ruled() > ${baseI.ruled} && putBacks().sent > ${baseI.rows.sent} && M.roomOfToken(t) === "Hall", 6000);
         await new Promise(r => setTimeout(r, 1500));
@@ -819,9 +833,11 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         await new Promise(r => setTimeout(r, 1000));
         const hall = M.roomOfToken(t);
         const flag = aiko.setFlag("${MOD}", "monokuma", true);
+        ${LANDED}
         await t.update({ x: centre.x + 50, y: centre.y }, PLACE);
         await flag;
-        return { hall, hallAt: { x: hallAt.x, y: hallAt.y }, room: M.roomOfToken(t) };`, { timeout: 30000 });
+        const atReturn = M.roomOfToken(t);
+        return { hall, hallAt: { x: hallAt.x, y: hallAt.y }, room: landedRoom(), atReturn };`, { timeout: 30000 });
     const readI3 = await gm.eval(`${AIKO}
         const aiko = game.actors.get("${IDS.aiko}");
         const ms = await wait(() => putBacks().sent >= ${readI1.rows.sent + 1} && M.roomOfToken(t) === "Hall" && !aiko.getFlag("${MOD}", "monokuma"), 6000);
@@ -1204,8 +1220,10 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const jumpP = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
         const centre = M.positionIn("Storage", t);
+        ${LANDED}
         await t.update({ x: centre.x + 37, y: centre.y + 23 }, { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
-        return M.roomOfToken(t);`, { timeout: 30000 });
+        const atReturn = M.roomOfToken(t);
+        return { room: landedRoom(), atReturn };`, { timeout: 30000 });
     // The put-back is written by the seeded GM's audit after the jump lands there; read once it is (6 s at most).
     await gm.eval(`${AIKO} await wait(() => putBacks().sent > ${afterP.putBacks.sent} && M.roomOfToken(t) === "Hall", 6000); return true;`, { timeout: 30000 });
     const seededP = await readP(gm);
@@ -1236,11 +1254,11 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     }
     backP = await readP(gm);
     await gm.eval(`await game.scenes.get("${sceneP.id}").delete(); return true;`, { timeout: 30000 });
-    note("P2: where each primary reads Aiko after p1's jump into the locked Storage - the seeded GM before gm0 came, gm0, the seeded GM after gm0 left",
-        J({ seededP, newP, backP }));
+    note("P2: where p1's jump landed and where p1 read it after its write returned, then where each primary reads Aiko after it - the seeded GM before gm0 came, gm0, the seeded GM after gm0 left",
+        J({ jumpP, seededP, newP, backP }));
     const hallAt = { x: hallP2.x, y: hallP2.y };
     check("P2: Aiko, jumped into the locked Storage by p1's console, is put back to the Hall by the seeded GM, the GMs told once, and stands there lawfully for a GM who becomes the primary after it, which tells and puts back nothing (E12 fix r2-H3; E17 C1)",
-        sceneP.room === "66 Fore" && hallP2.room === "Hall" && jumpP === "Storage" && seededP.primary && seededP.room === "Hall" && J(seededP.at) === J(hallAt)
+        sceneP.room === "66 Fore" && hallP2.room === "Hall" && jumpP.room === "Storage" && seededP.primary && seededP.room === "Hall" && J(seededP.at) === J(hallAt)
             && seededP.standing.lawful === true && seededP.lawfulRoom === "Hall" && seededP.told === afterP.told
             && seededP.putBacks.times === afterP.putBacks.times + 1 && seededP.putBacks.sent === afterP.putBacks.sent + 1
             && (seededP.ruled - afterP.ruled) + (seededP.putBacks.quiet - afterP.putBacks.quiet) === 1
