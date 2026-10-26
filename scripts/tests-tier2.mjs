@@ -71687,6 +71687,219 @@ const SCENARIOS = [
             + "runsOn: the minutes two minutes later; beat: the primary's beat written now}");
     }],
 
+    ["the Eclipse and the incident (E17-T10): no Eclipse starts while an incident's opening or fight runs and the HUD's chevron says why, a motive that comes due in it reaches the incident's table alone and comes due in public after it, and a bystander's reload shows the clock the incident opened at", async () => {
+        /*
+         * E17 C7, 26.10.2026; E17-34, audit S10-07, the owner's Q3 (a) of 19.10 ("najpierw zamknij incydent"). An
+         * incident is a secret of its table (announceTimeOfDay narrows the time of day's card, the HUD freezes a
+         * bystander's clock), and three roads told every screen "the GM is doing something now": the chevron's Eclipse
+         * (a public card with its sound, the dimming, a whisper to every student), the motive's "due" card on the same
+         * move of the clock, and a bystander's reload, after which the HUD's frozen copy (page memory) was gone. Driven
+         * on this GM: a motive of one time of day, a direct murder's fight between two students (`fightOpen`); read the
+         * chevron as drawn, `startEclipse`'s answer and words, the motive's tick in the fight (the cards it posted: in
+         * public, or to the incident's table; whether it is marked as announced), the clock a bystander's HUD shows
+         * after a reload with the clock moved meanwhile (hud.mjs `shownClock` with no page memory, over
+         * the clock's `clockAtOpen`), and the motive's
+         * tick after the close. The incident, the motive and the clock are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const H = await import("./hud.mjs");
+        const R = await import("./rules.mjs");
+        const { wordsOf, isVeiled } = await import("./secret.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const [killer, victim] = cast(2);
+        must(!M.murderState(), "an incident is already running - this would measure nothing");
+        const first = game.i18n.localize("DRPG.Eclipse.incidentFirst");
+        const banner = game.i18n.localize("DRPG.Motive.dueBanner");
+        const text = "SUITE E17-T10 a motive that comes due in an incident";
+        const was = foundry.utils.deepClone(getClock());
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const warn = ui.notifications.warn, told = [];
+        const dueCards = async since => {
+            const out = { open: 0, veiled: 0 };
+            for (const m of game.messages.filter(m => !since.has(m.id))) {
+                const words = String(await wordsOf(m, 2000) ?? "");
+                if (!words.includes(text) || !words.includes(banner)) continue;
+                if (isVeiled(m) || (m.whisper ?? []).length) out.veiled++; else out.open++;
+            }
+            return out;
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            // A body's hold is refused first, with its own words (`startEclipse`): none here.
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await R.setMotive({ text, consequence: "", timesOfDay: 1 });
+            await fightOpen(M, killer, victim);
+            const atOpen = foundry.utils.deepClone(getClock());
+            read.atOpen = getClock().clockAtOpen?.timeOfDay === atOpen.timeOfDay;
+            H.renderHud();
+            const chevron = document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button");
+            must(chevron, "the HUD drew no Eclipse chevron - this would measure nothing");
+            read.chevron = chevron.getAttribute("aria-disabled") === "true" ? chevron.dataset.tooltip ?? "" : null;
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            read.refused = [await E.startEclipse(), isEclipse(), told.includes(first)];
+            ui.notifications.warn = warn;
+            const inFight = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.inIncident = [await dueCards(inFight), R.motive()?.dueAnnounced === true];
+            // A bystander's reload: the clock moved in the incident, the page's memory gone.
+            await setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(atOpen.timeOfDay) + 1) % TIMES_OF_DAY.length] });
+            read.reload = typeof H.shownClock === "function"
+                ? H.shownClock(getClock(), { hide: true, last: null })?.timeOfDay === atOpen.timeOfDay : null;
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            must(!M.murderState(), "the incident is still running after the close");
+            const after = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.after = [await dueCards(after), R.motive()?.dueAnnounced === true];
+        } finally {
+            ui.notifications.warn = warn;
+            if (M.murderState()) await M.endMurder({ reason: "closed", followUp: false });
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await setClock(was);
+            await settle();
+        }
+        equal(J(read), J({ atOpen: true, chevron: first, refused: [null, false, true], inIncident: [{ open: 0, veiled: 1 }, false],
+            reload: true, after: [{ open: 1, veiled: 0 }, true] }),
+            "{atOpen: the incident keeps the clock it opened at; chevron: the dimmed chevron's words; refused: [startEclipse's answer, an "
+            + "Eclipse running, the GM told to close the incident first]; inIncident: [the due motive's cards, marked announced]; reload: a "
+            + "bystander's HUD after a reload shows the time of day the incident opened at; after: the same after the close}");
+    }],
+
+    ["the boundary taken back (E17-T10): an Eclipse ended without advancing and a rewind within five minutes take back what the boundary gave, after five minutes nothing is taken back and the boundary refills no second time, and the chevron asks first with no as the default", async () => {
+        /*
+         * E17 C7, 26.10.2026; E17-35, audit S10-42. The chevron opened an Eclipse with no question - the refill, the
+         * Sprint and Burst grants and the seals gone, a public card - "End without advancing" gave nothing back and the
+         * next press refilled the same boundary a second time, and a rewind left what the advance gave. Driven on this
+         * GM with one student and the game's own calls: (a) the budget spent, a room sealed, an Eclipse and End without
+         * advancing at once; (b) the same boundary again, at once: it refills; (c) that Eclipse ended without advancing
+         * six minutes on (the take-back's stamp moved back), the budget spent, a third Eclipse; (d) its end with the
+         * advance, a room's search tokens spent, a rewind at once, the boundary again; (e) the advance and a rewind six
+         * minutes on, the boundary again; (f) the chevron pressed with DialogV2's confirm answered by the test. Read the
+         * student's actions after each, the seal and the room's tokens. The clock, the actions, the seals and the tokens
+         * are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const H = await import("./hud.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { actionsLeft, setActions } = await import("./actions.mjs");
+        const { rewindTimeOfDay } = await import("./clock.mjs");
+        const { sealedRooms, sealRoom } = await import("./call-world.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one");
+        const M6 = 6 * 60000;
+        const room = "SUITE E17-T10 a sealed room";
+        const key = "SUITE::E17-T10 a searched room";
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const confirmOwn = Object.getOwnPropertyDescriptor(DialogV2, "confirm");
+        const age = async () => {
+            const last = getClock().lastAdvance;
+            if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            // (a)
+            await setActions(student, 0);
+            await sealRoom(room);
+            await E.startEclipse();
+            const given = actionsLeft(student);
+            await E.endEclipse({ advance: false });
+            read.endOnly = [given > 0, actionsLeft(student), sealedRooms().includes(room)];
+            // (b)
+            await E.startEclipse();
+            read.again = actionsLeft(student) === given;
+            // (c)
+            await age();
+            await E.endEclipse({ advance: false });
+            read.late = actionsLeft(student) === given;
+            await setActions(student, 0);
+            await E.startEclipse();
+            read.twice = actionsLeft(student);
+            // (d)
+            await E.endEclipse({ advance: true });
+            const reached = getClock().timeOfDay;
+            await setActions(student, 0);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { ...(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {}), [key]: 0 });
+            await E.startEclipse();
+            await E.endEclipse({ advance: true });
+            const tokensAfter = game.settings.get(MODULE_ID, SETTINGS.searchTokens)?.[key] ?? null;
+            await rewindTimeOfDay();
+            read.rewind = [tokensAfter, getClock().timeOfDay === reached, actionsLeft(student),
+                game.settings.get(MODULE_ID, SETTINGS.searchTokens)?.[key] ?? null];
+            await E.startEclipse();
+            read.rewound = actionsLeft(student) === given;
+            // (e)
+            await E.endEclipse({ advance: true });
+            await age();
+            await rewindTimeOfDay();
+            read.lateRewind = actionsLeft(student) === given;
+            await setActions(student, 0);
+            await E.startEclipse();
+            read.lateAgain = actionsLeft(student);
+            await E.endEclipse({ advance: false });
+            // (f)
+            await age();
+            let asked = null;
+            DialogV2.confirm = async config => {
+                asked = [config.no?.default === true, config.yes?.default === true];
+                return false;
+            };
+            H.renderHud();
+            const chevron = document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button");
+            must(chevron, "the HUD drew no Eclipse chevron - this would measure nothing");
+            chevron.click();
+            await until(() => asked || isEclipse(), 3000).catch(() => {});
+            await settle();
+            read.chevron = [asked, isEclipse()];
+        } finally {
+            if (confirmOwn) Object.defineProperty(DialogV2, "confirm", confirmOwn); else delete DialogV2.confirm;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }) });
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokensWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ endOnly: [true, 0, true], again: true, late: true, twice: 0, rewind: [null, true, 0, 0], rewound: true,
+            lateRewind: true, lateAgain: 0, chevron: [[true, false], false] }),
+            "{endOnly: [the Eclipse refilled, the actions and the seal after End without advancing at once]; again: the same boundary "
+            + "refills again after that; late: End without advancing six minutes on keeps the refill; twice: the actions after the "
+            + "boundary's third Eclipse; rewind: [the room's tokens after the advance, the clock still where the advance took it, the "
+            + "actions and the room's tokens after a rewind at once]; rewound: the boundary refills after it; lateRewind: the actions "
+            + "after a rewind six minutes on; lateAgain: the boundary's Eclipse after that; chevron: [[no the default, yes the default], "
+            + "an Eclipse running after a no]}");
+    }],
+
     ...GRID
 ];
 

@@ -535,6 +535,9 @@
       "stillPlacing": "Jeszcze się ustawiają",
       "stillPlacingTooltip": "Uczniowie, którym zostało przejście Eclipse.",
       "startEclipseNamed": "Zacznij Eclipse ({time}) - gaśnie światło, każdy ustawia swój token (przejścia: {n})",
+      "eclipseAsk": "Zacząć teraz {name}? Akcje wszystkich się odnawiają, Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
+      "eclipseAskYes": "Zacznij",
+      "eclipseAskNo": "Jeszcze nie",
       "startEclipseFree": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",
       "startEclipseNewSession": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token (2 przejścia)",
       "eclipseRunningTooltip": "Ustawianie przed tą porą dnia. Tylko Direct Murder wydaje teraz akcję.",
@@ -2824,6 +2827,7 @@
     "Eclipse": {
       "already": "Eclipse już trwa.",
       "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
+      "incidentFirst": "Trwa incydent - najpierw go zamknij.",
       "trialFirst": "Trwa Class Trial, więc Eclipse nie został rozpoczęty: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
       "announce": {
         "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
@@ -3472,7 +3476,8 @@
       },
       "searchTokensRestocked": "Każdy pokój uzupełniony o Search Tokens",
       "woundedNote": "Jedna akcja o tej porze dnia, całe Health zaznaczone: {names}.",
-      "rewindDuringEclipse": "Trwa Eclipse, więc zegar jeszcze się nie przesunął i nie ma do czego się cofać. Zakończ Eclipse w panelu GM-a - może się skończyć bez przesuwania zegara."
+      "rewindDuringEclipse": "Trwa Eclipse, więc zegar jeszcze się nie przesunął i nie ma do czego się cofać. Zakończ Eclipse w panelu GM-a - może się skończyć bez przesuwania zegara.",
+      "takenBack": "Cofnięte: akcje, darmowe ruchy, żetony przeszukania i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
     "Panel": {
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",

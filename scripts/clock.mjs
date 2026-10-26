@@ -20,7 +20,7 @@
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
 import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
-import { resetAllActions } from "./actions.mjs";
+import { resetAllActions, budgetsOf, putBackBudgets } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, error, plural, serverNow, serialWrite } from "./utils.mjs";
 
@@ -185,6 +185,18 @@ export async function setClock(patch = {}) {
         // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
         // flag set again later by hand must not inherit the last Eclipse's name.
         if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
+        /* A BOUNDARY'S MEMORY GOES WITH A CALENDAR OR AN ECLIPSE'S END WRITTEN BY HAND (E17 C7, 26.10.2026; audit
+           S10-42). `refilledFor` and `lastAdvance` are the chevrons' and the panel's: `startEclipse`, `endEclipse`,
+           `advanceTimeOfDay` and `rewindTimeOfDay` name both in their writes. Any other write that moves the season,
+           the chapter, the session, the day or the time of day, or ends an Eclipse - Edit campaign, the season's
+           reset, a console's `setClock`, the suite putting a clock back - forgets them, so the next boundary refills
+           and nothing older is taken back over it. */
+        const calendarMoved = ["season", "chapter", "session", "day", "timeOfDay"]
+            .some(k => patch[k] !== undefined && patch[k] !== before[k]);
+        if (calendarMoved || (before.eclipse && next.eclipse !== true)) {
+            if (patch.refilledFor === undefined) next.refilledFor = null;
+            if (patch.lastAdvance === undefined) next.lastAdvance = null;
+        }
 
         await game.settings.set(MODULE_ID, SETTINGS.clock, next);
         return { before, next };
@@ -277,7 +289,20 @@ export async function advanceTimeOfDay({
 } = {}) {
     if (!game.user.isGM) return null;
 
-    const { timeOfDay, session, day, rolledOver } = clockAfter(getClock());
+    const before = getClock();
+    const { timeOfDay, session, day, rolledOver } = clockAfter(before);
+    /* ONCE A BOUNDARY (E17 C7, 26.10.2026; audit S10-42). The panel's "Next time of day" asks for a refill; an
+       Eclipse opened for this boundary has given it already (`refilledFor`), and one ended without advancing after
+       `TAKE_BACK_MS` kept it - a second refill for the same boundary is not given. What the boundary changes is kept
+       to take back (`lastAdvance`): the snapshot an Eclipse for it took as it opened, before its refill, or one taken
+       now. */
+    const stamp = boundaryStamp(before);
+    if (resetActions && before.refilledFor === stamp) {
+        resetActions = false;
+        log("The actions were refilled for this time of day already; not again.");
+    }
+    const snapshot = before.lastAdvance?.for === stamp && before.lastAdvance.snapshot
+        ? before.lastAdvance.snapshot : await boundarySnapshot();
 
     // ONE write, not two.
     //
@@ -289,7 +314,9 @@ export async function advanceTimeOfDay({
     // of day flashing up between the Eclipse and the new one.
     //
     // Where it goes is `clockAfter`'s, below.
-    const next = await setClock({ ...also, timeOfDay, session, day });
+    const next = await setClock({ ...also, timeOfDay, session, day,
+        refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
+        lastAdvance: { for: stamp, at: serverNow(), snapshot } });
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
@@ -308,6 +335,88 @@ export function clockAfter(clock = getClock()) {
     const rolledOver = timeOfDay === TIMES_OF_DAY[0];
     const day = clock.day ?? 1;
     return { timeOfDay, rolledOver, session: rolledOver ? clock.session + 1 : clock.session, day: rolledOver ? day + 1 : day };
+}
+
+/* ==========================================================================
+ * A BOUNDARY REFILLS ONCE, AND IS TAKEN BACK WITHIN FIVE MINUTES
+ * --------------------------------------------------------------------------
+ * E17 C7, 26.10.2026; audit S10-42. The chevron opened an Eclipse with no
+ * question - the refill, the Sprint and Burst grants and the seals gone - and
+ * "End without advancing" gave none of it back, so the next press refilled the
+ * same boundary a second time; a rewind, which refills nothing on purpose, left
+ * what the advance had given. Now the boundary is named (`boundaryStamp`), its
+ * refill is given once (`refilledFor`), and what it changed is kept
+ * (`lastAdvance`) for "End without advancing" and the rewind to put back within
+ * `TAKE_BACK_MS`. Tier 2 "the boundary taken back (E17-T10)".
+ * ========================================================================== */
+
+/**
+ * How long a boundary can be taken back: 5 minutes, a design number - the issue's "w ciągu kilku minut" (S10-42). A
+ * misclick is noticed at once; after five minutes the table has played on what the boundary gave, and putting the
+ * snapshot back would take that play away too. Not measured at a table.
+ */
+export const TAKE_BACK_MS = 5 * 60_000;
+
+/**
+ * The boundary into `to` of `clock`'s season and chapter, as a string: the season, the chapter, the session, the day
+ * and the time of day it leads into. `to` defaults to where the clock goes next (`clockAfter`), what an Eclipse opens
+ * and an advance moves to; the rewind passes the clock itself, the boundary that led into the time of day it leaves.
+ * Pure.
+ */
+export function boundaryStamp(clock = getClock(), to = clockAfter(clock)) {
+    return JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, to?.session ?? null, to?.day ?? null, to?.timeOfDay ?? null]);
+}
+
+/** What a boundary changes, as it stands: every character's budget (actions.mjs `budgetsOf`), the search tokens' store and the seals. */
+export async function boundarySnapshot() {
+    const { sealedRooms, restrictions } = await import("./call-world.mjs");
+    return {
+        actions: budgetsOf(),
+        tokens: foundry.utils.deepClone(SearchTokens.store ?? {}),
+        sealed: [...sealedRooms()],
+        restrictions: foundry.utils.deepClone(restrictions() ?? {})
+    };
+}
+
+/** `clock.lastAdvance` when it is the boundary `stamp` and younger than `TAKE_BACK_MS` at `now`, else null. Pure. */
+export function takeBackFor(clock, stamp, now = serverNow()) {
+    const last = clock?.lastAdvance;
+    if (!last?.snapshot || last.for !== stamp) return null;
+    const age = now - Number(last.at);
+    return Number.isFinite(age) && age >= 0 && age <= TAKE_BACK_MS ? last : null;
+}
+
+/**
+ * `takeBackFor`'s snapshot put back: the budgets, the search tokens and the seals as the boundary found them, and the
+ * GM who asked told so. GM only. The callers clear `refilledFor` and `lastAdvance` in their own clock write.
+ */
+export async function takeBackBoundary(last) {
+    if (!game.user.isGM || !last?.snapshot) return false;
+    const { snapshot } = last;
+    try {
+        await putBackBudgets(snapshot.actions);
+        await SearchTokens.putBack(snapshot.tokens);
+        const { putBackSeals } = await import("./call-world.mjs");
+        await putBackSeals({ sealed: snapshot.sealed, restrictions: snapshot.restrictions });
+    } catch (err) {
+        error("Could not take back what the time of day's start gave", err);
+        return false;
+    }
+    ui.notifications.info(game.i18n.localize("DRPG.Clock.takenBack"));
+    return true;
+}
+
+/**
+ * The clock as a bystander's HUD keeps it while an incident runs (E17 C7, 26.10.2026; audit S10-07): the calendar and
+ * the stopwatch's fields, for `openMurder` to write as `clockAtOpen`, and nothing else of the clock - no boundary's
+ * memory and no phase, which moves in the open. Pure.
+ */
+export function frozenClockOf(clock = getClock()) {
+    const out = {};
+    for (const key of ["season", "chapter", "session", "day", "timeOfDay", "eclipse", "eclipseStartedAt", "timeOfDayStartedAt", "pausedTotalMs"]) {
+        out[key] = clock?.[key] ?? null;
+    }
+    return out;
 }
 
 /**
@@ -363,17 +472,27 @@ export async function rewindTimeOfDay() {
     const prevIndex = (index - 1 + TIMES_OF_DAY.length) % TIMES_OF_DAY.length;
     const rolledBack = prevIndex === TIMES_OF_DAY.length - 1;
 
+    /* AND WITHIN FIVE MINUTES, WHAT THE ADVANCE GAVE IS TAKEN BACK (E17 C7, 26.10.2026; audit S10-42): the boundary
+       that led into this time of day, if it is `lastAdvance`'s and younger than `TAKE_BACK_MS` - the budgets, the
+       search tokens and the seals as they stood before it, and the boundary refills again when it is crossed again.
+       Later, nothing is put back and the boundary is kept as refilled (`refilledFor`), so crossing it again refills
+       nobody twice. The memory of what it changed goes either way: the table has played on it. */
+    const last = takeBackFor(clock, boundaryStamp(clock, clock));
     const next = await setClock({
         timeOfDay: TIMES_OF_DAY[prevIndex],
         session: rolledBack ? Math.max(1, clock.session - 1) : clock.session,
-        day: rolledBack ? Math.max(1, (clock.day ?? 1) - 1) : (clock.day ?? 1)
+        day: rolledBack ? Math.max(1, (clock.day ?? 1) - 1) : (clock.day ?? 1),
+        refilledFor: last ? null : (clock.refilledFor ?? null),
+        lastAdvance: null
     });
 
     // A Despair Call lasts one time of day. Stepping the clock back left every
     // one of them standing: a sealed room stayed sealed and a chained player
     // stayed chained into a time of day that had already been undone, with
-    // nothing left to clear them.
-    await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+    // nothing left to clear them. Taken back, the seals of the time of day the
+    // clock is back in stand again instead (`takeBackBoundary`).
+    if (last) await takeBackBoundary(last);
+    else await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
 
     // The motive's deadline is a Despair Call's timer and gets the same
     // treatment: a misclick must not cost the cast a time of day off it.

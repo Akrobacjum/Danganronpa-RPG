@@ -557,6 +557,9 @@
       "stillPlacing": "Still placing",
       "stillPlacingTooltip": "Students who have a crossing of the Eclipse left to use.",
       "startEclipseNamed": "Start the {time} Eclipse - lights out, everyone places their token ({n} crossings)",
+      "eclipseAsk": "Start the {name} now? Everyone's actions refill, the Calls bought for this time of day end and the lights go out for the whole table.",
+      "eclipseAskYes": "Start it",
+      "eclipseAskNo": "Not yet",
       "startEclipseFree": "Start the {time} Eclipse - lights out, everyone picks any room on the map",
       "startEclipseNewSession": "End the session and open the {time} Eclipse - a new session, and everyone places their token (2 crossings)",
       "eclipseRunningTooltip": "Placement before this time of day. Only a Direct Murder spends an action now.",
@@ -2722,6 +2725,7 @@
     "Eclipse": {
       "already": "An Eclipse is already running.",
       "bodyFirst": "A body has been found - start the Investigation first.",
+      "incidentFirst": "An incident is running - close it first.",
       "trialFirst": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
       "announce": {
         "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
@@ -3324,6 +3328,7 @@
       "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
+      "takenBack": "Taken back: the actions, the Free Moves, the search tokens and the seals are as they were before this time of day began.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",

@@ -392,6 +392,17 @@ export class SearchTokens {
         });
     }
 
+    /**
+     * The counters as a boundary found them, written back (E17 C7, 26.10.2026; audit S10-42): clock.mjs
+     * `takeBackBoundary`, when "End without advancing" or a rewind takes back the restock a boundary gave. The whole
+     * store, in a step of `SEARCH_KEY` as every write of it is (R991). GM only.
+     */
+    static async putBack(store = {}) {
+        if (!game.user.isGM) return false;
+        await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, foundry.utils.deepClone(store ?? {})));
+        return true;
+    }
+
     /** Refill everything. Called whenever the clock advances a time of day. */
     static async reset({ notify = true } = {}) {
         if (!game.user.isGM) return false;

@@ -22,10 +22,10 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
-import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
+import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
-    primaryGmId, ownerIdsOf, serialWrite } from "./utils.mjs";
+    primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
@@ -175,6 +175,27 @@ export async function startEclipse() {
     }
 
     /*
+     * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
+     * incydent"). While an incident runs the clock moves in private (clock.mjs `announceTimeOfDay`, hud.mjs
+     * `clockForDisplay`), and an Eclipse told every screen at once that the GM was doing something: its public card
+     * with its sound, the dimming on every browser, a whisper to every student. Refused here, the one writer of
+     * `eclipse: true` the HUD's chevron, the GM panel's "Do it" and the API reach; the chevron is dimmed with the same
+     * words (hud.mjs). After the body's hold, whose words say what to do next when both stand (a body found at Stage 6). An
+     * incident opened during an Eclipse is not refused by this - the Eclipse runs on, and its end's card is the
+     * incident's narrowed one. Tier 2 "the Eclipse and the incident (E17-T10)".
+     * THE OPENING AND THE FIGHT, NOT STAGE 6. At Stage 6 every one of the incident's names is seated again and the
+     * scene is theirs to arrange, and the betrayal (D18) is declared in the Eclipse that follows it: the accomplice's
+     * offer is made at Stage 6 and the lights of that Eclipse close the incident (tier 2 "refused at the lights, the
+     * offer comes back and the betrayer is told" opens it there; measured 26.10.2026, it failed with "the Eclipse did
+     * not start" while the refusal took Stage 6 too). So the refusal holds while the stage is not `resolution`.
+     */
+    const { murderState } = await import("./murder.mjs");
+    if (murderState() && murderState().stage !== "resolution") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.incidentFirst"));
+        return null;
+    }
+
+    /*
      * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
      * put to the owner beside it). A trial puts everybody in one voice room (D8, voice.mjs
      * `voiceClaim`), and an Eclipse's branch comes first there, so an Eclipse started in a trial
@@ -191,9 +212,22 @@ export async function startEclipse() {
         return null;
     }
 
+    /*
+     * ONE REFILL A BOUNDARY, AND WHAT IT CHANGES KEPT (E17 C7, 26.10.2026; audit S10-42). The boundary this Eclipse
+     * opens (clock.mjs `boundaryStamp`) refilled already when an Eclipse for it was ended without advancing after
+     * `TAKE_BACK_MS` (`refilledFor`): it refills nobody twice. What it is about to change - the budgets, the grants,
+     * the seals, and the search tokens its end restocks - is kept before any of it moves (`lastAdvance`), for "End
+     * without advancing" and the rewind to put back. In the same write as the flag.
+     */
+    const opening = getClock();
+    const boundary = boundaryStamp(opening);
+    const again = opening.refilledFor === boundary;
+    const snapshot = await boundarySnapshot();
+
     // Named by when it began (`eclipseId`): what is declared and crossed in it counts
     // in it alone, so the last Eclipse's crossings need no clearing (E05).
-    await setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+    await setClock({ eclipse: true, eclipseStartedAt: Date.now(), refilledFor: boundary,
+        lastAdvance: { for: boundary, at: serverNow(), snapshot } });
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -230,7 +264,8 @@ export async function startEclipse() {
     const { resetAllActions } = await import("./actions.mjs");
     let refilled = [];
     try {
-        refilled = await resetAllActions();
+        if (again) log("The actions were refilled for this time of day already; not again.");
+        else refilled = await resetAllActions();
     } catch (err) {
         // Reported rather than swallowed, and the Eclipse still opens: a table
         // left in the dark with no way forward is worse than a table that has
@@ -367,7 +402,16 @@ export async function endEclipse({ advance = true } = {}) {
             sfx: { key: "eclipseEnd", gm: true }
         });
     } else {
-        await setClock({ eclipse: false });
+        /* WITHIN FIVE MINUTES, TAKEN BACK (E17 C7, 26.10.2026; audit S10-42). "End without advancing" gave nothing
+           back, and the next press refilled the same boundary again. Now what this Eclipse's opening changed - the
+           budgets, the grants, the seals - is put back when it is `lastAdvance`'s and younger than `TAKE_BACK_MS`, and
+           the boundary refills when it is opened again; later, nothing is put back and the boundary stays refilled
+           (`refilledFor`). The GM panel's "End without advancing" and the API's `endEclipse({ advance: false })` both
+           come here. */
+        const closing = getClock();
+        const last = takeBackFor(closing, boundaryStamp(closing));
+        await setClock({ eclipse: false, refilledFor: last ? null : (closing.refilledFor ?? null), lastAdvance: null });
+        if (last) await takeBackBoundary(last);
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
             content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`

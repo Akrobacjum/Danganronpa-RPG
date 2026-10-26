@@ -175,12 +175,22 @@ export async function tickMotive() {
     const due = remaining === 0;
     const announceDue = due && !stored.dueAnnounced;
 
+    /*
+     * DUE IN AN INCIDENT, TOLD TO ITS TABLE AND OWED TO THE REST (E17 C7, 26.10.2026; audit S10-07). The clock moves in
+     * private while an incident runs (clock.mjs `announceTimeOfDay`), and this card on the same move told every screen
+     * that the GM had just moved it. Now it goes where that move's card goes - veiled, to the GMs and the incident's
+     * audience (`incidentAudienceIds`) - and the motive is not marked announced, so the public card comes with the
+     * first move of the clock after the incident. Tier 2 "the Eclipse and the incident (E17-T10)".
+     */
+    const { murderState, incidentAudienceIds } = await import("./murder.mjs");
+    const incident = announceDue ? murderState() : null;
+
     await game.settings.set(MODULE_ID, SETTINGS.motive, {
-        ...stored, remaining, dueAnnounced: stored.dueAnnounced || due
+        ...stored, remaining, dueAnnounced: stored.dueAnnounced || (due && !incident)
     });
 
     if (announceDue) {
-        await announce({
+        const card = {
             flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
             content: `<div class="drpg-evidence-card">
                 <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.dueBanner")}</div>
@@ -189,8 +199,17 @@ export async function tickMotive() {
                     ? `<p class="drpg-warning">${esc(stored.consequence)}</p>`
                     : ""}
             </div>`
-        });
-        log("The motive has come due.");
+        };
+        if (incident) {
+            const { whisperToGms, gmIds } = await import("./utils.mjs");
+            await whisperToGms(card.content, {
+                whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(incident)])), veiled: true, flags: card.flags
+            });
+            log("The motive has come due, told to the incident's table; the table is told after it.");
+        } else {
+            await announce(card);
+            log("The motive has come due.");
+        }
     }
 
     return { ...stored, remaining, due };

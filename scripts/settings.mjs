@@ -981,6 +981,37 @@ export const DEFAULT_CLOCK = {
      */
     pausedTotalMs: 0,
     /**
+     * THE BOUNDARY THAT REFILLED LAST (E17 C7, 26.10.2026; audit S10-42): clock.mjs
+     * `boundaryStamp` of the time of day a refill was given for (the season, the
+     * chapter, the session, the day and the time of day it leads into), or null. An
+     * Eclipse opened again for the same boundary - after "End without advancing", or
+     * a rewind more than `TAKE_BACK_MS` on - refills nobody a second time
+     * (eclipse.mjs `startEclipse`, clock.mjs `advanceTimeOfDay`). A write of the
+     * calendar by hand forgets it (`setClock`).
+     */
+    refilledFor: null,
+    /**
+     * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 C7; audit S10-42):
+     * `{ for, at, snapshot }` - the boundary's stamp, when (`serverNow()`), and the
+     * actions, the Free Move and the grants of every character, the rooms' search
+     * tokens and the seals as they stood before it (clock.mjs `boundarySnapshot`) -
+     * or null. "End without advancing" and the rewind put the snapshot back within
+     * `TAKE_BACK_MS` of `at`, and forget it either way. Every value in it is one
+     * every browser already reads: the actors' resources and flags, and two world
+     * settings.
+     */
+    lastAdvance: null,
+    /**
+     * THE CLOCK AS AN INCIDENT OPENED ON IT (E17 C7, 26.10.2026; audit S10-07): the
+     * calendar and the stopwatch's fields of the clock when `openMurder` opened the
+     * running incident (clock.mjs `frozenClockOf`), or null. A bystander's HUD shows
+     * it while the incident runs and the browser has no copy of its own from before
+     * (a reload; hud.mjs `shownClock`). On the clock, not in the incident's world
+     * half: it names nobody and says nothing every screen did not show at the open,
+     * and the incident's world half stays the two fields `PUBLIC_INCIDENT` lists.
+     */
+    clockAtOpen: null,
+    /**
      * The season finale is running: the vote is for the Mastermind, not a
      * Blackened. Purely a flavour flag for the floor/panel text - announcing
      * "a Final Trial is happening" gives nothing away, unlike the Mastermind's

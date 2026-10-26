@@ -441,6 +441,53 @@ export async function resetAllActions({ keepGrants = false } = {}) {
 }
 
 /**
+ * EVERY CHARACTER'S BUDGET AS IT STANDS (E17 C7, 26.10.2026; audit S10-42): `{ [actorId]: { value, max, used, moves,
+ * actions } }` - the actions, the Free Move spent, the banked Free Moves and free actions - for clock.mjs
+ * `boundarySnapshot`, read before a boundary refills. Every character but a Monokuma, the dead with the living: the
+ * refill skips a body the table knows of, and a snapshot that skipped one by the GMs' reading would name it. Pure
+ * but for the read.
+ */
+export function budgetsOf() {
+    const out = {};
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || actor.getFlag(MODULE_ID, FLAGS.monokuma)) continue;
+        const pool = actor.system?.resources?.[ACTIONS_RESOURCE] ?? {};
+        out[actor.id] = {
+            value: Number(pool.value) || 0, max: Number(pool.max) || 0,
+            used: Boolean(actor.getFlag(MODULE_ID, FLAGS.freeMoveUsed)),
+            moves: freeMovesLeft(actor), actions: freeActionsLeft(actor)
+        };
+    }
+    return out;
+}
+
+/**
+ * `budgetsOf`'s answer written back (E17 C7): each character whose budget differs from it, as the refill writes one
+ * (`reason: "setup"`); a character since deleted is passed over. GM only. Answers how many were written.
+ */
+export async function putBackBudgets(budgets = {}) {
+    if (!game.user.isGM) return 0;
+    let written = 0;
+    for (const [id, was] of Object.entries(budgets ?? {})) {
+        const actor = game.actors?.get(id);
+        if (!actor || !was) continue;
+        const now = budgetsOf()[id];
+        if (now && sameBudget(now, was)) continue;
+        await trustedWrite(actor, {
+            [`system.resources.${ACTIONS_RESOURCE}.value`]: was.value,
+            [`system.resources.${ACTIONS_RESOURCE}.max`]: was.max,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: was.used,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.moves,
+            [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: was.actions
+        }, { reason: "setup" });
+        written++;
+    }
+    return written;
+}
+
+const sameBudget = (a, b) => ["value", "max", "used", "moves", "actions"].every(k => a[k] === b[k]);
+
+/**
  * The allowance a Class Trial opens with (T-1, Dawid 17.09).
  *
  * A trial is a seam in play, and since T-1 there are two things to spend actions

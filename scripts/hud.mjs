@@ -333,6 +333,18 @@ export async function beatClock() {
 }
 
 /**
+ * WHAT A BYSTANDER'S HUD SHOWS (E17 C7, 26.10.2026; audit S10-07): the clock itself unless `hide`; hidden, this page's
+ * copy from before the incident (`last`), or - after a reload, with no copy - the clock as the incident opened on it
+ * (`clockAtOpen`, written by murder-rules.mjs `openMurder`) over the live one; with neither, the live clock, as
+ * before. Exported for the suite (tier 2 E17-T10), which has no bystander's page to reload. Pure.
+ */
+export function shownClock(clock, { hide = false, last = null } = {}) {
+    if (!hide) return clock;
+    if (last) return last;
+    return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock;
+}
+
+/**
  * The last clock this client was ALLOWED to display. See `clockForDisplay`.
  */
 let lastPublicClock = null;
@@ -377,7 +389,7 @@ export function clockForDisplay(clock) {
             lastPublicClock = foundry.utils.duplicate(clock);
             return clock;
         }
-        return lastPublicClock ?? clock;
+        return shownClock(clock, { hide: true, last: lastPublicClock });
     } catch {
         // A HUD that cannot decide shows the truth - a wrong clock for one
         // render beats no clock at all.
@@ -1262,10 +1274,15 @@ function buildTimeRow(clock, isGM) {
         // (E11 C3, audit S06-05) - and, as there, not in the Investigation (E11 fix r1-G3). Still
         // pressable, so the press says it too - a disabled button would also be re-enabled by
         // `releaseControls` after the next press.
-        const held = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
+        // And over a running incident's opening or fight (E17 C7; the owner's Q3 (a)), with `startEclipse`'s words,
+        // after the hold, as there; not at Stage 6, whose betrayal is declared in an Eclipse.
+        const body = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
+        const incident = !eclipseRunning && Boolean(murderState()) && murderState().stage !== "resolution";
+        const held = body || incident;
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
-            : held ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
+            : body ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
+            : incident ? game.i18n.localize("DRPG.Eclipse.incidentFirst")
             : game.i18n.format(
                 index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession"
                     : free ? "DRPG.Hud.startEclipseFree"
@@ -1278,13 +1295,32 @@ function buildTimeRow(clock, isGM) {
             async () => {
                 const { isEclipse, startEclipse, endEclipse } = await import("./eclipse.mjs");
                 if (isEclipse()) await endEclipse({ advance: true });
-                else await startEclipse();
+                else if (held || await askEclipse(incoming)) await startEclipse();
             },
             { literal: true, held }
         ));
     }
 
     return row;
+}
+
+/**
+ * THE CHEVRON ASKS FIRST, AND "NO" IS THE DEFAULT (E17 C7, 26.10.2026; audit S10-42). One press opened the Eclipse: the
+ * refill, the grants and the seals gone and a card on every screen, from a control beside the rewind. The press now
+ * asks, the Eclipse it opens named, and Enter or a closed window answers no. A held chevron (the body's hold, an
+ * incident) does not ask: `startEclipse` refuses it with the words. The GM panel's "Do it" is a question already.
+ */
+async function askEclipse(incoming) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const name = game.i18n.format("DRPG.Eclipse.named", { time: timeOfDayLabel(incoming) });
+    return Boolean(await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: name },
+        content: `<p>${game.i18n.format("DRPG.Hud.eclipseAsk", { name: foundry.utils.escapeHTML(name) })}</p>`,
+        yes: { label: game.i18n.localize("DRPG.Hud.eclipseAskYes") },
+        no: { label: game.i18n.localize("DRPG.Hud.eclipseAskNo"), default: true },
+        rejectClose: false
+    }));
 }
 
 /* ==========================================================================
