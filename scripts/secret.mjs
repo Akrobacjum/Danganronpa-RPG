@@ -330,6 +330,36 @@ export function cardTooLong(content, flags) {
  */
 const GM_PROSE = ".drpg-gm-only, .drpg-call-actions";
 
+/*
+ * AND THE GMS' PROSE OF A CARD OLDER THAN ITS WRAPPER (E16 part 2 C5, 26.10.2026; audit S02-28). A ruling card's
+ * GM half has been wrapped in `.drpg-gm-only` since 1.2.50 (9808697, 22.09); an Observe card posted before that
+ * carries its "Total 10. Score it against the Observe table ... A failure costs them 2 Sanity." as a bare line,
+ * and a player's thread showed it after any update - the audit's screenshot. A player's copy drops such a line,
+ * matched by what it says, as gm-bridge.mjs `settleCall` matches the awaiting sentence of cards older than its
+ * class: the sentence of `DRPG.Action.observeGm` in this browser's language, its numbers any. A card written in
+ * another language than the reader's is not matched (not measured on an old world: the audit's was English).
+ */
+const OLD_GM_LINES = Object.freeze(["DRPG.Action.observeGm"]);
+
+/** A sentence of `key` with its placeholders read as any run of non-space characters, or null for a key with none. */
+function sentenceOf(key) {
+    const text = game.i18n?.localize?.(key);
+    if (typeof text !== "string" || !text || text === key) return null;
+    const parts = text.split(/\{[^}]+\}/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return new RegExp(`^${parts.join("\\S+")}$`);
+}
+
+/** Takes off `root` the bare GM lines of cards older than their wrapper, for a player (`forGm` false); a GM's untouched. */
+export function dropOldGmLines(root, { forGm = Boolean(game.user?.isGM) } = {}) {
+    if (forGm || !root?.querySelectorAll) return root;
+    const said = OLD_GM_LINES.map(sentenceOf).filter(Boolean);
+    for (const p of [...root.querySelectorAll("p")]) {
+        const text = p.textContent.replace(/\s+/g, " ").trim();
+        if (said.some(re => re.test(text))) p.remove();
+    }
+    return root;
+}
+
 /** A card's words as a player may hold them: without the GMs' prose and the ruling's buttons. */
 function playerWords(html) {
     const text = String(html ?? "");
@@ -927,6 +957,7 @@ export function drawPrivateCard(message, element) {
        bubbles do. Whether v14's log draws anything around them is LIVE-E06-08. */
     const trim = () => {
         if (!game.user.isGM) body.querySelectorAll(GM_PROSE).forEach(el => el.remove());
+        dropOldGmLines(body);
     };
     if (!html) {
         // A veiled card this client was not sent the words of is not

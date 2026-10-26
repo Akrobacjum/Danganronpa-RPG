@@ -178,7 +178,7 @@ Przeszukujesz pokój pod kątem tego, co nazwiesz. Wydaje jeden z Search Tokenó
 | 8+ | przedmiot Tier 0 - losowa, z pozoru bezużyteczna rzecz |
 | 12+ | Tier 1 |
 | 18+ | Tier 2 |
-| krytyk | o jeden Tier więcej, niż mówi rzut |
+| krytyk | o jeden Tier lepiej, niż mówi rzut - więc krytyk, który nie sięga żadnego progu, i tak znajduje przedmiot Tier 1 |
 
 O co możesz prosić:
 
@@ -220,7 +220,7 @@ Cztery rzeczy za jednym kafelkiem:
 
 - **Zidentyfikuj Truth Bullet.** Zamienia Neutral Truth Bullet w jego prawdziwą kategorię. **Porażka blokuje ten bullet dla ciebie do końca rozdziału** - przekaż kopię komuś innemu, jego kopii twoja porażka nie wiąże.
 - **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
-- **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie.
+- **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie. Nie w Class Trial.
 - **Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz: odcinek jego ściany albo koniec tunelu, na twoim piętrze. Poniżej 16 albo gdy żadnego nie ma, twoja karta mówi "Nie znajdujesz tu tajnego przejścia." GMowie widzą tę samą kartę. Nie w Class Trial.
 
 ### Projekty - statystyka projektu, 1 akcja
@@ -262,14 +262,14 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 
 ### Akcja dynamiczna - dowolna statystyka, 1 akcja
 
-Cokolwiek, byle opisane szczegółowo. GM ustala trudność i statystykę albo odmawia (nic nie wydano). Progi akcji dynamicznych są łagodniejsze niż standardowych, celowo, jako nagroda za pomysł:
+Cokolwiek, byle opisane szczegółowo. GM ustala trudność i statystykę albo odmawia (nic nie wydano). Okno rzutu mówi, jaką liczbę trzeba przebić: pasmo zdaje się od dolnej liczby. Przy sukcesie twoja karta mówi, że GM zdecyduje, co daje ci wynik danego Tieru, a GM dostaje kartę, która tworzy przedmiot. Progi akcji dynamicznych są łagodniejsze niż standardowych, celowo, jako nagroda za pomysł:
 
-| Trudność | Zakres | Tier przedmiotu, który może dać | Ślad, który zostawia |
+| Trudność | Przebij | Tier przedmiotu, który może dać | Ślad, który zostawia |
 |---|---|---|---|
-| Trywialne - każdy by to zrobił | 8-12 | Tier 0 | Obvious |
-| Wymaga wprawy | 13-15 | Tier 1 | Evident |
-| Obce większości ludzi | 16-18 | Tier 2 | Subtle |
-| Wymaga bardzo niszowej wiedzy | 19-21 | Tier 3 | Hidden |
+| Trywialne - każdy by to zrobił | 8 | Tier 0 | Obvious |
+| Wymaga wprawy | 13 | Tier 1 | Evident |
+| Obce większości ludzi | 16 | Tier 2 | Subtle |
+| Wymaga bardzo niszowej wiedzy | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
 > Skala jest odwrócona celowo: im łatwiejsza rzecz, tym głośniejszy ślad.
@@ -524,7 +524,7 @@ Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Lif
 
 **Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GMami - *Przygotuj broń* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Zastaw pułapkę* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **7-10 postępu** łącznie, tyle, ile dają obie części w najmniejszej i największej skali.
 
-Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach"). W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
+Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
 
 | Rzut Shadow | Ślad, który zostawia |
 |---|---|
@@ -585,7 +585,7 @@ Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na
 
 | Akcja kryzysowa | Rzut | Co robi |
 |---|---|---|
-| **Zostaw trop** | Hand / Leg / Shadow, 12 | Zostawia ślad, który ma pomóc innym (Evident przy Hope, Subtle przy Despair, Obvious i Reinforced na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy twojej następnej próbie tej akcji. Wobec pułapki: Hand / Leg / Body, Hope zostawia Reinforced ślad, krytyk dwa. |
+| **Zostaw trop** | Hand / Leg / Shadow, 12 | Zostawia ślad, który ma pomóc innym (Evident przy Hope, Subtle przy Despair, Obvious i Reinforced na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy twojej następnej próbie tej akcji. Wobec pułapki: Body / Hand / Leg, Hope zostawia Reinforced ślad, krytyk dwa. |
 | **Zabezpiecz ślad** | Hand / Leg / Shadow, 15 | Zabierz coś zabójcy i zamień to w ślad powiązany z jego tożsamością. Ten sam kształt co wyżej. |
 | **Self-defence** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role reversal, Despair tylko Role reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-defence. |
@@ -668,7 +668,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 ## 12. Class Trial
 
-Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
+Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty. W Class Trialu Analyze tylko identyfikuje Truth Bullety - bez wskazówki, bez ukrytej skrytki, bez przejścia; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
 
 Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących, którzy brali udział, do pokoju, który wybierze GM. Na czas rozprawy moduł stawia token twojej postaci w sali, a potem go usuwa; GM wybiera, kto bierze udział. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
 

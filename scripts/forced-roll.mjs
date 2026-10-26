@@ -11,7 +11,11 @@
  * resolution action, which is what made this Call the cheapest way out of an
  * incident anybody had. Now the loaded die guarantees a very high total and
  * nothing more; the other one is thrown, and a critical happens only when it
- * lands on 12 by itself.
+ * lands on 12 by itself. Which way the roll goes is that other die's: a loaded
+ * Hope die is a roll with Hope (or a critical), a loaded Fear die one with
+ * Despair (or a critical) - since D16 (below) the coin decides, not the order.
+ * A die whose faces do not come from the randomiser is not loaded at all, and
+ * the roll does not read as a Free Critical (`loadedDieHeld`, E16 part 2 C5).
  *
  * AND WHICH ONE AT RANDOM (D16, the owner's option 1: the Loaded Die sets a random die;
  * audit S09-08, E15 C5, 25.10.2026). Until C5 it was always the first die the
@@ -71,6 +75,28 @@ export const LOADED_AT = "drpgLoadedAt";
 export function loadedAtOf(roll) {
     const at = roll?.options?.[LOADED_AT];
     return at === "hope" || at === "fear" ? at : null;
+}
+
+/**
+ * WHETHER THE LOADED DIE HELD on a roll this browser threw (E16 part 2 C5, 26.10.2026; audit S02-44). The die is
+ * loaded by answering its draw from `CONFIG.Dice.randomUniform`; a d12 whose faces come from elsewhere - a method
+ * other than the default chosen in Foundry's Configure Dice, which draws no uniform sample - shows an honest face,
+ * and the roll still read as a Free Critical: "freeCritUsed" whispered and the outcome marked, for dice nobody
+ * loaded. `result` is what Daggerheart's `rollTrait` answers - its config, which the Roll it built keeps as its
+ * `options` (dhRoll.mjs `createRollInstance`), so the die `loadDie` named is on it - with the faces on its `roll`
+ * (`hope` and `fear`, `{ dice: "d12", value }`, dualityRoll.mjs `buildEvaluate`). Held: the named die shows its top
+ * face; with no die named (a Daggerheart whose roll keeps other options), either die. Read on the harness's dice
+ * (tier 2's E16-T35, a die method that ignores the sample); a table's Configure Dice is LIVE-E16-06.
+ */
+export function loadedDieHeld(result) {
+    const at = loadedAtOf(result) ?? loadedAtOf({ options: result }) ?? loadedAtOf(result?.roll);
+    const faces = result?.roll ?? result;
+    const top = side => {
+        const die = faces?.[side];
+        const most = Number(String(die?.dice ?? "d12").replace(/^d/, "")) || 12;
+        return Number(die?.value) === most;
+    };
+    return (at ? [at] : ["hope", "fear"]).some(top);
 }
 
 /*

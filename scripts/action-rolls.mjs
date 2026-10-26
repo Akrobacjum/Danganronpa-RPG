@@ -718,7 +718,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // A Free Critical still throws the dice - it just decides in advance what
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
-    const { LOADED_DIE } = await import("./forced-roll.mjs");
+    const { LOADED_DIE, loadedDieHeld } = await import("./forced-roll.mjs");
 
     // Always open the configuration window.
     //
@@ -807,8 +807,10 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // claim's `facts` told it which.
     const drawn = result?.[DRAWN_ROLL] ?? null;
     if (armedCalls.length && !drawn) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
-    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did.
-    const loaded = drawn ? drawn.loaded === true : free;
+    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did (E28). On a roll this browser
+    // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
+    // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
+    const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
 
     const outcome = {
         total,
@@ -4467,7 +4469,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, vault.mjs `plantOnPerson`; fix e1-G4).
-    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     await noteRollContext(actor, {
@@ -4487,6 +4489,16 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
 }
 
 /** The action a Palm paid, handed back by its receipt, and said where something was paid (E14 part 1 C1, Q3). */
+/*
+ * A PALM OR A PLANT NO GM WAS THERE TO TAKE (E16 part 2 C5, 26.10.2026; audit S02-15). The last GM gone between the dice
+ * and the ask: the bridge sends nothing and answers `noGm` (bridge-guards.mjs `bridgeRequest`), so no roll was read and
+ * nothing was carried out - before the rolls are read, as the owner's Q3 of 18.10 reads, so the action comes back as for
+ * the one gate's refusal. `noAnswer` stays paid: a GM may have carried it out and only the answer was lost.
+ */
+function nobodyTook(ok, reason) {
+    return !ok && reason === "noGm";
+}
+
 async function palmBack(actor, paid) {
     await abort(actor, paid);
     if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
@@ -4632,7 +4644,7 @@ async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, vault.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot

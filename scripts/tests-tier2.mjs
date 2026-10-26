@@ -69538,6 +69538,137 @@ const SCENARIOS = [
             + `[windows, each row (greyed, disabled, a reason), the buttons, the "nothing here" toast, the answer, the tile's reason holds both]: tile ${stableJson(tile)}`);
     }],
 
+    ["E16-T35 - a Loaded Die counts only where the die held: a die drawn by another dice method reads no Free Critical and whispers nothing (audit S02-44)", async () => {
+        /*
+         * E16 part 2 C5, 26.10.2026. The Loaded Die forces its die by answering that die's draw from
+         * `CONFIG.Dice.randomUniform` (forced-roll.mjs `loadDie`); a d12 whose faces come from another method of
+         * Foundry's Configure Dice draws no such sample and shows an honest face, while the roll on this browser's
+         * own road (not drawn by a GM) still read `freeCritical: free` and whispered "freeCritUsed" (E28 closed the
+         * drawn road only). Two Free Criticals armed one at a time on one student, each spent by an action roll on
+         * this GM: the first on the harness's dice (the control: the named die shows 12); the second with the Hope
+         * and Fear dice's face mapping replaced for the roll (`mapRandomFace` shadowed on Daggerheart's two die
+         * classes: 7 and 4 whatever the sample), as a dice method that ignores the sample throws them. Read for each:
+         * the faces, the outcome's Free Critical, and whether a new card says "freeCritUsed". Red before C5: the
+         * second read as a Free Critical and its card was posted.
+         */
+        const [who] = cast(1);
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        const { wordsOf, contentOf } = await import("./secret.mjs");
+        const dice = game.system?.api?.dice?.diceTypes ?? {};
+        must(typeof dice.HopeDie === "function" && typeof dice.FearDie === "function",
+            "Daggerheart's Hope and Fear die classes are not here - the method's faces could not be set and this would measure nothing");
+        const sentence = game.i18n.format("DRPG.Calls.freeCritUsed", { name: foundry.utils.escapeHTML(who.name) });
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = [];
+        const own = [dice.HopeDie, dice.FearDie].map(C => [C, Object.getOwnPropertyDescriptor(C.prototype, "mapRandomFace")]);
+        try {
+            for (const method of ["randomUniform", "another method"]) {
+                must(await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical", nonce: foundry.utils.randomID() }),
+                    "the Free Critical was not armed - this would measure nothing");
+                const seen = new Set(game.messages.contents.map(m => m.id));
+                if (method !== "randomUniform") {
+                    dice.HopeDie.prototype.mapRandomFace = () => 7;
+                    dice.FearDie.prototype.mapRandomFace = () => 4;
+                }
+                let r = null;
+                try {
+                    r = await neutralRoll(who, { remember: true, faces: { hope: 5, fear: 3 } });
+                } finally {
+                    for (const [C, d] of own) {
+                        if (d) Object.defineProperty(C.prototype, "mapRandomFace", d); else delete C.prototype.mapRandomFace;
+                    }
+                }
+                await settle();
+                const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+                const said = [];
+                for (const m of fresh) said.push(contentOf(m) || String(await wordsOf(m, 1500) ?? ""));
+                read.push([method, r?.outcome?.raw?.roll?.hope?.value ?? null, r?.outcome?.raw?.roll?.fear?.value ?? null,
+                    r?.outcome?.freeCritical ?? null, said.some(t => t.includes(sentence))]);
+            }
+        } finally {
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        must(read[0]?.[1] === 12 || read[0]?.[2] === 12, `the control roll's loaded die did not show 12 - this would measure nothing: ${stableJson(read[0])}`);
+        equal(stableJson(read.map(([method, , , free, told]) => [method, free, told])),
+            stableJson([["randomUniform", true, true], ["another method", false, false]]),
+            `a Loaded Die read as a Free Critical where its die did not hold, or not where it did [the method, the Free Critical, the "freeCritUsed" card]: ${stableJson(read)}`);
+        equal(stableJson(read[1].slice(1, 3)), stableJson([7, 4]), "the second roll's dice were not the method's faces - the die was loaded after all");
+    }],
+
+    ["E16-T36 - an old Observe card drops the GMs' sentence for a player, a fresh one wraps it, and a GM reads both whole (audit S02-28)", async () => {
+        /*
+         * E16 part 2 C5, 26.10.2026. A ruling card's GM half has been wrapped in `.drpg-gm-only` since 1.2.50, so a
+         * player's thread showed "Total 10. Score it against the Observe table ... A failure costs them 2 Sanity."
+         * only on cards older than that - which a world keeps after every update. The filter (secret.mjs
+         * `dropOldGmLines`) matches the sentence of DRPG.Action.observeGm, its numbers any. Read on three cards:
+         * an old one as 1.2.49 wrote it (the sentence a bare line), a fresh one built as `callGm` builds it
+         * (gm-bridge.mjs `callCardHtml`), cut for a player as the messenger cuts it (`.drpg-gm-only` off, then the
+         * filter) and for a GM; then the three places a player's copy is drawn read in the source for the filter.
+         * Nothing is written.
+         */
+        const S = await import("./secret.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const [who] = cast(1);
+        const line = game.i18n.format("DRPG.Action.observeGm", { total: 10, n: 2 });
+        const other = "SUITE E16-T36 the window over the pool";
+        const old = `<h3>Observe</h3><p>${other}</p><p><small>${line}</small></p>`;
+        const fresh = B.callCardHtml(who, { title: "Observe", body: `<p>${other}</p>`, gmBody: `<p><small>${line}</small></p>` });
+        ok(typeof S.dropOldGmLines === "function", "secret.mjs exports no `dropOldGmLines` - a player's copy of an old card keeps the GMs' sentence");
+        const cut = (html, forGm) => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            if (!forGm) root.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
+            S.dropOldGmLines?.(root, { forGm });
+            return [root.textContent.includes(line), root.textContent.includes(other)];
+        };
+        const held = (() => {
+            const root = document.createElement("div");
+            root.innerHTML = fresh;
+            return [...root.querySelectorAll(".drpg-gm-only")].some(el => el.textContent.includes(line));
+        })();
+        const app = stripComments((await moduleSources()).get("messenger-app.mjs") ?? "");
+        const secret = stripComments((await moduleSources()).get("secret.mjs") ?? "");
+        equal(stableJson({ player: { old: cut(old, false), fresh: cut(fresh, false) }, gm: { old: cut(old, true), fresh: cut(fresh, true) }, wrapped: held,
+            drawn: [/dropOldGmLines\(body\)/.test(fnSource(app, "buildBubble")), /dropOldGmLines\(wrap\)/.test(fnSource(app, "cardPreview")),
+                /dropOldGmLines\(body\)/.test(fnSource(secret, "drawPrivateCard"))] }),
+        stableJson({ player: { old: [false, true], fresh: [false, true] }, gm: { old: [true, true], fresh: [true, true] }, wrapped: true, drawn: [true, true, true] }),
+            "a player's copy of an old card keeps the GMs' sentence, or a fresh card does not wrap it, or a GM loses it, or a place a player's copy is drawn does not filter "
+            + "[per reader and card: the sentence, the player's own line; the fresh card's wrapper; the bubble, the preview, the Chat tab]");
+    }],
+
+    ["E16-T37 - every action a GM rules refuses before its cost with no GM, and a Palm or a Plant the bridge could not send gives its action back (audit S02-15)", async () => {
+        /*
+         * E16 part 2 C5, 26.10.2026; a census (design-notes D2). S02-15 found actions that needed a GM paid and
+         * rolled with none connected. Since E08+E28 C18 `performAction` refuses a player's action before any price
+         * or window when no GM is connected, all but the three that throw no dice (`THROWS_NO_DICE`: Move, Rest,
+         * Direct Murder, whose roads ask a GM and say so); `callGm` answers false with no GM (E18 C0), and its
+         * callers give the price back. What was left: a Palm or a Plant whose last GM left between the dice and the
+         * ask is answered `noGm` by the bridge - nothing sent, no roll read - and stayed paid (only the one gate's
+         * codes gave it back). Read in the source, as no GM can be taken away from this GM's browser: the
+         * refusal's place in `performAction` (before the first price), the exempt set against ACTIONS (every action
+         * whose tile says it calls a GM is held, Direct Murder aside), `callGm`'s refusal, and the Palm's and the
+         * Plant's refund of a `noGm` answer. Nothing is written.
+         */
+        const { ACTIONS } = await import("./config.mjs");
+        const src = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
+        const bridge = stripComments((await moduleSources()).get("gm-bridge.mjs") ?? "");
+        must(src && bridge && Object.keys(ACTIONS).length > 3, "the sources or the action table were not read - this would measure nothing");
+        // Its body, past the signature: the name itself reads as a call of a performer.
+        const perform = fnSource(src, "performAction").replace(/^[^{]*\{/, "");
+        const refusal = perform.search(/!game\.user\.isGM && !activeGmIds\(\)\.length && !THROWS_NO_DICE\.has\(actionKey\)/);
+        const firstPrice = perform.search(/spendAction\(|perform[A-Z][a-zA-Z]*\(actor/);
+        const exempt = (src.match(/const THROWS_NO_DICE = new Set\(\[([^\]]*)\]\)/)?.[1] ?? "").split(",").map(x => x.trim().replace(/"/g, "")).filter(Boolean).sort();
+        const callsGm = Object.entries(ACTIONS).filter(([, def]) => def?.callsGm === true || typeof def?.callsGm === "function").map(([key]) => key);
+        const call = fnSource(bridge, "callGm");
+        const refunds = ["performPalm", "resolvePlant"].map(name => /nobodyTook\(res\.ok, res\.reason\)[^;]*await palmBack\(actor, paid\)/.test(fnSource(src, name).replace(/\s+/g, " ")));
+        const nobody = fnSource(src, "nobodyTook");
+        equal(stableJson({ before: refusal >= 0 && firstPrice > refusal, exempt, held: callsGm.filter(key => exempt.includes(key) && key !== "directMurder"),
+            callGm: /if \(!gmOnline\(\)\) \{\s*sayNotDone\(what, "noGm"[\s\S]{0,80}?return false;/.test(call), refunds, noGm: /!ok && reason === "noGm"/.test(nobody) }),
+        stableJson({ before: true, exempt: ["directMurder", "move", "rest"], held: [], callGm: true, refunds: [true, true], noGm: true }),
+            "an action a GM rules can be paid with no GM connected, or a Palm or a Plant the bridge could not send keeps its price "
+            + "[performAction refuses before the first price, the exempt set, exempt actions that call a GM, callGm's refusal, the Palm's and the Plant's refund, the refund reads noGm]");
+    }],
+
     ...GRID
 ];
 

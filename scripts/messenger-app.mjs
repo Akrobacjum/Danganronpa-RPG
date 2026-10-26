@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines } from "./secret.mjs";
+import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -508,6 +508,8 @@ function cardPreview(html) {
     wrap.innerHTML = html ?? "";
     wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
     if (!game.user.isGM) wrap.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
+    // A card older than the wrapper above carries the GMs' line bare (E16 part 2 C5; audit S02-28).
+    dropOldGmLines(wrap);
     return readersLines(wrap);
 }
 
@@ -565,6 +567,7 @@ function buildBubble(message) {
     // the buttons, rather than hidden. Since E06 C7b a player's words arrive
     // without it (secret.mjs `playerWords`); this takes it off older ones.
     if (!game.user.isGM) body.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
+    dropOldGmLines(body);
     wireCallActions(body, message);
     bubble.append(body);
 

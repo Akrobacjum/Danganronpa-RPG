@@ -6744,8 +6744,8 @@ const INVARIANTS = [
          * window; and an answer the definition does not list, or none, means no roll. Asked
          * on stubs (`seams`: who this browser is, whether Resolve is armed, the two ways of
          * asking, each noting that it was asked), with the lists read from config: Pin (Body),
-         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Hand / Leg /
-         * Body), and a kind that is none. Pure; nothing is written.
+         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Body / Hand /
+         * Leg, Body first since E16 part 2 C5), and a kind that is none. Pure; nothing is written.
          */
         const T = await import("./trait-ruling.mjs");
         const A = { id: "R212ACTOR0000001", name: "R212" };
@@ -22531,6 +22531,33 @@ const INVARIANTS = [
         equal(stableJson({ project: ask(nowhere, "project"), search: ask(nowhere, "search") === noRoom, listed: list.includes('"project"'), counted: WORDS[said] === list.length }),
             stableJson({ project: null, search: true, listed: false, counted: true }),
             `the Projects tile is struck through outside a room, or roomBlockFor's comment miscounts its list [Projects' reason, Search's is the room's note, "project" listed, the comment's count]: list ${stableJson(list)}, said ${said}`);
+    }],
+
+    ["R987 - a trap's victim throws Body first on Leave a clue and Secure a trace (E16-T34; audit S13-31, the owner's D16): each `indirectVictim` list starts with Body and holds no Shadow, the direct tables keep Shadow, and where nobody picks - an armed Resolve - and on the GMs' window's default the victim's throw is Body", async () => {
+        /*
+         * E16 part 2 C5, 26.10.2026. The guide's table for a trap's victim rolls Body where the direct one rolls
+         * Shadow, and murder-rules.mjs said so ("Body, not Shadow"), but config listed Hand / Leg / Body: an armed
+         * Resolve, which takes the first listed statistic (trait-ruling.mjs `traitFor`), and the GMs' window,
+         * whose first button is its default (`pickHere`), both put a trap's victim on Hand, as the direct table
+         * does. Read from config through the ruling's own reader (`listedTraits`) and its pick on stubs (`seams`:
+         * a player's browser with Resolve armed; a GM's browser whose window presses its default). Pure; nothing
+         * is written; no phase is asked.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const A = { id: "R987ACTOR0000001", name: "R987" };
+        const read = {};
+        for (const key of ["leaveClue", "secureTrace"]) {
+            must(CRISIS_ACTIONS[key]?.indirectVictim, `CRISIS_ACTIONS.${key} has no table for a trap's victim - this would measure nothing`);
+            const trap = T.listedTraits({ kind: "crisis", key, variant: "indirectVictim" });
+            const direct = T.listedTraits({ kind: "crisis", key });
+            const resolve = await T.traitFor(A, { kind: "crisis", key, variant: "indirectVictim" }, { isGm: false, resolveArmed: () => true });
+            const window = await T.traitFor(A, { kind: "crisis", key, variant: "indirectVictim" },
+                { isGm: true, resolveArmed: () => false, pickHere: async (actor, spec, listed) => listed[0] });
+            read[key] = [trap[0] ?? null, trap.includes("shadow"), direct.includes("shadow"), resolve?.trait ?? null, window?.trait ?? null];
+        }
+        equal(stableJson(read), stableJson({ leaveClue: ["body", false, true, "body", "body"], secureTrace: ["body", false, true, "body", "body"] }),
+            "a trap's victim does not throw Body first [the trap table's first statistic, Shadow on it, Shadow on the direct table, Resolve's throw, the GMs' default]");
     }],
 ];
 

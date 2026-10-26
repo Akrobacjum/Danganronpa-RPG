@@ -1009,7 +1009,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * the dice or paid - the Sanity and the price are the GM's, once the roll is scored -
      * so a refusal or a request not carried out ends here with nothing spent. In a fight
      * the turn waits for the GM. The indirect victim is asked about their own table
-     * (Body, not Shadow), named by `crisisVariant`, which the GM checks again.
+     * (Body first, not Shadow: config.mjs `indirectVictim.traits`, E16 part 2 C5), named by
+     * `crisisVariant`, which the GM checks again.
      */
     const { traitFor } = await import("./trait-ruling.mjs");
     const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) });
