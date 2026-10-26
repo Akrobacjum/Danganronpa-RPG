@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable, rolesOf } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -1600,7 +1600,7 @@ function traitFieldHtml(actor, traits, { note = "" } = {}) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    return `<label class="drpg-trait-field">${game.i18n.localize("DRPG.Advance.whichTrait")}
+    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
         <select name="trait">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
     </label>`;
@@ -2063,7 +2063,7 @@ async function searchNothing(actor, def, roll, { room, scene, category, goalKey,
 // room's own contents once the stash is empty. Nothing is drawn for a stash
 // - the loot is whatever its owner actually put in it, which is what makes
 // rifling through one worth the action.
-async function searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra = "", stash = null }) {
+async function searchStash(actor, def, roll, { room, scene, category, goalKey, tier, hit = null, stashOwner, stashLoot, extra = "", stash = null }) {
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
     // The declaration still counts. Somebody rummaging for a weapon who
@@ -2094,8 +2094,28 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
     // own client a refusal settles as done with `{ refused }` as its value, told already (E14 fix e1-G1).
     const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : { pending: true }) : null;
 
+    /*
+     * A WEAPON OUT OF A STASH LEAVES ITS TRACE (E16 part 2 C4, 26.10.2026; audit S02-18, the owner's Q6 of 19.10:
+     * "tak"). The handbooks say a Murder Weapon or a Cleaning Tool taken by a Search leaves a Prep Remnant, and a
+     * Search of the room's table does (`traceTheFind`), but this road left none: an accomplice hid the knife in a
+     * stash, the killer took it out with a Search, and the room held no trace of it. The trace now follows the
+     * thing taken, as the room's does - its category and its roles (`leaveSearchTrace`, inventory.mjs
+     * `leavesTraceFor`), the band the Search reached - once the steal was carried out: on a GM's own client its
+     * answer, on a player's the GM's acceptance of the packet (`pending`). A steal refused at once leaves none;
+     * what a GM refuses after accepting the packet is not read back here (`vault.steal` is answered "ack").
+     */
+    let placed = null, leftTrace = false;
+    if (got) {
+        ({ placed, leftTrace } = await leaveSearchTrace(actor, def, roll, {
+            hit, room, tier,
+            category: taken.getFlag(MODULE_ID, "category") ?? category,
+            drawn: { name: taken.name, roles: rolesOf(taken) },
+            granted: typeof got.getFlag === "function" ? got : taken
+        }));
+    }
+
     await noteRollContext(actor, {
-        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
+        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true, ...remnantRef(placed)
     });
     // Palm's rule (ROLL-10): the card names what came out only when this
     // client SAW it come out. A player's request is answered on the GM's
@@ -2107,9 +2127,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
     await report(actor, def, roll, {
-        success: true, text, extra, stash, room, tokensLeft: SearchTokens.left(room, scene)
+        success: true, text, extra, stash, leftTrace, room, tokensLeft: SearchTokens.left(room, scene)
     });
-    return { success: true, roll, tier, fromVault: true };
+    return { success: true, roll, tier, fromVault: true, leftTrace };
 }
 
     /*
@@ -2431,7 +2451,7 @@ async function performSearch(actor, def, options) {
 
     if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, scene, category, goalKey, extra, stash });
 
-    if (stashLoot.length) return searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, scene, category, goalKey, tier, hit, stashOwner, stashLoot, extra, stash });
 
     const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
@@ -2556,15 +2576,17 @@ function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = ""
+    extra = "", confirm = null, traitNote = "", showShut = false
 } = {}) {
     const usable = options.filter(o => !o.disabled);
-    if (!usable.length) {
+    // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
+    // that closes it (E16 part 2 C4; S02-26, the Rest window) - the reasons are the answer the player needs.
+    if (!usable.length && !(showShut && options.length)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.noVariants"));
         return null;
     }
 
-    const first = usable[0].value;
+    const first = usable[0]?.value ?? null;
 
     // A row's details are a sibling of its <label>, not a child: a list is no phrasing
     // content, and the stylesheet unfolds the block right after the picked row.
@@ -2603,7 +2625,9 @@ export async function chooseVariant({
         </form>`),
         render: options.some(o => o.confirm)
             ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
-        buttons: [
+        buttons: !usable.length ? [
+            { action: "cancel", default: true, label: game.i18n.localize("DRPG.Panel.close") }
+        ] : [
             {
                 action: "ok", default: true,
                 label: confirmFor(first),
@@ -3329,6 +3353,24 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);
             if (ok && conceal.withFear) bonus += CONCEALED_WITH_DESPAIR;
+            /*
+             * A FAILED CONCEALMENT IS TOLD TO THE ROOM (E16 part 2 C4, 26.10.2026; audit S02-17, the owner's Q5 of
+             * 19.10: "samo"). The failure's sentence ("the others get a general description of what you are doing")
+             * went on the roller's own card alone, so the witnesses it names were told nothing unless a GM noticed it
+             * and passed it on - while a Sabotage seen in the same room is announced to that room by itself
+             * (`performSabotage`). The room is told now, as Sabotage tells it (`roomAudience`: the GMs, the roller's
+             * players and the players of everyone standing there), in a neutral sentence that names the roller and
+             * the room and no project: a trap is the murder, and its name is the killer's secret.
+             */
+            if (!ok) {
+                await announce({
+                    content: `<p><em>${game.i18n.format("DRPG.Project.concealSeen", {
+                        actor: foundry.utils.escapeHTML(actor.name),
+                        room: foundry.utils.escapeHTML(roomOfActor(actor) ?? "-")
+                    })}</em></p>`,
+                    whisper: roomAudience(actor)
+                });
+            }
         } else {
             bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
             lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
@@ -5719,44 +5761,17 @@ async function performListen(actor, def, options) {
  * you are standing in actually allows it, so the choice is informed.
  */
 async function performRest(actor) {
-    const { takeRest, roomAllows, restRoomsSentence, restSpent } = await import("./rest.mjs");
-    const place = locateActor(actor);
-    const room = place?.room ?? null;
-
-    // One row per rest, each carrying its own price and its own reason for
-    // being unavailable - spent already, or not allowed in this room. Both
-    // reasons used to be printed above a pair of buttons that stayed live
-    // regardless, so the player could pick the one the list had just told them
-    // they could not have.
-    const variant = kind => {
-        const spent = restSpent(actor, kind);
-        const allowed = roomAllows(room, kind, place?.scene);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
-        // character's scene, the school's for one with no token (E12 fix r1-G4).
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
-
-        return {
-            value: kind,
-            icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
-            label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
-            hint: `${game.i18n.format("DRPG.Action.willCost",
-                { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
-                allowed
-                    ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
-                    : elsewhere}`,
-            disabled: spent || !allowed,
-            why: spent
-                ? game.i18n.localize(kind === "long"
-                    ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : elsewhere
-        };
-    };
-
+    const { takeRest, restVariants } = await import("./rest.mjs");
+    // One row per rest, each with its price and its reason for being unavailable (rest.mjs `restVariants`, which the
+    // sheet's tile reads too). With both shut the window still opens, the two rows greyed with their reasons
+    // (`showShut`; E16 part 2 C4, 26.10.2026, audit S02-26): it used to answer "Nothing here can be done right now."
+    // alone, and a player was not told where a rest could be taken, nor that it was taken already.
     const picked = await chooseVariant({
         actor,
         title: ACTIONS.rest.label,
         intro: briefingBlock(actor, "rest", ACTIONS.rest),
-        options: [variant("short"), variant("long")]
+        options: restVariants(actor),
+        showShut: true
     });
 
     if (!picked) return null;

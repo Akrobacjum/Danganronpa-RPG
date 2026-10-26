@@ -148,6 +148,50 @@ function currentClock() {
     return getClock();
 }
 
+/**
+ * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
+ * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
+ * player could pick the one the list had just told them they could not have. Out of action-rolls.mjs `performRest`
+ * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
+ */
+export function restVariants(actor) {
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
+    return ["short", "long"].map(kind => {
+        const spent = restSpent(actor, kind);
+        const allowed = roomAllows(room, kind, place?.scene);
+        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
+        // character's scene, the school's for one with no token (E12 fix r1-G4).
+        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
+        return {
+            value: kind,
+            icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
+            label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
+            hint: `${game.i18n.format("DRPG.Action.willCost",
+                { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
+                allowed
+                    ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
+                    : elsewhere}`,
+            disabled: spent || !allowed,
+            why: spent
+                ? game.i18n.localize(kind === "long"
+                    ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
+                : elsewhere
+        };
+    });
+}
+
+/**
+ * Why neither rest can be taken now, row by row ("Short rest: ... · Long rest: ..."), or null while one can: the Rest
+ * tile's tooltip (sheet.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed
+ * tile does, and its window shows the same two rows greyed.
+ */
+export function restShutReason(actor) {
+    const rows = restVariants(actor);
+    if (rows.some(row => !row.disabled)) return null;
+    return rows.map(row => `${row.label}: ${row.why}`).join(" · ");
+}
+
 /* ==========================================================================
  * RESTING
  * ========================================================================== */

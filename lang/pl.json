@@ -2957,6 +2957,7 @@
       "none": "Nie ma jeszcze projektów. Najpierw jakiś zacznij.",
       "now": "{project} jest teraz na {current}/{target}.",
       "aloneBonus": "Nikogo innego nie ma w pokoju, więc projekt zyskuje +1 postępu.",
+      "concealSeen": "{actor} krząta się przy czymś w: {room}, a wszyscy tu widzą mniej więcej co.",
       "tracesUncovered": "bez rzutu: ślady zostają tak, jak je zostawiono.",
       "toolRelief": "{item} to Tier {tier}, więc każdy próg tego rzutu spada o {tier}.",
       "room": "Pokój",

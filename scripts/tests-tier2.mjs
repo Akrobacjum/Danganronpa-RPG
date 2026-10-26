@@ -69322,6 +69322,222 @@ const SCENARIOS = [
             + "[found, whose stash, the list on the sheet and in the GMs' mark after it]");
     }],
 
+    ["E16-T30 - a failed concealment of a trap's work is told to the room, naming the worker and the room and no project (audit S02-17, the owner's Q5)", async () => {
+        /*
+         * E16 part 2 C4, 26.10.2026. The handbook and the concealment's own sentence say that on a failure "the
+         * others get a general description of what you are doing", but `concealProjectIntent` wrote it on the
+         * worker's card alone: the student standing beside them was told nothing unless a GM noticed and passed it
+         * on, while a Sabotage seen in the same room is announced to that room by itself. The owner's Q5 (19.10):
+         * told on its own. A student stood alone in a room (`standAlone`), a second student with a connected player
+         * moved in beside them; the first works, free, on an indirect murder of their own made there, on forced
+         * dice of 3 and 2 (the concealment needs 16). Read: the new cards whose words are the room's sentence
+         * (DRPG.Project.concealSeen), whether each reaches the witness's player and the GMs, and whether any names
+         * the project. Red before C4: no such card.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a worker and a witness stood in one room by their tokens");
+        needs(world.atLeast("studentsWithConnectedPlayer"), "the witness is a connected player's, whose browser the room's card must reach");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two of them");
+        const { performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const { positionIn, othersInRoom, roomOfActor } = await import("./movement.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const everyone = cast(4);
+        const witness = everyone.find(a => onScreen(a) && playerOf(a));
+        const actor = everyone.find(a => onScreen(a) && a.id !== witness?.id && !(playerOf(witness) && a.testUserPermission(playerOf(witness), "OWNER")));
+        must(witness && actor, "no worker and witness with separate players stand on the scene on screen - this would measure nothing");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const name = "SUITE E16-T30 a trap in the making";
+        const stood = await standAlone(actor);
+        const token = canvas.scene.tokens.find(t => t.actorId === witness.id);
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        let made = null;
+        const windows = answerWindows((cfg, root) => {
+            const select = root.querySelector('select[name="project"]');
+            if (select) select.value = made;
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const seen = new Set(game.messages.map(m => m.id));
+        const left = () => remnantsOn(canvas.scene).filter(t => remnantData(t)?.subject === name);
+        const line = game.i18n.format("DRPG.Project.concealSeen", { actor: foundry.utils.escapeHTML(actor.name), room: foundry.utils.escapeHTML(stood.room) });
+        let read = null;
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            await token.update(positionIn(stood.room, token), PLACE);
+            await settle();
+            must(roomOfActor(witness) === stood.room && othersInRoom(actor).some(a => a.id === witness.id),
+                `${witness.name} could not be stood beside ${actor.name} in ${stood.room} - this would measure nothing`);
+            made = (await P.createProject({ name, target: 12, room: stood.room, trait: "hand", indirectMurder: true, killerId: actor.id, by: actor.id }))?.id ?? null;
+            must(made && P.isIndirectMurder(made), "the indirect murder could not be made - this would measure nothing");
+            globalThis.__forceRoll = { hope: 3, fear: 2 };
+            await performAction(actor, "project", { free: true });
+            await settle();
+            const fresh = game.messages.filter(m => !seen.has(m.id));
+            must(fresh.length, "the Work made no card at all - this would measure nothing");
+            const told = fresh.filter(m => contentOf(m).includes(line));
+            read = {
+                told: told.length,
+                reaches: told.map(m => [playerOf(witness).id, ...gmIds()].every(id => (m.whisper ?? []).includes(id))),
+                named: fresh.filter(m => contentOf(m).includes(line)).some(m => contentOf(m).includes(name))
+            };
+        } finally {
+            windows.restore();
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const t of left()) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (made) await P.deleteProject(made);
+            if (canvas.scene.tokens.has(token.id)) await token.update(was, PLACE);
+            await stood.back();
+            await setClock({ phase });
+        }
+        equal(stableJson(read), stableJson({ told: 1, reaches: [true], named: false }),
+            "a failed concealment was not told to the room once, did not reach the witness's player and the GMs, or named the project "
+            + "[cards with the room's sentence, each reaching the witness's player and every GM, the project named]");
+    }],
+
+    ["E16-T31 - a weapon a Search takes out of a stash leaves a Prep Remnant, and a thing that is no weapon leaves none (audit S02-18, the owner's Q6)", async () => {
+        /*
+         * E16 part 2 C4, 26.10.2026. The handbooks say taking a Murder Weapon or a Cleaning Tool leaves a Prep
+         * Remnant, and a Search of the room's table does (`traceTheFind`); a Search that opened a stash
+         * (`searchStash`) left none, so an accomplice's stash carried the knife to the killer with no trace in the
+         * room. The owner's Q6 (19.10): the trace. A student stood alone in a room beside another student's open
+         * stash holding one thing, searched by this GM, free, on a roll of 30 (every band of the table); twice: a
+         * crime tool, then a usable thing (the control, as the room's table leaves none for it). Read for each:
+         * whether the thing came out of the stash, and the Prep Remnants the Search left in the room, as [type,
+         * faint, subject]. Red before C4: the crime tool came out and left nothing.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "the searcher stands in a room by their token");
+        needs(world.atLeast("livingStudents", 2), "a searcher and a student whose stash is searched");
+        const A = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const everyone = cast(2);
+        const actor = everyone.find(onScreen);
+        const owner = everyone.find(a => a.id !== actor?.id);
+        must(actor && owner, "no searcher on screen and no second student - this would measure nothing");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const stood = await standAlone(actor);
+        const region = V.regionsByName(canvas.scene).get(stood.room);
+        must(region, `${stood.room} has no region to hold a stash`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const had = new Map([[actor.id, new Set(actor.items.map(i => i.id))], [owner.id, new Set(owner.items.map(i => i.id))]]);
+        const seen = new Set(game.messages.map(m => m.id));
+        const traces = new Set(remnantsOn(canvas.scene).map(t => t.id));
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: false }],
+                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            for (const [label, category] of [["SUITE E16-T31 a knife", "crimeTool"], ["SUITE E16-T31 an apple", "usable"]]) {
+                const thing = await INV.grantItem(owner, { name: label, category, tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: stood.room } });
+                await settle();
+                must(thing && V.stashItemsIn(owner, stood.room, canvas.scene).length === 1,
+                    `${label} is not alone in the stash - this would measure nothing`);
+                const SearchTokens = (await import("./search-tokens.mjs")).SearchTokens;
+                must(SearchTokens.left(stood.room, canvas.scene) > 0, `${stood.room} has no search left - this would measure nothing`);
+                // A stash is gone through once a time of day per thief (vault.mjs `stealFromVault`): forgotten before each.
+                await forgetRifles(actor);
+                actor.rollTrait = async () => ({ roll: { total: 30, isCritical: false, result: { duality: 1, total: 30 },
+                    options: { roll: { trait: "instinct" } } } });
+                try {
+                    await A.performAction(actor, "search", { free: true });
+                } finally {
+                    delete actor.rollTrait;
+                }
+                await settle();
+                const mine = remnantsOn(canvas.scene).filter(t => !traces.has(t.id) && remnantData(t)?.subject === label);
+                read.push([label, !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === label),
+                    mine.map(t => remnantData(t)).map(d => [d.type, d.faint === true, d.action ?? null])]);
+            }
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const t of remnantsOn(canvas.scene).filter(t => !traces.has(t.id))) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            for (const who of [actor, owner]) for (const item of who.items.filter(i => !had.get(who.id).has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+            await setClock({ phase });
+        }
+        equal(stableJson(read), stableJson([["SUITE E16-T31 a knife", true, [["prep", true, "search"]]], ["SUITE E16-T31 an apple", true, []]]),
+            "a Search that took a weapon out of a stash left no Prep Remnant, or a thing that is no weapon left one "
+            + "[the thing, taken out of the stash, the traces it left as [type, faint, action]]");
+    }],
+
+    ["E16-T33 - with neither rest open, the Rest window shows both rows greyed with their reasons, and the tile says them (audit S02-26)", async () => {
+        /*
+         * E16 part 2 C4, 26.10.2026. Rest builds a row per kind with its own reason ('already taken this time of
+         * day', 'Not here. Allowed in: ...'), but with both shut `chooseVariant` answered "Nothing here can be done
+         * right now." alone, and the tile looked live: a player was not told where a rest could be taken. A student
+         * stood alone in a room whose rest marks are taken off for the test (put back after); this GM presses Rest
+         * for them. Read: the windows the press opened, each row's state and words, the buttons, the toast, and the
+         * tile's reason (sheet.mjs `roomBlockFor`). Red before C4: no window, the toast, no reason on the tile.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by their token");
+        const { performAction } = await import("./action-rolls.mjs");
+        const R = await import("./rest.mjs");
+        const sheet = await import("./sheet.mjs");
+        const { writablePieces } = await import("./rooms.mjs");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const actor = cast(2).find(onScreen);
+        must(actor, "no student stands on the scene on screen - this would measure nothing");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const stood = await standAlone(actor);
+        const flag = k => `flags.${MODULE_ID}.${R.REST_FLAGS[k]}`;
+        const marks = writablePieces(canvas.scene, stood.room).map(r => ({ _id: r.id,
+            ...Object.fromEntries(["short", "long"].map(k => [flag(k), r.getFlag(MODULE_ID, R.REST_FLAGS[k]) ?? forcedDeletion()])) }));
+        const rows = [];
+        const windows = answerWindows((cfg, root) => {
+            rows.push({ rows: [...root.querySelectorAll(".drpg-choice")].map(row => [row.classList.contains("unavailable"),
+                Boolean(row.querySelector("input")?.disabled), row.querySelector("small")?.textContent.trim() ?? ""]),
+                buttons: (cfg?.buttons ?? []).map(b => b.action) });
+            return press(cfg, root);
+        });
+        const warned = [];
+        const ownWarn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return ownWarn.call(ui.notifications, text, ...rest); };
+        let out = "not run", tile = null;
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            await R.setRestRoom(stood.room, { short: false, long: false, scene: canvas.scene });
+            await settle();
+            must(R.restVariants?.(actor)?.every(row => row.disabled) ?? !R.roomAllows(stood.room, "short", canvas.scene),
+                `a rest can still be taken in ${stood.room} - this would measure nothing`);
+            out = await performAction(actor, "rest", { free: true });
+            tile = typeof sheet.roomBlockFor === "function" ? sheet.roomBlockFor(actor, "rest") : "no export";
+        } finally {
+            ui.notifications.warn = ownWarn;
+            windows.restore();
+            await canvas.scene.updateEmbeddedDocuments("Region", marks);
+            await stood.back();
+            await setClock({ phase });
+        }
+        const why = rows[0]?.rows?.map(row => row[2]) ?? [];
+        equal(stableJson({ windows: rows.length, rows: rows[0]?.rows?.map(row => [row[0], row[1], row[2].length > 0]) ?? null,
+            buttons: rows[0]?.buttons ?? null, toast: warned.includes(game.i18n.localize("DRPG.Action.noVariants")), out: out ?? null,
+            tile: typeof tile === "string" && why.length === 2 && why.every(w => tile.includes(w)) }),
+        stableJson({ windows: 1, rows: [[true, true, true], [true, true, true]], buttons: ["cancel"], toast: false, out: null, tile: true }),
+            `Rest with neither row open did not open its window with both rows greyed and their reasons, or its tile does not say them `
+            + `[windows, each row (greyed, disabled, a reason), the buttons, the "nothing here" toast, the answer, the tile's reason holds both]: tile ${stableJson(tile)}`);
+    }],
+
     ...GRID
 ];
 

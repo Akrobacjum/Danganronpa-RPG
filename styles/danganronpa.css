@@ -5756,6 +5756,26 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     width: 100%;
 }
 
+/* "Which statistic?" laid out as "Which project?" is (E16 part 2 C4, 26.10.2026; audit S02-35): the
+   caption on the line above, the select the row's width, its note under it. As a centred flex row the
+   select shrank to about 70 px and read "Hand (" with the bonus cut off, beside a column of the note
+   (the audit's screenshot); not measured here - jsdom lays nothing out (LIVE-E16-05). */
+.drpg-panel label.drpg-trait-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+
+.drpg-panel label.drpg-trait-field > span {
+    color: var(--drpg-bone);
+    opacity: 0.85;
+}
+
+.drpg-panel label.drpg-trait-field > select {
+    width: 100%;
+}
+
 
 /* ==========================================================================
    WINDOWS ARRIVE, AND WINDOWS LEAVE

@@ -2848,6 +2848,7 @@
       "noneToMove": "No project here has progress that can move. Finished ones are done, and a sabotaged one waits for its repair.",
       "now": "{project} is now at {current}/{target}.",
       "aloneBonus": "Nobody else is in the room, so the project gains +1 progress.",
+      "concealSeen": "{actor} is busy with something in {room}, and everyone here can see roughly what.",
       "tracesUncovered": "not rolled: the traces stay as they were left.",
       "toolRelief": "{item} is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",

@@ -22505,6 +22505,33 @@ const INVARIANTS = [
         equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),
             "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
     }],
+
+    ["R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet.mjs `roomBlockFor` answers nothing for \"project\" and the room's note for \"search\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list", async () => {
+        /*
+         * E16 part 2 C4, 26.10.2026. "project" stood on roomBlockFor's list of actions the room can block, so in a
+         * corridor the Projects tile was struck through with "You are not in any room", while proposing a project
+         * works anywhere - the note at the end of the same function says so - and the first project of a world is
+         * always proposed from a room with none. The comment above the list said "five" over six. A stand-in
+         * character no token on any scene holds (`locateActor` answers null for it: standing nowhere) is asked
+         * about both tiles; then the function's source is read for its list and the count its comment gives.
+         * Nothing is written; no phase is asked.
+         */
+        const sheet = await import("./sheet.mjs");
+        ok(typeof sheet.roomBlockFor === "function", "sheet.mjs exports no `roomBlockFor` - the tiles' room reasons cannot be read");
+        const ask = typeof sheet.roomBlockFor === "function" ? sheet.roomBlockFor : () => "no export";
+        const nowhere = { id: "R986nowhere00000", name: "R986 nobody", type: "character", getFlag: () => undefined, items: [] };
+        const noRoom = game.i18n.localize("DRPG.Action.noRoomNote");
+        must(ask(nowhere, "search") === noRoom || typeof sheet.roomBlockFor !== "function",
+            `a character standing nowhere is not told "${noRoom}" on the Search tile - this would measure nothing`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText);
+        const list = (fnSource(src, "roomBlockFor").match(/const roomBound = \[([^\]]*)\]/)?.[1] ?? "").split(",").map(x => x.trim()).filter(Boolean);
+        const said = fnSource(raw, "roomBlockFor").match(/Only the (\w+) actions whose subject lives in the room/)?.[1] ?? null;
+        const WORDS = { four: 4, five: 5, six: 6, seven: 7 };
+        equal(stableJson({ project: ask(nowhere, "project"), search: ask(nowhere, "search") === noRoom, listed: list.includes('"project"'), counted: WORDS[said] === list.length }),
+            stableJson({ project: null, search: true, listed: false, counted: true }),
+            `the Projects tile is struck through outside a room, or roomBlockFor's comment miscounts its list [Projects' reason, Search's is the room's note, "project" listed, the comment's count]: list ${stableJson(list)}, said ${said}`);
+    }],
 ];
 
 /**
