@@ -21282,6 +21282,65 @@ const INVARIANTS = [
         }), "a wait marked untilPrimaryLeaves does not end once when the primary leaves, its late answer is lost, or an unmarked wait ends with it");
     }],
 
+    ["R1006 - a Frisk's wait ends at once when its primary leaves for another GM, and keeps its clock when that primary was the only GM: then the clock ends it and tells the GMs it expired, and the leaving tells nobody (E18 fix c7-G1)", async () => {
+        /*
+         * E18 fix c7-G1, 26.10.2026; the review's C7-R1 (twice) and C7-SEC-2. C7 marked the searcher's wait on an open
+         * Frisk's ask (gm-bridge.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
+         * primary left; registerBridgeReplies runs `primaryGone` only when `primaryLeft` - when another GM is here to take
+         * the primary - so at a one-GM table the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and only that
+         * clock hands the action back. The tier-2 test read the option in the source and drove nothing. Driven here with
+         * fakes, as R978 drives the waiter, with the options requestFriskAsk names and the bridge row's clock, and with
+         * the hook's own test (`!connected && primaryLeft(user)`, R841 reads it in the listener) over a users list built
+         * here: the primary A leaving with a second GM B here, and A leaving alone and coming back (an F5) before the
+         * clock. Read: the wait's end right after the leaving, the packets sent then, and, for the lone GM, the end and
+         * the packets after the clock (with no GM connected at the clock, `tellGms` has nobody to tell). `primaryGone`
+         * sends no expiry: the primary that left holds the ask in its memory, and one whose socket comes back without a
+         * reload drops it (frisk.mjs `friskSocketBack`). Green at 29a53176: it measures what the code did against what C7's
+         * comment and the players' handbook said of it (corrected in this fix).
+         */
+        const G = await import("./bridge-guards.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const ROLE = CONST.USER_ROLES;
+        const user = (id, role, active = true) => ({ id, role, isGM: role >= ROLE.ASSISTANT, active });
+        // The two calls `primaryGmId` makes of `game.users`: `get` and an Array-answering `filter` (as R841).
+        const users = list => Object.assign(new Map(list.map(u => [u.id, u])), { filter: fn => list.filter(fn) });
+        const A = user("R1006A000000000A", ROLE.GAMEMASTER), B = user("R1006B000000000B", ROLE.GAMEMASTER);
+        const P = user("R1006P000000000P", ROLE.PLAYER);
+        const WAIT = TIMING.friskAnswerMs + TIMING.friskMarginMs;
+        const run = async others => {
+            // A is here when the ask is sent, and gone when the hook runs (counted both ways, as primaryLeft says).
+            let list = [A, ...others];
+            const sent = [], timers = [];
+            const clock = { set: (fn, ms) => timers.push({ fn, ms }) - 1, clear: id => { if (timers[id]) timers[id] = null; } };
+            const waiter = G.createWaiter({
+                emit: packet => sent.push(packet.action), gmIds: () => list.filter(u => u.isGM && u.active).map(u => u.id),
+                me: () => ({ id: P.id, isGM: false, isPrimary: false }), notify: () => {}, fromGm: id => id === A.id || id === B.id,
+                clock, report: () => {}
+            });
+            const asked = waiter.request("action.friskAsk", {}, { settle: "reply", patient: true, timeoutMs: WAIT,
+                untilPrimaryLeaves: true, expired: "ruling.expired", lateMs: TIMING.friskMarginMs, late: () => {} });
+            // `userConnected(A, false)`, as registerBridgeReplies reads it.
+            list = [{ ...A, active: false }, ...others];
+            if (G.primaryLeft(list[0], users(list))) {
+                waiter.primaryGone();
+                waiter.resendOnGmReady();
+            }
+            const pending = new Promise(resolve => setTimeout(() => resolve("still waiting"), 30));
+            const atOnce = await Promise.race([asked, pending]);
+            const sentAtOnce = sent.slice(1);
+            const answer = timers.find(t => t?.ms === WAIT) ?? null;
+            // The lone GM's F5: back before the clock runs out, so the expiry has a GM to go to.
+            list = [A, ...others];
+            if (atOnce === "still waiting" && answer) answer.fn();
+            return { atOnce, sentAtOnce, after: await Promise.race([asked, pending]), sentAfter: sent.slice(1 + sentAtOnce.length) };
+        };
+        const withB = await run([B, P]), alone = await run([P]);
+        equal(stableJson({ withB, alone }), stableJson({
+            withB: { atOnce: { ok: false, reason: "noAnswer" }, sentAtOnce: [], after: { ok: false, reason: "noAnswer" }, sentAfter: [] },
+            alone: { atOnce: "still waiting", sentAtOnce: [], after: { ok: false, reason: "noAnswer" }, sentAfter: ["ruling.expired"] }
+        }), "[the primary leaving with a second GM here: the wait's end at once, what it sent], [the only GM leaving: still waiting, then the clock's end and its expiry] - the wait does not end at once only when another GM takes over, the lone GM's leaving ended it, or the clock told the GMs nothing");
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one

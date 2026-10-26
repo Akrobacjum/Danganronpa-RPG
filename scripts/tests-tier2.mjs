@@ -32289,7 +32289,7 @@ const SCENARIOS = [
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
     }],
 
-    ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask ends it, as interrupted, the target's window withdrawn and a yes after it not kept, a refusal's open force ended alike, and the searcher's wait ends with the primary (E18 C7)", async () => {
+    ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
         /*
          * E18 C7, 26.10.2026; amend 5 (A11's Frisk ask on E18's one road), the stage's row E18-31. An open Frisk's ask is
          * the primary's (frisk.mjs `friskAsks`), and the searcher's browser waits on it (gm-bridge.mjs `requestFriskAsk`)
@@ -32307,12 +32307,24 @@ const SCENARIOS = [
          * wait ends when it leaves, bridge-guards.mjs `primaryGone`). Read: what the primary holds, the cards, the
          * windows withdrawn, the searcher's answers and the yes's. Red at f7ac1e9d: no expiry ends either ask, the yes is
          * kept and the list posted, and the wait names neither option.
+         *
+         * E18 fix c7-G1, 26.10.2026 (the review's C7-SEC-1, C7-SEC-2). The expiry is the searcher's packet, a claim: the
+         * primary ends an unanswered ask by it only once the searcher's wait (the row's `timeoutMs`, friskAnswerMs +
+         * friskMarginMs) could have run out, less a trip (friskGraceMs) - the searcher's own expiry seconds after its ask
+         * leaves the ask held, and one with the ask's `at` moved back past that wait ends it; and an ask whose searcher
+         * was answered (a refusal with its force open) ends as 'Leave it' would, by where the two stand - the target and
+         * the room told - not as interrupted with no word to either. Then a third ask, and this GM's socket's "connect"
+         * as it comes back without a reload (frisk.mjs `friskSocketBack`, read off `game.socket.listeners`): the ask is
+         * dropped with nothing posted, as a reload would, so a yes after it is `missing`. Red at 29a53176: the early
+         * expiry ended the ask, the refusal's expiry ended it interrupted with no card to the target, and the socket's
+         * return kept the ask, whose yes posted the list.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
         const G = await import("./bridge-guards.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const F = await import("./frisk.mjs");
         const S = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
         const { grantItem } = await import("./inventory.mjs");
         const { ownerIdsOf } = await import("./utils.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
@@ -32394,6 +32406,10 @@ const SCENARIOS = [
             steps.push(holds(rowA));
             await judged("ruling.expired", { rid: ridA }, player.id);
             steps.push(holds(rowA));
+            // The searcher's wait as the bridge row times it, run out: the ask's start moved back past it.
+            if (rowA) rowA.at -= TIMING.friskAnswerMs + TIMING.friskMarginMs;
+            await judged("ruling.expired", { rid: ridA }, player.id);
+            steps.push(holds(rowA));
             seen.expired = { steps, ...read(), yes: await judged("action.friskAnswer", { askId: rowA?.askId ?? null, allow: true }, answerer), after: read() };
             const ridB = `E18C7b${foundry.utils.randomID(8)}`;
             const rowB = await ask(ridB);
@@ -32402,6 +32418,12 @@ const SCENARIOS = [
             read();
             await judged("ruling.expired", { rid: ridB }, player.id);
             seen.refused = { no, open, held: holds(rowB), ...read() };
+            const ridC = `E18C7c${foundry.utils.randomID(8)}`;
+            const rowC = await ask(ridC);
+            const listening = (game.socket.listeners?.("connect") ?? []).includes(F.friskSocketBack);
+            if (typeof F.friskSocketBack === "function") await F.friskSocketBack();
+            seen.back = { state: rowC?.state ?? null, listening, held: holds(rowC), ...read(),
+                yes: await judged("action.friskAnswer", { askId: rowC?.askId ?? null, allow: true }, answerer), after: read() };
             const wait = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "requestFriskAsk");
             seen.wait = [/\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(wait), /\buntilPrimaryLeaves:\s*true\b/.test(wait)];
         } finally {
@@ -32417,11 +32439,13 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(seen), stableJson({
-            expired: { steps: ["asking", true, true, false], cards: ["interrupted"], withdrawn: 1, done: ["interrupted"], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
-            // The searcher was answered once, with the refusal and its force: its expiry ends the ask with no second answer.
-            refused: { no: ["refused"], open: ["refused", true], held: false, cards: ["interrupted"], withdrawn: 0, done: [] },
+            expired: { steps: ["asking", true, true, true, false], cards: ["interrupted"], withdrawn: 1, done: ["interrupted"], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
+            // The searcher was answered once, with the refusal and its force: its expiry ends the ask as 'Leave it', the
+            // target told (the two alone in the room: no witness), with no second answer.
+            refused: { no: ["refused"], open: ["refused", true], held: false, cards: ["toTarget letGo"], withdrawn: 0, done: [] },
+            back: { state: "asking", listening: true, held: false, cards: [], withdrawn: 0, done: [], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
             wait: [true, true]
-        }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [the wait names the expiry and ends with the primary]");
+        }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own at once, after it once the wait could have run out; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [an ask, then this GM's socket back: its state, the listener, held, what was posted, the yes after it], [the wait names the expiry and ends with the primary]");
     }],
 
     ["a Sabotage asked again under its request id answers what it answered the first time: one freeze, one repair, the same reply, while another player's packet under that id and the saboteur's under another are judged as new (E18 C7)", async () => {

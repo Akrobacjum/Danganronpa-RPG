@@ -2257,7 +2257,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingExpired,
         answer: "none", quiet: true,
-        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk)" }
+        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk: an unanswered one only once the sender's wait could have run out, an answered one as its 'Leave it')" }
     },
     [ACTION_RULING_RECEIVED]: {
         label: "DRPG.Bridge.what.ruling.received",
@@ -4345,10 +4345,13 @@ export function requestFriskAsk({ searcherId, targetId }) {
     return ask(ACTION_FRISK_ASK, { searcherId, targetId }, {
         onPrimary: true,
         /* E18'S ONE ROAD (E18 C7, 26.10.2026; amend 5): the ask lives in the primary's memory (frisk.mjs `friskAsks`), so
-           it ends with that primary - the wait with it, at once, rather than at its clock a minute on (bridge-guards.mjs
-           `primaryGone`); and a wait that runs out tells the primary, which ends the ask so a yes after it is not kept
-           (`expired`, frisk.mjs `expireFriskAsk`). No receipt: the ask's end is its cards, posted before its answer
-           goes, and with a force open the follow is the searcher's next word. */
+           it ends with that primary. The wait ends with it at once only when another connected GM takes over the primary
+           (bridge-guards.mjs `primaryGone`, run by registerBridgeReplies when `primaryLeft`, which needs a successor);
+           when the only GM leaves or reloads, the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and the
+           clock hands the action back (E18 fix c7-G1, the review's C7-R1; R1006 drives both). A wait that runs out tells
+           the primary, which ends the ask so a yes after it is not kept (`expired`, frisk.mjs `expireFriskAsk`, which
+           judges that claim). No receipt: the ask's end is its cards, posted before its answer goes, and with a force
+           open the follow is the searcher's next word. */
         untilPrimaryLeaves: true,
         expired: ACTION_RULING_EXPIRED,
         lateMs: TIMING.friskMarginMs,
