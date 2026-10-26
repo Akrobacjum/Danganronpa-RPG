@@ -26689,6 +26689,17 @@ const SCENARIOS = [
         // scenario actually pins down is the shape `cleanableTracesForPlayer`
         // hands back over the bridge: it is what a player's client receives
         // instead, and it must never carry the answer key.
+        //
+        // EXCEPT THE NUMBER TO BEAT, ON THE ONE ROAD THE OWNER OPENED (E16 part 2 C0,
+        // 2ae49d8f, 26.10.2026; audit S05-51, the owner's Q7 of 19.10: "tak" - Tamper's
+        // window shows the trace's dc). Each row carries `dc`, the number the GM will
+        // score an erase of it against (`cleanupDc` of its visibility for this
+        // character), or null on a reinforced trace, so the roll window can say it
+        // (`attemptCleanup`'s `dc`); E16-T22 reads the window. Until 26.10.2026 this test
+        // failed any `dc` on the row, and so went red in CI on 359308c. What it holds
+        // now: the row is exactly id, label, reinforced and dc - nothing else of the
+        // ledger, `tiedToCrime` least of all - and the dc is the scored one, not some
+        // other reading of the trace.
         const [killer, victim] = cast(2);
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
@@ -26715,11 +26726,20 @@ const SCENARIOS = [
         ok(Array.isArray(traces) && traces.length > 0, "the killer's client sees nothing to clean up");
         ok(traces.some(t => t.id === dropped.id), "the trace just dropped is not in the killer's own list");
 
+        const cleanup = await import("./cleanup.mjs");
         for (const t of traces) {
             ok(typeof t.label === "string" && t.label.length > 0, "a trace reached the killer with no label");
-            ok(!("dc" in t), `a trace leaked its DC to the killer's client: ${JSON.stringify(t)}`);
             ok(!("tiedToCrime" in t), `a trace leaked tiedToCrime to the killer's client: ${JSON.stringify(t)}`);
+            equal(Object.keys(t).sort().join(","), "dc,id,label,reinforced",
+                `a trace reached the killer's client with more than its id, label, reinforced and Tamper's dc: ${JSON.stringify(t)}`);
+            ok(t.reinforced ? t.dc === null : Number.isFinite(t.dc),
+                `a trace's dc is not Tamper's number (null when reinforced, else a number): ${JSON.stringify(t)}`);
         }
+        const row = traces.find(t => t.id === dropped.id);
+        const held = remnants.remnantData(dropped);
+        must(held, "the GM holds no ledger entry for the trace just dropped - its dc would be held to nothing");
+        equal(row?.dc ?? null, held.reinforced ? null : cleanup.cleanupDc(held.visibility, killer),
+            "the dropped trace's dc on the killer's row is not the number the GM scores an erase of it against (cleanupDc)");
     }],
 
     ["the roll window opens, locked, and a bare statistic is a reaction", async () => {
@@ -65939,6 +65959,13 @@ const SCENARIOS = [
          * the same again; a `trap.event` of kind "stash" and one of kind "passage". Read: each verdict, what was sent back,
          * and the hunts this browser's hook hears, as [the character, the room]. The Reroll's replay, which springs none, is
          * "A10-7 stash"'s.
+         *
+         * E16 fix e1-G2 (586e990f, 26.10.2026): `vault.findStash` is answered "reply", no longer "ack" - the GMs say "got it"
+         * as the guards pass (`bridge.ack`) and answer again once the hunt is judged (`bridge.done`), so the asker gives the
+         * price back on a refusal of the run (E16-T39 reads the two answers' values). Until then the drawn roll was sent one
+         * answer here, and this test read the reasons alone, so CI on 359308c saw [null, null] for [null]. What was sent back
+         * is read now as [the answer, its reason]; what E14-41 holds is unchanged - the verdicts, the refusals' reasons and
+         * one hunt for the drawn roll alone.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the hunt is in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -65956,7 +65983,7 @@ const SCENARIOS = [
                 const sent = F.sent.length, heard = hunts.length;
                 const verdict = await run();
                 await settle();
-                read.push([label, Boolean(verdict), F.sent.slice(sent).map(([, reason]) => reason ?? null), hunts.length - heard]);
+                read.push([label, Boolean(verdict), F.sent.slice(sent).map(([action, reason]) => [action ?? null, reason ?? null]), hunts.length - heard]);
             };
             await step("no roll drawn", () => find(`E14T10none${foundry.utils.randomID(6)}`, 20));
             await step("the drawn roll", () => find(F.message.id, 12));
@@ -65969,10 +65996,12 @@ const SCENARIOS = [
             Hooks.off("drpgStashHunted", hear);
             await F?.putBack();
         }
-        equal(stableJson(read), stableJson([["no roll drawn", false, ["rollUnknown"], 0], ["the drawn roll", true, [null], 1],
-            ["the drawn roll again", false, ["rollUsed"], 0], ["a player's stash report", false, [], 0], ["a player's passage report", true, [], 0]]),
-            "[the packet, its verdict, the reasons sent back, the hunts it raised] - a Find Stash naming no roll the GMs drew, or one already used, was "
-            + "judged, a drawn one was refused or sprang no hunt, or a player's own stash report was taken (a passage one runs as nothing: its kind is read as none)");
+        equal(stableJson(read), stableJson([["no roll drawn", false, [["bridge.refused", "rollUnknown"]], 0],
+            ["the drawn roll", true, [["bridge.ack", null], ["bridge.done", null]], 1],
+            ["the drawn roll again", false, [["bridge.refused", "rollUsed"]], 0], ["a player's stash report", false, [], 0], ["a player's passage report", true, [], 0]]),
+            "[the packet, its verdict, the answers sent back as [the answer, its reason], the hunts it raised] - a Find Stash naming no roll the GMs drew, or one "
+            + "already used, was judged, a drawn one was refused, sprang no hunt or was not answered once judged (\"got it\", then done: E16 fix e1-G2), or a "
+            + "player's own stash report was taken (a passage one runs as nothing: its kind is read as none)");
         equal(stableJson(hunts), stableJson([[actor.id, where.room]]),
             "[each stash hunt a trap was told of, as [the character, the room]] - a throw with no roll drawn, a second use of one, or a player's own report sprang a hunt");
     }],
