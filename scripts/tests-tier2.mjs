@@ -59114,11 +59114,14 @@ const SCENARIOS = [
                 await counted("a put-back on its way");
                 await aside(async () => { release(); await until(() => token.x === 1600); });
                 delete token.update;
-                // A jump the doors refuse, no put-back (the audit on "log"): the judge's standing turns unlawful.
+                // A jump the doors refuse, no put-back (the audit on "log"): the judge's standing turns unlawful. Since E17 C1 a
+                // player's move a lock refuses is put back by the GMs' audit in either mode (E17-T2), so the jump is a GM's
+                // write marked as a send-back that names no player (`SENT_BACK: true`), which the judge reads as a revert
+                // and the audit as a GM's move - the standing the rules refuse stands, which is what this step reads.
                 await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
                 await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
                 must(unseen({ x: 230, y: 230 }), "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
-                await aside(() => token.update({ x: 230, y: 230 }, asPlayer));
+                await aside(() => token.update({ x: 230, y: 230 }, { ...PLACE, [M.REVERT]: true, [M.SENT_BACK]: true }));
                 await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: false });
                 await budget({ actions: 2 });
                 lawful.push(M.standingOf(token)?.lawful ?? null);
@@ -70034,6 +70037,311 @@ const SCENARIOS = [
         }), "the primary's writes are not one queue a key each [Despair: what each +1 answered, the pool; Search: tokens spent, left; "
             + "the clock's two fields; a held crossing key: the other student's count, the held count and 'Go through' while held, the "
             + "first student's row, both after; ten crossings together: counted, refused, the count, the allowance]");
+    }],
+
+    ["the GM puts back what the rules refuse (E17-T2): a player's move into a locked room or another's bedroom, by a road the GM's client did not write, stands again where the GMs last read it lawful - x, y, elevation - in \"log\" and \"sendBack\" alike, its player sent the rule's code; a breach's end in that bedroom and a free room stand, and a wall in \"sendBack\" is the wall rule's", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-05, E17-10 to E17-12, E17-14, audit S07-02, the owner's 13.10 and A10. The doors' rules
+         * - a GM's lock, a seal, Chained, another's bedroom, the incident, the courtroom - were asked on the mover's browser
+         * (`onPreUpdateToken`); the primary's judge of arrivals (`judgeArrival`) held a console's arrival unlawful and told
+         * the GMs, and put nothing back (E12's Q3 a). Now the GMs' audit (movement-audit.mjs `auditMove`) asks the judge's
+         * verdict after the walls and floors (`ruleRefused`) and puts the token back to where the judge last read it
+         * lawful. A scene of the suite's own: a Hall over a locked Lab (a wall between), another student's Den, a Yard (a
+         * wall between) and a Gym; crossing rooms costs nothing, so no adjacency or price is asked, only the rules. A
+         * player's move as the primary hears it is a GM's write that names the player (`SENT_BACK`, as A10-18's), each to
+         * a spot the token never stood on; the token is stood at its start by this GM before each. Read per step: where
+         * the token stands (x, y, elevation), whether the judge reads it lawful, the `move.sentBack` codes this browser
+         * sent, and the GMs' whispers of a rule's put-back (`data-drpg-rule`, one a burst); and whether a player's browser
+         * takes each rule's code (`sentBackRefusal`). Red at 22207d2c: every rule's move stood, unlawful, and no code.
+         */
+        const M = await import("./movement.mjs");
+        const A = await import("./movement-audit.mjs");
+        const R = await import("./rooms.mjs");
+        const SEC = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const trio = cast(3);
+        const student = trio.find(a => !isMastermind(a)), other = trio.find(a => a !== student);
+        must(student && other, "no student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 Hall", LAB = "SUITE E17 T2 Lab", DEN = "SUITE E17 T2 Den", YARD = "SUITE E17 T2 Yard", GYM = "SUITE E17 T2 Gym";
+        const mark = (more = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...more } });
+        const room = (name, x, y, width, height, flags = mark()) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }], flags, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, steps = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            scene = await Scene.create({ name: "SUITE E17 T2 rules", width: 2400, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0, 2400, 400), room(LAB, 0, 400, 600, 600, mark({ [M.ROOM_FLAGS.locked]: true })),
+                room(DEN, 600, 400, 600, 600, mark({ [ROOM_OWNER_FLAG]: other.id })), room(YARD, 1200, 400, 600, 600), room(GYM, 1800, 400, 600, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [0, 400, 600, 400] }, { c: [1200, 400, 1800, 400] }]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === HALL && M.isLocked(scene, LAB), "the token is not in the Hall or the Lab is not locked - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const out = [];
+            const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
+            const step = async (what, start, spot, { audit, revert = false }) => {
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, audit);
+                await token.update({ ...start, elevation: 0 }, PLACE);
+                await settle();
+                must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
+                const sent = told.length, said = made.length;
+                await token.update(spot, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await settle();
+                await until(() => token.x === start.x && token.y === start.y, 1200);
+                await settle();
+                out.push([what, `${token.x},${token.y},${token.elevation ?? 0}`, M.standingOf(token)?.lawful ?? null, told.slice(sent),
+                    made.slice(said).filter(id => String(SEC.secretHtml(game.messages.get(id)) ?? "").includes(`data-drpg-rule="${token.id}"`)).length]);
+            };
+            const H1 = { x: 300, y: 100 }, H2 = { x: 1400, y: 100 }, H3 = { x: 2000, y: 100 };
+            await step("log: into the locked Lab across a wall, raised", H1, { x: 300, y: 700, elevation: 5 }, { audit: "log" });
+            await step("log: into another's Den", H1, { x: 800, y: 500 }, { audit: "log" });
+            await step("log: a REVERT into another's Den", H1, { x: 810, y: 520 }, { audit: "log", revert: true });
+            await M.setRoomBroken(scene, DEN, true);
+            await step("log: into that Den, its wall forced by a breach", H1, { x: 820, y: 540 }, { audit: "log" });
+            await M.setRoomBroken(scene, DEN, false);
+            await step("log: across a wall into the Yard", H2, { x: 1400, y: 600 }, { audit: "log" });
+            await step("sendBack: into the locked Lab across a wall", H1, { x: 310, y: 710 }, { audit: "sendBack" });
+            await step("sendBack: into another's Den", H1, { x: 830, y: 560 }, { audit: "sendBack" });
+            await step("sendBack: a REVERT across a wall into the Yard", H2, { x: 1410, y: 650 }, { audit: "sendBack", revert: true });
+            await step("sendBack: into the Gym", H3, { x: 2000, y: 600 }, { audit: "sendBack" });
+            const taken = ["doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "cannotNow"]
+                .map(code => A.sentBackRefusal({ action: "move.sentBack", userId: asker.id, code }, game.user.id, { me: asker, users: game.users, primary: game.user.id }));
+            steps = [out, taken];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([[
+            ["log: into the locked Lab across a wall, raised", "300,100,0", true, ["doorLocked"], 1],
+            ["log: into another's Den", "300,100,0", true, ["cannotNow"], 0],
+            ["log: a REVERT into another's Den", "300,100,0", true, ["cannotNow"], 0],
+            ["log: into that Den, its wall forced by a breach", "820,540,0", true, [], 0],
+            ["log: across a wall into the Yard", "1400,600,0", true, [], 0],
+            ["sendBack: into the locked Lab across a wall", "300,100,0", true, ["wall"], 0],
+            ["sendBack: into another's Den", "300,100,0", true, ["cannotNow"], 0],
+            ["sendBack: a REVERT across a wall into the Yard", "1400,100,0", true, ["wall"], 0],
+            ["sendBack: into the Gym", "2000,600,0", true, [], 0]],
+            [null, null, null, null, null, null]]),
+            "[each step as [what, where the token stands as x,y,elevation, lawful, the codes its player was sent, the GMs' whispers of a rule's put-back]; "
+                + "whether a player's browser takes each rule's code] - a move the rules refuse stood, a lawful one was put back, or a wall in sendBack was not the wall rule's");
+    }],
+
+    ["the incident holds its people where they fight (E17-T2): a participant a console carries out of the room is put back, the third may go after Averted eyes while the others stay, and at Stage 6 everyone may go", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-05 to E17-07, E17-13, the owner's 13.10 ("uczestnik próbuje wyjść i zostaje; po akcji
+         * kryzysowej - Survive, Escape together, Finishing blow, Averted eyes - może"; "Stage 4 i Stage 6 wolne"). The
+         * incident's lock (`lockedInIncident`) was asked on the mover's browser alone. A direct murder between two
+         * students with players, its opening through, a third walked in; their tokens stood in the Hall of a scene of the
+         * suite's own, over a Gym, no wall between, crossing rooms costing nothing. Each leave is a player's move into the
+         * Gym as the primary hears it (`SENT_BACK` naming the owner), to a spot never stood on, in "log" mode. Read per
+         * leave: whether the token stands in the Gym, and the codes its player was sent; after the incident, the third
+         * averting their eyes (`thirdLeaves`), then the GM moving the fight to Stage 6 (`beginResolution`, the state a
+         * Survive, an Escape together or a Finishing blow leaves). Restore() ends the incident. Red at 22207d2c: every
+         * leave stood.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        const MU = await import("./murder.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 incident Hall", GYM = "SUITE E17 T2 incident Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, y) => ({ name, shapes: [{ type: "rectangle", x: 0, y, width: 1200, height: 400 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [];
+        let scene = null, steps = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            scene = await Scene.create({ name: "SUITE E17 T2 incident", width: 1200, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(GYM, 400)]);
+            const tokens = await scene.createEmbeddedDocuments("Token", [killer, victim, third].map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name,
+                x: 100 + 300 * i, y: 100, width: 1, height: 1 })));
+            await settle();
+            const tokenOf = a => tokens.find(t => t.actorId === a.id);
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && tokens.some(t => t.id === packet.tokenId)) told.push([packet.tokenId, packet.code ?? null]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            let n = 0;
+            const out = [];
+            const leave = async (what, actor) => {
+                const t = tokenOf(actor), start = { x: t.x, y: t.y }, sent = told.length;
+                n += 1;
+                await t.update({ x: start.x + n, y: 600 }, { ...PLACE, [M.SENT_BACK]: player(actor).id });
+                await settle();
+                await until(() => t.x === start.x && t.y === start.y, 1200);
+                await settle();
+                out.push([what, M.roomOfToken(t) === GYM, told.slice(sent).filter(([id]) => id === t.id).map(([, code]) => code)]);
+                await t.update(start, PLACE);
+                await settle();
+            };
+            await fightOpen(MU, killer, victim);
+            must(await MU.thirdPartyEnters(third), "the third could not walk into the incident - this would measure nothing");
+            await leave("in the incident: the killer", killer);
+            await leave("in the incident: the victim", victim);
+            await leave("in the incident: the third", third);
+            await MU.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+            must(!MU.murderState()?.thirdId, "the third did not leave the incident - this would measure nothing");
+            await leave("after Averted eyes: the third", third);
+            await leave("after Averted eyes: the killer", killer);
+            must(await MU.beginResolution("victimKilled"), "the GM could not move the incident to Stage 6");
+            await leave("at Stage 6: the killer", killer);
+            await leave("at Stage 6: the victim", victim);
+            steps = out;
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([
+            ["in the incident: the killer", false, ["cannotLeave"]],
+            ["in the incident: the victim", false, ["cannotLeave"]],
+            ["in the incident: the third", false, ["cannotLeave"]],
+            ["after Averted eyes: the third", true, []],
+            ["after Averted eyes: the killer", false, ["cannotLeave"]],
+            ["at Stage 6: the killer", true, []],
+            ["at Stage 6: the victim", true, []]]),
+            "each leave as [what, whether the token stands in the Gym, the codes its player was sent] - a participant walked out of a running incident, "
+                + "or somebody free to go was held");
+    }],
+
+    ["a sidebar drop the rules refuse is removed and the GMs told, a send-back into another's bedroom is refused, and a jump upstairs into a locked room comes back with its floor (E17-T3)", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-08 to E17-10, the owner's 13.10 and Q2 (19.10: "a refused sidebar drop: the new token is
+         * deleted and the GMs are told"). (a) A drop (`noteGmCreated`) was judged and the GMs told, and it stood. Here on a
+         * plain scene of a Hall and a locked Lab, crossing rooms costing nothing: a student who is not the Mastermind placed
+         * in the Hall by this GM, then a player's drop of that student in the Lab and in the Hall, this GM's drop in the
+         * Lab, and a player's drops of a second student never seen on the scene in the Lab and in the Hall. Read: which
+         * drops were removed (the token's own `delete`), and the GMs' notices of a removed drop (`data-drpg-dropgone`).
+         * (b) `token.sendBack` (bridge-guards.mjs `guardSendbackPlace`) took the centre of any room the token stood in
+         * within the minute, the one it stands in now included: a console's jump into another's bedroom, its put-back held
+         * on its way, then a send-back to that bedroom's centre. Read: the guard's answer to that and to the Hall spot it
+         * stood on lawfully. (c) Levels: a jump upstairs into a locked Attic above the Dorm, raised; read where the token
+         * stands after, with its floor and elevation. Red at 22207d2c: every drop stood, the bedroom's centre was taken,
+         * and the jump stood upstairs.
+         */
+        needs(env.primaryGm(), "the judge and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const SEC = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const [actor, stranger] = cast(3).filter(a => !isMastermind(a));
+        must(actor && stranger, "no two living students who are not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(actor), "the drop, the jump and the send-back are a player's");
+        const asker = ownerOf(actor);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const said = (kind, id) => made.filter(m => String(SEC.secretHtml(game.messages.get(m)) ?? "").includes(`data-drpg-${kind}="${id}"`)).length;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        let scene = null, upstairs = null, read = null, release = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            // (a) The drops, on a plain scene.
+            const region = (name, x, flags = {}) => ({ id: name, name, levels: new Set(), behaviors: [],
+                bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+                getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+            const id = foundry.utils.randomID(6), gone = [];
+            const plain = { id: `suite-e17-t3-${id}`, name: "SUITE E17 T3", grid: { size: 100 },
+                regions: new Set([region("Hall", 0), region("Lab", 500, { [M.ROOM_FLAGS.locked]: true })]) };
+            const tok = (name, of, x) => ({ id: `suite-e17-t3-${name}-${id}`, name: of.name, x, y: 100, width: 1, height: 1, elevation: 0,
+                parent: plain, actor: of, actorId: of.id, delete: async () => { gone.push(name); } });
+            M.judgeArrival(tok("placed", actor, 100), game.user.id);
+            const drops = [["lab", actor, 600, asker.id], ["hall", actor, 150, asker.id], ["gm lab", actor, 650, game.user.id],
+                ["stranger lab", stranger, 700, asker.id], ["stranger hall", stranger, 200, asker.id]].map(([name, of, x, user]) => {
+                const t = tok(name, of, x);
+                M.noteGmCreated(t, user);
+                return t;
+            });
+            await until(() => gone.length >= 2, 1500);
+            await settle();
+            read = { drops: [[...gone].sort(), drops.map(t => said("dropgone", t.id))] };
+            // (b) A send-back into another's bedroom while the put-back is on its way.
+            const mark = (more = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...more } });
+            const room = (name, x, flags = mark()) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags, behaviors: [] });
+            scene = await Scene.create({ name: "SUITE E17 T3 bedroom", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE E17 T3 Hall", 0), room("SUITE E17 T3 Den", 600, mark({ [ROOM_OWNER_FLAG]: stranger.id }))]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 200, y: 200, width: 1, height: 1 }]);
+            await settle();
+            const tokenWrite = Object.getPrototypeOf(token).update;
+            Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release && game.user.isGM && !options?.[M.SENT_BACK]
+                ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
+            await token.update({ x: 800, y: 300 }, asPlayer);
+            await settle();
+            await until(() => release, 1500);
+            const held = Boolean(release);
+            const centre = M.positionIn("SUITE E17 T3 Den", token);
+            const ask = position => B.guardSendbackPlace(asker, { sceneId: scene.id, tokenId: token.id, position }, {});
+            read.sendBack = [held, await ask(centre), await ask({ x: 200, y: 200 })];
+            release?.();
+            delete token.update;
+            await until(() => token.x === 200 && token.y === 200, 1500);
+            await settle();
+            // (c) Upstairs into a locked Attic.
+            const [L1, L2] = ["suitee17f1", "suitee17f2"].map(k => `${k}${foundry.utils.randomID(6)}`.slice(0, 16));
+            const floor = (name, level, flags) => ({ name, shapes: [{ type: "rectangle", x: 0, y: 0, width: 600, height: 600 }], levels: [level], flags, behaviors: [] });
+            upstairs = await Scene.create({ name: "SUITE E17 T3 upstairs", width: 600, height: 600, grid: { size: 100 }, active: false, navigation: false,
+                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+            await upstairs.createEmbeddedDocuments("Region", [floor("SUITE E17 T3 Dorm", L1, mark()), floor("SUITE E17 T3 Attic", L2, mark({ [M.ROOM_FLAGS.locked]: true }))]);
+            const [climber] = await upstairs.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, level: L1, width: 1, height: 1 }]);
+            await settle();
+            must(R.levelOf(climber) === L1 && M.isLocked(upstairs, "SUITE E17 T3 Attic"), "the climber is not downstairs or the Attic is not locked - this would measure nothing");
+            await climber.update({ x: 200, y: 200, level: L2, elevation: 12 }, asPlayer);
+            await settle();
+            await until(() => climber.x === 100 && climber.y === 100, 1500);
+            await settle();
+            read.upstairs = `${climber.x},${climber.y},${R.levelOf(climber) === L1 ? "down" : R.levelOf(climber) === L2 ? "up" : R.levelOf(climber)},${climber.elevation ?? 0}`;
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            release?.();
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await upstairs?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drops: [["lab", "stranger lab"], [1, 0, 0, 1, 0]],
+            sendBack: [true, "that cannot be done now", null], upstairs: "100,100,down,0" }),
+            "{drops: [the drops removed, the GMs' notices of each removed: a player's in the Lab, in the Hall, a GM's in the Lab, a second student's in the Lab, in the Hall], "
+                + "sendBack: [the put-back held, the guard on the bedroom's centre, on the Hall spot], upstairs: x,y,floor,elevation after a jump into the locked Attic}");
     }],
 
     ...GRID

@@ -1767,7 +1767,7 @@
       "tierZeroNote": "Tier 0 deals 1 damage, Tier 1 deals 2, Tier 2 deals 2 and 3 on a critical. Dismissing this leaves it at Tier 0.",
       "improvised": "Snatched a weapon out of the struggle: {item} (Tier {tier}).",
       "improvisedNote": "Grabbed mid-incident. A crime tool like any other.",
-      "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, or, if you only walked in on it, Averted eyes.",
+      "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, a Finishing blow, or, if you only walked in on it, Averted eyes.",
       "oneAtATime": "There is already an incident running. It has to finish before another can start.",
       "crisisPrompt": "What are you doing about it?",
       "nothingToDo": "There is nothing left for you to do this round.",
@@ -2759,6 +2759,8 @@
       "outsideRooms": "outside the rooms",
       "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
       "floorJumped": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
+      "ruleSentBack": "{name}'s token was moved into {room} on {scene}, where the rules do not let {name} go, and was put back where {name} last stood.",
+      "dropRemoved": "A player placed a token of {name} in {room} on {scene}, where the rules do not let {name} stand. The token was removed.",
       "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
@@ -3201,7 +3203,7 @@
         "doorLocked": "The door is locked.",
         "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
         "chained": "You are chained here until this time of day ends.",
-        "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, or, if you only walked in on it, Averted eyes.",
+        "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, a Finishing blow, or, if you only walked in on it, Averted eyes.",
         "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
         "noBudget": "No Free Move and no actions left.",
         "eclipseSpent": "Your Eclipse crossings are used up."

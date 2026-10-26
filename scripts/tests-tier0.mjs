@@ -8269,7 +8269,8 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
             ["SHEET movement.mjs#bedroomShut", "held on the primary: the bedroom rule of the student `restrictedFrom` is handed - the document on the mover's browser, the GMs' mark from `judgeArrival` (`itemsHeldNow`) on the primary - read through bedroom-keys.mjs, the one rule `mayEnterBedroom` and `keysHeldBy` read too: a key in hand only, never a stashed one (S08-31), and in the Investigation the room of an owner whose death is published (`isDeceased`, the table's flag) open (S08-55, D15) [1b.2] (E14 part 1 C2)"],
             ["SHEET movement.mjs#passageOpenFor", "out of scope as a judgement: on the viewer's own browser, whether its outline draws a secret passage as a gap (fog-doorways.mjs `doorwayEdges`, never on a GM's) - the passages its own copy names and `restrictedFrom` with `via: \"passage\"` on the document; it moves nothing, and the step itself is the veto's and the primary's (E79 C3, R557)"],
-            ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
+            ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a) until E17 C1, since which a player's arrival a doors' rule refuses (`ruleOf`) keeps the rule and the last lawful spot on its standing, which the GMs' audit puts the token back to (`ruleRefused`, `auditMove`) and a refused drop is removed for (`noteGmCreated`); scenario 66 I and two tier-2 tests, E17-T2 and E17-T3 [1b.2] MARKED"],
+            ["SHEET movement.mjs#sendBackRuleOf", "judged on the primary (E17 C1): the rule a `token.sendBack`'s place meets, for `guardSendbackPlace` - a room the judge read the token standing in lawfully is its way back, any other a crossing from the last lawful room by `crossingVerdict` with no price, the student read held (`flagsHeldNow`, `itemsHeldNow`) as `judgeArrival` reads it, the sender the mover; E17-T3 [1b.2] MARKED"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
             ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step; since E14 part 1 C2 the keys in hand only (bedroom-keys.mjs `keyRooms`: a stashed key opens nothing, its place judged as its room is, `placeStands`), the stash's too only with `stashed: true` (`grantBedroomKey`, the GMs' list of keys to give) [1b.2]"],
@@ -15212,6 +15213,73 @@ const REGRESSIONS = [
         log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
         equal(JSON.stringify(broken), "[]",
             "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
+    }],
+
+    ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-11, A10 ("po regule ścian, bez drugiego listenera i bez zwolnień z opcji pakietu;
+         * REVERT zostaje z `constrainOptions: { ignoreWalls: true }`"). The rules were put back nowhere on the GM; now
+         * the audit's one road (R560: one call site, the primary's sighting) asks them. Read in the module's files,
+         * comments blanked: (a) `auditMove`'s body calls `ctx.ruleRefused(` exactly once, and returns a clear move and a
+         * noted one through it after `ctx.floorRefused(`;
+         * (b) that call stands in the closure `const rules = ...`, which names no `options`; (c) no `return` in
+         * `auditMove` hands back a clear move (`verdict: "clear"`) or a noted one (`mode: "log"`) but through that
+         * closure; (d) movement.mjs `noteGmPosition` hands `ruleRefused` in, and no file but these two names it (no
+         * second reader or listener); (e) movement.mjs `sendBack` writes with `constrainOptions: { ignoreWalls: true }`.
+         * Shown planted source first: a clean twin, then one fault of each rule alone. Red at 22207d2c: (a) to (d).
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const readOf = files => {
+            const broken = [];
+            const audit = topLevelFunction(stripComments(files.get("movement-audit.mjs") ?? ""), "auditMove");
+            const move = stripComments(files.get("movement.mjs") ?? "");
+            if (!audit) return ["no auditMove"];
+            const asks = [...audit.matchAll(/ctx\.ruleRefused\(/g)].length, floor = audit.search(/ctx\.floorRefused\(/);
+            const clear = audit.search(/return rules\(\{\s*verdict:\s*"clear"/), noted = audit.search(/return rules\(\{[^}]*mode:\s*"log"/);
+            if (asks !== 1) broken.push(`asks ${asks}`);
+            if (floor < 0 || [clear, noted].some(at => at >= 0 && at < floor)) broken.push("before the floors");
+            const closure = audit.match(/const rules = [^]*?\n {8}\};/)?.[0] ?? null;
+            if (!closure || !closure.includes("ctx.ruleRefused(")) broken.push("no closure");
+            else if (/\boptions\b/.test(closure)) broken.push("an option");
+            if (/return\s*\{\s*verdict:\s*"clear"/.test(audit) || /return\s*\{[^}]*mode:\s*"log"\s*\}/.test(audit)) broken.push("unasked");
+            const seen = topLevelFunction(move, "noteGmPosition");
+            if (!seen || !/\bruleRefused\b/.test(seen)) broken.push("not handed");
+            const readers = [...files].filter(([file, text]) => file.endsWith(".mjs") && !SUITE.test(file) && /\bruleRefused\b/.test(stripComments(text)))
+                .map(([file]) => file).sort();
+            if (JSON.stringify(readers) !== JSON.stringify(["movement-audit.mjs", "movement.mjs"])) broken.push(`named in ${readers.join(",")}`);
+            const back = topLevelFunction(move, "sendBack");
+            if (!back || !/constrainOptions:\s*\{\s*ignoreWalls:\s*true\s*\}/.test(back)) broken.push("walls");
+            return broken;
+        };
+        const audit = (body = "") => ["export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {", "    try {",
+            "        let mover = userId;", "        const rules = judged => {", "            const refused = mover ? ctx.ruleRefused(tokenDoc) : null;",
+            "            return refused ? { verdict: \"refused\" } : judged;", "        };", body,
+            "        const floor = ctx.floorRefused(tokenDoc);", "        if (!floor) return rules({ verdict: \"clear\" });",
+            "        return rules({ verdict: \"crossed\", mode: \"log\" });", "    } catch (err) {", "        return null;", "    }", "}"].join("\n");
+        const move = (ctx = "ruleRefused, ", walls = "constrainOptions: { ignoreWalls: true }") => [
+            "function ruleRefused(t) { return null; }",
+            `function noteGmPosition(t) { return auditMove(t, {}, {}, null, null, { ${ctx}floorRefused }); }`,
+            `async function sendBack(t, p) { await t.update(p, { ${walls} }); }`].join("\n");
+        const clean = { "movement-audit.mjs": audit(), "movement.mjs": move(), "rooms.mjs": "export const ROOM_FLAG = \"room\";" };
+        const faults = {
+            early: [{ "movement-audit.mjs": audit("        if (!was) return rules({ verdict: \"clear\" });") }, ["before the floors"]],
+            twice: [{ "movement-audit.mjs": audit("        ctx.ruleRefused(tokenDoc);") }, ["asks 2"]],
+            option: [{ "movement-audit.mjs": audit().replace("const refused = mover ?", "const refused = mover && !options?.drpgRevert ?") }, ["an option"]],
+            unasked: [{ "movement-audit.mjs": audit().replace("if (!floor) return rules({ verdict: \"clear\" });", "if (!floor) return { verdict: \"clear\" };") }, ["unasked"]],
+            noted: [{ "movement-audit.mjs": audit().replace("return rules({ verdict: \"crossed\", mode: \"log\" });", "return { verdict: \"crossed\", mode: \"log\" };") }, ["unasked"]],
+            handed: [{ "movement.mjs": move("").replace("function ruleRefused(t) { return null; }", "function ruleRefused(t) { return null; }\nexport { ruleRefused };") }, ["not handed"]],
+            other: [{ "rooms.mjs": "export function ruleRefused() { return null; }" }, ["named in movement-audit.mjs,movement.mjs,rooms.mjs"]],
+            walls: [{ "movement.mjs": move("ruleRefused, ", "animate: false") }, ["walls"]]
+        };
+        const planted = files => new Map(Object.entries(files));
+        equal(JSON.stringify(readOf(planted(clean))), "[]", "the reader does not read the clean twin clean - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, readOf(planted({ ...clean, ...files })), want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(sources.has("movement-audit.mjs") && sources.has("movement.mjs"), "the audit's files are not served - this test reads nothing until they are");
+        equal(JSON.stringify(readOf(sources)), "[]",
+            "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
     }]
 ];
 

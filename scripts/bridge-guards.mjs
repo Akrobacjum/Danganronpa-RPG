@@ -809,20 +809,32 @@ export function removalRefusal(token, { gmEdited = false, copied = false, placed
  * client saw it (here). The move and the request are two messages; the first
  * is given a moment - the one retry is this guard's own, so it stays in here.
  * Asked after the handler's ownership check, which the token read relies on.
+ *
+ * AND ONLY WHERE THE RULES LET IT STAND (E17 C1, 26.10.2026; the stage's design note 22, E17-10). The place was
+ * held to the record and the rooms visited, never to the doors' rules: the centre of a room the token stands in
+ * while the GMs' put-back of it is on its way is one of those, so a send-back could stand it in a bedroom shut to
+ * its mover. Now a place in a room the judge did not read the token standing in lawfully is asked of the rules
+ * as a crossing from its last lawful room (movement.mjs `sendBackRuleOf`), the sender the mover, and
+ * refused in the rule's words (passages-gm.mjs `crossingWhy`). A tunnel's or a breach's end in that bedroom,
+ * where the token stood lawfully, stays a way back.
  */
 export async function guardSendbackPlace(sender, payload, ctx) {
     const scene = game.scenes.get(payload.sceneId);
     const token = scene?.tokens?.get(payload.tokenId);
-    const { recentPositions, roomsVisited, positionIn, sendBackRefusal } = await import("./movement.mjs");
+    const { recentPositions, roomsVisited, positionIn, sendBackRefusal, sendBackRuleOf } = await import("./movement.mjs");
+    const { crossingWhy } = await import("./passages-gm.mjs");
     const asked = payload.position ?? {};
     // The token's floor now, for a packet that names none; a room's centre on the floor asked (E12 fix r2-H1).
     const judge = () => {
         const level = token.level ?? undefined;
         const floor = asked.level !== undefined ? asked.level : level;
-        return sendBackRefusal(asked, {
+        const placed = sendBackRefusal(asked, {
             scene, history: recentPositions(token.id), level,
             centres: [...roomsVisited(token)].map(room => positionIn(room, token, floor ?? null))
         });
+        if (placed) return placed;
+        const rule = sendBackRuleOf(token, asked, sender);
+        return rule ? crossingWhy(rule) : null;
     };
     let why = judge();
     if (why) {

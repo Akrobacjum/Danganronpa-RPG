@@ -52,7 +52,7 @@ import { playSfx } from "./sfx.mjs";
 import { openSegmentsFor, crossingVia, tunnelEndsFor } from "./passages.mjs";
 // The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
 // readers handed in; movement-audit.mjs never imports this file statically (R161).
-import { askerOf, auditMove, registerMoveAudit } from "./movement-audit.mjs";
+import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-audit.mjs";
 // Who acts as the Mastermind (E79 fix r2-G2), for the witness judge: passages-gm.mjs is already in this file's static
 // graph through movement-audit.mjs, so the edge adds no module and no cycle that was not there.
 import { actsAsMastermind } from "./passages-gm.mjs";
@@ -546,14 +546,15 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     if (judgingHere()) {
         try {
             judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]),
-                asker: askerOf(options?.[SENT_BACK], game.users) });
+                asker: askerOf(options?.[SENT_BACK], game.users), putBack: true });
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" arrived`, err);
         }
         // The wall rule (E79 C4), from the same start: the GM's last sighting. It changes no standing
-        // `judgeArrival` keeps (the plan's D7) and catches its own throw.
+        // `judgeArrival` keeps (the plan's D7) and catches its own throw. Then the doors' rules (E17 C1): the
+        // judge's verdict on this landing, just read (`ruleRefused`), put back by the audit in either mode.
         const judged = auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
-            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id), floorRefused: floorJumpRefused,
+            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id), floorRefused: floorJumpRefused, ruleRefused,
             held: judgeReaders?.flagsHeldNow ?? null,
             sendBack: (doc, spot, how) => sendBack(doc, spot, roomAt(spot.x, spot.y, doc, spot.level ?? levelOf(doc)), how)
         });
@@ -594,16 +595,45 @@ function floorJumpRefused(scene, from, to, floors) {
  * A token dropped on a scene: where it stands, and on the primary whether a player dropped it somewhere
  * the rules refuse (E12 C12) - judged from where that student last stood on the scene (`droppedFrom`,
  * E12 fix r2-H3). Exported for tier 2, which hands it a plain token.
+ *
+ * A DROP THE RULES REFUSE IS REMOVED (E17 C1, 26.10.2026; the owner's 13.10 "droga nowego żetonu upuszczonego z
+ * paska bocznego do innego pokoju jest sprawdzona i zamknięta" and Q2 of 19.10: "a refused sidebar drop: the new
+ * token is deleted and the GMs are told"). A player's drop into a room a rule refuses the student (`ruleOf`: the
+ * incident, a lock, a seal, Chained, another's bedroom, the courtroom) stood, unlawful, and the GMs were told; moved
+ * to the student's last lawful standing it would be a second token standing on the first. So the primary deletes it
+ * and tells the GMs which rule (`removeDrop`). A drop the rules allow stands as before, and so does a GM's.
  */
 export function noteGmCreated(tokenDoc, userId) {
+    let judged = null;
     if (judgingHere()) {
         try {
-            judgeArrival(tokenDoc, userId, { created: true });
+            judged = judgeArrival(tokenDoc, userId, { created: true, putBack: true });
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" was dropped`, err);
         }
     }
     gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
+    if (judged?.rule) removeDrop(tokenDoc, judged);
+}
+
+/** Delete a player's drop the rules refuse, a macrotask after its create hook, and tell the GMs (`noteGmCreated`). */
+function removeDrop(tokenDoc, standing) {
+    if (!isPrimaryGm()) return;
+    const name = tokenDoc.actor?.name ?? tokenDoc.name ?? "";
+    const room = roomOfToken(tokenDoc) ?? game.i18n.localize("DRPG.Movement.outsideRooms");
+    const scene = tokenDoc.parent?.name ?? "";
+    setTimeout(async () => {
+        try {
+            await tokenDoc.delete();
+        } catch (err) {
+            error(`Could not remove the token of "${name}" a player placed where the rules refuse`, err);
+            return;
+        }
+        log(`A player placed a token of ${name} in ${room} on "${scene}", which the rules refuse (${standing.reason}); it was removed.`);
+        whisperToGms(`<p class="drpg-warning" data-drpg-dropgone="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.dropRemoved", { name, room, scene }))}</p>`
+            + `<p>${esc(standing.reason ?? "")}</p>`)
+            .catch(err => error("Could not tell the GMs of a token removed", err));
+    }, 0);
 }
 
 /**
@@ -745,10 +775,14 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
  * arrived where the rules refuse is unlawful until it stands in a room lawfully
  * reachable from that room, and the GMs are told once each time it turns so. An
  * unlawful token is no witness and no third party (`lawfulRoomOf`: chapter.mjs
- * `checkBodyFound`, murder-rules.mjs `maybeThirdParty`). Nothing is put back (Q3 a,
- * not b): a GM who sees it otherwise moves the token, and a GM's move or a GM's
- * create makes it lawful where it stands. Who moved it is the hook's `userId`,
- * Foundry's and not a packet's.
+ * `checkBodyFound`, murder-rules.mjs `maybeThirdParty`). Nothing was put back (Q3 a,
+ * not b) until E17 C1: since then a player's arrival a doors' rule refuses - the
+ * incident, a lock, a seal, Chained, another's bedroom, the courtroom (`ruleOf`) - is
+ * put back by the GMs' audit to the last spot the judge read lawful (`ruleRefused`),
+ * and a refused drop is removed (`noteGmCreated`); an arrival only the connected-rooms
+ * rule refuses still stands, unlawful, as before. A GM who sees it otherwise moves the
+ * token, and a GM's move or a GM's create makes it lawful where it stands. Who moved
+ * it is the hook's `userId`, Foundry's and not a packet's.
  *
  * A REVERT is a player's claim. It is honoured only where `sendBackRefusal` passes it
  * against the primary's record (`recentPositions`), and the token then stands as the
@@ -844,11 +878,68 @@ function samePlace(a, b) {
     return a.x === b.x && a.y === b.y && (a.level ?? null) === (b.level ?? null);
 }
 
-/** The token where it stands: lawful, its room the last lawful one - or not, keeping the last lawful room it had. */
-function standingHere(tokenDoc, { lawful = true, last = null, told = false, reason = null } = {}) {
-    return { x: tokenDoc.x, y: tokenDoc.y, level: tokenDoc.level ?? undefined, lawful,
+/**
+ * The token where it stands: lawful, its room the last lawful one - or not, keeping the last lawful room it had,
+ * and, where a rule refused a player's move there (E17 C1), the rule's code (`rule`) and the spot the judge last
+ * read the token standing on lawfully (`back`: x, y, elevation, level), which the GMs' audit puts it back to.
+ */
+function standingHere(tokenDoc, { lawful = true, last = null, told = false, reason = null, rule = null, back = null } = {}) {
+    return { x: tokenDoc.x, y: tokenDoc.y, elevation: tokenDoc.elevation ?? 0, level: tokenDoc.level ?? undefined, lawful,
         last: lawful ? { room: roomOfToken(tokenDoc), level: levelOf(tokenDoc) } : last,
-        told: lawful ? false : told, reason: lawful ? null : reason };
+        told: lawful ? false : told, reason: lawful ? null : reason, rule: lawful ? null : rule, back: lawful ? null : back };
+}
+
+/**
+ * The code of a doors' rule the GMs put a token back for (movement-audit.mjs `RULE_CODES`), read off a keyed
+ * refusal of `crossingVerdict`, or null: another's bedroom is `cannotNow` with the bedroom's mark (`restrictedFrom`),
+ * and the connected-rooms rule's `cannotNow` is not a rule's - it is the walls' and floors', which follow `moveAudit`
+ * (session 0), and a route through rooms that lands as one write reads as a jump between two rooms that do not touch.
+ */
+function ruleOf(verdict) {
+    if (verdict?.rule === "bedroomShut") return "cannotNow";
+    return verdict?.code !== "cannotNow" && RULE_CODES.includes(verdict?.code) ? verdict.code : null;
+}
+
+/** The newest spot the judge read this token standing on lawfully, its own standing before this move last: `{ x, y, elevation, level }` or null. */
+function lastLawfulSpot(tokenDoc, own) {
+    const spot = [...(standingHistory.get(tokenDoc.id) ?? []), own].findLast(s => s && s.lawful !== false && Number.isFinite(s.x) && Number.isFinite(s.y));
+    return spot ? { x: spot.x, y: spot.y, elevation: Number(spot.elevation) || 0, level: spot.level } : null;
+}
+
+/**
+ * The GMs' audit's question (movement-audit.mjs `auditMove`, E17 C1): whether the judge read this token's landing, where
+ * it stands now, as a player's move a rule refuses - `{ code, back, reason, room }` - or null. Read off the standing
+ * `judgeArrival` has just kept for this very spot, so the audit and the judge never disagree about a move.
+ */
+function ruleRefused(tokenDoc) {
+    const now = standings.get(tokenDoc?.id);
+    if (!now || now.lawful !== false || !now.rule || !now.back || !samePlace(now, positionOf(tokenDoc))) return null;
+    return { code: now.rule, back: now.back, reason: now.reason, room: roomOfToken(tokenDoc) };
+}
+
+/**
+ * Why the doors' rules refuse a send-back of this token to `spot`, as a code of `RULE_CODES`, or null (E17 C1; the stage's
+ * design note 22: `guardSendbackPlace` asked the GMs' record and the rooms visited, and a `token.sendBack` could end in a
+ * bedroom shut to its mover - the centre of a room the token stood in, the one it stands in while a put-back is on its
+ * way among them). A spot in a room the judge read the token standing in lawfully is its way back - a tunnel's or a
+ * breach's end in another's bedroom included; any other room is judged as a crossing from the last lawful room, by the
+ * rules `ruleOf` names, as the student the GMs hold. `user` is the sender, for the Mastermind's keys. On the primary GM.
+ */
+export function sendBackRuleOf(tokenDoc, spot, user = null) {
+    const actor = tokenDoc?.actor;
+    if (!actor || actor.type !== "character" || !isPlaceScene(tokenDoc.parent)) return null;
+    const level = spot?.level !== undefined ? spot.level : levelOf(tokenDoc);
+    const to = roomAt(Number(spot?.x), Number(spot?.y), tokenDoc, level);
+    const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
+    const stood = [...(standingHistory.get(tokenDoc.id) ?? []), own].filter(s => s && s.lawful !== false);
+    if (!to || stood.some(s => roomAtSpot(tokenDoc, s) === to)) return null;
+    const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
+    const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
+    const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
+    const last = own?.last ?? null;
+    const verdict = crossingVerdict(student, last?.room ?? null, to, tokenDoc.parent, { from: last?.level ?? null, to: level },
+        { mover: { gm: false, mastermind: actsAsMastermind(actor, user) }, pay: false, keyed: true, elevation: ownElevation(tokenDoc) });
+    return verdict === true ? null : ruleOf(verdict);
 }
 
 /** A token the judge has no record of stood lawfully where the primary last saw it (`gmSeen`), else nowhere. */
@@ -866,7 +957,7 @@ function seenStanding(tokenDoc) {
  * reads it (movement-audit.mjs `askerOf`), `created` whether the token was just dropped. On the
  * primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2, which judges a plain token.
  */
-export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, asker = null, created = false } = {}) {
+export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, asker = null, created = false, putBack = false } = {}) {
     if (!tokenDoc?.id) return null;
     judgingHere();
     const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
@@ -879,7 +970,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const spot = positionOf(tokenDoc);
         const honoured = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
         const back = honoured ? (standingHistory.get(tokenDoc.id) ?? []).findLast(s => samePlace(s, spot)) : null;
-        if (back) now = { ...back, x: spot.x, y: spot.y, level: spot.level };
+        if (back) now = { ...back, x: spot.x, y: spot.y, elevation: spot.elevation, level: spot.level };
     } else if (mover?.isGM) now = standingHere(tokenDoc);
     if (!now) {
         // One synchronous step from the reads to the verdict (H3), nothing awaited (H17).
@@ -900,8 +991,18 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         // where it stands, on the floor of the room it came from, against the GMs' records.
         const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
         const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
-        now = verdict === true ? standingHere(tokenDoc)
-            : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
+        if (verdict === true) now = standingHere(tokenDoc);
+        else {
+            /* A RULE'S REFUSAL OF A PLAYER'S MOVE (E17 C1; the note on `ruleOf`). Kept on the standing with the spot to put the
+               token back to, the newest the judge read lawful: the GMs' audit puts it back (`ruleRefused`), a drop is removed
+               (`noteGmCreated`). Only a player's move: the hook's player, or the player a GM's send-back names. With `putBack`
+               (the primary's hooks, which act on it) the GMs are told by the put-back, not as an unlawful arrival. */
+            const rule = asked || (mover && !mover.isGM) ? ruleOf(verdict) : null;
+            const back = rule && !created ? lastLawfulSpot(tokenDoc, own) : null;
+            now = standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict.text ?? null,
+                rule, back });
+            if (putBack && rule && (created || back)) now.told = true;
+        }
     }
     if (own && !samePlace(own, now)) {
         // Kept as the GMs' sightings are (`keptSightings`, E79 fix r4-G4): a put-back's `back` is found by the same spot.
@@ -920,12 +1021,12 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
 
 /**
  * Whether a student may stand where this token stands, coming from the last lawful room: true or
- * the reason. The veto's rules, read the way the veto reads them (`crossingVerdict`) with no price,
- * and a body is a body (`isCorpse`, which the veto asks before them). Pure but for the settings
- * those rules read.
+ * the refusal, keyed (`{ code, text }`, E17 C1: `ruleOf` reads which rule refused). The veto's rules,
+ * read the way the veto reads them (`crossingVerdict`) with no price, and a body is a body (`isCorpse`,
+ * which the veto asks before them). Pure but for the settings those rules read.
  */
 function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
-    if (isCorpse(student)) return game.i18n.localize("DRPG.Move.dead");
+    if (isCorpse(student)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead") };
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
     // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its
@@ -935,7 +1036,7 @@ function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     const to = roomOfToken(tokenDoc);
     if (from === to) return true;                      // the same room, a stairwell's floors too
     return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) },
-        { mover, pay: false, via, elevation: ownElevation(tokenDoc) });
+        { mover, pay: false, via, elevation: ownElevation(tokenDoc), keyed: true });
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */
@@ -1286,9 +1387,11 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     return refusal(keyed, "noBudget", game.i18n.localize("DRPG.Move.noBudget"));
 }
 
-/** A refusal as the keyed core answers it, `{ code, text }`, or the bare sentence every other caller reads (`crossingVerdict`). */
-function refusal(keyed, code, text) {
-    return keyed ? { code, text } : text;
+/** A refusal as the keyed core answers it, `{ code, text }` (with `rule` where a code alone does not name it: another's bedroom,
+ *  E17 C1's `ruleOf`), or the bare sentence every other caller reads (`crossingVerdict`). */
+function refusal(keyed, code, text, rule = null) {
+    if (!keyed) return text;
+    return rule ? { code, text, rule } : { code, text };
 }
 
 /**
@@ -1484,7 +1587,7 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
             if (via !== "passage" && !(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
-                return refusal(keyed, "cannotNow", game.i18n.format("DRPG.Vault.keyMissing", { room: to }));
+                return refusal(keyed, "cannotNow", game.i18n.format("DRPG.Vault.keyMissing", { room: to }), "bedroomShut");
             }
         }
     } catch {
@@ -2750,7 +2853,7 @@ export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
  * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
  * Whether v14 honours the option on an update is not read here: LIVE-E79-02.
  */
-async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false } = {}) {
+async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false, elevation = false } = {}) {
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
@@ -2764,9 +2867,11 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
         let wrote = false;
         try {
             // Its floor too, when it had one (`spotOf`, E12 C9): a refused climb put back by x
-            // and y alone stays upstairs.
-            await tokenDoc.update(
-                previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y },
+            // and y alone stays upstairs. Its height too where the caller asks (E17 C1: a rule's put-back, to x, y,
+            // elevation and level, the owner's 13.10).
+            const to = previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y };
+            if (elevation && Number.isFinite(Number(previous.elevation))) to.elevation = Number(previous.elevation);
+            await tokenDoc.update(to,
                 { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
             );
             wrote = true;

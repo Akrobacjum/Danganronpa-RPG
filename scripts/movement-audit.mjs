@@ -18,7 +18,9 @@
  * a wall that does not restrict movement, an open door, a one-way wall seen from its open side,
  * and the floors; Foundry's own source was not read for it, and the audit in "log" mode at a table,
  * with a GM on another scene and with floors, is LIVE-E79-02. E17
- * extends `auditMove` (and decides the default) rather than writing a second audit.
+ * extends `auditMove` rather than writing a second audit: since E17 C1 the doors' rules put a token back
+ * from it too, in either mode (`RULE_CODES`). The default stays "log" for the walls and floors (session 0:
+ * "tylko log" at the table of 26.10; the default after it is E82's).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -32,10 +34,19 @@ import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
-/** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, the two things
- *  the audit sends a token back for. E17 takes the packet over with `auditMove` (A10-9) and adds its codes here rather
- *  than writing a second send-back. */
-const SENT_BACK_CODES = new Set(["wall", "floor"]);
+/**
+ * The doors' rules the audit puts a token back for (E17 C1, 26.10.2026; audit S07-02, the owner's 13.10, the stage's
+ * "the rules put back in either mode"), each a code of bridge-guards.mjs `REASONS` whose words a player's browser says
+ * (`DRPG.Bridge.why.<code>`): the incident's lock, a GM's lock, a seal, Chained, the courtroom, and `cannotNow` for
+ * another's bedroom shut to the mover (movement.mjs `ruleOf`: only the bedroom's `cannotNow`, never the connected-rooms
+ * rule's, which is the walls' and floors' and follows `moveAudit`). `noBudget` is the payer's and never a put-back; a
+ * spent Eclipse's `eclipseSpent` is E17 C2's. movement.mjs reads this list (it imports this file, R161).
+ */
+export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked"]);
+
+/** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, and since E17 C1
+ *  the rules' codes (`RULE_CODES`) - the things the audit sends a token back for, one packet for all of them. */
+const SENT_BACK_CODES = new Set(["wall", "floor", ...RULE_CODES]);
 
 /*
  * WHAT THE AUDIT KEEPS, on the primary GM, in this page's memory (E79 fix r1-G1, 1.2.79). The Debug log was its
@@ -242,9 +253,10 @@ export function auditRows() {
 /**
  * Judge one landed move of a token on the primary GM, and act on a wall it went through: `ctx` holds
  * movement.mjs's readers (`REVERT`, `SENT_BACK`, `history`, `sendBackRefusal`, `stairLinks`,
- * `roomAt`, `held`, `sendBack`) and, for the suite (R559), `mode`, `users`, `known`, `mastermind`,
- * `socket`, `whisper`, `warn`, `book` and `now` (`mastermind` the Mastermind's record, as gm-stores.mjs's). Answers `{ verdict, why?, wall?, passage?, mode?, back? }`: "skip"
- * for a move it does not judge, "exempt", "clear" or "crossed" (`back`, the spot a put-back is sent to). Every
+ * `roomAt`, `held`, `sendBack`, `floorRefused`, `ruleRefused`) and, for the suite (R559), `mode`, `users`, `known`, `mastermind`,
+ * `socket`, `whisper`, `warn`, `book` and `now` (`mastermind` the Mastermind's record, as gm-stores.mjs's). Answers `{ verdict, why?, wall?, passage?, mode?, rule?, back? }`: "skip"
+ * for a move it does not judge, "exempt", "clear", "crossed" or, since E17 C1, "refused" (a rule's code in `rule`;
+ * `back`, the spot a put-back is sent to). Every
  * exemption is the GM's own reading - the hook's user, the GMs' record of the token, the stairs on the map, the flags
  * as the GMs hold them - and none is an option of the update but the player a GM's send-back names, who is then
  * judged as the mover (`askerOf`): a REVERT is exempt only where `sendBackRefusal`
@@ -269,18 +281,62 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             mover = askerOf(options?.[SENT_BACK], users);
             if (!mover) return exempt("a GM's move");
         }
+        /*
+         * THE DOORS' RULES, AFTER THE WALLS AND FLOORS (E17 C1, 26.10.2026; audit S07-02, the owner's 13.10 and A10: "S07-02,
+         * S07-08 i poziom z S07-45 idą do TEGO hooka i tej drogi, po regule ścian, bez drugiego listenera i bez zwolnień z
+         * opcji pakietu"). The rules were asked on the mover's browser alone (`onPreUpdateToken`), which a console steps
+         * past, and the primary's judge of arrivals (movement.mjs `judgeArrival`, asked just before this) held such an
+         * arrival unlawful and put nothing back. Now every judged landing of a player's move - clear of the walls, a wall
+         * or floor only noted in "log" mode, a REVERT the GMs' record accepts, the stairs, a token never seen - asks the
+         * judge's verdict (`ctx.ruleRefused`: whether the judge read this landing as one a rule refuses, and the spot it
+         * last read the token standing on lawfully) and puts the token back there - x, y, elevation and floor - in either
+         * mode, its player sent the rule's code and the GMs told once a burst. A wall or floor put back in "sendBack" mode
+         * is the wall rule's put-back, and asks nothing more. What the judge holds the rule against is the player's move:
+         * the hook's player, or the player a GM's send-back names (`mover`); a GM's own move makes a spot lawful, so it
+         * never comes here. Nothing of the update's options decides it. A wall noted in "log" mode changes no standing
+         * (14.10's D7): what moves the witness is the rule's put-back, which the judge reads as the GM's write it is.
+         */
+        const rules = judged => {
+            const refused = mover && typeof ctx.ruleRefused === "function" ? ctx.ruleRefused(tokenDoc) : null;
+            if (!refused?.back) return judged;
+            const socket = ctx.socket ?? game.socket;
+            const row = noteRow(ledger, { token: tokenDoc.id, actor: actor.id, user: mover, scene: scene.id, wall: null, passage: null, rule: refused.code,
+                mode: "rules", verdict: "not sent back" }, now);
+            ctx.sendBack(tokenDoc, refused.back, {
+                sound: false,
+                // Marked as the audit's (movement.mjs `sightingsAfter`): the refused spot is no reader's afterwards.
+                audited: true,
+                elevation: true,
+                landed: wrote => {
+                    row.sent = (row.sent ?? 0) + (wrote ? 1 : 0);
+                    row.verdict = row.sent >= row.times ? "sent back" : "not sent back";
+                    if (wrote) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: refused.code }, { recipients: [mover] });
+                }
+            });
+            const told = `${tokenDoc.id} ${mover} rules`, last = ledger.told.get(told);
+            if (last !== undefined && now - last <= BURST_MS) row.quiet += 1;
+            else {
+                ledger.told.set(told, now);
+                const said = game.i18n.format("DRPG.Movement.ruleSentBack", { name: actor.name ?? tokenDoc.name ?? "",
+                    room: refused.room ?? game.i18n.localize("DRPG.Movement.outsideRooms"), scene: scene.name ?? "" });
+                (ctx.whisper ?? whisperToGms)(`<p class="drpg-warning" data-drpg-rule="${esc(tokenDoc.id)}">${esc(said)}</p><p>${esc(refused.reason ?? "")}</p>`)
+                    ?.catch?.(err => error("Could not tell the GMs of a token the rules sent back", err));
+            }
+            // `back`: the GMs' sighting becomes it at once, as a wall's put-back's does (movement.mjs `noteGmPosition`).
+            return { verdict: "refused", rule: refused.code, back: refused.back };
+        };
         if (isMonokuma((ctx.held ?? (a => a))(actor))) return exempt("Monokuma");
         if (!isPlaceScene(scene)) return { verdict: "skip", why: "no rooms" };
-        if (!was) return { verdict: "skip", why: "never seen" };
+        if (!was) return rules({ verdict: "skip", why: "never seen" });
         if (options?.[REVERT] || options?.[SENT_BACK]) {
             const spot = { x: tokenDoc.x, y: tokenDoc.y, elevation: tokenDoc.elevation ?? 0, level: tokenDoc.level ?? undefined };
-            if (!ctx.sendBackRefusal(spot, { scene, history: ctx.history ?? [] })) return exempt("a send-back the GM accepts");
+            if (!ctx.sendBackRefusal(spot, { scene, history: ctx.history ?? [] })) return rules(exempt("a send-back the GM accepts"));
         }
         const from = was.level ?? null, to = levelOf(tokenDoc);
         if (from !== to) {
             const pair = [ctx.roomAt(was.x, was.y, tokenDoc, from), ctx.roomAt(tokenDoc.x, tokenDoc.y, tokenDoc, to)].sort();
             if (pair.every(Boolean) && (ctx.stairLinks(scene) ?? []).some(link => link[0] === pair[0] && link[1] === pair[1])) {
-                return exempt("the stairs");
+                return rules(exempt("the stairs"));
             }
         }
         const known = ctx.known ? { known: ctx.known } : {};
@@ -300,7 +356,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
         })();
         if (!found && !floor) {
             keepLines(ledger, tokenDoc, landed);
-            return { verdict: "clear" };
+            return rules({ verdict: "clear" });
         }
 
         const mode = ctx.mode ?? game.settings.get(MODULE_ID, SETTINGS.moveAudit);
@@ -313,7 +369,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             mode: sending ? "sendBack" : "log", verdict: sending ? "not sent back" : "noted" }, now);
         if (!sending) {
             keepLines(ledger, tokenDoc, landed);
-            return { verdict: "crossed", ...crossing, mode: "log" };
+            return rules({ verdict: "crossed", ...crossing, mode: "log" });
         }
 
         const socket = ctx.socket ?? game.socket;
@@ -369,7 +425,8 @@ export function sentBackRefusal(payload, senderId, { me = game.user, users = gam
 
 /**
  * Player: the primary GM put this user's token back from a wall - the refusal's sound and the veto's
- * line, naming the room it stands in. Answers whether it was taken; a refusal is a Debug log row.
+ * line, naming the room it stands in - or, since E17 C1, for a rule: the bridge's words for its code
+ * (`DRPG.Bridge.why.<code>`, the player's own language). Answers whether it was taken; a refusal is a Debug log row.
  */
 export async function onSentBack(payload, senderId) {
     if (payload?.action !== "move.sentBack") return false;
@@ -378,10 +435,14 @@ export async function onSentBack(payload, senderId) {
         warn(`A token's send-back was not taken: ${refused}`);
         return false;
     }
+    playSfx("refused");
+    if (payload.code !== "wall" && payload.code !== "floor") {
+        ui.notifications.warn(game.i18n.localize(`DRPG.Bridge.why.${payload.code}`));
+        return true;
+    }
     const token = game.scenes?.get(payload.sceneId)?.tokens?.get(payload.tokenId) ?? null;
     const { roomOfToken } = await import("./movement.mjs");
     const from = (token && roomOfToken(token)) || game.i18n.localize("DRPG.Movement.outsideRooms");
-    playSfx("refused");
     ui.notifications.warn(game.i18n.format("DRPG.Move.cannotReach", { from }));
     return true;
 }

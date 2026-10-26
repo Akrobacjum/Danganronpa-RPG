@@ -1796,7 +1796,7 @@
       "tierZeroNote": "Tier 0 zadaje 1 obrażenie, Tier 1 zadaje 2, Tier 2 zadaje 2, a 3 na krytyku. Odrzucenie tego zostawia Tier 0.",
       "improvised": "Wyrwana z szamotaniny broń: {item} (Tier {tier}).",
       "improvisedNote": "Chwycona w trakcie incydentu. Narzędzie zbrodni jak każde inne.",
-      "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape together albo, jeśli to tylko przypadkowe wejście, Averted eyes.",
+      "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape together, Finishing blow albo, jeśli to tylko przypadkowe wejście, Averted eyes.",
       "oneAtATime": "Incydent już trwa. Musi się skończyć, zanim zacznie się kolejny.",
       "crisisPrompt": "Co z tym robisz?",
       "nothingToDo": "Nie zostało ci nic do zrobienia w tej rundzie.",
@@ -2867,6 +2867,8 @@
       "outsideRooms": "poza pokojami",
       "wallCrossed": "Żeton postaci {name} przesunięto przez ścianę na scenie {scene} i cofnięto tam, gdzie stał.",
       "floorJumped": "Żeton postaci {name} przeniesiono na scenie {scene} na inne piętro, dokąd nie prowadzą schody, i cofnięto tam, gdzie stał.",
+      "ruleSentBack": "Żeton postaci {name} przesunięto na scenie {scene} do: {room}, dokąd zasady tej postaci nie wpuszczają, i cofnięto tam, gdzie ostatnio stał.",
+      "dropRemoved": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie zasady nie pozwalają tej postaci stać. Żeton usunięto.",
       "droppedFromNowhere": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
     },
     "Move": {
@@ -3325,7 +3327,7 @@
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
-        "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape together albo, jeśli to tylko przypadkowe wejście, Averted eyes.",
+        "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape together, Finishing blow albo, jeśli to tylko przypadkowe wejście, Averted eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
         "noBudget": "Brak Free Move i brak akcji.",
         "eclipseSpent": "Przejścia Eclipse wyczerpane."
