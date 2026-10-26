@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.84";
+    --drpg-css-version: "1.2.85";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1441,9 +1441,11 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     border-radius: 4px;
 }
 
-.drpg-assign .drpg-assign-implicit {
-    color: var(--drpg-eye);
-    cursor: help;
+/* A student never assigned: the pool it falls back to, named "(fallback)" in its select, dim
+   and in italics until the GM picks something (E15 C6; audit S10-62). It was a red "*". */
+.drpg-assign select.drpg-assign-fallback {
+    color: var(--drpg-dim);
+    font-style: italic;
 }
 
 /* Students deliberately kept out of every pool. */
@@ -13889,6 +13891,25 @@ form:has(select[name="trigger"]) [data-drpg-when-trigger] {
 form:has(select[name="trigger"] option[value="project"]:checked) [data-drpg-when-trigger~="project"],
 form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-when-trigger~="sabotage"] {
     display: flex;
+}
+
+/* THE TRAP'S FIELDS ONLY WITH INDIRECT MURDER, THE VIEWERS ONLY WHEN SOMEBODY IS KEPT OUT
+   (E15 part 1 C1, 25.10.2026; audit S09-23). The project window drew the trigger, "Only after
+   dark", "Not the one who built it" (ticked by default) and the trap's condition on every
+   project, though each says it is for an indirect murder, and the list of who sees it on a
+   public one; the form was twice as long and a GM filled fields that did nothing. One block
+   (`data-drpg-when-murder`, its own box `display: contents`, so its rows stand in the form's
+   flow as they did) shown off the Indirect murder box, and the viewers off Secret or Indirect
+   murder, which seals the project and names its killer from the first ticked player
+   (projects-ui.mjs `killerIdFor`). Off the boxes' own state, as the trigger's rows are. Tier 2
+   E15-T1 asks these rules' selectors of the window's form with `matches`; what a browser
+   paints is not measured headless. */
+[data-drpg-when-murder] {
+    display: contents;
+}
+form:has(input[name="murder"]:not(:checked)) [data-drpg-when-murder],
+form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:checked)) [data-drpg-when-secret] {
+    display: none;
 }
 
 /* ---- the variant menu -------------------------------------------------- */

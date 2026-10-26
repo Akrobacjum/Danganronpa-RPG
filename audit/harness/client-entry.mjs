@@ -555,8 +555,9 @@ const relayedFacesOf = roll => {
  * The faces a test names in `globalThis.__forceRoll = { hope, fear }` are a script of
  * `CONFIG.Dice.randomUniform` for this one evaluation: the next draws, in the order the dice
  * ask for them, then the randomiser again - as a scripted randomiser is at a table. So a
- * Loaded Die, which answers the first draw itself (forced-roll.mjs), hands the script's first
- * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5. An
+ * Loaded Die, which answers its die's draw itself (forced-roll.mjs; Hope or Fear at random since
+ * E15 C5, named on the roll's `drpgLoadedAt`), hands the script's first face to the other die:
+ * `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5, or 5 and 12. An
  * `advantage` face scripts the third draw, the one advantage die a roll throws after its two
  * (E29 C10: from then the GM throws the die its own list holds - a tool in hand, a trap's
  * victim - which no window of the harness put on, and a scenario reading a band names its face).

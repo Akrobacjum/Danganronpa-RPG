@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.84, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.85, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -130,7 +130,7 @@ Zawraca cię:
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
-**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Gdy GM ujawni przejście, zna je każdy uczeń, dopóki GM go nie utajni. Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch: koniec w twoim pokoju jest oznaczony "Tajne przejście do:" i pokojem, do którego prowadzi. Przeciągnij token na znacznik tego końca, żeby przejść, albo stań na znaczniku lub na polu obok niego i naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**: tak czy inaczej kosztuje tyle, co drzwi, a wychodzisz przy dalszym końcu, na jego piętrze. Musi być połączony GM. To, co zawraca cię przy drzwiach, zawraca cię i tu, tymi samymi słowami, i nic nie kosztuje. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu. Tunel, który GM ustawił w jedną stronę, mówi to pod swoją nazwą: drugim końcem, oznaczonym "Tajne przejście z:" i pokojem, z którego prowadzi, nie wejdziesz. Pod przejściem w ścianie lista mówi, żeby przejść przez przerwę w ścianie: takie przejście nie ma przycisku.
+**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Tajne przejście może też zbudować projekt (Secret Passage, rozdział 4). Gdy GM ujawni przejście, zna je każdy uczeń, dopóki GM go nie utajni. Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch: koniec w twoim pokoju jest oznaczony "Tajne przejście do:" i pokojem, do którego prowadzi. Przeciągnij token na znacznik tego końca, żeby przejść, albo stań na znaczniku lub na polu obok niego i naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**: tak czy inaczej kosztuje tyle, co drzwi, a wychodzisz przy dalszym końcu, na jego piętrze. Musi być połączony GM. To, co zawraca cię przy drzwiach, zawraca cię i tu, tymi samymi słowami, i nic nie kosztuje. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu. Tunel, który GM ustawił w jedną stronę, mówi to pod swoją nazwą: drugim końcem, oznaczonym "Tajne przejście z:" i pokojem, z którego prowadzi, nie wejdziesz. Pod przejściem w ścianie lista mówi, żeby przejść przez przerwę w ścianie: takie przejście nie ma przycisku.
 
 ### Co widzisz
 
@@ -245,6 +245,14 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 - **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie.
 - Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją - twój i sabotażysty. Projekt zrobiony bez niej przy pierwszym rzucie pyta GMa i zachowuje jego wybór.
 - **Narzędzie w ręku** daje przewagę i zdejmuje swój Tier z każdego progu rzutu.
+- **Projekty, które zmieniają ścianę albo przedmiot.** W oknie **Zaproponuj projekt** pole **Rodzaj** daje pięć obok własnego projektu, każdy z ustaloną statystyką i rozmiarem, dostępny tylko tam, gdzie da się go zrobić:
+  - **Secret Passage** (Hand, Complex 6, zawsze tajny): tajne przejście przez ścianę pokoju, w którym stoisz, do pokoju za nią, nazwanego tak, jak go znasz. Odcinek ściany wskazuje GM. Gdy jest ukończony, znasz przejście ty i ci, którym udostępniłeś projekt wcześniej.
+  - **Breach the Wall** (Body, Complex 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek i drzwi sypialni pokoju za nią nikogo nie zatrzymują, a pieczęć na nim jest zerwana do końca tej pory dnia; skucie dalej cię trzyma, a sala rozpraw zostaje zamknięta. Ci w obu pokojach dowiadują się o tym, a twoje imię poznają tylko wtedy, gdy stoisz przy dziurze; pokoje obok słyszą łomot.
+  - **Seal the passage** (Hand, Complex 6): zasypuje przejście, które znasz i które ma bok w twoim pokoju, dla wszystkich, którzy je znają. GM może je otworzyć ponownie.
+  - **Close the breach** (Body, Complex 6): ściana znów jest cała.
+  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały.
+
+  GM zatwierdza go jak każdą propozycję i sprawdza jeszcze raz, gdy jest ukończony: jeśli ściana, przejście albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom albo zasypanie, cofa je.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.
 - Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy już stałeś w jego pokoju; tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
 - **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
@@ -359,13 +367,13 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Support** | 1 | Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju. |
 | **Experience** | 1 | Dodaj poziom doświadczenia do rzutu, do którego to doświadczenie naprawdę się stosuje. Czeka na GMa - piszesz, co zamierzasz, a Hope pobierane jest tylko przy zgodzie. |
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
-| **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
+| **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. Przy planie morderstwa rzuca też na ukrycie śladów, jak praca nad nim. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
 | **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Przerzucony rzut liczy to, co GM policzył za pierwszym razem. Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi (w pokoju, w którym padł rzut, i tylko wtedy, gdy wciąż tam stoisz - inaczej Reroll wraca w całości): w górę znajduje raz; w dół skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
-| **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
+| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. |
 
 Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
@@ -411,9 +419,9 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Silence | żadnych Hope Calli, u nikogo |
 | Fog | brak Free Move - przejścia kosztują akcje jak zwykle |
 | Rot | każdy przedmiot z więcej niż jednym punktem wytrzymałości traci jeden (jednorazowo, nic się nie łamie) |
-| Earthquake | każdy projekt traci 1 postępu (jednorazowo) |
+| Earthquake | każdy projekt jeszcze nieukończony i niezamrożony traci 1 postępu (jednorazowo) |
 
-Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia.
+Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
 
 ---
 
@@ -514,7 +522,7 @@ Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Lif
 
 ## 9. Pułapki i projekty, które zabijają
 
-**Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GMami - *Przygotuj broń* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Zastaw pułapkę* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **6 postępu** łącznie.
+**Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GMami - *Przygotuj broń* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Zastaw pułapkę* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **7-10 postępu** łącznie, tyle, ile dają obie części w najmniejszej i największej skali.
 
 Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach"). W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
 
@@ -726,7 +734,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
 
-- Masz tyle akcji co żyjący uczeń i widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
+- Zaczynasz z 0 Hope, bez oznaczonego Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
 - **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 
@@ -735,6 +743,8 @@ Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako *
 | 12+ | +1 | -1 |
 | 16+ | przewaga | utrudnienie |
 | krytyk | oddaje mu akcję | marnuje mu akcję |
+
+Krytyk, który nie ma czego ruszyć - cel ma wszystkie akcje albo nie ma już żadnej do stracenia - mówi to.
 
 Same Monokumy - strona GMa - nie mają akcji ani Hope, przechodzą przez ściany i zamknięte drzwi i wydają Despair tam, gdzie ty wydajesz Hope.
 

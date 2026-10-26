@@ -84,8 +84,52 @@ export const ROOM_FLAGS = {
      * map's (`neighbouringRooms`). Written from Room Setup's Neighbours column to every piece
      * of the room since E12 C14; a flag GMs typed by hand before then reads the same.
      */
-    neighbours: "drpgNeighbours"
+    neighbours: "drpgNeighbours",
+
+    /**
+     * A room forced open (E15 part 2 C4, 25.10.2026; A10 step 15, the owner's answer of 11.10: "E74 przyjmie
+     * `ROOM_FLAGS.broken`"): a Breach the Wall finished into it. `true` on every piece of the room, written by
+     * `setRoomBroken` alone and read by `roomBroken` alone; while it stands the GM's lock and the bedroom's key are
+     * lifted for everyone (`isLocked`, `bedroomShut`, vault.mjs `mayEnterBedroom`), never a chain, a seal set after
+     * it or the courtroom. Taken off when the wall is given back (passages-gm.mjs `restoreBreach`) and by the
+     * season's reset. A value with no builder, user or project in it: every browser holds the scene's regions.
+     */
+    broken: "drpgBroken"
 };
+
+/**
+ * Has this room been forced open, on this scene (`ROOM_FLAGS.broken`)? The one reader of the flag (R981): a room
+ * nobody broke, a room not drawn there and the trial hall (rooms.mjs `roomPieces` has no rooms on it) answer false.
+ */
+export function roomBroken(scene, room) {
+    if (!room) return false;
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.broken));
+}
+
+/**
+ * Force a room open, or close it again (`broken` false): the flag on every piece of the room on `scene`, a GM's
+ * write (the primary's, in a breach's completion step, its undo, the GMs' Close the breach and the season's reset).
+ * The one writer of `ROOM_FLAGS.broken` (R981); the flag is taken off with `unsetFlag`, never a `-=` key. Answers
+ * how many pieces were written; none on the trial hall, which holds no room.
+ */
+export async function setRoomBroken(scene, room, broken = true, { also = [] } = {}) {
+    if (!game.user?.isGM || !scene || !room) return 0;
+    let wrote = 0;
+    // Taken off, also the pieces `also` names by id (E15 part 2 fix e1-G2): a breach's, renamed off the room while it stood.
+    const pieces = [...roomRegions(scene, room)];
+    if (!broken) for (const id of also ?? []) {
+        const piece = scene.regions?.get?.(id);
+        if (piece && !pieces.includes(piece)) pieces.push(piece);
+    }
+    for (const piece of pieces) {
+        const is = Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.broken));
+        if (is === Boolean(broken)) continue;
+        if (broken) await piece.setFlag(MODULE_ID, ROOM_FLAGS.broken, true);
+        else await piece.unsetFlag(MODULE_ID, ROOM_FLAGS.broken);
+        wrote++;
+    }
+    return wrote;
+}
 
 /** Last known room per token, so we only react to actual crossings. */
 const lastRoom = new Map();
@@ -1465,7 +1509,9 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
  */
 export function isLocked(scene, room) {
     if (!room) return false;
-    return Boolean(roomFlag(scene, room, ROOM_FLAGS.locked));
+    // A room a breach forced (E15 part 2 C4) is locked to nobody until its wall is given back: the lock stays set in
+    // Room Setup and holds again then.
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.locked)) && !roomBroken(scene, room);
 }
 
 /**
@@ -1480,6 +1526,8 @@ export function isLocked(scene, room) {
  * (`itemsHeldNow`), so a key's room or place a player's browser wrote and the audit has not let stand opens nothing there.
  */
 function bedroomShut(actor, scene, to) {
+    // A bedroom a breach forced (E15 part 2 C4; E14's Q1 of 18.10: "bez klucza tunelem i breach") opens to everyone.
+    if (roomBroken(scene, to)) return false;
     const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;
     return bedroomShutTo({ actorId: actor?.id ?? null, room: to, ownerId: owner, keys: keyRooms(actor?.items),
         phase: getClock().phase, ownerDead: Boolean(owner) && isDeceased(game.actors?.get(owner)) });

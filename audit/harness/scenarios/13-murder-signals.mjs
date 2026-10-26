@@ -30,7 +30,8 @@
  * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
  * The GM's tracker names whose opening roll it waits for, and lists the fight's last turns, which
  * no participant's copy holds (E32+E07 C17, 0 and 1d). What the killer's own browser writes in the
- * fight names to a bystander's hooks only a reason the GMs' audit reads (E29 fix r1-G7, 1c).
+ * fight names to a bystander's hooks only a reason the GMs' audit reads (E29 fix r1-G7, 1c). An
+ * indirect murder runs from a player's proposal to its trigger on the clients that do each step (E15 C2, part 6).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -1662,4 +1663,186 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
                 ["pick", "1", "0", []], ["advantage", "+1", "0", ["situation"]]])
             && counted.every(r => r.messageId === trapRoll.id || r.flags.length === 0),
         JSON.stringify({ trapLowest, counted }), { flow: "gm-rolls-total" });
+
+    /* ---- 6. an indirect murder from proposal to trigger -----------------------------------
+       E15 C2, 25.10.2026; E15-14, the stage's doneWhen ("Scenariusz pośredniego morderstwa w harnessie zielony"). Every
+       part of a trap the parts above build by hand, on the clients that do it at a table: Chie's player (p3) proposes a
+       project with Indirect murder ticked from the Project tile, its room Chie's, a target of 2 and a Hand roll; the GM
+       presses Approve on the proposal's card and saves its window with the trigger "Somebody enters the room"; Botan is
+       stood in the room, so Chie's Work on it from p3 rolls to conceal her intent first, and the hit (9 and 5 on both
+       browsers) adds 1 and leaves a trace tied to the crime; p3 then buys Contribution for her on it by the sheet's
+       own road (calls.mjs `spendHopeCall`), which rolls the cover as the Work did and leaves a second trace (S09-06,
+       red at d90687dc: one trace), and fills it: the GM's world arms the trap and posts its receipt. Aiko then crosses into the room (the crossing's hook on the GM, as the C14 part above sends it), the trap's
+       card is posted, the GM presses Spring it and confirms the murder window as it opens. Read on the GM: the card's
+       data and the window's answers asked, the project the approval made, the Work's rolls on p3, the trap's state and
+       receipts, the trace, and the incident it opened. Last, since it opens an incident the checks above do not read;
+       put back after: the incident ended, the project, its trace and token gone, Botan back where he stood. */
+    phase("an indirect murder from proposal to trigger", { flow: "projects" });
+    const plan = { name: "Suite E15 C2 the trap's plan", sentence: "Suite E15 C2 a proposal" };
+    const planSet = await gm.eval(`const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        for (const id of ["${ids.chie}", "${ids.aiko}", "${ids.botan}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        const chie = game.actors.get("${ids.chie}"), scene = canvas.scene;
+        const room = Mv.roomOfActor(chie);
+        const his = scene.tokens.find(t => t.actorId === "${ids.botan}");
+        globalThis.__e15c2 = { botan: his ? { id: his.id, x: his.x, y: his.y } : null, actions: game.drpg.actionsLeft(chie), hope: chie.system.resources.hope.value,
+            had: new Set(game.messages.contents.map(m => m.id)) };
+        await chie.update({ "system.resources.hope.value": Math.max(2, chie.system.resources.hope.value) });
+        if (his && room) await his.update(Mv.positionIn(room, his), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(chie, game.drpg.actionsMax(chie));
+        await new Promise(r => setTimeout(r, 400));
+        return { room, witnesses: Mv.othersInRoom(chie).map(a => a.id) };`, { timeout: 60000 });
+    await settle(600);
+    const proposed = await p3.eval(`const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        globalThis.__dialogLog.length = 0;
+        globalThis.__dialogAnswers.push({ value: "start", form: null },
+            { name: ${JSON.stringify(plan.name)}, target: 2, room: Mv.roomOfActor(chie), trait: "hand", murder: true, condition: "" },
+            { text: ${JSON.stringify(plan.sentence)} });
+        let out = null, err = null;
+        try { out = await game.drpg.performAction(chie, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        globalThis.__dialogAnswers.length = 0;
+        return { out, err, dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 60000 });
+    await settle(900);
+    const approved = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const had = globalThis.__e15c2.had;
+        const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"'));
+        await until(() => find());
+        const card = find() ?? null;
+        let asked = null;
+        if (card) {
+            globalThis.__dialogAnswers.push(cfg => {
+                const root = cfg.content;
+                const f = root.querySelector("form");
+                f.trigger.value = "enters";
+                asked = { murder: f.murder.checked, target: f.target.value, room: f.room.value, trait: f.trait.value };
+                return cfg.buttons.find(b => b.default).callback(null, null, { element: root });
+            });
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            body.querySelector('[data-drpg-call="approveProject"]')?.click();
+            await until(() => P.allProjects().some(p => p.name === ${JSON.stringify(plan.name)}));
+            globalThis.__dialogAnswers.length = 0;
+        }
+        const made = P.allProjects().find(p => p.name === ${JSON.stringify(plan.name)}) ?? null;
+        if (made) globalThis.__e15c2.project = made.id;
+        const s = made ? P.secretsOf(made.id) : {};
+        return { card: Boolean(card), asked, made: made ? { target: made.start ?? made.target ?? null, room: made.room ?? null, trait: made.trait ?? null,
+            murder: P.isIndirectMurder(made.id), killer: s.killerId ?? null, by: s.by ?? null, trigger: s.trigger?.kind ?? null, armed: Boolean(s.trigger?.armed) } : null };`, { timeout: 60000 });
+    await settle(900);
+    check("plan: a player's proposal with Indirect murder reaches the GM as a card, and its approval makes the murder plan Chie proposed and builds, in her room, to the trigger the GM picked",
+        proposed.out?.proposed === true && approved.card && approved.asked?.murder === true && approved.made?.murder === true
+        && approved.made.killer === ids.chie && approved.made.by === ids.chie && approved.made.room === planSet.room && approved.made.trait === "hand"
+        && approved.made.trigger === "enters" && approved.made.armed === false && planSet.witnesses.includes(ids.botan),
+        JSON.stringify({ planSet, proposed, approved }), { flow: "projects" });
+
+    for (const c of [gm, p3]) await c.eval(`globalThis.__forceRoll = { hope: 9, fear: 5 }; return true;`);
+    const worked = await p3.eval(`const chie = game.actors.get("${ids.chie}");
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        globalThis.__dialogLog.length = 0;
+        globalThis.__dialogAnswers.push({ value: "work", form: null });
+        const rolled = [];
+        const own = Object.getPrototypeOf(chie).rollTrait;
+        chie.rollTrait = async function (key, options) { rolled.push(String(options?.title ?? key)); return own.call(chie, key, options); };
+        let out = null, err = null;
+        try { out = await game.drpg.performAction(chie, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete chie.rollTrait; globalThis.__dialogAnswers.length = 0; }
+        await new Promise(r => setTimeout(r, 900));
+        return { out: out ? { success: out.success, progress: out.progress } : null, err, rolled, dialogs: globalThis.__dialogLog.map(d => d.title),
+            labels: [game.i18n.localize("DRPG.Roll.concealIntent"), game.i18n.localize("DRPG.Roll.hideTraces")] };`, { timeout: 90000 });
+    await settle(900);
+    const BUILT = `const P = await import("${repoUrl}/scripts/projects.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const { remnantsOn, remnantData } = await import("${repoUrl}/scripts/remnants.mjs");
+        const id = globalThis.__e15c2.project ?? "", had = globalThis.__e15c2.had;
+        const project = P.allProjects().find(p => p.id === id);
+        const title = game.i18n.localize("DRPG.Trap.armedTitle");
+        const traces = remnantsOn(canvas.scene).map(t => remnantData(t)).filter(d => d?.subject === ${JSON.stringify(plan.name)});
+        return { current: project?.current ?? null, complete: Boolean(project?.complete), armed: Boolean(P.secretsOf(id).trigger?.armed),
+            receipts: game.messages.contents.filter(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(title)).length,
+            traces: traces.map(d => [d.action, d.tiedToCrime === true]) };`;
+    const half = await gm.eval(BUILT, { timeout: 30000 });
+    const contributed = await p3.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        const rolled = [];
+        const own = Object.getPrototypeOf(chie).rollTrait;
+        chie.rollTrait = async function (key, options) { rolled.push(String(options?.title ?? key)); return own.call(chie, key, options); };
+        const project = (await import("${repoUrl}/scripts/projects.mjs")).allProjects().find(p => p.name === ${JSON.stringify(plan.name)})?.id ?? null;
+        let bought = null, err = null;
+        try { bought = await C.spendHopeCall(chie, "contribution", { choice: { project } }); }
+        catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete chie.rollTrait; }
+        await new Promise(r => setTimeout(r, 900));
+        return { bought: Boolean(bought), err, rolled };`, { timeout: 90000 });
+    for (const c of [gm, p3]) await c.eval(`delete globalThis.__forceRoll; return true;`);
+    await settle(900);
+    const built = await gm.eval(BUILT, { timeout: 30000 });
+    check("plan: Chie's Work on it from her player's browser with Botan in the room rolls her concealment, then the Work and the cover, and its hit adds 1 and leaves a trace tied to the crime",
+        !worked.err && worked.out?.success === true && worked.out.progress === 1
+        && worked.rolled.filter(t => t.startsWith(worked.labels[0])).length === 1 && worked.rolled.filter(t => t.startsWith(worked.labels[1])).length === 1
+        && half.current === 1 && !half.complete && !half.armed && half.receipts === 0 && JSON.stringify(half.traces) === JSON.stringify([["project", true]]),
+        JSON.stringify({ worked, half }), { flow: "projects" });
+    check("plan: a Contribution bought for her on it from the same browser rolls the cover as the Work did and leaves a second trace tied to the crime; it fills the plan, arms the trap and posts one receipt",
+        contributed.bought && !contributed.err && contributed.rolled.filter(t => t.startsWith(worked.labels[1])).length === 1
+        && built.current === 2 && built.complete && built.armed && built.receipts === 1
+        && JSON.stringify(built.traces) === JSON.stringify([["project", true], ["project", true]]),
+        JSON.stringify({ contributed, built }), { flow: "projects" });
+
+    await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
+    const sprung = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const id = globalThis.__e15c2.project ?? "", had = globalThis.__e15c2.had;
+        const room = P.allProjects().find(p => p.id === id)?.room ?? null;
+        Hooks.callAll("drpgRoomCrossed", { actor: game.actors.get("${ids.aiko}"), from: null, to: room });
+        const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="fireTrap"'));
+        await until(() => find());
+        const card = find() ?? null;
+        let asked = null;
+        if (card) {
+            globalThis.__dialogAnswers.push(cfg => {
+                const root = cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") });
+                const f = root.querySelector("form");
+                asked = f ? { killer: f.killer.value, victim: f.victim.value, indirect: f.indirect.checked } : null;
+                return f ? cfg.buttons.find(b => b.default).callback(null, null, { element: root }) : null;
+            });
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            body.querySelector('[data-drpg-call="fireTrap"]')?.click();
+            await until(() => M.murderState()?.active);
+            globalThis.__dialogAnswers.length = 0;
+        }
+        await new Promise(r => setTimeout(r, 600));
+        const s = M.murderState() ?? {};
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        return { card: Boolean(card), asked, active: Boolean(s.active), killer: s.killerId ?? null, victim: s.victimId ?? null,
+            indirect: incidentCast().indirect === true, fired: Boolean(P.secretsOf(id).trigger?.firedAt) };`, { timeout: 60000 });
+    await settle(900);
+    await p1.eval(`delete globalThis.__forceRoll; return true;`);
+    check("plan: Aiko's crossing into the room springs it - the trap's card, the GM's Spring it and the murder window confirmed open the indirect murder of Aiko by Chie",
+        sprung.card && sprung.asked?.killer === ids.chie && sprung.asked?.victim === ids.aiko && sprung.asked?.indirect === true
+        && sprung.active && sprung.killer === ids.chie && sprung.victim === ids.aiko && sprung.indirect && sprung.fired,
+        JSON.stringify(sprung), { flow: "trap-fire" });
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { remnantsOn, remnantData } = await import("${repoUrl}/scripts/remnants.mjs");
+        const back = globalThis.__e15c2 ?? {};
+        delete globalThis.__e15c2;
+        if (game.drpg.murderState()?.active) await game.drpg.endMurder({ reason: "suite", followUp: false });
+        for (const id of ["${ids.chie}", "${ids.aiko}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        for (const t of remnantsOn(canvas.scene).filter(t => remnantData(t)?.subject === ${JSON.stringify(plan.name)})) await t.delete();
+        if (back.project) await P.deleteProject(back.project).catch(() => {});
+        const his = back.botan ? canvas.scene.tokens.get(back.botan.id) : null;
+        if (his) await his.update({ x: back.botan.x, y: back.botan.y }, { teleport: true, movementAction: "displace", animate: false });
+        if (Number.isFinite(back.actions)) await game.drpg.setActions(game.actors.get("${ids.chie}"), back.actions);
+        if (Number.isFinite(back.hope)) await game.actors.get("${ids.chie}").update({ "system.resources.hope.value": back.hope });
+        return true;`, { timeout: 60000 });
+    await settle(700);
 }

@@ -23,7 +23,17 @@ import { playSfx } from "./sfx.mjs";
  * `wounded` is the sheet's unless the caller read it as the GMs hold it (`resetActionsFor`).
  * @returns {{total: number, wounded: boolean}}
  */
-export function actionBudget(actor, { wounded = isWounded(actor) } = {}) {
+export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
+
+    /*
+     * A MONOCUB LOSES NO ACTION TO A WOUND (E15 C4, 25.10.2026; audit S03-10, S10-18). The guide gives
+     * a Monocub "tyle akcji co gracze", and a victim who bled out in an incident died with every
+     * point of Health marked: read as Wounded, they came back with one action where an executed
+     * Blackened came back with two. `setMonocub` empties the tracks on the way in; this holds for a
+     * Monocub made before it did, and for marks a GM writes later. The flag is read directly, as
+     * `resetActionsFor` reads it: monocub.mjs imports this file. A darkened hour still costs one.
+     */
+    const wounded = hurt && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub);
 
     /*
      * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded

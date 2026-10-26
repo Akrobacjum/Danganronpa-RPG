@@ -31,8 +31,9 @@
  *              action - the guide's rule was in force before it had an icon.
  */
 
-import { STATES } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+import { isDeceased } from "./settings.mjs";
 import { remaining } from "./character.mjs";
 import { isPrimaryGm, primaryGmId, log, debug, error } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -95,10 +96,34 @@ export function registerStates() {
     });
 }
 
-/** Only Health and Sanity writes can change either state. */
-function touchesTracks(changes) {
+/**
+ * Health and Sanity writes, and since E15 C4 the two flags that take both states away: a death
+ * published (`deceased`) and a Monocub made (`monocub`), see `heldNone`.
+ *
+ * A FLAG TAKEN AWAY IS A CHANGE TOO (E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3). A
+ * revive (chapter.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
+ * key a deletion arrives under is the flag's own (a ForcedDeletion, as the harness writes it) or
+ * `-=deceased` (a `-=` spelling; which one v14's `unsetFlag` hands this hook is LIVE-E30-03's, not
+ * measured): read only by its own name, a revived student showed no Wounded or Breakdown until the
+ * next Health or Sanity write while the budget and the dice read the tracks (tier 1 R980 at
+ * c93be060: the `-=` spellings read as no change). Every spelling, and the module's whole flags
+ * deleted at once, now count; voice.mjs `reconcileTrigger` reads the same. Exported for R980.
+ */
+export function touchesTracks(changes) {
     const r = changes?.system?.resources;
-    return Boolean(r?.hitPoints || r?.stress);
+    return Boolean(r?.hitPoints || r?.stress || namesFlag(changes, FLAGS.deceased) || namesFlag(changes, FLAGS.monocub));
+}
+
+/**
+ * Whether an update's `changes` set or delete the module's flag `key`: by its name, by `-=key`, or by the module's
+ * whole flags deleted (`-=<module>`). Pure.
+ */
+export function namesFlag(changes, key) {
+    const flags = changes?.flags;
+    if (!flags || typeof flags !== "object") return false;
+    if (`-=${MODULE_ID}` in flags) return true;
+    const f = flags[MODULE_ID];
+    return Boolean(f && typeof f === "object" && (key in f || `-=${key}` in f));
 }
 
 /* ==========================================================================
@@ -178,7 +203,19 @@ async function clearSystemConditions(actor) {
 
 /** Should this character be showing this state right now? */
 function shouldHave(actor, state) {
-    return remaining(actor, state.resource) <= 0;
+    return !heldNone(actor) && remaining(actor, state.resource) <= 0;
+}
+
+/*
+ * THE DEAD CARRY NO STATES, AND A MONOCUB NEITHER (E15 C4, 25.10.2026; audit S03-10). A body beside
+ * the "dead" overlay wore Wounded or Breakdown, and a Monocub made from a victim who bled out was
+ * Wounded on the token. Dead as the table knows it (`isDeceased`, the published flag): the statuses
+ * are on a token every browser sees, so a death nobody has found keeps its states until it is
+ * published, and the hook above runs again on that flag. A Monocub is dead by definition; asked
+ * by its flag as well, which is the one a GM can set by hand.
+ */
+function heldNone(actor) {
+    return isDeceased(actor) || Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
 }
 
 /**

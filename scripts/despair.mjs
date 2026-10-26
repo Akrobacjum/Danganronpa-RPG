@@ -713,8 +713,8 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
                       <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(callEffect(call))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
                           // The pool's label, not the account name; and no
-                          // "left" - the player rail masks the pool for a
-                          // reason, and this card told the room the number.
+                          // "left": the bar beside it shows every pool's count
+                          // (D3), and the card says only what was spent.
                           name: foundry.utils.escapeHTML(poolLabel(user) ?? user?.name ?? "?"),
                           cost: call.cost
                       })}</em></p>`
@@ -768,8 +768,7 @@ export function renderDespairBar() {
         wrapper.id = WIDGET_ID;
         wrapper.classList.toggle("single", gms.length === 1);
         wrapper.classList.toggle("gm-editable", game.user.isGM);
-        // Players keep the bar but not the numbers - see `buildRow`.
-        // `masked` used to hide the pips from a player; the count is public since D3.
+        // `masked` used to hide the pips from a player; the count is public since D3 - see `buildRow`.
         wrapper.classList.remove("masked");
 
         /*

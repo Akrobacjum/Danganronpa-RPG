@@ -40,6 +40,8 @@ const ACTION_TIE_TRACE = "remnant.tieForItem";
 const ACTION_REMNANT_EDIT = "remnant.edit";
 const ACTION_SABOTAGE = "project.sabotage";
 const ACTION_UNSABOTAGE = "project.unsabotage";
+/** GM -> primary GM: one change of a project, made in the primary's queue (E36 C1; projects.mjs `applyProjectChange`). */
+const ACTION_PROJECT_CHANGE = "project.change";
 const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
@@ -1110,8 +1112,9 @@ async function handleProgress(payload, sender, ctx) {
     const kept = amount > 0 && payload.rollId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.rollId) : null;
     const roll = kept?.messageId === payload.rollId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
-    // recorded who proposed it.
-    const result = await addProgress(payload.countdownId, amount, { by: asker });
+    // recorded who proposed it; and whose character's roll it was (`owns`), so the change is that
+    // character's in the entry (E36 C3): a completion row that keeps a project for a Reroll reads it.
+    const result = await addProgress(payload.countdownId, amount, { by: asker, actorId: payload.actorId ?? null, kind: sender.isGM ? "gm" : "player" });
     debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move
@@ -1165,7 +1168,8 @@ async function handleShare(payload, sender, ctx, prepared) {
     if (!canSee(payload.countdownId, sender)) return { refused: "sender cannot see that project" };
 
     // Null: the project is not secret any more, and nothing was shared (E31 review).
-    if (!await shareWith(payload.countdownId, payload.targetUserId)) {
+    // The sender named: a share a finder of the project asked makes the one let in a finder too (E15 part 2 fix e1-G1).
+    if (!await shareWith(payload.countdownId, payload.targetUserId, { senderId: sender.id })) {
         return { refused: "nothing was carried out: shareWith shared nothing" };
     }
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
@@ -1341,8 +1345,14 @@ export function dynamicRulingOf(record) {
  * a Sabotage's concealment takes off at most what one thrown with Despair takes; the readied
  * tool's relief is at most the GM's reading of the sheet. Read off the packet, not the GMs'
  * bookmark of the roll, because the packet can arrive first (fix r1-G1 measured it so). A Work
- * whose roll earned nothing is refused; a Sabotage's miss is a repair of 0, which freezes nothing
- * (`handleSabotage`).
+ * whose roll earned nothing and claims no held bonus is refused; a Sabotage's miss is a repair of
+ * 0, which freezes nothing (`handleSabotage`).
+ *
+ * A MISS ON A MURDER PLAN PAYS ITS HELD BONUS (E15 C2, 25.10.2026; audit S02-08, the owner's D13).
+ * The concealment's bonus rides on any outcome now (action-rolls.mjs `projectProgress`), so a miss
+ * that was refused here adds the bonus its packet claims, held as a hit's is: at most
+ * `PROJECT_BONUS_MOST` on an indirect murder, nothing on any other project, whose miss is refused
+ * as before. E15-T3 sends a miss claiming 40 to each: 1 and refused.
  */
 async function progressOf(record, payload) {
     const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
@@ -1438,6 +1448,24 @@ async function handleSabotage(payload, sender, ctx) {
     // thing a saboteur is buying secrecy for. Null - no such project, one already
     // frozen, a repair - froze nothing, and is a refusal, not an answer (E31 review).
     if (!result) return { refused: "nothing was carried out: sabotageProject froze nothing" };
+    return { reply: result };
+}
+
+/**
+ * Another GM's change of a project, on the primary (E36 C1): the change cut to the keys the step knows
+ * (projects.mjs `cleanProjectChange`), `by` that GM's claim of whose change it is, which a GM may make -
+ * the kind and the character as named, the user one of this world's or the sender. Answers the step's
+ * result; a change of nothing, or of a project that is gone, carried out nothing.
+ */
+async function handleProjectChange(payload, sender) {
+    const { applyProjectChange, cleanProjectChange } = await import("./projects.mjs");
+    const change = cleanProjectChange(payload.change);
+    if (!change) return { refused: "nothing was carried out: the change named nothing the step knows" };
+    const by = payload.by && typeof payload.by === "object" ? payload.by : {};
+    const result = await applyProjectChange(payload.countdownId, change, {
+        by: { kind: by.kind, userId: game.users.get(by.userId ?? "") ? by.userId : sender.id, actorId: by.actorId ?? null }
+    });
+    if (!result) return { refused: "nothing was carried out: applyProjectChange found no such project" };
     return { reply: result };
 }
 
@@ -2224,7 +2252,7 @@ export const BRIDGE_ACTIONS = table({
         rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
         claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
             relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-rolls.mjs projectExtrasHeld)",
-            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress (projectExtrasHeld)" }
+            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] on an indirect murder, on any outcome, and to 0 on any other project (projectExtrasHeld)" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -2337,6 +2365,21 @@ export const BRIDGE_ACTIONS = table({
         run: handleUnsabotage,
         answer: "reply", queue: "project",
         claims: { repairId: "a GM's: undoSabotage (projects.mjs) takes back only the pair the sabotage wrote (unsabotageRefusal)" }
+    },
+    [ACTION_PROJECT_CHANGE]: {
+        label: "DRPG.Bridge.what.project.change",
+        // A GM's own change, made by the primary for another GM (E36 C1). No player's browser asks it: a player's
+        // change is one of the four rows above, each with its guards, and a console's packet naming this one is refused.
+        guards: [gmOnly("only a GM changes a project")],
+        sanitize: pick({ countdownId: as.id, change: as.raw, by: as.raw }),
+        run: handleProjectChange,
+        // A step, no person deciding: a clock of its own, and the wait ends when the primary leaves (E36 fix e1-G4).
+        answer: "reply", timeoutMs: TIMING.projectChangeMs,
+        claims: {
+            countdownId: "a GM's: the primary changes the project it names, or none when it is gone (projects.mjs `applyProjectChange`)",
+            change: "a GM's: cut to the keys the step knows (projects.mjs `cleanProjectChange`), the frozen project's refusal read again in the step",
+            by: "a GM's: whose change it is, as that GM says - a kind of the closed list, a user of this world (else the sender), a character"
+        }
     },
     [ACTION_SENDBACK]: {
         label: "DRPG.Bridge.what.token.sendBack",
@@ -2992,6 +3035,24 @@ export function requestSabotage(targetId, difficulty, { rollId = null, actorId =
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
     return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
+}
+
+/**
+ * A change of a project, asked of the primary GM by another GM's browser (E36 C1; projects.mjs `applyProjectChange`,
+ * which asks it). The primary makes it in its queue and answers the step's result; on the primary itself it is made
+ * here (`local`). Its value is that result.
+ */
+export function requestProjectChange(countdownId, change, by = null) {
+    return ask(ACTION_PROJECT_CHANGE, { countdownId, change, by }, {
+        onPrimary: true,
+        /* NOT ASKED AGAIN, AND NOT WAITED OUT (E36 fix e1-G4, 25.10.2026; finding E36-R5). A change is not resent - a
+           second +1 is not the first one's echo - so a primary that reloads or leaves after its "got it" ends this wait
+           at once, as noAnswer (bridge-guards.mjs `primaryGone`), instead of after the row's clock; an answer that still
+           comes says on this console that the change landed, so a GM about to make it again can read that it did. */
+        untilPrimaryLeaves: true,
+        late: value => debug(`A change of the project ${countdownId} asked of the primary landed after its wait ended.`, value),
+        local: () => import("./projects.mjs").then(m => m.applyProjectChange(countdownId, change, { by }))
+    });
 }
 
 /** A player whose token cannot be moved back asks the GM to do it. */
@@ -4275,7 +4336,7 @@ export const CALL_GM_WHAT = "gm.call";
  * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
  * and the GM's buttons. Its own function so the card is read without posting one (R838).
  */
-export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null } = {}) {
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null, receipt = false } = {}) {
     const parts = [];
     parts.push(`<h3>${esc(title)}</h3>`);
     parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
@@ -4310,8 +4371,11 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
     if (body) parts.push(`<div class="drpg-call-body">${body}</div>`);
     if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
     // Classed so `settleCall` can take it off again once the card is answered - its time with it (E18 C2).
-    parts.push(`<p class="drpg-call-awaiting"><em>${
-        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
+    // A receipt awaits nothing (`callGm`'s `receipt`), so it says nothing is awaited.
+    if (!receipt) {
+        parts.push(`<p class="drpg-call-awaiting"><em>${
+            game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
+    }
 
     if (actions.length) {
         parts.push(`<div class="drpg-call-actions">${actions.map(a => {
@@ -4428,7 +4492,17 @@ export async function callGm(actor, {
      * The user whose thread the card goes to, when that user is a player who owns the character (E18 fix e1-G7): the
      * asker of a question the primary holds for them. Otherwise the character's first owner's (`ownerOf`).
      */
-    thread = null
+    thread = null,
+    /**
+     * A RECEIPT, NOT A QUESTION (E15 part 1 C1, 25.10.2026; audit S09-34). A card that tells what the
+     * module did and asks nobody anything - a watched trap armed, its Plant button aside - said
+     * "Awaiting a ruling." and rang the GMs as a question (`gmAsk`, its sound, the popup): the killer
+     * waited on a ruling that was never coming and the GMs were interrupted for a receipt. True: no
+     * "awaiting" line, no `gmAsk`, no sound or popup of a question. Every other card at d90687dc
+     * carries buttons or is answered by a reply (`askGm`: Think, Listen and the rest), so is a
+     * question; the watched trap's receipt is the one caller (projects.mjs `announceTrapReady`).
+     */
+    receipt = false
 } = {}) {
     /*
      * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
@@ -4442,7 +4516,7 @@ export async function callGm(actor, {
         sayNotDone(what, "noGm", { nothingSpent });
         return false;
     }
-    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires });
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires, receipt });
     const owner = gmOnly ? null : threadOf(actor, thread);
 
     if (!owner) {
@@ -4470,9 +4544,12 @@ export async function callGm(actor, {
         try {
             const whispered = await whisperToGms(content, {
                 flags: { [MODULE_ID]: {
-                    callCard: true, gmPopup: true,
-                    popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
-                    sfx: { key: "gmAsk", gm: true },
+                    callCard: true,
+                    ...(receipt ? {} : {
+                        gmPopup: true,
+                        popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
+                        sfx: { key: "gmAsk", gm: true }
+                    }),
                     ...(rid ? { rid } : {})
                 } }
             });
@@ -4486,10 +4563,10 @@ export async function callGm(actor, {
 
     try {
         const { postToThread } = await import("./messenger.mjs");
-        // Every callGm card is, by definition, a call ON the GM - the flag is
+        // Every callGm card but a receipt is a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        const posted = await postToThread(owner.id, content, { gmAsk: true, veiled, rid });
+        const posted = await postToThread(owner.id, content, { gmAsk: !receipt, veiled, rid });
         if (posted) onPosted?.(posted);
         return Boolean(posted);
     } catch (err) {

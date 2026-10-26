@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, warn, error, plural, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
 
@@ -64,6 +64,30 @@ export async function sealRoom(room) {
     const current = new Set(sealedRooms());
     current.add(room);
     return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current)));
+}
+
+/**
+ * A seal lifted from one room before its time of day ends (E15 part 2 C4, 25.10.2026; A10 step 15, DA52): a breach
+ * forced the room open. The list written without the name, as `carrySealedRoom` writes it, on a GM; a name is sealed
+ * on every scene, so it is lifted on every one. No Despair comes back. Answers 1 when the name was sealed and is not
+ * now, else 0. The breach's undo seals it again with `sealRoom` while the time of day it was lifted in lasts
+ * (`sealPeriod`).
+ */
+export async function liftSeal(room) {
+    const sealed = sealedRooms();
+    if (!game.user?.isGM || !room || !sealed.includes(room)) return 0;
+    return (await writeWorld(SETTINGS.sealedRooms, sealed.filter(name => name !== room))) ? 1 : 0;
+}
+
+/**
+ * Which time of day this is, as a seal lasts (`clearSeals`): the season, the day, the time of day and when it began,
+ * and the Eclipse when one runs (its opening clears the seals, `startEclipse`). A seal lifted in one may be put back
+ * in the same one and in no other (DA52): the stamp a breach keeps of its lift is compared with this at its undo.
+ */
+export function sealPeriod() {
+    const clock = getClock();
+    return JSON.stringify([clock.season ?? null, clock.day ?? null, clock.timeOfDay ?? null, clock.timeOfDayStartedAt ?? null,
+        clock.eclipse ? (clock.eclipseStartedAt ?? true) : null]);
 }
 
 /**

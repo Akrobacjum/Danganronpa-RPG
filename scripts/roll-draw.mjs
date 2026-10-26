@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -56,7 +56,7 @@ import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf } from "./private-rolls.mjs";
-import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
+import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
@@ -1462,7 +1462,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     config.resourceUpdates = new DrawnResources(actor);
     roll.data = actor.getRollData?.() ?? {};
     // The Loaded Die (forced-roll.mjs): loaded here only while the character's armed Calls
-    // hold the mark and the roll applied it (`loadedDie`).
+    // hold the mark and the roll applied it (`loadedDie`). Which of the two dice is the coin's
+    // there (E15 C5, D16), and the record keeps it (`used.at`, "hope" or "fear").
     const loads = expected.read.loadedDie;
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
@@ -1501,7 +1502,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
         // What the GM read (`legal`), what it threw of it (`scored`) and the packet's numbers (`claim`), E29 C10.
-        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: loads }, versions: [],
+        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: loads, at: loads ? loadedAtOf(roll) : null }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
         // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
         // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2); a
@@ -1923,7 +1924,8 @@ const LEGAL_READERS = Object.freeze({
     effects: actor => effectRange(actor),
     calls: (actor, draw) => diceOf(draw.applied),
     hostile: (actor, draw) => ({ dice: diceOf(draw.hostile), bonus: bonusOf(draw.hostile) }),
-    breakdown: (actor, draw, row) => (isBrokenDown(actor) ? row.bound : 0),
+    // None for a Monocub, as roll-dialog.mjs `stateGrant` (E15 C4; audit S03-10).
+    breakdown: (actor, draw, row) => (isBrokenDown(actor) && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub) ? row.bound : 0),
     situation: (actor, draw) => situationReading(actor, draw),
     loadedDie: (actor, draw) => typeof draw.loaded === "string" && draw.applied.some(call => call?.grants === "critical" && call.nonce === draw.loaded),
     stashStep: (actor, { key, context, ready }) => key === "search"

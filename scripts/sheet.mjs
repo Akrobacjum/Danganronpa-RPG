@@ -40,7 +40,7 @@ import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } fro
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
 import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
-import { isCallSilenced, isChained, pendingGather, armedCallsShown } from "./call-effects.mjs";
+import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
@@ -4209,13 +4209,7 @@ async function runCall(actor, key, kind) {
         return;
     }
 
-    // Silence closes the whole Hope menu. Checked here rather than inside
-    // `spendHopeCall`, which only reached it after the target picker and the
-    // confirmation - three dialogs to be told the menu was shut all along.
-    if (!despair && isCallSilenced(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
-        return;
-    }
+    // Silence, the Despair Call, is `callBarred`'s above since E15 C4 (audit S09-35).
 
     // Experience buys the use of an experience. With none written on the sheet
     // there is nothing to buy, and the Call would have been paid for, armed, and
@@ -4233,6 +4227,19 @@ async function runCall(actor, key, kind) {
             ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
             return;
         }
+    }
+
+    /*
+     * A SECOND COPY IS REFUSED BEFORE THE PRICE (E15 C4, 25.10.2026; audit S09-35). A second Loaded
+     * Die or Experience on a student already holding one went through the confirmation and the
+     * Spend, and was refused only then (an Experience after the GM's decision). A Call with no
+     * target arms its buyer, so the question is answerable here; one with a target is asked after
+     * the picker by `refusalBeforePaying` (Despair) and by the GM (`call.arm`). By the row's key,
+     * which is how its entry is stored.
+     */
+    if (call.target === "none" && call.grants && alreadyArmed(actor, { ...call, key })) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyArmed", { name: actor.name, call: call.label }));
+        return;
     }
 
     // Point it at something first: a player, a project, a room, an item.

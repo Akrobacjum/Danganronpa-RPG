@@ -265,7 +265,24 @@ export function readDuality(message) {
  * scanning the raw dice terms for the two twelve-sided dice a duality roll is
  * built from. The raw scan is what keeps trait rolls working regardless of how
  * the system happens to package them.
+ *
+ * THE RAW SCAN ONLY FOR A DUALITY ROLL (audit S09-29, E15 C5, 25.10.2026). It
+ * read the dice of any roll with two d12s, so a player's `/r 1d12+1d12` - a
+ * plain Roll, of no action - fed their Monokuma's pool whenever the second die
+ * came up higher, and a full pool's overflow. Measured at 3e5d1f6d by tier 2
+ * (E15-T7): a player's plain 2d12 at 4 and 9 put a point in the pool. Now the
+ * scan asks first that the message or the roll is Daggerheart's duality roll:
+ * the message's type, or the roll's class as its JSON names it or as the
+ * instance is built. Read in Foundry's and Daggerheart's source, not on v14.
  */
+function isDualityRoll(roll, message) {
+    if (message?.type === "dualityRoll") return true;
+    const DualityRoll = game.system?.api?.dice?.DualityRoll;
+    if (typeof DualityRoll === "function" && roll instanceof DualityRoll) return true;
+    const names = new Set(["DualityRoll", DualityRoll?.name].filter(Boolean));
+    return names.has(roll?.class) || names.has(roll?.constructor?.name);
+}
+
 function findDualityDice(message) {
     const rolls = message?.rolls ?? [];
     const candidates = [message?.system?.roll, ...rolls].filter(Boolean);
@@ -278,6 +295,7 @@ function findDualityDice(message) {
 
     // Raw scan: a duality roll is two d12s, in Hope-then-Despair order.
     for (const roll of candidates) {
+        if (!isDualityRoll(roll, message)) continue;
         const d12s = (roll?.dice ?? []).filter(d => d?.faces === 12);
         if (d12s.length < 2) continue;
 

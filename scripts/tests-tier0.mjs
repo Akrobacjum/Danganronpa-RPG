@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -6220,6 +6220,8 @@ const REGRESSIONS = [
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
             // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
             "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
+            // E15 C4: the conditions' hook syncs again when a death is published; `syncStates` then asks `isDeceased`.
+            "states.mjs touchesTracks flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
             // it names the flag among the others and never asks whether a student is dead.
             "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
@@ -7854,6 +7856,8 @@ const REGRESSIONS = [
          * E14 part 1 C4 (24.10.2026) added one STORE, gm-stores.mjs `rifleStore` (the stashes rifled, D15),
          * cut by the reset's `stashesFound` group: on the harness that day this test read 76 places (28 PACKET,
          * 4 SOCKET, 1 CHAT, 34 SHEET, 9 STORE) against the 76 rows.
+         * E15 part 2 C1 (25.10.2026) added one STORE, gm-stores.mjs `passageSeasonStore` (the projects' passages, D3),
+         * cut by the reset's `passages` group: 77 places (10 STORE) against 77 rows, by arithmetic from the 76 above.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7882,6 +7886,9 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
             ["PACKET gm-bridge.mjs#project.unsabotage#targetId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
             ["PACKET gm-bridge.mjs#project.unsabotage#repairId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.change#countdownId", "out of scope: another GM's change of a project, made by the primary (E36 C1, `gmOnly`: a player's packet is refused); it writes Countdowns/`projectMeta` in the primary's queue, never a token [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.change#change", "out of scope: another GM's change of a project, made by the primary (E36 C1, `gmOnly`: a player's packet is refused); it writes Countdowns/`projectMeta` in the primary's queue, never a token [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.change#by", "out of scope: another GM's change of a project, made by the primary (E36 C1, `gmOnly`: a player's packet is refused); it writes Countdowns/`projectMeta` in the primary's queue, never a token [1b.1 projectMeta]"],
             ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
             ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
             ["PACKET gm-bridge.mjs#token.sendBack#position", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
@@ -7934,7 +7941,8 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
             ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"],
-            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"]
+            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"],
+            ["STORE gm-stores.mjs#passageSeasonStore", "not a source: a GM store (E15 part 2 C1, D3), the passages a project made, written on the primary and by the GMs' buttons on the row's own store (passages-gm.mjs `rowsOf`); cut by the reset's `passages` group, whose step (`passagesAfterReset`) clears it on the primary with the access record and the log (E15-T10)"],
         ];
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
@@ -7953,7 +7961,8 @@ const REGRESSIONS = [
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
-            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"]];
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"],
+            ["gm-stores.mjs", "passageSeasonStore"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
@@ -8180,6 +8189,9 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.unsabotage#targetId", "out of scope: a thaw (a Reroll receipt) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.unsabotage#repairId", "out of scope: a thaw (a Reroll receipt) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.change#countdownId", "out of scope: another GM's change of a project (E36 C1, `gmOnly`: a player's packet is refused); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.change#change", "out of scope: another GM's change of a project (E36 C1, `gmOnly`: a player's packet is refused); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.change#by", "out of scope: another GM's change of a project (E36 C1, `gmOnly`: a player's packet is refused); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "judged: knownSender + ownsActorAt (the token's actor); `sendBackRefusal` (bridge-guards.mjs) compares the position with the GM's record (`gmSeen`, which `noteGmPosition` keeps on every GM since E12 fix r2-H3) [1b.1 a token's room]"],
             ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "judged: knownSender + ownsActorAt (the token's actor); `sendBackRefusal` (bridge-guards.mjs) compares the position with the GM's record (`gmSeen`, which `noteGmPosition` keeps on every GM since E12 fix r2-H3) [1b.1 a token's room]"],
             ["PACKET gm-bridge.mjs#token.sendBack#position", "judged: knownSender + ownsActorAt; `sendBackRefusal` compares x, y, elevation and `level` with the GM's record (`gmSeen`); since E12 C9 the mover's send-back carries the floor it left (`spotOf`, movement.mjs), the whitelist (`as.raw`) passing it; since E12 C12 the write is marked `SENT_BACK` for a player and the primary judges the arrival as theirs (`judgeArrival`) [1b.1 a token's floor]"],
@@ -9523,6 +9535,9 @@ const REGRESSIONS = [
          * deleteRegionBehavior and updateScene, the same redraw (`redrawPassagesSoon`; screen). Red without the rows: the
          * three unclassified (the harness, R553 alone with the rows taken out, once); with them 90 roads and 86 rows by
          * arithmetic, none either side - the test prints no count when it passes.
+         * E15 part 2 C1 (25.10.2026) adds 1 STORE, gm-stores.mjs `passageSeasonStore` (the passages a project made, D3):
+         * red without its row, the store read "unclassified" (R553 alone on the harness, once); with it 91 roads and 87
+         * rows by arithmetic, none either side.
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9566,6 +9581,7 @@ const REGRESSIONS = [
             ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
+            ["OPT projects-map.mjs#moveProjectToken#displace -> exempt", "the primary GM's own write of a project token into its project's room (E36 C4: `teleport`, `displace`, no animation, and the module's own move option, which the project's drag handler skips): a GM's move is let through because a GM made it (the hook's user), not because of these options; a project token is no character and crosses nothing"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
             ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`) against the GMs' record of the token, which holds no spot the audit put it back from (`sightingsAfter`, E79 fix r1-G1: 76 D asks for that spot and is refused, the token where it was put back, nothing written); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below), SENT_BACK naming the player who asked, and the GMs' audit judges the landing as that player's move (E79 fix r2-G1: a room's centre across a wall is put back, or a row in log mode; R559, 76 D)"],
@@ -9582,6 +9598,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#passageMapStore#passageMap -> record", "GM only: written by passages-gm.mjs on a GM's browser, refused by the engine on a player's; no reset group (a cut never wipes the map, R177 says why); `exists` refuses a row whose scene is gone (R554)"],
             ["STORE gm-stores.mjs#passageAccessStore#passageAccess -> record", "GM only; cells `passageId/actorId` with `how` and `at` kept from the first grant and `by` a split field each GM adds to, `touch/actorId` stamps, the reset's \"passages\" group; two GMs' cells merged cell by cell (R554)"],
             ["STORE gm-stores.mjs#passageLogStore#passageLog -> record", "GM only; the newest 200 rows (`PASSAGE_LOG_ROWS`); the reset's \"passages\" group (R554)"],
+            ["STORE gm-stores.mjs#passageSeasonStore#passageSeason -> record", "GM only (E15 part 2 C1, D3): the passages a project made, rows of the map's shape with a project's `origin`, read with the map's as one (passages.mjs `passageBook`) by every road that reads a passage and written back to by the GMs' buttons; the reset's \"passages\" group cuts it, so a season takes its projects' passages and never the GMs' (E15-T10)"],
             ["STORE gm-stores.mjs#passageCopy#passages -> copy", "the addressed copy: only rows `secret` a character this user owns knows (the Mastermind's owner: every one), `actorIds` only the user's own, a Monokuma nothing; sent with `recipients` (R555, R560)"],
             ["SET settings.mjs#minePassages#primary -> screen", "taken only from the primary GM and addressed to this user (`onPassageRows`, `replyForMe`'s rule and the primary's), cut to this world's scenes and the characters the packet stamps (R555; 76 A)"],
             ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (movement-audit.mjs) judges every landed move on the walls from the GMs' records, never from a copy"],
@@ -9594,7 +9611,12 @@ const REGRESSIONS = [
             // ---- the way through (E79 C2)
             ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"],
             // ---- the pick on the board (E79 C6)
-            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
+            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F). Since E15 part 2 C2 also Secret Passage's offer (`wallNeighbours`), on the proposer's browser: the rooms beyond the walls of the room it stands in, from the walls and regions every browser holds, named as Listen names them and sent as an index; the GM's approval reads them again where the GMs read the builder (E15-T12)"],
+            ["WALLS passages-gm.mjs#builtPassageRow -> screen", "a GM's only (E15 part 2 C2): a Secret Passage's stretch judged as a new passage's (`passageRowFor`) at the approval and again on the primary at the completion (`opensPassageDone`), so the wall must still stand between its two rooms on no other passage's stretch; nothing is written to a wall (E15-T12)"],
+            ["WALLS passages-gm.mjs#passageProjectOffer -> screen", "a display on the proposer's browser (E15 part 2 C5): Start New's Seal the passage and Close the breach, from the copy this player holds and the breaches' holes, walls every browser holds; each option an index, the card a claim the GM's approval and the primary's completion judge again (`sealRefusal`, `closeBreachRefusal`); nothing is written (E15-T15)"],
+            ["WALLS passages-gm.mjs#breachStretchRow -> screen", "a GM's only (E15 part 2 C3): a Breach the Wall's stretch judged as a new passage's (`passageRowFor`, another passage's stretch allowed) at the approval and again on the primary at the completion, and a wall a standing breach was cut from or made refused; reads the walls, writes nothing (E15-T13)"],
+            ["WALLS passages-gm.mjs#cutBreach -> screen", "a GM's only, the primary's in the completion's step (`game.user.isGM` first; projects.mjs `COMPLETION_EFFECTS` breachesWall): the wall the stretch is on is read to cut it - the module's one Wall create (R560) - and the passages on it moved to the piece that holds them; the hole's flag names no passage, actor, user or project (E15-T13)"],
+            ["WALLS passages-gm.mjs#restoreBreach -> screen", "a GM's only (`game.user.isGM` first; the project's undo, the tab's Close the breach, the season's reset): the hole's flag and the wall it was cut from are read to give the wall back byte for byte and delete the pieces; a wall gone meanwhile is reported and nothing written (E15-T13)"],
             // ---- showing a passage (E79 C7)
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
@@ -9794,7 +9816,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created but a breach's hole, in passages-gm.mjs's `cutBreach`, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9866,6 +9888,13 @@ const REGRESSIONS = [
          * hands on, and it was held by nothing here. `passagesAfterReset` is declared once, exported, in passages-gm.mjs
          * (E42 takes it), read as the other names of ONE are; its one caller, season-setup.mjs's passages step, is a
          * dynamic import's property and is not read.
+         *
+         * E15 part 2 C3, 25.10.2026 (E15-47; A10 step 15: "Dopiero wyłom zapisuje dane świata"): a finished Breach the
+         * Wall cuts the real wall, and its hole is the one wall the module makes. A `createEmbeddedDocuments("Wall"` is
+         * let stand only inside the top-level declaration `cutBreach` of passages-gm.mjs, read as the role rule reads a
+         * declaration; the same call in a function of another name there, or in a `cutBreach` of another file, is
+         * broken as before (the planted fixture has one of each). What the hole holds - no passage, no actor, user or
+         * project id - is E15-T13's (tier 2), which reads its flag.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
@@ -9879,6 +9908,7 @@ const REGRESSIONS = [
         const ROLE = /(?<![\w$])isMastermind(?:Actor)?\s*\(/g;
         const OVERLAY_GATE = /!\s*game\s*\.\s*user\s*\??\.\s*isGM\s*\)\s*return\s+null\b/;
         const AUDIT_CALLER = "movement.mjs#noteGmPosition";
+        const BREACH_CUT = ["passages-gm.mjs", "cutBreach"];
         const ASKER_READ = /^asked\s*\?\?\s*mover$/, ASKER_PASSED = /(?<![\w$.])asker\s*:\s*askerOf\s*\(/;
         // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
@@ -9894,7 +9924,6 @@ const REGRESSIONS = [
                     for (const m of blank.matchAll(DECL)) declared[name].push(`${file}:${lineAt(code, m.index)}${m[1] ? "" : "(not exported)"}`);
                 }
                 for (const m of blank.matchAll(/(?<![\w$.])door\s*:\s*(?:2(?![\w.])|CONST\s*\.\s*WALL_DOOR_TYPES\s*\.\s*SECRET\b)/g)) at("secretDoor", m.index);
-                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) if (blank[m.index] !== " ") at("wallCreated", m.index);
                 for (const m of blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)) {
                     const { args } = callArgs(blank, m.index + m[0].length - 1);
                     const packet = args[1] ? code.slice(args[1].start, args[1].end) : "";
@@ -9909,6 +9938,12 @@ const REGRESSIONS = [
                 if (file !== "gm-overlay.mjs") for (const m of code.matchAll(/(["'`])drpgGmOverlay\1/g)) at("overlayName", m.index);
                 if (SHARE_FILES.has(file)) for (const m of blank.matchAll(CHAT)) at("card", m.index);
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
+                // The one wall the module makes is a breach's hole, in passages-gm.mjs's `cutBreach` (E15 part 2 C3, E15-47).
+                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) {
+                    if (blank[m.index] === " ") continue;
+                    if (file === BREACH_CUT[0] && tops.findLast(t => t.at <= m.index)?.name === BREACH_CUT[1]) continue;
+                    at("wallCreated", m.index);
+                }
                 if (ROLE_FILES.has(file)) for (const m of blank.matchAll(ROLE)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     at("role", m.index);
@@ -9956,7 +9991,8 @@ const REGRESSIONS = [
             ["walls.mjs", "export async function plant(scene, wall) {\n    // door: 2 and createEmbeddedDocuments(\"Wall\" in a comment write nothing\n"
                 + "    const said = 'createEmbeddedDocuments(\"Wall\", [{ door: 2 }])';\n"
                 + "    await scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1], door: 2 }]);\n"
-                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"],
+                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"
+                + "export async function cutBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", []);\n}\n"],
             ["send.mjs", "export function send(userId) {\n    game.socket.emit(EVENT, { action: \"passage.rows\", userId }, { recipients: [userId] });\n"
                 + "    game.socket.emit(EVENT, { action: \"passage.rows\", userId });\n    game.socket.emit(EVENT, { action: 'move.sentBack' }, { recipients: \"all\" });\n"
                 + "    game.socket.emit(EVENT, { action: \"fog.request\" });\n}\n"],
@@ -9971,7 +10007,9 @@ const REGRESSIONS = [
                 + "    return ChatMessage.create({ content: \"\", whisper: roomUsers(p.giver) });\n}\nfunction shareRefusal(giver) {\n"
                 + "    return isMastermindActor(giver) ? null : \"no\";\n}\nexport function isMastermindActor(actor) {\n    return Boolean(actor);\n}\n"
                 + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"
-                + "export async function passagesAfterReset() {\n    return 0;\n}\n"],
+                + "export async function passagesAfterReset() {\n    return 0;\n}\n"
+                + "export async function cutBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1] }]);\n}\n"
+                + "export async function restoreBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", []);\n}\n"],
             ["season-setup.mjs", "// export async function passagesAfterReset() in a comment declares nothing\nconst passagesAfterReset = () => 0;\n"],
             ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
                 + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n"
@@ -9990,9 +10028,9 @@ const REGRESSIONS = [
                 + "    return gmOverlay()?.addChild(layer);\n}\nexport function layerOk(name) {\n    const box = gmOverlay();\n"
                 + "    return box && box.addChild(new PIXI.Container());\n}\nfunction inner() {\n    if (!game.user?.isGM) return null;\n    return new PIXI.Container();\n}\n"]
         ]);
-        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
+        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4", "wallCreated walls.mjs:9",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "card passages.mjs:5", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
+            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "wallCreated passages-gm.mjs:25", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
             "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
             "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
             "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)", "one:passagesAfterReset passages-gm.mjs:18,season-setup.mjs:2(not exported)",
@@ -13473,6 +13511,108 @@ const REGRESSIONS = [
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
     }],
+    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall, and the owner's three of 15.10 - Seal the passage Hand, Close the breach Body, both Complex, Repair an item Hand, Trivial at tier 0-1 and Complex at 2-3; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own; and a broken room's flag has one reader and one writer, which the lock, the bedroom's door and the GMs' key count ask", async () => {
+        /*
+         * E15 part 2 C2 (25.10.2026; the stage's E15-41, the owner's answer of 11.10: "E68 przyjmie `PASSAGE_PRESETS`, bez
+         * drugich kopii"). The harms: a preset whose numbers drift from what the stage was given (a cheaper passage, a
+         * public one), a preset naming a statistic, a size or a completion row the module does not have - finished, it
+         * would do nothing -, and a second copy of the table that E68 would have to find. Read off the module's own
+         * values and its sources with comments blanked; nothing is written. Red at the parent: no table.
+         * C4 adds the one reader of a broken room (`roomBroken`) to this test, as the stage's E15-T11 says.
+         */
+        const P = await import("./passages-gm.mjs");
+        const { TRAITS, PROJECT_SCALE } = await import("./config.mjs");
+        const { COMPLETION_EFFECTS } = await import("./projects.mjs");
+        const presets = P.PASSAGE_PRESETS ?? null;
+        equal(JSON.stringify(presets?.secretPassage ?? null), JSON.stringify({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
+            "Secret Passage is not Hand, Complex, always secret, opening a passage (A10-9)");
+        // E15 part 2 C3: Breach the Wall, Body, Complex, public or secret as the GM approves it (D37), cutting the wall.
+        equal(JSON.stringify(presets?.breach ?? null), JSON.stringify({ trait: "body", scale: "complex", effect: "breachesWall" }),
+            "Breach the Wall is not Body, Complex, cutting a wall (A10-9, step 15)");
+        /* E15 part 2 C5 (25.10.2026; the owner's three of 15.10, Q2 of 19.10: their counterparts' statistics): Seal the
+           passage Hand and Close the breach Body, both Complex; Repair an item Hand, Trivial for tier 0-1 and Complex for
+           2-3 (`byTier`, read by `presetScale`); none always secret. */
+        equal(JSON.stringify([presets?.sealPassage ?? null, presets?.closeBreach ?? null, presets?.repairItem ?? null,
+            [0, 1, 2, 3, 7, -1].map(tier => P.presetScale?.("repairItem", { tier }) ?? null)]),
+        JSON.stringify([{ trait: "hand", scale: "complex", effect: "sealsPassage" }, { trait: "body", scale: "complex", effect: "closesBreach" },
+            { trait: "hand", scale: "trivial", byTier: ["trivial", "trivial", "complex", "complex"], effect: "repairsItem" },
+            ["trivial", "trivial", "complex", "complex", "complex", "trivial"]]),
+        "[Seal the passage, Close the breach, Repair an item, the repair's size at tier 0, 1, 2, 3, 7, -1] - the owner's three of 15.10 are not as given");
+        const rows = Object.entries(presets ?? {});
+        ok(rows.length > 0 && rows.every(([, p]) => Object.hasOwn(TRAITS, p.trait) && Object.hasOwn(PROJECT_SCALE, p.scale)
+            && (p.byTier ?? []).every(scale => Object.hasOwn(PROJECT_SCALE, scale)) && COMPLETION_EFFECTS.some(row => row.key === p.effect)),
+            "a preset names a statistic, a size or a completion row the module does not have - finished, it would do nothing");
+        const sources = await moduleSources();
+        const files = [...sources].filter(([file]) => !/^tests/.test(file));
+        must(files.length > 50, "the module's sources were not read - this would measure nothing");
+        const declaring = re => files.filter(([, text]) => re.test(stripComments(text))).map(([file]) => file).sort();
+        equal(JSON.stringify([declaring(/\bPASSAGE_PRESETS\s*=/), declaring(/\bsecretPassage\s*:\s*(?:Object\.freeze\(\s*)?\{/)]),
+            JSON.stringify([["passages-gm.mjs"], ["passages-gm.mjs"]]),
+            "[the files that declare the table, the files that declare a Secret Passage preset] - a second copy of the presets");
+        /* E15 part 2 C4 (25.10.2026; the stage's E15-50, A10-9: "jednego czytelnika `roomBroken`", which E74 takes over as
+           its "wyłamany"): the flag `ROOM_FLAGS.broken` named in movement.mjs alone, inside `roomBroken` (the read) and
+           `setRoomBroken` (the write) alone, its key spelt once; and the three rules a forced room lifts ask the reader. */
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const mv = stripComments(sources.get("movement.mjs") ?? ""), vault = stripComments(sources.get("vault.mjs") ?? "");
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const inFns = count(fnSource(mv, "roomBroken"), /ROOM_FLAGS\.broken/g) + count(fnSource(mv, "setRoomBroken"), /ROOM_FLAGS\.broken/g);
+        equal(JSON.stringify([ROOM_FLAGS?.broken ?? null, declaring(/ROOM_FLAGS\.broken|drpgBroken/), count(mv, /ROOM_FLAGS\.broken/g) === inFns && inFns > 0,
+            count(mv, /"drpgBroken"/g), /roomBroken\(scene, room\)/.test(fnSource(mv, "isLocked")), /roomBroken\(scene, to\)/.test(fnSource(mv, "bedroomShut")),
+            /roomBroken\(scene, room\)/.test(fnSource(vault, "mayEnterBedroom"))]),
+        JSON.stringify(["drpgBroken", ["movement.mjs"], true, 1, true, true, true]),
+        "[the key, the files that name it, every naming in the reader and the writer, the key spelt, the lock, the bedroom's door and the key count asking the reader] - a second reader or writer of a broken room");
+    }],
+    ["R983 - a refusal of the projects' passages and repairs is said in the table's language: every reason their judges can answer has a code of passages-gm.mjs's closed list, each code has words of its own in both language files, a reason the list does not know is said as 'unknown', and no card or window of theirs fills {why} with the judge's English", async () => {
+        /*
+         * E15 part 2 fix e1-G4 (25.10.2026; findings TEXT-1, E15P2-R8). The harm: at a Polish table the GMs' approval
+         * window and the cards of a refused completion read "Tego nie da się teraz zrobić: the item is not on the builder's
+         * own sheet." - a Polish sentence ending in the judge's English, some of it about the module's insides. Read off
+         * the judges' sources with comments blanked (`fnSource`, which fails on a renamed judge), each literal reason they
+         * answer held to the list (`whyCode`), the list's codes to both language files, and the callers' `{why}` to the
+         * list's reader; nothing is written. Red at the parent: no list.
+         */
+        const P = await import("./passages-gm.mjs");
+        equal(typeof P.whyCode, "function", "passages-gm.mjs has no list of the refusals' codes - every refusal is said in English");
+        if (typeof P.whyCode !== "function") return;
+        const sources = await moduleSources();
+        const gm = stripComments(sources.get("passages-gm.mjs") ?? ""), inv = stripComments(sources.get("inventory.mjs") ?? "");
+        must(gm.length > 1000 && inv.length > 1000, "passages-gm.mjs or inventory.mjs was not read - this would measure nothing");
+        const literals = (text, names) => names.flatMap(name => {
+            const body = fnSource(text, name);
+            return [...body.matchAll(/refused:\s*"([^"]+)"/g), ...body.matchAll(/return\s+"([^"]+)";/g), ...body.matchAll(/\?\s*null\s*:\s*"([^"]+)"/g)].map(m => m[1]);
+        });
+        const reasons = [...literals(gm, ["builtPassageRow", "opensPassageDone", "breachStretchRow", "cutBreach", "restoreBreach", "sealRefusal",
+            "sealPassageDone", "closeBreachRefusal", "closeBreachDone", "reopenBreach", "passageRowFor"]),
+        ...literals(inv, ["repairRefusal", "repairItem", "unrepairItem"])];
+        // The constants they answer by name: the map's refusals (one a template of `PICK_SHORTEST`), the whole wall, the side.
+        const map = gm.match(/const MAP_REFUSALS = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] ?? "";
+        const named = [...map.matchAll(/"([^"]+)"/g)].map(m => m[1]).concat([...map.matchAll(/`([^`]+)`/g)].map(m => m[1].replace("${PICK_SHORTEST}", String(P.PICK_SHORTEST))));
+        const consts = ["WHOLE_WALL", "SIDE_REFUSED"].map(name => gm.match(new RegExp(`const ${name} = "([^"]+)";`))?.[1] ?? null);
+        must(reasons.length >= 25 && named.length === 6 && consts.every(Boolean), `the judges' reasons were not all read (${reasons.length}, ${named.length}, ${consts}) - this would measure nothing`);
+        const unknown = [...new Set([...reasons, ...named, ...consts])].filter(reason => !P.whyCode(reason));
+        equal(JSON.stringify(unknown), "[]", "a reason a judge answers has no code - it would be said as 'unknown' at every table");
+        // The list's codes, in both files (fetched and flattened as Foundry merges them); the planted reason is 'other'.
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `${lang}.json: HTTP ${res.status}`);
+            const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) => (typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]));
+            return new Set(flat(foundry.utils.expandObject(await res.json())));
+        };
+        const [en, pl] = [await language("en"), await language("pl")];
+        const codes = P.WHY_CODES ?? [];
+        const missing = codes.flatMap(code => [["en", en], ["pl", pl]].filter(([, keys]) => !keys.has(`DRPG.Passage.why.${code}`)).map(([lang]) => `${lang} ${code}`));
+        equal(JSON.stringify([codes.includes("unknown"), missing, [...new Set([...reasons, ...named, ...consts].map(P.whyCode))].every(code => codes.includes(code)),
+            P.whyCode("SUITE R983 no such reason"), P.whyText("SUITE R983 no such reason") === game.i18n.localize("DRPG.Passage.why.unknown")]),
+        JSON.stringify([true, [], true, null, true]),
+        "[an 'unknown' code, the codes missing from a language file, every code the judges reach in the list, a planted reason's code, its words 'unknown'] - a refusal with no words in one language");
+        // The callers fill `{why}` through the list's reader, never with the judge's English.
+        const callers = ["projects.mjs", "projects-ui.mjs", "passages-tab.mjs"].map(file => stripComments(sources.get(file) ?? ""));
+        must(callers.every(text => text.length > 1000), "a caller's source was not read - this would measure nothing");
+        equal(JSON.stringify(callers.map(text => (text.match(/\bwhy:\s*(?:made|again|done|refused|judged)\b/g) ?? []).length)), JSON.stringify([0, 0, 0]),
+            "[projects.mjs, projects-ui.mjs, passages-tab.mjs] fill {why} with a judge's English reason");
+        ok(callers[0].includes("whyOf(made.refused)") && callers[1].includes("whyText(again.refused)") && callers[2].includes("whyText(done.refused)"),
+            "a caller of the refusals no longer says them through the list's reader");
+    }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*
          * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a
@@ -13510,7 +13650,8 @@ const REGRESSIONS = [
             landing: /for \(let ring = 0; ring <= 3; ring\+\+\)/.test(landing) && /=== room;/.test(landing) && /inside && free\(spot\)/.test(landing),
             findPassage: ACTIONS.analyze?.passageThreshold === 16,
             findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
-                && /stores\.map\.stampOf\(id, "sceneId"\)/.test(find),
+                // Both stores' rows read as one since E15 part 2 C1 (passages-gm.mjs `rowsOf`).
+                && /rowsOf\(stores\)\.stampOf\(id, "sceneId"\)/.test(find),
             reroll: /if \(bookmark\.findStash && !bookmark\.bulletId\) return settleStashFind\(actor, bookmark, after, done\);/.test(analyze)
                 && /resolvePassageSearch\(/.test(code("reroll.mjs"))
                 && /undo: true, at: bookmark\.findPlace \?\? null \}/.test(fnSource(code("reroll.mjs"), "settlePassageFind"))
@@ -14541,6 +14682,294 @@ const REGRESSIONS = [
             JSON.stringify([true, true]),
             "[settleSearch takes the plant off before its first grant, a grant gives the plant its identity again] - a Reroll's plant would count against its own slot, or come back as a new item with no drpgItemId (E08)");
         log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
+    }],
+
+    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze, repair and token record are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
+        /*
+         * E36 C0, 25.10.2026; the stage's E36-02 and E36-15, audit S17-18. A project is changed today by a dozen roads
+         * that each read the Countdowns setting, change it and write it whole, outside any queue: two GMs' changes, or a
+         * GM's and a player's relayed tray click, landing together lose one of them, and each road announces, arms,
+         * thaws and moves the token in its own way. E36 puts every change through projects.mjs `applyProjectChange`, in
+         * one queue (utils.mjs `serialWrite` on projects-secrecy.mjs `COUNTDOWNS_KEY`), and this is the census that
+         * keeps a road outside it from coming back. Read in the module's files without the suite's own (tests.mjs,
+         * tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const, an import) on its own:
+         *   (a) `game.settings.set(` whose key is COUNTDOWNS, "Countdowns" or relay-guard.mjs's `countdownsKey()` stands
+         *       only in projects-secrecy.mjs `writeAllCountdowns` (C1's whole writer, by this name) or relay-guard.mjs
+         *       `applyOps`, and in a step ("a writer", "a step"; in relay-guard.mjs "e ...", rule (e)). C2 took
+         *       `writeCountdown` out of the module (042f3482), and out of this list in E36's fix round: a writer of
+         *       that name brought back is a writer outside the list, as any other name is;
+         *   (b) a `setProjectMeta(` whose data names `room`, `frozenBy` or `repairs` (a key, a shorthand, a spread or a
+         *       variable of that name) stands in a step; since E36 fix e1-G5 (finding F2) the token record too -
+         *       `tokenId`, `tokenScene`, `mapHidden` - which projects-map.mjs writes through its own step
+         *       (`writeTokenRecord`), read as any other: a step's arguments hold the call;
+         *   (c) a Token made, updated or deleted (`createEmbeddedDocuments`, `updateEmbeddedDocuments` or
+         *       `deleteEmbeddedDocuments` of "Token", and in projects-map.mjs a document named *token* updated or
+         *       deleted) stands in projects-map.mjs reached only from `syncProjectToken` or `sweepProjectTokens`, and
+         *       outside projects-map.mjs in no statement that reads a project token (PROJECT_TOKEN_FLAG, projectIdOf,
+         *       projectOwning, projectTokenOf, projectTokensOn, tokenRefOf);
+         *   (d) placeProjectToken, removeProjectToken and refreshProjectToken are named in no module file but
+         *       projects-map.mjs (they stay exported for the suite: the stage's Rules);
+         *   (e) relay-guard.mjs's Countdowns write is in a step.
+         * "In a step" is read, not run: the position lies inside the arguments of a `serialWrite(` call whose first
+         * argument is COUNTDOWNS_KEY (or `x.COUNTDOWNS_KEY`), or in a top-level statement every use of whose name -
+         * in its own file and in the files that import it, statically or through `import(`, imports and export lists
+         * aside - lies in such a step or in another statement read so. "Reached only from" the two token roots is the
+         * same reading with those two declarations for the step. What it does not read: a key built in a variable
+         * (`game.settings.set(DH, key, ...)`, a `setProjectMeta(id, meta)` whose `meta` gets its room later), a queue key
+         * held in a variable, a name imported under another name, a Token held in a variable not named *token*, and a
+         * migration's or a reset's sweep of every token of a scene that holds project tokens among others. The reader
+         * is shown planted source first: a clean twin that must read clean, then one fault of each rule alone - a
+         * migration's write, a writer reached outside a step, a step of another key, a room written outside one, a
+         * project token made from outside the roots and from another file, a token step named elsewhere, the relay's
+         * write outside the key, and a writer of a name the list does not hold (the old `writeCountdown`) - and a suite
+         * file and a computed key in the twin, which are not read.
+         *
+         * Red at 7d123c97 (1.2.84, E36's base) until C4, by expectedRed("E36"): Base writes Countdowns whole in
+         * addProgress, createProject, deleteProject and clearAllProjects as well, nothing is queued on the key, and
+         * projects.mjs places and removes tokens itself (the stage's census, Base's writers). At C4 (on 042f3482, C3
+         * not landed) three rows are left, all C3's: sabotageProject's and undoSabotage's freeze outside a step (b)
+         * and relay-guard.mjs's write outside the key (e); C4 took the token rows (c, d). C3 (E36 fix e1-G1, on
+         * 8443d03f) moved the three into the queue and took the marker off: none left.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
+        const SETTING = /^(?:COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/;
+        const WRITERS = new Set(["projects-secrecy.mjs#writeAllCountdowns", "relay-guard.mjs#applyOps"]);
+        const GUARDED = /(?<![\w$.])(?:room|frozenBy|repairs|tokenId|tokenScene|mapHidden)(?![\w$])/;
+        const MAP = "projects-map.mjs", ROOTS = new Set(["syncProjectToken", "sweepProjectTokens"]);
+        const STEPS = /(?<![\w$])(?:placeProjectToken|removeProjectToken|refreshProjectToken)(?![\w$])/g;
+        const READS_TOKEN = /(?<![\w$])(?:PROJECT_TOKEN_FLAG|projectIdOf|projectOwning|projectTokenOf|projectTokensOn|tokenRefOf)(?![\w$])/;
+        const EMBEDDED = /\.\s*(?:create|update|delete)EmbeddedDocuments\s*\(/g;
+        const TOKEN_DOC = /(?<![\w$])[\w$]*[tT]oken[\w$]*\s*\??\.\s*(?:update\s*\(|delete\s*\(\s*[{)])/g;
+        // A statement at column 0 and the name it declares, as R560 reads a top-level declaration.
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const blankOut = s => s.replace(/[^\n]/g, " ");
+
+        const censusOf = sources => {
+            const read = { files: 0, sets: 0, metas: 0, tokens: 0 };
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => {
+                    d.end = decls[i + 1]?.start ?? blank.length;
+                    d.id = `${file}#${d.name ?? `L${lineAt(code, d.start)}`}`;
+                });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                // A name in an import or an export list is no use of it.
+                const uses = blank.replace(/^import\s[^;]*;|^export\s*\{[^}]*\}[^;\n]*;?/gm, blankOut);
+                const names = new Map();
+                for (const m of uses.matchAll(/[A-Za-z_$][\w$]*/g)) {
+                    if (!names.has(m[0])) names.set(m[0], []);
+                    names.get(m[0]).push(m.index);
+                }
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    if (args[0] && QUEUE_KEY.test(code.slice(args[0].start, args[0].end).trim())) steps.push([m.index, close]);
+                }
+                read.files++;
+                return { file, code, blank, decls, declAt, names, imports, steps };
+            });
+            const named = files.flatMap(f => f.decls.filter(d => d.name).map(d => ({ f, d })));
+            const usesOf = ({ f: home, d }) => files.flatMap(f => f === home || f.imports.has(home.file)
+                ? (f.names.get(d.name) ?? []).filter(i => f !== home || i < d.start || i >= d.end).map(i => ({ f, i, at: f.declAt(i)?.id })) : []);
+            const usesBy = new Map(named.map(n => [n.d.id, usesOf(n)]));
+            const reachedOnly = (rootAt, held = new Set()) => {
+                const marked = [...usesBy].map(([id, uses]) => [id, uses.map(u => [rootAt(u.f, u.i), u.at])]);
+                for (let grew = true; grew;) {
+                    grew = false;
+                    for (const [id, uses] of marked) {
+                        if (held.has(id) || !uses.length || !uses.every(([root, at]) => root || held.has(at))) continue;
+                        held.add(id);
+                        grew = true;
+                    }
+                }
+                return (f, i) => rootAt(f, i) || held.has(f.declAt(i)?.id);
+            };
+            const inStep = reachedOnly((f, i) => f.steps.some(([a, b]) => i > a && i < b));
+            const roots = new Set(files.filter(f => f.file === MAP).flatMap(f => f.decls.filter(d => ROOTS.has(d.name)).map(d => d.id)));
+            const fromRoots = reachedOnly(() => false, roots);
+
+            const broken = new Set();
+            for (const f of files) {
+                const where = i => f.declAt(i)?.id ?? `${f.file}#L${lineAt(f.code, i)}`;
+                for (const m of f.blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    if (!args[1] || !SETTING.test(f.code.slice(args[1].start, args[1].end).trim())) continue;
+                    read.sets++;
+                    const rule = f.file === "relay-guard.mjs" ? "e" : "a";
+                    if (!WRITERS.has(where(m.index))) broken.add(`${rule} writer ${where(m.index)}`);
+                    if (!inStep(f, m.index)) broken.add(`${rule} step ${where(m.index)}`);
+                }
+                for (const m of f.blank.matchAll(/(?<!function\s*)(?<![\w$.])setProjectMeta\s*\(/g)) {
+                    read.metas++;
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    const data = args.slice(1).map(a => f.blank.slice(a.start, a.end)).join(",");
+                    if (GUARDED.test(data) && !inStep(f, m.index)) broken.add(`b ${where(m.index)}`);
+                }
+                const writes = [...f.blank.matchAll(EMBEDDED)].filter(m => {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    return args[0] && /^(["'`])Token\1$/.test(f.code.slice(args[0].start, args[0].end).trim());
+                });
+                if (f.file === MAP) writes.push(...f.blank.matchAll(TOKEN_DOC));
+                for (const m of writes) {
+                    if (f.file === MAP) {
+                        read.tokens++;
+                        if (!fromRoots(f, m.index)) broken.add(`c ${where(m.index)}`);
+                    } else {
+                        const d = f.declAt(m.index);
+                        if (d && READS_TOKEN.test(f.blank.slice(d.start, d.end))) broken.add(`c ${where(m.index)}`);
+                    }
+                }
+                if (f.file !== MAP) for (const m of f.blank.matchAll(STEPS)) broken.add(`d ${where(m.index)}`);
+            }
+            return { broken: [...broken].sort(), read };
+        };
+
+        const clean = {
+            "projects-secrecy.mjs": [
+                "export const COUNTDOWNS_KEY = \"daggerheart.Countdowns\";",
+                "export async function writeAllCountdowns(data) { await game.settings.set(\"daggerheart\", \"Countdowns\", data); }",
+                "export async function setProjectMeta(id, data) { return { id, data }; }",
+                "async function saveKeyed(key, value) { await game.settings.set(DH, key, value); }",
+                "export { saveKeyed };"
+            ],
+            "projects.mjs": [
+                "import { COUNTDOWNS_KEY, writeAllCountdowns, setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "import { serialWrite } from \"./utils.mjs\";",
+                "async function step(id, change) {",
+                "    await writeAllCountdowns({ [id]: change });",
+                "    await setProjectMeta(id, { room: change.room });",
+                "    await thaw(id);",
+                "}",
+                "async function thaw(id) { await setProjectMeta(id, { frozenBy: null, repairs: null }); }",
+                "export function applyProjectChange(id, change) {",
+                "    return serialWrite(COUNTDOWNS_KEY, () => step(id, change));",
+                "}",
+                "export async function clearAllProjects() {",
+                "    await serialWrite(COUNTDOWNS_KEY, async () => { await writeAllCountdowns({ countdowns: {} }); });",
+                "}",
+                "export async function renameProject(id, name) {",
+                "    // await setProjectMeta(id, { room: name }); game.settings.set(DH, COUNTDOWNS, {});",
+                "    await setProjectMeta(id, { glyph: \"setProjectMeta(id, { repairs: 1 })\" });",
+                "    return applyProjectChange(id, { name });",
+                "}"
+            ],
+            "relay-guard.mjs": [
+                "async function applyOps(ops) {",
+                "    const { COUNTDOWNS_KEY } = await import(\"./projects-secrecy.mjs\");",
+                "    for (const op of ops) {",
+                "        if (op.kind === \"fear\") await game.settings.set(dhId(), fearKey(), op.step);",
+                "        else await serialWrite(COUNTDOWNS_KEY, async () => { await game.settings.set(dhId(), countdownsKey(), op.fresh); });",
+                "    }",
+                "}"
+            ],
+            "projects-map.mjs": [
+                "export const PROJECT_TOKEN_FLAG = \"projectId\";",
+                "export async function placeProjectToken(id, scene) {",
+                "    await scene.createEmbeddedDocuments(\"Token\", [{ flags: { drpg: { [PROJECT_TOKEN_FLAG]: id } } }]);",
+                "}",
+                "export async function removeProjectToken(id, scene, ref) { await scene.deleteEmbeddedDocuments(\"Token\", [ref.tokenId]); }",
+                "export async function refreshProjectToken(id, token) { await token.update({ \"texture.tint\": \"#ffffff\" }); }",
+                "export async function syncProjectToken(id, scene, token, ref) {",
+                "    if (!token) return placeProjectToken(id, scene);",
+                "    if (!ref) return removeProjectToken(id, scene, ref);",
+                "    return refreshProjectToken(id, token);",
+                "}",
+                "export async function sweepProjectTokens(scene, ids) { await scene.deleteEmbeddedDocuments(\"Token\", ids); }",
+                "export async function syncProjectTokens(ids) { for (const id of ids) await syncProjectToken(id); }",
+                "export async function showProjectOnMap(id) { return syncProjectToken(id); }",
+                "async function ensureProjectActor(actor, tokens) { await actor.update({ img: \"x\" }); tokens.delete(actor.id); }"
+            ],
+            "season-setup.mjs": [
+                "import { projectTokensOn } from \"./projects-map.mjs\";",
+                "import { clearAllProjects } from \"./projects.mjs\";",
+                "export async function resetSeason(scene) {",
+                "    const n = projectTokensOn([scene]).length;",
+                "    await clearAllProjects();",
+                "    await scene.deleteEmbeddedDocuments(\"Wall\", []);",
+                "    return n;",
+                "}"
+            ],
+            "migrate.mjs": [
+                "export async function sealOldRepairs(key) {",
+                "    const { applyProjectChange } = await import(\"./projects.mjs\");",
+                "    await applyProjectChange(\"x\", { ownership: {} });",
+                "    await game.settings.set(DH, key, {});",
+                "}"
+            ],
+            "observe.mjs": [
+                "import { applyProjectChange } from \"./projects.mjs\";",
+                "export async function shareFound(id) { await applyProjectChange(id, { ownership: {} }); }"
+            ],
+            "fog.mjs": [
+                "import { applyProjectChange } from \"./projects.mjs\";",
+                "async function carryRoomInWorld(id, to) { await applyProjectChange(id, { meta: { room: to } }); }"
+            ],
+            "tests-tier2.mjs": [
+                "export const T = async PM => { await PM.placeProjectToken(\"x\"); await game.settings.set(DH, COUNTDOWNS, {}); };"
+            ]
+        };
+        const faults = {
+            "a migration's write": [{ "migrate.mjs": [
+                "export async function sealOldRepairs() {",
+                "    const data = game.settings.get(DH, COUNTDOWNS);",
+                "    await game.settings.set(DH, COUNTDOWNS, data);",
+                "}"
+            ] }, ["a step migrate.mjs#sealOldRepairs", "a writer migrate.mjs#sealOldRepairs"]],
+            "a writer reached outside a step": [{ "observe.mjs": [
+                "import { writeAllCountdowns } from \"./projects-secrecy.mjs\";",
+                "export async function shareFound(id) { await writeAllCountdowns({ [id]: {} }); }"
+            ] }, ["a step projects-secrecy.mjs#writeAllCountdowns"]],
+            "a step of another key": [{ "projects.mjs": [...clean["projects.mjs"],
+                "export function retitle(id) { return serialWrite(`transfer/${id}`, () => writeAllCountdowns({ [id]: {} })); }"
+            ] }, ["a step projects-secrecy.mjs#writeAllCountdowns"]],
+            "a writer the list does not hold": [{ "projects-secrecy.mjs": [...clean["projects-secrecy.mjs"].slice(0, 2),
+                "export async function writeCountdown(id, patch) { await game.settings.set(DH, COUNTDOWNS, { [id]: patch }); }",
+                ...clean["projects-secrecy.mjs"].slice(2)
+            ], "projects.mjs": [...clean["projects.mjs"].slice(0, 2), "async function step(id, change) {",
+                "    await writeCountdown(id, change);", ...clean["projects.mjs"].slice(3)].map(line => line.replace("writeAllCountdowns, ", "writeAllCountdowns, writeCountdown, "))
+            }, ["a writer projects-secrecy.mjs#writeCountdown"]],
+            "a room outside a step": [{ "fog.mjs": [
+                "import { setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "async function carryRoomInWorld(id, to) { await setProjectMeta(id, { room: to }); }"
+            ] }, ["b fog.mjs#carryRoomInWorld"]],
+            "a token made outside the roots": [{ "projects-map.mjs": [
+                ...clean["projects-map.mjs"].slice(0, -2),
+                "export async function showProjectOnMap(id, scene) { return placeProjectToken(id, scene); }",
+                clean["projects-map.mjs"].at(-1)
+            ] }, ["c projects-map.mjs#placeProjectToken"]],
+            "a project token deleted in another file": [{ "season-setup.mjs": [
+                "import { projectTokensOn } from \"./projects-map.mjs\";",
+                "export async function wipe(scene) { await scene.deleteEmbeddedDocuments(\"Token\", projectTokensOn([scene]).map(t => t.tokenId)); }"
+            ] }, ["c season-setup.mjs#wipe"]],
+            "a token step named elsewhere": [{ "projects.mjs": [...clean["projects.mjs"],
+                "export async function retint(id) { const map = await import(\"./projects-map.mjs\"); return map.refreshProjectToken(id); }"
+            ] }, ["c projects-map.mjs#refreshProjectToken", "d projects.mjs#retint"]],
+            "the relay's write outside the key": [{ "relay-guard.mjs": [
+                "async function applyOps(ops) {",
+                "    for (const op of ops) await game.settings.set(dhId(), countdownsKey(), op.fresh);",
+                "}"
+            ] }, ["e step relay-guard.mjs#applyOps"]]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const twin = censusOf(planted(clean));
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { files: 8, sets: 2, metas: 3, tokens: 4 }]),
+            "the census reader does not read the clean twin clean, or not all of it (8 files, 2 Countdowns writes, 3 setProjectMeta calls, 4 project token writes) - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["projects.mjs", "projects-secrecy.mjs", "projects-map.mjs", "relay-guard.mjs"].every(file => sources.has(file)),
+            "projects.mjs, projects-secrecy.mjs, projects-map.mjs or relay-guard.mjs is not served - this test reads nothing until they are");
+        const { broken, read } = censusOf(sources);
+        ok(read.files > 100 && read.sets >= 2 && read.metas >= 3 && read.tokens >= 3,
+            `${JSON.stringify(read)} read in the module (files, Countdowns writes, setProjectMeta calls, project token writes) - this would measure nothing`);
+        log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
+        equal(JSON.stringify(broken), "[]",
+            "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
     }]
 ];
 

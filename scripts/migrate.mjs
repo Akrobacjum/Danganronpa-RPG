@@ -992,6 +992,24 @@ const CLAUSES = [
             await gmReport(game.i18n.localize("DRPG.Rooms.reportTitle"), roomsReportHtml(rows));
             return { scenes: rows.length, marked: rows.reduce((n, row) => n + row.marked.length, 0) };
         }
+    },
+    {
+        key: "trimOverflowRules",
+        since: "1.2.85",
+        /*
+         * THE OVERFLOW'S RULES HOLD THE GM'S OVERRIDES ONLY (E15 C3, 1.2.85; audit S09-27). Until
+         * 1.2.85 every Apply of Despair Flow saved the whole catalogue of `OVERFLOW.effects` and the
+         * threshold, so a default changed in config.mjs never reached a world that had pressed it
+         * once. Once, on the primary, with the rules written on `trimOverflowRules` (overflow.mjs):
+         * the threshold and each effect's `on` and `by` where the GM changed them - an old copy read
+         * against 1.2.84's defaults, frozen there (fix e1-G2), not against config.mjs when the clause
+         * runs - and where they still differ from config.mjs now; nothing else. Seeds nothing;
+         * idempotent.
+         */
+        run: async () => {
+            const { trimOverflowRules } = await import("./overflow.mjs");
+            return await trimOverflowRules();
+        }
     }
 ];
 

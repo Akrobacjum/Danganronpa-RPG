@@ -182,6 +182,9 @@ function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
     return buttons;
 }
 
+/** The footer buttons each tab shows beside Save and Close (`wirePanelTabs`). */
+const TAB_BUTTONS = Object.freeze({ pools: ["addPool", "removePool"], students: ["auto"] });
+
 /** Write the four things the form edits, in the order the reads depend on. */
 async function saveGmTeam(result) {
     try {
@@ -270,7 +273,11 @@ export async function openGmTeamDialog({ draft = null } = {}) {
         content: buildContent(actors, gms, roster, candidates, removable),
         buttons,
         render: (event, dialog) => {
-            wirePanelTabs(dialog.element);
+            /* A FOOTER PER TAB (E15 C6, 25.10.2026; audit S13-11, S10-62). Split evenly divides the
+               students between the pools and stood in the footer of every tab, the pools' names among
+               them, where a GM new to the window could not tell what it would divide; Add and Remove
+               pool are the pools' tab's. Save and Close stay on every tab: one Save reads all four. */
+            wirePanelTabs(dialog.element, { buttons: TAB_BUTTONS, always: ["save", "cancel"] });
             // Anything typed in the copy that closed to add, revoke or re-divide a
             // pool (TEAM-01). After the tabs, so the panes exist to be painted.
             paintTeamDraft(dialog.element, draft);
@@ -381,7 +388,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
         <p>${game.i18n.localize("DRPG.Despair.poolsIntro")}</p>
         <table>
             <thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
+                <th>${game.i18n.localize("DRPG.Despair.account")}</th>
                 <th>${game.i18n.localize("DRPG.Despair.poolName")}</th>
             </tr></thead>
             <tbody>${poolRows}</tbody>
@@ -410,7 +417,8 @@ function buildContent(actors, gms, roster, candidates, removable) {
                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />
             </td>
             <td>
-                <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled"}
+                <span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
+                <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled hidden"}
                         aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>
             </td>
         </tr>`;
@@ -473,6 +481,9 @@ function buildContent(actors, gms, roster, candidates, removable) {
     return dialogContent(`<form>${body}</form>`);
 }
 
+/** A never-assigned student's "(fallback)" option: Save writes no row for it (`readAssignmentForm` skips ""). */
+const FALLBACK_PICK = "";
+
 function buildAssignRows(roster, gms) {
     const current = assignments();
 
@@ -487,11 +498,32 @@ function buildAssignRows(roster, gms) {
         ].join("");
 
         const explicit = excluded || gms.some(u => u.id === raw);
+        /* THE FALLBACK SAYS SO IN THE SELECT (E15 C6, 25.10.2026; audit S10-62). A red "*" after the
+           name read as "required", and the select showed the first pool as if the GM had chosen it.
+           Now the pool a student falls back to is named "(fallback)" in its own option, the select dim
+           and in italics until the GM picks something, the hint on it.
+           THE FALLBACK IS AN OPTION OF ITS OWN (E15 part 1 fix e1-G4, 25.10.2026; findings
+           E15p1-END-4, R3). The "(fallback)" option carried the pool's own id, so it was the only way to pick
+           that pool: choosing it wrote nothing (its value was the one drawn), and a student could not be pinned
+           to the first pool in one Save - a later full GM sorting first by name would move them (tier 2 E15-T8
+           at c93be060: the pool picked, saved, no row). Now "(fallback)" is `FALLBACK_PICK` (""), which Save
+           skips, beside every pool by its plain name, which Save writes. */
+        const fallbackTo = gms.find(u => u.id === assigned) ?? gms.find(u => u.id === monokumaFor(actor)?.id) ?? gms[0];
+        const shown = explicit ? options : [
+            `<option value="${FALLBACK_PICK}" selected>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Assign.fallbackOption", { name: poolLabel(fallbackTo) }))}</option>`,
+            ...gms.map(u => `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`),
+            `<option value="${NO_MONOKUMA}">${game.i18n.localize("DRPG.Assign.nobody")}</option>`
+        ].join("");
 
+        // What the row held as it was drawn (S10-47): Save writes a row the GM changed or one the world
+        // already held, and leaves a fallback a fallback (`readAssignmentForm`).
         return `<tr${excluded ? ' class="drpg-assign-excluded"' : ""}>
-                    <td>${foundry.utils.escapeHTML(actor.name)}${explicit ? "" : ` <span class="drpg-assign-implicit" data-tooltip="${game.i18n.localize("DRPG.Assign.implicitHint")}">*</span>`}</td>
-                    <td><select name="assign.${actor.id}" data-drpg-assign
-                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${options}</select></td>
+                    <td>${foundry.utils.escapeHTML(actor.name)}</td>
+                    <td><select name="assign.${actor.id}" data-drpg-assign data-drpg-was="${explicit ? assigned : FALLBACK_PICK}"
+                        data-drpg-fallback="${fallbackTo.id}" data-drpg-explicit="${explicit ? 1 : 0}"
+                        ${explicit ? "" : `class="drpg-assign-fallback" data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Assign.implicitHint"))}"`}
+                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${shown}</select></td>
                 </tr>`;
     }).join("");
 }
@@ -518,7 +550,11 @@ function wireMonokumaLive(dialog) {
             row?.classList.toggle("drpg-is-monokuma", box.checked);
             if (!select) continue;
 
+            // A pool means something only for a Monokuma: an actor not ticked shows a "-" (S10-62).
             select.disabled = !box.checked;
+            select.hidden = !box.checked;
+            const none = row.querySelector("[data-drpg-pool-none]");
+            if (none) none.hidden = box.checked;
             if (!box.checked) continue;
 
             const value = select.value;
@@ -554,16 +590,19 @@ function wireAssignmentLive(dialog, gms) {
         let excluded = 0;
 
         for (const select of root.querySelectorAll("[data-drpg-assign]")) {
-            if (select.value === NO_MONOKUMA) excluded++;
-            else if (select.value in tally) tally[select.value]++;
+            const pool = select.value === FALLBACK_PICK ? select.dataset.drpgFallback : select.value;
+            if (pool === NO_MONOKUMA) excluded++;
+            else if (pool in tally) tally[pool]++;
             select.closest("tr")?.classList.toggle("drpg-assign-excluded", select.value === NO_MONOKUMA);
+            // Dim only while it is still the fallback nobody chose.
+            select.classList.toggle("drpg-assign-fallback", select.dataset.drpgExplicit !== "1" && select.value === select.dataset.drpgWas);
         }
 
         const counts = gms.map(u =>
             `<span class="drpg-assign-count"><strong>${foundry.utils.escapeHTML(poolLabel(u))}</strong>: ${tally[u.id]}</span>`
         );
         if (excluded) {
-            counts.push(`<span class="drpg-assign-count drpg-assign-none">${game.i18n.localize("DRPG.Assign.nobody")}: ${excluded}</span>`);
+            counts.push(`<span class="drpg-assign-count drpg-assign-none">${game.i18n.localize("DRPG.Assign.outside")}: ${excluded}</span>`);
         }
         box.innerHTML = counts.join("");
     };
@@ -595,12 +634,24 @@ function readMonokumaForm(dialog, actors) {
     }));
 }
 
+/*
+ * ONLY WHAT THE GM SET (E15 C6, 25.10.2026; audit S10-47). Every row was written, so a Save that only
+ * renamed a pool turned each student's fallback ("*") into an explicit assignment to the first pool,
+ * and the window stopped showing who had never been assigned; a student just ticked as a Monokuma on
+ * the next tab was given an assignment too. Measured at 8de5a242 by tier 2 (E15-T8): a rename and
+ * a student ticked a Monokuma wrote all four students. Now a row is written when the world held one or the
+ * GM changed its select (`data-drpg-was`, what it showed when drawn), and a row whose actor is ticked
+ * a Monokuma is left out. The setting is written whole (assignments.mjs `setAssignments`), so a row
+ * left out stays a fallback.
+ */
 function readAssignmentForm(dialog, roster) {
     const root = dialog.element;
     const map = {};
     for (const actor of roster) {
         const select = root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
-        if (select?.value) map[actor.id] = select.value;
+        if (!select?.value) continue;   // "(fallback)" (`FALLBACK_PICK`): a fallback stays one
+        if (root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`)?.checked) continue;
+        if (select.dataset.drpgExplicit === "1" || select.value !== select.dataset.drpgWas) map[actor.id] = select.value;
     }
     return map;
 }

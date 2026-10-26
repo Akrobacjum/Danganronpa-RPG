@@ -428,6 +428,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             { flow: "murder-incident" });
     }
 
+    /* A MONOCUB FROM THE BODY (E15 C4, 25.10.2026; audit S03-10, S10-18, S09-17). Daichi's death is
+       published now; a victim who bled out has every point of Health marked, written here as the GM
+       would. Read on the GM: Wounded and Breakdown on the body; then `setMonocub` - Hope, Health and
+       Sanity marks, Wounded - and the refill `resetActionsFor` gives the Monocub beside the budget of
+       an unwounded student; unticked after, the actions put back. Red at 0edb82de: the body Wounded,
+       the Monocub marked and refilled with one action. */
+    const cubFromBody = await gm.eval(`const A = await import("${repoUrl}/scripts/actions.mjs");
+        const M = await import("${repoUrl}/scripts/monocub.mjs"); const { STATES } = await import("${repoUrl}/scripts/config.mjs");
+        const daichi = game.actors.get("${ids.daichi}"), r = () => daichi.system.resources, pause = ms => new Promise(res => setTimeout(res, ms));
+        const conditions = () => [STATES.wounded.id, STATES.breakdown.id].map(id => daichi.statuses.has(id));
+        const actionsWas = { value: r().actions.value, max: r().actions.max };
+        await daichi.update({ "system.resources.hitPoints.value": r().hitPoints.max });
+        await pause(400);
+        const body = { published: game.drpg.isDeceased(daichi), hp: [r().hitPoints.value, r().hitPoints.max], conditions: conditions() };
+        await M.setMonocub(daichi, true);
+        await pause(400);
+        const made = { cub: M.isMonocub(daichi), hope: r().hope.value, hp: r().hitPoints.value, stress: r().stress.value, conditions: conditions() };
+        const refill = await A.resetActionsFor(daichi);
+        const budget = { total: refill?.total ?? null, wounded: refill?.wounded ?? null, unwounded: A.actionBudget(daichi, { wounded: false }).total };
+        await M.setMonocub(daichi, false);
+        await daichi.update({ "system.resources.actions.value": actionsWas.value, "system.resources.actions.max": actionsWas.max });
+        await pause(200);
+        return { body, made, budget, after: M.isMonocub(daichi) };`, { timeout: 60000 });
+    check("gm: a body that bled out carries neither condition, and made a Monocub it holds no Hope and no marks and is refilled with 2 actions, as an unwounded student",
+        cubFromBody.body.published === true && cubFromBody.body.hp[0] === cubFromBody.body.hp[1] && cubFromBody.body.hp[1] > 0
+            && JSON.stringify(cubFromBody.body.conditions) === "[false,false]"
+            && cubFromBody.made.cub === true && cubFromBody.made.hope === 0 && cubFromBody.made.hp === 0 && cubFromBody.made.stress === 0
+            && JSON.stringify(cubFromBody.made.conditions) === "[false,false]"
+            && cubFromBody.budget.total === 2 && cubFromBody.budget.wounded === false && cubFromBody.budget.unwounded === 2 && cubFromBody.after === false,
+        JSON.stringify(cubFromBody), { flow: "monocub-meddle" });
+
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });
     /* WHAT THE TRACE SAYS IS A MARKER (E30, 24.09.2026). It was `label: "Bloodied

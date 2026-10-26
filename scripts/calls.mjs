@@ -72,6 +72,12 @@ export async function callBarred(actor, { despair = false } = {}) {
     if (isDeadForGm(actor)) {
         return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor?.name ?? "?" });
     }
+
+    // The Despair Call Silence, asked here as `hopeCallRefusal` asks it (E15 C4, 25.10.2026; audit
+    // S09-35). The sheet asked it on its own, after the price, so any other door to the Calls let a
+    // silenced player through to the payment before being told.
+    const { isCallSilenced } = await import("./call-effects.mjs");
+    if (isCallSilenced(actor)) return game.i18n.localize("DRPG.Calls.silencedNotice");
     return null;
 }
 

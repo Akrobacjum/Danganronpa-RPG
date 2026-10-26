@@ -353,10 +353,12 @@ const INVARIANTS = [
         ok(/resetOverflow\(/.test(wipe),
             "a season reset empties the Despair pools and leaves their overflow standing");
 
-        // Both halves, or a new season inherits an armed darkening.
-        const reset = bodyOf(overflow, "export async function resetOverflow", { length: 600 });
-        ok(/count:\s*0/.test(reset) && /active:\s*null/.test(reset),
-            "resetOverflow no longer clears both the counter and the armed stamp");
+        // Both halves, or a new season inherits an armed darkening. Only the verdict keeps one, a
+        // darkening announced in the trial whose time of day has not begun (E15 C3; D16, S09-07):
+        // the season reset's stamp is null whatever was armed.
+        const reset = bodyOf(overflow, "export async function resetOverflow", { until: "function waitingDarkening" });
+        ok(/count:\s*0/.test(reset) && /active:\s*atVerdict \? kept : null/.test(reset) && /atVerdict = reason === VERDICT/.test(reset),
+            "resetOverflow no longer clears both the counter and the armed stamp, or keeps a darkening past a season reset");
     }],
 
     ["a table row keeps every edit, and an emptied description stays empty", async () => {
@@ -4171,6 +4173,47 @@ const INVARIANTS = [
         equal(host.querySelectorAll("li[data-group] s, li[aria-disabled]").length, 0, "with everything ticked a row reads as kept");
     }],
 
+    ["R982 - the reset window counts what its passages group takes: the passages projects made, the breaches given back and the students who know a passage", async () => {
+        /*
+         * E15 part 2 C6, 25.10.2026 (the stage's E15-49, C3's gap "the reset's tally sentence"). Since C1 the "passages"
+         * group takes the passages a project made (the season's store) and since C3 gives back every breach's wall, but its
+         * row in "This goes" counted nothing and its label still said the passages stay: a GM read a reset as keeping the
+         * tunnel a student dug. The harm: a count that reads the wrong rows (a breach's row counted as a passage, a touch
+         * or door row of the access record as a knower, one student twice, an id that is no student), and a row that does
+         * not say it. Pure: stores and a scene of the test's own, plain records, in; counts and markup out. The knowers are
+         * two students of this world, read by id; nothing is read off the world's stores or written.
+         */
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./season-setup.mjs");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const { plural } = await import("./utils.mjs");
+        equal(typeof P.passageResetTally, "function", "passages-gm.mjs counts nothing of what the reset takes of the passages (passageResetTally)");
+        if (typeof P.passageResetTally !== "function") return;
+        needs(world.atLeast("livingStudents", 2), "two students of this world are the knowers the count reads by id");
+        const [a, b] = studentActors().slice(0, 2).map(actor => actor.id);
+        const store = rows => ({ entries: () => rows });
+        const stores = {
+            season: store({ built1: { shape: "wall", rooms: ["X", "Y"] }, hole1: { shape: "wall", breach: { breachId: "SUITER982BREACH1" } } }),
+            access: store({ [`built1/${a}`]: { how: "built" }, [`map1/${a}`]: { how: "gm" }, [`map1/${b}`]: { how: "start" },
+                [`touch/${b}`]: { at: 1 }, [`door/${a}`]: { at: 1 }, "map1/SUITER982NOBODY0": { how: "gm" } })
+        };
+        const hole = { id: "SUITER982WALL001", c: [0, 0, 100, 0], flags: { [MODULE_ID]: { breach: { breachId: "SUITER982BREACH1", originalWallId: "SUITER982WALL000" } } } };
+        const scenes = [{ id: "SUITER982SCENE01", walls: [hole, { id: "SUITER982WALL000", c: [0, 0, 300, 0] }] }, { id: "SUITER982SCENE02", walls: [] }];
+        const counted = P.passageResetTally({ stores, scenes });
+        equal(JSON.stringify(counted), JSON.stringify({ built: 1, breaches: 1, knowers: 2 }),
+            "[the passages projects made, the breaches standing, the students who know a passage] - a breach's row read as a passage, a touch or door row or a stranger as a knower, or a student counted twice");
+        // The window's row: the three counts under the passages group, in the reset's own words.
+        const keys = RESET_GROUPS.map(group => group.key);
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passagesBuilt: 3, breaches: 1, passageKnowers: 4 });
+        const row = host.querySelector('li[data-group="passages"]')?.textContent ?? "";
+        const lines = [plural("DRPG.Season.resetPassagesBuilt", { n: 3 }), plural("DRPG.Season.resetBreaches", { n: 1 }), plural("DRPG.Season.resetPassageKnowers", { n: 4 })];
+        equal(JSON.stringify(lines.map(line => row.includes(line))), "[true,true,true]", `the passages row does not count what it takes: "${row.trim()}"`);
+        // The window's tally reads this count: the source of season-setup.mjs's `resetTally`, comments blanked.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
+        ok(/\bpassageResetTally\(/.test(fnSource(src, "resetTally")), "season-setup.mjs `resetTally` does not ask passageResetTally - the window counts nothing of the passages");
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
@@ -5809,8 +5852,9 @@ const INVARIANTS = [
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
-            // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage.
-            ...["killerId", "by", "condition", "trigger", "saboteur"].map(f => [`projectMeta.${f}`,
+            // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
+            // Passage's `passage` and `target` and a project's Observe finders, `foundBy`.
+            ...["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
@@ -18387,7 +18431,8 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("passages-gm.mjs")?.length && sources.get("gm-bridge.mjs")?.length, "passages-gm.mjs or gm-bridge.mjs is not among the module's sources - this would measure nothing");
         const cross = fnSource(stripComments(sources.get("passages-gm.mjs")), "crossTunnel");
-        ok(/const known = secretRowsFrom\(\{ map: stores\.map, access: stores\.access \}\);/.test(cross) && /M\.tunnelVerdict\(actor, passage, token, \{ mover, known, pay: false \}\)/.test(cross),
+        // Since E15 part 2 C1 the records are both stores, the map's and the season's (passages.mjs `passageBook`).
+        ok(/const known = secretRowsFrom\(\{ map: stores\.map, season: stores\.season \?\? null, access: stores\.access \}\);/.test(cross) && /M\.tunnelVerdict\(actor, passage, token, \{ mover, known, pay: false \}\)/.test(cross),
             "the primary GM's 'Go through' judges the way from something other than the GMs' records");
 
         // The copies: the knower's player's carries the way, the other's holds nothing; the knower's browser keeps it.
@@ -21187,6 +21232,102 @@ const INVARIANTS = [
         ]), "per row: [the action, patient, the result, before half the ruling's clock, what was said, what was sent after the ask] - an ask with no 'got it' waited for the ruling's clock, was said other than once, or did not tell the GMs it expired");
     }],
 
+    ["R978 - a change asked of the primary GM ends when the primary leaves: a wait marked so (`untilPrimaryLeaves`) is told noAnswer at once, once, and its late answer still goes to `late`; a wait not marked keeps its clock (E36 fix e1-G4)", async () => {
+        /*
+         * E36 fix e1-G4, 25.10.2026; finding E36-R5. Another GM's change of a project goes to the primary by
+         * gm-bridge.mjs `project.change`, a "reply" with no resend: a primary that reloaded or left after its "got
+         * it" left the asking GM's await waiting out the bridge's 180 s clock, even when the step had landed, and a
+         * Save or a create then tried again. The waiter (bridge-guards.mjs `createWaiter`) now fails at once every
+         * wait that asked for it when the primary leaves (`primaryGone`, which registerBridgeReplies calls on
+         * `userConnected` with `primaryLeft`), says so once, and hands an answer that comes after to `late`, as an
+         * answer after the clock is. Driven with fakes, as R165 drives the waiter: nothing leaves this client.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const sent = [], said = [], late = [];
+        const who = { id: "R978ME", isGM: true, isPrimary: false };
+        const waiter = createWaiter({
+            emit: packet => sent.push(packet), gmIds: () => ["R978GM"], me: () => who,
+            notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: id => id === "R978GM", report: () => {}
+        });
+        must(typeof waiter.primaryGone === "function", "the waiter has no primaryGone - nothing ends a wait when the primary leaves");
+        const marked = waiter.request("r978.change", {}, { settle: "reply", ackMs: 1000, timeoutMs: 1000, untilPrimaryLeaves: true, late: value => late.push(value) });
+        const kept = waiter.request("r978.other", {}, { settle: "reply", ackMs: 1000, timeoutMs: 1000 });
+        const [markedId, keptId] = sent.map(p => p.requestId);
+        for (const requestId of [markedId, keptId]) waiter.onReply({ action: "bridge.ack", userId: who.id, requestId }, "R978GM");
+        waiter.primaryGone();
+        waiter.primaryGone();
+        const first = await Promise.race([marked, new Promise(resolve => setTimeout(() => resolve("still waiting"), 50))]);
+        waiter.onReply({ action: "bridge.done", userId: who.id, requestId: markedId, value: { changed: true } }, "R978GM");
+        const waiting = waiter.waiting();
+        waiter.onReply({ action: "bridge.done", userId: who.id, requestId: keptId, value: { other: true } }, "R978GM");
+        equal(JSON.stringify({ first, said, late, waiting, other: await kept }), JSON.stringify({
+            first: { ok: false, reason: "noAnswer" }, said: ["r978.change noAnswer"], late: [{ changed: true }], waiting: 1,
+            other: { ok: true, value: { other: true } }
+        }), "a wait marked untilPrimaryLeaves does not end once when the primary leaves, its late answer is lost, or an unmarked wait ends with it");
+    }],
+
+    ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
+        /*
+         * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
+         * reading of a Work's roll the roller's browser, the GM (gm-bridge.mjs `progressOf`) and the Reroll
+         * (reroll.mjs `settleProgress`) share; the bonus rode only on a band reached, so a lone killer's miss paid 0
+         * beside a card that said the project gains +1. Read with ACTIONS.project's bands (12 and 18) and its
+         * critical: a miss at 8, a 13, an 18 and a critical at 4, each with the alone bonus of INDIRECT_MURDER and
+         * with none, and an 11 with a tool's relief of 1 and the bonus. Then the budget the murder window shows
+         * (murder-ui.mjs `indirectCostText`): the sums of the parts' smallest and largest progress
+         * (`INDIRECT_MURDER.subProjects`), which the card said was "about 6". Red at d90687dc: the miss with the
+         * bonus paid 0, and the window's text came from `localize`, no function to read.
+         */
+        const { projectProgress } = await import("./action-rolls.mjs");
+        const { ACTIONS, INDIRECT_MURDER } = await import("./config.mjs");
+        const alone = INDIRECT_MURDER.concealIntent.aloneBonus;
+        must(alone === 1 && ACTIONS.project.thresholds.map(t => t.min).join() === "12,18", `the bands or the alone bonus moved (${alone}; ${ACTIONS.project.thresholds.map(t => t.min)}) - this reads other numbers`);
+        const read = [[8, false], [13, false], [18, false], [4, true]].flatMap(([total, isCritical]) => [alone, 0].map(bonus => {
+            const out = projectProgress({ total, isCritical }, { bonus }, ACTIONS.project);
+            return [total, bonus, out.progress, out.bonus];
+        }));
+        read.push([11, "relief 1", projectProgress({ total: 11, isCritical: false }, { relief: 1, bonus: alone }, ACTIONS.project).progress]);
+        equal(JSON.stringify(read), JSON.stringify([[8, 1, 1, 1], [8, 0, 0, 0], [13, 1, 2, 1], [13, 0, 1, 0], [18, 1, 3, 1], [18, 0, 2, 0],
+            [4, 1, 3, 1], [4, 0, 2, 0], [11, "relief 1", 2]]),
+            "per roll [total, bonus, progress, bonus answered]: the concealment's bonus was not paid on every outcome, or paid where none was claimed");
+        const M = await import("./murder-ui.mjs");
+        must(typeof M.indirectCostText === "function", "murder-ui.mjs has no indirectCostText - the trap's budget is not read off its parts");
+        const sums = ["min", "max"].map(f => INDIRECT_MURDER.subProjects.reduce((n, part) => n + Math[f](...part.progress), 0));
+        const text = M.indirectCostText();
+        equal(JSON.stringify([sums, text.includes(`${sums[0]}-${sums[1]}`), /\{(low|high)\}/.test(text)]), JSON.stringify([[7, 10], true, false]),
+            `the trap's budget is not its parts' sums, 7-10 (the parts' sums, the text holds them, a placeholder left): ${text}`);
+    }],
+    ["R980 - a revive reaches the conditions and the voice: a deletion of the deceased or the Monocub flag, in each spelling, is a change of the two flags that take both conditions away (E15 part 1 fix e1-G3)", async () => {
+        /*
+         * E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3. states.mjs's hook on `updateActor` syncs Wounded
+         * and Breakdown on the primary when `touchesTracks(changes)` says the update moved Health, Sanity, or one of
+         * the two flags that take both away (`deceased`, `monocub`); voice.mjs `reconcileTrigger` asks the same two
+         * flags. A revive unsets `deceased`, and whether v14's `unsetFlag` hands the hook the flag's own key (a
+         * ForcedDeletion) or `-=deceased` is LIVE-E30-03's, not measured; read here: each flag set, deleted under its
+         * name, deleted as `-=key`, the module's flags deleted whole, and two controls (another flag of the module's,
+         * another module's flag). Red at c93be060: `touchesTracks` was not exported, and `reconcileTrigger` read
+         * neither `-=` spelling nor the module's flags deleted (with states.mjs's fix alone: "1 passed, 1 failed").
+         */
+        const S = await import("./states.mjs");
+        const { reconcileTrigger } = await import("./voice.mjs");
+        must(typeof S.touchesTracks === "function", "states.mjs exports no touchesTracks - the hook's reading cannot be asked");
+        const flags = f => ({ flags: f });
+        // The old spelling put together at run time, as R152 asks: these are an update's changes as a hook reads them.
+        const DEL = "-" + "=";
+        const cases = [
+            ["deceased set", flags({ [MODULE_ID]: { [FLAGS.deceased]: { at: 1 } } })],
+            ["deceased deleted", flags({ [MODULE_ID]: { [FLAGS.deceased]: null } })],
+            ["deceased deleted the old way", flags({ [MODULE_ID]: { [DEL + FLAGS.deceased]: null } })],
+            ["monocub deleted the old way", flags({ [MODULE_ID]: { [DEL + FLAGS.monocub]: null } })],
+            ["monocub false", flags({ [MODULE_ID]: { [FLAGS.monocub]: false } })],
+            ["the module's flags deleted", flags({ [DEL + MODULE_ID]: null })],
+            ["another flag", flags({ [MODULE_ID]: { [FLAGS.monokuma]: true } })],
+            ["another module", flags({ core: { [DEL + FLAGS.deceased]: null } })]
+        ];
+        const read = cases.map(([name, changes]) => [name, S.touchesTracks(changes), Boolean(reconcileTrigger("updateActor", {}, changes)?.immediate)]);
+        equal(JSON.stringify(read), JSON.stringify(cases.map(([name], i) => [name, i < 6, i < 6])),
+            "per update [what it changes, the conditions' hook syncs, the voice reconciles at once]: a deleted flag was not read as a change, or another flag was");
+    }],
     ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's
@@ -22294,6 +22435,31 @@ const INVARIANTS = [
         ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
             + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
             + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
+    }],
+    ["R984 - a Hope or Despair Call paid for whose effect failed is said in words its callers can fill: DRPG.Calls.effectFailed, given only { call } as calls.mjs and call-effects.mjs give it, names the call and leaves no placeholder unfilled, in English and in Polish (1.2.85 fix)", async () => {
+        /*
+         * 1.2.85, 25.10.2026. E36 fix e1-G4 (daf5600c) wrote the projects' sentence ("{name}: part of what finishing it
+         * ... ({error})") over DRPG.Calls.effectFailed in both language files, where DRPG.Project.effectFailed was meant;
+         * its two callers (calls.mjs, the toast of a call whose effect threw; call-effects.mjs, the line the refund
+         * follows) pass only { call }, so a player read "{name}: ... ({error})" as it stood. Both files are read as served
+         * and filled as game.i18n.format fills them (a key it is not given stays as written), and this browser's own
+         * format is read too. Nothing is written; no phase is asked.
+         */
+        const CALL = "R984 Hope Call";
+        const fill = (text, data) => String(text ?? "").replace(/{[^}]+}/g, k => data[k.slice(1, -1)] ?? k);
+        const said = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const text = words?.DRPG?.Calls?.effectFailed;
+            must(typeof text === "string" && text.length, `lang/${lang}.json has no DRPG.Calls.effectFailed - this would read nothing`);
+            const out = fill(text, { call: CALL });
+            said.push([lang, out.includes(CALL), /{[^}]*}/.test(out)]);
+        }
+        const here = game.i18n.format("DRPG.Calls.effectFailed", { call: CALL });
+        said.push(["this browser", here.includes(CALL), /{[^}]*}/.test(here)]);
+        equal(stableJson(said), stableJson([["en", true, false], ["pl", true, false], ["this browser", true, false]]),
+            "DRPG.Calls.effectFailed, filled with { call } alone, does not name the call or leaves a placeholder unfilled "
+            + "[per language: names the call, a {placeholder} left]");
     }],
 ];
 

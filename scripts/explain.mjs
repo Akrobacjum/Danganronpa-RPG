@@ -13,18 +13,19 @@
  * player or GM, same gesture, same window - and it tells you what you are
  * looking at, plus where things actually stand right now.
  *
- * WHAT THESE WINDOWS MUST NOT DO IS LEAK. The Despair rows are masked for
- * players by the widget itself, and a window that explained them by printing
- * the numbers would undo that in one click; the room block prints a Project's
- * existence but never its name, exactly as the HUD does. So each section asks
+ * WHAT THESE WINDOWS MUST NOT DO IS LEAK. The overflow's count is masked for
+ * players by the widget itself, and a window that explained it by printing the
+ * number would undo that in one click (the pools' counts are on every bar since
+ * D3, and this window prints them as the bar does); the room block prints a
+ * Project's existence but never its name, exactly as the HUD does. So each section asks
  * the same question the widget asks - "may this user see this?" - rather than
  * assuming that a window somebody opened deliberately is a window they are
  * entitled to more from.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, OVERFLOW } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
-import { dialogContent, error, esc} from "./utils.mjs";
+import { dialogContent, error, esc, plural } from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
@@ -193,49 +194,54 @@ export async function openStateExplainer() {
 /**
  * What the Despair rows are.
  *
- * The numbers are the GM's. The widget masks them for players and so does
- * this: a player gets the rules and no count, which is the same bargain the
- * strip on screen already offers them.
+ * THE POOLS AS THE BAR SHOWS THEM, TO EVERYONE (E15 C3, 25.10.2026; audit S01-24, S13-16). The
+ * pools' counts are on every bar since D3, and this window told a player "how much is held is the
+ * GM's to see" under the very bar that showed it; it printed the rows to a GM alone. Now every
+ * reader gets a row per pool, held / max, and a player the sentence that only the overflow's count
+ * is hidden. The overflow's section counts what is in the hat now (`overflowPool`): it said eight
+ * whatever the GM had unticked, and nothing when the hat was empty.
  */
 export async function openDespairExplainer() {
     try {
-        const lines = [esc(t("DRPG.Explain.despair.what")), esc(t("DRPG.Explain.despair.spent"))];
-
-        if (game.user.isGM) {
-            const { monokumas, getDespair, despairMax, poolLabel } = await import("./despair.mjs");
-            const rows = monokumas().map(user =>
-                esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}`));
-            lines.push(rows.length
-                ? rows.join("<br>")
-                : esc(t("DRPG.Explain.despair.noPools")));
-        } else {
-            lines.push(esc(t("DRPG.Explain.despair.masked")));
-        }
-
-        /*
-         * "What is despair overflow" (Z10). Its own section rather than another
-         * line in the one above, because it answers a different question: the
-         * pools are what a Monokuma HAS, and this is what happens to what they
-         * cannot hold. A player who clicked the pips to ask about the bar reads
-         * the caption sitting directly above it on the way.
-         */
-        const overflowLines = [esc(game.i18n.format("DRPG.Overflow.explainBody",
-                                   { max: STARTING.despairMax, effects: Object.keys(OVERFLOW.effects ?? {}).length })),
-                               esc(t("DRPG.Overflow.explainVeil"))];
-        if (game.user.isGM) {
-            const { overflowStatus } = await import("./overflow.mjs");
-            const { count, threshold } = overflowStatus();
-            overflowLines.push(esc(game.i18n.format("DRPG.Overflow.gmHint",
-                { count, max: threshold })));
-        }
-
-        return explainer(t("DRPG.Explain.despair.window"),
-            section(t("DRPG.Explain.despair.title"), lines)
-            + section(t("DRPG.Overflow.explainTitle"), overflowLines));
+        return explainer(t("DRPG.Explain.despair.window"), await despairExplainerBody({ gm: game.user.isGM }));
     } catch (err) {
         error("Could not explain the Despair pool", err);
         return null;
     }
+}
+
+/** The Despair window's body as a GM (`gm: true`) or a player reads it; exported for the suite (E15-T5). */
+export async function despairExplainerBody({ gm = false } = {}) {
+    const lines = [esc(t("DRPG.Explain.despair.what")), esc(t("DRPG.Explain.despair.spent"))];
+
+    const { monokumas, getDespair, despairMax, poolLabel } = await import("./despair.mjs");
+    const rows = monokumas().map(user =>
+        esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}`));
+    lines.push(rows.length
+        ? rows.join("<br>")
+        : esc(t("DRPG.Explain.despair.noPools")));
+    if (!gm) lines.push(esc(t("DRPG.Explain.despair.masked")));
+
+    /*
+     * "What is despair overflow" (Z10). Its own section rather than another
+     * line in the one above, because it answers a different question: the
+     * pools are what a Monokuma HAS, and this is what happens to what they
+     * cannot hold. A player who clicked the pips to ask about the bar reads
+     * the caption sitting directly above it on the way.
+     */
+    const { overflowStatus } = await import("./overflow.mjs");
+    const { count, threshold, pool } = overflowStatus();
+    const overflowLines = [
+        esc(game.i18n.format("DRPG.Overflow.explainBody", { max: STARTING.despairMax })),
+        esc(pool.length
+            ? plural("DRPG.Overflow.explainHat", { n: pool.length })
+            : t(gm ? "DRPG.Overflow.emptyPool" : "DRPG.Overflow.explainEmpty")),
+        esc(t("DRPG.Overflow.explainVeil"))
+    ];
+    if (gm) overflowLines.push(esc(game.i18n.format("DRPG.Overflow.gmHint", { count, max: threshold })));
+
+    return section(t("DRPG.Explain.despair.title"), lines)
+        + section(t("DRPG.Overflow.explainTitle"), overflowLines);
 }
 
 /* ==========================================================================

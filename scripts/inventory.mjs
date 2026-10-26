@@ -296,6 +296,75 @@ export async function breakItem(item, { reason = "gmRuling", ref = null } = {}) 
     return true;
 }
 
+/**
+ * Whether Repair an item can mend this (E15 part 2 C5; the owner, 15.10: "dowolny przedmiot użytkowy albo narzędzie"):
+ * a usable, or a tool of the gear group (a Tool, a Murder Weapon, a Cleaning Tool - each "Narzędzie" at a Polish table),
+ * broken or worn. Read off the item as the caller holds it: the GMs' mark where a GM's road reads it (`repairItem`).
+ */
+export function repairable(item) {
+    const category = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.category);
+    const kind = category === "usable" || ITEM_CATEGORIES[category]?.limitGroup === "gear";
+    return Boolean(kind) && (isBroken(item) || wearOf(item) > 0);
+}
+
+/**
+ * Why Repair an item may not mend `item` for `actor`, its builder, or null (E15 part 2 C5; the owner's Q1 of 19.10: "Raczej
+ * nie dodawaj zadnej karty wspolnej"): the builder a character, the item one of the builder's own sheet - carried or in a
+ * stash the builder holds, both its items -, never a party actor's nor another character's, and `repairable` as `held`
+ * reads it. Asked at the approval and again on the primary at the completion (`repairItem`).
+ */
+export function repairRefusal(actor, item, { held = item } = {}) {
+    if (actor?.documentName !== "Actor" || actor.type !== "character") return "the builder is no student of this world.";
+    if (!item || item.parent?.id !== actor.id || !actor.items?.get?.(item.id)) return "the item is not on the builder's own sheet.";
+    if (!repairable(held ?? item)) return "the item is neither a usable nor a tool that is broken or worn.";
+    return null;
+}
+
+/**
+ * A FINISHED REPAIR AN ITEM MENDS IT (E15 part 2 C5; the owner, 15.10: "zdejmuje `broken` i `wear` z jednego wskazanego
+ * przedmiotu"), on the primary GM, as projects.mjs `COMPLETION_EFFECTS`' row "repairsItem" asks: judged again on the item
+ * as the GMs hold it (sheet-audit.mjs `itemsHeldNow`, so a mend or a category a player's console wrote first changes no
+ * verdict), then made whole - broken false, wear 0, no key deleted - in one write of the module's (`trustedWrite`, the
+ * GMs' "gmRuling", as E35's `transferItem`), which the GMs' mark takes as a GM's. A usable comes back whole, its count as
+ * it was (the stage's open default). A player's own mend on the sheet is still put back (sheet-audit.mjs). Answers
+ * `{ id, name, was: { broken, wear } }`, or `{ refused }` with nothing written.
+ */
+export async function repairItem(actor, itemId, { ref = null } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM mends one." };
+    const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    const held = item ? itemsHeldNow(actor).find(each => each.id === item.id) ?? item : null;
+    const refused = repairRefusal(actor, item, { held });
+    if (refused) return { refused };
+    const was = { broken: isBroken(held), wear: wearOf(held), flag: held.getFlag?.(MODULE_ID, ITEM_FLAGS.broken) ?? null };
+    await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false, [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: 0 },
+        { reason: "gmRuling", ref });
+    log(`"${item.name}" is mended on ${actor.name}'s sheet.`);
+    return { id: item.id, name: item.name, was };
+}
+
+/**
+ * A Repair an item's completion taken back (the row "repairsItem"'s `onUncrossed`, E15 part 2 fix e1-G3; findings BEH-1,
+ * E15p2-END-05; D40): the item as `repairItem` found it - broken (its flag as it was, put down) and its wear - in the
+ * GMs' write, when it is still on the builder's sheet and still whole as the GMs hold it (one broken or worn again
+ * since is left as it is). Answers `{ id, name }`, or `{ refused }` with nothing written.
+ */
+export async function unrepairItem(actor, itemId, was = null, { ref = null } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM breaks one." };
+    const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
+    if (!item || !was || !(was.broken || Number(was.wear) > 0)) return { refused: "nothing to put back." };
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    const held = itemsHeldNow(actor).find(each => each.id === item.id) ?? item;
+    if (isBroken(held) || wearOf(held) > 0) return { refused: "the item was broken or worn again since." };
+    await trustedWrite(item, {
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: was.broken ? (was.flag || { at: Date.now() }) : false,
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: Math.max(0, Number(was.wear) || 0),
+        ...(was.broken ? { [`flags.${MODULE_ID}.equipped`]: false } : {})
+    }, { reason: "gmRuling", ref });
+    log(`"${item.name}" is as it was before its repair on ${actor.name}'s sheet.`);
+    return { id: item.id, name: item.name };
+}
+
 /** The two places an item can be. Anything unmarked is carried. */
 export const LOCATIONS = { carried: "carried", vault: "vault" };
 

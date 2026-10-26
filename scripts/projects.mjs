@@ -23,11 +23,11 @@
  * countdowns or the meta into projects-secrecy.mjs.
  */
 
-import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds, esc, isPrimaryGm } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
-import { projectSecretStore } from "./gm-stores.mjs";
+import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
@@ -37,13 +37,13 @@ import { discoveredFor } from "./fog.mjs";
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
 import {
-    DH, COUNTDOWNS, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
-    insidersOf, viewersOf, makeSecret, isSecret, rawCountdown, writeCountdown
+    DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
+    insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
+    secretChange, sightChange, SIGHT_KEYS
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
-    liftProjectSecrets, viewersOf, makeSecret, shareWith, unshareWith, revealProject, builderIds, sealAudience,
-    withoutLeak, isSecret
+    liftProjectSecrets, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange, sightChange
 } from "./projects-secrecy.mjs";
 
 /** Which room a project belongs to, if any. */
@@ -410,7 +410,7 @@ export function sabotageTargetsIn(place, { anyRoom = false, user = game.user } =
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op - the caller must not report success.
  */
-export async function addProgress(countdownId, amount, { by = null, actorId = null, rollId = null, relief = 0, bonus = 0, call = null } = {}) {
+export async function addProgress(countdownId, amount, { by = null, actorId = null, rollId = null, relief = 0, bonus = 0, call = null, kind = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
@@ -434,94 +434,697 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
     // socket handler passes the asker's id instead.
     const mover = by ?? game.user.id;
 
+    /*
+     * THROUGH THE ONE ENTRY (E36 C1, 25.10.2026; audit S17-18). The read, the clamp, the frozen
+     * project's refusal, the write and what a crossing does were written out here, outside any
+     * queue: ten +1 landing together read the same bar and wrote it ten times over (E36-T2 counted
+     * the end of ten concurrent calls at 7d123c97). They are `applyProjectChange`'s step now, on the
+     * primary GM, one after another; another GM's progress goes there by `project.change`. What
+     * stays here is what this caller is told: the warning when nothing moved.
+     */
+    const result = await applyProjectChange(countdownId, { delta: amount },
+        { by: { kind: kind ?? (mover === game.user.id ? "gm" : "player"), userId: mover, actorId } });
+    if (!result) return null;
+    if (result.reason) ui.notifications.warn(game.i18n.format(result.reason, { name: result.name, current: result.from, target: result.target }));
+    const { id, name, from, to, target, changed, reason } = result;
+    return reason ? { id, name, from, to, target, changed, reason } : { id, name, from, to, target, changed };
+}
+
+/* ==========================================================================
+ * ONE ENTRY, ONE QUEUE, ONE TABLE OF WHAT A COMPLETION DOES (E36 C1)
+ * --------------------------------------------------------------------------
+ * 25.10.2026; audit S17-18, S09-14, S09-15; D40; the owner's amends of 11.10. A project was
+ * changed by a dozen roads that each read the Countdowns setting, changed it and wrote it whole,
+ * and each announced, armed and thawed in its own way. `applyProjectChange` is the one road: it
+ * runs on the primary GM, in E80's queue (utils.mjs `serialWrite`, unchanged) under
+ * projects-secrecy.mjs `COUNTDOWNS_KEY`, reads the project before and after the change inside
+ * the step, and asks the rows of `COMPLETION_EFFECTS` once when the bar crosses its target or
+ * falls back under it. The roads move onto it commit by commit (E36 C2, C3); tests-tier0.mjs
+ * R977 counts the ones still outside.
+ * ========================================================================== */
+
+/** Who a change is by: `kind` one of these (E72 adds "monocub"), the user, the character. */
+const CHANGE_KINDS = Object.freeze(["gm", "player", "call", "reroll", "system"]);
+
+/**
+ * WHAT A COMPLETION DOES, A ROW PER META KEY (the owner, 11.10: "`onCrossed`/`onUncrossed` w
+ * `applyProjectChange` czytają małą tabelę skutków ukończenia (wiersz na klucz meta; dzisiejsza
+ * naprawa sabotażu to pierwszy wiersz)"). A row is `{ key, has?, onCrossed?(ctx), onUncrossed?(ctx) }`,
+ * read in its order when the project's meta (both halves, before the change) has `key` (`has`
+ * says it otherwise). `ctx` is `{ id, name, before, after, target, meta, by, countdowns }`, the
+ * last the step's copy of the setting, to read. A row answers what the step does for it, and does
+ * nothing itself:
+ *   `meta`    `{ [projectId]: patch }`, written in the step (`setProjectMeta`);
+ *   `apply`   a write of the row's own writer, run in the step after the setting's write - it never
+ *             calls this entry or another writer queued on the key, which would wait behind itself;
+ *   `after`   run once the step has ended, outside the queue: an announcement, a receipt;
+ *   `remove`  the project goes in the step; with `keep` it stays until the Reroll's bookmark of
+ *             the character whose change completed it (gm-stores.mjs `rerollBookmarkStore`) names
+ *             another roll or is gone, so a Reroll can still take the completion back (A10).
+ * Every row answers before anything is written, so a row whose answer throws fails its caller's
+ * change alone, with nothing of it written, and the queue goes on (E36-04). An `apply` runs after the
+ * write: one that throws leaves the change written, is logged and told to the GMs, and the rest of the
+ * step and its `after` list still run (E36 fix e1-G4; E36-T9). E15 part 2 adds rows here
+ * (opensPassage, breachesWall, ...), E74 repairsLock; none adds code to the entry.
+ */
+export const COMPLETION_EFFECTS = [
+    {
+        /*
+         * A FINISHED REPAIR THAWS WHAT IT REPAIRED, AND GOES (was `checkRepairCompletion`, called on
+         * every landing). The repair is a means, not a goal: once the thing it was fixing works again
+         * there is nothing left to work on, and a completed 6/6 bar left in the tray beside the project
+         * it unblocked reads as an open job. The thaw and the removal are in the same step, so no
+         * moment holds a thawed project and its finished repair, or a repair gone and its project
+         * frozen. A repair whose project is gone is removed all the same.
+         */
+        key: "repairs",
+        onCrossed: ({ id, name, meta, countdowns }) => {
+            const targetId = meta.repairs;
+            const target = countdowns[targetId] ?? null;
+            const content = `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
+                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
+            }</p>`;
+            // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
+            // it told the table the name of a project the table may not know is there. Either half sealed
+            // is enough: a repair made before 1.2.65 is public while its target may be secret, and a target
+            // revealed after its sabotage leaves its repair sealed - whoever that repair was sealed to is
+            // told as well. Read in the step, while both rows are there to read.
+            const repairSealed = isSecret(id);
+            const whisper = isSecret(targetId) || repairSealed
+                ? Array.from(new Set([...gmIds(), ...insidersOf(targetId), ...(repairSealed ? viewersOf(id).map(u => u.id) : [])]))
+                : null;
+            return {
+                meta: target ? { [targetId]: { frozenBy: null } } : {},
+                remove: true,
+                after: async () => {
+                    await announce(whisper ? { content, veiled: true, whisper } : { content });
+                    log(`Repair "${name}" complete and removed; "${target?.name}" is workable again.`);
+                }
+            };
+        }
+    },
+    {
+        /*
+         * A FINISHED TRAP ARMS, AND SOMEBODY IS TOLD; ONE TAKEN BACK DISARMS (D40). Read for every
+         * indirect murder, whose trigger may be null (made before E21, or watched by hand), so `has`
+         * reads the flag. Crossed: a trap that has fired (`firedAt`) is not armed again and tells
+         * nobody - "a ponowne dopełnienie uzbraja znowu, chyba że pułapka już raz zadziałała"; a
+         * watched one is armed in the step and its receipt goes after it; a manual one is the card
+         * with Fire, after. Uncrossed: an armed trap is disarmed, `firedAt` kept, so one receipt per
+         * arming. A killer nobody can identify arms nothing, as before (`announceTrapReady` says so).
+         */
+        key: "trigger",
+        has: meta => Boolean(meta.indirectMurder),
+        onCrossed: ({ id, name, meta }) => {
+            if (meta.trigger?.firedAt) return {};
+            const killer = game.actors.get(meta.killerId ?? "") ?? game.actors.get(meta.by ?? "");
+            const watched = Boolean(killer && meta.trigger?.kind && TRAP_TRIGGERS[meta.trigger.kind]?.watch);
+            let armed = false;
+            return {
+                apply: watched ? async () => {
+                    const { armTrap } = await import("./traps.mjs");
+                    armed = Boolean(await armTrap(id, { condition: meta.condition ?? "" }));
+                } : null,
+                after: () => announceTrapReady(id, name, { watched, armed })
+            };
+        },
+        onUncrossed: ({ id, meta }) => (meta.trigger?.armed
+            ? { apply: async () => (await import("./traps.mjs")).disarmTrap(id) }
+            : {})
+    },
+    {
+        /*
+         * A FINISHED SECRET PASSAGE OPENS ITS PASSAGE; ONE TAKEN BACK CLOSES IT (E15 part 2 C2, 25.10.2026; A10's
+         * S16-16, step 14; D40). Read for a project whose secret half names the preset and the stretch the approval
+         * picked. Crossed: the passage is made on the primary in the step (passages-gm.mjs `opensPassageDone`, which
+         * judges the stretch again: the wall still shared, on no other passage) - known to its builder and to the
+         * students of the players the secret project was shared with before now, not to those who found it by
+         * Observe (`foundBy`), who are told it is finished and nothing more (`DRPG.Observe.projectFoundDone`). The
+         * project then goes, but is kept until the completing character's Reroll bookmark names another roll
+         * (`keep`), so a Reroll can take the passage back. Uncrossed: the passage and who knew it go
+         * (`undoOpensPassage`). A stretch refused at the completion makes nothing, and the GMs are told why.
+         */
+        key: "opensPassage",
+        has: meta => meta.target?.preset === "secretPassage" && Boolean(meta.passage),
+        onCrossed: ({ id, name, meta }) => {
+            const finders = new Set(Object.keys(meta.foundBy ?? {}));
+            const builders = new Set(ownerIdsOfId(meta.by));
+            // Only while it is secret (fix e1-G1, SEC-2): a project made public some other way has every player a viewer.
+            const users = isSecret(id) ? viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id)) : [];
+            const sharedIds = (game.actors?.contents ?? [...(game.actors ?? [])])
+                .filter(a => a?.type === "character" && users.some(u => a.testUserPermission?.(u, "OWNER"))).map(a => a.id);
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).opensPassageDone(id, { passage: meta.passage, builderId: meta.by ?? null, sharedIds });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) {
+                        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBuilt", { name, why: await whyOf(made.refused) }))}</p>`);
+                        return;
+                    }
+                    await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
+                    const told = [...finders].filter(userId => game.users.get(userId) && !game.users.get(userId).isGM);
+                    if (told.length) {
+                        await announce({ content: `<p>${game.i18n.format("DRPG.Observe.projectFoundDone", { name: esc(name) })}</p>`,
+                            whisper: Array.from(new Set([...gmIds(), ...told])) });
+                    }
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoOpensPassage(id) })
+    },
+    {
+        /*
+         * A FINISHED BREACH CUTS ITS WALL; ONE TAKEN BACK GIVES THE WALL BACK (E15 part 2 C3, 25.10.2026; A10's S16-17,
+         * step 15; D40). Read for a project whose secret half names the preset and the stretch the approval picked.
+         * Crossed: the wall is cut on the primary in the step (passages-gm.mjs `cutBreach`, which judges the stretch
+         * again: the wall still between the two rooms, no door, not breached already), and the project goes, kept until
+         * the completing character's Reroll bookmark names another roll (`keep`), as a Secret Passage's. Uncrossed: the
+         * wall is given back (`undoBreachesOf`). A stretch refused at the completion cuts nothing, and the GMs are told
+         * why. Since C4 the cut forces the room beyond - the target the approval named -: broken, its seal lifted
+         * (`cutBreach`'s note), and the table is told after the step (`tellBreach`), the builder named only to those who
+         * see the builder at the hole; the undo gives the room back with the wall.
+         */
+        key: "breachesWall",
+        has: meta => meta.target?.preset === "breach" && Boolean(meta.passage),
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).cutBreach(id, { passage: meta.passage, builderId: meta.by ?? null,
+                        beyond: meta.target?.room ?? null });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: await whyOf(made.refused) }))}</p>`);
+                    else await (await import("./passages-gm.mjs")).tellBreach(made);
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoBreachesOf(id) })
+    },
+    {
+        /*
+         * A FINISHED SEAL THE PASSAGE CLOSES ITS PASSAGE; ONE TAKEN BACK OPENS IT (E15 part 2 C5, 25.10.2026; the owner's
+         * (1) of 15.10). Read for a project whose secret half names the preset and the passage. Crossed: closed on the
+         * primary in the step (passages-gm.mjs `sealPassageDone`, which judges again that the builder still knows it and
+         * it is open), as the tab's Close closes one - who knew it still knows it, a GM may open it again -, and the
+         * project kept for the Reroll as a Secret Passage's (`keep`). Uncrossed: open again, unless a GM opened or closed
+         * it since (`unsealPassagesOf`). A refusal closes nothing, and the GMs are told why.
+         */
+        key: "sealsPassage",
+        has: meta => meta.target?.preset === "sealPassage" && typeof meta.target.passageId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).sealPassageDone(id, { passageId: meta.target.passageId, builderId: meta.by ?? null,
+                        room: meta.target.room ?? null });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notSealed", { name, why: await whyOf(made.refused) }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).unsealPassagesOf(id) })
+    },
+    {
+        /*
+         * A FINISHED CLOSE THE BREACH GIVES THE WALL BACK (E15 part 2 C5; the owner's (2) of 15.10: "cofnięcie wyłomu jako
+         * projekt gracza; przycisk GM-a zostaje"). Read for a project whose secret half names the preset and the breach.
+         * Crossed: restored on the primary in the step (passages-gm.mjs `closeBreachDone`: the breach judged again as
+         * standing and with a side in the project's room, then `restoreBreach`, as the GMs' Close the breach), and the
+         * project kept for the Reroll as a seal's (`keep`; fix e1-G3, findings BEH-1, E15p2-END-05: one Reroll took back a
+         * seal and left a close). Uncrossed: the breach cut again as its row held it (`reopenBreach`, from what the
+         * completion kept in the GMs' half, `target.reopen`), the GMs told when the wall no longer allows it. A breach gone
+         * before the completion restores nothing, and the GMs are told why.
+         */
+        key: "closesBreach",
+        has: meta => meta.target?.preset === "closeBreach" && typeof meta.target.breachId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).closeBreachDone(id, { sceneId: meta.target.sceneId ?? null, breachId: meta.target.breachId,
+                        room: meta.target.room ?? null });
+                    if (made?.reopen) await setProjectMeta(id, { target: { ...meta.target, reopen: made.reopen } });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notClosed", { name, why: await whyOf(made.refused) }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id, name, meta }) => {
+            if (!meta.target?.reopen) return {};
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).reopenBreach(meta.target.reopen);
+                    await setProjectMeta(id, { target: { ...meta.target, reopen: null } });
+                },
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notReopened", { name, why: await whyOf(made.refused) }))}</p>`);
+                }
+            };
+        }
+    },
+    {
+        /*
+         * A FINISHED REPAIR AN ITEM MENDS ITS ITEM (E15 part 2 C5; the owner's (3) of 15.10, Q1 of 19.10). Read for a
+         * project whose secret half names the preset and the item. Crossed: mended on the primary in the step
+         * (inventory.mjs `repairItem`, which judges again that the item is still on the builder's own sheet, a usable or
+         * a tool, and broken or worn as the GMs hold it), and the project kept for the Reroll as a seal's (`keep`; fix
+         * e1-G3, findings BEH-1, E15p2-END-05), what it mended kept in the GMs' half (`target.was`); the builder is told
+         * the item is whole. Uncrossed: the item as it was (`unrepairItem`), unless broken or worn again since. A refusal
+         * mends nothing, and the GMs are told why.
+         */
+        key: "repairsItem",
+        has: meta => meta.target?.preset === "repairItem" && typeof meta.target.itemId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            const builder = game.actors.get(meta.by ?? "") ?? null;
+            return {
+                apply: async () => {
+                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id });
+                    if (made?.was) await setProjectMeta(id, { target: { ...meta.target, was: made.was } });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.notRepaired", { name, why: await whyOf(made.refused) }))}</p>`);
+                    else if (made?.id && builder) await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Project.itemRepaired", { item: esc(made.name) })}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id, meta }) => {
+            if (!meta.target?.was) return {};
+            const builder = game.actors.get(meta.by ?? "") ?? null;
+            return {
+                apply: async () => {
+                    await (await import("./inventory.mjs")).unrepairItem(builder, meta.target.itemId, meta.target.was, { ref: id });
+                    await setProjectMeta(id, { target: { ...meta.target, was: null } });
+                }
+            };
+        }
+    }
+];
+
+/** A completion's refusal in the table's language (passages-gm.mjs `whyText`, E15 part 2 fix e1-G4): the English stays in the log. */
+async function whyOf(reason) {
+    return (await import("./passages-gm.mjs")).whyText(reason);
+}
+
+/** A change, whatever asked for it, cut to the keys the step knows (and a packet's to the same): null when none is left. */
+export function cleanProjectChange(change) {
+    if (!change || typeof change !== "object" || Array.isArray(change)) return null;
+    const plain = value => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+    const out = {};
+    const delta = Math.trunc(Number(change.delta));
+    if (Number.isFinite(delta) && delta) out.delta = delta;
+    const target = Number(change.target);
+    if (change.target !== undefined && change.target !== null && Number.isFinite(target)) out.target = Math.max(1, Math.trunc(target));
+    if (change.name !== undefined && change.name !== null && String(change.name)) out.name = String(change.name);
+    if (typeof change.img === "string" && change.img) out.img = change.img;
+    if (plain(change.meta)) out.meta = JSON.parse(JSON.stringify(change.meta));
+    if (plain(change.ownership)) {
+        out.ownership = Object.fromEntries(Object.entries(change.ownership)
+            .filter(([key, level]) => key && Number.isInteger(level) && level >= 0 && level <= 3));
+    }
+    if (change.remove === true) out.remove = true;
+    if (change.create === true) out.create = true;
+    // Who sees it, as operations the step works out on what it reads (E36 fix e1-G2; projects-secrecy.mjs `sightChange`).
+    const user = value => typeof value === "string" && Boolean(game.users.get(value));
+    const ids = value => (Array.isArray(value) ? value.filter(id => typeof id === "string" && id) : null);
+    if (user(change.share)) out.share = change.share;
+    if (user(change.unshare)) out.unshare = change.unshare;
+    if (plain(change.seal)) out.seal = { viewers: ids(change.seal.viewers), was: ids(change.seal.was) };
+    if (change.reveal === true) out.reveal = true;
+    if (change.reseal === true) out.reseal = true;
+    return Object.keys(out).length ? out : null;
+}
+
+/**
+ * Two or more changes of one project as one (E36 C2): a window's row that edits, re-images and seals is one
+ * change of the entry, not three. Later parts win a key; `meta` is merged. Null when none is left.
+ */
+export function combineChanges(...parts) {
+    const out = {};
+    for (const part of parts) {
+        if (!part) continue;
+        const { meta, ...rest } = part;
+        Object.assign(out, rest);
+        if (meta && Object.keys(meta).length) out.meta = { ...out.meta, ...meta };
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+/** `by`, cut the same way: a kind of `CHANGE_KINDS` ("gm" otherwise), a user of this world (this one otherwise), a character or none. */
+function cleanBy(by) {
+    const kind = CHANGE_KINDS.includes(by?.kind) ? by.kind : "gm";
+    const userId = typeof by?.userId === "string" && game.users.get(by.userId) ? by.userId : game.user.id;
+    const actorId = typeof by?.actorId === "string" && by.actorId ? by.actorId : null;
+    return { kind, userId, actorId };
+}
+
+/**
+ * Change a project, the one way (E36 C1): `change` is `{ delta }`, `{ target, name, img }`, `{ meta }`,
+ * `{ ownership }` or `{ remove: true }`, combined as a caller combines them, or `{ create: true }` with the
+ * new project's name, target, img, ownership and meta under the id its caller drew (createProject, E36 C2);
+ * `by` is `{ kind, userId, actorId }`. On the primary GM the change is a step of
+ * `serialWrite(COUNTDOWNS_KEY, ...)`; another GM's goes there by `project.change` (gm-bridge.mjs
+ * `requestProjectChange`), and a player's browser never runs it: off a GM this answers null and logs.
+ * Answers `{ id, name, from, to, target, changed, reason?, crossed, uncrossed, removed }` once the step
+ * and what follows it have run, or null for no such project; a step that throws rejects this caller's
+ * promise alone. The queue is joined before anything here awaits, so changes queue in call order.
+ */
+export async function applyProjectChange(countdownId, change, { by = null } = {}) {
+    if (!game.user?.isGM) {
+        log(`A project change was asked of a browser that is no GM's (${countdownId}); nothing was changed.`);
+        return null;
+    }
+    const clean = cleanProjectChange(change);
+    if (!countdownId || !clean) return null;
+    const who = cleanBy(by);
+    if (!isPrimaryGm()) {
+        const { requestProjectChange } = await import("./gm-bridge.mjs");
+        const res = await requestProjectChange(countdownId, clean, who);
+        return res.ok ? (res.value ?? null) : null;
+    }
+    const step = await serialWrite(COUNTDOWNS_KEY, () => changeStep(countdownId, clean, who));
+    /* NO LONGER THE PRIMARY WHEN ITS STEP CAME (E36 fix e1-G4, 25.10.2026; finding E36-R4). The question above is
+       asked as the change joins the queue; a GM whose user id sorts first connecting while it waited made another
+       browser the primary, and the steps queued here ran on, beside that browser's queue. The step asks again
+       (`changeStep`) and writes nothing then: the change is asked of the primary as another GM's is, outside this
+       queue (a step never awaits a reply). E36-T9. */
+    if (step.forward) {
+        log(`This browser is no longer the primary GM's; the change of ${countdownId} is asked of the primary.`);
+        const { requestProjectChange } = await import("./gm-bridge.mjs");
+        const res = await requestProjectChange(countdownId, clean, who);
+        return res.ok ? (res.value ?? null) : null;
+    }
+    const { result, after } = step;
+    // Outside the queue: the next change is under way while these post (no step awaits a window or a reply).
+    for (const run of after) {
+        try {
+            await run();
+        } catch (err) {
+            error(`What follows a change of the project ${countdownId} failed`, err);
+        }
+    }
+    /* ITS TOKEN, ONCE, LAST (E36 C4; audit S09-19): its room, its colour, whether it stands at all, and a
+       removed project's tokens taken off every scene (projects-map.mjs `syncProjectToken`). A change that
+       changed nothing (a frozen bar's +1, a full bar's) moves no token. Dynamic, as projects-map.mjs reads
+       this file. A token that cannot be put right is not a change that failed: the tray still has it. */
+    if (result?.changed) {
+        try {
+            await (await import("./projects-map.mjs")).syncProjectToken(countdownId);
+        } catch (err) {
+            error(`Could not put the project ${countdownId}'s token right`, err);
+        }
+    }
+    return result;
+}
+
+/**
+ * The step: read, change, clamp, ask the rows, write, in that order, inside the queue. Answers
+ * `{ result, after }`, `after` the list `applyProjectChange` runs once the step has ended.
+ *
+ * CROSSING. Crossed when the bar was under its target and is at it now, uncrossed the other way, the
+ * target read after the change: `before < start <= after` for a change of progress, as addProgress
+ * held it, and a target lowered under the progress crosses (S09-15). A target of 0 is never reached.
+ * A +1 on a full bar cannot move it and is answered above (alreadyFull) with no crossing. THE RISK IS A BAR
+ * TAKEN BACK AND FILLED AGAIN (audit S09-14; E15 part 1 C1 rewrote this, which read a Reroll's
+ * undo as the reason and the risk as handled): a GM's -1, a Reroll's undo or (until E15 part 1 C1)
+ * an Earthquake takes a finished bar under its target, and filling it again crosses a second time,
+ * so its completion rows run twice - a trap armed again after it had fired, a second receipt. The
+ * rows answer it (D40): an uncrossing disarms a trap, a crossing does not arm one that has fired
+ * (`firedAt`); tier 2 E36-T3 and E15-T1 count one receipt per arming.
+ */
+async function changeStep(countdownId, change, by) {
+    // Asked again here, where the step reads (E36 fix e1-G4): off the primary now, `applyProjectChange` asks the primary.
+    if (!isPrimaryGm()) return { result: null, after: [], forward: true };
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const project = countdowns[countdownId];
-    if (!project) return null;
-
-    const start = project.progress?.start ?? 0;
-    const raw = project.progress?.current ?? 0;
+    if (change.create) return createInStep(countdownId, change, project, data, countdowns);
+    if (!project) return { result: null, after: [] };
+    const after = [];
+    // Both halves, before anything below can delete them: a repair's row goes with it in this step.
+    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
     const up = countsUp(countdownId);
+    const oldStart = project.progress?.start ?? 0;
+    const raw = project.progress?.current ?? 0;
+    const before = up ? raw : Math.max(0, oldStart - raw);
+
+    if (change.remove) {
+        const result = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: true,
+            crossed: false, uncrossed: false, removed: true };
+        await removeInStep(countdownId, data, countdowns, after);
+        return { result, after };
+    }
 
     /*
-     * A SABOTAGED PROJECT DOES NOT MOVE FORWARD (E03, 24.09.2026; audit S09-02).
-     * "Frozen - its progress is preserved but cannot be advanced" was the rule
-     * at the top of the sabotage section below, and the only thing enforcing it
-     * was the pickers on a player's screen: this function took any amount for
-     * any project, so a Call aimed from an old dialog, a Reroll that landed after
-     * the freeze, or a console, all advanced it. Every caller comes through here,
-     * the GM's own included, so it is enforced here. Taking progress away still
-     * works - an undo or an Earthquake is not advancing it.
+     * A SABOTAGED PROJECT DOES NOT MOVE FORWARD (E03, 24.09.2026; audit S09-02). "Frozen - its
+     * progress is preserved but cannot be advanced" was the rule, and the only thing enforcing it
+     * was the pickers on a player's screen: a Call aimed from an old dialog, a Reroll that landed
+     * after the freeze, or a console, all advanced it. Every change comes through here, the GM's
+     * own included, so it is enforced here, read in the step. Taking progress away still works -
+     * an undo or an Earthquake is not advancing it.
      */
-    if (amount > 0 && isFrozen(countdownId)) {
-        const current = up ? raw : Math.max(0, start - raw);
+    if (change.delta > 0 && isFrozen(countdownId)) {
         log(`Project "${project.name}" did not move: it is frozen by sabotage.`);
-        ui.notifications.warn(game.i18n.format("DRPG.Project.frozenNoProgress", { name: project.name }));
-        return {
-            id: countdownId, name: project.name,
-            from: current, to: current, target: start, changed: false, reason: "DRPG.Project.frozenNoProgress"
-        };
+        return { result: { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+            reason: "DRPG.Project.frozenNoProgress", crossed: false, uncrossed: false, removed: false }, after };
     }
 
-    // Translate "advance the project" into whichever direction this countdown
-    // stores, then clamp inside the bar rather than outside the intent.
-    const delta = up ? amount : -amount;
-    const ceiling = start > 0 ? start : Infinity;
-    const nextRaw = Math.max(0, Math.min(ceiling, raw + delta));
+    /*
+     * WHO SEES IT, FROM WHAT THE STEP READ (E36 fix e1-G2; findings E36-END-S2, E36-R2, F4). A share, a revoke,
+     * a seal, a reveal or a reseal is worked out here, from the countdown read in this step, into the ownership
+     * map and the meta the rest of the step writes: worked out by its caller, it was a map of the moment before
+     * the queue, and a change queued between put back what it had taken away. A share or a revoke of a project
+     * that is no longer secret makes nothing and says so (`refused`); one that changes nobody makes nothing.
+     */
+    if (SIGHT_KEYS.some(key => change[key] !== undefined)) {
+        /* A PRESET THAT IS ALWAYS SECRET IS NEVER REVEALED (E15 part 2 fix e1-G1, 25.10.2026; findings SEC-2, END-04,
+           R2). A Secret Passage is sealed at its create whatever the form says (`createProject`), and the edit window,
+           the manager's row or a console's `revealProject` then made it public: every player was a viewer
+           (`revealChange`), its name and room in every tray, and its completion gave every player's students the
+           passage. Refused here, in the step, whichever road asked. */
+        const always = change.reveal && meta.target?.preset
+            ? (await import("./passages-gm.mjs")).PASSAGE_PRESETS[meta.target.preset]?.secret === "always" : false;
+        const sight = always ? { refused: "it is always secret" } : sightChange(countdownId, change);
+        const unchanged = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+            crossed: false, uncrossed: false, removed: false };
+        if (sight?.refused) {
+            log(`Who sees "${project.name}" was not changed: ${sight.refused}.`);
+            return { result: { ...unchanged, refused: sight.refused }, after };
+        }
+        const rest = Object.keys(change).filter(key => !SIGHT_KEYS.includes(key));
+        if (!sight && !rest.length) return { result: unchanged, after };
+        if (sight?.ownership) change = { ...change, ownership: sight.ownership };
+        if (sight?.meta) change = { ...change, meta: { ...change.meta, ...sight.meta } };
+        /* WHOEVER A FINDER LETS IN IS A FINDER TOO (E15 part 2 fix e1-G1; finding SEC-1). A player who found a secret
+           project by Observe (`foundBy`) is told it is finished and given nothing of what it made; a share that player
+           asked (`project.share`, the sender as `by.userId`) let another player in as a plain viewer, whose students the
+           completion then gave the passage - and who could show it to the finder. The one let in is written beside the
+           finder, in the same step as the share. */
+        if (sight && change.share && meta.foundBy?.[by.userId] && !meta.foundBy[change.share]) {
+            change = { ...change, meta: { ...change.meta, foundBy: { ...meta.foundBy, ...change.meta?.foundBy, [change.share]: Date.now() } } };
+        }
+    }
 
-    const before = up ? raw : Math.max(0, start - raw);
-    const after = up ? nextRaw : Math.max(0, start - nextRaw);
+    const next = foundry.utils.duplicate(project);
+    if (change.name !== undefined) next.name = change.name;
+    if (change.img !== undefined) next.img = change.img;
+    if (change.ownership !== undefined) next.ownership = change.ownership;
+    // One clamp for both directions (updateProject's A15): `current` is progress earned or what is left, and neither exceeds the start.
+    if (change.target !== undefined) next.progress = { ...next.progress, start: change.target, current: Math.min(raw, change.target) };
+    const start = next.progress?.start ?? 0;
+    const was = next.progress?.current ?? 0;
+    if (change.delta) {
+        // "Advance the project" in whichever direction this countdown stores, clamped inside the bar.
+        const ceiling = start > 0 ? start : Infinity;
+        next.progress = { ...next.progress, current: Math.max(0, Math.min(ceiling, was + (up ? change.delta : -change.delta))) };
+    }
+    const nextRaw = next.progress?.current ?? 0;
+    const afterProgress = up ? nextRaw : Math.max(0, start - nextRaw);
+    const moved = JSON.stringify(next) !== JSON.stringify(project);
 
-    if (nextRaw === raw) {
-        // Nothing moved. Saying so is the whole point: a silent no-op here is
-        // indistinguishable from a broken socket, and was misread as one.
-        const why = amount > 0 ? "DRPG.Project.alreadyFull" : "DRPG.Project.alreadyEmpty";
+    if (change.delta && !moved && !change.meta) {
+        // Nothing moved. Saying so is the whole point: a silent no-op is indistinguishable from a broken socket.
+        const why = change.delta > 0 ? "DRPG.Project.alreadyFull" : "DRPG.Project.alreadyEmpty";
         log(`Project "${project.name}" did not move: already ${before}/${start}.`);
-        ui.notifications.warn(game.i18n.format(why, { name: project.name, current: before, target: start }));
-        return {
-            id: countdownId, name: project.name,
-            from: before, to: after, target: start, changed: false, reason: why
-        };
+        return { result: { id: countdownId, name: project.name, from: before, to: afterProgress, target: start, changed: false,
+            reason: why, crossed: false, uncrossed: false, removed: false }, after };
     }
 
+    const wasDone = oldStart > 0 && before >= oldStart;
+    const isDone = start > 0 && afterProgress >= start;
+    const crossed = !wasDone && isDone, uncrossed = wasDone && !isDone;
+
+    // Every row answers before anything is written: a row whose answer throws leaves the project as it was.
+    const ctx = { id: countdownId, name: next.name, before, after: afterProgress, target: start, meta, by, countdowns };
+    const answers = [];
+    if (crossed || uncrossed) {
+        for (const row of COMPLETION_EFFECTS) {
+            const has = typeof row.has === "function" ? row.has(meta) : Boolean(meta[row.key]);
+            const hook = crossed ? row.onCrossed : row.onUncrossed;
+            if (has && typeof hook === "function") answers.push(await hook(ctx) ?? {});
+        }
+    }
+
+    if (moved) {
+        countdowns[countdownId] = next;
+        await writeAllCountdowns({ ...data, countdowns });
+        log(`Project "${next.name}": ${before} -> ${afterProgress} of ${start}`);
+    }
+    if (change.meta) await setProjectMeta(countdownId, change.meta);
+    for (const answer of answers) {
+        for (const [id, patch] of Object.entries(answer.meta ?? {})) await setProjectMeta(id, patch);
+    }
+    /* A ROW'S OWN WRITE THAT THROWS (E36 fix e1-G4, 25.10.2026; findings E36-R6, F6). An `apply` runs after the
+       setting's write - the trap row's armTrap needs the bar full - so its throw rejected a change already written:
+       the bar read full, no receipt, no done card, no token sync, and a retry answered alreadyFull, so nothing ever
+       ran it again (E36-T9 at 4082fa98). Caught now, each on its own: logged, told to the GMs after the step, and the
+       rest of the step and what follows it run (the trap row's receipt falls back to the card with Fire when it
+       could not arm). */
+    for (const answer of answers) {
+        if (typeof answer.apply !== "function") continue;
+        try {
+            await answer.apply();
+        } catch (err) {
+            error(`What the completion of the project "${next.name}" does could not all be done`, err);
+            const why = String(err?.message ?? err);
+            after.push(() => whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.effectFailed", { name: next.name, error: why }))}</p>`));
+        }
+    }
+    // A completion kept for a Reroll is let go when the bar is taken back under its target.
+    if (uncrossed && secretsOf(countdownId).keptFor) await projectSecretStore.patch(countdownId, { keptFor: null });
+
+    let removed = false;
+    if (answers.some(answer => answer.remove)) {
+        const kept = answers.some(answer => answer.keep) && by.actorId
+            ? rerollBookmarkStore.get(by.actorId)?.messageId ?? null : null;
+        if (kept) {
+            await projectSecretStore.patch(countdownId, { keptFor: { actorId: by.actorId, messageId: kept } });
+        } else {
+            await removeInStep(countdownId, game.settings.get(DH, COUNTDOWNS), foundry.utils.duplicate(game.settings.get(DH, COUNTDOWNS)?.countdowns ?? {}), after);
+            removed = true;
+        }
+    }
+    for (const answer of answers) if (typeof answer.after === "function") after.push(answer.after);
+    // Every crossing's own word: the builder, or whoever filled it (none for a repair or a trap, `announceProjectDone`).
+    if (crossed) after.push(() => announceProjectDone(next.name, start, by.userId, meta));
+
+    return { result: { id: countdownId, name: next.name, from: before, to: afterProgress, target: start, changed: true,
+        crossed, uncrossed, removed }, after };
+}
+
+/**
+ * Make a project, inside a step (E36 C2): the countdown under the id createProject drew, then its meta, both
+ * halves (`setProjectMeta` splits the GMs' fields off). An id already taken makes nothing: the id is drawn at
+ * random, so a second create of it is a packet sent twice, not a second project. A new bar is empty, so nothing
+ * crosses. Its token is placed after the step, as every change's is (`applyProjectChange`, E36 C4).
+ */
+async function createInStep(countdownId, change, existing, data, countdowns) {
+    if (existing) {
+        log(`A project ${countdownId} already exists; nothing was made.`);
+        return { result: null, after: [] };
+    }
+    /*
+     * A REPAIR FREEZES WHAT IT REPAIRS, IN THE SAME STEP (E36 C3, 25.10.2026; audit S17-18, S09-02). `sabotageProject`
+     * asked "is it frozen, is it a repair" on its own, then made the repair, then wrote the pair - three moments a
+     * second Sabotage of the same project passed the same question in: two at once made two repairs, and the
+     * second's `frozenBy` left the first a repair of nothing (E36-T5 counted two at 042f3482). Read here, in the
+     * step, nothing lands between the question and the freeze: a project gone, already frozen or itself a repair
+     * makes no repair at all.
+     */
+    const repaired = change.meta?.repairs ?? null;
+    if (repaired) {
+        const why = !countdowns[repaired] ? "it is gone" : metaFor(repaired).frozenBy ? "it is frozen already"
+            : metaFor(repaired).repairs ? "it is a repair" : null;
+        if (why) {
+            log(`No repair of ${repaired} was made: ${why}.`);
+            return { result: null, after: [] };
+        }
+    }
+    const target = change.target ?? PROJECT_SCALE.everyday.progress;
     countdowns[countdownId] = {
-        ...project,
-        progress: { ...project.progress, current: nextRaw }
+        type: "narrative",
+        name: change.name ?? "?",
+        img: change.img || "icons/magic/time/hourglass-yellow-green.webp",
+        ownership: change.ownership ?? { default: OBSERVER },
+        progress: {
+            current: 0,
+            start: target,
+            looping: "noLooping",
+            // Only advanced by the Work on Project action.
+            type: "custom"
+        }
     };
+    await writeAllCountdowns({ ...data, countdowns });
+    if (change.meta) await setProjectMeta(countdownId, change.meta);
+    if (repaired) await setProjectMeta(repaired, { frozenBy: countdownId });
+    return { result: { id: countdownId, name: countdowns[countdownId].name, from: 0, to: 0, target, changed: true,
+        crossed: false, uncrossed: false, removed: false, created: true }, after: [] };
+}
 
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-    log(`Project "${project.name}": ${before} -> ${after} of ${start}`);
+/**
+ * Take a project out, inside a step: its countdown, its row in projectMeta (and the thaw of what it
+ * repaired), its secrets. What is not the setting's goes in `after`: its trap's ledger, and its own repair,
+ * a change of its own; its tokens, found by their own flags, go with every change's token sync once the
+ * step has ended (projects-map.mjs `syncProjectToken` of a project gone, E36 C4). deleteProject comes here
+ * since E36 C2.
+ */
+async function removeInStep(countdownId, data, countdowns, after) {
+    const own = metaFor(countdownId);
+    delete countdowns[countdownId];
+    await writeAllCountdowns({ ...data, countdowns });
+    const rows = { ...projectMeta() };
+    delete rows[countdownId];
+    const target = own.repairs ?? null;
+    if (target && countdowns[target] && rows[target]?.frozenBy === countdownId) rows[target] = { ...rows[target], frozenBy: null };
+    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, rows);
+    await projectSecretStore.drop(countdownId);
+    log(`Project ${countdownId} removed.`);
+    after.push(async () => (await import("./traps.mjs")).pruneTrapsFor(new Set(Object.keys(rows))));
+    const repair = own.frozenBy ?? null;
+    if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
+        after.push(() => applyProjectChange(repair, { remove: true }, { by: { kind: "system" } }));
+    }
+}
 
-    /*
-     * CROSSED, IN THIS CALL. `before < start && after >= start` is not a
-     * roundabout way of writing `after >= start`, and must not be simplified
-     * into one: a Reroll takes progress back and puts it on again, and a bar
-     * that was already full would otherwise announce itself a second time.
-     */
-    const finished = before < start && after >= start;
+/**
+ * A completion kept for a Reroll is let go (the `keep` of a row, above): on the primary, each project
+ * kept for a character whose bookmark now names another roll, or none, is removed, through the entry.
+ * Run whenever the GMs' bookmarks change (`registerProjectChanges`); answers how many went.
+ */
+export async function releaseKeptProjects() {
+    if (!isPrimaryGm()) return 0;
+    let released = 0;
+    for (const [id, row] of Object.entries(projectSecretStore.entries() ?? {})) {
+        const kept = row?.keptFor;
+        if (!kept?.actorId) continue;
+        if ((rerollBookmarkStore.get(kept.actorId)?.messageId ?? null) === kept.messageId) continue;
+        if ((await applyProjectChange(id, { remove: true }, { by: { kind: "system" } }))?.removed) released++;
+    }
+    return released;
+}
 
-    /*
-     * READ THE METADATA BEFORE ANYTHING CAN DELETE IT.
-     *
-     * `checkRepairCompletion` does not merely thaw the project it was repairing
-     * - it DELETES the repair countdown, and `deleteProject` takes the metadata
-     * with it. So a guard that asks "was this a repair?" after that call is
-     * asking about a record that no longer exists, and every repair answers
-     * "no". Measured: the exclusion did nothing until this line moved up.
-     *
-     * Snapshotted rather than re-read for the same reason `announceProjectDone`
-     * is handed the object: `meta.by` would vanish on exactly the same call.
-     * Both halves: `by` is the GMs' store's since E05, and this runs on a GM.
-     */
-    const metaBefore = { ...metaFor(countdownId), ...secretsOf(countdownId) };
-
-    // Finishing a repair thaws whatever it was repairing.
-    await checkRepairCompletion(countdownId);
-    // Finishing a trap arms it, and somebody has to be told.
-    if (finished) await announceTrapReady(countdownId, project.name);
-    if (finished) await announceProjectDone(project.name, start, mover, metaBefore);
-
-    return { id: countdownId, name: project.name, from: before, to: after, target: start, changed: true };
+/** The listener behind `releaseKeptProjects`: the GMs' store of bookmarks is a client setting on each GM's browser. */
+export function registerProjectChanges() {
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== `${MODULE_ID}.${SETTINGS.gmRerollBookmarks}` || !isPrimaryGm()) return;
+        releaseKeptProjects().catch(err => error("Could not let a kept project go", err));
+    });
 }
 
 /**
@@ -559,6 +1162,20 @@ export async function createProject({
      * GM chose to watch themselves rather than one the module forgot about.
      */
     trigger = null,
+    /*
+     * A REPAIR, AND WHAT IT REPAIRS (E36 C3): `sabotageProject`'s. With `repairFor` the new project is the repair
+     * of that project (its meta's `repairs`), which the step freezes in the same step it makes the repair, after
+     * reading there that it is still a project, not frozen and no repair itself; `saboteur` is the player who
+     * asked, the GMs'. Not named `repairs`: that is this file's function (R21 reads a shadowed name as a value).
+     */
+    repairFor = null, saboteur = null,
+    /*
+     * A PROJECT THAT MAKES A PASSAGE (E15 part 2 C2): `presetTarget` is `{ preset, room }` - a key of passages-gm.mjs
+     * `PASSAGE_PRESETS` and the neighbour the proposal named - and `passage` the stretch the approval picked. Both are
+     * the GMs' (projects-secrecy.mjs `PROJECT_SECRET_FIELDS`); a preset that is always secret seals the project
+     * whatever `secret` says. Not named `target`: that is the bar's.
+     */
+    presetTarget = null, passage = null,
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -572,8 +1189,6 @@ export async function createProject({
     if (!game.user.isGM) return null;
     if (!name) return null;
 
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const id = foundry.utils.randomID();
 
     // ONE answer to "is this hidden", used for the ownership map AND for the
@@ -586,7 +1201,9 @@ export async function createProject({
     // list it draws, and Daggerheart's own Projects tray showed it to the whole
     // table. Measured: a murder project sitting in a player's tray while its
     // own owner could not see it anywhere.
-    const hidden = secret || indirectMurder;
+    const always = presetTarget?.preset
+        ? (await import("./passages-gm.mjs")).PASSAGE_PRESETS[presetTarget.preset]?.secret === "always" : false;
+    const hidden = secret || indirectMurder || always;
 
     // The killer sees their own trap without anybody remembering to share it.
     //
@@ -607,55 +1224,67 @@ export async function createProject({
         ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)]))
         : [];
 
-    countdowns[id] = {
-        type: "narrative",
-        name,
-        img: img || "icons/magic/time/hourglass-yellow-green.webp",
+    /* ONE CHANGE OF THE ENTRY (E36 C2, 25.10.2026; audit S17-18): the countdown and its meta are written in one
+       step of `applyProjectChange`, on the primary, so no other change lands between them; another GM's
+       creation goes there by `project.change`. The countdown is the step's (`createInStep`). */
+    const made = await applyProjectChange(id, {
+        create: true, name, target, img: img || "icons/magic/time/hourglass-yellow-green.webp",
         ownership: hidden ? ownershipMap(audience) : { default: OBSERVER },
-        progress: {
-            current: 0,
-            start: target,
-            looping: "noLooping",
-            // Only advanced by the Work on Project action.
-            type: "custom"
+        // `trait` is set by the GM at creation - the guide lets a project demand a
+        // specific kind of work, so the player does not get to pick the easy stat.
+        // `countsUp` is stamped rather than left to the default so the direction
+        // stays explicit in the data, not just in this file's assumptions.
+        meta: {
+            room, indirectMurder, secret: hidden, trait, countsUp: true,
+            // Gated on the way IN, not on the way out: a name the sprite set does
+            // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
+            // an invalid mask and therefore NO glyph at all - not the hourglass.
+            glyph: isProjectGlyph(glyph) ? glyph : null,
+            by: by ?? null,
+            // The builder is the killer unless somebody said otherwise (F3).
+            killerId: indirectMurder ? (killerId ?? by ?? null) : null,
+            condition: indirectMurder ? condition : "",
+            // Not armed here - armed when the bar fills. A trap that watched from
+            // the moment it was proposed would be a trap you can set off while its
+            // owner is still building it.
+            trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
+            ...(repairFor ? { repairs: repairFor } : {}),
+            ...(saboteur ? { saboteur } : {}),
+            ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
+            ...(passage ? { passage } : {})
         }
-    };
+    }, { by: { kind: "gm" } });
+    if (!made?.created) return null;
 
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-    // `trait` is set by the GM at creation - the guide lets a project demand a
-    // specific kind of work, so the player does not get to pick the easy stat.
-    // `countsUp` is stamped rather than left to the default so the direction
-    // stays explicit in the data, not just in this file's assumptions.
-    await setProjectMeta(id, {
-        room, indirectMurder, secret: hidden, trait, countsUp: true,
-        // Gated on the way IN, not on the way out: a name the sprite set does
-        // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
-        // an invalid mask and therefore NO glyph at all - not the hourglass.
-        glyph: isProjectGlyph(glyph) ? glyph : null,
-        by: by ?? null,
-        // The builder is the killer unless somebody said otherwise (F3).
-        killerId: indirectMurder ? (killerId ?? by ?? null) : null,
-        condition: indirectMurder ? condition : "",
-        // Not armed here - armed when the bar fills. A trap that watched from
-        // the moment it was proposed would be a trap you can set off while its
-        // owner is still building it.
-        trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
-    });
-
+    /* ONTO THE MAP, if it has a room to stand in: by the change itself (`applyProjectChange` ends with the
+       token's sync, E36 C4), on the primary GM's browser where the change ran. Until E36 this placed the
+       token here, on the browser of whichever GM made the project. */
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
-
-    /* AND ONTO THE MAP, if it has a room to stand in. Dynamic, because
-       projects-map.mjs reads this file - this cycle is real, unlike the fog one
-       at the top. Failure here is not failure of the project: a project with no
-       token is a project the tray still runs perfectly well. */
-    try {
-        const { placeProjectToken } = await import("./projects-map.mjs");
-        await placeProjectToken(id);
-    } catch (err) {
-        error(`Could not put the new project "${name}" on the map`, err);
-    }
-
     return { id, name, target, trait };
+}
+
+/**
+ * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
+ * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
+ * strings alone.
+ */
+function presetTargetOf(presetTarget) {
+    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
+        .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
+    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids };
+}
+
+/**
+ * Who found a secret project by Observe (E15 part 2 C2): the players of `userIds` added to its `foundBy`, through the
+ * entry, so a Secret Passage's completion tells them it is finished and gives them nothing of what it made (its row in
+ * `COMPLETION_EFFECTS`). observe.mjs `shareFoundProject` calls it after its share. GM only; answers the entry's result.
+ */
+export async function noteProjectFound(countdownId, userIds = []) {
+    if (!game.user?.isGM) return null;
+    const at = Date.now();
+    const found = { ...(secretsOf(countdownId).foundBy ?? {}) };
+    for (const userId of userIds ?? []) if (typeof userId === "string" && game.users.get(userId)) found[userId] = found[userId] ?? at;
+    return applyProjectChange(countdownId, { meta: { foundBy: found } }, { by: { kind: "gm" } });
 }
 
 /* ==========================================================================
@@ -740,14 +1369,17 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
         viewers: secret ? insidersOf(targetId) : [],
         // A repair is not the thing it repairs, and the tray is where a player
         // has to see that at a glance.
-        glyph: "tamper"
+        glyph: "tamper",
+        // The pair, written by the step that makes the repair (`createInStep`), and who asked, when it was a
+        // player (the bridge passes Foundry's sender): a Reroll may take back its own sabotage and nobody else's.
+        repairFor: targetId,
+        saboteur
     });
-    if (!repair) return null;
-
-    // Who asked, when it was a player (the bridge passes Foundry's sender): a
-    // Reroll may take back its own sabotage and nobody else's.
-    await setProjectMeta(repair.id, { repairs: targetId, ...(saboteur ? { saboteur } : {}) });
-    await setProjectMeta(targetId, { frozenBy: repair.id });
+    if (!repair) {
+        // Frozen by another Sabotage that reached the step first (E36 C3): told as the check above tells it.
+        if (isFrozen(targetId)) ui.notifications.warn(game.i18n.format("DRPG.Project.alreadyFrozen", { name: target.name }));
+        return null;
+    }
 
     log(`Project "${target.name}" frozen; repair "${repair.name}" created (${difficulty} progress).`);
     return { repair, target: target.name };
@@ -818,10 +1450,13 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
         return null;
     }
 
-    // Thaw first: if the delete below fails the worst case is a stray repair bar,
-    // not a project left permanently unworkable.
-    await setProjectMeta(targetId, { frozenBy: null });
-    await deleteProject(repairId);
+    /* ONE CHANGE (E36 C3, 25.10.2026; audit S17-18): the repair's removal thaws what it froze in the same step
+       (`removeInStep`), so no moment holds a thawed project beside its repair, or a repair gone and its project
+       frozen. The thaw was written first and outside the queue: it landed while a change of the project waited
+       there (E36-T5 at 042f3482). A Reroll's undo is by "reroll", a GM's by "gm". */
+    const undone = await applyProjectChange(repairId, { remove: true },
+        { by: { kind: actorId ? "reroll" : "gm", userId: senderId ?? game.user.id, actorId } });
+    if (!undone?.removed) return null;
 
     log(`Sabotage undone: "${targetId}" thawed, repair "${repairId}" removed.`);
     return true;
@@ -832,7 +1467,7 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
  *
  * WHAT THIS IS NOT, and both exclusions are the point rather than laziness:
  *
- *   a repair    `checkRepairCompletion` already tells it - veiled, to whoever
+ *   a repair    its completion row ("repairs", `COMPLETION_EFFECTS`) tells it - veiled, to whoever
  *               can see it, when it is secret - and then DELETES the countdown.
  *               A second card about a project that no longer exists is noise,
  *               and it would arrive after the thing it names is gone.
@@ -851,8 +1486,8 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
  * has been carrying it, not to whoever happened to spend the last action.
  */
 async function announceProjectDone(name, target, moverUserId, meta) {
-    // `meta` is the snapshot taken before `checkRepairCompletion` - see the
-    // note at the call site. Reading it fresh here would answer about a repair
+    // `meta` is the snapshot the step took before anything in it could delete
+    // the row (`changeStep`). Reading it fresh here would answer about a repair
     // that has already been deleted.
     if (meta.repairs) return null;
     if (meta.indirectMurder) return null;
@@ -902,8 +1537,13 @@ async function announceProjectDone(name, target, moverUserId, meta) {
  * murder is "you do not name the victim, you name a condition", and it is the
  * one thing the GM has to have in front of them when they decide the trap has
  * gone off.
+ *
+ * WHAT FOLLOWS THE STEP, NOT THE STEP (E36 C1). The arming is the completion row
+ * "trigger"'s, in the step of `applyProjectChange` (`COMPLETION_EFFECTS`); this is
+ * what is said after it, outside the queue: `watched` when the row armed a watched
+ * trap, `armed` whether that arming held.
  */
-async function announceTrapReady(countdownId, name) {
+async function announceTrapReady(countdownId, name, { watched = false, armed = false } = {}) {
     if (!isIndirectMurder(countdownId)) return null;
 
     // The room from projectMeta, the killer, the trigger and the condition from the GMs' store (E05).
@@ -945,10 +1585,8 @@ async function announceTrapReady(countdownId, name) {
      * the list: "I will watch this myself" is a choice a GM can now see they
      * made, rather than the only thing the module could do.
      */
-    if (def?.watch) {
-        const { armTrap } = await import("./traps.mjs");
-        const armedOk = await armTrap(countdownId, { condition: meta.condition ?? "" });
-        if (armedOk) {
+    if (watched && def?.watch) {
+        if (armed) {
             await callGm(killer, {
                 title: game.i18n.localize("DRPG.Trap.armedTitle"),
                 body: `<p>${game.i18n.format("DRPG.Trap.armedBody", {
@@ -979,7 +1617,10 @@ async function announceTrapReady(countdownId, name) {
                     data: { project: countdownId }
                 }] : [],
                 // The killer's receipt, and the killer's thread nobody else may see it in (E06 C8).
-                veiled: true
+                veiled: true,
+                // Nothing to rule on, so nothing awaited and no question rung (audit S09-34): the
+                // plant trigger's card keeps both, since the GM has a Plant to do.
+                receipt: def.needs !== "plant"
             });
             log(`Trap "${name}" is watching for "${kind}" (${killer.name}).`);
             return { armed: kind };
@@ -1007,60 +1648,10 @@ async function announceTrapReady(countdownId, name) {
     return true;
 }
 
-/**
- * Called whenever progress lands. A finished repair unfreezes the project it was
- * repairing, and then removes itself.
- *
- * The repair is a means, not a goal: once the thing it was fixing works again
- * there is nothing left to work on, and leaving a completed 6/6 bar sitting in
- * the tray beside the project it unblocked reads as an open job. It also kept
- * the tray growing by one row per sabotage for the rest of the season.
- */
-async function checkRepairCompletion(countdownId) {
-    const targetId = repairs(countdownId);
-    if (!targetId) return null;
-
-    const repair = allProjects().find(p => p.id === countdownId);
-    if (!repair || repair.current < repair.start) return null;
-
-    // Unfreeze first. If the delete below were to fail, the worst outcome is a
-    // stray finished bar - not a project left permanently unworkable.
-    await setProjectMeta(targetId, { frozenBy: null });
-
-    const target = allProjects().find(p => p.id === targetId);
-    const repairName = repair.name;
-    const content = `<p><strong>${foundry.utils.escapeHTML(repairName)}</strong> - ${
-        game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
-    }</p>`;
-
-    // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
-    // it told the table the name of a project the table may not know is there. Either half sealed
-    // is enough: a repair made before 1.2.65 is public while its target may be secret, and a target
-    // revealed after its sabotage leaves its repair sealed - whoever that repair was sealed to is
-    // told as well.
-    const repairSealed = isSecret(countdownId);
-    if (isSecret(targetId) || repairSealed) {
-        await announce({
-            content, veiled: true,
-            whisper: Array.from(new Set([...gmIds(), ...insidersOf(targetId),
-                ...(repairSealed ? viewersOf(countdownId).map(u => u.id) : [])]))
-        });
-    } else {
-        await announce({ content });
-    }
-
-    // Read the name and announce before deleting: `deleteProject` takes the
-    // countdown and its metadata with it, so nothing can be looked up afterwards.
-    await deleteProject(countdownId);
-
-    log(`Repair "${repairName}" complete and removed; "${target?.name}" is workable again.`);
-    return targetId;
-}
-
-/** Change a project's portrait/icon. GM only. */
+/** Change a project's portrait/icon. GM only; one change of the entry (E36 C2). */
 export async function setProjectImage(countdownId, img) {
     if (!game.user.isGM || !img) return null;
-    return writeCountdown(countdownId, { img });
+    return applyProjectChange(countdownId, { img }, { by: { kind: "gm" } });
 }
 
 /**
@@ -1081,40 +1672,27 @@ export async function setProjectImage(countdownId, img) {
  */
 export async function updateProject(countdownId, patch = {}) {
     if (!game.user.isGM) return null;
+    if (!rawCountdown(countdownId)) return null;
+    const change = projectEditChange(patch);
+    // One change of the entry (E36 C2): the countdown and the meta in one step, on the primary.
+    if (change) await applyProjectChange(countdownId, change, { by: { kind: "gm" } });
+    log(`Project ${countdownId} updated: ${Object.keys({ ...change, ...change?.meta }).filter(key => key !== "meta").join(", ")}`);
+    return allProjects().find(p => p.id === countdownId) ?? null;
+}
 
-    const raw = rawCountdown(countdownId);
-    if (!raw) return null;
-
-    const countdownPatch = {};
-    if (patch.name !== undefined && patch.name !== null) countdownPatch.name = String(patch.name);
-    if (patch.img) countdownPatch.img = patch.img;
-
-    if (patch.target !== undefined && patch.target !== null) {
-        const target = Math.max(1, Math.trunc(Number(patch.target) || 1));
-        const current = raw.progress?.current ?? 0;
-        countdownPatch.progress = {
-            ...raw.progress,
-            start: target,
-            /*
-             * ONE CLAMP FOR BOTH DIRECTIONS, AND THAT IS THE POINT (A15).
-             *
-             * This used to be a ternary on `countsUp` whose two branches were
-             * character-for-character identical - which reads as a bug and is
-             * not one. Ours count UP, so `current` is progress earned and is
-             * clamped to the new ceiling. Daggerheart's count DOWN, where
-             * `current` is what is LEFT, and that cannot exceed the start
-             * either. Two different reasons, the same arithmetic; writing the
-             * branch out only hid that they agree, and called `countsUp` for
-             * an answer nothing then used.
-             */
-            current: Math.min(current, target)
-        };
-    }
-
-    if (Object.keys(countdownPatch).length) {
-        await writeCountdown(countdownId, countdownPatch,
-            { replace: countdownPatch.progress ? ["progress"] : [] });
-    }
+/**
+ * What `updateProject` changes, as a change of the entry, writing nothing (E36 C2): the project window's Save
+ * combines it with the secrecy (`combineChanges`), so an edit is one change. Null when the patch names nothing.
+ *
+ * `target` is the countdown's `progress.start`; the step clamps `current` with it (`changeStep`), for both
+ * directions: ours count UP, so `current` is progress earned and cannot pass the new ceiling, and Daggerheart's
+ * count DOWN, where `current` is what is LEFT, which cannot exceed the start either (A15).
+ */
+export function projectEditChange(patch = {}) {
+    const change = {};
+    if (patch.name !== undefined && patch.name !== null) change.name = String(patch.name);
+    if (patch.img) change.img = patch.img;
+    if (patch.target !== undefined && patch.target !== null) change.target = Math.max(1, Math.trunc(Number(patch.target) || 1));
 
     const meta = {};
     if (patch.room !== undefined) meta.room = patch.room || null;
@@ -1129,74 +1707,26 @@ export async function updateProject(countdownId, patch = {}) {
     if (patch.trigger !== undefined) meta.trigger = patch.trigger;
     if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
-    if (Object.keys(meta).length) await setProjectMeta(countdownId, meta);
-
-    log(`Project ${countdownId} updated: ${Object.keys({ ...countdownPatch, ...meta }).join(", ")}`);
-    return allProjects().find(p => p.id === countdownId) ?? null;
+    if (Object.keys(meta).length) change.meta = meta;
+    return Object.keys(change).length ? change : null;
 }
 
-/** Delete a project and its metadata. GM only. */
+/**
+ * Delete a project and its metadata. GM only; one change of the entry, `{ remove: true }` (E36 C2): the step
+ * (`removeInStep`) takes the countdown, its row and its secrets, and thaws what it repaired, in one step on
+ * the primary; after it, outside the queue, its tokens (found by their own flags, every copy - E11 C7's orphan
+ * test), its trap's ledger (ITEM-08) and its own repair, if it was broken.
+ *
+ * A SABOTAGE PAIR GOES WITH EITHER HALF (F5, 17.09). The Project Manager lists "Repair: X" like any other bar,
+ * and deleting it left X frozen by a project that no longer existed: gone from every player's Work on Project
+ * list, out of reach of another sabotage, skipped by the trap watcher, and nothing on any GM screen could thaw
+ * it. Deleting a repair thaws what it was repairing; deleting the broken project takes its repair with it,
+ * because nobody should spend an action mending nothing.
+ */
 export async function deleteProject(countdownId) {
-    if (!game.user.isGM) return null;
-
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
-    if (!countdowns[countdownId]) return null;
-
-    /* THE TOKEN GOES FIRST, while the metadata still says where it is. Deleting
-       the project's row and then looking for its token would leave a two-square
-       marker standing in a room for a project that no longer exists, and
-       nothing left pointing at it to clean it up. */
-    try {
-        const { removeProjectToken, sweepProjectTokens } = await import("./projects-map.mjs");
-        await removeProjectToken(countdownId);
-        /* And every other token of it (E11 C7): any token of this project but the one its metadata
-           names stood on after the deletion, an orphan every player knew (the suite's orphan test). */
-        await sweepProjectTokens({ live: [], only: [countdownId] });
-    } catch (err) {
-        error("Could not take the deleted project off the map", err);
-    }
-
-    delete countdowns[countdownId];
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-
-    /*
-     * A SABOTAGE PAIR GOES WITH EITHER HALF (F5, 17.09).
-     *
-     * The Project Manager lists "Repair: X" like any other bar, and deleting it
-     * left X frozen by a project that no longer existed: gone from every
-     * player's Work on Project list, out of reach of another sabotage, skipped by
-     * the trap watcher, and nothing on any GM screen could thaw it. Deleting a
-     * repair thaws what it was repairing; deleting the broken project takes its
-     * repair with it, because nobody should spend an action mending nothing.
-     */
-    const own = metaFor(countdownId);
-    const meta = { ...projectMeta() };
-    delete meta[countdownId];
-    const target = own.repairs ?? null;
-    if (target && countdowns[target] && meta[target]?.frozenBy === countdownId) {
-        meta[target] = { ...meta[target], frozenBy: null };
-    }
-    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
-    // And its killer, builder, condition and trigger, on every GM (E05): a stamped drop, which a GM
-    // who was away takes at its next exchange.
-    await projectSecretStore.drop(countdownId);
-
-    // Its plant and its ledger row go with it (ITEM-08).
-    try {
-        const { pruneTrapsFor } = await import("./traps.mjs");
-        await pruneTrapsFor(new Set(Object.keys(meta)));
-    } catch (err) {
-        error("Could not prune the deleted project's trap", err);
-    }
-
-    // And its repair, if it was broken (F5, above). Last, so the recursion finds
-    // this project already gone and the pair's metadata already written.
-    const repair = own.frozenBy ?? null;
-    if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
-        await deleteProject(repair);
-    }
-    return true;
+    if (!game.user.isGM || !countdownId) return null;
+    const result = await applyProjectChange(countdownId, { remove: true }, { by: { kind: "gm" } });
+    return result?.removed ? true : null;
 }
 
 /**
@@ -1215,40 +1745,52 @@ export async function deleteProject(countdownId) {
  */
 export async function clearAllProjects() {
     if (!game.user.isGM) return null;
-
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const gone = Object.keys(data?.countdowns ?? {}).length;
-
-    /* THE TOKENS FIRST (E11 C7, 1.2.73; audit S06-23, S07-27; the ask A2). This cleared the
-       countdowns and the metadata and left every project token standing: scenario 65 counted the
-       four of a played season - two projects, a duplicate, an orphan - still on their scenes after
-       the reset at 4aad1fd (10.10.2026). `live: []`: after a reset no project exists, so every
-       project token on every scene is an orphan, the base actor's copies without an id included.
-       First, as `deleteProject` takes its token before its row, so no moment holds a token whose
-       project is gone; the sweep reads the tokens' own flags, so the order changes nothing it finds. */
-    try {
-        const { sweepProjectTokens } = await import("./projects-map.mjs");
-        await sweepProjectTokens({ live: [] });
-    } catch (err) {
-        error("Could not take the season's project tokens off the maps", err);
+    /* THE PRIMARY'S ALONE (E36 fix e1-G3, 25.10.2026; findings E36-R3, F5). Another GM's reset (a console: the
+       reset window asks for the primary before it writes, season-setup.mjs) queued its step on its own browser,
+       which orders nothing the primary's queue does, and dropped only the secrets that browser held. Refused here
+       with the window's own words, nothing cleared (E36-T8). */
+    if (!isPrimaryGm()) {
+        const name = game.users.get(primaryGmId())?.name ?? "?";
+        ui.notifications?.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
+        log("The projects were not cleared: the season reset is the primary GM's.");
+        return null;
     }
 
-    // Spread the rest of Daggerheart's own setting back, exactly as
-    // `deleteProject` does - `countdowns` is one key inside it, not all of it.
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
-    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
-    /* Every project's secrets with them (E05): the primary's clear is a cut every GM takes, as the
-       traps' two stores below; another GM's reset (a console - the window is the primary's) drops
-       the rows it holds. */
-    if (isPrimaryGm()) await projectSecretStore.clear();
-    else await projectSecretStore.dropMany(Object.keys(projectSecretStore.entries()));
+    /* ONE STEP OF THE QUEUE (E36 C2; E36 fix e1-G3, 25.10.2026; findings E36-END-S4, E36-R3, F5). The countdowns,
+       projectMeta, every project's secrets (E05) and the traps' two stores (ITEM-08) go in one step of
+       `COUNTDOWNS_KEY`, joined before anything here awaits: a change queued before the reset lands before it, one
+       queued after it lands after it, whole. The secrets and the traps were cleared after the step, outside the
+       queue, so a trap made by a change queued behind the reset lost its killer and its trigger to the clear that
+       followed (E36-T8 at cc6a57dd). Not through `applyProjectChange` one project at a time, for the reason above;
+       the setting is read in the step, so a change that landed before it is cleared with the rest. Daggerheart's
+       own setting is spread back - `countdowns` is one key inside it, not all of it. */
+    const gone = await serialWrite(COUNTDOWNS_KEY, async () => {
+        const data = game.settings.get(DH, COUNTDOWNS);
+        const count = Object.keys(data?.countdowns ?? {}).length;
+        await writeAllCountdowns({ ...data, countdowns: {} });
+        await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+        await projectSecretStore.clear();
+        try {
+            const { pruneTrapsFor } = await import("./traps.mjs");
+            await pruneTrapsFor(null);
+        } catch (err) {
+            error("Could not prune the season's traps", err);
+        }
+        return count;
+    });
 
-    // Nothing planted for a project that no longer exists (ITEM-08).
+    /* THE TOKENS AFTER IT (E11 C7, 1.2.73; audit S06-23, S07-27; the ask A2; after the step since E36 fix e1-G3).
+       This cleared the countdowns and the metadata and left every project token standing: scenario 65 counted the
+       four of a played season - two projects, a duplicate, an orphan - still on their scenes after the reset at
+       4aad1fd (10.10.2026). Swept before the step, a project made behind the reset kept a token the sweep never
+       saw, and one made before it was cleared beside the token its change had placed (E36-T8). After the step,
+       every project token whose project is not standing now goes - the base actor's copies without an id
+       included - and a project made since keeps its own. */
     try {
-        const { pruneTrapsFor } = await import("./traps.mjs");
-        await pruneTrapsFor(null);
+        const { sweepProjectTokens } = await import("./projects-map.mjs");
+        await sweepProjectTokens();
     } catch (err) {
-        error("Could not prune the season's traps", err);
+        error("Could not take the season's project tokens off the maps", err);
     }
 
     log(`Season reset: cleared ${gone} project(s).`);
@@ -1317,31 +1859,92 @@ export async function resealSecretProjects() {
     for (const project of allProjects()) {
         if (!isSecret(project.id)) continue;
 
-        const current = rawCountdown(project.id)?.ownership ?? {};
-        const viewers = Object.entries(current)
-            .filter(([key, level]) => key !== "default" && level >= OBSERVER)
-            .map(([userId]) => userId);
-
-        const wanted = ownershipMap(viewers);
         /*
-         * `equals`, not `objectsEqual` - the second is deprecated in 14 and goes
-         * in 16, and it warned on every pass of this loop because this function
-         * runs on load and on every `createUser`. Optional call on both names so
-         * a Foundry that has one and not the other still gets an answer, and a
-         * Foundry with neither falls through to writing the ownership it already
-         * has: a redundant write, never a missed re-seal. That direction is the
-         * whole point of this function - a secret project visible to a player is
-         * the failure it exists to prevent.
+         * The map its own viewers make, compared with the one it has (projects-secrecy.mjs `sightChange`, `reseal`):
+         * `equals`, not `objectsEqual` - the second is deprecated in 14 and goes in 16, and it warned on every pass
+         * of this loop because this function runs on load and on every `createUser`. Optional call on both names so
+         * a Foundry that has one and not the other still gets an answer, and a Foundry with neither falls through to
+         * writing the ownership it already has: a redundant write, never a missed re-seal. That direction is the
+         * whole point of this function - a secret project visible to a player is the failure it exists to prevent.
+         * Read here only to leave a sealed project unqueued; the step works it out again on what it reads (E36 fix
+         * e1-G2: a share landing between the two is kept, not written over).
          */
-        const same = foundry.utils.equals?.(current, wanted)
-            ?? foundry.utils.objectsEqual?.(current, wanted)
-            ?? false;
-        if (same) continue;
-
-        await writeCountdown(project.id, { ownership: wanted }, { replace: ["ownership"] });
-        fixed += 1;
+        if (!sightChange(project.id, { reseal: true })) continue;
+        if ((await applyProjectChange(project.id, { reseal: true }, { by: { kind: "system" } }))?.changed) fixed += 1;
     }
 
     if (fixed) log(`Re-sealed ${fixed} secret project(s) that were visible to players.`);
     return fixed;
+}
+
+/* ==========================================================================
+ * WHO SEES A PROJECT, THROUGH THE ENTRY (E36 C2)
+ * --------------------------------------------------------------------------
+ * 25.10.2026; audit S17-18. These four wrote the countdown's ownership in
+ * projects-secrecy.mjs, read and written whole outside any queue. They are a
+ * change of `applyProjectChange` each now, on the primary; the arithmetic is
+ * still projects-secrecy.mjs's (`secretChange`, `shareChange`, `unshareChange`,
+ * `revealChange`), worked out in the step since E36 fix e1-G2 from the
+ * operation the change names (`share`, `unshare`, `reveal`; `sightChange`), so
+ * two shares, or a share and a revoke, asked at once both land as asked
+ * (E36-T7). `makeSecret`'s map is of its own viewers and reads nothing.
+ * ========================================================================== */
+
+/**
+ * Make a project secret, visible only to the given users.
+ *
+ * @param {string} countdownId
+ * @param {string[]} viewerIds  Users allowed to see it - normally just the killer.
+ */
+export async function makeSecret(countdownId, viewerIds = []) {
+    if (!game.user.isGM) return null;
+    // A whole map, of the viewers named here alone: nothing of the countdown is read for it, so none is stale.
+    const change = secretChange(countdownId, viewerIds);
+    if (!await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
+    log(`Project ${countdownId} is now secret; ${viewerIds.length} viewer(s).`);
+    return change.ownership;
+}
+
+/**
+ * Let one more player in on a secret project. A player's ask goes to a GM (`project.share`), which names its sender as
+ * `senderId`: a share a finder asked makes a finder (the step's note, E15 part 2 fix e1-G1).
+ */
+export async function shareWith(countdownId, userId, { senderId = null } = {}) {
+    if (!game.user.isGM) {
+        const { requestProjectShare } = await import("./gm-bridge.mjs");
+        const res = await requestProjectShare(countdownId, userId);
+        return res.ok ? { pending: true } : null;
+    }
+    const done = await applyProjectChange(countdownId, { share: userId },
+        { by: senderId ? { kind: "player", userId: senderId } : { kind: "gm" } });
+    if (!done || done.refused) return null;
+    log(`Project ${countdownId} shared with ${game.users.get(userId)?.name ?? userId}.`);
+    return true;
+}
+
+/** Take a player back off a secret project. */
+export async function unshareWith(countdownId, userId) {
+    if (!game.user.isGM) return null;
+    if (!isSecret(countdownId)) return null;
+    /* NEVER THE BUILDER (E05 C1; audit S09-09). The manager and the project window add the builder
+       whatever is ticked (F3), and Revoke in the Share window took them off their own trap: the
+       student who built it could no longer see it or work on it. Refused, and the GM told why. */
+    if (builderIds(countdownId).includes(userId)) {
+        ui.notifications?.warn(game.i18n.format("DRPG.Project.builderStays", {
+            name: game.users.get(userId)?.name ?? userId, project: rawCountdown(countdownId)?.name ?? countdownId
+        }));
+        return null;
+    }
+    const done = await applyProjectChange(countdownId, { unshare: userId }, { by: { kind: "gm" } });
+    return done && !done.refused ? true : null;
+}
+
+/** Drop secrecy entirely - the plan is out (`revealChange` says why the map is replaced whole; worked out in the step). */
+export async function revealProject(countdownId) {
+    if (!game.user.isGM) return null;
+    // A refusal is no reveal (fix e1-G1: a preset that is always secret is refused in the step).
+    const done = await applyProjectChange(countdownId, { reveal: true }, { by: { kind: "gm" } });
+    if (!done || done.refused) return null;
+    log(`Project ${countdownId} revealed to everyone.`);
+    return true;
 }

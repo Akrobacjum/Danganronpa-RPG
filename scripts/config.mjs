@@ -327,6 +327,13 @@ export const TIMING = {
     ackMs: 8000,
     /** A GM's ruling on a request (a Dynamic threshold, an Observe target, a sabotage's result). */
     rulingMs: 180000,
+    /**
+     * The primary GM's answer to another GM's change of a project (E36 fix e1-G4; gm-bridge.mjs `project.change`):
+     * one step of the queue and its after-steps, no person deciding, so far under a ruling's clock. A burst of
+     * changes queued ahead of it is what this waits for; a primary that left ends the wait at once instead
+     * (bridge-guards.mjs `primaryGone`). Not measured at a table: chosen, LIVE-E36-01 reads it.
+     */
+    projectChangeMs: 30000,
     /** A GM's ruling on a Hope Call - a longer read, so a longer wait. */
     hopeCallRulingMs: 300000,
     /** The primary GM's answer to a search-token spend. */
@@ -2164,7 +2171,7 @@ export const HOPE_CALLS = {
         // the action pipeline recognise THIS Call by; what changes is what it
         // does to the dice.
         label: "Loaded Die", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
-        effect: "One die is set to 12, the other is thrown. A critical only if that one is a 12 too."
+        effect: "One of the two dice, at random, is set to 12, the other is thrown. A critical only if that one is a 12 too."
     }
 };
 
@@ -4403,6 +4410,11 @@ export const SFX_EVENTS = {
     passageFound: {
         label: "A secret passage opens to you",
         hint: "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
+        category: "world"
+    },
+    wallBreached: {
+        label: "A wall is breached",
+        hint: "A Breach the Wall is finished. Heard by the students in the two rooms it joins and in the rooms beside them.",
         category: "world"
     },
     actionSpent: {

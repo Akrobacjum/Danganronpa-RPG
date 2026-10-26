@@ -61,7 +61,7 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions, serialWrite } from "./utils.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
 import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
@@ -69,6 +69,8 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelay
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects, secretsOf, patchTrigger, standsAtProject, projectScene } from "./projects.mjs";
+// The projects' queue (E36 C2): a trap's fire and Rearm write its trigger in it, as every change of a project is made.
+import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { newItemIdentity } from "./inventory.mjs";
 import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
@@ -353,7 +355,8 @@ async function alert(trap, actor, why, onScene = null) {
  */
 async function stampFired(projectId) {
     try {
-        const trigger = await patchTrigger(projectId, { firedAt: Date.now() });
+        // In the projects' queue (E36 C2): a change whose step arms or disarms this trap lands before or after it, never across it.
+        const trigger = await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { firedAt: Date.now() }));
         if (!trigger?.firedAt) {
             error(`Could not disarm trap "${projectId}" - no alert sent`);
             return false;
@@ -369,19 +372,44 @@ async function stampFired(projectId) {
 /** Put a trap that has spoken back on watch. The GM's "not this one". */
 export async function rearmTrap(projectId) {
     if (!game.user.isGM) return null;
-    await patchTrigger(projectId, { armed: true, firedAt: null });
+    // In the projects' queue, as `stampFired` (E36 C2). `armTrap` and `disarmTrap` are not: a step calls them.
+    await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { armed: true, firedAt: null }));
     forgetArmedTraps();
     log(`Trap "${projectId}" is watching again.`);
     return true;
 }
 
-/** Start watching. Called when an indirect murder's bar fills. */
+/**
+ * Start watching. Called when an indirect murder's bar fills: projects.mjs's completion row "trigger", in the
+ * step of `applyProjectChange` (E36 C1).
+ *
+ * `firedAt` IS KEPT (D40, E36 C1, 25.10.2026; audit S09-14). This wrote `firedAt: null` with `armed: true`, so a
+ * bar taken back under its target and filled again armed a trap that had already spoken, and erased the one
+ * record that said it had: D40 - "a ponowne dopełnienie uzbraja znowu, chyba że pułapka już raz zadziałała
+ * (firedAt)". A trap that has fired is not armed here (false); only the GM's Rearm (`rearmTrap`) clears it.
+ */
 export async function armTrap(projectId, { condition = "" } = {}) {
     if (!game.user.isGM) return null;
     const trigger = secretsOf(projectId).trigger ?? {};
     if (!trigger.kind) return null;
-    await patchTrigger(projectId, { armed: true, firedAt: null, condition: condition || trigger.condition });
+    if (trigger.firedAt) return false;
+    await patchTrigger(projectId, { armed: true, condition: condition || trigger.condition });
     forgetArmedTraps();
+    return true;
+}
+
+/**
+ * Stop watching, and keep everything else (D40, E36 C1): a finished trap's bar taken back under its target
+ * (a Reroll, the GM's minus) disarms it, `firedAt` kept, so filling it again arms it unless it has spoken.
+ * The completion row "trigger" calls it in the step of `applyProjectChange`. Answers whether it was armed.
+ */
+export async function disarmTrap(projectId) {
+    if (!game.user.isGM) return null;
+    const trigger = secretsOf(projectId).trigger ?? {};
+    if (!trigger.armed) return false;
+    await patchTrigger(projectId, { armed: false });
+    forgetArmedTraps();
+    log(`Trap "${projectId}" stopped watching: its bar is under its target again.`);
     return true;
 }
 

@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor, TRANSFER_REFUSED } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -2856,11 +2856,57 @@ async function startProject(actor) {
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${r === room ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
+    /*
+     * A SECRET PASSAGE, WHERE THIS ROOM SHARES A WALL (E15 part 2 C2, 25.10.2026; A10 step 14). Offered only when the
+     * room the character stands in shares a wall with another room on its floor (passages-gm.mjs `secretPassageOffer`,
+     * read here from the walls and rooms every browser holds); the rooms beyond are named as Listen names them - a room
+     * this player has not been in is "Unexplored room n" (`listenLabels`) - and the options carry an index, so the
+     * page names no room the fog hides. What the card asks is a claim: the GM's approval reads the builder's room
+     * where the GMs read the character and picks the stretch on that wall (projects-ui.mjs `openProjectDialog`).
+     */
+    const { secretPassageOffer, passageProjectOffer, presetScale, PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    const { levelOf } = await import("./rooms.mjs");
+    const { roomsKnownToMe, passageRooms } = await import("./movement.mjs");
+    const here = locateActor(actor);
+    const offer = here?.room ? secretPassageOffer({ scene: here.scene, room: here.room, level: levelOf(here.tokenDoc) }) : null;
+    const beyond = offer ? listenLabels(offer.neighbours, roomsKnownToMe(here.scene)) : new Map();
+    /*
+     * THE OWNER'S THREE OF 15.10 (E15 part 2 C5): Seal the passage, offered with the passages this character knows that
+     * have a side in the room it stands in (this browser's copy, passages.mjs `knownPassages`); Close the breach, with
+     * the standing breaches of that room (their holes are walls every browser holds); Repair an item, with the usables
+     * and tools of its own sheet that are broken or worn (inventory.mjs `repairable`). The rooms are named as Listen names
+     * them and each option is an index: the card carries the passage's, the breach's or the item's id, which this
+     * player's browser holds already, and the GM's approval judges it again (projects-ui.mjs `openProjectDialog`).
+     */
+    const { knownPassages } = await import("./passages.mjs");
+    const owned = here?.room ? passageProjectOffer({ scene: here.scene, room: here.room, level: levelOf(here.tokenDoc) },
+        { known: knownPassages(), actorId: actor.id, sides: passageRooms }) : { seal: [], breaches: [] };
+    const named = rooms => {
+        const labels = listenLabels(rooms.filter(Boolean), roomsKnownToMe(here?.scene));
+        return rooms.map(r => (r ? labels.get(r) ?? r : "-")).join(" - ");
+    };
+    const mendable = (actor.items?.contents ?? [...(actor.items ?? [])]).filter(repairable);
+    const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
+        ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : [])];
+    const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const choose = (name, label, options, note) => `<label>${game.i18n.localize(label)}
+                <select name="${name}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
+                ${note.map(key => `<small class="notes">${game.i18n.localize(key)}</small>`).join("")}</label>`;
+    const presetFields = kinds.length ? `<label>${game.i18n.localize("DRPG.Project.kind")}
+                <select name="preset"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>${
+                    kinds.map(key => `<option value="${key}">${game.i18n.localize(`DRPG.Project.preset.${key}`)}</option>`).join("")}</select></label>
+            ${offer ? choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"]) : ""}
+            ${owned.seal.length ? choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"]) : ""}
+            ${owned.breaches.length ? choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"]) : ""}
+            ${mendable.length ? choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
+                ["DRPG.Project.repairNote"]) : ""}` : "";
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Project.startNew") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Project.agreedWarning")}</p>
+            ${presetFields}
             <label>${game.i18n.localize("DRPG.Project.name")}
                 <input type="text" name="name" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus /></label>
             <label>${game.i18n.localize("DRPG.Project.scale")}
@@ -2891,11 +2937,16 @@ async function startProject(actor) {
                     const f = d.element.querySelector("form");
                     return {
                         name: f.name.value.trim(),
-                        target: Number(f.target.value) || 4,
+                        target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
                         room: f.room.value || null,
                         trait: f.trait.value || null,
                         murder: f.murder.checked,
-                        condition: f.condition.value.trim()
+                        condition: f.condition.value.trim(),
+                        preset: f.preset?.value || null,
+                        to: f.to?.value ?? null,
+                        seal: f.seal?.value ?? null,
+                        unbreach: f.unbreach?.value ?? null,
+                        mend: f.mend?.value ?? null
                     };
                 }
             },
@@ -2905,6 +2956,24 @@ async function startProject(actor) {
     });
 
     if (!result || result === "cancel") return null;
+    // A preset's own answers (PASSAGE_PRESETS): its statistic, its size, never a murder, from the room the character is in.
+    // Breach the Wall since E15 part 2 C3: the same offer (a wall shared with a room beyond), its own statistic and summary.
+    // The owner's three since C5: the target an index into what was offered, its id on the card; the room the one it stands in
+    // (Repair an item: the room the form names), the item's tier its size.
+    const presetKey = kinds.includes(result.preset) ? result.preset : null;
+    const preset = presetKey ? PASSAGE_PRESETS[presetKey] : null;
+    const walled = presetKey === "secretPassage" || presetKey === "breach";
+    const field = { secretPassage: "to", breach: "to", sealPassage: "seal", closeBreach: "unbreach", repairItem: "mend" }[presetKey];
+    const toIndex = preset ? Number(result[field]) : NaN;
+    const chosen = !preset || !Number.isInteger(toIndex) ? null
+        : walled ? offer.neighbours[toIndex] : presetKey === "sealPassage" ? owned.seal[toIndex] : presetKey === "closeBreach" ? owned.breaches[toIndex] : mendable[toIndex];
+    if (preset) {
+        if (!chosen) return null;
+        const scale = presetKey === "repairItem" ? presetScale(presetKey, { tier: tierOf(chosen) }) : preset.scale;
+        Object.assign(result, { name: result.name || (presetKey === "repairItem" ? game.i18n.format("DRPG.Project.repairItemName", { item: chosen.name })
+            : game.i18n.localize(`DRPG.Project.preset.${presetKey}`)), target: PROJECT_SCALE[scale].progress,
+            trait: preset.trait, room: walled ? offer.from : presetKey === "repairItem" ? result.room : here.room, murder: false, condition: "" });
+    }
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.needsName"));
         return null;
@@ -2935,7 +3004,11 @@ async function startProject(actor) {
         `<strong>${esc(result.name)}</strong>`,
         `${esc(scaleLabel)} · ${result.target} progress`,
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
-        TRAITS[result.trait].label
+        TRAITS[result.trait].label,
+        ...(walled ? [game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
+            { to: esc(beyond.get(offer.neighbours[toIndex]) ?? "-") })] : []),
+        ...(preset && !walled ? [game.i18n.format(`DRPG.Project.${presetKey}Summary`,
+            { target: esc(presetKey === "repairItem" ? chosen.name : named(chosen.rooms)) })] : [])
     ].join(" · ");
 
     /*
@@ -2970,7 +3043,10 @@ async function startProject(actor) {
                     room: result.room ?? "",
                     trait: result.trait ?? "",
                     murder: result.murder ? "1" : "",
-                    condition: result.condition ?? ""
+                    condition: result.condition ?? "",
+                    // A Secret Passage (E15 part 2 C2) or a breach (C3): the preset and the neighbour's index, never its name.
+                    // The owner's three (C5): the passage's, the breach's or the item's id, held by this browser already.
+                    ...(preset ? { preset: presetKey, to: walled ? String(toIndex) : String(chosen.id) } : {})
                 }
             },
             {
@@ -3093,7 +3169,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await breakOnDespair(actor, tool, roll);
 
-    const { hit, progress, bonus: earnedBonus } = projectProgress(roll, { relief, bonus }, def);
+    const { hit, progress } = projectProgress(roll, { relief, bonus }, def);
 
     let applied = null;
     /* Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
@@ -3111,7 +3187,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     // combined figure made it subtract a bonus it could never recompute - an
     // indirect murder quietly lost its alone/Despair progress on every reroll.
     await noteRollContext(actor, {
-        actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
+        actionKey: "project", projectId: project.id, progress, bonus,
         // What the readied tool took off the bands, so a Reroll scores the new
         // dice against the same bands (ROLL-04). From here, never from the
         // inventory at reroll time: the tool may have broken on this roll.
@@ -3156,14 +3232,21 @@ async function workOnProject(actor, def, options, chosen = null) {
 
 /**
  * What a Work on a Project's roll earns: the band its total reaches with the readied tool's
- * `relief` off the bands (a critical reads none), and an indirect murder's concealment `bonus`
- * on top of progress actually earned - `bonus` in the answer is the part that rode. The one
- * reading `workOnProject` and the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) share.
+ * `relief` off the bands (a critical reads none), plus an indirect murder's concealment `bonus`
+ * whatever the band - `bonus` in the answer is the whole of it. The one reading `workOnProject`,
+ * the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) and the Reroll's (reroll.mjs
+ * `settleProgress`) share.
+ *
+ * THE BONUS ON ANY OUTCOME (E15 C2, 25.10.2026; audit S02-08, the owner's D13: "bonus +1 za
+ * samotną pracę bezwarunkowy i przeżywa Reroll"). It rode only on progress the bands had earned,
+ * so a killer working alone read "the project gains +1 progress" beside "No progress." on one
+ * card, and the GMs' bookmark kept the bonus at 0 for that miss: a Reroll of it to 18 paid 2
+ * where the card's rule pays 3. Measured on d90687dc by E15-T2 (a lone miss at 8 paid 0) and
+ * E15-T3 (that miss rerolled to 18 left the bar at 2).
  */
 export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTIONS.project) {
     const hit = roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, easedBy(def.thresholds, relief));
-    const earned = hit?.progress ?? 0;
-    return { hit, progress: earned ? earned + bonus : 0, bonus: earned ? bonus : 0 };
+    return { hit, progress: (hit?.progress ?? 0) + bonus, bonus };
 }
 
 /** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
@@ -3252,8 +3335,13 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
     return { bonus, rolledAlready };
 }
 
-    // Guide: every project action also rolls to hide the traces it leaves.
-async function hideProjectTraces(actor, project, progress, lines) {
+/**
+ * Guide: every project action also rolls to hide the traces it leaves - a Work on an indirect
+ * murder (`workOnProject`) and, since E15 C2 (audit S09-06, the owner's D13: "Contribution do
+ * pułapki woła ten sam rzut ukrycia"), a Contribution to one (call-effects.mjs `progressEffect`).
+ * `lines` takes the card's HTML lines; answers whether the roller is told a trace was left.
+ */
+export async function hideProjectTraces(actor, project, progress, lines) {
     let traceLeftTrace = false;
     const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
         remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),

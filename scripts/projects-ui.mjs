@@ -17,9 +17,9 @@
 
 import { PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
 import {
-    allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret, makeSecret, shareWith, unshareWith,
-    revealProject, viewersOf, sealAudience, builderIds, secretsOf, withoutLeak, createProject, deleteProject,
-    setProjectImage, updateProject
+    allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
+    viewersOf, secretsOf, createProject, deleteProject,
+    applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -34,6 +34,9 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export function registerProjectsUi() {
     // The countdown tray is its own ApplicationV2; label it on every render.
     Hooks.on("renderDhCountdowns", onRenderCountdowns);
+    // Its row menu, before the tray's first render builds it (E36 C2), and once more at ready for a class set late.
+    wrapCountdownMenu();
+    Hooks.once("ready", wrapCountdownMenu);
 }
 
 /**
@@ -86,6 +89,7 @@ function onRenderCountdowns(app, element) {
         if (!game.user.isGM) return;
 
         root.querySelector('[data-action="editCountdowns"]')?.remove();
+        guardTrayRows(root);
 
         if (root.querySelector(".drpg-projects-gear")) return;
 
@@ -108,6 +112,101 @@ function onRenderCountdowns(app, element) {
     } catch (err) {
         error("Could not add the project manager button", err);
     }
+}
+
+/* ==========================================================================
+ * THE TRAY'S OWN CONTROLS ON A PROJECT ROW (E36 C2)
+ * --------------------------------------------------------------------------
+ * 25.10.2026; audit S17-18, S09-36. Daggerheart 2.10.5's tray writes the
+ * Countdowns setting itself: its -/+ (`editCountdown`, read from the row's
+ * `data-countdown`) and its menu's Delete (`countdown.delete()`) whole, outside
+ * the module's queue, and its Reveal and Hide (`toggleVisibility`) flip a
+ * `hidden` the module's secrecy does not read. On a GM's tray a project row's
+ * -/+ is one change of the entry, by addProgress, and its Delete is
+ * deleteProject; Reveal and Hide are not offered on it - who sees a project is
+ * the manager's Secret and Share. A row that is no project (no projectMeta row,
+ * as relay-guard.mjs's `isProject` reads it) keeps the system's controls. A
+ * player's click still goes the system's way, to the GM's relay, which lands
+ * nothing on a project (relay-guard.mjs `judgeCountdowns`). Read in 2.10.5's
+ * source, not on v14 at a table (LIVE-E36-02, AUDIT 9.2 item 300).
+ * ========================================================================== */
+
+/** Is this tray row's countdown one of the module's projects? */
+function isProjectRow(countdownId) {
+    return Boolean(countdownId) && Object.hasOwn(projectMeta(), countdownId);
+}
+
+const guardedTrays = new WeakSet();
+
+/**
+ * The -/+ of a project row, caught before the system's action handler (a listener in the capture phase, once
+ * per root: the tray keeps its element across renders), stopped there, and made one change of 1 or -1 by "gm"
+ * through addProgress, which says why when nothing moved (full, empty, frozen). Exported for the suite, which
+ * plants a root; the render hook is its one caller. Answers whether it wired this root now.
+ */
+export function guardTrayRows(root) {
+    if (!game.user?.isGM || !root?.addEventListener || guardedTrays.has(root)) return false;
+    guardedTrays.add(root);
+    root.addEventListener("click", event => {
+        const button = event.target?.closest?.('[data-action="increaseCountdown"], [data-action="decreaseCountdown"]');
+        if (!button || !root.contains(button)) return;
+        const id = button.closest("[data-countdown]")?.dataset.countdown ?? null;
+        if (!isProjectRow(id)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        addProgress(id, button.dataset.action === "increaseCountdown" ? 1 : -1)
+            .catch(err => error("Could not change the project from the tray", err));
+    }, { capture: true });
+    return true;
+}
+
+const MENU_DONE = Symbol("drpgProjectRowMenu");
+
+/**
+ * The tray's row menu, entries in 2.10.5's shape (`label`, `visible`, `onClick(event, target)`; v13's `name`,
+ * `condition`, `callback(target)` read as well), changed in place: Reveal and Hide hidden on a project row,
+ * Delete on one deleteProject. Every other row and entry is the system's. Exported for the suite.
+ */
+export function projectRowMenu(entries) {
+    if (!Array.isArray(entries)) return entries;
+    const projectOf = element => {
+        const id = element?.closest?.("[data-countdown]")?.dataset.countdown ?? null;
+        return isProjectRow(id) ? id : null;
+    };
+    for (const entry of entries) {
+        if (!entry || entry[MENU_DONE]) continue;
+        const label = String(entry.label ?? entry.name ?? "");
+        const showKey = "visible" in entry || !("condition" in entry) ? "visible" : "condition";
+        const clickKey = "onClick" in entry || !("callback" in entry) ? "onClick" : "callback";
+        const show = entry[showKey];
+        const click = entry[clickKey];
+        if (/\.Countdowns\.(?:reveal|hide)$/.test(label)) {
+            entry[showKey] = element => !projectOf(element) && (typeof show === "function" ? show(element) : show ?? true);
+        } else if (label === "CONTROLS.CommonDelete") {
+            entry[clickKey] = (event, target) => {
+                const element = target ?? (event instanceof HTMLElement ? event : null);
+                const id = projectOf(element);
+                if (id) return deleteProject(id);
+                return typeof click === "function" ? click(event, target) : undefined;
+            };
+        }
+        entry[MENU_DONE] = true;
+    }
+    return entries;
+}
+
+/** The tray class's menu builder, wrapped once: at init when the system has set its class, else at ready. */
+function wrapCountdownMenu() {
+    const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
+    const proto = typeof Tray === "function" ? Tray.prototype : null;
+    const own = proto?._getCountdownContextOptions;
+    if (typeof own !== "function" || own[MENU_DONE]) return false;
+    const wrapped = function (...args) {
+        return projectRowMenu(own.apply(this, args));
+    };
+    wrapped[MENU_DONE] = true;
+    proto._getCountdownContextOptions = wrapped;
+    return true;
 }
 
 /* ==========================================================================
@@ -143,7 +242,7 @@ function roomSelectOptions(rooms, current) {
 }
 
 /** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
-function projectManagerRows(projects, rooms) {
+function projectManagerRows(projects, rooms, { always = new Set() } = {}) {
     const roomOptions = id => roomSelectOptions(rooms, roomOf(id) ?? "");
 
     const players = playerList();
@@ -166,7 +265,7 @@ function projectManagerRows(projects, rooms) {
             </td>
             <td style="text-align:center">
                 <input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""} />
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />
             </td>
             ${players.length
                 ? viewerTicks(players, knows, p, { locked: !secret })
@@ -262,7 +361,7 @@ async function applyProjectManager(result, projects) {
         if (!exists(entry.id)) continue;
 
         const before = projects.find(p => p.id === entry.id);
-        if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
+        const img = entry.img && entry.img !== before?.img ? { img: entry.img } : null;
         /* THE ROOM ONLY WHEN THIS ROW CHANGED IT (E12 C5, 1.2.74; audit S09-03). Every row's room was
            written back on every Save, so a room the project gained while the window was open - its
            token dragged into another room (`onProjectTokenMoved`), another GM's edit - was put back
@@ -280,11 +379,13 @@ async function applyProjectManager(result, projects) {
             const meta = secretsOf(entry.id);
             if (!meta.killerId && !meta.by) {
                 ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
-                if (room) await setProjectMeta(entry.id, room);
+                const kept = combineChanges(img, room ? { meta: room } : null);
+                if (kept) await applyProjectChange(entry.id, kept, { by: { kind: "gm" } });
                 continue;
             }
         }
-        await setProjectMeta(entry.id, { ...room, indirectMurder: entry.murder });
+        // The flag only when this row changed it, as the room (E36 C2): an unchanged row writes nothing.
+        const murder = Boolean(entry.murder) !== isIndirectMurder(entry.id) ? { indirectMurder: Boolean(entry.murder) } : null;
 
         // After that first moment the checkbox is simply the answer.
         //
@@ -292,11 +393,17 @@ async function applyProjectManager(result, projects) {
         // never returned - so it was permanently `undefined`, "is it secret"
         // came out as `secret || murder`, and an indirect murder flipped between
         // sealed and revealed on every other save.
-        const shouldBeSecret = entry.secret || newlyMurder;
-        // Through applySecrecy, which knows about the row's own ticked list of
+        // A preset that is always secret stays so, whatever the box read (fix e1-G1; the step refuses its reveal too).
+        const shouldBeSecret = entry.secret || newlyMurder || (await alwaysSecretIds([entry])).has(entry.id);
+        // Through secrecyChange, which knows about the row's own ticked list of
         // viewers (P-1) and about the builder; `entry.viewers` is null when this
         // window had no list to read, and then the seal keeps whoever already knew.
-        await applySecrecy(entry.id, shouldBeSecret, entry.viewers);
+        // ONE CHANGE A ROW (E36 C2, 25.10.2026; audit S17-18): the portrait, the room, the flag and the
+        // secrecy were three or four writes, each read and written whole, so another change landing
+        // between them was lost or half-made; one step of the entry now, and none for a row left as it was.
+        const change = combineChanges(img, room || murder ? { meta: { ...room, ...murder } } : null,
+            secrecyChange(entry.id, shouldBeSecret, entry.viewers, entry.was));
+        if (change) await applyProjectChange(entry.id, change, { by: { kind: "gm" } });
     }
     return deleted;
 }
@@ -328,7 +435,7 @@ export async function openProjectManager() {
         const made = await openCreateDialog(rooms);
         return made ? openProjectManager() : undefined;
     }
-    const rows = projectManagerRows(projects, rooms);
+    const rows = projectManagerRows(projects, rooms, { always: await alwaysSecretIds(projects) });
     /* WHO KNOWS WHAT, AS A MATRIX (Dawid, 22.09: "gracze z dostepem do projects ... sa brzydko
        ulozeni - liczylem bardziej na cos przypominajacego tabele"). One column per player,
        named once in the header, and a tick in each row: a GM reads down a column to see what
@@ -486,22 +593,43 @@ export function projectTraitOptions(current = "") {
 export async function openProjectDialog({ project = null, preset = null, rooms = placeRoomNames() } = {}) {
     const editing = Boolean(project);
     const start = project ?? preset ?? null;
+    // A Secret Passage's approval (E15 part 2 C2), or a breach's (C3): the builder's room as the GMs read it, and its neighbours.
+    const passageOf = !editing && ["secretPassage", "breach"].includes(start?.preset) ? await passageApproval(start) : null;
+    // Held at the edit too (E15 part 2 fix e1-G1; findings SEC-2, END-04, R2): the project's preset, read in the GMs' half.
+    const alwaysSecret = passageOf?.preset === "secretPassage" || (editing && (await alwaysSecretIds([project])).has(project.id));
+    // The owner's three of 15.10 (E15 part 2 C5): the passage, breach or item the card names, judged here as the GMs read it.
+    const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
+    // Said in the table's language (fix e1-G4): the judges answer English, kept for the log.
+    if (ownedOf?.refused) ownedOf.why = (await import("./passages-gm.mjs")).whyText(ownedOf.refused);
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
-    const currentTarget = start?.start ?? start?.target ?? 4;
+    /* A PRESET'S SIZE IS THE GMS' (E15 part 2 fix e1-G3; finding E15P2-R4): its table's (passages-gm.mjs `PASSAGE_PRESETS`),
+       a Repair an item's by the item's tier as the GMs hold it (`presetApproval`'s `scale`) - never the card's claim, which
+       a console sets to Trivial for a tier 3 tool. The GM may still pick another size in the window. */
+    const presetSize = !editing && start?.preset ? await presetSizeOf(start.preset, ownedOf) : null;
+    const currentTarget = presetSize ?? start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
     const currentTrait = start?.trait ?? "";
     const currentRoom = start?.room ?? "";
 
+    /*
+     * THE WINDOW OPENS ON THE TARGET IT WAS GIVEN (E15 part 1 C1, 25.10.2026; audit S09-13). A
+     * proposal's preset is the player's answer, and only the edit read it: approving a player's
+     * Complex or Desperate opened on Standard, so a GM who trusted the form made the cheaper
+     * project (tier 2 E15-T1 at d90687dc: a proposal of 6 and one of 5 both opened on 4). A window
+     * with neither, the panel's own Create, is Standard.
+     */
+    const given = editing || Boolean(presetSize) || Number(preset?.target) > 0;
     const scaleOptions = Object.entries(PROJECT_SCALE)
         .map(([key, s]) => {
-            const selected = editing ? s.progress === currentTarget : key === "everyday";
+            const selected = given ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
                 s.label} - ${s.progress} progress</option>`;
         }).join("");
 
     // An edited project may sit on a target no scale names - a repair inherits
-    // whatever the sabotage rolled. Offer it rather than silently re-scaling it.
-    const offScale = editing && !Object.values(PROJECT_SCALE).some(s => s.progress === currentTarget)
+    // whatever the sabotage rolled - and so may a proposal (a card from an older
+    // form, a player's console). Offer it rather than silently re-scaling it.
+    const offScale = given && !Object.values(PROJECT_SCALE).some(s => s.progress === currentTarget)
         ? `<option value="${currentTarget}" selected>${
             game.i18n.format("DRPG.Project.customScale", { n: currentTarget })}</option>`
         : "";
@@ -567,6 +695,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <input type="checkbox" name="murder"${
                     start?.indirectMurder ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.indirect")}</label>
+            <div class="drpg-trap-fields" data-drpg-when-murder>
             <label>${game.i18n.localize("DRPG.Trap.watchFor")}
                 <select name="trigger">${triggerOptions}</select>
                 <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
@@ -587,14 +716,17 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                        value="${foundry.utils.escapeHTML(start?.condition ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
+            </div>
+            ${passageOf ? passageFieldset(passageOf) : ""}
+            ${ownedOf ? ownedFieldset(ownedOf) : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    editing && isSecret(project.id) ? " checked" : ""} /> ${
+                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
-            ${players.length ? `<fieldset class="drpg-viewer-list">
+            ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
                 ${viewerBoxes(players, editing ? knownBy(project.id) : [], null, { locked: editing && !isSecret(project.id) })}
-                <small class="notes">${game.i18n.localize(editing && !isSecret(project.id)
+                <small class="notes" data-drpg-viewer-note>${game.i18n.localize(editing && !isSecret(project.id)
                     ? "DRPG.Project.everyone" : "DRPG.Project.visibleToNote")}</small>
             </fieldset>` : ""}
             ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
@@ -629,12 +761,18 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     // many checkboxes read differently through that name.
                     viewers: [...d.element.querySelectorAll('[name="viewers"]:checked')]
                         .map(box => box.value),
+                    // As the window drew them (E36 fix e1-G2: `secrecyChange`).
+                    was: [...d.element.querySelectorAll('[name="viewers"]')].filter(box => box.defaultChecked)
+                        .map(box => box.value),
                     img: f.img.value || null,
                     // A RadioNodeList's `.value` is the checked one, and the
                     // default cell's value is "" - so an untouched grid reads
                     // as "no choice" and the tray's own fallback names the
                     // hourglass, in one place.
-                    glyph: f.glyph?.value || null
+                    glyph: f.glyph?.value || null,
+                    // A Secret Passage's neighbour and the stretch its pick made (E15 part 2 C2).
+                    passageTo: f.passageTo?.value || null,
+                    passage: f.passage?.value || null
                 };
             }
         }
@@ -652,7 +790,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         // See wirePortraitPickers() - DialogV2 discards `content` and rebuilds
         // it from a string, so the picker has to be wired against the dialog's
         // real element once it exists, not against the div built above.
-        render: (event, dialog) => wirePortraitPickers(dialog.element, { defaultImg }),
+        render: (event, dialog) => {
+            wirePortraitPickers(dialog.element, { defaultImg });
+            if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
+            if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
+        },
         rejectClose: false
     });
 
@@ -683,7 +825,24 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     }
 
     if (editing) {
-        await updateProject(project.id, {
+        /*
+         * A MURDER NAMED IN THE EDIT NAMES ITS KILLER, OR IS REFUSED (E15 part 1 C1, 25.10.2026;
+         * audit S09-16). Create and the manager refuse an indirect murder with nobody behind it
+         * (ITEM-14), and the manager's refusal sends the GM here - which saved the flag with no
+         * killer, so the finished trap armed nothing and told nobody but the log (tier 2 E15-T1 at
+         * d90687dc: a Secret project ticked Indirect murder with nobody ticked was saved a murder,
+         * and with a player ticked saved no killer). The killer as Create picks one: the proposer,
+         * else the first player ticked; one the project has already is kept.
+         */
+        const known = secretsOf(project.id);
+        const killerId = result.murder && !known.killerId ? killerIdFor(result.viewers?.[0], known.by ?? null) : null;
+        if (result.murder && !known.killerId && !killerId) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Project.needsKiller"));
+            return null;
+        }
+        // One change of the entry (E36 C2): the edit and the secrecy in one step.
+        const change = combineChanges(projectEditChange({
+            ...(killerId ? { killerId } : {}),
             name: result.name,
             target: result.target,
             img: result.img,
@@ -701,8 +860,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     firedAt: startTrigger?.firedAt ?? null,
                     condition: result.condition }
                 : null
-        });
-        await applySecrecy(project.id, result.secret || result.murder, result.viewers);
+        }), secrecyChange(project.id, result.secret || result.murder || alwaysSecret, result.viewers, result.was));
+        if (change) await applyProjectChange(project.id, change, { by: { kind: "gm" } });
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
     }
@@ -723,7 +882,44 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         return null;
     }
 
+    /*
+     * A SECRET PASSAGE IS JUDGED AT ITS APPROVAL (E15 part 2 C2; the stage's D2). The builder's room is the GMs'
+     * reading, the room beyond is one of its neighbours on that floor, and the stretch is the pick's, between those two
+     * (passages-gm.mjs `builtPassageRow`, which the completion asks again on the primary). Anything else leaves the card
+     * open and says why.
+     */
+    let passageFields = null;
+    if (passageOf) {
+        let picked = null;
+        try { picked = JSON.parse(result.passage ?? "null"); } catch { picked = null; }
+        const why = !passageOf.offer ? "DRPG.Project.passageNoWall"
+            : !picked?.wallId ? "DRPG.Project.passageNeedsPick"
+            : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
+                ? "DRPG.Project.passageRefused" : null;
+        // A breach's stretch is judged as its completion judges it (C3: it may stand over a passage, never on a wall breached already).
+        const { builtPassageRow, breachStretchRow, whyText } = await import("./passages-gm.mjs");
+        const judged = why ? null : (passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked));
+        if (why || !judged?.row) {
+            // The stretch's own reason, in the table's language (fix e1-G4): a whole wall, a door, a breached wall.
+            ui.notifications.warn(why ? game.i18n.localize(why) : game.i18n.format("DRPG.Project.presetRefused", { why: whyText(judged?.refused) }));
+            return null;
+        }
+        passageFields = { presetTarget: { preset: passageOf.preset, room: result.passageTo }, passage: picked };
+    }
+
+    // The owner's three (C5): judged again on Create - the passage still known, the breach still standing, the item still
+    // the builder's own and broken or worn -, and the completion judges it once more on the primary.
+    if (ownedOf) {
+        const again = await presetApproval(start);
+        if (again.refused) {
+            ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: (await import("./passages-gm.mjs")).whyText(again.refused) }));
+            return null;
+        }
+        passageFields = { presetTarget: again.target, passage: null };
+    }
+
     const created = await createProject({
+        ...(passageFields ?? {}),
         name: result.name,
         target: result.target,
         // Whose idea it was, straight off the proposal card. `start` is the
@@ -746,6 +942,144 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
     return created;
+}
+
+/**
+ * A PUBLIC PROJECT'S BOXES OPEN WHEN ITS EDIT SEALS IT (E15 part 1 fix e1-G1, 25.10.2026; findings E15p1-SEC-R1,
+ * END-1, R2). An edited public project's "Visible to" is drawn locked - its ticks are who knew before it was revealed
+ * (`knownBy`), not a list the GM is choosing - and the fieldset shows once Secret or Indirect murder is ticked. With
+ * the boxes still locked, a GM's own public project (no proposer) ticked Indirect murder could name no killer: Save
+ * was refused with needsKiller ("pick who it is visible to"), which the window did not allow, and one revealed after
+ * a seal silently made the first of its old viewers the killer (tier 2 E15-T1 at c93be060: the boxes disabled after
+ * the tick, the save refused). Ticking either box now unlocks them, with the Secret project's note; unticking both
+ * locks them again, as drawn, and then the Save reads no viewers (`secrecyChange` takes none for a public project).
+ */
+function wireViewerLock(root) {
+    const form = root.querySelector("form");
+    if (!form?.secret || !form.murder) return;
+    const boxes = [...form.querySelectorAll('[name="viewers"]')];
+    const note = form.querySelector("[data-drpg-viewer-note]");
+    const sync = () => {
+        const open = form.secret.checked || form.murder.checked;
+        for (const box of boxes) box.disabled = !open;
+        if (note) note.textContent = game.i18n.localize(open ? "DRPG.Project.visibleToNote" : "DRPG.Project.everyone");
+    };
+    form.secret.addEventListener("change", sync);
+    form.murder.addEventListener("change", sync);
+    sync();
+}
+
+/**
+ * A Secret Passage's approval, read on the GM's browser (E15 part 2 C2): `{ offer, to }` - the builder's offer as the
+ * GMs read where the builder stands (movement.mjs `gmPlaceOf`, passages-gm.mjs `secretPassageOffer`), null when its
+ * room shares no wall on its floor, and the neighbour the card's index names there, else the first.
+ */
+async function passageApproval(start) {
+    const builder = game.actors.get(start?.by ?? "");
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const { secretPassageOffer } = await import("./passages-gm.mjs");
+    const offer = builder ? secretPassageOffer(gmPlaceOf(builder)) : null;
+    const index = Number(start?.to);
+    return { offer, preset: start.preset, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
+}
+
+/** The owner's three presets of 15.10 (E15 part 2 C5), whose card names its target by id. */
+const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]);
+
+/**
+ * The approval of Seal the passage, Close the breach or Repair an item, read on the GM's browser (E15 part 2 C5; the
+ * stage's D2): `{ preset, label, target, refused }` - the card's id read where the GMs hold it (a passage of either store,
+ * a breach standing on a scene, an item of the builder's own sheet as the GMs' mark holds it), the label the window
+ * shows, the target `createProject` keeps in the GMs' half, and the reason it may not be done, or null. The same
+ * judges the completion asks again on the primary (passages-gm.mjs `sealRefusal`, `closeBreachRefusal`; inventory.mjs
+ * `repairRefusal`).
+ */
+async function presetApproval(start) {
+    const preset = start?.preset, id = typeof start?.to === "string" ? start.to : "", builderId = start?.by ?? null;
+    /* THE ROOM AND THE SCENE WHERE THE GMS READ THE BUILDER (fix e1-G3; finding SEC-3), not the card's: a Seal the passage
+       or a Close the breach names a passage or a breach with a side in that room on that scene (`presetSideRefusal`, which
+       the completion asks again with the room kept here). A Repair an item keeps the card's room, the form's. */
+    const place = preset === "repairItem" ? null : (await import("./movement.mjs")).gmPlaceOf(game.actors.get(builderId ?? "") ?? null);
+    const room = preset === "repairItem" ? start?.room || null : place?.room ?? null;
+    if (preset === "repairItem") {
+        const { repairRefusal, wearOf, isBroken } = await import("./inventory.mjs");
+        const { tierOf } = await import("./use-items.mjs");
+        const { itemsHeldNow } = await import("./sheet-audit.mjs");
+        const builder = game.actors.get(builderId ?? "") ?? null, item = builder?.items?.get(id) ?? null;
+        const held = item ? itemsHeldNow(builder).find(each => each.id === item.id) ?? item : null;
+        const label = item ? game.i18n.format("DRPG.Project.repairLabel", { item: item.name, tier: tierOf(held),
+            state: game.i18n.localize(isBroken(held) ? "DRPG.Project.repairBroken" : wearOf(held) ? "DRPG.Project.repairWorn" : "DRPG.Project.repairWhole") }) : "-";
+        return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }),
+            scale: (await import("./passages-gm.mjs")).presetScale(preset, { tier: held ? tierOf(held) : 0 }) };
+    }
+    const P = await import("./passages-gm.mjs");
+    if (preset === "sealPassage") {
+        const row = P.rowsOf().get(id);
+        return { preset, label: (row?.rooms ?? []).join(" - ") || "-", target: { preset, room, passageId: id },
+            refused: P.sealRefusal({ passageId: id, builderId }) ?? await P.presetSideRefusal({ passageId: id, sceneId: place?.scene?.id ?? "", room }) };
+    }
+    const scene = (game.scenes?.contents ?? [...(game.scenes ?? [])]).find(s => P.breachesOn(s).some(found => found.breach.breachId === id)) ?? null;
+    const row = Object.values(P.rowsOf().entries()).find(r => r?.breach?.breachId === id) ?? null;
+    return { preset, label: (row?.rooms ?? []).join(" - ") || scene?.name || "-", target: { preset, room, sceneId: scene?.id ?? null, breachId: id },
+        refused: P.closeBreachRefusal({ sceneId: scene?.id ?? null, breachId: id })
+            ?? await P.presetSideRefusal({ breachId: id, sceneId: place?.scene?.id ?? "", room }) };
+}
+
+/** A preset's size in progress, as the GMs hold it (fix e1-G3): a Repair an item's by its tier (`presetApproval`), the rest the table's. */
+async function presetSizeOf(preset, ownedOf = null) {
+    const { PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    if (!PASSAGE_PRESETS[preset]) return null;
+    const scale = preset === "repairItem" ? ownedOf?.scale : PASSAGE_PRESETS[preset].scale;
+    return PROJECT_SCALE[scale]?.progress ?? null;
+}
+
+/** The approval window's box for the owner's three: what the card names, and why it may not be done. */
+function ownedFieldset({ preset, label, refused, why = null }) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
+        <p class="notes">${esc(label)}</p>${refused ? `
+        <p class="drpg-warning">${esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" }))}</p>` : ""}</fieldset>`;
+}
+
+/** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
+function passageFieldset({ offer, to, preset = "secretPassage" }) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const t = key => game.i18n.localize(key);
+    const legend = esc(t(`DRPG.Project.preset.${preset}`));
+    if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${legend}</legend>
+        <p class="drpg-warning">${esc(t("DRPG.Project.passageNoWall"))}</p></fieldset>`;
+    return `<fieldset class="drpg-passage-preset" data-drpg-passage-preset><legend>${legend}</legend>
+        <p class="notes">${esc(game.i18n.format("DRPG.Project.passageFrom", { room: offer.from }))}</p>
+        <label>${esc(t("DRPG.Project.passageTo"))}
+            <select name="passageTo">${offer.neighbours.map(r => `<option value="${esc(r)}"${r === to ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+        <button type="button" class="drpg-mini-button" data-drpg-passage-pick>${esc(t("DRPG.Project.passagePick"))}</button>
+        <input type="hidden" name="passage" value="" />
+        <small class="notes" data-drpg-passage-picked>${esc(t("DRPG.Project.passageNone"))}</small></fieldset>`;
+}
+
+/**
+ * The approval's pick (E15 part 2 C2): two clicks on the wall between the builder's room and the room beyond, on the
+ * builder's floor (passages-gm.mjs `startPassagePick` with `between`), kept in the window until Create. Another room
+ * picked forgets the stretch.
+ */
+function wirePassagePick(dialog, offer, { over = false } = {}) {
+    const root = dialog?.element, form = root?.querySelector("form");
+    const button = root?.querySelector("[data-drpg-passage-pick]"), said = root?.querySelector("[data-drpg-passage-picked]");
+    if (!form?.passage || !button) return;
+    const forget = () => {
+        form.passage.value = "";
+        if (said) said.textContent = game.i18n.localize("DRPG.Project.passageNone");
+    };
+    form.passageTo?.addEventListener("change", forget);
+    button.addEventListener("click", async () => {
+        const scene = game.scenes.get(offer.sceneId);
+        if (!scene) return;
+        const { startPassagePick } = await import("./passages-gm.mjs");
+        const stretch = await startPassagePick(scene, { dialog, between: { rooms: [offer.from, form.passageTo?.value], level: offer.level, over } });
+        if (!stretch?.wallId) return;
+        form.passage.value = JSON.stringify(stretch);
+        if (said) said.textContent = game.i18n.format("DRPG.Project.passagePicked", { passage: stretch.rooms.join(" - ") });
+    });
 }
 
 /**
@@ -772,8 +1106,14 @@ export function killerIdFor(viewerUserId, byActorId) {
     return null;
 }
 
-/** Keep the ownership map in step with one boolean. */
-async function applySecrecy(id, wanted, viewers = null) {
+/**
+ * The change that keeps the ownership map in step with one boolean, or null when it already is (E36 C2: written by the
+ * caller's one change). An operation since E36 fix e1-G2 (findings E36-END-S2, F4): `seal` with the boxes ticked and
+ * the boxes the window drew ticked, or `reveal`, worked out in the step from who sees the project then
+ * (projects-secrecy.mjs `sightChange`), so a player shared while the window stood open is not taken off by a Save
+ * that did not untick them.
+ */
+function secrecyChange(id, wanted, viewers = null, was = null) {
     /*
      * A TICKED LIST IS AN ANSWER, NOT AN ADDITION (P-1, Dawid 18.09).
      *
@@ -781,22 +1121,26 @@ async function applySecrecy(id, wanted, viewers = null) {
      * players - secrecy follows `sealAudience`, which keeps whoever already knew
      * and the builder. With a list, that list IS who knows: unticking somebody
      * takes them off. The builder is added either way, because a seal that shuts
-     * the person building it out is F3 coming back.
+     * the person building it out is F3 coming back. A ticked list that is every
+     * player at once is the F4 leak (`withoutLeak`, E05; audit S09-09).
+     *
+     * Re-sealed when the list moved even if the checkbox did not - and not
+     * written when neither did: a Save that changes nothing must not rewrite
+     * the ownership of every secret project at the table. Read here only for
+     * that; the step reads it again.
      */
-    // Through `withoutLeak` as `sealAudience` is (E05; audit S09-09): a ticked list that is every
-    // player at once was the F4 leak again, re-sealed under the Secret box's name.
-    const audience = viewers ? [...new Set([...withoutLeak(id, viewers), ...builderIds(id)])] : sealAudience(id);
-    if (wanted) {
-        // Re-sealed when the list moved even if the checkbox did not - and not
-        // written when neither did: a Save that changes nothing must not rewrite
-        // the ownership of every secret project at the table.
-        const now = new Set(viewersOf(id).map(u => u.id));
-        const same = isSecret(id) && now.size === audience.length
-            && audience.every(userId => now.has(userId));
-        if (!same) await makeSecret(id, audience);
-        return;
-    }
-    if (isSecret(id)) await revealProject(id);
+    const op = wanted ? { seal: { viewers, was } } : (isSecret(id) ? { reveal: true } : null);
+    return op && sightChange(id, op) ? op : null;
+}
+
+/**
+ * The projects of `projects` whose preset is always secret (passages-gm.mjs `PASSAGE_PRESETS`, `secret: "always"`; E15
+ * part 2 fix e1-G1), read in the GMs' half (`target.preset`): their Secret box is drawn ticked and locked, and a Save
+ * never reveals them - nor does the step, which refuses the reveal whichever road asks.
+ */
+async function alwaysSecretIds(projects) {
+    const { PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    return new Set((projects ?? []).filter(p => p?.id && PASSAGE_PRESETS[secretsOf(p.id).target?.preset]?.secret === "always").map(p => p.id));
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */
@@ -817,6 +1161,10 @@ function readManager(dialog, projects) {
         // mistake "no checkboxes here" for "nobody knows".
         viewers: form.querySelector(`[name="viewers.${p.id}"]`)
             ? [...form.querySelectorAll(`[name="viewers.${p.id}"]:checked`)].map(box => box.value)
+            : null,
+        // The boxes as the window drew them (E36 fix e1-G2): what the GM changed is what the Save changes.
+        was: form.querySelector(`[name="viewers.${p.id}"]`)
+            ? [...form.querySelectorAll(`[name="viewers.${p.id}"]`)].filter(box => box.defaultChecked).map(box => box.value)
             : null,
         delete: form.querySelector(`[name="delete.${p.id}"]`)?.checked ?? false
     }));

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.84, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.85, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -130,7 +130,7 @@ You are turned back by:
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
-**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. When a GM makes a passage public, every student knows it, until the GM makes it secret again. Some passages are a tunnel or stairs between two rooms, on one floor or two: the end in your room is marked "Secret passage to" the room it leads to. Drag your token onto that end's mark to go through, or stand on the mark or a square next to it and press **Go through** beside it under **Known passages**: either way it costs what a door costs, and you come out by the far end, on its floor. A GM has to be connected. What turns you back at a door turns you back here, in the same words, and costs nothing. Everybody sees your token go through, as they see any token move. A tunnel a GM made one way says so under its name: you cannot go in by its other end, marked "Secret passage from" the room it comes from. Under a passage in a wall the list says to walk through the gap in the wall: it has no button.
+**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. A project can build one too (Secret Passage, chapter 4). When a GM makes a passage public, every student knows it, until the GM makes it secret again. Some passages are a tunnel or stairs between two rooms, on one floor or two: the end in your room is marked "Secret passage to" the room it leads to. Drag your token onto that end's mark to go through, or stand on the mark or a square next to it and press **Go through** beside it under **Known passages**: either way it costs what a door costs, and you come out by the far end, on its floor. A GM has to be connected. What turns you back at a door turns you back here, in the same words, and costs nothing. Everybody sees your token go through, as they see any token move. A tunnel a GM made one way says so under its name: you cannot go in by its other end, marked "Secret passage from" the room it comes from. Under a passage in a wall the list says to walk through the gap in the wall: it has no button.
 
 ### What you can see
 
@@ -245,6 +245,14 @@ The slow game: many actions over many times of day, and the one thing that can c
 - **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first.
 - A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one asks the GM on its first roll and keeps their pick.
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.
+- **Projects that change a wall or an item.** In **Propose a project**, **Kind** offers five besides a project of your own, each with its statistic and size set, offered only where it can be done:
+  - **Secret Passage** (Hand, Complex 6, always secret): through a wall of the room you stand in to the room beyond, named as you know it. The GM picks the stretch of wall. When it is finished you know the passage, and so do the people you shared the project with before then.
+  - **Breach the Wall** (Body, Complex 6): a hole in that wall, for everyone to see and walk through. Until the wall is repaired, the room beyond's lock and its bedroom door stop nobody, and a seal on it is lifted until the end of the time of day; being Chained still holds you, and the courtroom stays shut. The people in both rooms are told, and they learn your name only if you stand at the hole; the rooms beside hear a crash.
+  - **Seal the passage** (Hand, Complex 6): closes a passage you know with a side in your room, for everyone who knows it. A GM can open it again.
+  - **Close the breach** (Body, Complex 6): the wall stands whole again.
+  - **Repair an item** (Hand; Trivial 3 for Tier 0 or 1, Complex 6 for Tier 2 or 3): one broken or worn usable or tool of your own, carried or in your stash, comes back whole.
+
+  The GM approves it like any proposal, and checks it again when it is finished: if the wall, the passage or the item is no longer what it was, nothing happens and the GM is told why. A Reroll of the roll that finished a Secret Passage, a breach or a seal takes it back.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.
 - A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once you have stood in its room; a secret one only for the people in on it. Double-click it for its card.
 - **Sabotage** (same tile, the project's statistic): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
@@ -359,13 +367,13 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Support** | 1 | Give another player advantage on one roll. You have to be in the same room. |
 | **Experience** | 1 | Add your experience level to a roll that experience genuinely applies to. Waits for the GM - you write what you intend, the Hope is charged only on a yes. |
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
-| **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
+| **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. On a murder plan it also rolls to hide the traces, like working on it. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
 | **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. A Reroll of a Find Passage or a Find Stash searches again with the new dice (in the room its roll was thrown in, and only while you still stand there - else the Reroll is given back whole): going up, it finds once; going down, a stash it opened stays open, and a passage only that roll found is taken back. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
-| **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
+| **Loaded Die** | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. When it is the Despair die that is set, the roll comes out with Despair. |
 
 A Call that affects a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the GM's browser, which takes the Hope: with no GM connected it cannot be bought, and nothing is spent (read in the code, not measured for a Call). It waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one - unless it hinders you (a disadvantage or a negative bonus) and was armed more than a minute before a roll the GM's browser throws, which counts it whether the window shows it or not. Sprint and Burst bank instead and last until the time of day ends.
 
@@ -411,9 +419,9 @@ Despair earned past a full pool does not vanish - it collects in one shared coun
 | Silence | no Hope Calls, by anybody |
 | Fog | no Free Move - crossings cost actions as usual |
 | Rot | every item with more than one durability point loses one (one-off, nothing breaks) |
-| Earthquake | every project loses 1 progress (one-off) |
+| Earthquake | every project not yet finished and not frozen loses 1 progress (one-off) |
 
-None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it.
+None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it, but a darkening announced during the trial still comes, at the next time of day.
 
 ---
 
@@ -514,7 +522,7 @@ Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladde
 
 ## 9. Traps and projects that kill
 
-An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **6 progress** in total.
+An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
 
 Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes"). Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
 
@@ -726,7 +734,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
-- You have the same action budget as a living student and see only your own room. Your rolls are shown to everyone standing in it.
+- You start with 0 Hope and no Health or Sanity marked, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 
@@ -735,6 +743,8 @@ Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same
 | 12+ | +1 | -1 |
 | 16+ | advantage | disadvantage |
 | critical | returns their action | wastes their action |
+
+A critical with nothing to move - they had every action left, or none left to lose - says so.
 
 Monokumas themselves - the GM side - have no actions and no Hope, walk through walls and locked doors, and spend Despair where you spend Hope.
 

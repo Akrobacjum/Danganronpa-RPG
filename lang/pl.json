@@ -475,19 +475,22 @@
     },
     "Assign": {
       "title": "Despair Flow",
+      "outside": "Poza każdą pulą",
+      "fallbackOption": "{name} (domyślnie)",
       "intro": "Rzut zakończony Despair zasila Monokumę tego ucznia.",
       "monokuma": "Monokuma",
       "save": "Zapisz",
       "splitEvenly": "Podziel po równo",
       "splitDone": "Uczniowie podzieleni po równo między Monokumy.",
       "failed": "Nie udało się zapisać podziału. Zajrzyj do konsoli.",
-      "noMonokumas": "Asystenci GM-a nie dostają puli Despair.",
+      "noMonokumas": "Nikt jeszcze nie ma puli Despair: ma ją każde konto pełnego GM-a, a w tym świecie nie ma żadnego. Nadaj kontu rolę Gamemastera i otwórz Despair Flow ponownie; tam można przyznać pulę Asystentom GM-a.",
       "nobody": "- nikt -",
-      "implicitHint": "Nigdy nie przypisano - domyślnie pierwszy Monokuma.",
-      "footnote": "* = nieprzypisany, działa domyślny. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony."
+      "implicitHint": "Nigdy nie przypisano: ten uczeń zasila pierwszą pulę, dopóki nie wybierzesz innej.",
+      "footnote": "„(domyślnie)” = nieprzypisany, więc uczeń zasila pierwszą pulę. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony."
     },
     "Despair": {
       "label": "Despair",
+      "account": "Konto",
       "callTitle": "Despair Call",
       "pipTooltip": "Ustaw Despair puli {name} na {n}. Kliknij ostatnie zapełnione pole, by je wydać.",
       "spent": "{name} wydaje {cost} Despair",
@@ -503,11 +506,11 @@
         "other": "{n} do spłaty"
       },
       "poolsTitle": "Pule Despair",
-      "poolsIntro": "Nazwij każdą pulę. Nie musi pasować do konta.",
+      "poolsIntro": "Nazwij każdą pulę - nie musi pasować do nazwy konta. Każdy pełny GM ma pulę; Asystent GM-a ma ją, gdy przyznasz mu ją niżej.",
       "poolName": "Nazwa puli",
       "addPool": "Dodaj pulę",
       "grantTo": "Przyznaj pulę",
-      "noCandidates": "Brak Asystenta GM-a, któremu można przyznać pulę. Pełni GM-owie już ją mają.",
+      "noCandidates": "Brak Asystenta GM-a, któremu można przyznać pulę. Każdy pełny GM już ją ma.",
       "removePool": "Usuń pulę",
       "revokeFrom": "Odbierz pulę",
       "poolAdded": "Pula przyznana.",
@@ -555,8 +558,44 @@
       "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
     },
     "Passage": {
+      "why": {
+        "noScene": "scena, na której był, już nie istnieje. Zaproponuj go ponownie na istniejącej scenie.",
+        "twoRooms": "odcinek nie łączy dwóch pokoi. Wybierz odcinek ściany między dwoma pokojami.",
+        "gmOnly": "zrobić to może tylko przeglądarka GM-a. Poproś o to ponownie z przeglądarki GM-a.",
+        "noStore": "zapis tajnych przejść tego sezonu się nie wczytał. Odśwież świat, a potem odejmij projektowi punkt i ukończ go ponownie.",
+        "noBuilder": "jego budujący nie jest już uczniem tego świata. Jeśli ma się to wydarzyć, utwórz nowy projekt dla innego ucznia.",
+        "idTaken": "w tej samej chwili jego miejsce zajęło inne przejście. Odejmij projektowi punkt i ukończ go ponownie.",
+        "breached": "ta ściana ma już wyłom. Najpierw zamknij tamten wyłom albo wybierz inną ścianę.",
+        "wholeWall": "odcinek obejmuje całą ścianę i nic by z niej nie zostało. Wybierz krótszy odcinek.",
+        "noBreach": "tego wyłomu już nie ma: wcześniej zamknął go GM albo inny projekt. Nie trzeba nic robić.",
+        "wallGone": "ściana, z której go wycięto, już nie istnieje. Pokój za nią jest przywrócony; usuń otwór ręcznie narzędziem ścian.",
+        "cannotClose": "przejścia nie udało się zamknąć. Zamknij je ręcznie w zakładce Przejścia.",
+        "notKnown": "postać nie zna tego przejścia albo jest ono już zamknięte. Sprawdź je w zakładce Przejścia.",
+        "isBreach": "to wyłom, nie przejście. Ścianę przywraca Zamknij wyłom.",
+        "noSide": "nie ma żadnej strony w pokoju, w którym stoi postać. Zatwierdź go tylko z pokoju, do którego prowadzi to przejście albo wyłom.",
+        "noWall": "tej ściany już nie ma. Wybierz odcinek ponownie.",
+        "taken": "odcinek nachodzi na inne przejście na tej ścianie. Wybierz odcinek obok niego.",
+        "levels": "pokój przy odcinku jest na innym piętrze. Wybierz odcinek na piętrze postaci.",
+        "notBetween": "odcinek nie stoi między dwoma pokojami. Wybierz odcinek ściany między dwoma pokojami.",
+        "otherRooms": "końce odcinka stoją między różnymi pokojami. Wybierz oba końce między tymi samymi dwoma pokojami.",
+        "short": "odcinek jest za krótki. Wybierz dłuższy odcinek.",
+        "door": "ta ściana to drzwi. Wybierz odcinek pełnej ściany.",
+        "noMove": "ta ściana nikogo nie zatrzymuje. Wybierz odcinek pełnej ściany.",
+        "sameEnds": "odcinek potrzebuje dwóch różnych końców. Wybierz go ponownie.",
+        "offWall": "odcinek nie leży już na tej ścianie. Wybierz go ponownie.",
+        "floor": "ta ściana nie jest na piętrze postaci. Wybierz ścianę tego piętra.",
+        "notOwn": "przedmiotu nie ma na karcie budującego: oddany, zabrany albo z karty wspólnej. Zatwierdzaj naprawę tylko przedmiotu, który postać ma.",
+        "notRepairable": "przedmiot nie jest przedmiotem użytkowym ani narzędziem albo jest już cały. Nie ma czego naprawiać.",
+        "nothingBack": "nie ma czego przywrócić. Jeśli wyłom ma zostać, zrób go ponownie ręcznie.",
+        "itemBack": "na przedmiocie nie było czego przywrócić.",
+        "brokenSince": "przedmiot w międzyczasie znów się zepsuł albo zużył i zostaje taki, jaki jest.",
+        "unknown": "moduł nie umie powiedzieć dlaczego; powód jest w konsoli GM-a."
+      },
       "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
       "tab": {
+        "originProject": "Projekt",
+        "howShared": "udostępnione",
+        "howBuilt": "zbudowane",
         "intro": "Tajne przejście to odcinek ściany między dwoma pokojami, przez który przejdą tylko uczniowie, którzy je znają, za cenę drzwi. Dla wszystkich innych to ściana. Każdy przycisk tej zakładki działa od razu; Zastosuj i Anuluj go nie zmieniają.",
         "rooms": "Pokoje",
         "kind": "Rodzaj",
@@ -568,6 +607,9 @@
         "state": "Stan",
         "kindSecret": "Tajne",
         "kindPublic": "Jawne",
+        "kindBreach": "Wyłom",
+        "closeBreach": "Zamknij wyłom",
+        "closeBreachRefused": "Nie udało się zamknąć wyłomu: {why}",
         "shapeWall": "W ścianie",
         "shapeTunnel": "Tunel lub schody",
         "way": "W którą stronę prowadzi",
@@ -626,6 +668,21 @@
         "note": "Od teraz ta osoba może przez nie przechodzić, tak jak ty. Nie kosztuje akcji; GM-owie się o tym dowiedzą."
       },
       "card": {
+        "notBuilt": "Projekt {name} jest ukończony, ale jego tajnego przejścia nie udało się otworzyć: {why}",
+        "notBreached": "Projekt {name} jest ukończony, ale wyłomu w ścianie nie udało się zrobić: {why}",
+        "notSealed": "Projekt {name} jest ukończony, ale jego przejścia nie udało się zasypać: {why}",
+        "notClosed": "Projekt {name} jest ukończony, ale jego wyłomu nie udało się zamknąć: {why}",
+        "notReopened": "Przerzut cofnął projekt {name}, ale jego wyłomu nie udało się zrobić ponownie: {why}",
+        "breachDoneHere": "Ściana tego pokoju ustępuje: jest w niej teraz wyłom.",
+        "breachDoneHereNamed": "{name} przebija ścianę tego pokoju: jest w niej teraz wyłom.",
+        "breachDoneThere": "Ściana tego pokoju pęka od drugiej strony: jest w niej teraz wyłom.",
+        "breachDoneThereNamed": "{name} przebija się od drugiej strony przez ścianę do tego pokoju: jest w niej teraz wyłom.",
+        "breachHeard": "Słyszysz zza ściany potężny łomot od strony: {room}.",
+        "breachBedroom": "Ktoś przebił ścianę do twojej sypialni ({room}). Dopóki ściana nie zostanie naprawiona, jej drzwi nikogo nie zatrzymują.",
+        "breachForced": "Wyłom wyłamuje pokój {room}. Dopóki ściana nie zostanie naprawiona, ani zamek, ani drzwi sypialni nikogo nie zatrzymują.",
+        "breachUnsealed": "Pieczęć na nim jest zerwana do końca tej pory dnia.",
+        "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
+        "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
         "done": "Pokazujesz postaci {target} tajne przejście."
       },
@@ -653,6 +710,7 @@
         "tunnelSecond": "Kliknij pole, na którym tunel wychodzi, wewnątrz innego pokoju, na tym piętrze lub innym. Esc anuluje.",
         "tunnelMade": "Tunel {passage} gotowy. Daj go uczniowi w zakładce Przejścia.",
         "why": {
+          "notThese": "Kliknij ścianę między dwoma pokojami projektu.",
           "noWall": "Tu nie ma ściany. Kliknij na ścianie między dwoma pokojami.",
           "door": "To są drzwi. Tajne przejście idzie w zwykłej ścianie.",
           "noMove": "Ta ściana nikogo nie zatrzymuje, więc tajne przejście nic by w niej nie zmieniło.",
@@ -989,6 +1047,8 @@
     },
     "Monocub": {
       "meddleRefused": "Twojego Confusion nie dało się zastosować - akcja i Hope wróciły.",
+      "tickFirst": "Najpierw zaznacz Monocub",
+      "student": "Uczeń",
       "panelTitle": "Monocub",
       "meddleCost": "{hope} Hope, {actions} akcja.",
       "cannotMeddle": "Za mało akcji albo za mało Hope.",
@@ -1003,7 +1063,7 @@
       "giveHope": "Zamień Despair Monokumy w Hope",
       "giveHopeColumn": "Despair → Hope",
       "give": "Daj",
-      "silenced": "Uciszony w tym rozdziale",
+      "silenced": "Uciszony",
       "silencedNote": "Zaznacz, jeśli ten Monocub natknął się na miejsce zbrodni. Nie może o nim mówić do końca rozdziału, ale Confusion wciąż działa.",
       "needHope": "Confusion kosztuje Hope, a nie masz żadnego. Poproś GM-a o zamianę Despair.",
       "nobodyHere": "Nie ma tu nikogo, na kim dałoby się użyć Confusion.",
@@ -1014,6 +1074,10 @@
       "hinder": "Przeszkódź",
       "meddledOn": "Confusion użyte na: {name}.",
       "meddleFailed": "Nic z tego nie wychodzi.",
+      "critHelpNothing": "Gracz miał wszystkie akcje: nie było czego oddać.",
+      "critHelpNothingTarget": "Chwila szczęścia, ale żadna twoja akcja nie była wydana: nic nie wraca.",
+      "critHinderNothing": "Gracz nie miał już akcji do zmarnowania.",
+      "critHinderNothingTarget": "Chwila zamętu, ale nie masz już akcji do stracenia.",
       "silencedNoteShort": "Zbrodnia na twoich oczach. Bez rozmów o niej do następnego rozdziału.",
       "noneYet": "Nikt jeszcze nie dołączył jako Monocub.",
       "hopeShort": "{held} Hope",
@@ -1021,8 +1085,8 @@
       "silenceOn": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału.",
       "silenceOff": "Milczenie zdjęte. Znów możesz mówić o zbrodni.",
       "meddleCostShort": "{hope} Hope, {actions} akcja",
-      "silencedBadge": "Nie może mówić",
-      "silencedTooltip": "Monokuma odebrał ci głos w tym rozdziale. Możesz działać, nie mówić.",
+      "silencedBadge": "Zobowiązany do milczenia",
+      "silencedTooltip": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
       "onlyTwoActions": "Monocub ma dwie rzeczy do zrobienia: przejście do innego pokoju i Confusion. Reszta panelu akcji należy do żywych.",
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
@@ -1598,7 +1662,7 @@
       "killer": "Zabójca",
       "victim": "Ofiara",
       "indirect": "Morderstwo pośrednie - ofiara jest sama, a drenaż jest podwojony",
-      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około 6 postępu łącznie, mniej więcej cztery do sześciu akcji, inaczej kosztuje więcej, niż jest warta.",
+      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej cztery do sześciu akcji, inaczej kosztuje więcej, niż jest warta.",
       "openConfirm": "Otwórz",
       "needOne": "Musi być co najmniej jeden żywy uczeń.",
       "openSelfNote": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",
@@ -2342,6 +2406,7 @@
       "answerKeyMissing": "Nie można teraz przekazać: {name}. Tego, czym jest naprawdę, nie ma w przeglądarce GM-a. GM może to przywrócić z kopii (Przywróć sprawę)."
     },
     "Observe": {
+      "projectFoundDone": "Tajny projekt, który odkryto, jest ukończony: {name}.",
       "declarePrompt": "Jak patrzysz?",
       "general": "Rozejrzyj się za czymkolwiek",
       "specific": "Skup wzrok",
@@ -2698,6 +2763,7 @@
       "caption": "Despair overflow",
       "cardTitle": "Despair się przelewa",
       "cardBody": "{n} punktów rozlanego Despair znalazło zastosowanie. Przez jedną porę dnia szkoła staje się tym:",
+      "cardBodyTrial": "{n} punktów rozlanego Despair znalazło zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:",
       "cardLeft": "Overflow zatrzymuje to, czego nie wydał.",
       "activeNow": "Zaciemnione · ta pora dnia",
       "hiddenValue": "?",
@@ -2711,6 +2777,7 @@
       "floorNote": "Żadne z nich nigdy nie schodzi poniżej jednego. Pora dnia bez akcji albo pokój bez Search Tokenów to nie trudniejsza gra - to gracz, który nie ma co robić, dopóki zegar się nie przesunie.",
       "current": "Teraz: {count} z {max}.",
       "currentDrawn": "Teraz: {count} z {max}. Ta pora dnia jest pod: {what}.",
+      "currentWaiting": "Teraz: {count} z {max}. {what} ogłoszono w procesie i czeka na następną porę dnia.",
       "pool": "Co może zostać wylosowane",
       "poolHint": "Jedno z nich losowane jest za każdym razem, gdy overflow odpala - nigdy więcej niż jedno. Odznacz to, czego nie chcesz w kapeluszu.",
       "oneOff": "Jednorazowe",
@@ -2735,12 +2802,19 @@
         "silence": "Żadnych Hope Calls. Ani jednego, u nikogo.",
         "fog": "Nie znajdujesz drogi za darmo: brak Free Move. Przejścia wciąż kosztują akcje jak zwykle.",
         "rot": "Wszystko, co ma szkoła, psuje się naraz: o {n} wytrzymałości mniej na każdym przedmiocie, który jakąś ma; nic nie łamie się do końca.",
-        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt traci {n} postępu."
+        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu."
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",
-      "explainBody": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z {effects} w kapeluszu GM-a, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia.",
-      "explainVeil": "Gracze widzą „?” zamiast liczby. Uprzejmość, nie tajemnica: licznik to ustawienie świata, więc zdeterminowany gracz odczyta go z konsoli. Nic ze śledztwa w nim nie mieszka.",
+      "explainEmpty": "Kapelusz GM-a jest teraz pusty, więc overflow nie odpali, dopóki czegoś do niego nie włoży.",
+      "explainBody": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z kapelusza GM-a, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia; zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.",
+      "explainHat": {
+        "one": "W kapeluszu jest teraz jeden efekt.",
+        "few": "W kapeluszu są teraz {n} efekty.",
+        "many": "W kapeluszu jest teraz {n} efektów.",
+        "other": "W kapeluszu jest teraz {n} efektu."
+      },
+      "explainVeil": "Gracze widzą „?” zamiast liczby: kiedy odpali, wie Monokuma. Nic ze śledztwa w nim nie mieszka.",
       "gmHintActiveFull": "Ta pora dnia jest zaciemniona. Czeka {count} z {max} rozlanego Despair i odpali, gdy ta pora dnia się skończy.",
       "noHopeNow": "Despair. Nikt nie zdobywa Hope o tej porze dnia."
     },
@@ -2816,6 +2890,45 @@
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
+      "passageRefused": "Ten odcinek nie stoi między pokojem budującego a pokojem za ścianą: wskaż go jeszcze raz.",
+      "passageNoWall": "Pokój budującego nie dzieli ściany z żadnym innym pokojem na tym piętrze: tajne przejście nie ma dokąd prowadzić.",
+      "passageNeedsPick": "Najpierw wskaż odcinek ściany, przez który prowadzi tajne przejście.",
+      "passageNone": "Nie wskazano jeszcze odcinka.",
+      "passagePicked": "Wskazano: {passage}",
+      "passagePick": "Wskaż odcinek na ścianie",
+      "passageFrom": "Z pokoju {room}, w którym stoi budujący.",
+      "passageSummary": "Secret Passage do: {to}",
+      "passageNote": "Tajne przejście przez ścianę pokoju, w którym stoisz: Hand, Complex (6), zawsze tajne. Poznasz je tylko ty i ci, którym udostępnisz projekt, zanim zostanie ukończony.",
+      "passageTo": "Przez ścianę do",
+      "breachSummary": "Breach the Wall do: {to}",
+      "breachNote": "Wyłom w ścianie pokoju, w którym stoisz: Body, Complex (6). Gdy zostanie ukończony, dziurę zobaczą wszyscy.",
+      "preset": {
+        "secretPassage": "Secret Passage",
+        "breach": "Breach the Wall",
+        "sealPassage": "Seal the passage",
+        "closeBreach": "Close the breach",
+        "repairItem": "Repair an item"
+      },
+      "kindOwn": "Własny projekt",
+      "sealWhich": "Przejście do zasypania",
+      "sealNote": "Seal the passage: Hand, Complex (6). Gdy zostanie ukończony, przejście będzie zamknięte dla ciebie i dla wszystkich, którzy je znają; GM może je otworzyć ponownie.",
+      "unbreachWhich": "Wyłom do zamknięcia",
+      "unbreachNote": "Close the breach: Body, Complex (6). Gdy zostanie ukończony, ściana znów będzie cała.",
+      "repairWhich": "Przedmiot do naprawy",
+      "repairOption": "{item} (Tier {tier})",
+      "repairNote": "Repair an item: Hand; Trivial (3) dla przedmiotu Tier 0 lub 1, Complex (6) dla Tier 2 lub 3. Gdy zostanie ukończony, przedmiot znów będzie cały.",
+      "repairItemName": "Naprawa: {item}",
+      "sealPassageSummary": "Seal the passage: {target}",
+      "closeBreachSummary": "Close the breach: {target}",
+      "repairItemSummary": "Repair an item: {target}",
+      "repairLabel": "{item} (Tier {tier}): {state}",
+      "repairBroken": "zepsuty przedmiot",
+      "repairWorn": "zużyty przedmiot",
+      "repairWhole": "cały przedmiot",
+      "presetRefused": "Tego nie da się teraz zrobić: {why}",
+      "notRepaired": "Projekt {name} jest ukończony, ale jego przedmiotu nie udało się naprawić: {why}",
+      "itemRepaired": "Przedmiot {item} znów jest cały.",
+      "kind": "Rodzaj",
       "needsKiller": "Pośrednie morderstwo potrzebuje zabójcy: wybierz, komu ma być widoczne, albo zatwierdź je z karty propozycji.",
       "needsKillerNamed": "„{name}” nie może stać się pośrednim morderstwem stąd - otwórz je i wskaż, do kogo należy pułapka.",
       "title": "Projekt",
@@ -2981,6 +3094,7 @@
       "cardShared": "Każdy żeton projektu jest kopią tego aktora. Otwórz projekt z jego żetonu na mapie.",
       "cardUnknown": "Nie wiesz, czym to jest.",
       "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
+      "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
       "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },
@@ -3030,7 +3144,7 @@
       },
       "reactionLocked": "Statystyka rzucona sama w sobie to reakcja: nic nie kosztuje i nic nie daje. Hope i Despair biorą się z akcji.",
       "unlockedByCall": "Odblokowane przez opłacony Call.",
-      "freeCritArmed": "Loaded Die uzbrojony. Jedna kość ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
+      "freeCritArmed": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
       "forcedByCall": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
       "forcedBySituation": "Ustawione przez to, gdzie jesteś i czego szukasz. Nie da się tego wyłączyć.",
       "forcedByState": "Jesteś w Breakdown - każdy rzut z utrudnieniem, dopóki nie wróci trochę Sanity. Nie da się tego wyłączyć.",
@@ -3054,6 +3168,7 @@
         "remnant.place": "Zostawienie śladu",
         "remnant.edit": "Edycja śladu",
         "project.unsabotage": "Naprawa",
+        "project.change": "Zmiana projektu",
         "token.sendBack": "Cofnięcie tokena",
         "eclipse.move": "Ruch w Eclipse",
         "note.save": "Notatka przed sesją",
@@ -4217,6 +4332,24 @@
         "many": "{n} tokenów projektów na mapach",
         "other": "{n} tokenów projektów na mapach"
       },
+      "resetPassageKnowers": {
+        "one": "{n} uczeń, który zna tajne przejście",
+        "few": "{n} uczniowie, którzy znają tajne przejście",
+        "many": "{n} uczniów, którzy znają tajne przejście",
+        "other": "{n} uczniów, którzy znają tajne przejście"
+      },
+      "resetPassagesBuilt": {
+        "one": "{n} tajne przejście zbudowane w projekcie",
+        "few": "{n} tajne przejścia zbudowane w projektach",
+        "many": "{n} tajnych przejść zbudowanych w projektach",
+        "other": "{n} tajnych przejść zbudowanych w projektach"
+      },
+      "resetBreaches": {
+        "one": "{n} wyłom, a jego ściana znów cała",
+        "few": "{n} wyłomy, a ich ściany znów całe",
+        "many": "{n} wyłomów, a ich ściany znów całe",
+        "other": "{n} wyłomów, a ich ściany znów całe"
+      },
       "resetRemnants": {
         "one": "{n} Remnant na mapach",
         "few": "{n} Remnants na mapach",
@@ -4378,7 +4511,7 @@
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",
-        "passages": "Kto zna które tajne przejście (przejścia zostają, a kto znał je na start sezonu, zna je znowu)",
+        "passages": "Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na start sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",
@@ -4399,7 +4532,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "Światła zgaszone. Każdy ustawia swój token - do dwóch połączonych pokoi albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Nic innego się nie dzieje, dopóki się nie skończy - to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
+        "eclipse": "Światła zgaszone. Każdy ustawia swój token - do dwóch połączonych pokoi albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
         "dailyLife": "Zwykłe dni w szkole. Masz dwie akcje na każdą porę dnia, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
         "investigation": "Znaleziono ciało. Używaj Observe na śladach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
         "classTrial": "Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali."
@@ -4419,13 +4552,13 @@
         "title": "Czym jest Despair",
         "what": "Despair to waluta strony GM-a. Rośnie, gdy rzuty przy stole wypadają z Despair zamiast z Hope - czyli karmi go wasz pech i wasze ryzyko.",
         "spent": "Wydawany jest na Despair Calls: ruchy, które utrudniają życie - pchnięcie sceny, zamknięcie pokoju, dokręcenie śruby. Im więcej go jest, tym więcej szkoła może wam zrobić.",
-        "masked": "Ile jest w puli, wie tylko GM. Wiersze na ekranie pokazują, że istnieje, nie ile.",
+        "masked": "Stan każdej puli jest jawny - wiersze pokazują, jak pełna jest każda z nich. Ukryty przed tobą jest tylko licznik overflow.",
         "noPools": "Żaden Monokuma nie ma jeszcze puli."
       },
       "status": {
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
-        "actionsWhat": "Dwie na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, odpoczynek, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna.",
+        "actionsWhat": "Dwie na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje jedną, Long Rest obie.",
         "actionsWounded": "Z całym Health zaznaczonym dostajesz jedną zamiast dwóch, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
@@ -5008,7 +5141,7 @@
         },
         "freeCrit": {
           "label": "Loaded Die",
-          "effect": "Jedna kość ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12."
+          "effect": "Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12."
         }
       },
       "DESPAIR_CALLS": {
@@ -5511,6 +5644,10 @@
           "label": "Poznajesz tajne przejście",
           "hint": "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."
         },
+        "wallBreached": {
+          "label": "Ktoś przebija ścianę",
+          "hint": "Ktoś kończy Breach the Wall. Słyszą go uczniowie w obu pokojach, które łączy wyłom, i w pokojach obok."
+        },
         "actionSpent": {
           "label": "Wydano akcję",
           "hint": "Słyszy gracz, który ją wydał."
@@ -5801,6 +5938,7 @@
         "passageMap": "Tajne przejścia: gdzie jest każde i czy jest otwarte",
         "passageAccess": "Kto zna które tajne przejście i skąd",
         "passageLog": "Co robiono z tajnymi przejściami",
+        "passageSeason": "Tajne przejścia zbudowane w tym sezonie w projektach",
         "cast": "Obsada incydentu",
         "blackened": "Rejestr Blackened",
         "trapLedger": "Podłożone przedmioty pułapek",

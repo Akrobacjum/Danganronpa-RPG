@@ -1126,6 +1126,16 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(frozenAgain) && typeof onFrozen.before.current === "number" && onFrozen.unchanged
         && onFrozen.reasons.some(r => /that project is frozen until its repair is finished/.test(r)), JSON.stringify(onFrozen));
 
+    /* 7b0. project.change (E36 C1, 25.10.2026): a change one GM asks the primary GM to make in its queue. A console's
+       packet naming it - a new target, which a frozen project takes as any other - is refused as a GM's own and changes
+       nothing (gm-bridge.mjs `ACTION_PROJECT_CHANGE`, `gmOnly`). */
+    const readBar = `const P = await import("${repoUrl}/scripts/projects.mjs");
+        const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.current ?? null, target: c?.start ?? null };`;
+    const forgedChange = await forge("project.change", { countdownId: projects.pub, change: { target: 12, delta: -1 }, by: { kind: "gm" } }, readBar);
+    check("SECURITY: a console's project.change is refused as a GM's own and changes no project",
+        typeof forgedChange.before.target === "number" && forgedChange.unchanged
+        && forgedChange.reasons.some(r => /only a GM changes a project/.test(r)), JSON.stringify(forgedChange));
+
     /* 7b+. WHAT A CONSOLE'S PROGRESS ADDS (E08+E28 C16, 04.10.2026; audit S10-08). A Work on a Project
        names its roll, and the GM adds what that roll earned on its record (gm-bridge.mjs `progressOf`),
        the character standing in the project's room when it has one (bridge-guards.mjs `guardProjectRoom`).
