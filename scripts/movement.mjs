@@ -809,10 +809,13 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
  * client that becomes the primary forgets the standings it holds (`judgingHere`): they were written
  * before another GM judged the moves since, and read again they called a GM's placing a jump. It then
  * judges each token's next move from where `gmSeen` saw it, lawful. So an unlawful standing does not
- * survive a change of primary: a student a console put past a lock counts where they stand once another
- * GM takes over (scenario 66 P2 reads it), and so, by the same reading of `gmSeen` primed at ready, does a
- * move made while no GM was connected (not driven by any scenario). Kept in no document or setting. P1 reads
- * the other half: a GM's placing made while another GM was the primary is not a jump.
+ * survive a change of primary: a student a console put where the rules refuse counts where they stand once
+ * another GM takes over, and so, by the same reading of `gmSeen` primed at ready, does a move made while no
+ * GM was connected (not driven by any scenario). Since E17 C1 a console's jump past a lock is put back by the
+ * primary that judged it, so what survives is an arrival only the connected-rooms rule refuses (not driven by
+ * any scenario either); scenario 66 P2 reads the put-back, and the next primary standing the student lawful
+ * where it was put back, telling and putting back nothing (E17 fix ci-1). Kept in no document or setting. P1
+ * reads the other half: a GM's placing made while another GM was the primary is not a jump.
  *
  * A TOKEN A PLAYER DROPS (E12 fix r2-H3; security review r2 SEC2-1). A drop had no standing and was
  * judged from nowhere - lawful in any room no lock, seal or bedroom shuts, however far from where the
