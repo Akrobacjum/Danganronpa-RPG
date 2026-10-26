@@ -22656,6 +22656,117 @@ const INVARIANTS = [
             + "[vault.findStash's answer, vault.steal's answer, locateStash's card before its request, the request before the refund of a refusal, "
             + "the refund before the roll is noted, searchStash's player's `got` read off `taken`]");
     }],
+    ["R990 - Create an item picks its picture from the module's item drawings, as a project picks its icon (H83, the owner's 26.10.2026 note): one radio cell per drawing itemIcon names, the category's own first and storing nothing, Another file last; a cell puts its drawing in img.new and the preview, the first cell \"\" and the category's drawing; a preset's picture lights its own cell, or Another file with that file", async () => {
+        /*
+         * H83 item 3, 26.10.2026. The owner: the project's icon grid is liked, and Create an item should choose its
+         * picture the same way, from the drawings the module already ships (icons/item-*.svg, config.mjs `itemIcon`).
+         * Before: one thumbnail that opened a file browser, so picking "the Tools drawing" meant finding
+         * modules/danganronpa-rpg/icons/ by hand. The real window on this GM, opened three times (no preset, a preset
+         * holding a drawing, a preset holding another file) and closed; nothing is pressed but the cells, and Add is
+         * never pressed, so nothing is written (tier 1's dump holds it). The file browser is stood in for while Another
+         * file is pressed, so none is opened here: whether v14's browser answers as `callback` expects is not read.
+         */
+        const T = await import("./tables.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const drawings = [...new Set(Object.keys(ITEM_CATEGORIES).map(key => itemIcon(key)))];
+        must(drawings.length >= 2, "itemIcon names fewer than two drawings - the cells below would measure nothing");
+        must(!document.querySelector(".drpg-window-tables"),
+            "the item tables window is open here, and would be raised rather than asked for");
+        const outside = "icons/svg/hazard.svg";
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
+        const inWindow = async (preset, read) => {
+            const opening = T.openItemTables(preset ? { preset } : {});
+            try {
+                await until(() => tablesApp());
+                await settle();
+                const pane = tablesApp()?.element?.querySelector('[data-drpg-gmt-section="newItem"]');
+                return pane ? await read(pane) : "no Create an item pane";
+            } finally {
+                try { await tablesApp()?.close(); } catch { /* already gone */ }
+                try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+                await settle();
+            }
+        };
+        const state = pane => {
+            const cells = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')];
+            const at = cells.findIndex(c => c.checked);
+            return { at, stored: pane.querySelector('[name="img.new"]')?.value ?? null,
+                shown: pane.querySelector(".drpg-tables-new-head > img")?.getAttribute("src") ?? null };
+        };
+
+        const plain = await inWindow(null, async pane => {
+            const cells = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')];
+            const values = cells.map(c => c.value);
+            const last = cells.at(-1) ?? null;
+            const opened = state(pane);
+            const picked = [];
+            for (let n = 0; n < drawings.length; n += 1) {
+                if (!cells[n + 1]) { picked.push(state(pane)); break; }
+                cells[n + 1].click();
+                picked.push(state(pane));
+            }
+            cells[0]?.click();
+            const back = state(pane);
+            /* Another file, with the file browser stood in for (its class's `implementation`, put back below): a click asks
+               it once and lights nothing yet, its answer is stored, shown and lit there, and an answer that is one of the
+               drawings lights that drawing's cell. */
+            const FP = foundry.applications.apps.FilePicker;
+            const own = Object.getOwnPropertyDescriptor(FP, "implementation");
+            const asked = [];
+            const file = { asked: null, before: null, answered: null, drawing: null };
+            try {
+                Object.defineProperty(FP, "implementation", { configurable: true,
+                    get: () => class { constructor(options) { asked.push(options); } render() { return this; } } });
+                last?.click();
+                file.asked = asked.map(o => o?.type ?? null);
+                file.before = state(pane);
+                asked[0]?.callback?.(outside);
+                file.answered = { ...state(pane),
+                    cellShows: last?.closest(".drpg-choice")?.querySelector("img:not([hidden])")?.getAttribute("src") ?? null };
+                asked[0]?.callback?.(drawings[0]);
+                file.drawing = state(pane);
+            } finally {
+                if (own) Object.defineProperty(FP, "implementation", own); else delete FP.implementation;
+            }
+            cells[0]?.click();
+            const category = String(pane.querySelector("[name=newCategory]")?.value ?? "").split(":")[0];
+            return { count: cells.length, groups: new Set(cells.map(c => c.name)).size, first: values[0] ?? null,
+                middle: values.slice(1, -1), lastIsFile: Boolean(last) && last.value !== "" && !drawings.includes(last.value),
+                opened, picked, back, file, own: itemIcon(category) };
+        });
+        equal(stableJson(typeof plain === "string" ? plain : [plain.count, plain.groups, plain.first, plain.middle, plain.lastIsFile]),
+            stableJson([drawings.length + 2, 1, "", drawings, true]),
+            "Create an item does not offer one radio group of the category's own (storing \"\"), each item drawing, and Another "
+            + "file last [cells, radio groups, the first cell's value, the cells between, the last cell is neither]");
+        equal(stableJson(typeof plain === "string" ? plain : [plain.opened, plain.picked, plain.back]),
+            stableJson([{ at: 0, stored: "", shown: plain.own ?? null },
+                drawings.map((path, n) => ({ at: n + 1, stored: path, shown: path })),
+                { at: 0, stored: "", shown: plain.own ?? null }]),
+            "a cell does not light, put its drawing in img.new and show it, or the category's own does not store nothing and "
+            + "show the category's drawing [as opened, after each drawing's cell, after the first cell again]");
+        const ownShown = plain.own ?? null;
+        equal(stableJson(typeof plain === "string" ? plain : plain.file),
+            stableJson({ asked: ["image"], before: { at: 0, stored: "", shown: ownShown },
+                answered: { at: drawings.length + 1, stored: outside, shown: outside, cellShows: outside },
+                drawing: { at: 1, stored: drawings[0], shown: drawings[0] } }),
+            "Another file does not ask the image browser once and wait for its answer, or its answer is not stored, shown and "
+            + "lit in that cell, or a drawing it returns does not light the drawing's cell [asked, before the answer, a file, a drawing]");
+
+        const chosen = drawings[1];
+        const presetDrawing = await inWindow({ category: "tool", tier: 2, name: "", img: chosen }, async pane => state(pane));
+        const presetFile = await inWindow({ category: "tool", tier: 2, name: "", img: outside }, async pane => {
+            const s = state(pane);
+            const last = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')].at(-1);
+            return { ...s, last: [...pane.querySelectorAll('.drpg-choice input[type="radio"]')].length - 1,
+                cellShows: last?.closest(".drpg-choice")?.querySelector("img")?.getAttribute("src") ?? null };
+        });
+        equal(stableJson([presetDrawing, presetFile]),
+            stableJson([{ at: 2, stored: chosen, shown: chosen },
+                { at: drawings.length + 1, stored: outside, shown: outside, last: drawings.length + 1, cellShows: outside }]),
+            "a preset's picture does not light its drawing's cell, or a file that is no drawing does not light Another file "
+            + "and show the file there [a preset holding a drawing, a preset holding another file]");
+    }],
 ];
 
 /**

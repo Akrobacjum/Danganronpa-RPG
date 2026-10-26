@@ -13332,6 +13332,45 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     min-width: 0;
 }
 
+/* Create an item's picture (H83 item 3, 1.2.86): the preview is the old thumbnail's size and frame, no longer a control
+   (the cells below choose), and each cell's swatch is the drawing it stores, as the project glyph grid's cell is its
+   glyph. The layout of the cells is that grid's (`.drpg-glyph-grid`, above), and the cells are `.drpg-choice`, so both
+   themes dress them as they dress every list that picks. */
+.drpg-tables-preview {
+    width: 1.8rem;
+    min-width: 1.8rem;
+    height: 1.8rem;
+    object-fit: cover;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+}
+
+.drpg-item-picture-swatch {
+    flex: 0 0 1.6rem;
+    width: 1.6rem;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    object-fit: contain;
+    border: none;
+}
+
+.drpg-item-picture-choice > [hidden] {
+    display: none !important;
+}
+
+/* Three cells to a row, not the glyph grid's 7.5rem: read in the stand-in (Chromium, 1366x768, both themes, a 13 and a
+   16 px root), at that width four cells a row cut every name but "Usable" and "Tool" to an ellipsis, in English and in
+   Polish. A name that is still too long wraps rather than being cut. */
+.drpg-item-picture-grid {
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+.drpg-item-picture-grid .drpg-glyph-name {
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.2;
+}
+
 .drpg-tables-targets {
     display: flex;
     flex-wrap: wrap;
@@ -16500,6 +16539,36 @@ body.drpg-theme-monokuma-legacy .application.dialog:is(.drpg-window-give, .drpg-
     display: block;
     width: 100%;
     box-sizing: border-box;
+}
+
+/* The picture's row keeps the label grid (H83 item 3): its name in the label column, the cells in the field column, so
+   the cells start at the fields' one edge. The name is a span, not a label (the cells are the labels), so it takes the
+   step a label takes here by name, and the row the column gap the labels' rows have (`.drpg-panel label`, 0.5rem): a
+   subgrid's own gap moves its second track, and with the fieldset's 0.75rem the cells started 2 px right of every field
+   (read in the stand-in, both themes, a 13 and a 16 px root; one edge after). */
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-picture {
+    display: grid;
+    grid-template-columns: subgrid;
+    column-gap: 0.5rem;
+    align-items: baseline;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-picture > .drpg-tables-picture-label {
+    grid-column: 1;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-picture > .drpg-item-picture-picker {
+    grid-column: 2;
+    margin: 0;
+}
+
+/* Under Monokuma Legacy the picker's line and its cells' names take the labels' step, floored at 11 px in this window
+   (above): they inherited the fieldset's size, which is not floored (10.56 px at a 13 px root, read in the stand-in).
+   Not under Stained Glass: there the step is the fields' small type, and the line read smaller than its own cells
+   (read in the stand-in); inherited, it read 11 px or more at a 13 and a 16 px root. */
+body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-picture > .drpg-item-picture-picker {
+    font-size: var(--drpg-text-sm);
 }
 
 /* E14-43's outline under the glass: the theme's field rule (`body.drpg-theme-stained-glass .drpg-panel :is(input...)`,
