@@ -13874,6 +13874,15 @@ body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
     align-items: center;
     margin-top: 1px;
 }
+/* The dots' words, "2/3 searches", on their line (E17 C8; audit S10-29: the dots unlabelled read as a count of
+   projects). The project line's size and weight, so the two read as one family of small print under the name. */
+.drpg-room-tile .drpg-hud-room-tokens-label {
+    margin-left: 3px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1;
+    opacity: 0.8;
+    white-space: nowrap;
+}
 
 /* Drawn, not typed. A filled and an empty circle glyph have different advance
    widths in the pixel font, so a row of them staggers as they are spent. */

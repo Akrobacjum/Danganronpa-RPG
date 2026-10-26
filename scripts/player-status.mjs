@@ -21,14 +21,14 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
-import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
+import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, ownStudent } from "./monokuma.mjs";
 import { isDeadForGm, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { error } from "./utils.mjs";
+import { error, plural } from "./utils.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -345,13 +345,89 @@ function safeRow(build) {
     }
 }
 
-function buildPlayerView() {
-    const actor = ownCharacter();
+/**
+ * What the strip says, as data (E17 C8, 26.10.2026; audit S10-19, S10-30): the three readings `buildPlayerView`
+ * draws and `buildTableView` counts, pure, so the suite reads them with the inputs it names (R997) where tier 1
+ * can open no Eclipse and kill nobody.
+ *
+ * `eclipseMoveRow(moves)` is the Move row in an Eclipse, `moves` being eclipse.mjs `movesLeft`: a count, or `null`
+ * in a placement that allows any room. Until this commit `null` went through `moves > 0` and `moves <= 0` as a
+ * number: the row was "spent" with one outlined foot - "you have no moves" in the one window that allows every
+ * room - while the sheet's budget line, which asks `null` first, said "place anywhere". Its tooltip was the
+ * actions' ("Placement only. Actions are already back ..."); it now names what the row counts: the crossings
+ * left, or any room.
+ *
+ * FREE PLACEMENT LIVES UNTIL E37 (S18-90 takes `ECLIPSE_FREE_PLACEMENT` and `isFreePlacement` out): each branch
+ * that reads `null` here and in `stillPlacing` is one `if` that its removal deletes whole.
+ *
+ * @param {number|null} moves
+ * @returns {{available: boolean, feet: number, solid: boolean, tooltip: string}}
+ */
+export function eclipseMoveRow(moves) {
+    if (moves === null) {   // free placement (until E37): one full foot, anywhere
+        return { available: true, feet: 1, solid: true, tooltip: game.i18n.localize("DRPG.Actions.eclipseFreePlacement") };
+    }
+    const n = Math.max(0, Number(moves) || 0);
+    return { available: n > 0, feet: Math.max(n, 1), solid: n > 0, tooltip: plural("DRPG.Actions.eclipseMovesLeft", { n }) };
+}
+
+/**
+ * The actions row's tooltip. In an Eclipse it says the one thing an action buys there - a Direct Murder - and a
+ * Monocub, who commits none, is told the placement alone (`DRPG.Eclipse.placementOnly`; until E17 C8 a Monocub read
+ * the killer's sentence). Out of one, the count it covers: `pipReadOnly` carries `{left}` and `{max}`, and this row
+ * localized it without them, so the tooltip read "{left} of {max} actions" (read in the code at eb703938; the
+ * sheet's pips have always formatted it).
+ */
+export function actionsTooltip({ eclipse, monocub, left, max }) {
+    if (eclipse) return game.i18n.localize(monocub ? "DRPG.Eclipse.placementOnly" : "DRPG.Eclipse.actionsMurderOnly");
+    return left ? game.i18n.format("DRPG.Actions.pipReadOnly", { left, max }) : game.i18n.localize("DRPG.Actions.allSpent");
+}
+
+/**
+ * How many of `students` still have to place, for the GM's "Still placing" row: a crossing left, or, in free
+ * placement (`null` left, until E37), no crossing made yet (`movesUsed === 0`). Until E17 C8 `null > 0` counted
+ * nobody, and the GM read "Still placing 0 / N" over a table where nobody had moved.
+ *
+ * @param {Actor[]} students
+ * @param {{left?: (actor: Actor) => number|null, used?: (actor: Actor) => number}} [readers]  the suite's; eclipse.mjs's otherwise
+ */
+export function stillPlacing(students, { left = eclipseMovesLeft, used = eclipseMovesUsed } = {}) {
+    return students.filter(actor => {
+        const n = left(actor);
+        if (n === null) return used(actor) === 0;   // free placement (until E37)
+        return n > 0;
+    }).length;
+}
+
+/**
+ * A dead student who is no Monocub has nothing on this strip to spend: death does not empty the action pool and the
+ * time of day's refill passes a body by, so until E17 C8 the strip went on saying "1/2", a full foot and, in each
+ * Eclipse, two crossings, all of which the module refuses (audit S10-30). The strip is then one row of state. Dead
+ * as this browser may know it (`isDeadForGm`: the flag, or the player's own copy of a death not yet published), as
+ * the Hope row below has always asked. A Monocub keeps every row: Confusion costs an action and a point of Hope.
+ */
+export function showsDeathOnly(actor) {
+    return isDeadForGm(actor) && !isMonocub(actor);
+}
+
+/**
+ * The strip for `actor`, this browser's own character by default. The options are the suite's (R997), each read off
+ * the world when left out: `eclipse`, `moves` (`null` is free placement), `dead`, and `remember: false`, which keeps
+ * the flash memory (`spentSince`) of the page untouched for a strip nobody sees.
+ */
+export function buildPlayerView(actor = ownCharacter(), options = {}) {
     // No character of our own - or a Monokuma, which has no action economy at
     // all. Nothing here applies, so show nothing rather than a row of zeroes.
     if (!actor || isMonokuma(actor)) return null;
+    const since = options.remember === false ? () => null : spentSince;
 
     const el = box();
+
+    if (options.dead ?? safeRow(() => showsDeathOnly(actor))) {
+        el.append(field("is-state", game.i18n.localize("DRPG.Panel.stateColumn"),
+            game.i18n.localize("DRPG.Panel.state.dead"), null, true));
+        return el;
+    }
 
     // An Eclipse suspends the action economy almost entirely - see the guard in
     // action-rolls.mjs.
@@ -362,7 +438,7 @@ function buildPlayerView() {
     // one that does not, it would tell a killer they cannot afford the thing
     // they are about to do. So the count stays true and the tooltip carries the
     // qualification instead.
-    const eclipse = safeRow(() => isEclipse()) ?? false;
+    const eclipse = options.eclipse ?? safeRow(() => isEclipse()) ?? false;
 
     el.append(...[
         safeRow(() => {
@@ -370,10 +446,9 @@ function buildPlayerView() {
             const left = actionsLeft(actor);
             const row = marks("is-actions", game.i18n.localize("DRPG.Actions.label"),
                 pips("drpg-status-pip drpg-action-pip", left, max,
-                    { spent: spentSince("strip:actions", actor.id, left) }),
-                eclipse ? "DRPG.Eclipse.actionsMurderOnly"
-                        : left ? "DRPG.Actions.pipReadOnly" : "DRPG.Actions.allSpent",
-                !left);
+                    { spent: since("strip:actions", actor.id, left) }),
+                null, !left);
+            row.dataset.tooltip = actionsTooltip({ eclipse, monocub: isMonocub(actor), left, max });
             if (eclipse) row.classList.add("is-eclipse");
             return row;
         }),
@@ -391,10 +466,11 @@ function buildPlayerView() {
                 // two are different counts of different things, and sharing a
                 // key would flash a spend every time an Eclipse opened or shut
                 // and the number changed shape underneath the row.
-                const moves = eclipseMovesLeft(actor);
-                const wentOut = spentSince("strip:eclipseMove", actor.id, moves);
-                foot.className = `drpg-status-pips drpg-free-move ${
-                    moves > 0 ? "available" : "spent"}`;
+                const moves = "moves" in options ? options.moves : eclipseMovesLeft(actor);
+                const shown = eclipseMoveRow(moves);
+                // Free placement has no count to flash (`spentSince` learns nothing from `null`).
+                const wentOut = since("strip:eclipseMove", actor.id, moves);
+                foot.className = `drpg-status-pips drpg-free-move ${shown.available ? "available" : "spent"}`;
                 // One element for the whole pool, so any crossing going out
                 // flares the row. The index `markSpent` takes is meant for a
                 // track drawn a pip each; here the second of three would be
@@ -403,14 +479,14 @@ function buildPlayerView() {
                 // Crossings still available are solid; with none left the row
                 // keeps one outlined footprint rather than emptying itself, so
                 // there is still something there saying what it is.
-                foot.innerHTML = Array.from({ length: Math.max(moves, 0) },
-                    () => `<i class="fa-solid fa-shoe-prints" inert></i>`).join("")
-                    || `<i class="fa-regular fa-shoe-prints" inert></i>`;
-                return marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
-                    "DRPG.Eclipse.actionsLocked", moves <= 0);
+                foot.innerHTML = Array.from({ length: shown.feet },
+                    () => `<i class="fa-${shown.solid ? "solid" : "regular"} fa-shoe-prints" inert></i>`).join("");
+                const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot, null, !shown.available);
+                row.dataset.tooltip = shown.tooltip;
+                return row;
             }
             const free = hasFreeMove(actor);
-            const wentOut = spentSince("strip:move", actor.id, free ? 1 : 0);
+            const wentOut = since("strip:move", actor.id, free ? 1 : 0);
             foot.className = `drpg-status-pips drpg-free-move ${
                 free ? "available" : "spent"}`;
             markSpent(foot, wentOut);
@@ -429,15 +505,14 @@ function buildPlayerView() {
         // single thing they are still at the table to do, and nothing else
         // would tell them why.
         //
-        // A plainly dead student spends nothing, so for them the row really is
-        // furniture and stays hidden.
+        // A plainly dead student reaches none of these rows since E17 C8: the
+        // strip is their state alone (`showsDeathOnly`, above).
         safeRow(() => {
-            if (isDeadForGm(actor) && !isMonocub(actor)) return null;
             const held = hopeHeld(actor);
             const hopeMax = Number(actor.system?.resources?.hope?.max ?? held);
             return marks("is-hope", game.i18n.localize("DAGGERHEART.GENERAL.hope") || "Hope",
                 pips("drpg-status-pip drpg-status-hope-pip", held, hopeMax,
-                    { spent: spentSince("strip:hope", actor.id, held) }),
+                    { spent: since("strip:hope", actor.id, held) }),
                 null, held === 0);
         })
     ].filter(Boolean));
@@ -497,9 +572,9 @@ function buildTableView() {
 
     el.append(...[
         safeRow(() => {
-            // During an Eclipse nobody may act at all, so the count is not
-            // stale - it is meaningless. The row says the same thing the
-            // player's own strip says at that moment: this is suspended.
+            // During an Eclipse nobody acts but by a Direct Murder, so the count
+            // is not stale - it is beside the point: who has still to place is
+            // the row below.
             if (eclipse) return null;
             const left = students.filter(a => actionsLeft(a) > 0).length;
             return field("is-actions", game.i18n.localize("DRPG.Hud.stillToAct"),
@@ -515,12 +590,14 @@ function buildTableView() {
         //
         // During an Eclipse the same count IS the thing a GM waits for - who has
         // still to place - so it stays, under a label that says that and nothing
-        // about a budget.
+        // about a budget. In free placement (until E37) that is who has not moved
+        // yet: see `stillPlacing`.
         safeRow(() => {
             if (!eclipse) return null;
-            const left = students.filter(a => eclipseMovesLeft(a) > 0).length;
+            const left = stillPlacing(students);
             return field("is-move", game.i18n.localize("DRPG.Hud.stillPlacing"),
-                `${left} / ${students.length}`, "DRPG.Hud.stillPlacingTooltip", !left);
+                `${left} / ${students.length}`,
+                eclipseAllowance() === null ? "DRPG.Hud.stillPlacingFreeTooltip" : "DRPG.Hud.stillPlacingTooltip", !left);
         })
     ].filter(Boolean));
 

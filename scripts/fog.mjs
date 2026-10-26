@@ -1368,10 +1368,15 @@ async function recordDiscovery(scene, actor, room) {
        The GM's own veil is `ledgerRooms` - the union of every actor's row -
        so recording the Mastermind's walks would lift the veil on rooms only
        they have been to, and the GM's map would quietly narrate the season's
-       secret moving around the building. They lose nothing by the skip: their
-       own fog already counts every room as known (`myDiscoveredRooms`),
-       because they built the place. `isMastermind` answers on GM clients and
-       this only ever runs on the primary GM's. */
+       secret moving around the building. Their own fog counts every room as
+       known (`myDiscoveredRooms`), because they built the place, and since
+       E17 C8 (audit S07-10) so does the one other reader of this record that
+       asks for them, projects.mjs `hasStoodIn` (whether `knowsProject` shows a
+       public project's token and tray row): until then a public project in a
+       room they had stood in stayed hidden from them alone. Nothing else that
+       reads `discoveredFor` was read for the Mastermind in that commit.
+       `isMastermind` answers on GM clients and this only ever runs on the
+       primary GM's. */
     if (isMastermind(actor)) return false;
 
     /* AND NEITHER DOES A MONOKUMA (Dawid, 28.08).

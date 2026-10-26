@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
@@ -32,7 +32,9 @@ import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
-import { discoveredFor } from "./fog.mjs";
+import { discoveredFor, myDiscoveredRooms } from "./fog.mjs";
+// Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
+import { isMastermind } from "./mastermind.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
@@ -153,6 +155,33 @@ export function knowsProject(countdownId, user = game.user) {
     const ref = tokenRefOf(countdownId);
     const sceneIds = ref ? [ref.sceneId] : placeScenes().filter(s => roomRegions(s, room).length).map(s => s.id);
     if (!sceneIds.length) return false;
+    return hasStoodIn(user, room, sceneIds);
+}
+
+/**
+ * Whether `user` knows `room` on one of `sceneIds`: one of their characters stood in it, as the discovery record
+ * keeps it - or they play the Mastermind.
+ *
+ * THE MASTERMIND KNOWS THE BUILDING (E17 C8, 26.10.2026; audit S07-10). fog.mjs `recordDiscovery` leaves no track of
+ * the Mastermind's walks in the record, so that the GM's veil (the union of the rows) does not narrate the season's
+ * secret moving around the school, and says they lose nothing by it, because their own fog counts every room as
+ * known (`myDiscoveredRooms`). That was true of the fog alone: this asked the record, so the Mastermind's player
+ * never saw the token or the tray's row of a public project in a room they had stood in, which every other student
+ * who stood there sees. They are answered here as their fog answers them, every room of the scene: on their own
+ * browser by `iAmTheMastermind` (the door's copy only they hold), on a GM's - the project card's "Known by" -
+ * by the GMs' store (`isMastermind` of a character they own). A public project's countdown is held by every browser
+ * already (`canSee`), so nobody learns a project's existence from this they could not read before; it is about
+ * whether the map and the tray show it.
+ *
+ * @param {User} user
+ * @param {string} room
+ * @param {string[]} sceneIds
+ * @param {{mastermind?: boolean}} [options]  the suite's (R999); read off this browser otherwise
+ */
+export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermind(user) } = {}) {
+    if (mastermind) {
+        return sceneIds.some(sceneId => myDiscoveredRooms(game.scenes?.get(sceneId), { mastermind: true }).has(room));
+    }
     try {
         for (const actor of game.actors ?? []) {
             if (actor.type !== "character") continue;
@@ -164,6 +193,15 @@ export function knowsProject(countdownId, user = game.user) {
         // Answering "no" hides the token, which is the safe direction to fail.
     }
     return false;
+}
+
+/** Does `user` play the Mastermind, as far as this browser may know: its own copy for itself, the GMs' store on a GM. */
+function playsTheMastermind(user) {
+    if (!user || user.isGM) return false;
+    if (user === game.user) return iAmTheMastermind();
+    if (!game.user?.isGM) return false;
+    return (game.actors ?? []).some(actor => actor.type === "character" && isMastermind(actor)
+        && actor.testUserPermission(user, "OWNER"));
 }
 
 /* ==========================================================================

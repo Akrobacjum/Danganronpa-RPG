@@ -22993,6 +22993,207 @@ const INVARIANTS = [
             + "the summary's start with a stamp, without, no clock; source: paintElapsed reads elapsedOf, settleElapsedPause writes unpausePatch and "
             + "writes no start, renderHud asks showsStopwatch, showDaySummary asks summarySince}");
     }],
+    ["R997 - the player's strip in an Eclipse (E17 C8): free placement draws one full foot, available, its tooltip 'place anywhere'; a count draws a foot a crossing and names them; a Monocub is told the placement alone; the actions' tooltip carries its numbers; the GM's Still placing counts who has not moved in free placement", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-36, audit S10-19. eclipse.mjs `movesLeft` answers `null` in a placement that allows
+         * any room, and the strip read it as a number: `null > 0` false, so the Move row was "spent" with one outlined
+         * foot in the one window where a player may go anywhere, and the GM read "Still placing 0 / N" before anybody
+         * had moved. The row's tooltip was the actions' sentence; a Monocub's actions tooltip named a Direct Murder it
+         * cannot commit; and `pipReadOnly` was localized without its numbers ("{left} of {max} actions", read in the
+         * code at eb703938). Read pure - player-status.mjs `eclipseMoveRow`, `actionsTooltip`, `stillPlacing` - and
+         * drawn: `buildPlayerView(student, { eclipse, moves, remember: false })` for a living student of this world, no
+         * Eclipse opened (tier 1 changes nothing) and the page's flash memory untouched. Red at eb703938: none of the
+         * four is exported.
+         */
+        const J = stableJson;
+        const PS = await import("./player-status.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { plural } = await import("./utils.mjs");
+        const L = key => game.i18n.localize(key);
+        const has = name => typeof PS[name] === "function";
+        ok(["eclipseMoveRow", "actionsTooltip", "stillPlacing", "buildPlayerView"].every(has),
+            "player-status.mjs exports no reading of the strip's Eclipse rows - the strip still reads a free placement as no moves");
+        if (!["eclipseMoveRow", "actionsTooltip", "stillPlacing", "buildPlayerView"].every(has)) return;
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the strip's character");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const drawn = moves => {
+            const el = PS.buildPlayerView(student, { eclipse: true, moves, dead: false, remember: false });
+            const row = el?.querySelector(".drpg-status-field.is-move");
+            const foot = row?.querySelector(".drpg-free-move");
+            return row && [foot.classList.contains("available"), row.classList.contains("spent"),
+                foot.querySelectorAll("i.fa-solid").length, foot.querySelectorAll("i.fa-regular").length, row.dataset.tooltip];
+        };
+        const fake = id => ({ id });
+        const left = { a: null, b: null, c: null }, used = { a: 0, b: 2, c: 0 }, counted = { a: 2, b: 0, c: 1 };
+        const students = ["a", "b", "c"].map(fake);
+        const got = {
+            rows: [null, 0, 2].map(n => PS.eclipseMoveRow(n)),
+            drawn: [drawn(null), drawn(0), drawn(2)],
+            tips: [PS.actionsTooltip({ eclipse: true, monocub: false, left: 1, max: 2 }), PS.actionsTooltip({ eclipse: true, monocub: true, left: 1, max: 2 }),
+                PS.actionsTooltip({ eclipse: false, monocub: false, left: 1, max: 2 }), PS.actionsTooltip({ eclipse: false, monocub: false, left: 0, max: 2 })],
+            placing: [PS.stillPlacing(students, { left: a => left[a.id], used: a => used[a.id] }),
+                PS.stillPlacing(students, { left: a => counted[a.id], used: () => 0 })]
+        };
+        const sources = new Map(await moduleSources());
+        const ps = stripComments(sources.get("player-status.mjs") ?? "");
+        got.source = [/\bstillPlacing\(students\)/.test(fnSource(ps, "buildTableView")), /\beclipseMoveRow\(/.test(fnSource(ps, "buildPlayerView")),
+            /\bactionsTooltip\(/.test(fnSource(ps, "buildPlayerView"))];
+        const free = L("DRPG.Actions.eclipseFreePlacement"), n = k => plural("DRPG.Actions.eclipseMovesLeft", { n: k });
+        equal(J(got), J({
+            rows: [{ available: true, feet: 1, solid: true, tooltip: free }, { available: false, feet: 1, solid: false, tooltip: n(0) },
+                { available: true, feet: 2, solid: true, tooltip: n(2) }],
+            drawn: [[true, false, 1, 0, free], [false, true, 0, 1, n(0)], [true, false, 2, 0, n(2)]],
+            tips: [L("DRPG.Eclipse.actionsMurderOnly"), L("DRPG.Eclipse.placementOnly"),
+                game.i18n.format("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }), L("DRPG.Actions.allSpent")],
+            placing: [2, 2],
+            source: [true, true, true]
+        }), "{rows: the Move row's reading in free placement, with no crossing left, with two; drawn: [available, spent, solid feet, outlined "
+            + "feet, tooltip] of the strip for each; tips: the actions' tooltip in an Eclipse, a Monocub's there, out of one with an action "
+            + "left and with none; placing: Still placing in free placement (one of three moved) and with crossings counted (two of three "
+            + "left); source: buildTableView asks stillPlacing, buildPlayerView eclipseMoveRow and actionsTooltip}");
+        ok(!/\{(left|max)\}/.test(got.tips[2]) && !L("DRPG.Eclipse.placementOnly").includes("Direct Murder"),
+            `the actions' tooltip still prints its placeholders (${got.tips[2]}) or a Monocub's names a Direct Murder`);
+    }],
+    ["R998 - a dead student who is no Monocub sees one row of state, Dead, and nothing to spend (E17 C8): `showsDeathOnly` by the flag, a Monocub keeps its rows", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-38, audit S10-30. Death empties no action pool and the refill passes a body by, so a
+         * student who died with an action and the free Move kept "1/2" and a full foot on the strip for the rest of the
+         * season, and two crossings in each Eclipse, all of which the module refuses. `buildPlayerView(actor, { dead:
+         * true })` is that strip drawn for a living student of this world (no death written: tier 1), and
+         * `showsDeathOnly` is read on stand-ins carrying the flags: dead, dead and a Monocub, alive. Red at eb703938:
+         * neither is exported, and the strip's only death rule was the Hope row's.
+         */
+        const J = stableJson;
+        const PS = await import("./player-status.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const L = key => game.i18n.localize(key);
+        ok(typeof PS.buildPlayerView === "function" && typeof PS.showsDeathOnly === "function",
+            "player-status.mjs exports no strip a death decides - a dead student's strip still offers what the module refuses");
+        if (typeof PS.buildPlayerView !== "function" || typeof PS.showsDeathOnly !== "function") return;
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the strip's character");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const read = el => el && [el.children.length, [...el.children].map(row => [row.className,
+            row.querySelector(".drpg-status-label")?.textContent ?? null, row.querySelector(".drpg-status-value")?.textContent ?? null])];
+        const standIn = (id, flags) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const got = {
+            dead: read(PS.buildPlayerView(student, { dead: true, remember: false })),
+            alive: PS.buildPlayerView(student, { dead: false, eclipse: false, remember: false })?.querySelectorAll(".drpg-status-field.is-move").length ?? null,
+            rule: [standIn("suite-r998-a", { [FLAGS.deceased]: true }), standIn("suite-r998-b", { [FLAGS.deceased]: true, [FLAGS.monocub]: true }),
+                standIn("suite-r998-c", {})].map(a => PS.showsDeathOnly(a))
+        };
+        equal(J(got), J({
+            dead: [1, [["drpg-status-field is-state spent", L("DRPG.Panel.stateColumn"), L("DRPG.Panel.state.dead")]]],
+            alive: 1,
+            rule: [true, false, false]
+        }), "{dead: the strip of a dead student as [rows, [class, label, value]]; alive: its Move rows alive; rule: showsDeathOnly for a dead "
+            + "student, a dead Monocub, a living one}");
+    }],
+    ["R999 - the room tile's search pips say what they are, '2/3 searches', and the project line speaks to the player (E17 C8): the words inside the pips' row, hidden from a screen reader that reads the row's label, a sealed room's too; `roomProject` and `roomNoProject` in the second person, EN and PL", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-37, audit S10-29 (seen on the screenshots of five runs at four sizes). Under
+         * "Available project" three unlabelled squares read as "available project: 3", and "No available project" over
+         * three full ones as a fault: the count was in the tooltip alone. room-tile.mjs `paintRoomTile` on loose tiles
+         * (R504's way), read for the row's words; the two lang files read for the project lines. Red at eb703938: the
+         * row holds pips only, and the lines say "Available project" / "Dostępny projekt".
+         */
+        const J = stableJson;
+        const R = await import("./room-tile.mjs");
+        const paint = view => {
+            const box = document.createElement("section");
+            R.paintRoomTile(box, { state: "roomBare", room: "Suite R999", sceneId: null, description: "", image: null, project: true, ...view });
+            return box;
+        };
+        const words = box => {
+            const row = box.querySelector(".drpg-hud-room-tokens"), label = row?.querySelector(".drpg-hud-room-tokens-label");
+            return [label?.textContent ?? null, label?.getAttribute("aria-hidden") ?? null, row?.querySelectorAll(".drpg-hud-pip").length ?? null,
+                box.querySelector(".drpg-hud-room-project")?.textContent ?? null];
+        };
+        const lines = {};
+        for (const lang of ["en", "pl"]) {
+            const D = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Hud ?? {});
+            lines[lang] = [D.roomProject, D.roomNoProject];
+        }
+        ok(lines.en.concat(lines.pl).every(w => typeof w === "string" && w.length > 3), `a project line is missing from a lang file (${J(lines)}) - this measured nothing`);
+        const you = { en: /\byou\b/i, pl: /\bmożesz\b/i };
+        const got = {
+            open: words(paint({ tokens: { max: 3, left: 2, sealed: false } })),
+            sealed: words(paint({ tokens: { max: 3, left: 3, sealed: true }, project: false })),
+            second: Object.fromEntries(Object.entries(lines).map(([lang, pair]) => [lang, pair.map(w => you[lang].test(w))]))
+        };
+        equal(J(got), J({
+            open: [game.i18n.format("DRPG.Hud.roomTokens", { left: 2, max: 3 }), "true", 3, game.i18n.localize("DRPG.Hud.roomProject")],
+            sealed: [game.i18n.format("DRPG.Hud.roomTokens", { left: 3, max: 3 }), "true", 3, null],
+            second: { en: [true, true], pl: [true, true] }
+        }), "{open: [the pips' words, their aria-hidden, the pips, the project line] of a tile with 2 of 3 left and a project; sealed: the same of a "
+            + "sealed room with none; second: whether roomProject and roomNoProject speak to the player, per language}");
+    }],
+    ["R1000 - the Mastermind's player knows a public project in any room of its scene, as their fog knows the room (E17 C8): projects.mjs `hasStoodIn` answers every named room for the Mastermind and the discovery record for anybody else, and `knowsProject` asks it", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-39, audit S07-10. fog.mjs `recordDiscovery` writes no row for the Mastermind, so the
+         * GM's veil does not narrate where the season's secret walks, and its comment said they lose nothing because
+         * their fog counts every room as known. `knowsProject` asked the record alone, so the Mastermind's player never
+         * saw the token or tray row of a public project in a room they stood in. Read on the scene on screen for a player
+         * account that owns a character: `hasStoodIn(user, room, [scene], { mastermind })` with the Mastermind's answer
+         * forced each way (no Mastermind is chosen: tier 1), against the rooms `myDiscoveredRooms` gives the Mastermind
+         * and the rooms the record holds for that player's characters. Red at eb703938: `hasStoodIn` does not exist.
+         */
+        const J = stableJson;
+        const P = await import("./projects.mjs");
+        ok(typeof P.hasStoodIn === "function", "projects.mjs has no `hasStoodIn` - knowsProject still asks the discovery record alone, which never holds the Mastermind");
+        if (typeof P.hasStoodIn !== "function") return;
+        needs(world.atLeast("namedRooms", 1), "a named room on the scene on screen is the project's room");
+        needs(world.atLeast("playersWithCharacter", 1), "a player account that owns a character is the one who knows");
+        const F = await import("./fog.mjs");
+        const { roomNames } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const rooms = [...new Set(roomNames(scene))].sort();
+        const user = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const record = new Set(game.actors.filter(a => a.type === "character" && a.testUserPermission(user, "OWNER"))
+            .flatMap(a => F.discoveredFor(scene.id, a.id)));
+        const got = {
+            mastermind: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: true })),
+            student: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: false })),
+            elsewhere: [P.hasStoodIn(user, "Suite R1000 no such room", [scene.id], { mastermind: true }), P.hasStoodIn(user, rooms[0], [], { mastermind: true })]
+        };
+        const src = stripComments(new Map(await moduleSources()).get("projects.mjs") ?? "");
+        got.source = [/\bhasStoodIn\(user, room, sceneIds\)/.test(fnSource(src, "knowsProject")), /\bmyDiscoveredRooms\(/.test(fnSource(src, "hasStoodIn"))];
+        equal(J(got), J({
+            mastermind: [...F.myDiscoveredRooms(scene, { mastermind: true, gm: false })].sort(),
+            student: rooms.filter(room => record.has(room)),
+            elsewhere: [false, false],
+            source: [true, true]
+        }), "{mastermind: the rooms the Mastermind's player is known to have stood in (their fog's), student: a player's (the record's), "
+            + "elsewhere: a room on no scene and no scene at all for the Mastermind, source: knowsProject asks hasStoodIn, which asks myDiscoveredRooms}");
+        ok(got.mastermind.length === rooms.length && rooms.length > 0, `the Mastermind's answer covered ${got.mastermind.length} of ${rooms.length} rooms`);
+    }],
+    ["R1001 - the Event panel names the room (E17 C8, pinning E12 C3): the opening, incident and body cards read the room as the name `locateActor` and `roomOfActor` answer, never its `.name`, and a student standing in a room reads its name there", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-40, audit S10-15. `roomOfActor` answers a string, and events.mjs read `?.name` off it
+         * in three places, so the opening card and "A murder is under way" always took the variant without a room
+         * (`incidentSub`, not `incidentSubRoom`). E12 C3 (11.10.2026) already reads `locateActor(victim)?.room` in the
+         * first two and `roomOfActor(victims[0])` in the body card: this pins it, as the spec's row asks (no red at
+         * eb703938, where the fix stands). The source of the three builders, and on the world a student standing in a
+         * named room: what both readers answer is the room's own name, and the incident's line with it names it.
+         */
+        const src = stripComments(new Map(await moduleSources()).get("events.mjs") ?? "");
+        const builders = ["openingCard", "incidentCard", "bodyCard"].map(name => [name, fnSource(src, name)]);
+        ok(builders.every(([, body]) => body.length > 100), "events.mjs lost a card builder this reads - it measured nothing");
+        const reads = builders.map(([name, body]) => [name, /room\s*=\s*(?:victim\s*\?\s*)?\(?\s*(?:locateActor\([^)]*\)\?\.room|roomOfActor\([^)]*\))/.test(body),
+            /(?:locateActor\([^)]*\)|roomOfActor\([^)]*\))\??\.(?:room\??\.)?name\b/.test(body)]);
+        equal(JSON.stringify(reads), JSON.stringify([["openingCard", true, false], ["incidentCard", true, false], ["bodyCard", true, false]]),
+            "[each card builder, whether it takes the room from locateActor's room or roomOfActor, whether it reads a .name off them]");
+        ok(/incidentSubRoom/.test(fnSource(src, "incidentCard")), "the incident card no longer has a line that names the room");
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a named room of the scene on screen");
+        const { locateActor, roomOfActor, roomOfToken } = await import("./movement.mjs");
+        const token = [...canvas.scene.tokens].find(t => studentActors().some(a => a.id === t.actorId && !a.getFlag(MODULE_ID, FLAGS.deceased)) && roomOfToken(t));
+        const actor = game.actors.get(token.actorId);
+        const room = locateActor(actor, { sceneId: canvas.scene.id })?.room ?? null;
+        const line = game.i18n.format("DRPG.Events.incidentSubRoom", { killer: "Suite K", victim: actor.name, room });
+        const other = roomOfActor(actor);   // without the hint it may pick the student's token on another place scene
+        equal(JSON.stringify([typeof room, room === roomOfToken(token), other === null || typeof other === "string", line.includes(room ?? "\u0000")]),
+            JSON.stringify(["string", true, true, true]),
+            "[what locateActor answers for the room, whether it is the token's room, whether roomOfActor answers a name or none, whether the incident's line names it]");
+    }],
 ];
 
 /**
