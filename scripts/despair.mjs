@@ -61,9 +61,13 @@ export function registerDespair() {
     });
 }
 
-/** Drop pool entries for users who no longer exist. GM only. */
+/**
+ * Drop pool entries for users who no longer exist. The primary GM only (E17 C5, 26.10.2026; audit S09-32): the
+ * `deleteUser` hook fires on every GM's browser, and each wrote the three settings whole from its own copy, beside
+ * the primary's writes of the same - one writer, as `adjustDespair`'s rule says. Tier 2 E17-T8.
+ */
 export async function prunePools(removedId = null) {
-    if (!game.user.isGM) return null;
+    if (!isPrimaryGm()) return null;
     return serialWrite(DESPAIR_KEY, () => pruneInStep(removedId));
 }
 
@@ -341,6 +345,12 @@ export async function adjustDespair(userId, delta) {
 /**
  * Fill every Monokuma to maximum. The guide does this when the vote convicts
  * the wrong person: "Each GM (Monokuma) fills their Despair pool to max (12)."
+ *
+ * NOT ROUTED TO THE PRIMARY (E17 C5, 26.10.2026; audit S09-32). A fill, like `zeroAllDespair` and `removePool`
+ * (a pool's revoke), is a GM's one deliberate setting of every pool - the verdict's, the season's, a roster
+ * change - not a change on top of what a pool held, so it reads the pools in its own step and writes them whole
+ * on the GM's browser that asked. Another GM's change landing in the same round trip can be written over; one
+ * GM runs these at a time at a table, and none of them is asked of the primary over the bridge.
  */
 export async function fillAllDespair() {
     if (!game.user.isGM) return null;
@@ -978,6 +988,8 @@ function buildRow(user) {
 
     const pips = document.createElement("div");
     pips.className = "drpg-despair-pips";
+    // What this row's own pip clicks have asked for, until the bar is drawn again (the pip's `set`, below).
+    let shown = held;
 
     for (let i = 1; i <= max; i++) {
         const pip = document.createElement("span");
@@ -1003,7 +1015,18 @@ function buildRow(user) {
             pip.tabIndex = 0;
             pip.setAttribute("role", "button");
             pip.setAttribute("aria-label", label);
-            const set = () => setDespair(user.id, i === held ? i - 1 : i);
+            // A CHANGE, ASKED OF THE ONE WRITER (E17 C5, 26.10.2026; audit S09-32). The pip wrote the pool whole from
+            // this browser's copy (`setDespair`), on any GM's browser: a roll's point the primary added meanwhile was
+            // written over, and two GMs lost one change. It is the step to the pip's value from what this row last
+            // asked for (`shown`), through `adjustDespair` - on the primary in a step of `DESPAIR_KEY`, from another GM
+            // asked of the primary (`sendDespairToPrimary`). A pip clicked twice before the bar is drawn again toggles,
+            // as a second click on a drawn bar does, rather than adding its step twice. Tier 2 E17-T8.
+            const set = () => {
+                const target = i === shown ? i - 1 : i;
+                const delta = target - shown;
+                shown = target;
+                return adjustDespair(user.id, delta);
+            };
             pip.addEventListener("click", set);
             pip.addEventListener("keydown", event => {
                 if (event.key !== "Enter" && event.key !== " ") return;

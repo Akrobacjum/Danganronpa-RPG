@@ -25,7 +25,7 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm, serialWrite } from "./utils.mjs";
+import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -291,6 +291,20 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     if (!game.user.isGM) return null;
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return null;
+
+    /* ON THE PRIMARY GM ALONE (E17 C5, 26.10.2026; audit S09-32). Feed the Overflow paid on an Assistant's browser
+       added to that browser's copy of the count, beside the primary's own spills, and a darkening the count armed
+       (Rot, Earthquake) ran there. Another GM asks the primary (gm-bridge.mjs `overflow.add`, a GM's alone) and
+       answers its count after, or null when it was not added; with no primary connected it adds here, as
+       `adjustDespair` writes. Tier 2 E17-T8. */
+    if (!isPrimaryGm()) {
+        const primary = game.users.get(primaryGmId() ?? "");
+        if (primary?.active && primary.id !== game.user.id) {
+            const { requestOverflowAdd } = await import("./gm-bridge.mjs");
+            const res = await requestOverflowAdd(n, reason);
+            return res.ok ? (res.value?.after ?? null) : null;
+        }
+    }
 
     /* The count is read once the store holds the other GMs' copies (E05 fix r2-G2; review
        S2-m7), as the Eclipse's is (eclipse.mjs `applyRecordedMove`): read before, a GM back

@@ -70943,6 +70943,133 @@ const SCENARIOS = [
             + "empty room refused; what the player reads of five results; what five refused claims show, give back and call exhausted]");
     }],
 
+    ["Despair has one writer (E17-T8): a GM that is not the primary changes a pool by a pip as a change asked of the primary, adds to the overflow through it, and prunes nothing; a player's ask of either is refused", async () => {
+        /*
+         * E17 C5, 26.10.2026; E17-24, audit S09-32. The one-writer rule (DESP-12) held for `adjustDespair` alone: a pip
+         * of the Despair bar wrote the pool whole from the clicking GM's own copy (`setDespair`), Feed the Overflow added
+         * to the count on whichever GM paid the Call, and every GM pruned the pools when a user was deleted - with two
+         * GMs a change was lost, and a darkening the count armed ran on an Assistant's browser. A second GM is a user set
+         * in the users' list (`A`, a Gamemaster whose id sorts first, so the primary while it is there), as E80's frisk
+         * tests set one; the requests this GM sends it are read off the socket and judged on this browser as the primary
+         * judges them, `A` out of the list for the judgement, and the answers handed to this browser's listeners as A's.
+         * Read: (1) this GM's pool set to 2, the bar drawn with A there, its pip 4 clicked, then pip 4 again before the
+         * bar is drawn again (twice fast): the packets sent to A, the pool before the primary judged them and after;
+         * (2) `addOverflow(1)` on this GM: the packet, the answer, the count after (the overflow's record and stamp put
+         * back after); (3) a pool row for a user no world has: `prunePools` on this GM, then on the primary; (4) a
+         * player's `despair.adjust` and `overflow.add`, judged: the verdict, the pool and the count. Red at 341c595e:
+         * the pips wrote 4 here and sent nothing, the overflow was added here, the prune here dropped the row, and the
+         * player's `overflow.add` named no row.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - its pip would measure nothing");
+        must(D.despairMax() >= 4, `a pool holds ${D.despairMax()} - pip 4 would measure nothing`);
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose ask is judged");
+        const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser0";
+        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
+            overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ["despair.adjust", "overflow.add"].includes(packet?.action) && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.targetUserId ?? null, packet.delta ?? packet.amount ?? null]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        // The packets A was sent, judged as the primary judges them - A out of the list for the judgement only, once
+        // nothing of this GM's is in flight - and the answers handed to this browser's listeners as A's.
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const pool = () => D.getDespair(game.user.id);
+        const pip = n => document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${game.user.id}"] .drpg-despair-pip[data-value="${n}"]`);
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: 2, [GONE]: 3 });
+            await settle();
+            inPlay = true;
+            arrive();
+            ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            D.renderDespairBar();
+            const four = pip(4);
+            must(four, "the Despair bar drew no pip 4 for this GM's pool");
+            four.click();
+            four.click();
+            await settle();
+            read.pip = { sent: sentToA.splice(0), before: pool() };
+            await drain();
+            read.pip.after = pool();
+
+            const count0 = O.overflowCount();
+            const added = O.addOverflow(1, { reason: "suite E17-T8" });
+            await settle();
+            await drain();
+            const after = await added;
+            await settle();
+            read.overflow = { sent: sentToA.splice(0), answered: after === count0 + 1, count: O.overflowCount() - count0 };
+
+            await D.prunePools();
+            await settle();
+            read.prune = [Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE)];
+            depart();
+            await D.prunePools();
+            await settle();
+            read.prune.push(Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE));
+            inPlay = false;
+
+            const asks = [];
+            for (const [action, fields] of [["despair.adjust", { targetUserId: game.user.id, delta: 1 }], ["overflow.add", { amount: 1, reason: "suite" }]]) {
+                const told = [];
+                const verdict = await G.judge(BRIDGE_ACTIONS, { action, requestId: `suite-e17t8-${action}`, userId: player.id, ...fields }, player.id,
+                    { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+                await settle();
+                asks.push([action, verdict === false ? "no row" : told.join(","), pool(), O.overflowCount() - count0]);
+            }
+            read.player = asks;
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            pip: { sent: [["despair.adjust", game.user.id, 2], ["despair.adjust", game.user.id, -1]], before: 2, after: 3 },
+            overflow: { sent: [["overflow.add", null, 1]], answered: true, count: 1 },
+            prune: [true, false],
+            player: [["despair.adjust", "undoIsTheGms", 3, 1], ["overflow.add", "gmOnly", 3, 1]]
+        }), "a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either [the pips: what was sent to the primary, "
+            + "the pool before the primary judged it and after; the overflow: what was sent, whether the answer was the count after, the count's rise; "
+            + "a gone user's pool after this GM's prune and the primary's; a player's two asks: what was told, the pool, the count's rise]");
+    }],
+
     ...GRID
 ];
 

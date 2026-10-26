@@ -89,7 +89,7 @@ Trzy fazy:
 Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 
 - Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
-- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**.
+- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przeglądarka GMa liczy twoje przejścia, gdy je widzi: przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
 - Otwiera ci się karta z podsumowaniem poprzedniej pory dnia - co znalazłeś, co zostawiłeś.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
@@ -125,8 +125,10 @@ Zawraca cię:
 | **Chained** z Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
 | **śmierć** | ciało zostaje tam, gdzie upadło |
-| **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu |
+| **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu, dopóki nie pozwoli mu akcja kryzysowa: Survive, Escape together, Finishing blow albo Averted eyes, jeśli tylko na nie trafiłeś |
 | **Class Trial** w toku | nikt nie opuszcza sali rozpraw |
+
+To wszystko sprawdza twój ekran i jeszcze raz przeglądarka GMa: ruch do pokoju, który te zasady zamykają, jest cofany tam, gdzie twój token ostatnio stał, i słyszysz, która zasada cię zawróciła; token upuszczony z paska bocznego do takiego pokoju jest usuwany. GM może też oddać ci ostatnie przejście (**Zwróć ostatnie przejście**): token wraca tam, gdzie stał, a to, ile przejście kosztowało, znowu jest twoje.
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
@@ -155,7 +157,7 @@ Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz
 
 ### Search Tokens
 
-Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz.
+Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz. Gdy odpowiedź GMa na twoje Search przychodzi za późno, przeszukanie nie jest liczone, zachowujesz akcję, a pokój odzyskuje token; pokój zapieczętowany przez GMa mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
 
 ---
 
@@ -421,7 +423,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Rot | każdy przedmiot z więcej niż jednym punktem wytrzymałości traci jeden (jednorazowo, nic się nie łamie) |
 | Earthquake | każdy projekt jeszcze nieukończony i niezamrożony traci 1 postępu (jednorazowo) |
 
-Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
+Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena (pokój, któremu GM nie dał żadnego, nadal nie ma żadnego). Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
 
 ---
 

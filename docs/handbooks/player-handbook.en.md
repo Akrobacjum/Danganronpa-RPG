@@ -89,7 +89,7 @@ The three phases:
 Before each time of day the lights go out. That placement window is the **Eclipse**:
 
 - Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back. (The dark is the screens': where every token stands still reaches every browser, as Foundry sends it.)
-- You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**.
+- You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**. The GM's browser counts your crossings as it sees them: one past the allowance goes back, and with no GM connected a crossing is refused.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**. No Calls until the lights come up.
 - A summary card of what you did during the previous time of day opens for you - what you found, what you left behind.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
@@ -125,8 +125,10 @@ You are turned back by:
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
 | **somebody else's bedroom** | when you hold no key to it |
 | being **dead** | the body stays where it fell |
-| being in a **murder** while it runs | nobody walks out of an incident |
+| being in a **murder** while it runs | nobody walks out of an incident until a crisis action lets them: Survive, Escape together, a Finishing blow, or Averted eyes if you only walked in on it |
 | a **Class Trial** in session | nobody leaves the courtroom |
+
+These are checked on your screen and again by the GM's browser: a move into a room they shut is put back to where your token last stood, and you are told which rule turned you back; a token dropped from the sidebar into such a room is removed. The GM can also give your last crossing back (**Refund last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
@@ -155,7 +157,7 @@ With regional voice on, every room is its own voice channel: you hear only whoev
 
 ### Search tokens
 
-Every room has a number of **search tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand.
+Every room has a number of **search tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. When the GM's answer to your Search comes too late, the search is not counted, you keep the action, and the room gets its token back; a room the GM has sealed tells you it cannot be searched, and you keep the action.
 
 ---
 
@@ -421,7 +423,7 @@ Despair earned past a full pool does not vanish - it collects in one shared coun
 | Rot | every item with more than one durability point loses one (one-off, nothing breaks) |
 | Earthquake | every project not yet finished and not frozen loses 1 progress (one-off) |
 
-None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it, but a darkening announced during the trial still comes, at the next time of day.
+None of these ever takes you below one action or one search token (a room the GM gave none keeps none). You see "?" for the counter; a trial verdict empties it, but a darkening announced during the trial still comes, at the next time of day.
 
 ---
 

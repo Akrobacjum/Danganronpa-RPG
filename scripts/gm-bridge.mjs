@@ -46,6 +46,8 @@ const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
+/** GM -> primary GM: add to the overflow's count (E17 C5) - see overflow.mjs `addOverflow`. */
+const ACTION_OVERFLOW_ADD = "overflow.add";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
@@ -1639,6 +1641,14 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     return { reply: { ok: true, left: paid.left } };
 }
 
+/** The run of `overflow.add` (E17 C5): the primary's own `addOverflow`, its count after, or a refusal when nothing was added. */
+async function handleOverflowAdd(payload, sender, ctx) {
+    const { addOverflow } = await import("./overflow.mjs");
+    const after = await addOverflow(Math.trunc(payload.amount), { reason: payload.reason || `asked by ${sender.name}` });
+    if (after === null) return { refused: "nothing was carried out: the overflow took nothing" };
+    return { reply: { after } };
+}
+
 async function handleDespair(payload, sender, ctx) {
     // A GM's alone since E08+E28 C8, as a Reroll's point is the GM's own (reroll.mjs); the size
     // and the pool are the declaration's guards.
@@ -2498,6 +2508,20 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: { targetUserId: guardDespairPool }
     },
+    /*
+     * THE OVERFLOW, ON THE PRIMARY GM (E17 C5, 26.10.2026; audit S09-32). A GM that is not the primary adds to the
+     * count here (overflow.mjs `addOverflow`): Feed the Overflow paid on an Assistant's browser, a spill written there
+     * with no primary to ask. A GM's alone: a player's console that could ask would darken the world. Tier 2 E17-T8
+     * judges a player's ask (refused) and a second GM's (added on the primary, its count answered).
+     */
+    [ACTION_OVERFLOW_ADD]: {
+        label: "DRPG.Bridge.what.overflow.add",
+        guards: [gmOnly("only a GM adds to the overflow"),
+            inRange("amount", n => Number.isFinite(n) && n >= 1 && n <= STARTING.despairMax, value => `amount ${value} is out of range`)],
+        sanitize: pick({ amount: as.num, reason: as.text }),
+        run: handleOverflowAdd,
+        answer: "reply"
+    },
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
@@ -3058,6 +3082,14 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  */
 export function sendDespairToPrimary(targetUserId, delta) {
     return ask(ACTION_DESPAIR, { targetUserId, delta });
+}
+
+/**
+ * A GM that is not the primary adds to the overflow (E17 C5; overflow.mjs `addOverflow`), which asked only once it
+ * knew the primary is connected and is somebody else. Its value is `{ after }`, the count on the primary after.
+ */
+export function requestOverflowAdd(amount, reason) {
+    return ask(ACTION_OVERFLOW_ADD, { amount, reason });
 }
 
 /**
