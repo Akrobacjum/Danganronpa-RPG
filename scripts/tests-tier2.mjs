@@ -71273,6 +71273,85 @@ const SCENARIOS = [
             + "empty room refused; what the player reads of five results; what five refused claims show, give back and call exhausted]");
     }],
 
+    ["a search token's return gives nothing back once a find stood on its Search, settles that Search first, and ends at a refill (E17-T7)", async () => {
+        /*
+         * E17 fix e1-G3, 26.10.2026; the review's E17P1-SEC-1 and E17R-03 (a console spent, wrote its find, skipped the plant
+         * check and asked the token back: the room never ran out) and E17P1-SEC-7 (a return asked after a refill, once
+         * another player had spent in the new time of day, put one token more in the room than the GM set). Read on this
+         * primary's browser, for the world's first player with a character: a room of the suite's own on a scene id no
+         * scene has. The GMs' record of a Search of that character drawn for that player is planted (as the draw writes
+         * it) before each spend, and the spend runs as the bridge runs it, naming the character, so it marks that record.
+         * (a) a find stood on it - the GMs' `sheetMarks` hold it, as sheet-audit.mjs `searchFind` writes it - then the
+         * return; (b) no find, the return; (c) a spend, the GMs' refill (`SearchTokens.reset`), another account's spend,
+         * then the first spender's return. Read: the return carried out or refused, the room's count, and whether the
+         * record is settled ("search" resolved). Red at 7dd30983: (a) taken with the room full again, (c) taken.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const { rollStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = ST;
+        must(isPrimaryGm(), "this browser is not the primary GM, which judges the spend and its return - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.character);
+        must(player, "the world has no player with a character, whose Search is recorded");
+        const actor = player.character;
+        const ROOM = "SUITE E17 T7 find room", SCENE = "zE17T7findScen0", RETURN = "searchTokens.returnToken";
+        const saved = foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {});
+        await sheetMarkStore.whenHydrated();
+        const finds = foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.finds ?? {});
+        const full = async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved); await settle(); };
+        const spendAs = SEARCH_ACTIONS["searchTokens.spend"];
+        const count = () => SearchTokens.store[SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const spend = async (rid, who = player, actorId = actor.id) =>
+            (await spendAs.run(spendAs.sanitize({ roomName: ROOM, sceneId: SCENE, actorId }, who), who, { requestId: rid }))?.reply ?? null;
+        const back = async rid => {
+            const judged = await G.judge(SEARCH_ACTIONS, { action: RETURN, spendRequestId: rid, userId: player.id }, player.id, { send: () => {} });
+            await settle();
+            return judged === true ? "taken" : judged === null ? "refused" : "no row";
+        };
+        const records = [];
+        const record = async () => {
+            const rollId = foundry.utils.randomID();
+            records.push(rollId);
+            await rollStore.patch(rollId, { rollId, actorId: actor.id, userId: player.id, actionKey: "search", total: 17, isCritical: false, withHope: true, at: Date.now() });
+            return rollId;
+        };
+        const settled = rollId => (rollStore.get(rollId)?.resolved ?? []).includes("search");
+        const max = SearchTokens.max;
+        must(Number.isInteger(max) && max >= 2, `a room holds ${max} search tokens - two spends would measure nothing`);
+        const read = {};
+        try {
+            // (a) a find stood on the Search, then the return
+            await full();
+            const a = await record();
+            must((await spend("suite-e17t7-find-a"))?.ok === true && rollStore.get(a)?.tokenSpentAt, "the spend did not mark the planted Search - this would measure nothing");
+            await sheetMarkStore.patch(actor.id, { finds: { ...finds, [a]: "suiteE17T7item00" } });
+            read.found = [await back("suite-e17t7-find-a"), count(), settled(a)];
+            // (b) no find, the return
+            await full();
+            const b = await record();
+            await spend("suite-e17t7-find-b");
+            read.none = [await back("suite-e17t7-find-b"), count(), settled(b)];
+            // (c) a spend, a refill, another account's spend, the first spender's return
+            await full();
+            await record();
+            await spend("suite-e17t7-find-c");
+            await SearchTokens.reset({ notify: false });
+            await settle();
+            await spend("suite-e17t7-find-c2", game.user, null);
+            read.refilled = [await back("suite-e17t7-find-c"), count()];
+        } finally {
+            // Whole: the planted find is not left beside the finds as they were.
+            await sheetMarkStore.patch(actor.id, { finds }, { whole: true });
+            for (const id of records) if (rollStore.has(id)) await rollStore.drop(id);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ found: ["refused", max - 1, true], none: ["taken", max, true], refilled: ["refused", max - 1] }),
+            "{found: [the return after a find stood on its Search, the room's count, the Search settled], none: [the same with no find], "
+                + "refilled: [the return after a refill and another account's spend, the room's count]} - a token came back for a Search that went on, or across a refill");
+    }],
+
     ["Despair has one writer (E17-T8): a GM that is not the primary changes a pool by a pip as a change asked of the primary, adds to the overflow through it, and prunes nothing; a player's ask of either is refused", async () => {
         /*
          * E17 C5, 26.10.2026; E17-24, audit S09-32. The one-writer rule (DESP-12) held for `adjustDespair` alone: a pip

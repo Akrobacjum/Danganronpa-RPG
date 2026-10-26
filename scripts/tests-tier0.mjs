@@ -15002,8 +15002,12 @@ const REGRESSIONS = [
          *       or in another statement read so (R977's reading); the table it prints is (row, file#statement, key);
          *   (b) movement.mjs `settleRoute` and trial.mjs `objectOnPrimary` each hold a step of their key (the primary's
          *       charge of a door move when no owner is connected, and the Objection held across its whole judgement);
-         *   (c) trial.mjs names no `seizing` (the chain E79 left, which ordered the hook's seizures and not the bridge's).
-         * What it does not read: a key held in a variable, a setting key built in one, a name imported under another
+         *   (c) trial.mjs names no `seizing` (the chain E79 left, which ordered the hook's seizures and not the bridge's);
+         *   (d) since E17 fix e1-G3 (the review's E17P1-R3: season-setup.mjs's reset wrote the search tokens through
+         *       `emptied(SETTINGS.searchTokens, {})`, a writer of a key held in a variable, outside `SEARCH_KEY`): a row's
+         *       setting is handed to no call but `game.settings.get`/`set`/`register`, `getSetting` and `onWorldChange` -
+         *       a key passed into any other call is a write (or a read) this census cannot follow, so it is refused.
+         * What it does not read: a setting key built in a variable, a name imported under another
          * name, and a crossing the owner's browser pays (`shouldCharge`: the owner's spend stays the owner's stamped
          * write, as at Base; design note 20). The Eclipse's `patchMany` (an owner's copy merged) and `clear` (the
          * Eclipse's end) are not rows. The reader is shown planted source first: a clean twin that must read clean,
@@ -15022,6 +15026,22 @@ const REGRESSIONS = [
             ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
             ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
         const HOLDS = [["movement.mjs", "settleRoute", "crossing"], ["trial.mjs", "objectOnPrimary", "seize"]];
+        const READERS = /^(?:game\.settings\.(?:get|set|register)|getSetting|onWorldChange)$/;
+        const KEYWORDS = new Set(["if", "while", "for", "switch", "return", "catch", "function", "typeof", "await", "new"]);
+        // The call a match at `at` is a direct argument of: its callee as written (spaces dropped), or null in a bracket or a brace.
+        const calleeAround = (blank, at) => {
+            for (let i = at - 1, depth = 0; i >= 0; i--) {
+                const c = blank[i];
+                if (c === ")" || c === "]" || c === "}") depth++;
+                else if (c === "(" || c === "[" || c === "{") {
+                    if (depth > 0) { depth--; continue; }
+                    if (c !== "(") return null;
+                    const name = (blank.slice(Math.max(0, i - 120), i).match(/([\w$]+(?:\s*\.\s*[\w$]+)*)\s*$/)?.[1] ?? "").replace(/\s+/g, "");
+                    return name && !KEYWORDS.has(name) ? name : null;
+                } else if (c === ";" && depth === 0) return null;
+            }
+            return null;
+        };
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const blankOut = s => s.replace(/[^\n]/g, " ");
 
@@ -15087,6 +15107,12 @@ const REGRESSIONS = [
                 }
                 for (const [key, re] of CALLS) for (const m of f.blank.matchAll(re)) note(key, f, m.index);
                 if (f.file === "trial.mjs" && f.names.has("seizing")) broken.add("chain trial.mjs seizing");
+                // (d) a row's setting handed to a call the census cannot follow.
+                for (const m of f.blank.matchAll(/(?<![\w$])SETTINGS\s*\.\s*([\w$]+)/g)) {
+                    if (!SETS.some(([, setting]) => setting.test(`SETTINGS.${m[1]}`))) continue;
+                    const callee = calleeAround(f.blank, m.index);
+                    if (callee && !READERS.test(callee)) broken.add(`through ${callee} ${f.declAt(m.index)?.id ?? f.file}`);
+                }
             }
             for (const [file, name, key] of HOLDS) {
                 const f = files.find(g => g.file === file), d = f?.decls.find(e => e.name === name);
@@ -15200,7 +15226,11 @@ const REGRESSIONS = [
                 "async function seizeFloor(message) { return message; }",
                 "export function registerTrial() { Hooks.on(\"createChatMessage\", message => { seizing = seizing.then(() => seizeFloor(message)); }); }",
                 "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
-            ] }, ["chain trial.mjs seizing", "seize outside trial.mjs#registerTrial"]]
+            ] }, ["chain trial.mjs seizing", "seize outside trial.mjs#registerTrial"]],
+            "a setting handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
+                "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
+                "export const RESETS = { searchTokens: wipe(SETTINGS.searchTokens, {}) };"
+            ] }, ["through wipe season-setup.mjs#RESETS"]]
         };
         const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
         const twin = censusOf(planted(clean));

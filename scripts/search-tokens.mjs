@@ -178,6 +178,8 @@ export class SearchTokens {
     static async markSpent(sender, actorId) {
         const { rollStore, rollId, row } = await newestSearch(sender, actorId);
         if (row && !row.tokenSpentAt) await rollStore.patch(rollId, { tokenSpentAt: Date.now() });
+        // The record marked, for the spend's return to settle and read (E17 fix e1-G3, `returnToken`).
+        return row ? rollId : null;
     }
 
     /**
@@ -385,6 +387,7 @@ export class SearchTokens {
     static async reset({ notify = true } = {}) {
         if (!game.user.isGM) return false;
         await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
+        forgetTokenReturns();
         if (notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
         return true;
     }
@@ -475,6 +478,17 @@ const PLANT_WINDOW_MS = TIMING.plantWindowMs;
 const handedOut = new Map();
 const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
 
+/**
+ * A REFILL ENDS EVERY TOKEN'S RETURN (E17 fix e1-G3, 26.10.2026; the review's E17P1-SEC-7). The ledger kept a spend's token
+ * across a time of day's refill, so a spender whose room another player spent from in the new time of day asked the old
+ * token back and the room held one more than the GM set. The tokens' entries go at every refill: this GM's
+ * (`SearchTokens.reset`), and another GM's, read where the setting turns empty (`registerSearchTokenSocket`'s
+ * `updateSetting`). A plant's entries stay: a plant handed out is an item, which a refill does not make again.
+ */
+function forgetTokenReturns() {
+    for (const [id, entry] of handedOut) if (entry?.kind === "token") handedOut.delete(id);
+}
+
 /** The ledger's entries older than a return is taken for, gone. */
 function pruneLedger() {
     for (const [id, entry] of handedOut) {
@@ -495,6 +509,12 @@ function takeEntry(id) {
 /** The primary GM judges what a player asks here, by the declarations below. */
 export function registerSearchTokenSocket() {
     game.socket.on(SOCKET_EVENT, (payload, senderId) => (isPrimaryGm() ? judge(SEARCH_ACTIONS, payload, senderId) : null));
+    // Another GM's refill (E17 fix e1-G3; `forgetTokenReturns`): the setting turned empty ends every token's return here too.
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key !== `${MODULE_ID}.${SETTINGS.searchTokens}`) return;
+        const store = game.settings.get(MODULE_ID, SETTINGS.searchTokens);
+        if (store && typeof store === "object" && !Object.keys(store).length) forgetTokenReturns();
+    });
 }
 
 /**
@@ -605,9 +625,11 @@ async function runSpend(payload, sender, ctx) {
         searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), at);
         if (ctx?.requestId) {
             pruneLedger();
-            handedOut.set(ctx.requestId, { kind: "token", userId: sender.id, roomName: payload.roomName, sceneId, actorId: payload.actorId ?? null, at });
+            handedOut.set(ctx.requestId, { kind: "token", userId: sender.id, roomName: payload.roomName, sceneId, actorId: payload.actorId ?? null, at, rollId: null });
         }
-        await SearchTokens.markSpent(sender, payload.actorId);
+        const rollId = await SearchTokens.markSpent(sender, payload.actorId);
+        const entry = ctx?.requestId ? handedOut.get(ctx.requestId) : null;
+        if (entry?.kind === "token" && entry.at === at) entry.rollId = rollId;
     } else await settleUnclaimed(sender, payload.actorId);
     return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId), why: ok ? null : SearchTokens.refusalOf(payload.roomName, sceneId) } };
 }
@@ -638,10 +660,20 @@ async function runSpend(payload, sender, ctx) {
  * its mark, and grants as `reroll`; a spend that reaches this GM before its roll's record does
  * marks the Search before it, and the new one stays unmarked - the stricter side.
  */
-async function settleUnclaimed(sender, actorId) {
-    const { rollStore, rollId, row } = await newestSearch(sender, actorId);
+async function settleUnclaimed(sender, actorId, named = null) {
+    const { rollStore, rollId, row } = named ? await namedSearch(sender, actorId, named) : await newestSearch(sender, actorId);
     const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
     if (row && !resolved.includes("search")) await rollStore.patch(rollId, { resolved: [...resolved, "search"] });
+    return { rollId: row ? rollId : null, settledBefore: resolved.includes("search") };
+}
+
+/** The GMs' record `rollId`, when it is a Search of `actorId` drawn for `sender` (`newestSearch`'s shape). */
+async function namedSearch(sender, actorId, rollId) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const row = rollStore.get(rollId) ?? null;
+    const ours = row && ownsActor(sender, actorId) && row.actorId === actorId && row.userId === sender.id && row.actionKey === "search";
+    return { rollStore, rollId, row: ours ? row : null };
 }
 
 /**
@@ -723,9 +755,26 @@ async function returnToken(payload, sender, ctx) {
     const key = searchKey(sender.id, entry.sceneId, entry.roomName);
     if (searchedBy.get(key) !== entry.at) return { refused: "nothing was carried out: the Search that token paid for went on" };
     searchedBy.delete(key);
+    /* NOTHING STOOD ON THAT SEARCH (E17 fix e1-G3, 26.10.2026; the review's E17P1-SEC-1, E17R-03). A browser that gave up
+       asks no plant check, and neither does a console that skips it: one spent, wrote its find on its own sheet (the
+       find stood, the record marked spent) and asked the token back, and the room never ran out. The record the spend
+       marked (`SearchTokens.markSpent`, kept in the entry) is settled first, so no find stands on it from here; then a
+       find that already stood on it (the GMs' `sheetMarks` `finds`, sheet-audit.mjs `searchFind`) or a settling before
+       this one (a stash's theft, bridge-guards.mjs `rollsFor`) keeps the token spent. A find judged while this runs
+       reads the record settled and is refused (the sheet audit's step per student; not driven across the two). */
+    const { rollId, settledBefore } = await settleUnclaimed(sender, entry.actorId, entry.rollId);
+    if (rollId && (settledBefore || await findStoodOn(entry.actorId, rollId))) {
+        return { refused: "nothing was carried out: the Search that token paid for went on" };
+    }
     await SearchTokens.giveBack(entry.roomName, entry.sceneId);
-    await settleUnclaimed(sender, entry.actorId);
     return null;
+}
+
+/** Whether the GMs hold a find of `actorId` named after the Search `rollId` (sheet-audit.mjs `searchFind`'s `finds`). */
+async function findStoodOn(actorId, rollId) {
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    await sheetMarkStore.whenHydrated();
+    return Boolean(actorId && sheetMarkStore.get(actorId)?.finds?.[rollId]);
 }
 
 /**
