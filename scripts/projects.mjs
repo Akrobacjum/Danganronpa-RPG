@@ -34,7 +34,6 @@ import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
 import { discoveredFor, myDiscoveredRooms } from "./fog.mjs";
 // Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
-import { isMastermind } from "./mastermind.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
@@ -168,8 +167,8 @@ export function knowsProject(countdownId, user = game.user) {
  * known (`myDiscoveredRooms`). That was true of the fog alone: this asked the record, so the Mastermind's player
  * never saw the token or the tray's row of a public project in a room they had stood in, which every other student
  * who stood there sees. They are answered here as their fog answers them, every room of the scene: on their own
- * browser by `iAmTheMastermind` (the door's copy only they hold), on a GM's - the project card's "Known by" -
- * by the GMs' store (`isMastermind` of a character they own). A public project's countdown is held by every browser
+ * browser by `iAmTheMastermind` (the door's copy only they hold); a GM's browser answers the record for them, as for
+ * anybody (`playsTheMastermind`, E17 fix p2-G3). A public project's countdown is held by every browser
  * already (`canSee`), so nobody learns a project's existence from this they could not read before; it is about
  * whether the map and the tray show it.
  *
@@ -195,13 +194,19 @@ export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermi
     return false;
 }
 
-/** Does `user` play the Mastermind, as far as this browser may know: its own copy for itself, the GMs' store on a GM. */
+/**
+ * Does `user` play the Mastermind, as this browser answers for `knowsProject`: its own copy (`iAmTheMastermind`) for
+ * itself, and no for anybody else.
+ * NOT ON A GM'S SCREEN FOR ANOTHER USER (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R9, goal). This asked the
+ * GMs' store on a GM, so the project card's "Known by" (projects-map.mjs) named the Mastermind's player on every public
+ * project of the scene, rooms their character never entered among them, while every other player was listed for the
+ * rooms they stood in: a GM's shared or streamed screen picked out the Mastermind. The GM's card reads the record
+ * for everybody now, so it lists the Mastermind's player only where the record has them; their own map and tray keep
+ * the exception, answered on their own browser.
+ */
 function playsTheMastermind(user) {
     if (!user || user.isGM) return false;
-    if (user === game.user) return iAmTheMastermind();
-    if (!game.user?.isGM) return false;
-    return (game.actors ?? []).some(actor => actor.type === "character" && isMastermind(actor)
-        && actor.testUserPermission(user, "OWNER"));
+    return user === game.user && iAmTheMastermind();
 }
 
 /* ==========================================================================

@@ -220,6 +220,10 @@ const COALESCE_MS = TIMING.coalesceMs;
  * design number, not a measured one - no scenario reads how long a burst of the
  * clock's writes lasts; it holds a stream of events (a trial's floor ticking, a run of
  * Despair spends) to a redraw at least every 360 ms, inside the suite's 400 ms settle.
+ * The stage asked for it measured in scenario 40; it was not (E17 fix p2-G3, the end
+ * review's E17p2-R7): the harness's server and socket are a shim, whose spread between
+ * a setting's change and the GM's broadcast is no server's. The reading is LIVE-E17-11
+ * (audit/AUDIT-1.2.42.md 9.2, item 316), to be written here.
  */
 export const COALESCE_MAX_WAIT_MS = COALESCE_MS * 3;
 

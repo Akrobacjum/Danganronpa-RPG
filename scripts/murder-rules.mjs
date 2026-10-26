@@ -3367,6 +3367,18 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
        it at the table. */
     if (state?.active) Hooks.callAll("drpgIncidentClosed", { reason });
 
+    /* A MOTIVE THAT CAME DUE INSIDE IT IS ANNOUNCED NOW (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R5): its
+       table was told in private, and the rest learn it here, where their clock catches up, once (rules.mjs
+       `announceOwedMotive`). Not for a reset (`conclude`). */
+    if (state?.active && conclude) {
+        try {
+            const { announceOwedMotive } = await import("./rules.mjs");
+            await announceOwedMotive();
+        } catch (err) {
+            error("Could not announce the motive that came due in the incident", err);
+        }
+    }
+
     // Before the checklist below, which waits on the GM's answer. Not for a reset (`conclude`).
     if (state?.active && conclude) {
         try {

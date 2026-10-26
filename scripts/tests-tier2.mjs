@@ -71728,6 +71728,10 @@ const SCENARIOS = [
          * after a reload with the clock moved meanwhile (hud.mjs `shownClock` with no page memory, over
          * the clock's `clockAtOpen`), and the motive's
          * tick after the close. The incident, the motive and the clock are put back.
+         * E17 fix p2-G3 (26.10.2026; the end review's E17p2-R3 and R8, correctness, R5, goal): the Event panel's motive
+         * card (events.mjs `motiveCard`, drawn on every browser) turned "Due" for every bystander on the move inside the
+         * incident; a second move whispered the card again; the public card waited for the next move after the close.
+         * Now read: the card for a bystander and for the GM, a second tick's cards, the close's cards.
          */
         needs(env.primaryGm());
         const J = stableJson;
@@ -71738,6 +71742,7 @@ const SCENARIOS = [
         const { wordsOf, isVeiled } = await import("./secret.mjs");
         const { isEclipse } = await import("./settings.mjs");
         const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
         const [killer, victim] = cast(2);
         must(!M.murderState(), "an incident is already running - this would measure nothing");
         const first = game.i18n.localize("DRPG.Eclipse.incidentFirst");
@@ -71780,13 +71785,26 @@ const SCENARIOS = [
             await R.tickMotive();
             await settle();
             read.inIncident = [await dueCards(inFight), R.motive()?.dueAnnounced === true];
+            // E17 fix p2-G3: the Event panel's motive card as a bystander draws it (hidden clock) and as the GM does, and a
+            // second move of the clock inside the incident whispers nothing again.
+            const EV = await import("./events.mjs");
+            const key = String(M.murderState()?.openedAt ?? "open");
+            const card = view => (typeof EV.motiveCard === "function" ? EV.motiveCard(view) : null);
+            const seen = c => (c ? [c.due, c.meta] : null);
+            read.panel = [seen(card({ hide: true, key })), seen(card({ hide: false, key }))];
+            const second = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.secondTick = await dueCards(second);
             // A bystander's reload: the clock moved in the incident, the page's memory gone.
             await setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(atOpen.timeOfDay) + 1) % TIMES_OF_DAY.length] });
             read.reload = typeof H.shownClock === "function"
                 ? H.shownClock(getClock(), { hide: true, last: null })?.timeOfDay === atOpen.timeOfDay : null;
+            const closing = new Set(game.messages.map(m => m.id));
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
             must(!M.murderState(), "the incident is still running after the close");
+            read.atClose = [await dueCards(closing), R.motive()?.dueAnnounced === true];
             const after = new Set(game.messages.map(m => m.id));
             await R.tickMotive();
             await settle();
@@ -71800,11 +71818,16 @@ const SCENARIOS = [
             await setClock(was);
             await settle();
         }
+        const left = game.i18n.localize("DRPG.Motive.dueShort");
+        const oneLeft = plural("DRPG.Motive.left", { n: 1 });
         equal(J(read), J({ atOpen: true, chevron: first, refused: [null, false, true], inIncident: [{ open: 0, veiled: 1 }, false],
-            reload: true, after: [{ open: 1, veiled: 0 }, true] }),
+            panel: [[false, oneLeft], [true, left]], secondTick: { open: 0, veiled: 0 },
+            reload: true, atClose: [{ open: 1, veiled: 0 }, true], after: [{ open: 0, veiled: 0 }, true] }),
             "{atOpen: the incident keeps the clock it opened at; chevron: the dimmed chevron's words; refused: [startEclipse's answer, an "
             + "Eclipse running, the GM told to close the incident first]; inIncident: [the due motive's cards, marked announced]; reload: a "
-            + "bystander's HUD after a reload shows the time of day the incident opened at; after: the same after the close}");
+            + "bystander's HUD after a reload shows the time of day the incident opened at; panel: [the Event panel's motive card [due, its "
+            + "line] for a bystander, for the GM] (E17 fix p2-G3); secondTick: the cards of a second move of the clock in the incident; "
+            + "atClose: [the cards the close posted, marked announced]; after: the same at the next move after the close}");
     }],
 
     ["the boundary taken back (E17-T10): an Eclipse ended without advancing and a rewind within five minutes take back what the boundary gave, after five minutes nothing is taken back and the boundary refills no second time, and the chevron asks first with no as the default", async () => {

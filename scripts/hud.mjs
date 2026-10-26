@@ -30,7 +30,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery, isDeadForGm } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isDeadForGm } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
@@ -39,7 +39,7 @@ import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
 import { isMonocub } from "./monocub.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
-import { murderState } from "./murder.mjs";
+import { murderState, clockHiddenHere } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
@@ -395,11 +395,7 @@ export function clockForDisplay(clock) {
            are told nothing else of it until the killer's roll succeeds. Not `incidentWitness`,
            which reads the opening and the fight alone: at Stage 6 a trap's builder is seated
            again, and sees the live clock as every other participant does. */
-        const state = murderState();
-        const hide = state
-            && !game.user.isGM
-            && !incidentSeats(incidentCast(), state).some(id =>
-                game.actors.get(id)?.testUserPermission(game.user, "OWNER"));
+        const hide = clockHiddenHere(murderState());
 
         if (!hide) {
             lastPublicClock = foundry.utils.duplicate(clock);

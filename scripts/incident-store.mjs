@@ -189,6 +189,17 @@ export function murderState() {
 }
 
 /**
+ * WHETHER THIS BROWSER IS A BYSTANDER OF THE RUNNING INCIDENT (E17 fix p2-G3, 26.10.2026): an incident runs, this is
+ * no GM, and none of the seats of `incidentSeats` at the stage running is a character this user owns - the reading
+ * hud.mjs `clockForDisplay` freezes the clock by (E06 C2, D6), moved here so that the Event panel's motive card
+ * (events.mjs `motiveCard`) asks the same question: the panel is drawn by hud.mjs, which imports events.mjs.
+ */
+export function clockHiddenHere(state = murderState()) {
+    return Boolean(state) && !game.user?.isGM
+        && !incidentSeats(incidentCast(), state).some(id => game.actors.get(id)?.testUserPermission(game.user, "OWNER"));
+}
+
+/**
  * The fields one write of the cast stamps, and with what (the round-2 review's M1):
  * every field `next` names, and a field `previous` held that `next` leaves out - a
  * removal, stamped null. A field neither names is not this write's: until E04's fix

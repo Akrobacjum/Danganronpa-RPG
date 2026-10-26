@@ -3480,7 +3480,7 @@
       "searchTokensRestocked": "Każdy pokój uzupełniony o Search Tokens",
       "woundedNote": "Jedna akcja o tej porze dnia, całe Health zaznaczone: {names}.",
       "rewindDuringEclipse": "Trwa Eclipse, więc zegar jeszcze się nie przesunął i nie ma do czego się cofać. Zakończ Eclipse w panelu GM-a - może się skończyć bez przesuwania zegara.",
-      "takenBack": "Cofnięte: akcje, darmowe ruchy, żetony przeszukania i pieczęcie są takie, jak przed początkiem tej pory dnia."
+      "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
     "Panel": {
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",

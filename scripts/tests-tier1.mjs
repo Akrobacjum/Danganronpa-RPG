@@ -23203,7 +23203,46 @@ const INVARIANTS = [
             source: [true, true]
         }), "{mastermind: the rooms the Mastermind's player is known to have stood in (their fog's), student: a player's (the record's), "
             + "elsewhere: a room on no scene and no scene at all for the Mastermind, source: knowsProject asks hasStoodIn, which asks myDiscoveredRooms}");
+        /* E17 fix p2-G3 (26.10.2026; the end review's E17p2-R9, goal): on a GM's browser the project card's "Known by"
+           asked the GMs' store whether another user plays the Mastermind, and listed them on every public project of the
+           scene - a tell on a shared screen. The Mastermind's exception is their own browser's alone: the GM's answer for
+           another user is the record's. Red at 5088794a: playsTheMastermind read isMastermind. */
+        ok(!/\bisMastermind\(/.test(fnSource(src, "playsTheMastermind")),
+            "projects.mjs `playsTheMastermind` asks the GMs' store about another user - the GM's \"Known by\" names the Mastermind's player");
         ok(got.mastermind.length === rooms.length && rooms.length > 0, `the Mastermind's answer covered ${got.mastermind.length} of ${rooms.length} rooms`);
+    }],
+    ["R1005 - a passage's cards name the rooms to the Mastermind's character as its map draws them (E17 fix p2-G3): passages-gm.mjs `roomNamerFor` names every room for the Mastermind and a room not found as \"Unexplored room n\" for anybody else, and the made card and the breach heard next door ask it", async () => {
+        /*
+         * E17 fix p2-G3, 26.10.2026; the end review's E17p2-R10 (goal). fog.mjs `recordDiscovery` keeps no track of the
+         * Mastermind's walks, and their own map draws every room; the passage's made card (`tellPassageBuilt`) and the
+         * breach heard next door (`tellBreach`) named a room by the record alone, so the Mastermind's character was told
+         * "an unexplored room 1" for a room its map shows. Read on the scene on screen for a character a player owns: the
+         * namer with the GMs' record of the Mastermind faked to name it (the card's owner then acts as the Mastermind,
+         * `actsAsMastermind`), and with a record naming nobody; and both cards' source asks the namer. No Mastermind is chosen (tier 1). Red at 5088794a: no `roomNamerFor`.
+         */
+        const J = stableJson;
+        const PG = await import("./passages-gm.mjs");
+        ok(typeof PG.roomNamerFor === "function", "passages-gm.mjs has no `roomNamerFor` - the cards ask the discovery record alone");
+        if (typeof PG.roomNamerFor !== "function") return;
+        needs(world.atLeast("namedRooms", 1), "a named room on the scene on screen is the one named");
+        const F = await import("./fog.mjs");
+        const { roomNames } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        needs(world.atLeast("playersWithCharacter", 1), "a player account that owns a character is the one the card goes to");
+        const actor = game.actors.find(a => a.type === "character" && game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        must(actor, "no character a player owns - this would measure nothing");
+        const known = new Set(F.discoveredFor(scene.id, actor.id));
+        const room = [...new Set(roomNames(scene))].sort().find(r => !known.has(r)) ?? null;
+        must(room, "every room of the scene is on the first character's record - this would measure nothing");
+        const fake = id => ({ get: () => ({ actorId: id }) });
+        const asMastermind = await PG.roomNamerFor(actor, scene.id, { mastermind: fake(actor.id) });
+        const asStudent = await PG.roomNamerFor(actor, scene.id, { mastermind: fake("nobody") });
+        const src = stripComments(new Map(await moduleSources()).get("passages-gm.mjs") ?? "");
+        equal(J({ mastermind: asMastermind(room, 1), student: asStudent(room, 1),
+            source: [/\broomNamerFor\(/.test(fnSource(src, "tellPassageBuilt")), /\broomNamerFor\(/.test(fnSource(src, "tellBreach"))] }),
+            J({ mastermind: room, student: game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 }), source: [true, true] }),
+            "{mastermind: a room the record does not hold, named to the Mastermind's character; student: the same to a character that is not; "
+            + "source: [the made card asks the namer, the breach heard asks it]}");
     }],
     ["R1001 - the Event panel names the room (E17 C8, pinning E12 C3): the opening, incident and body cards read the room as the name `locateActor` and `roomOfActor` answer, never its `.name`, and a student standing in a room reads its name there", async () => {
         /*
@@ -23261,6 +23300,14 @@ const INVARIANTS = [
             "[whether a short rest's stamp is shared by another day, by another time of day; a long rest's by another session, by another day of the session]");
         equal(JSON.stringify([typeof REST.long.perSession, typeof REST.short.perTimeOfDay, REST.long.perSession, REST.short.perTimeOfDay]),
             JSON.stringify(["boolean", "boolean", true, true]), "[the long rest's and the short rest's frequency: their types and values]");
+        /* E17 fix p2-G3 (26.10.2026; the end review's E17p2-R11, correctness, R8, goal): a stamp written before C9 has no
+           chapter ("d1:morning", "s3"), and read as another window, so a character who rested in the time of day of the
+           update could rest once more in it. Read as the current chapter's. Red at 5088794a: [[false, false], [false, false]]. */
+        const legacy = actorWith({ short: "d1:morning", long: "s3" });
+        equal(JSON.stringify(["short", "long"].map(kind => [restSpent(legacy, kind, first),
+            restSpent(legacy, kind, kind === "long" ? { ...first, session: 4 } : { ...first, day: 2 })])),
+            JSON.stringify([[true, false], [true, false]]),
+            "[for a short and a long rest stamped before the chapter was in the stamp: spent in the window it names, spent in the next one]");
     }],
 
     ["R1003 - the fog's dissolve never frees what the next one mixes from, and a scene left mid-dissolve gets nothing back (E17 C9): fog.mjs `swapInFog` on a fake ticker settles a dissolve's own sprites before it lets the queued repaint start, and `endDissolves` stands a running one down", async () => {

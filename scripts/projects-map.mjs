@@ -781,7 +781,9 @@ function projectCard(project) {
         rows.push([t("DRPG.Project.cardSecrecy"),
             esc(t(isSecret(project.id) ? "DRPG.Project.cardSecret" : "DRPG.Project.cardPublic"))]);
         // The same predicate that draws the token for each of them - so this list and
-        // what each player's map shows cannot disagree.
+        // what each player's map shows cannot disagree, but for the Mastermind's player, whose own
+        // map knows every room and whom this lists by the record alone, so that a GM's shared
+        // screen does not name them (projects.mjs `playsTheMastermind`, E17 fix p2-G3).
         const knownBy = game.users.filter(u => !u.isGM && knowsProject(project.id, u))
             .map(u => esc(u.name));
         rows.push([t("DRPG.Project.cardKnownBy"),
