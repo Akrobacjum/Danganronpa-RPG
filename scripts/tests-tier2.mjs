@@ -70087,7 +70087,7 @@ const SCENARIOS = [
             await settle();
             must(M.roomOfToken(token) === HALL && M.isLocked(scene, LAB), "the token is not in the Hall or the Lab is not locked - this would measure nothing");
             socket.emit = function (event, packet, options, ...rest) {
-                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.rule ? `${packet.code}/${packet.rule}` : packet.code ?? null);
                 return send.call(this, event, packet, options, ...rest);
             };
             Hooks.on("createChatMessage", onMessage);
@@ -70133,16 +70133,17 @@ const SCENARIOS = [
         }
         equal(stableJson(steps), stableJson([[
             ["log: into the locked Lab across a wall, raised", "300,100,0", true, ["doorLocked"], 1],
-            ["log: into another's Den", "300,100,0", true, ["cannotNow"], 0],
-            ["log: a REVERT into another's Den", "300,100,0", true, ["cannotNow"], 0],
+            ["log: into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
+            ["log: a REVERT into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
             ["log: into that Den, its wall forced by a breach", "820,540,0", true, [], 0],
             ["log: across a wall into the Yard", "1400,600,0", true, [], 0],
             ["sendBack: into the locked Lab across a wall", "300,100,0", true, ["wall"], 0],
-            ["sendBack: into another's Den", "300,100,0", true, ["cannotNow"], 0],
+            ["sendBack: into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
             ["sendBack: a REVERT across a wall into the Yard", "1400,100,0", true, ["wall"], 0],
             ["sendBack: into the Gym", "2000,600,0", true, [], 0]],
             [null, null, null, null, null, null]]),
             "[each step as [what, where the token stands as x,y,elevation, lawful, the codes its player was sent, the GMs' whispers of a rule's put-back]; "
+                + "the codes as code/mark where a mark names the rule (fix e1-G1: another's bedroom is cannotNow/bedroomShut, so the player reads the key); "
                 + "whether a player's browser takes each rule's code] - a move the rules refuse stood, a lawful one was put back, or a wall in sendBack was not the wall rule's");
     }],
 
@@ -70157,7 +70158,9 @@ const SCENARIOS = [
          * leave: whether the token stands in the Gym, and the codes its player was sent; after the incident, the third
          * averting their eyes (`thirdLeaves`), then the GM moving the fight to Stage 6 (`beginResolution`, the state a
          * Survive, an Escape together or a Finishing blow leaves). Restore() ends the incident. Red at 22207d2c: every
-         * leave stood.
+         * leave stood. Fix e1-G1 (the review's E17P1-R6, E17P1-R1): a leave at Stage 4, while the opening roll waits, and the
+         * third, who walked in from the Gym, sent back to its Gym spot by its console's REVERT and asked of the bridge's
+         * `token.sendBack` guard; red at d21d4fce: the REVERT stood in the Gym and the guard took the spot.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         const MU = await import("./murder.mjs");
@@ -70180,8 +70183,9 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
             scene = await Scene.create({ name: "SUITE E17 T2 incident", width: 1200, height: 800, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(GYM, 400)]);
+            // The third starts in the Gym and walks into the Hall (fix e1-G1): the spot it left is in the GMs' record.
             const tokens = await scene.createEmbeddedDocuments("Token", [killer, victim, third].map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name,
-                x: 100 + 300 * i, y: 100, width: 1, height: 1 })));
+                x: 100 + 300 * i, y: a === third ? 600 : 100, width: 1, height: 1 })));
             await settle();
             const tokenOf = a => tokens.find(t => t.actorId === a.id);
             socket.emit = function (event, packet, options, ...rest) {
@@ -70201,8 +70205,32 @@ const SCENARIOS = [
                 await t.update(start, PLACE);
                 await settle();
             };
-            await fightOpen(MU, killer, victim);
-            must(await MU.thirdPartyEnters(third), "the third could not walk into the incident - this would measure nothing");
+            const B = await import("./bridge-guards.mjs");
+            const GYM_SPOT = { x: 700, y: 600 };
+            await tokenOf(third).update({ x: 700, y: 100 }, { ...PLACE, [M.SENT_BACK]: player(third).id });
+            await settle();
+            must(M.roomOfToken(tokenOf(third)) === HALL, "the third did not walk into the Hall - this would measure nothing");
+            // Stage 4 (the opening roll) is free (the owner's 13.10): a leave and a step back while it waits.
+            await MU.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            must(MU.murderState()?.stage === "openingRoll", `the opening roll is not waiting: ${stableJson(MU.murderState())}`);
+            await leave("at Stage 4: the killer", killer);
+            await MU.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(MU.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(MU.murderState())}`);
+            if (!MU.murderState()?.thirdId) must(await MU.thirdPartyEnters(third), "the third could not walk into the incident - this would measure nothing");
+            must(M.recentPositions(tokenOf(third).id).some(h => h.x === GYM_SPOT.x && h.y === GYM_SPOT.y), "the GMs hold no record of the third in the Gym - this would measure nothing");
+            /* A RECORDED SPOT IS NO WAY OUT (fix e1-G1; the review's E17P1-R1, E17P1-SEC-2): the third's console sends its token back
+               to where it stood a moment before it walked in, as a REVERT and through the bridge's `token.sendBack`. */
+            const guarded = await B.guardSendbackPlace(player(third), { sceneId: scene.id, tokenId: tokenOf(third).id, position: GYM_SPOT }, {});
+            {
+                const t = tokenOf(third), sent = told.length;
+                await t.update(GYM_SPOT, { ...PLACE, [M.SENT_BACK]: player(third).id, [M.REVERT]: true });
+                await settle();
+                await until(() => t.x === 700 && t.y === 100, 1200);
+                await settle();
+                out.push(["in the incident: the third's REVERT to where it stood", M.roomOfToken(t) === GYM, told.slice(sent).filter(([id]) => id === t.id).map(([, code]) => code), guarded]);
+            }
             await leave("in the incident: the killer", killer);
             await leave("in the incident: the victim", victim);
             await leave("in the incident: the third", third);
@@ -70223,6 +70251,8 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(steps), stableJson([
+            ["at Stage 4: the killer", true, []],
+            ["in the incident: the third's REVERT to where it stood", false, ["cannotLeave"], "the character is held in the incident"],
             ["in the incident: the killer", false, ["cannotLeave"]],
             ["in the incident: the victim", false, ["cannotLeave"]],
             ["in the incident: the third", false, ["cannotLeave"]],
@@ -70230,8 +70260,102 @@ const SCENARIOS = [
             ["after Averted eyes: the killer", false, ["cannotLeave"]],
             ["at Stage 6: the killer", true, []],
             ["at Stage 6: the victim", true, []]]),
-            "each leave as [what, whether the token stands in the Gym, the codes its player was sent] - a participant walked out of a running incident, "
-                + "or somebody free to go was held");
+            "each leave as [what, whether the token stands in the Gym, the codes its player was sent (and for the REVERT, the bridge's guard on that spot)] - a participant "
+                + "walked out of a running incident, by a move or by a spot the GMs saw it on, or somebody free to go (Stage 4, after Averted eyes, Stage 6) was held");
+    }],
+
+    ["a spot the GMs saw a token on is no way past a rule (E17-T2): a REVERT or a send-back into a room locked since the token left it is put back, a body its player moves stands again where it lay, and the player reads the rule - the bedroom's key, the body", async () => {
+        /*
+         * E17 fix e1-G1, 26.10.2026; the review's E17P1-R1 and E17P1-SEC-2 (a REVERT, or `token.sendBack`, onto a spot the GMs
+         * saw within the minute was taken back to that spot's old lawful standing, the doors' rules never asked), E17P1-SEC-4
+         * and E17P1-R5 (a dead student's token moved by its player was held unlawful and stood where the console put it), and
+         * E17R-06 (another's bedroom put back read "That cannot be done now."). On a scene of the suite's own - a Hall over a
+         * Lab and a Gym, no walls, crossing rooms costing nothing - in "log" mode. (a) This GM stands the token in the Lab, its
+         * player walks it into the Hall, this GM locks the Lab; then the bridge's guard on the Lab spot, and the player's
+         * REVERT to it. (b) A body: a dead student of the suite's own, owned by the player, in the Hall; its player moves it into
+         * the Gym. Read: where each token stands after, the codes (and the rule's mark) its player was sent, and the line a
+         * player's browser says for a packet (`sentBackLine`). Red at d21d4fce: the REVERT stood in the locked Lab and the guard
+         * took the spot, the body stood in the Gym, and no packet named the bedroom or the body.
+         */
+        needs(env.primaryGm(), "the judge and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const A = await import("./movement-audit.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 recorded Hall", LAB = "SUITE E17 T2 recorded Lab", GYM = "SUITE E17 T2 recorded Gym";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y, width, height) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, body = null, read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            scene = await Scene.create({ name: "SUITE E17 T2 recorded", width: 1200, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0, 1200, 400), room(LAB, 0, 400, 600, 600), room(GYM, 600, 400, 600, 600)]);
+            body = await Actor.create({ name: "SUITE E17 T2 body", type: "character", ownership: { default: 0, [asker.id]: 3 }, flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } });
+            const [token, corpse] = await scene.createEmbeddedDocuments("Token", [
+                { actorId: student.id, actorLink: true, name: student.name, x: 300, y: 700, width: 1, height: 1 },
+                { actorId: body.id, actorLink: true, name: body.name, x: 900, y: 100, width: 1, height: 1 }]);
+            await settle();
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && [token.id, corpse.id].includes(packet.tokenId)) told.push([packet.tokenId, packet.rule ? `${packet.code}/${packet.rule}` : packet.code ?? null]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            const codes = (t, from) => told.slice(from).filter(([id]) => id === t.id).map(([, code]) => code);
+            // (a) Out of the Lab, which is then locked, and back to the spot it left.
+            await token.update({ x: 300, y: 100 }, asPlayer);
+            await settle();
+            must(M.roomOfToken(token) === HALL && M.standingOf(token)?.lawful !== false, "the walk out of the Lab did not stand - this would measure nothing");
+            const lab = scene.regions.find(r => r.name === LAB);
+            await lab.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            await settle();
+            must(M.isLocked(scene, LAB) && M.recentPositions(token.id).some(h => h.x === 300 && h.y === 700), "the Lab is not locked or the GMs hold no record of the Lab spot - this would measure nothing");
+            const guarded = await B.guardSendbackPlace(asker, { sceneId: scene.id, tokenId: token.id, position: { x: 300, y: 700 } }, {});
+            let sent = told.length;
+            await token.update({ x: 300, y: 700 }, { ...asPlayer, [M.REVERT]: true });
+            await settle();
+            await until(() => token.x === 300 && token.y === 100, 1200);
+            await settle();
+            const reverted = [M.roomOfToken(token), codes(token, sent), guarded];
+            // (b) A body its player moves.
+            must(M.roomOfToken(corpse) === HALL, "the body is not in the Hall - this would measure nothing");
+            sent = told.length;
+            await corpse.update({ x: 900, y: 700 }, { ...PLACE, [M.SENT_BACK]: asker.id });
+            await settle();
+            await until(() => corpse.x === 900 && corpse.y === 100, 1200);
+            await settle();
+            const moved = [M.roomOfToken(corpse), codes(corpse, sent)];
+            const lines = [A.sentBackLine({ code: "cannotNow", rule: "bedroomShut", room: "Den" }), A.sentBackLine({ code: "cannotNow", rule: "corpse" }),
+                A.sentBackLine({ code: "doorLocked" })];
+            read = { reverted, moved, lines };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await body?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ reverted: [HALL, ["doorLocked"], "the room beyond is locked"], moved: [HALL, ["cannotNow/corpse"]],
+            lines: [game.i18n.format("DRPG.Vault.keyMissing", { room: "Den" }), game.i18n.localize("DRPG.Move.dead"), game.i18n.localize("DRPG.Bridge.why.doorLocked")] }),
+            "{reverted: [the room the token stands in after a REVERT to its Lab spot, the codes its player was sent, the bridge's guard on that spot], "
+                + "moved: [the room a body stands in after its player moved it, the codes], lines: what a player's browser says for a bedroom's, a body's and a lock's put-back}");
     }],
 
     ["a sidebar drop the rules refuse is removed and the GMs told, a send-back into another's bedroom is refused, and a jump upstairs into a locked room comes back with its floor (E17-T3)", async () => {

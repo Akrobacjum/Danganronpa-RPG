@@ -889,20 +889,24 @@ function samePlace(a, b) {
  * and, where a rule refused a player's move there (E17 C1), the rule's code (`rule`) and the spot the judge last
  * read the token standing on lawfully (`back`: x, y, elevation, level), which the GMs' audit puts it back to.
  */
-function standingHere(tokenDoc, { lawful = true, last = null, told = false, reason = null, rule = null, back = null } = {}) {
+function standingHere(tokenDoc, { lawful = true, last = null, told = false, reason = null, rule = null, back = null, mark = null } = {}) {
     return { x: tokenDoc.x, y: tokenDoc.y, elevation: tokenDoc.elevation ?? 0, level: tokenDoc.level ?? undefined, lawful,
         last: lawful ? { room: roomOfToken(tokenDoc), level: levelOf(tokenDoc) } : last,
-        told: lawful ? false : told, reason: lawful ? null : reason, rule: lawful ? null : rule, back: lawful ? null : back };
+        told: lawful ? false : told, reason: lawful ? null : reason, rule: lawful ? null : rule, back: lawful ? null : back,
+        mark: lawful ? null : mark };
 }
 
 /**
  * The code of a doors' rule the GMs put a token back for (movement-audit.mjs `RULE_CODES`), read off a keyed
  * refusal of `crossingVerdict`, or null: another's bedroom is `cannotNow` with the bedroom's mark (`restrictedFrom`),
- * and the connected-rooms rule's `cannotNow` is not a rule's - it is the walls' and floors', which follow `moveAudit`
- * (session 0), and a route through rooms that lands as one write reads as a jump between two rooms that do not touch.
+ * and so, since E17 fix e1-G1, is a body its player moves (the mark "corpse", `arrivalVerdict`; the review's E17P1-SEC-4:
+ * the owner's browser refuses every move of a dead student's token, `isCorpse`, and a console that stepped past it
+ * carried the body to another room, where `checkBodyFound` read it). The connected-rooms rule's `cannotNow` is not a
+ * rule's - it is the walls' and floors', which follow `moveAudit` (session 0), and a route through rooms that lands as
+ * one write reads as a jump between two rooms that do not touch.
  */
 function ruleOf(verdict) {
-    if (verdict?.rule === "bedroomShut") return "cannotNow";
+    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse") return "cannotNow";
     return verdict?.code !== "cannotNow" && RULE_CODES.includes(verdict?.code) ? verdict.code : null;
 }
 
@@ -920,16 +924,22 @@ function lastLawfulSpot(tokenDoc, own) {
 function ruleRefused(tokenDoc) {
     const now = standings.get(tokenDoc?.id);
     if (!now || now.lawful !== false || !now.rule || !now.back || !samePlace(now, positionOf(tokenDoc))) return null;
-    return { code: now.rule, back: now.back, reason: now.reason, room: roomOfToken(tokenDoc) };
+    return { code: now.rule, back: now.back, reason: now.reason, room: roomOfToken(tokenDoc), mark: now.mark ?? null };
 }
 
 /**
  * Why the doors' rules refuse a send-back of this token to `spot`, as a code of `RULE_CODES`, or null (E17 C1; the stage's
  * design note 22: `guardSendbackPlace` asked the GMs' record and the rooms visited, and a `token.sendBack` could end in a
  * bedroom shut to its mover - the centre of a room the token stood in, the one it stands in while a put-back is on its
- * way among them). A spot in a room the judge read the token standing in lawfully is its way back - a tunnel's or a
- * breach's end in another's bedroom included; any other room is judged as a crossing from the last lawful room, by the
+ * way among them). The room the token stands in lawfully is its own; any other is judged as a crossing from it, by the
  * rules `ruleOf` names, as the student the GMs hold. `user` is the sender, for the Mastermind's keys. On the primary GM.
+ *
+ * A ROOM STOOD IN IS NOT A WAY PAST A RULE (E17 fix e1-G1, 26.10.2026; the review's E17P1-R1 and E17P1-SEC-2). Until this
+ * fix any room the judge read the token standing in lawfully in the last minute was exempt, so a participant's send-back to
+ * the spot it stood on before it walked into the incident, or into a room a GM locked after it left, passed. Only the
+ * bedroom's key is not asked of a way back into a room stood in lawfully - a tunnel's or a breach's end in another's
+ * bedroom (18.10 Q1, "bez klucza tunelem i breach"); the incident, a lock, a seal, Chained and the courtroom are asked as
+ * of any crossing.
  */
 export function sendBackRuleOf(tokenDoc, spot, user = null) {
     const actor = tokenDoc?.actor;
@@ -938,14 +948,16 @@ export function sendBackRuleOf(tokenDoc, spot, user = null) {
     const to = roomAt(Number(spot?.x), Number(spot?.y), tokenDoc, level);
     const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
     const stood = [...(standingHistory.get(tokenDoc.id) ?? []), own].filter(s => s && s.lawful !== false);
-    if (!to || stood.some(s => roomAtSpot(tokenDoc, s) === to)) return null;
+    if (!to || (own?.last?.room ?? null) === to) return null;
     const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
     const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
     const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
     const last = own?.last ?? null;
     const verdict = crossingVerdict(student, last?.room ?? null, to, tokenDoc.parent, { from: last?.level ?? null, to: level },
         { mover: { gm: false, mastermind: actsAsMastermind(actor, user) }, pay: false, keyed: true, elevation: ownElevation(tokenDoc) });
-    return verdict === true ? null : ruleOf(verdict);
+    const rule = verdict === true ? null : ruleOf(verdict);
+    if (rule && verdict.rule === "bedroomShut" && stood.some(s => roomAtSpot(tokenDoc, s) === to)) return null;
+    return rule;
 }
 
 /** A token the judge has no record of stood lawfully where the primary last saw it (`gmSeen`), else nowhere. */
@@ -970,13 +982,13 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
     const was = own ?? (created ? droppedFrom(tokenDoc) : null);
     const mover = game.users?.get(userId) ?? null;
     const actor = tokenDoc.actor;
-    let now = null;
+    let now = null, honoured = null;
     if (!actor || actor.type !== "character") now = standingHere(tokenDoc);
     else if ((revert && !mover?.isGM) || sentBack) {
         const spot = positionOf(tokenDoc);
-        const honoured = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
-        const back = honoured ? (standingHistory.get(tokenDoc.id) ?? []).findLast(s => samePlace(s, spot)) : null;
-        if (back) now = { ...back, x: spot.x, y: spot.y, elevation: spot.elevation, level: spot.level };
+        const accepted = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
+        const back = accepted ? (standingHistory.get(tokenDoc.id) ?? []).findLast(s => samePlace(s, spot)) : null;
+        if (back) honoured = { ...back, x: spot.x, y: spot.y, elevation: spot.elevation, level: spot.level };
     } else if (mover?.isGM) now = standingHere(tokenDoc);
     if (!now) {
         // One synchronous step from the reads to the verdict (H3), nothing awaited (H17).
@@ -997,23 +1009,38 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         // where it stands, on the floor of the room it came from, against the GMs' records.
         const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
         let verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
+        const player = Boolean(asked || (mover && !mover.isGM));
+        /* AN HONOURED PUT-BACK ASKS THE RULES TOO (E17 fix e1-G1, 26.10.2026; the review's E17P1-R1, E17P1-SEC-2; the stage's
+           write road "exempt only onto a recorded spot the rules allow"). A REVERT or a bridge's send-back onto a spot the GMs saw
+           within the minute stood as the judge last left that spot, the doors' rules never asked: a participant's console sent its
+           token back to where it stood before it walked into the incident, or into a room a GM locked after it left, and stood
+           there lawful. Now the spot is judged as an arrival from the room the token stands in lawfully, and only a rule's refusal
+           (`ruleOf`) of a player's move takes the honour away - put back as any rule's is, below. Kept: the connected-rooms rule
+           (a route's put-back to its start is two rooms back), a GM's write naming no player, and the bedroom's key of a room the
+           token stood in lawfully - a tunnel's or a breach's end (18.10 Q1). */
+        if (honoured) {
+            const rule = player && verdict !== true ? ruleOf(verdict) : null;
+            if (!rule || (verdict.rule === "bedroomShut" && honoured.lawful !== false)) now = honoured;
+        }
         // An Eclipse's crossing the primary sees (E17 C2; `eclipseSighting`): counted, or past the allowance a rule's refusal.
-        const sighting = verdict === true && putBack && (asked || (mover && !mover.isGM)) ? eclipseSighting(student, was?.last?.room ?? null, tokenDoc) : null;
+        const sighting = !now && verdict === true && putBack && player ? eclipseSighting(student, was?.last?.room ?? null, tokenDoc) : null;
         if (sighting?.spent) verdict = sighting.spent;
         else if (sighting) noteSeenCrossing(sighting);
-        if (verdict === true) {
+        if (now) {
+            // The put-back honoured (above): it stands as the judge last left that spot, and is no crossing recorded.
+        } else if (verdict === true) {
             now = standingHere(tokenDoc);
             // The GMs' record of the crossing, for "Refund last crossing" (E17 C3; `noteCrossing`).
-            if (putBack && !created && (asked || (mover && !mover.isGM))) noteCrossing(tokenDoc, actor, student, was?.last?.room ?? null, own, sighting);
+            if (putBack && !created && player) noteCrossing(tokenDoc, actor, student, was?.last?.room ?? null, own, sighting);
         } else {
             /* A RULE'S REFUSAL OF A PLAYER'S MOVE (E17 C1; the note on `ruleOf`). Kept on the standing with the spot to put the
                token back to, the newest the judge read lawful: the GMs' audit puts it back (`ruleRefused`), a drop is removed
                (`noteGmCreated`). Only a player's move: the hook's player, or the player a GM's send-back names. With `putBack`
                (the primary's hooks, which act on it) the GMs are told by the put-back, not as an unlawful arrival. */
-            const rule = asked || (mover && !mover.isGM) ? ruleOf(verdict) : null;
+            const rule = player ? ruleOf(verdict) : null;
             const back = rule && !created ? lastLawfulSpot(tokenDoc, own) : null;
             now = standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict.text ?? null,
-                rule, back });
+                rule, back, mark: rule ? verdict.rule ?? null : null });
             if (putBack && rule && (created || back)) now.told = true;
         }
     }
@@ -1039,7 +1066,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  * which the veto asks before them). Pure but for the settings those rules read.
  */
 function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
-    if (isCorpse(student)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead") };
+    if (isCorpse(student)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
     // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its

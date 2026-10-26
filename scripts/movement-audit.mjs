@@ -311,7 +311,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
                 landed: wrote => {
                     row.sent = (row.sent ?? 0) + (wrote ? 1 : 0);
                     row.verdict = row.sent >= row.times ? "sent back" : "not sent back";
-                    if (wrote) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: refused.code }, { recipients: [mover] });
+                    if (wrote) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: refused.code,
+                        ...markOf(refused) }, { recipients: [mover] });
                 }
             });
             const told = `${tokenDoc.id} ${mover} rules`, last = ledger.told.get(told);
@@ -409,6 +410,28 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
 }
 
 /**
+ * The rule's mark a `move.sentBack` carries beside its code (E17 fix e1-G1, 26.10.2026; the review's E17R-06): another's
+ * bedroom and a body are both `cannotNow`, whose words - "That cannot be done now." - name neither, though the judge holds the
+ * rule's own (movement.mjs `ruleOf`). The bedroom names its room, which the player's own veto names in the same refusal
+ * (`DRPG.Vault.keyMissing`); a body names nothing more.
+ */
+function markOf(refused) {
+    if (refused?.mark === "bedroomShut" && typeof refused.room === "string" && refused.room) return { rule: "bedroomShut", room: refused.room };
+    if (refused?.mark === "corpse") return { rule: "corpse" };
+    return {};
+}
+
+/**
+ * The line a player's browser says for the primary GM's put-back for a rule (`onSentBack`): the bedroom's key with its room,
+ * a body's, or the bridge's words for the code (`DRPG.Bridge.why.<code>`, the player's own language). Exported for tier 2.
+ */
+export function sentBackLine(payload) {
+    if (payload?.rule === "bedroomShut" && typeof payload.room === "string" && payload.room) return game.i18n.format("DRPG.Vault.keyMissing", { room: payload.room });
+    if (payload?.rule === "corpse") return game.i18n.localize("DRPG.Move.dead");
+    return game.i18n.localize(`DRPG.Bridge.why.${payload?.code}`);
+}
+
+/**
  * Why a `move.sentBack` is not this browser's to take, or null: addressed to this user, sent by the
  * primary GM (passages.mjs `passageRowsRefusal`'s rule, the GM whose world has just loaded counted as
  * connected, `arrivingPrimary` - review r1, SEC S6), and naming a code it knows. `me`, `users`,
@@ -427,7 +450,7 @@ export function sentBackRefusal(payload, senderId, { me = game.user, users = gam
 /**
  * Player: the primary GM put this user's token back from a wall - the refusal's sound and the veto's
  * line, naming the room it stands in - or, since E17 C1, for a rule: the bridge's words for its code
- * (`DRPG.Bridge.why.<code>`, the player's own language). Answers whether it was taken; a refusal is a Debug log row.
+ * (`DRPG.Bridge.why.<code>`, the player's own language), or since E17 fix e1-G1 the rule's own (`sentBackLine`). Answers whether it was taken; a refusal is a Debug log row.
  */
 export async function onSentBack(payload, senderId) {
     if (payload?.action !== "move.sentBack") return false;
@@ -438,7 +461,7 @@ export async function onSentBack(payload, senderId) {
     }
     playSfx("refused");
     if (payload.code !== "wall" && payload.code !== "floor") {
-        ui.notifications.warn(game.i18n.localize(`DRPG.Bridge.why.${payload.code}`));
+        ui.notifications.warn(sentBackLine(payload));
         return true;
     }
     const token = game.scenes?.get(payload.sceneId)?.tokens?.get(payload.tokenId) ?? null;
