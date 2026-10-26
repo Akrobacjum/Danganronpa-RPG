@@ -68871,6 +68871,16 @@ const SCENARIOS = [
          * answered "No help", the second "Refuse the attempt". Read per card: its buttons, the actions
          * left after the press against before the action, the thread's line, and whether it settled.
          * Red before C1: no `searchMiss` button, and "Nothing was there." gave the action back.
+         *
+         * A FULL BUDGET IS THE STUDENT'S OWN MAXIMUM, NOT 3 (fix ci-2, 26.10.2026). Each card's run
+         * wrote 3 actions, the seed's budget: in a world past a time of day's refill the maximum is
+         * the rules' 2 (actions.mjs `resetActionsFor`, STARTING.actions), and a refund stops at the
+         * maximum as the GMs hold it (`refundAction`), so the refusal took 3 to 2 and gave 2 back:
+         * "given back" read 0. CI's CRLF dispatch on 81f59e48 (run 40279001939, 01-runtests whole:
+         * parts A and B's incident and Class Trial before tier 2, the clock put back with a refill)
+         * failed so, while every shard run and `run-tests.mjs --tier 2` whole (no parts A and B) passed;
+         * here A1's and A2's setup and put-back alone before this test turned the four students' 3/3
+         * into 2/2 and read `refuse: [1, 0, true, true]`. The CRLF line ends had nothing to do with it.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "each card goes to a player's thread");
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
@@ -68879,6 +68889,7 @@ const SCENARIOS = [
         const { ACTIONS } = await import("./config.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
+        const { meansMaxHeld } = await import("./sheet-audit.mjs");
         const { contentOf, cardFlag } = await import("./secret.mjs");
         const { wireCallActions } = await import("./messenger-app.mjs");
         const { livingStudents } = await import("./chapter.mjs");
@@ -68890,6 +68901,10 @@ const SCENARIOS = [
         const refused = esc(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
         const PATH = "system.resources.actions.value";
         const left = actionsLeft(student);
+        // The cap `refundAction` reads on a GM's client; the sheet's maximum where the GMs hold none.
+        const held = Number(meansMaxHeld(student, "actions"));
+        const full = Number.isFinite(held) ? held : Number(student.system.resources.actions.max) || 0;
+        must(full >= 1, `the student's action maximum is ${full}: no action to spend - this would measure nothing`);
         const pressOn = async (had, action) => {
             const withButtons = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call="));
             await until(withButtons, 8000);
@@ -68922,13 +68937,13 @@ const SCENARIOS = [
             return press(cfg, root);
         });
         const run = async (key, action) => {
-            await trustedWrite(student, { [PATH]: 3 }, { reason: "gmRuling" });
+            await trustedWrite(student, { [PATH]: full }, { reason: "gmRuling" });
             const had = new Set(game.messages.contents.map(m => m.id));
             ask = key;
             await rolls.performAction(student, key);
             const spent = actionsLeft(student);
             const out = await pressOn(had, action);
-            return { ...out, spent: 3 - spent, back: actionsLeft(student) - spent };
+            return { ...out, spent: full - spent, back: actionsLeft(student) - spent };
         };
         try {
             const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) - 1;
