@@ -103,6 +103,8 @@ const ACTION_PASSAGE_SHARE = "passage.share";
 const ACTION_PASSAGE_CROSS = "passage.cross";
 /** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
 const ACTION_PASSAGE_FIND = "passage.find";
+/** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */
+const ACTION_REFUND_CROSSING = "token.refundCrossing";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
@@ -629,6 +631,14 @@ async function handlePassageCross(payload, sender) {
     const out = await crossTunnel({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
     return { reply: true };
+}
+
+/** The run of `token.refundCrossing` (E17 C3): the primary's own refund (movement.mjs `refundLastCrossing`), its reply or its refusal. */
+async function handleRefundCrossing(payload) {
+    const { refundLastCrossing } = await import("./movement.mjs");
+    const out = await refundLastCrossing(payload.actorId);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
 }
 
 // Find Passage (E80 C3): a `found` cell in the GMs' records, which only the primary writes. Every check past the sender's
@@ -1921,6 +1931,21 @@ export const BRIDGE_ACTIONS = table({
             passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it - of a one-way tunnel the end the GMs' row enters it by (H81-02) -, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
         }
     },
+    /*
+     * REFUND LAST CROSSING, ON THE PRIMARY GM (E17 C3, 26.10.2026; audit S07-16, D18). The GMs' record of a character's
+     * newest crossing and its price is the primary's (gm-stores.mjs `crossingStore`), and so is the step of the
+     * character's key that gives it back (movement.mjs `refundLastCrossing`): another GM's click in the Students window
+     * asks it here. A GM's alone: a player's console that could ask would be handed back what its crossing cost. Tier 2
+     * E17-T6 judges it as the player's ask (refused) and as a GM's (given, once).
+     */
+    [ACTION_REFUND_CROSSING]: {
+        label: "DRPG.Bridge.what.token.refundCrossing",
+        guards: [gmOnly("only a GM gives a crossing back")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleRefundCrossing,
+        answer: "reply",
+        claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
+    },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
@@ -2908,6 +2933,21 @@ export async function requestPassageCross({ actorId, passageId }, { hush = [] } 
     // Quiet, the waiter said nothing of a refusal or a failure: said here, but for the hushed.
     if (hush.length && !res.ok && res.reason) say(res.reason);
     return res;
+}
+
+/**
+ * "Refund last crossing" from the Students window (E17 C3; gm-panel.mjs): the primary GM gives it back, here when this
+ * is the primary, asked of it otherwise; a refusal is said as the bridge says it. Its value is the refund's reply, or null.
+ */
+export async function requestRefundCrossing(actorId) {
+    const res = await ask(ACTION_REFUND_CROSSING, { actorId }, {
+        onPrimary: true,
+        local: () => import("./movement.mjs").then(m => m.refundLastCrossing(actorId)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_REFUND_CROSSING, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+    return res.ok ? res.value ?? null : null;
 }
 
 /**

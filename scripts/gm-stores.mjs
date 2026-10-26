@@ -850,6 +850,26 @@ export const rifleStore = defineGmStore({
 });
 
 /**
+ * THE LAST CROSSING OF EACH CHARACTER (E17 C3, 26.10.2026; audit S07-16, D18: "the charge on the drop stays, and the GM
+ * gets Refund last crossing"). A row per character, its newest crossing from one room to another: `{ id, tokenId, sceneId,
+ * from, to, back, kind, eclipse, via, mark, at, refunded }` - `back` the spot the token stood on before it (x, y,
+ * elevation and level; a tunnel's entry), `kind` what it cost ("free", "sprint", "burst", "action", "eclipse", "none",
+ * or null while nothing was seen spent), `eclipse` the Eclipse it was counted in, `via` "tunnel" for a 'Go through',
+ * `mark` the time of day it was made in. Written by the primary alone, from what it saw (movement.mjs `noteCrossing`,
+ * `noteCrossingPrice`) or did (passages-gm.mjs `crossTunnel`), in a step of the character's `crossingKey`; given back
+ * once (`refundLastCrossing`). The audit's fix named a player flag `lastCrossing`, which the player's own console could
+ * write to set the price a GM gives back: the GMs' memory instead (the stage's design note 8). Synced, so that a second
+ * GM's window shows the button; not backed up: a row is worth one crossing, and a restore that lost one loses a refund,
+ * never gives one. Cut by the reset's "actions" group with the budgets its prices come out of. No player copy and no old
+ * key.
+ */
+export const crossingStore = defineGmStore({
+    name: "crossings", key: SETTINGS.gmCrossings,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

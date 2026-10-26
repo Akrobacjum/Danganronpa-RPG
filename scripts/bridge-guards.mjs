@@ -305,6 +305,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Frisk ask has been answered already$/],
     // E14 part 1 C4: a stash's free reach, once a time of day per thief (vault.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
+    // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
+    ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
+    ["alreadyDone", /^that crossing was given back already$/],
     // E14 fix e1-G1: the stash's own refusals (vault.mjs `stealFromVault`); a hidden stash not found reads as none here.
     ["missing", /^no such stash where the character stands$/],
     ["missing", /^no such thing in that stash$/],

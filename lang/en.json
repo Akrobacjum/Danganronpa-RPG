@@ -2780,6 +2780,7 @@
       "noBudget": "No Free Move and no actions left.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "noBudgetLong": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
+      "refunded": "The GM gave back your last crossing: your token stands where it was before it, and what the crossing cost is yours again.",
       "locked": "The door is locked.",
       "noStairs": "No stairs lead from {from} to that floor.",
       "dead": "They are dead. The body stays where it fell."
@@ -3070,6 +3071,7 @@
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
         "passage.find": "Find a secret passage",
+        "token.refundCrossing": "Give back a character's last crossing",
         "action.plant": "Plant",
         "action.friskUnseen": "Frisk (unseen)",
         "action.friskAsk": "Frisk (asking)",
@@ -3434,6 +3436,8 @@
       "whoIsAlive": "Students",
       "whoIsAliveNote": "The dropdown only moves the flags - the repair tool, for a mis-click. The buttons on the right run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
       "doColumn": "Do",
+      "refundCrossing": "Refund last crossing",
+      "refundCrossingNote": "{to} back to {from}",
       "nextVerdict": "The vote is counted. Deliver the verdict.",
       "nextChapterEnd": "The verdict is in. End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial."
@@ -4637,6 +4641,7 @@
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
         "lootTraces": "What has been taken off each body, and its trace",
         "rifles": "Which stash each character has gone through, and in which time of day",
+        "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",
         "confusions": "The Confusions armed on a character and not rolled yet",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",

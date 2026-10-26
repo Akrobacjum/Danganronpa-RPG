@@ -399,6 +399,13 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * THE LAST CROSSINGS (E17 C3, 26.10.2026; audit S07-16, D18): a GM store (gm-stores.mjs `crossingStore`), a row per
+     * character - its newest crossing the primary GM saw or made, what it cost and where the token stood before it -
+     * which the Students window's "Refund last crossing" gives back (movement.mjs `refundLastCrossing`). Synced, not
+     * backed up; no player copy.
+     */
+    gmCrossings: "gmCrossings",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -1634,6 +1641,15 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The last crossings (E17 C3): the Students window redraws its Refund buttons on `drpgCrossingsChanged`, on every GM
+    // the store reaches.
+    game.settings.register(MODULE_ID, SETTINGS.gmCrossings, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgCrossingsChanged")
     });
     // The Cleaning Tools a clean-up used (E32+E07 C12): no `onChange` either - read by the
     // body's discovery, on the GM that runs it, and shown nowhere.

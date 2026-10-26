@@ -22,7 +22,7 @@
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
-    ROOM_OWNER_FLAG } from "./config.mjs";
+    ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
     isDeceased, getClock, eclipseId, eclipseCountOf
@@ -58,7 +58,7 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore } from "./gm-stores.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -323,6 +323,9 @@ export function registerMovement() {
     Hooks.on("preCreateToken", onPreCreateToken);
     Hooks.on("updateToken", noteGmPosition);
     Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
+    // What a crossing the primary recorded cost (E17 C3, `noteCrossingPrice`): the player's write after it, or this browser's own charge.
+    Hooks.on("updateActor", noteCrossingPrice);
+    Hooks.on("drpgRoomCrossed", notePaidHere);
     Hooks.once("ready", primeGmPositions);
     registerMoveAudit();
     // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs reaches
@@ -998,8 +1001,11 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const sighting = verdict === true && putBack && (asked || (mover && !mover.isGM)) ? eclipseSighting(student, was?.last?.room ?? null, tokenDoc) : null;
         if (sighting?.spent) verdict = sighting.spent;
         else if (sighting) noteSeenCrossing(sighting);
-        if (verdict === true) now = standingHere(tokenDoc);
-        else {
+        if (verdict === true) {
+            now = standingHere(tokenDoc);
+            // The GMs' record of the crossing, for "Refund last crossing" (E17 C3; `noteCrossing`).
+            if (putBack && !created && (asked || (mover && !mover.isGM))) noteCrossing(tokenDoc, actor, student, was?.last?.room ?? null, own, sighting);
+        } else {
             /* A RULE'S REFUSAL OF A PLAYER'S MOVE (E17 C1; the note on `ruleOf`). Kept on the standing with the spot to put the
                token back to, the newest the judge read lawful: the GMs' audit puts it back (`ruleRefused`), a drop is removed
                (`noteGmCreated`). Only a player's move: the hook's player, or the player a GM's send-back names. With `putBack`
@@ -1094,6 +1100,155 @@ function noteSeenCrossing({ actorId, eclipse, seen }) {
         const actor = game.actors.get(actorId);
         if (actor) for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
     }).catch(err => error("Could not count an Eclipse crossing the GM saw", err));
+}
+
+/*
+ * REFUND LAST CROSSING (E17 C3, 26.10.2026; audit S07-16, D18: "the charge on the drop stays, and the GM gets 'Refund last
+ * crossing' in the Students window"; the RISK row: "it must give back exactly the price taken - Free Move, Sprint or
+ * action - also when the time of day changed meanwhile"; A10: a tunnel's price through `settleCrossingOnGm`, the token
+ * back to the entry). A player who nudges a token over a door's edge after the free Move pays for the crossing, and
+ * walking back is another. The GMs keep each character's newest crossing (gm-stores.mjs `crossingStore`): a player's
+ * move the judge reads as a lawful crossing from one room to another (`judgeArrival`), and a tunnel's the primary
+ * carries out (passages-gm.mjs `crossTunnel`, which knows its price). A door's price is paid on the mover's own browser
+ * (`chargeForCrossing`), so the primary reads it off that player's next write of the purse within `CROSSING_PRICE_MS`
+ * (`noteCrossingPrice`): the field it lowered - the free Move used, a Sprint, a Burst, an action - never the stamp's
+ * words, which are the player's; a write that lowered none of them is no price, and nothing seen spent gives nothing
+ * back. Where this browser paid (no owner connected) its own charge names the price (`notePaidHere`). In an Eclipse the
+ * price is the count the primary just raised for the sighting (`eclipseSighting`), and with crossing rooms free it is
+ * none. The GM's click (`refundLastCrossing`, the bridge's gmOnly "token.refundCrossing" from another GM) marks the
+ * record given back first, gives back exactly that price in a step of the character's key (`refundCrossingOnGm`:
+ * the free Move's one flag, a Sprint's grant, a Burst's, an action held to the maximum, an Eclipse's count only in the
+ * Eclipse it was counted in) and stands the token where it stood before the crossing, at its height and on its floor,
+ * as a GM's write. Across a time of day the same: the flag cannot be more than one free Move, `refundAction` holds the
+ * actions to the maximum, and a Sprint's grant is what its Hope bought. Tier 2 E17-T6.
+ */
+const CROSSING_PRICE_MS = 5000;
+/** actorId -> the crossing whose price this primary waits for: `{ id, tokenId, at, purse }`, the purse as it stood when it was seen. */
+const awaitingPrice = new Map();
+
+/** The means a crossing is paid from, as the document holds them now. */
+function purseOf(actor) {
+    const src = actor?._source ?? {};
+    const flag = key => foundry.utils.getProperty(src, `flags.${MODULE_ID}.${key}`);
+    return { used: flag(FLAGS.freeMoveUsed) === true, sprints: Number(flag(FLAGS.freeMoveGrants)) || 0,
+        bursts: Number(flag(FLAGS.freeActionGrants)) || 0, actions: Number(foundry.utils.getProperty(src, `system.resources.${ACTIONS_RESOURCE}.value`)) || 0 };
+}
+
+/** The price `takeMove` takes, in its order, read off what fell between two purses: one of its answers, or null. */
+function pricePaid(before, now) {
+    if (!before.used && now.used) return "free";
+    if (now.sprints === before.sprints - 1) return "sprint";
+    if (now.bursts === before.bursts - 1) return "burst";
+    if (now.actions === before.actions - 1) return "action";
+    return null;
+}
+
+/** The time of day a crossing is made in: the season, chapter, session, day and time of day (vault.mjs `rifleMark`'s shape). */
+function timeOfDayMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
+}
+
+/**
+ * Write a crossing into the GMs' record, inside a step of the character's `crossingKey` (a tunnel's, `crossTunnel`, whose
+ * price is known). `back` the spot before it; `kind` its price, or null while the primary waits for the player's write
+ * of it (`noteCrossing`, which names the record `id` it waits under). Every field written, so no older row's survives.
+ */
+export async function recordCrossingInStep(actor, tokenDoc, { id = null, from = null, to = null, back = null, kind = null, eclipse = null, via = null } = {}) {
+    if (!isPrimaryGm() || !actor?.id || !tokenDoc?.id || !back) return false;
+    const row = { id: id ?? foundry.utils.randomID(16), tokenId: tokenDoc.id, sceneId: tokenDoc.parent?.id ?? null, from, to,
+        back: { x: Number(back.x), y: Number(back.y), elevation: Number(back.elevation) || 0, level: back.level ?? null },
+        kind, eclipse: kind === "eclipse" ? eclipse ?? eclipseId() : null, via, mark: timeOfDayMark(), at: Date.now(), refunded: false };
+    if (awaitingPrice.get(actor.id)?.id !== row.id) awaitingPrice.delete(actor.id);
+    await crossingStore.whenHydrated();
+    await crossingStore.patch(actor.id, row);
+    return true;
+}
+
+/**
+ * A player's lawful crossing the judge just read (`judgeArrival`): recorded in a step of the character's key, its price as
+ * far as known now. `student` is the judge's, its flags as the GMs hold them; `actor` the document, whose purse the
+ * mover's spend will lower.
+ */
+function noteCrossing(tokenDoc, actor, student, from, own, sighting) {
+    const to = roomOfToken(tokenDoc), back = lastLawfulSpot(tokenDoc, own);
+    if (!isPrimaryGm() || from === to || !back || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return;
+    const eclipse = game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true;
+    if (eclipse && !sighting) return;
+    const kind = sighting ? "eclipse" : game.settings.get(MODULE_ID, SETTINGS.chargeMovement) ? null : "none";
+    // Waited for from now, the purse as the update reaches the primary: the mover's spend is that browser's write after it,
+    // and may land before the record's step runs (its price is then written by a step behind this one).
+    const id = foundry.utils.randomID(16);
+    if (kind === null) awaitingPrice.set(actor.id, { id, tokenId: tokenDoc.id, at: Date.now(), purse: purseOf(actor) });
+    else awaitingPrice.delete(actor.id);
+    serialWrite(crossingKey(actor.id), () => recordCrossingInStep(actor, tokenDoc, { id, from, to, back, kind, eclipse: sighting?.eclipse ?? null }))
+        .catch(err => error("Could not record a crossing the GM saw", err));
+}
+
+/** The price of a crossing the primary waits for, read off the player's next write of the purse (the note above). */
+function noteCrossingPrice(actor, changes, options, userId) {
+    const waiting = awaitingPrice.get(actor?.id);
+    if (!waiting) return;
+    if (!isPrimaryGm() || Date.now() - waiting.at > CROSSING_PRICE_MS) return void awaitingPrice.delete(actor.id);
+    if (!userId || game.users?.get(userId)?.isGM) return;
+    const kind = pricePaid(waiting.purse, purseOf(actor));
+    if (!kind) return;
+    awaitingPrice.delete(actor.id);
+    setCrossingKind(actor.id, waiting.id, kind);
+}
+
+/** A crossing this primary paid itself (`chargeForCrossing`, no owner connected): its own `takeMove` names the price. */
+function notePaidHere({ actor, tokenDoc, cost } = {}) {
+    const waiting = awaitingPrice.get(actor?.id);
+    if (!waiting || !cost || !isPrimaryGm() || tokenDoc?.id !== waiting.tokenId) return;
+    awaitingPrice.delete(actor.id);
+    setCrossingKind(actor.id, waiting.id, cost);
+}
+
+function setCrossingKind(actorId, id, kind) {
+    serialWrite(crossingKey(actorId), async () => {
+        await crossingStore.whenHydrated();
+        const row = crossingStore.get(actorId);
+        if (row?.id !== id || row.kind || row.refunded) return;
+        await crossingStore.patch(actorId, { kind });
+    }).catch(err => error("Could not record what a crossing cost", err));
+}
+
+/**
+ * The GM's "Refund last crossing" (the note above), on the primary GM: `{ reply: { kind, given, back, boundary } }` - the
+ * price given back (`kind`, null for none seen; `given` whether a write gave it), the token stood where it was (`back`),
+ * and whether a time of day began since (`boundary`) - or `{ refused }` in the bridge's words. Once a crossing: the
+ * record is marked given back before anything is written.
+ */
+export async function refundLastCrossing(actorId) {
+    return serialWrite(crossingKey(actorId), async () => {
+        if (!isPrimaryGm()) return { refused: "nothing was carried out: a crossing is given back on the primary GM's browser" };
+        await crossingStore.whenHydrated();
+        const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+        const row = actor ? crossingStore.get(actor.id) : null;
+        if (!row) return { refused: "the GMs hold no crossing of that character to give back" };
+        if (row.refunded) return { refused: "that crossing was given back already" };
+        await crossingStore.patch(actor.id, { refunded: true });
+        awaitingPrice.delete(actor.id);
+        // An Eclipse's count only in the Eclipse it was counted in: another's count is not this crossing's.
+        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null : row.kind ?? null;
+        const given = kind ? await refundCrossingOnGm(actor, kind) !== false : false;
+        const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;
+        let back = false;
+        if (token && Number.isFinite(Number(row.back?.x)) && Number.isFinite(Number(row.back?.y))) {
+            const to = { x: Number(row.back.x), y: Number(row.back.y), elevation: Number(row.back.elevation) || 0 };
+            if (row.back.level !== null && row.back.level !== undefined) to.level = row.back.level;
+            try {
+                await token.update(to, { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } });
+                back = true;
+            } catch (err) {
+                error(`Could not stand "${token.name}" where it was before the crossing given back`, err);
+            }
+        }
+        log(`${actor.name}'s crossing ${row.from ?? "-"} -> ${row.to ?? "-"} given back (${kind ?? "nothing seen paid"}${back ? "" : ", the token not moved"}).`);
+        await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title"), room: row.from })}<p>${
+            game.i18n.localize("DRPG.Move.refunded")}</p>`).catch(err => error("Could not tell the owner of a crossing given back", err));
+        return { reply: { kind, given, back, boundary: row.mark !== timeOfDayMark() } };
+    });
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */

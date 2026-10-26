@@ -2250,6 +2250,10 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         // An Eclipse's veiled card, once the token stands at the far end (E80 fix r1-G2): never for a write that failed.
         if (paid.tell) await paid.tell().catch(err => error("Could not tell the owner of an Eclipse crossing", err));
         await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
+        // The GMs' record of it, for "Refund last crossing" (E17 C3, A10: "zwracał koszt tunelu i odsyłał token do wejścia"):
+        // the price this step took, and the entry the GMs read the token at.
+        await M.recordCrossingInStep(actor, token, { from: verdict.from, to: verdict.to, back: at, kind: paid.cost, via: "tunnel" })
+            .catch(err => error("Could not record a tunnel crossing for its refund", err));
         return { crossed: true };
     });
 }

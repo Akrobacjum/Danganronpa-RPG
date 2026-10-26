@@ -100,8 +100,10 @@ export const FLOWS = Object.freeze([
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
+    // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
+    // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
