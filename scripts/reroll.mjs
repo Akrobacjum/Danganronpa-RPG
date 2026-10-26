@@ -45,7 +45,7 @@
 import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerIdsOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, findOf, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
-    sabotageExtrasHeld, dynamicBar, offerDynamicFind } from "./action-rolls.mjs";
+    sabotageExtrasHeld, dynamicBar, offerDynamicFind, withdrawDynamicFind } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
@@ -1477,12 +1477,15 @@ async function settleDynamic(actor, bookmark, after, done, before = null) {
         : game.i18n.localize("DRPG.Action.nothing"));
     /* A MISS TURNED INTO A SUCCESS GETS THE SUCCESS'S CARD (E16 part 2 C2, 26.10.2026; audit S02-09).
        The first throw's success posted the GMs' card (action-rolls.mjs `offerDynamicFind`); a Reroll
-       of it that succeeds again posts no second one, and a Reroll that misses leaves the first card
-       for the GMs to answer. `before` is the roll the GMs kept; a Reroll with none read posts none. */
+       of it that succeeds again posts no second one. `before` is the roll the GMs kept; a Reroll with
+       none read posts none, and ends none.
+       A SUCCESS TURNED INTO A MISS ENDS ITS CARD (E16 fix e1-G3; the review's E16p2-BEH-3): until this fix the first
+       card stood with its Create an item for a roll that now missed (`withdrawDynamicFind`). */
     if (success && before && !passes(before)) {
         await offerDynamicFind(actor, { tier: band.tier, room: bookmark.room ?? null, description: String(bookmark.description ?? ""),
-            roll: { ...after, trait: bookmark.trait ?? null } });
+            roll: { ...after, trait: bookmark.trait ?? null }, rollId: bookmark.messageId ?? null });
     }
+    if (!success && before && passes(before)) await withdrawDynamicFind(actor, bookmark.messageId ?? null);
 
     return trace;
 }

@@ -820,6 +820,7 @@
       "found": "Found a Tier {tier} item: <strong>{item}</strong>",
       "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
       "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
+      "dynamicRerollMissed": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
       "leavesRemnant": "Leaves a trace behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",

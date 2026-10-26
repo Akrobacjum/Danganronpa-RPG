@@ -22512,6 +22512,18 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson([[0, 0, "same"], [0, 1, "same"], [0, 2, "same"],
             [SABOTAGE_CONCEAL.despairPenalty, 0, "same"], [SABOTAGE_CONCEAL.despairPenalty, 1, "same"], [SABOTAGE_CONCEAL.despairPenalty, 2, "same"]]),
             "a bar's number is not the least total the judge puts in its band [penalty, relief, verdict]");
+        /* E16 fix e1-G3 (the review's E16R-06): the bar and the judge agree by construction (`sabotageHit` reads
+           `sabotageBar`), so a bar eased the wrong way - `min + penalty`, 11 / 17 for a Despair concealment - passed the
+           rows above in both. Held here to the rule itself, read off the guide's table: the total plus the penalty
+           (-1 on Despair) must reach a band's number less a tool's relief, so the least total is `min - relief - penalty`
+           (13 / 19 on Despair with no tool). Reliefs 0 and 1. */
+        const rule = [];
+        for (const penalty of [0, SABOTAGE_CONCEAL.despairPenalty]) {
+            for (const relief of [0, 1]) rule.push([penalty, relief, stableJson(bar(def, relief, penalty).map(b => b?.min ?? null))
+                === stableJson(def.thresholds.map(band => band.min - relief - penalty)) ? "rule" : bar(def, relief, penalty).map(b => b?.min ?? null).join(" / ")]);
+        }
+        equal(stableJson(rule), stableJson([[0, 0, "rule"], [0, 1, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 0, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 1, "rule"]]),
+            "a bar's number is not the guide's number less the relief and the penalty [penalty, relief, the bar where it is not]");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const perform = fnSource(src, "performSabotage"), judge = fnSource(src, "sabotageHit");
         equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),

@@ -69066,6 +69066,38 @@ const SCENARIOS = [
             read.miss = [outcome?.success ?? null, cardsSince(before).length];
             const turned = await reroll({ hope: 5, fear: 4 }, { hope: 11, fear: 9 });
             read.turned = [turned.stood, turned.lines.includes(game.i18n.format("DRPG.Action.dynamicSuccess", { tier: DYNAMIC_THRESHOLDS[2].tier })), turned.cards];
+            /*
+             * E16 fix e1-G3, 26.10.2026 (the review's E16p2-BEH-3 = E16R-02 = E16P2-R3, and E16R-08): a success at the first
+             * band on 8 and 5, rerolled into 2 and 1 - a miss - ends its card (read: the success, its cards, the Reroll
+             * stood and said "Nothing", the cards with Create an item left, the cards ended with the Reroll's line); a
+             * critical on 6 and 6 at the third band, under its number, succeeds and hands the card; and a miss there on 5
+             * and 4 rerolled into 6 and 6 does the same.
+             */
+            const ended = game.i18n.localize("DRPG.Action.dynamicRerollMissed");
+            const endedSince = since => game.messages.filter(m => !since.has(m.id) && String(contentOf(m) ?? "").includes(ended)).length;
+            const thrown = async (at, dice) => {
+                band = at;
+                const since = new Set(game.messages.map(m => m.id));
+                globalThis.__forceRoll = dice;
+                let out;
+                try { out = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+                await settle();
+                const message = game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? "");
+                return { since, out, total: message?.rolls?.[0]?.total ?? null };
+            };
+            const won = await thrown("0", { hope: 8, fear: 5 });
+            const firstCards = cardsSince(won.since).length;
+            const lost = await reroll({ hope: 8, fear: 5 }, { hope: 2, fear: 1 });
+            read.lost = [won.out?.success ?? null, firstCards, lost.stood, lost.lines.includes(game.i18n.localize("DRPG.Action.nothing")),
+                cardsSince(won.since).length, endedSince(won.since)];
+            const { dynamicBar } = await import("./action-rolls.mjs");
+            const crit = await thrown("2", { hope: 6, fear: 6 });
+            must(crit.total !== null && crit.total < dynamicBar(DYNAMIC_THRESHOLDS[2]),
+                `the critical's total ${crit.total} reaches the band's number - its critical would measure nothing`);
+            read.critical = [crit.out?.success ?? null, cardsSince(crit.since)];
+            await thrown("2", { hope: 5, fear: 4 });
+            const intoCrit = await reroll({ hope: 5, fear: 4 }, { hope: 6, fear: 6 });
+            read.intoCritical = [intoCrit.stood, intoCrit.cards];
         } finally {
             forceBack();
             windows.restore();
@@ -69082,10 +69114,14 @@ const SCENARIOS = [
             success: [true, game.i18n.format("DRPG.Action.dynamicSuccess", { tier: DYNAMIC_THRESHOLDS[0].tier }), [card(DYNAMIC_THRESHOLDS[0].tier)]],
             again: [true, 0],
             miss: [false, 0],
-            turned: [true, true, [card(DYNAMIC_THRESHOLDS[2].tier)]]
+            turned: [true, true, [card(DYNAMIC_THRESHOLDS[2].tier)]],
+            lost: [true, 1, true, true, 0, 1],
+            critical: [true, [card(DYNAMIC_THRESHOLDS[2].tier)]],
+            intoCritical: [true, [card(DYNAMIC_THRESHOLDS[2].tier)]]
         }), "a Dynamic success gave the GM no card to make its item from, or one too many [a success: its line, its cards (tier, room, words, "
             + "Give, Reply); its Reroll into a success again: stood, new cards; a miss: success, cards; its Reroll into a success: stood, the "
-            + "success line among its lines, its cards]");
+            + "success line among its lines, its cards; a success rerolled into a miss: success, its cards, stood, 'Nothing' among its lines, "
+            + "cards with Create an item left, cards ended; a critical under the band's number: success, cards; a miss rerolled into a critical: stood, cards]");
     }],
 
     ["E16-T27 - in a Class Trial Analyze offers only what identifies Truth Bullets, from one list of conditions, and outside one no row is greyed (audit S02-70, the owner's D16)", async () => {
@@ -69484,6 +69520,16 @@ const SCENARIOS = [
             const moved = [owners[0].items.has(thing.id), actor.items.some(i => i.name === thing.name)];
             await forgetRifles(actor);
             read.reach = [first, moved, await reach()];
+            // Full hands (E16 fix e1-G2's mutant g2b): a Tool in the stash, and the thief's hands for one filled.
+            const tool = await INV.grantItem(owners[0], { name: "SUITE E16-T39 a crowbar", category: "tool", tier: 1, override: true, quiet: true,
+                location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: where.room } });
+            for (let n = 0; n < 12 && INV.canCarry(actor, "tool").ok; n++) {
+                await INV.grantItem(actor, { name: "SUITE E16-T39 a full hand", category: "tool", tier: 1, override: true, quiet: true });
+            }
+            await sheetAuditIdle();
+            must(tool && INV.isStashed(tool) && !INV.canCarry(actor, "tool").ok, "the stash holds no Tool, or the thief's hands are not full - this would measure nothing");
+            await forgetRifles(actor);
+            read.full = [await judged({ action: "vault.steal", thiefId: actor.id, ownerId: owners[0].id, itemId: tool.id }), owners[0].items.has(tool.id)];
         } finally {
             await F?.putBack();
             await setClock({ phase });
@@ -69497,9 +69543,11 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             hunt: [[["bridge.ack", null, null], ["bridge.done", null, true]], 1],
-            reach: [[["bridge.ack", null, null], ["bridge.done", null, { taken: true }]], [false, true], [["bridge.ack", null, null], ["bridge.refused", "missing", null]]]
+            reach: [[["bridge.ack", null, null], ["bridge.done", null, { taken: true }]], [false, true], [["bridge.ack", null, null], ["bridge.refused", "missing", null]]],
+            full: [[["bridge.ack", null, null], ["bridge.done", null, { taken: false }]], true]
         }), "a player's stash hunt or reach into a stash was not answered once carried out, or said whether the thing moved "
-            + "[the hunt: its answers, stashes found; the reach: the first's answers, the thing still the owner's and now the thief's, the second's answers]");
+            + "[the hunt: its answers, stashes found; the reach: the first's answers, the thing still the owner's and now the thief's, the second's answers; "
+            + "into full hands: the answers, the Tool still the owner's]");
     }],
 
     ["E16-T30 - a failed concealment of a trap's work is told to the room, naming the worker and the room and no project (audit S02-17, the owner's Q5)", async () => {

@@ -6129,7 +6129,7 @@ async function performDynamic(actor, options) {
         text: success ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
-    if (success) await offerDynamicFind(actor, { tier: band.tier, room: roomOfActor(actor), description, roll });
+    if (success) await offerDynamicFind(actor, { tier: band.tier, room: roomOfActor(actor), description, roll, rollId: rollInHand(actor)?.messageId ?? null });
 
     // The GM's difficulty band is the one thing a reroll must NOT re-ask for:
     // the ruling was about what the player described, not about the dice.
@@ -6160,7 +6160,7 @@ async function performDynamic(actor, options) {
  * roller's own here, a GM's for a Reroll that turns a miss (reroll.mjs `settleDynamic`). Tier 2's
  * E16-T26 reads the card's data after a success, a Reroll of it and a Reroll from a miss.
  */
-export async function offerDynamicFind(actor, { tier, room = null, description = "", roll = null } = {}) {
+export async function offerDynamicFind(actor, { tier, room = null, description = "", roll = null, rollId = null } = {}) {
     const sent = await callGm(actor, {
         title: dynamicDef().label,
         request: description,
@@ -6173,7 +6173,8 @@ export async function offerDynamicFind(actor, { tier, room = null, description =
             {
                 action: "createItem",
                 label: game.i18n.localize("DRPG.Bridge.createItem"),
-                data: { by: actor.id, tier: String(tier), room: room ?? "", want: description ?? "" }
+                // `roll`: the roll's message, by which a Reroll that misses ends this card (`withdrawDynamicFind`).
+                data: { by: actor.id, tier: String(tier), room: room ?? "", want: description ?? "", roll: rollId ?? "" }
             },
             { action: "giveItem", label: game.i18n.localize("DRPG.Bridge.giveItem"), data: { by: actor.id } },
             { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } }
@@ -6183,6 +6184,35 @@ export async function offerDynamicFind(actor, { tier, room = null, description =
     // roll's, not the card's - and the player asks a GM for the item once one is back.
     if (!sent) return false;
     return true;
+}
+
+/**
+ * A SUCCESS A REROLL TOOK BACK ENDS ITS CARD (E16 fix e1-G3, 26.10.2026; the review's E16p2-BEH-3 = E16R-02 = E16P2-R3).
+ * A Dynamic success posts the GMs' card above, and a Reroll that turned it into a miss took the trace back and told
+ * the player "Nothing" - but the card still read "The roll succeeded" with Create an item on it, and a GM who did not
+ * watch the Reroll made an item for a roll that had missed. On the GM that settles the Reroll (reroll.mjs
+ * `settleDynamic`): every card not yet answered whose Create an item names this character and this roll's message
+ * (`data-roll`, written by `offerDynamicFind`) is ended through gm-bridge.mjs `settleCall`, its buttons off, with
+ * the line that the success no longer stands. A card already answered is left as it was: what a GM gave on it is the
+ * GMs' to take back. A card a player's console wrote naming the roll is that player's own, and ends the same way.
+ * Answers how many cards it ended. Tier 2's E16-T26 reads it.
+ */
+export async function withdrawDynamicFind(actor, rollId) {
+    if (!game.user?.isGM || !actor?.id || !rollId) return 0;
+    const { contentOf } = await import("./secret.mjs");
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const { settleCall } = await import("./gm-bridge.mjs");
+    const names = message => {
+        const words = String(contentOf(message) ?? "");
+        if (!words.includes(rollId)) return false;
+        const box = document.createElement("template");
+        box.innerHTML = words;
+        return [...box.content.querySelectorAll('[data-drpg-call="createItem"]')]
+            .some(button => button.dataset.by === actor.id && button.dataset.roll === rollId);
+    };
+    const cards = (game.messages?.contents ?? []).filter(m => !m.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled) && names(m));
+    for (const card of cards) await settleCall(card, game.i18n.localize("DRPG.Action.dynamicRerollMissed"));
+    return cards.length;
 }
 
 /**
