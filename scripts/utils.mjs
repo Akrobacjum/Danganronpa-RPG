@@ -1393,9 +1393,10 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * rebuild (`wireAll` in investigation.mjs) and that is the moment the two
          * have drifted apart.
          *
-         * ONLY WHEN THE FIELD SAYS SOMETHING. tables.mjs draws its new-item
-         * thumbnail from a default while `img.new` is deliberately EMPTY, so an
-         * unguarded copy would blank a picture that is doing its job.
+         * ONLY WHEN THE FIELD SAYS SOMETHING. A thumbnail drawn from a default
+         * while its field is deliberately EMPTY (tables.mjs's new item did so
+         * until its picture grid, H83 in 1.2.86) would be blanked by an
+         * unguarded copy, while the picture is doing its job.
          *
          * `setAttribute` rather than `.src =`, so the comparison is between two
          * strings of the same kind: reading `.src` gives a resolved absolute URL
@@ -1442,7 +1443,8 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
          * click listener: not focusable, so unreachable by keyboard at all, and
          * marked decorative, so a screen reader skipped it in silence. Four call
          * sites build this markup (investigation.mjs, projects-ui.mjs twice,
-         * tables.mjs) and every one of them had the same hole.
+         * tables.mjs) and every one of them had the same hole. (Three since
+         * 1.2.86: tables.mjs's new item picks its picture from radio cells, H83.)
          *
          * WORSE, `game.drpg.a11y()` REPORTED IT CLEAN. Its sweep looks at
          * `button, a[href], [role=button], input, select, textarea` - an image

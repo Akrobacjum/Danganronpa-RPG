@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik GM
 
-*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.85, zbudowanego na systemie Daggerheart.*
+*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.86, zbudowanego na systemie Daggerheart.*
 
 To podręcznik dla osób prowadzących killing game. Idzie w kolejności, w jakiej sezon naprawdę się buduje i gra: instalacja, ustawienie, prowadzenie dnia, morderstwo, Investigation, Class Trial, koniec rozdziału i od nowa. Tam, gdzie decyzja należy do GMa, a nie do modułu, tekst mówi to wprost.
 
@@ -198,9 +198,9 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 | Akcja | Statystyka | Koszt | Co robi | Liczby |
 |---|---|---|---|---|
-| Search | Eye | 1 + Search Token pokoju | Przeszukaj pokój pod kątem czegoś, co nazwiesz | 8: Tier 0 (ślad Hidden), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); krytyk: +1 Tier i ślad Obvious. Zabranie Murder Weapon albo Cleaning Tool zostawia Faint Prep Remnant. Porażka nic nie znajduje |
+| Search | Eye | 1 + Search Token pokoju | Przeszukaj pokój pod kątem czegoś, co nazwiesz | 8: Tier 0 (ślad Hidden), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); krytyk: +1 Tier i ślad Obvious - więc krytyk, który nie sięga żadnego progu, i tak znajduje przedmiot Tier 1. Zabranie Murder Weapon albo Cleaning Tool zostawia Faint Prep Remnant, także ze skrytki. Porażka nic nie znajduje |
 | Observe | Eye | 1 | Skopiuj Remnant do ekwipunku jako Neutral Truth Bullet | DC z `OBSERVE_DC` (sekcja 14); porażka kosztuje 1 Sanity (`OBSERVE_FAIL_STRESS`) |
-| Analyze | Head | 1 | Rozpoznaj Neutral Truth Bullet albo poproś GMa o wskazówkę | DC z `ANALYZE_DC`; porażka blokuje ten bullet do końca rozdziału. Tryb wskazówki: 14 subtelna, 18 bezpośrednia, krytyk: jedno pytanie do ciebie. Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16 (sekcja 9.6) |
+| Analyze | Head | 1 | Rozpoznaj Neutral Truth Bullet albo poproś GMa o wskazówkę | DC z `ANALYZE_DC`; porażka blokuje ten bullet do końca rozdziału. Tryb wskazówki: 14 subtelna, 18 bezpośrednia, krytyk: jedno pytanie do ciebie. Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16 (sekcja 9.6). W Class Trial jest tylko rozpoznanie, a wskazówka, skrytka albo przejście, o które ktoś i tak poprosi, są odmówione, zanim cokolwiek zostanie zapłacone |
 | Projects | statystyka projektu | 1 | Popchnij projekt w tym pokoju albo zaproponuj nowy do twojej zgody | 12: +1 postępu, 18: +2; krytyk: +2 i zwrot akcji |
 | Dynamiczna | wybór GMa | 1 | Gracz opisuje coś, na co gra nie ma nazwy; ty ustalasz próg | pasma poniżej |
 | Rest | brak | 1 (Short) albo 2 (Long) | Odzyskaj | poniżej |
@@ -213,14 +213,14 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 **Kto wybiera statystykę.** Rzut, którego definicja wymienia jedną statystykę, rzuca nią. Taki, który wymienia kilka - otwarcia, akcje kryzysowe, sprzątanie - pyta ciebie: gracz mówi ci w swoim wątku komunikatora, co robi jego postać, a ty wybierasz jedną z wymienionych statystyk na karcie w tym wątku albo w oknie na własnym ekranie, gdy sam rzucasz za postać. **Odmów** znaczy, że akcja nie zostaje wykonana, i nic nie jest wydane. Okno rzutu otwiera się na twoim wyborze, zablokowane. Jedynym wyjątkiem jest Hope Call **Resolve**, po którym gracz wybiera w oknie rzutu. Rzut projektu - praca nad nim albo jego Sabotage - bierze statystykę nadaną projektowi przy tworzeniu; projekt zapisany bez niej pyta cię raz, w ten sam sposób, i zachowuje twój wybór.
 
-**Akcje dynamiczne** (`DYNAMIC_THRESHOLDS`). Opis gracza trafia do ciebie jako karta w jego wątku komunikatora z przyciskami **Ustal trudność** i **Odmów**. Wybierasz pasmo i statystykę; odmowa nic gracza nie kosztuje. Sukces zostawia Faint Prep Remnant o widoczności pasma:
+**Akcje dynamiczne** (`DYNAMIC_THRESHOLDS`). Opis gracza trafia do ciebie jako karta w jego wątku komunikatora z przyciskami **Ustal trudność** i **Odmów**. Wybierasz pasmo i statystykę; odmowa nic gracza nie kosztuje. Pasmo zdaje się od dolnej liczby, a oba okna mówią "przebij N". Sukces zostawia Faint Prep Remnant o widoczności pasma i daje ci kartę z przyciskiem, który otwiera tabele przedmiotów na Tierze pasma, z pokojem i słowami gracza (nic nie zostaje dane, dopóki sam nie dasz), także po Rerollu, który zamienia porażkę w sukces:
 
-| Pasmo | Próg | Tier | Ślad |
+| Pasmo | Przebij | Tier | Ślad |
 |---|---|---|---|
-| Banalne. Każdy by to zrobił | 8 do 12 | 0 | Obvious |
-| Wymaga wprawy | 13 do 15 | 1 | Evident |
-| Obce większości ludzi | 16 do 18 | 2 | Subtle |
-| Wymaga bardzo niszowej wiedzy | 19 do 21 | 3 | Hidden |
+| Banalne. Każdy by to zrobił | 8 | 0 | Obvious |
+| Wymaga wprawy | 13 | 1 | Evident |
+| Obce większości ludzi | 16 | 2 | Subtle |
+| Wymaga bardzo niszowej wiedzy | 19 | 3 | Hidden |
 
 **Rest** (`REST`). **Long Rest** kosztuje **2 akcje**, wybiera 2 z trzech opcji, **raz na sesję**. **Short Rest** kosztuje **1 akcję**, wybiera 1, **raz na porę dnia**. Każdy działa <ins>tylko w pokoju z taką flagą</ins> (Ustawienia pokoi > Odpoczynki); podręcznik umieszcza Long Rest w sypialniach, więc oflaguj je.
 
@@ -593,7 +593,7 @@ Uczeń, który odkrył tajny projekt przez Observe, dowiaduje się tylko, że je
 |---|---|
 | Sukces | nikt nic nie widzi |
 | Sukces z Despair | nikt nie widzi, a projekt zyskuje +1 |
-| Porażka | inni dostają ogólny opis ("grzebie przy probówkach") |
+| Porażka | inni dostają ogólny opis ("grzebie przy probówkach"): pokój dostaje go sam, z imieniem pracującego i pokojem, bez projektu; szczegół możesz dodać sam |
 
 Praca w samotności daje **+1 postępu**. Zacieranie śladów tej pracy to rzut Shadow:
 
@@ -672,7 +672,7 @@ Każdy sukces zostawia Evident Incident Remnant, a zauważona pułapka zostawia 
 
 ### 13.2 Incydent (Stage 5)
 
-Turowy, ofiara pierwsza; runda to ofiara, a potem po kolei każdy zabójca. Zabójca martwy dla ciebie nie dostaje tury; gdy żaden nie zostaje przy życiu, dostajesz o tym wiadomość i propozycję zamknięcia. **W pułapce działa tylko ofiara**: budowniczy jest gdzie indziej, więc każda tura ofiary oddaje turę jej samej, a runda, drenaż i utrudnienia idą z nią dalej. Za każdym razem, gdy tura wraca do ofiary (pierwsza jest darmowa), kosztuje ją **1** Sanity (bezpośrednio) albo **2** (pośrednio, jest sama z pułapką), potem Health, gdy Sanity się skończy; krytyczne Self-defence zatrzymuje drenaż. Ofiara pułapki ma przewagę na każdym rzucie kryzysowym, a jej Leave a clue i Secure a trace mają Body zamiast Shadow i zostawiają Reinforced Remnants przy Hope tak samo jak przy krytyku (przy krytyku dwa). Uczestnicy rzucają na swoich oczach - przeglądarka głównego GMa pokazuje każdemu z nich kości pozostałych, a karta kryzysu mówi, ile wyszło w każdym rzucie i jaka to była akcja, z Dice So Nice czy bez. Nikt inny nie widzi: budowniczy pułapki nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Akcje kryzysowe (`CRISIS_ACTIONS`), ze statystyką i progiem (gdzie wiersz podaje kilka statystyk, wybierasz jedną na podstawie tego, co według gracza robi jego postać, jak w sekcji 5 - chyba że gracz uzbroił *Resolve*, które pozwala wybrać jemu):
+Turowy, ofiara pierwsza; runda to ofiara, a potem po kolei każdy zabójca. Zabójca martwy dla ciebie nie dostaje tury; gdy żaden nie zostaje przy życiu, dostajesz o tym wiadomość i propozycję zamknięcia. **W pułapce działa tylko ofiara**: budowniczy jest gdzie indziej, więc każda tura ofiary oddaje turę jej samej, a runda, drenaż i utrudnienia idą z nią dalej. Za każdym razem, gdy tura wraca do ofiary (pierwsza jest darmowa), kosztuje ją **1** Sanity (bezpośrednio) albo **2** (pośrednio, jest sama z pułapką), potem Health, gdy Sanity się skończy; krytyczne Self-defence zatrzymuje drenaż. Ofiara pułapki ma przewagę na każdym rzucie kryzysowym, a jej Leave a clue i Secure a trace mają najpierw Body, zamiast Shadow (Body / Hand / Leg) i zostawiają Reinforced Remnants przy Hope tak samo jak przy krytyku (przy krytyku dwa). Uczestnicy rzucają na swoich oczach - przeglądarka głównego GMa pokazuje każdemu z nich kości pozostałych, a karta kryzysu mówi, ile wyszło w każdym rzucie i jaka to była akcja, z Dice So Nice czy bez. Nikt inny nie widzi: budowniczy pułapki nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Akcje kryzysowe (`CRISIS_ACTIONS`), ze statystyką i progiem (gdzie wiersz podaje kilka statystyk, wybierasz jedną na podstawie tego, co według gracza robi jego postać, jak w sekcji 5 - chyba że gracz uzbroił *Resolve*, które pozwala wybrać jemu):
 
 | Strona | Akcja | Rzut | Co robi |
 |---|---|---|---|

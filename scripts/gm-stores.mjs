@@ -1081,7 +1081,9 @@ export const rollStore = defineGmStore({
  * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections; since fix r2-H25 `scars`, Daggerheart's
  * scars, which set Hope's maximum), since G3 `itemEffects`
  * (the effects on each of its items, by item - an item's copy in `items` holds none) and `finds` (the
- * Search records a find stood on, each with the item: one find a record). Written by the primary after every verdict and every GM's write, and filled
+ * Search records a find stood on, each with the item: one find a record), since E16 fix e1-G1 `flagsMarked` (the module
+ * flags the mark was taken with: one that joins later is the document's until a compare takes it in, sheet-audit.mjs
+ * `FLAGS_MARKED_LATER`). Written by the primary after every verdict and every GM's write, and filled
  * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced
  * between the GMs, so the next primary judges against the same marks; not backed up - the
  * documents a restore brings back are the marks' source, and a backup's would judge them against

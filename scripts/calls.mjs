@@ -14,7 +14,7 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
+import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -522,6 +522,31 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * ========================================================================== */
 
 /**
+ * What a Call with no target is about, said in its window before the price (E16 part 2 C0,
+ * 26.10.2026; audit S02-27): the roll a Reroll takes back - "Your Search roll: 11 with Hope." - and,
+ * for Resolve, that the choice is the next roll window's (roll-dialog.mjs `lockTrait` opens its
+ * statistic for an armed Resolve). The window said only the Call's sentence, so three Hope went
+ * on a roll the player was not shown, and on a choice the window did not offer.
+ *
+ * The roll is the one this browser threw last for the character (action-rolls.mjs `rollInHand`):
+ * the GMs keep their own row of it and take that one back. After a reload this browser has none
+ * and says nothing of it, rather than guess.
+ */
+async function callAbout(call, actor) {
+    if (call?.grants === "trait") return game.i18n.localize("DRPG.Calls.resolveNext");
+    if (!call?.reroll || !actor) return "";
+    const { rollInHand } = await import("./action-rolls.mjs");
+    const last = rollInHand(actor);
+    if (typeof last?.total !== "number") return "";
+    const duality = game.i18n.localize(last.isCritical ? "DRPG.Action.duality.critical"
+        : last.withFear ? "DRPG.Action.duality.despair" : "DRPG.Action.duality.hope");
+    const action = ACTIONS[last.actionKey]?.label ?? null;
+    return action
+        ? game.i18n.format("DRPG.Reroll.lastRoll", { action, total: last.total, duality })
+        : game.i18n.format("DRPG.Reroll.lastRollPlain", { total: last.total, duality });
+}
+
+/**
  * Refuse a Call whose note is empty, before the window can start closing (CALL-12).
  *
  * A BUTTON CALLBACK CANNOT SAY NO. Read from Foundry 14.365's own source,
@@ -577,15 +602,17 @@ function wireNoteGate(dialog, call) {
  *   whose box is empty, because a request nobody can rule on and no request are
  *   the same thing (Dawid, 29.08).
  */
-export async function confirmCall(call, { kind = "hope", held = 0, choice = {} } = {}) {
+export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, actor = null } = {}) {
     const affordable = held >= call.cost;
     const aimed = describeChoice(choice);
+    const about = await callAbout(call, actor);
 
     const result = await DialogV2.wait({
         window: { title: call.label },
         classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog"],
         content: `<div>
             <p>${foundry.utils.escapeHTML(callEffect(call))}</p>
+            ${about ? `<p class="notes">${foundry.utils.escapeHTML(about)}</p>` : ""}
             ${aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}
             <p class="${affordable ? "notes" : "drpg-warning"}">${
                 game.i18n.format(kind === "hope" ? "DRPG.Calls.costsHope" : "DRPG.Calls.costsDespair", {

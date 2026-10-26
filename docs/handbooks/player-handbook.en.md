@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.85, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.86, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -178,7 +178,7 @@ Loot the room for something you name. Spends one of the room's search tokens.
 | 8+ | a Tier 0 item - a random, seemingly useless object |
 | 12+ | Tier 1 |
 | 18+ | Tier 2 |
-| critical | one tier higher than the roll says |
+| critical | one tier better than the roll says - so a critical that misses every threshold still finds a Tier 1 item |
 
 What you can ask for:
 
@@ -220,7 +220,7 @@ Four things behind one tile:
 
 - **Identify a Truth Bullet.** Turns a Neutral Truth Bullet into its real category. **A failure locks that bullet for you until the chapter ends** - hand a copy to somebody else and their copy is not bound by your failure.
 - **Ask for a hint.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
-- **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not.
+- **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not. Not in a Class Trial.
 - **Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet: a stretch of its wall or a tunnel's end, on your floor. Below 16, or when there is none, your card says "You find no hidden passage here." The GMs see the same card. Not in a Class Trial.
 
 ### Projects - the project's statistic, 1 action
@@ -262,14 +262,14 @@ The slow game: many actions over many times of day, and the one thing that can c
 
 ### Dynamic action - any statistic, 1 action
 
-Anything at all, provided you describe it in detail. The GM sets the difficulty and the statistic, or refuses (nothing is spent). Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
+Anything at all, provided you describe it in detail. The GM sets the difficulty and the statistic, or refuses (nothing is spent). Your roll window says the number to beat: a band is passed from its lower number. On a success your card reads "Success - the GM decides what a Tier N result gives you", and the GM gets a card that makes the item. Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
 
-| Difficulty | Range | Item tier it can yield | Trace it leaves |
+| Difficulty | Beat | Item tier it can yield | Trace it leaves |
 |---|---|---|---|
-| Trivial - anyone could do it | 8-12 | Tier 0 | Obvious |
-| Takes practice | 13-15 | Tier 1 | Evident |
-| Foreign to most people | 16-18 | Tier 2 | Subtle |
-| Demands very niche expertise | 19-21 | Tier 3 | Hidden |
+| Trivial - anyone could do it | 8 | Tier 0 | Obvious |
+| Takes practice | 13 | Tier 1 | Evident |
+| Foreign to most people | 16 | Tier 2 | Subtle |
+| Demands very niche expertise | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
 > The scale is upside down on purpose: the easier the thing, the louder the trace.
@@ -524,7 +524,7 @@ Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladde
 
 An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
 
-Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes"). Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
+Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
 
 | Shadow roll | Trace it leaves |
 |---|---|
@@ -585,7 +585,7 @@ The incident is turn-based. **You go first**. Alone with a trap, you roll every 
 
 | Crisis action | Roll | What it does |
 |---|---|---|
-| **Leave a clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Hand / Leg / Body, and Hope leaves a Reinforced trace, a critical two. |
+| **Leave a clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and Hope leaves a Reinforced trace, a critical two. |
 | **Secure a trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
 | **Self-defence** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role reversal, Despair opens Role reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role reversal you cannot take, it is not spent and you may try again. |
 | **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-defence first. |
@@ -668,7 +668,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 ## 12. The Class Trial
 
-Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
+Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items. In a trial Analyze only identifies Truth Bullets - no hint, no hidden stash, no passage; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
 When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living who took part to a room the GM picks. In the trial the module places your character's token in the hall and removes it afterwards; the GM chooses who takes part. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
 

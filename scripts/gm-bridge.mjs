@@ -341,7 +341,8 @@ async function handleObserveTarget(payload, sender, ctx) {
     // computed here for the same reason Observe is: the ledger - the answer
     // key `cleanableRemnants` reads to build the list - lives only on a GM
     // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
-    // back down to id, label and the reinforced flag before it goes out.
+    // back down to id, label, the reinforced flag and the number the roll window
+    // shows (E16 part 2 C0, the owner's Q7) before it goes out.
 async function handleCleanupTraces(payload, sender, ctx) {
     const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
     return { reply: cleanableTracesForPlayer(payload.actorId, { mine: payload.mine }) };
@@ -717,12 +718,16 @@ async function handleFindStash(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical
     });
+    // Refused in a Class Trial (E16 part 2 C3, S02-70) before the throw is read: told by its code, and no fact on the roll.
+    if (out?.refused) return { refused: out.refused };
     // The GMs' fact on the roll the packet names (E80 C4, S16-19): it was a Find Stash, and whether it opened one. Its
     // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word - in the place
     // this search was made (`findPlace`, E80 fix r1-G4; the review's E80-G-1), never where the student stands by then.
     const rolls = await import("./action-rolls.mjs");
     await rolls.noteFactOn(rolls.rollOfFact({ rollId: payload.rollId ?? null, by: sender?.id ?? null, actorId: payload.actorId,
         actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found), ...(out?.place ? { findPlace: out.place } : {}) });
+    // Answered once judged (E16 fix e1-G2): the asker gives the price back on a refusal, which it hears only so.
+    return { reply: true };
 }
 
     // And out of their pockets. Same reasoning as the stash below, plus one
@@ -822,6 +827,8 @@ async function handleVaultSteal(payload, sender, ctx) {
         clumsy: payload.clumsy
     });
     if (out?.refused) return { refused: out.refused };
+    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-rolls.mjs `searchStash`).
+    return { reply: { taken: Boolean(out) } };
 }
 
 /*
@@ -2002,7 +2009,11 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
-        answer: "ack",
+        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): a Class Trial opened
+           while the packet was in flight is refused here before the throw is read, and the asker gives the price back
+           on that refusal (action-rolls.mjs `locateStash`; the owner's Q3 of 18.10 by analogy) - heard after its
+           "got it" while the row was "ack", when `locateStash` had returned and the price stayed spent. */
+        answer: "reply",
         // An Analyze's roll: a search for a hidden stash is one of the Analyze's roads (E08+E28 C14), and a roll thrown as
         // a Find Passage, another of them, settles none of it (`notFindPassageRoll`, E80 fix r1-G7).
         rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
@@ -2030,7 +2041,11 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("thiefId", "sender does not own the character searching")],
         sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
         run: handleVaultSteal,
-        answer: "ack",
+        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): a Search that takes a
+           Murder Weapon out of a stash leaves a Prep Remnant (E16 part 2 C4), and on "ack" it left one as the packet was
+           accepted - for a thing a GM then refused (another reach took it first, full hands, an undecided item). The
+           asker leaves it only on the answer's `taken` (`handleVaultSteal`, action-rolls.mjs `searchStash`). */
+        answer: "reply",
         // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
         rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
@@ -3938,9 +3953,9 @@ export async function requestObserveTarget({ actorId, declaration, request = "" 
  * 30-security read an array, and a null on a refusal used to crash one of them.
  * `quiet` for a sheet that asks in the background.
  *
- * @returns {Promise<Array<{id: string, label: string, reinforced: boolean}>>}
- *   Never DC, never `tiedToCrime` - see `cleanableTracesForPlayer` in
- *   cleanup.mjs, which is the only thing that ever builds this array.
+ * @returns {Promise<Array<{id: string, label: string, reinforced: boolean, dc: number|null}>>}
+ *   `dc` for the roll window alone (E16 part 2 C0, the owner's Q7), never `tiedToCrime` - see
+ *   `cleanableTracesForPlayer` in cleanup.mjs, which is the only thing that ever builds this array.
  */
 export async function requestCleanableTraces(actorId, { mine = false, quiet = false } = {}, timeoutMs = TIMING.rulingMs) {
     const res = await ask(ACTION_CLEANUP_TRACES, {
@@ -4302,7 +4317,12 @@ export function requestPlant({
  */
 export function requestStashSearch({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FIND_STASH, { actorId, total, isCritical, rollId }, {
-        local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }))
+        // A GM's own search refused (in a Class Trial, E16 part 2 C3) is said as the bridge would say it to a player, and its
+        // answer keeps the refusal, which action-rolls.mjs `locateStash` reads to give the price back.
+        local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FIND_STASH, reasonOf(out.refused));
+            return out;
+        })
     });
 }
 
@@ -4848,6 +4868,20 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
 }
 
 /**
+ * The request window alone, for a caller whose card to the GMs is another's (E16 part 2 C1,
+ * 26.10.2026; audit S02-34: a Dynamic action, whose one card is its difficulty's). Answers the
+ * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
+ * says it, before the window), or the player closed it. Posts nothing.
+ */
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT } = {}) {
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent: true });
+        return null;
+    }
+    return askForRequest({ title, prompt, placeholder, intro, required });
+}
+
+/**
  * Ask the player what they want, then send it to the GM. Returns the text, or
  * null if nothing was sent.
  */
@@ -4872,12 +4906,7 @@ export async function promptAndCallGm(actor, {
      * not go. Every caller of this spends nothing before it, which is why the refusal may
      * say so.
      */
-    if (!gmOnline()) {
-        sayNotDone(what, "noGm", { nothingSpent: true });
-        return null;
-    }
-
-    const text = await askForRequest({ title, prompt, placeholder, intro, required });
+    const text = await promptForRequest({ title, prompt, placeholder, intro, required, what });
     if (text === null) return null;
 
     /*

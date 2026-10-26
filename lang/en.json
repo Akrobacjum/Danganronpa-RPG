@@ -818,7 +818,9 @@
       },
       "noRoom": "Your token is outside every room. Move it into one, or ask the GM.",
       "found": "Found a Tier {tier} item: <strong>{item}</strong>",
-      "tierFound": "Tier {tier}",
+      "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
+      "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
+      "dynamicRerollMissed": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
       "leavesRemnant": "Leaves a trace behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
@@ -2531,6 +2533,7 @@
       "noRegions": "This scene has no room regions. Draw them on the Regions layer first."
     },
     "Calls": {
+      "resolveNext": "Your next roll will ask you which statistic to use.",
       "waitingGm": "Waiting on the GM: {call}. The Hope is charged only if they say yes.",
       "approveCost": "{cost} Hope, charged only on a yes.",
       "hopeTitle": "Hope Calls",
@@ -2846,6 +2849,7 @@
       "noneToMove": "No project here has progress that can move. Finished ones are done, and a sabotaged one waits for its repair.",
       "now": "{project} is now at {current}/{target}.",
       "aloneBonus": "Nobody else is in the room, so the project gains +1 progress.",
+      "concealSeen": "{actor} is busy with something in {room}, and everyone here can see roughly what.",
       "tracesUncovered": "not rolled: the traces stay as they were left.",
       "toolRelief": "{item} is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",
@@ -3039,6 +3043,9 @@
       }
     },
     "Bridge": {
+      "noHelp": "No help.",
+      "refuseAttempt": "Refuse the attempt",
+      "attemptRefused": "The attempt is turned down.",
       "what": {
         "project.progress": "Project progress",
         "project.sabotage": "Sabotage",
@@ -3268,6 +3275,9 @@
       "placeDone": "{name}: {added} added, {removed} removed.",
       "noneYet": "No item tables yet - create the default set below.",
       "addItem": "Add an item",
+      "picture": "Picture",
+      "pictureOwn": "Category's own",
+      "pictureFile": "Another file...",
       "tierTargetIs": "Goes into {table}. Worked out from the category and tier above.",
       "tierTargetNone": "No tier pool exists for that category and tier - it will only live in the rooms you tick below. Install the pools from the Tier pools tab.",
       "roomTargets": "Room tables it also appears in:",
@@ -3688,6 +3698,8 @@
       "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
     },
     "Reroll": {
+      "lastRoll": "Your {action} roll: {total} {duality}.",
+      "lastRollPlain": "Your last roll: {total} {duality}.",
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",

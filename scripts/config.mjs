@@ -3235,9 +3235,14 @@ export const CRISIS_ACTIONS = {
          * Visibility is left as the direct table's, because the guide does not
          * restate it here and something had to be chosen; the axis it does
          * restate - reinforced, and how many - is what this overrides.
+         *
+         * BODY FIRST (E16 part 2 C5, 26.10.2026; audit S13-31, the owner's D16: "ofiara pułapki rzuca
+         * Body"). The list read Hand / Leg / Body, so where nobody picks - a Resolve armed, the
+         * statistic the GMs' window offers first (trait-ruling.mjs `traitFor`) - a trap's victim threw
+         * Hand, as the direct table does, and the guide's Body came last. Tier 1's R987 holds both rows.
          */
         indirectVictim: {
-            traits: ["hand", "leg", "body"],
+            traits: ["body", "hand", "leg"],
             reinforced: { hope: true, critical: true },
             count: { critical: 2 }
         }
@@ -3257,10 +3262,10 @@ export const CRISIS_ACTIONS = {
          * even more explicitly: "2 nieusuwalne przez mordercę, związane z nim
          * Incident Remnants" - two traces the killer cannot wipe in Stage 6.
          * There is no killer in the room to take something FROM, so what the
-         * indirect victim secures is the trap itself.
+         * indirect victim secures is the trap itself. Body first, as on Leave a clue (E16 part 2 C5).
          */
         indirectVictim: {
-            traits: ["hand", "leg", "body"],
+            traits: ["body", "hand", "leg"],
             reinforced: { hope: true, critical: true },
             count: { critical: 2 }
         }

@@ -31,6 +31,7 @@ import {
 import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
+import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-rolls.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
@@ -4257,7 +4258,7 @@ async function runCall(actor, key, kind) {
         }
     }
 
-    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice });
+    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor });
     if (note === null) return;
 
     if (despair) await spendDespairCallFor(actor, key, { note, choice });
@@ -4284,11 +4285,19 @@ async function runCall(actor, key, kind) {
  * guards downstream stay exactly where they are, since a room's state can
  * change between a sheet render and a click.
  */
-function roomBlockFor(actor, key) {
+export function roomBlockFor(actor, key) {
     try {
+        // Rest is about the actor, and is dimmed only when neither of its rows can be taken: the tooltip names both
+        // reasons, and the window shows both rows greyed (E16 part 2 C4, 26.10.2026; audit S02-26). The tile looked
+        // live and its press answered "Nothing here can be done right now." alone.
+        if (key === "rest") return restShutReason(actor);
+
         // Only the five actions whose subject lives in the room can be blocked
-        // by the room. Move, Rest and the rest are about the actor.
-        const roomBound = ["search", "observe", "listen", "project", "palm", "tamper"];
+        // by the room. Move and the rest are about the actor. Not Projects (E16 part 2 C4; audit S03-24): it
+        // was on this list, so outside every room its tile was struck through with "You are not in any room",
+        // while proposing a project works anywhere (the note at the end of this function) - the corridor hid
+        // the one road to the first project. `performProject` still shuts its "work on" row by itself.
+        const roomBound = ["search", "observe", "listen", "palm", "tamper"];
         if (!roomBound.includes(key)) return null;
 
         // `roomOfActor` answers with the room's NAME, not a region document -

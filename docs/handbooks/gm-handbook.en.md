@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.85, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.86, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -198,9 +198,9 @@ The ten tiles on the sheet, in the order they are drawn:
 
 | Action | Statistic | Cost | What it does | Numbers |
 |---|---|---|---|---|
-| Search | Eye | 1 + a room search token | Loot the room for something you name | 8: Tier 0 (Hidden trace), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); critical: +1 tier and an Obvious trace. Taking a Murder Weapon or Cleaning Tool leaves a Faint Prep Remnant. Failure finds nothing |
+| Search | Eye | 1 + a room search token | Loot the room for something you name | 8: Tier 0 (Hidden trace), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); critical: +1 tier and an Obvious trace - so a critical that misses every threshold still finds a Tier 1 item. Taking a Murder Weapon or Cleaning Tool leaves a Faint Prep Remnant, out of a stash too. Failure finds nothing |
 | Observe | Eye | 1 | Copy a Remnant into your inventory as a Neutral Truth Bullet | DC from `OBSERVE_DC` (section 14); a failure costs 1 Sanity (`OBSERVE_FAIL_STRESS`) |
-| Analyze | Head | 1 | Identify a Neutral Truth Bullet, or ask the GM for a hint | DC from `ANALYZE_DC`; a failure locks that bullet until the chapter ends. Hint mode: 14 a subtle hint, 18 a direct hint, critical: they may ask you one question. Locate a hidden stash: 16. Find Passage: 16 (section 9.6) |
+| Analyze | Head | 1 | Identify a Neutral Truth Bullet, or ask the GM for a hint | DC from `ANALYZE_DC`; a failure locks that bullet until the chapter ends. Hint mode: 14 a subtle hint, 18 a direct hint, critical: they may ask you one question. Locate a hidden stash: 16. Find Passage: 16 (section 9.6). In a Class Trial only the identification is offered, and a hint, a stash or a passage asked anyway is refused before anything is paid |
 | Projects | the project's | 1 | Push a project in this room, or propose a new one for you to approve | 12: +1 progress, 18: +2; critical: +2 and the action refunded |
 | Dynamic | GM's choice | 1 | The player describes something the game has no name for; you set the band | see the bands below |
 | Rest | none | 1 (Short) or 2 (Long) | Recover | see below |
@@ -213,14 +213,14 @@ The ten tiles on the sheet, in the order they are drawn:
 
 **Who picks the statistic.** A roll whose definition lists one statistic rolls it. One that lists several - the openings, the crisis actions, the clean-up - asks you: the player tells you in their messenger thread what their character does, and you pick one of the listed statistics on a card in that thread, or in a window on your own screen when you roll for a character yourself. **Refuse** means the action is not taken, and nothing is spent. The roll window opens on your pick, locked. The one exception is the Hope Call **Resolve**, after which the player picks in the roll window. A project's roll - Work on it, or a Sabotage of it - takes the statistic the project was given when it was made; a project stored without one asks you once, the same way, and keeps your pick.
 
-**Dynamic actions** (`DYNAMIC_THRESHOLDS`). The player's description reaches you as a card in their messenger thread with **Set difficulty** and **Refuse** on it. You pick the band and the statistic; a refusal costs the player nothing. A success leaves a Faint Prep Remnant of the band's visibility:
+**Dynamic actions** (`DYNAMIC_THRESHOLDS`). The player's description reaches you as a card in their messenger thread with **Set difficulty** and **Refuse** on it. You pick the band and the statistic; a refusal costs the player nothing. A band is passed from its lower number, and both windows say "beat N". A success leaves a Faint Prep Remnant of the band's visibility, and hands you a card with a button that opens the item tables at the band's tier, the room and the player's words filled in (nothing is given until you give it), also after a Reroll that turns a miss:
 
-| Band | Threshold | Tier | Trace |
+| Band | Beat | Tier | Trace |
 |---|---|---|---|
-| Trivial. Anyone could do it | 8 to 12 | 0 | Obvious |
-| Takes practice | 13 to 15 | 1 | Evident |
-| Foreign to most people | 16 to 18 | 2 | Subtle |
-| Demands very niche expertise | 19 to 21 | 3 | Hidden |
+| Trivial. Anyone could do it | 8 | 0 | Obvious |
+| Takes practice | 13 | 1 | Evident |
+| Foreign to most people | 16 | 2 | Subtle |
+| Demands very niche expertise | 19 | 3 | Hidden |
 
 **Rest** (`REST`). A **Long Rest** costs **2 actions**, picks 2 of the three options, **once per session**. A **Short Rest** costs **1 action**, picks 1, **once per time of day**. Each works <ins>only in a room flagged for it</ins> (Room Setup > Rests); the guide puts the Long Rest in the bedrooms, so flag those.
 
@@ -593,7 +593,7 @@ A student who found a secret project with Observe is told only that it is finish
 |---|---|
 | Success | nobody sees |
 | Success with Despair | nobody sees and the project gains +1 |
-| Failure | the others get a general description ("fiddling with test tubes") |
+| Failure | the others get a general description ("fiddling with test tubes"): the room is told by itself, the worker and the room named, the project not; add the detail if you wish |
 
 Working alone gives **+1 progress**. Hiding the traces of the work rolls Shadow:
 
@@ -672,7 +672,7 @@ Every success leaves an Evident Incident Remnant, and a noticed trap leaves the 
 
 ### 13.2 The incident (Stage 5)
 
-Turn-based, the victim first; a round is the victim, then each killer in turn. A killer who is dead to you takes no turn; when none is left alive you are told, and offered the close. **In a trap only the victim acts**: the builder is elsewhere, so each of the victim's turns hands the turn back to them, and the round, the drain and the hindrances move on with it. Each time the turn comes back to the victim (their first turn is free) it costs them **1** Sanity (direct) or **2** (indirect, they are alone with a trap), then Health once Sanity is gone; a critical Self-defence stops the drain. A trap's victim has advantage on every crisis roll, and their Leave a clue and Secure a trace list Body instead of Shadow and leave Reinforced Remnants on Hope as well as on a critical (two of them on a critical). The participants roll in front of each other - the primary GM's browser shows each of them the others' dice, and the crisis card says what each roll came to and which action it was, with or without Dice So Nice. Nobody else sees: a trap's builder sees none of its dice and none of its cards, the card of the action that ends it included. Crisis actions (`CRISIS_ACTIONS`), with the statistic and threshold (where a row lists several statistics, you pick one from what the player says their character does, as in section 5 - unless they armed *Resolve*, which lets them pick):
+Turn-based, the victim first; a round is the victim, then each killer in turn. A killer who is dead to you takes no turn; when none is left alive you are told, and offered the close. **In a trap only the victim acts**: the builder is elsewhere, so each of the victim's turns hands the turn back to them, and the round, the drain and the hindrances move on with it. Each time the turn comes back to the victim (their first turn is free) it costs them **1** Sanity (direct) or **2** (indirect, they are alone with a trap), then Health once Sanity is gone; a critical Self-defence stops the drain. A trap's victim has advantage on every crisis roll, and their Leave a clue and Secure a trace list Body first, instead of Shadow (Body / Hand / Leg) and leave Reinforced Remnants on Hope as well as on a critical (two of them on a critical). The participants roll in front of each other - the primary GM's browser shows each of them the others' dice, and the crisis card says what each roll came to and which action it was, with or without Dice So Nice. Nobody else sees: a trap's builder sees none of its dice and none of its cards, the card of the action that ends it included. Crisis actions (`CRISIS_ACTIONS`), with the statistic and threshold (where a row lists several statistics, you pick one from what the player says their character does, as in section 5 - unless they armed *Resolve*, which lets them pick):
 
 | Side | Action | Roll | What it does |
 |---|---|---|---|

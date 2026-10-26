@@ -28,7 +28,7 @@ import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROO
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel, readyForShape } from "./inventory.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
-import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
+import { itemsHeldNow, judgedFor, flagsAsHeld, flagsHeldNow } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 // The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
 import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
@@ -810,9 +810,15 @@ export async function setStash(room, actorId, { present = undefined, concealed =
  */
 async function forgetStashFound(room, ownerId, scene) {
     const gone = new Set([foundKey(room, ownerId, scene), foundKey(room, ownerId, null)]);
-    for (const actor of game.actors) {
-        const found = actor.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
-        if (!Array.isArray(found) || !found.length) continue;
+    // The finders' notes as the GMs hold them (E16 fix e1-G1, 26.10.2026; the review's E16p2-SEC-2 = E16R-05), as
+    // `carryRoomOnSheets` reads them: every write queued on a student judged first, then read in one pass. Read off the
+    // document, a player's note written while its put-back was on its way rode into this GM's write, which the audit
+    // takes as the GMs' - a forged find that then opened a concealed stash (`stealFromVault`). Measured: E16-T29.
+    const finders = [...(game.actors ?? [])];
+    await judgedFor(...finders.map(actor => actor.id));
+    for (const actor of finders) {
+        const found = stashesFoundBy(flagsHeldNow(actor));
+        if (!found.length) continue;
         const kept = found.filter(key => !gone.has(String(key)));
         if (kept.length === found.length) continue;
         await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, kept);
@@ -1000,8 +1006,8 @@ export function bedroomOwnerAnywhere(room) {
  * after every write queued on their owners has been judged (`judgedFor`), and in one
  * synchronous pass; each is one write
  * (`trustedWrite`: the stash's room is a protected flag), and a key whose name is still the one
- * `grantBedroomKey` gave it is renamed with it. The notes are read off the document, as
- * `hasFoundStash` reads them: the GMs keep no mark of them.
+ * `grantBedroomKey` gave it is renamed with it. The notes are read as the GMs hold them (`flagsHeldNow`, after
+ * `judgedFor`): the found list is a GM's flag since E16 part 2 C3.
  */
 export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(scene, to)) {
     if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
@@ -1039,8 +1045,12 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
 
     let found = 0;
     const renamed = [`${scene.id}::${from}::`, `?::${from}::`];
-    for (const actor of game.actors ?? []) {
-        const notes = stashesFoundBy(actor);
+    // The finders' notes as the GMs hold them (E16 part 2 C3; `GM_FLAGS`): every write queued on a student judged first,
+    // then read in one pass, so a player's own note written here is not carried into the GMs' write.
+    const finders = [...(game.actors ?? [])];
+    await judgedFor(...finders.map(actor => actor.id));
+    for (const actor of finders) {
+        const notes = stashesFoundBy(flagsHeldNow(actor));
         const next = notes.map(note => {
             const at = renamed.find(head => String(note).startsWith(head));
             return at ? `${at.split("::")[0]}::${to}::${String(note).slice(at.length)}` : note;
@@ -1699,8 +1709,10 @@ export async function stealFromVault({
         // written by a GM's client in `resolveStashSearch` and read here, so
         // "has to be found first" is exactly what it says.
         const { isMastermind } = await import("./mastermind.mjs");
+        // The list as the GMs hold it (E16 part 2 C3; design-notes D10): a player's own write of it is put back
+        // (sheet-audit.mjs `GM_FLAGS`), and read held it opens nothing while the put-back is on its way.
         if (!isMastermind(thief)
-            && !hasFoundStash(thief, where.room, owner.id, where.scene)) {
+            && !hasFoundStash(await flagsAsHeld(thief), where.room, owner.id, where.scene)) {
             // Told as a stash nobody has here: the hiding place is not named to one who has not found it.
             refuse("that stash is concealed and has to be found first");
             return { refused: "no such stash where the character stands" };
@@ -2324,13 +2336,25 @@ export function stashesFoundBy(actor) {
  * character stood at the Reroll: a miss in an empty room, rerolled after a walk into another
  * student's bedroom, opened the stash hidden there, where no Analyze was paid or thrown and
  * no trap watching for a hunt was told.
+ *
+ * NO HUNT IN A CLASS TRIAL (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "odmawia choice 'hint' i 'stash'
+ * w classTrial, także z pakietu"). In a trial Analyze only identifies Truth Bullets, and its picker no longer offers the
+ * hunt (action-rolls.mjs `ANALYZE_TRIAL_FILTER`) - but a console's packet, a GM's own call and a Reroll of a hunt thrown
+ * before the trial all come here, so here is where it is refused, on this GM's clock, before the throw is read: no trap
+ * told, nothing whispered, nothing written. `{ refused }`, told by the bridge as `trialLocked` (gm-bridge.mjs
+ * `handleFindStash`, `requestStashSearch`), and a Reroll's replay is given back whole (reroll.mjs `settleStashFind`).
  */
 export async function resolveStashSearch({ actorId, total = 0, isCritical = false, replay = false, at = undefined } = {},
     { hunted = event => Hooks.callAll("drpgStashHunted", event) } = {}) {
     if (!game.user.isGM) return null;
+    if (getClock()?.phase === "classTrial") return { refused: "the Class Trial is in session" };
 
     const actor = game.actors.get(actorId);
     if (!actor) return null;
+    // What the finder has found, as the GMs hold it (E16 part 2 C3; design-notes D10): the list is a GM's flag
+    // (sheet-audit.mjs `GM_FLAGS`), and a write of the finder's own waiting for its put-back is neither a find this
+    // search skips nor a note carried into the GMs' write below.
+    const held = await flagsAsHeld(actor);
 
     const { locateActor, gmPlaceOf } = await import("./movement.mjs");
     const floor = level => level?.id ?? level ?? null;
@@ -2362,7 +2386,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     // Yours is not a discovery, and one already found is not a second one.
     const here = stashesIn(where.room, where.scene)
         .filter(e => e.concealed && e.actorId !== actor.id)
-        .filter(e => !hasFoundStash(actor, where.room, e.actorId, where.scene));
+        .filter(e => !hasFoundStash(held, where.room, e.actorId, where.scene));
 
     let target = null;
     for (const entry of here) {
@@ -2377,7 +2401,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
         return { found: false, reason: "none", place };
     }
 
-    const found = stashesFoundBy(actor);
+    const found = stashesFoundBy(held);
     found.push(foundKey(where.room, target.owner.id, where.scene));
     await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, found);
 

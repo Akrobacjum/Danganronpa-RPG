@@ -2581,10 +2581,16 @@ const INVARIANTS = [
         const art = document.getElementById("drpg-voice-art");
         ok(art?.parentElement === document.body, "the voice tile's portrait is not on the curtain's pane");
         if (art) {
-            const b = art.getBoundingClientRect(), n = (/polygon\((.*)\)/.exec(art.style.clipPath)?.[1] ?? "").split(",").filter(Boolean).length;
-            ok(Math.abs(b.left - pane.x0) <= 1 && Math.abs(b.top - pane.y0) <= 1 && Math.abs(b.right - pane.x1) <= 1 && Math.abs(b.bottom - pane.y1) <= 1,
-                `the portrait is at ${[b.left, b.top, b.right, b.bottom].map(Math.round)}, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]}`);
-            equal(n, pane.poly.length, "the portrait's outline against its pane's corners");
+            // H83: the layer leans with its pane, so its outline is read through its own transform (glass-harness.html `layerFit`)
+            const fitOf = (el, poly, at, own) => { const cs = getComputedStyle(el), mat = t => new globalThis.DOMMatrix(t === "none" ? undefined : t), m = mat(cs.transform), o = mat(getComputedStyle(own).transform);
+                const [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat), L = parseFloat(cs.left), T = parseFloat(cs.top);
+                const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
+                const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
+                    T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
+                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+            const f = fitOf(art, pane.poly, document.getElementById("drpg-curtain").getBoundingClientRect(), tile);
+            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
+            equal(f.points, pane.poly.length, "the portrait's outline against its pane's corners");
         }
         const plate = tile.querySelector(".drpg-voice-tile-plate");
         equal(plate && getComputedStyle(plate).getPropertyValue("--brush").trim(), getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim(),
@@ -6744,8 +6750,8 @@ const INVARIANTS = [
          * window; and an answer the definition does not list, or none, means no roll. Asked
          * on stubs (`seams`: who this browser is, whether Resolve is armed, the two ways of
          * asking, each noting that it was asked), with the lists read from config: Pin (Body),
-         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Hand / Leg /
-         * Body), and a kind that is none. Pure; nothing is written.
+         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Body / Hand /
+         * Leg, Body first since E16 part 2 C5), and a kind that is none. Pure; nothing is written.
          */
         const T = await import("./trait-ruling.mjs");
         const A = { id: "R212ACTOR0000001", name: "R212" };
@@ -11886,10 +11892,16 @@ const INVARIANTS = [
             const art = document.getElementById("drpg-room-art");
             if (art || tile.querySelector(".drpg-room-tile-art")) {
                 ok(art && !tile.contains(art), "the picture is still inside the tile, not on its pane");
-                const r = art.getBoundingClientRect(), points = (getComputedStyle(art).clipPath.match(/px/g)?.length ?? 0) / 2;
-                const got = [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top];
-                ok(got.every((v, i) => near(v, [pane.x0, pane.y0, pane.x1, pane.y1][i], 1.5)) && points === pane.poly.length,
-                    `the picture at ${got.map(Math.round)} clipped to ${points} points, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]} with ${pane.poly.length}`);
+                // H83: the layer leans with its pane, so its outline is read through its own transform (glass-harness.html `layerFit`)
+                const fitOf = (el, poly, at, own) => { const cs = getComputedStyle(el), mat = t => new globalThis.DOMMatrix(t === "none" ? undefined : t), m = mat(cs.transform), o = mat(getComputedStyle(own).transform);
+                    const [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat), L = parseFloat(cs.left), T = parseFloat(cs.top);
+                    const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
+                    const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
+                        T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
+                    return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+                const f = fitOf(art, pane.poly, at, tile);
+                ok(f.miss <= 1.5 && f.points === pane.poly.length && Math.abs(f.turn[0] - f.turn[1]) <= 0.05,
+                    `the picture's outline (${f.points} points, its pane ${pane.poly.length}) is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
             }
         }
         let cuts = 0;
@@ -21137,8 +21149,9 @@ const INVARIANTS = [
 
         const sources = await moduleSources();
         const needsWords = {};
-        for (const [file, fn] of [["action-rolls.mjs", "performDynamic"], ["use-items.mjs", "useCreatively"]]) {
-            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), "promptAndCallGm(", { until: "\n    });" });
+        // A Dynamic action asks its words through `promptForRequest` since E16 part 2 C1 (its one card is the difficulty's).
+        for (const [file, fn, asks] of [["action-rolls.mjs", "performDynamic", "promptForRequest("], ["use-items.mjs", "useCreatively", "promptAndCallGm("]]) {
+            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), asks, { until: "\n    });" });
             needsWords[fn] = /\brequired: true\b/.test(call);
         }
         const reply = fnSource(stripComments(sources.get("messenger-app.mjs") ?? ""), "ruleReply");
@@ -22460,6 +22473,299 @@ const INVARIANTS = [
         equal(stableJson(said), stableJson([["en", true, false], ["pl", true, false], ["this browser", true, false]]),
             "DRPG.Calls.effectFailed, filled with { call } alone, does not name the call or leaves a placeholder unfilled "
             + "[per language: names the call, a {placeholder} left]");
+    }],
+
+    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-rolls.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
+        /*
+         * E16 part 2 C0, 26.10.2026. performSabotage wrote the roll window's numbers as
+         * `t.min - relief + penalty`, and the judge (`sabotageHit`) scores `total + penalty`
+         * against the bands eased by the relief: with the Despair concealment's -1 the window said
+         * "beat 11 / 17" while a total of 13 / 19 was needed, so a player who threw 11 or 12 read a
+         * success and got "Nothing happens.". Each total from 0 to 40 is judged as the GM judges a
+         * Sabotage (`sabotageHit`, also gm-bridge.mjs `traceBandOf`'s reading) and the least total
+         * reaching each band is held to the bar's number for it; then the two places that show and
+         * judge are read in the source for the one bar. Nothing is written; no phase is asked.
+         */
+        const A = await import("./action-rolls.mjs");
+        const { SABOTAGE_CONCEAL } = await import("./config.mjs");
+        const def = ACTIONS.sabotage;
+        must(Array.isArray(def?.thresholds) && def.thresholds.length >= 2 && typeof A.sabotageHit === "function",
+            "Sabotage has no table of two bands or no judge - this would measure nothing");
+        must(SABOTAGE_CONCEAL.despairPenalty < 0, "the Despair concealment costs nothing on the total - this would measure nothing");
+        ok(typeof A.sabotageBar === "function", "action-rolls.mjs exports no `sabotageBar`: the window and the judge read no one bar");
+        const bar = typeof A.sabotageBar === "function" ? A.sabotageBar : () => [];
+        const seen = [];
+        for (const penalty of [0, SABOTAGE_CONCEAL.despairPenalty]) {
+            for (const relief of [0, 1, 2]) {
+                const least = def.thresholds.map(band => {
+                    for (let total = 0; total <= 40; total++) {
+                        const hit = A.sabotageHit({ total, isCritical: false }, { penalty, relief }, def);
+                        const at = hit ? def.thresholds.findIndex(b => b.result === hit.result) : -1;
+                        if (at >= def.thresholds.indexOf(band)) return total;
+                    }
+                    return null;
+                });
+                const shown = bar(def, relief, penalty).map(b => b?.min ?? null);
+                seen.push([penalty, relief, stableJson(shown) === stableJson(least) ? "same" : `shown ${shown.join(" / ")}, judged ${least.join(" / ")}`]);
+            }
+        }
+        equal(stableJson(seen), stableJson([[0, 0, "same"], [0, 1, "same"], [0, 2, "same"],
+            [SABOTAGE_CONCEAL.despairPenalty, 0, "same"], [SABOTAGE_CONCEAL.despairPenalty, 1, "same"], [SABOTAGE_CONCEAL.despairPenalty, 2, "same"]]),
+            "a bar's number is not the least total the judge puts in its band [penalty, relief, verdict]");
+        /* E16 fix e1-G3 (the review's E16R-06): the bar and the judge agree by construction (`sabotageHit` reads
+           `sabotageBar`), so a bar eased the wrong way - `min + penalty`, 11 / 17 for a Despair concealment - passed the
+           rows above in both. Held here to the rule itself, read off the guide's table: the total plus the penalty
+           (-1 on Despair) must reach a band's number less a tool's relief, so the least total is `min - relief - penalty`
+           (13 / 19 on Despair with no tool). Reliefs 0 and 1. */
+        const rule = [];
+        for (const penalty of [0, SABOTAGE_CONCEAL.despairPenalty]) {
+            for (const relief of [0, 1]) rule.push([penalty, relief, stableJson(bar(def, relief, penalty).map(b => b?.min ?? null))
+                === stableJson(def.thresholds.map(band => band.min - relief - penalty)) ? "rule" : bar(def, relief, penalty).map(b => b?.min ?? null).join(" / ")]);
+        }
+        equal(stableJson(rule), stableJson([[0, 0, "rule"], [0, 1, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 0, "rule"], [SABOTAGE_CONCEAL.despairPenalty, 1, "rule"]]),
+            "a bar's number is not the guide's number less the relief and the penalty [penalty, relief, the bar where it is not]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const perform = fnSource(src, "performSabotage"), judge = fnSource(src, "sabotageHit");
+        equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),
+            "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
+    }],
+
+    ["R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet.mjs `roomBlockFor` answers nothing for \"project\" and the room's note for \"search\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list", async () => {
+        /*
+         * E16 part 2 C4, 26.10.2026. "project" stood on roomBlockFor's list of actions the room can block, so in a
+         * corridor the Projects tile was struck through with "You are not in any room", while proposing a project
+         * works anywhere - the note at the end of the same function says so - and the first project of a world is
+         * always proposed from a room with none. The comment above the list said "five" over six. A stand-in
+         * character no token on any scene holds (`locateActor` answers null for it: standing nowhere) is asked
+         * about both tiles; then the function's source is read for its list and the count its comment gives.
+         * Nothing is written; no phase is asked.
+         */
+        const sheet = await import("./sheet.mjs");
+        ok(typeof sheet.roomBlockFor === "function", "sheet.mjs exports no `roomBlockFor` - the tiles' room reasons cannot be read");
+        const ask = typeof sheet.roomBlockFor === "function" ? sheet.roomBlockFor : () => "no export";
+        const nowhere = { id: "R986nowhere00000", name: "R986 nobody", type: "character", getFlag: () => undefined, items: [] };
+        const noRoom = game.i18n.localize("DRPG.Action.noRoomNote");
+        must(ask(nowhere, "search") === noRoom || typeof sheet.roomBlockFor !== "function",
+            `a character standing nowhere is not told "${noRoom}" on the Search tile - this would measure nothing`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText);
+        const list = (fnSource(src, "roomBlockFor").match(/const roomBound = \[([^\]]*)\]/)?.[1] ?? "").split(",").map(x => x.trim()).filter(Boolean);
+        const said = fnSource(raw, "roomBlockFor").match(/Only the (\w+) actions whose subject lives in the room/)?.[1] ?? null;
+        const WORDS = { four: 4, five: 5, six: 6, seven: 7 };
+        equal(stableJson({ project: ask(nowhere, "project"), search: ask(nowhere, "search") === noRoom, listed: list.includes('"project"'), counted: WORDS[said] === list.length }),
+            stableJson({ project: null, search: true, listed: false, counted: true }),
+            `the Projects tile is struck through outside a room, or roomBlockFor's comment miscounts its list [Projects' reason, Search's is the room's note, "project" listed, the comment's count]: list ${stableJson(list)}, said ${said}`);
+    }],
+
+    ["R987 - a trap's victim throws Body first on Leave a clue and Secure a trace (E16-T34; audit S13-31, the owner's D16): each `indirectVictim` list starts with Body and holds no Shadow, the direct tables keep Shadow, and where nobody picks - an armed Resolve - and on the GMs' window's default the victim's throw is Body", async () => {
+        /*
+         * E16 part 2 C5, 26.10.2026. The guide's table for a trap's victim rolls Body where the direct one rolls
+         * Shadow, and murder-rules.mjs said so ("Body, not Shadow"), but config listed Hand / Leg / Body: an armed
+         * Resolve, which takes the first listed statistic (trait-ruling.mjs `traitFor`), and the GMs' window,
+         * whose first button is its default (`pickHere`), both put a trap's victim on Hand, as the direct table
+         * does. Read from config through the ruling's own reader (`listedTraits`) and its pick on stubs (`seams`:
+         * a player's browser with Resolve armed; a GM's browser whose window presses its default). Pure; nothing
+         * is written; no phase is asked.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const A = { id: "R987ACTOR0000001", name: "R987" };
+        const read = {};
+        for (const key of ["leaveClue", "secureTrace"]) {
+            must(CRISIS_ACTIONS[key]?.indirectVictim, `CRISIS_ACTIONS.${key} has no table for a trap's victim - this would measure nothing`);
+            const trap = T.listedTraits({ kind: "crisis", key, variant: "indirectVictim" });
+            const direct = T.listedTraits({ kind: "crisis", key });
+            const resolve = await T.traitFor(A, { kind: "crisis", key, variant: "indirectVictim" }, { isGm: false, resolveArmed: () => true });
+            const window = await T.traitFor(A, { kind: "crisis", key, variant: "indirectVictim" },
+                { isGm: true, resolveArmed: () => false, pickHere: async (actor, spec, listed) => listed[0] });
+            read[key] = [trap[0] ?? null, trap.includes("shadow"), direct.includes("shadow"), resolve?.trait ?? null, window?.trait ?? null];
+        }
+        equal(stableJson(read), stableJson({ leaveClue: ["body", false, true, "body", "body"], secureTrace: ["body", false, true, "body", "body"] }),
+            "a trap's victim does not throw Body first [the trap table's first statistic, Shadow on it, Shadow on the direct table, Resolve's throw, the GMs' default]");
+    }],
+    ["R988 - the room tile's picture and the voice tile's portrait lean with their pane (H83, the owner's 26.10.2026 note): each layer is turned by the very rotation its tile wears, still cut to its pane's outline and still covering the pane, and with no turn it is the pane's upright box as before", async () => {
+        /*
+         * H83, 26.10.2026. Under Stained Glass a block turns with its pane (glass.mjs, "A block is rotated with its
+         * pane"), so a portrait drawn in a block leans with the tile; the two pictures `seatRoomArt` and `seatVoiceArt`
+         * lay on the body over the curtain stood upright inside a leaning pane. jsdom lays nothing out, so this reads
+         * the cut `cutBoxes` makes of R545's blocks (a player at 1920x1080, measured in Chromium on 14.10) and hands each
+         * pane and its tile's rotation to `paneLayer`, the box both seats write; the seats themselves are read in the
+         * source. Pure; nothing is written; no phase is asked.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.paneLayer === "function" && typeof G.cutBoxes === "function", "glass.mjs gives a test no road to the pictures' layer");
+        if (typeof G.paneLayer !== "function" || typeof G.cutBoxes !== "function") return;
+        const blocks = [["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: ["note-block", "room-block"].includes(cls) }));
+        // R549's: a player at 1366x768, the room tile beside the notices, where its column leans 6 degrees
+        const notes = [["hud", 16, 22, 265, 180], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 91],
+            ["note-block", 16, 446, 301, 252], ["room-block", 385, 608, 301, 129], ["voice-block", 1179, 253, 181, 262], ["launch", 1250, 643, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: ["note-block", "room-block"].includes(cls) }));
+        const turnOf = t => parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(t ?? "")?.[1] ?? "0");
+        // a layer's point (x, y) on the screen: turned by its transform about its origin, from its box's corner
+        const onScreen = (L, [x, y]) => { const a = turnOf(L.transform), [ox, oy] = L.origin.split(" ").map(parseFloat), c = Math.cos(a), s = Math.sin(a);
+            const X = x - ox, Y = y - oy; return [L.left + ox + X * c - Y * s, L.top + oy + X * s + Y * c]; };
+        const clipOf = L => (/polygon\((.*)\)/.exec(L.clip)?.[1] ?? "").split(",").map(q => q.trim().split(/\s+/).map(parseFloat));
+        const read = {};
+        for (const [cls, sel] of [["room-block", "#drpg-room-tile"], ["voice-block", "#drpg-voice-tile"], ["note-block", null]]) {
+            for (const [W, H, set] of [[1920, 1080, blocks], [1366, 768, notes]]) {
+                const cut = G.cutBoxes(W, H, set), pane = cut.panes.find(p => p.tone === cls && p.poly?.length);
+                if (!pane || (!sel && read.control)) continue;
+                const tile = sel ? cut.rotations.find(r => r.sel === sel) : null, phi = sel ? turnOf(tile?.transform) : 0.1;
+                const L = G.paneLayer(pane.poly, phi), clip = clipOf(L);
+                const miss = Math.max(...pane.poly.map((q, i) => { const p = clip[i] ? onScreen(L, clip[i]) : [NaN, NaN]; return Math.hypot(p[0] - q[0], p[1] - q[1]); }));
+                const cover = clip.every(([x, y]) => x >= -0.05 && y >= -0.05 && x <= L.width + 0.05 && y <= L.height + 0.05);
+                // the clip is written to 0.1 px and the origin to 0.01: a corner lands within 0.08 px of the pane's
+                const row = { W, phi: Number(phi.toFixed(4)), same: sel ? L.transform === (Math.abs(phi) < 0.004 ? "none" : tile.transform) : turnOf(L.transform) === 0.1,
+                    points: clip.length === pane.poly.length, miss: Number(miss.toFixed(3)), cover };
+                if (sel) (read[cls] ??= []).push(row); else read.control = row;
+            }
+        }
+        const rows = [...(read["room-block"] ?? []), ...(read["voice-block"] ?? [])];
+        ok(rows.length === 4 && ["room-block", "voice-block"].every(k => read[k]?.some(r => Math.abs(r.phi) >= 0.004)), `the cut did not turn each tile somewhere (${JSON.stringify(read)}) - this would measure no lean`);
+        ok([...rows, read.control].every(r => r?.same && r.points && r.miss < 0.08 && r.cover),
+            `a picture does not lean with its pane or leaves its outline: ${JSON.stringify(read)}`);
+        const flat = G.paneLayer([[10, 20], [110, 30], [100, 220], [0, 200]], 0);
+        equal(JSON.stringify([flat.left, flat.top, flat.width, flat.height, flat.transform]), JSON.stringify([0, 20, 110, 200, "none"]), "[the upright layer's box and its turn] - the pane's own box, as before H83");
+        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        const seat = (name, sel) => { const f = fnSource(glass, name); return [new RegExp(`paneLayer\\(pane\\.poly, tileTurn\\("${sel}"\\)\\)`).test(f), /"transform", "transform-origin"/.test(f)]; };
+        equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
+            "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
+    }],
+    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-rolls.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
+        /*
+         * E16 fix e1-G2, 26.10.2026. On "ack" a refusal of the run came to a player's browser once `locateStash` and
+         * `searchStash` had returned: a Class Trial opened while a hunt was in flight kept its price, and a reach refused
+         * after the "got it" left a Search's Prep Remnant for a thing that never moved. Tier 2 cannot run a player's
+         * browser (E16-T39 drives the packets on the GM); the two readers are read here. Nothing is written; no phase is
+         * asked.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const locate = fnSource(src, "locateStash"), search = fnSource(src, "searchStash");
+        must(locate.length > 200 && search.length > 200, "locateStash or searchStash is gone - the reads below would measure nothing");
+        const at = (body, re) => body.search(re);
+        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*if \(charge\) await refundPrice\(actor, charge\);\s*return null;/);
+        const card = at(locate, /DRPG\.Analyze\.stashSent/), asked = at(locate, /await requestStashSearch\(/), noted = at(locate, /noteRollContext\(/);
+        equal(stableJson([BRIDGE_ACTIONS["vault.findStash"]?.answer ?? null, BRIDGE_ACTIONS["vault.steal"]?.answer ?? null,
+            card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted,
+            /game\.user\.isGM \? res\.value : res\.value\?\.taken \? \{ pending: true \} : null/.test(search)]),
+        stableJson(["reply", "reply", true, true, true, true]),
+            "a refusal of a player's stash hunt or reach is heard after its asker returned, or the asker does not read it "
+            + "[vault.findStash's answer, vault.steal's answer, locateStash's card before its request, the request before the refund of a refusal, "
+            + "the refund before the roll is noted, searchStash's player's `got` read off `taken`]");
+    }],
+    ["R990 - Create an item picks its picture from the module's item drawings, as a project picks its icon (H83, the owner's 26.10.2026 note): one radio cell per drawing itemIcon names, the category's own first and storing nothing, Another file last; a cell puts its drawing in img.new and the preview, the first cell \"\" and the category's drawing; a preset's picture lights its own cell, or Another file with that file", async () => {
+        /*
+         * H83 item 3, 26.10.2026. The owner: the project's icon grid is liked, and Create an item should choose its
+         * picture the same way, from the drawings the module already ships (icons/item-*.svg, config.mjs `itemIcon`).
+         * Before: one thumbnail that opened a file browser, so picking "the Tools drawing" meant finding
+         * modules/danganronpa-rpg/icons/ by hand. The real window on this GM, opened three times (no preset, a preset
+         * holding a drawing, a preset holding another file) and closed; nothing is pressed but the cells, and Add is
+         * never pressed, so nothing is written (tier 1's dump holds it). The file browser is stood in for while Another
+         * file is pressed, so none is opened here: whether v14's browser answers as `callback` expects is not read.
+         */
+        const T = await import("./tables.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const drawings = [...new Set(Object.keys(ITEM_CATEGORIES).map(key => itemIcon(key)))];
+        must(drawings.length >= 2, "itemIcon names fewer than two drawings - the cells below would measure nothing");
+        must(!document.querySelector(".drpg-window-tables"),
+            "the item tables window is open here, and would be raised rather than asked for");
+        const outside = "icons/svg/hazard.svg";
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
+        const inWindow = async (preset, read) => {
+            const opening = T.openItemTables(preset ? { preset } : {});
+            try {
+                await until(() => tablesApp());
+                await settle();
+                const pane = tablesApp()?.element?.querySelector('[data-drpg-gmt-section="newItem"]');
+                return pane ? await read(pane) : "no Create an item pane";
+            } finally {
+                try { await tablesApp()?.close(); } catch { /* already gone */ }
+                try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+                await settle();
+            }
+        };
+        const state = pane => {
+            const cells = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')];
+            const at = cells.findIndex(c => c.checked);
+            return { at, stored: pane.querySelector('[name="img.new"]')?.value ?? null,
+                shown: pane.querySelector(".drpg-tables-new-head > img")?.getAttribute("src") ?? null };
+        };
+
+        const plain = await inWindow(null, async pane => {
+            const cells = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')];
+            const values = cells.map(c => c.value);
+            const last = cells.at(-1) ?? null;
+            const opened = state(pane);
+            const picked = [];
+            for (let n = 0; n < drawings.length; n += 1) {
+                if (!cells[n + 1]) { picked.push(state(pane)); break; }
+                cells[n + 1].click();
+                picked.push(state(pane));
+            }
+            cells[0]?.click();
+            const back = state(pane);
+            /* Another file, with the file browser stood in for (its class's `implementation`, put back below): a click asks
+               it once and lights nothing yet, its answer is stored, shown and lit there, and an answer that is one of the
+               drawings lights that drawing's cell. */
+            const FP = foundry.applications.apps.FilePicker;
+            const own = Object.getOwnPropertyDescriptor(FP, "implementation");
+            const asked = [];
+            const file = { asked: null, before: null, answered: null, drawing: null };
+            try {
+                Object.defineProperty(FP, "implementation", { configurable: true,
+                    get: () => class { constructor(options) { asked.push(options); } render() { return this; } } });
+                last?.click();
+                file.asked = asked.map(o => o?.type ?? null);
+                file.before = state(pane);
+                asked[0]?.callback?.(outside);
+                file.answered = { ...state(pane),
+                    cellShows: last?.closest(".drpg-choice")?.querySelector("img:not([hidden])")?.getAttribute("src") ?? null };
+                asked[0]?.callback?.(drawings[0]);
+                file.drawing = state(pane);
+            } finally {
+                if (own) Object.defineProperty(FP, "implementation", own); else delete FP.implementation;
+            }
+            cells[0]?.click();
+            const category = String(pane.querySelector("[name=newCategory]")?.value ?? "").split(":")[0];
+            return { count: cells.length, groups: new Set(cells.map(c => c.name)).size, first: values[0] ?? null,
+                middle: values.slice(1, -1), lastIsFile: Boolean(last) && last.value !== "" && !drawings.includes(last.value),
+                opened, picked, back, file, own: itemIcon(category) };
+        });
+        equal(stableJson(typeof plain === "string" ? plain : [plain.count, plain.groups, plain.first, plain.middle, plain.lastIsFile]),
+            stableJson([drawings.length + 2, 1, "", drawings, true]),
+            "Create an item does not offer one radio group of the category's own (storing \"\"), each item drawing, and Another "
+            + "file last [cells, radio groups, the first cell's value, the cells between, the last cell is neither]");
+        equal(stableJson(typeof plain === "string" ? plain : [plain.opened, plain.picked, plain.back]),
+            stableJson([{ at: 0, stored: "", shown: plain.own ?? null },
+                drawings.map((path, n) => ({ at: n + 1, stored: path, shown: path })),
+                { at: 0, stored: "", shown: plain.own ?? null }]),
+            "a cell does not light, put its drawing in img.new and show it, or the category's own does not store nothing and "
+            + "show the category's drawing [as opened, after each drawing's cell, after the first cell again]");
+        const ownShown = plain.own ?? null;
+        equal(stableJson(typeof plain === "string" ? plain : plain.file),
+            stableJson({ asked: ["image"], before: { at: 0, stored: "", shown: ownShown },
+                answered: { at: drawings.length + 1, stored: outside, shown: outside, cellShows: outside },
+                drawing: { at: 1, stored: drawings[0], shown: drawings[0] } }),
+            "Another file does not ask the image browser once and wait for its answer, or its answer is not stored, shown and "
+            + "lit in that cell, or a drawing it returns does not light the drawing's cell [asked, before the answer, a file, a drawing]");
+
+        const chosen = drawings[1];
+        const presetDrawing = await inWindow({ category: "tool", tier: 2, name: "", img: chosen }, async pane => state(pane));
+        const presetFile = await inWindow({ category: "tool", tier: 2, name: "", img: outside }, async pane => {
+            const s = state(pane);
+            const last = [...pane.querySelectorAll('.drpg-choice input[type="radio"]')].at(-1);
+            return { ...s, last: [...pane.querySelectorAll('.drpg-choice input[type="radio"]')].length - 1,
+                cellShows: last?.closest(".drpg-choice")?.querySelector("img")?.getAttribute("src") ?? null };
+        });
+        equal(stableJson([presetDrawing, presetFile]),
+            stableJson([{ at: 2, stored: chosen, shown: chosen },
+                { at: drawings.length + 1, stored: outside, shown: outside, last: drawings.length + 1, cellShows: outside }]),
+            "a preset's picture does not light its drawing's cell, or a file that is no drawing does not light Another file "
+            + "and show the file there [a preset holding a drawing, a preset holding another file]");
     }],
 ];
 

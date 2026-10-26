@@ -15,7 +15,7 @@
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, USABLE_KINDS, itemIcon,
     TABLE_NAME_WORDS, TABLE_COPY_WORDS }
     from "./config.mjs";
-import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
+import { dialogContent, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen } from "./live.mjs";
@@ -1767,6 +1767,136 @@ async function presetTargetsFor(tables, preset) {
     return presetTargets;
 }
 
+/*
+ * THE ITEM'S PICTURE IS PICKED AS A PROJECT'S ICON IS (H83, the owner's 26.10.2026 note: "Bardzo mi sie podoba wybor
+ * ikonek w projekcie - czy w tworzeniu itema w item tables tez mozemy zrobic cos takiego?", and "Chodzi mi o uzycie juz
+ * istniejacych ikonek w module").
+ *
+ * Until 1.2.86 the pane had one thumbnail that opened a file browser, so giving a new screwdriver the Tools drawing
+ * meant finding modules/<module>/icons/ by hand. Now it is a grid of `.drpg-choice` radio cells, as projects-ui.mjs
+ * `glyphGrid` draws a project's: one cell per drawing the module ships for its categories (config.mjs `itemIcon`, one
+ * file per category: six at 1.2.86), and around them two that are not drawings.
+ *
+ * The first is the category's own and stores NOTHING, as the glyph grid's default does: `img.new` stays "", and
+ * `addResult` gives the entry `itemIcon` of its table's category, exactly as before this grid. A GM who never touches
+ * it leaves no choice behind, so "no choice" stays tellable from "chose the Usable drawing". The last is Another file:
+ * the file browser as it was (the owner's default, kept), and the file it returns is shown in that cell.
+ *
+ * `img.new` is still the record and the only thing Add reads (`readNewItemForm`); the radios are a view of it, painted
+ * from it (`paintItemPicture`), so a preset's picture lights its drawing's cell, or Another file with the file in it.
+ * In a `<details>`, as the glyph grid is, open when a picture is stored (a preset's), and its closed line names the
+ * cell that is lit. Against 1.2.85's tab, closed it adds 20 to 34 px and open 126 to 237 px, the eight cells three
+ * rows of the label grid's field column (read in the stand-in: Chromium, 1366x768, both themes, a 13 and a 16 px root,
+ * English and Polish; under Stained Glass the tab was already taller than the window there, and scrolls further).
+ */
+const OTHER_PICTURE = "file";
+
+/** The drawings a new entry may wear: one per category's file, each named by its first category. */
+function itemDrawings() {
+    const seen = new Map();
+    for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+        const path = itemIcon(key);
+        if (!seen.has(path)) seen.set(path, { path, label: cat.label ?? key });
+    }
+    return [...seen.values()];
+}
+
+function itemPictureGrid(current) {
+    const cell = (value, swatch, label) => `<label class="drpg-choice drpg-glyph-choice drpg-item-picture-choice"
+                title="${esc(label)}">
+            <input type="radio" name="newImgChoice" value="${esc(value)}" />
+            ${swatch}
+            <span class="drpg-glyph-name">${esc(label)}</span>
+        </label>`;
+    const img = (src, data = "") => `<img class="drpg-item-picture-swatch"${src ? ` src="${esc(src)}"` : ""} alt=""${data} />`;
+    const label = game.i18n.localize("DRPG.Tables.picture");
+    // The swatches carry their sources here; which cell is lit is painted from `img.new` once the window is up.
+    const cells = [
+        cell("", img(itemIcon(null), " data-drpg-picture-own"), game.i18n.localize("DRPG.Tables.pictureOwn")),
+        ...itemDrawings().map(d => cell(d.path, img(d.path), d.label)),
+        cell(OTHER_PICTURE, `${img(current, " data-drpg-picture-file hidden")}
+            <i class="fa-solid fa-folder-open" inert></i>`, game.i18n.localize("DRPG.Tables.pictureFile"))
+    ];
+    return `<div class="drpg-tables-picture">
+                    <span class="drpg-tables-picture-label">${esc(label)}</span>
+                    <details class="drpg-glyph-picker drpg-item-picture-picker"${current ? " open" : ""}>
+                        <summary data-drpg-picture-summary>${esc(pictureName(current))}</summary>
+                        <div class="drpg-glyph-grid drpg-item-picture-grid" role="radiogroup" aria-label="${esc(label)}"
+                             data-drpg-item-pictures>${cells.join("")}</div>
+                    </details>
+                </div>`;
+}
+
+/** What the closed picker's line says: the name of the cell `img.new` lights. */
+function pictureName(stored) {
+    if (!stored) return game.i18n.localize("DRPG.Tables.pictureOwn");
+    return itemDrawings().find(d => d.path === stored)?.label ?? game.i18n.localize("DRPG.Tables.pictureFile");
+}
+
+/** The cells and the preview, painted from `img.new`: the record wins, whatever was clicked last. */
+function paintItemPicture(root) {
+    const stored = root.querySelector('[name="img.new"]')?.value ?? "";
+    const own = itemIcon(String(root.querySelector("[name=newCategory]")?.value ?? "").split(":")[0]);
+    const lit = !stored ? "" : itemDrawings().some(d => d.path === stored) ? stored : OTHER_PICTURE;
+    for (const radio of root.querySelectorAll('[name="newImgChoice"]')) radio.checked = radio.value === lit;
+    root.querySelector(".drpg-tables-new-head > img")?.setAttribute("src", stored || own);
+    root.querySelector("[data-drpg-picture-own]")?.setAttribute("src", own);
+    const summary = root.querySelector("[data-drpg-picture-summary]");
+    if (summary) summary.textContent = pictureName(stored);
+    const file = root.querySelector("[data-drpg-picture-file]");
+    if (file) {
+        const shown = lit === OTHER_PICTURE;
+        if (shown) file.setAttribute("src", stored);
+        file.hidden = !shown;
+        const glyph = file.parentElement?.querySelector(":scope > i");
+        if (glyph) glyph.hidden = shown;
+        file.closest(".drpg-choice")?.setAttribute("title", shown ? stored : game.i18n.localize("DRPG.Tables.pictureFile"));
+    }
+}
+
+function wireItemPicture(root) {
+    const grid = root.querySelector("[data-drpg-item-pictures]");
+    if (!grid) return;
+    if (!grid.dataset.drpgWired) {
+        grid.dataset.drpgWired = "1";
+        grid.addEventListener("change", ev => {
+            const radio = ev.target.closest?.('[name="newImgChoice"]');
+            if (!radio || radio.value === OTHER_PICTURE) return;
+            const field = root.querySelector('[name="img.new"]');
+            if (field) field.value = radio.value;
+            paintItemPicture(root);
+        });
+        /*
+         * ANOTHER FILE IS A COMMAND, NOT A STATE. Its click is cancelled, so the cell lit stays the one `img.new` names
+         * until the browser answers: a browser closed without a pick leaves the old choice lit and stored, never a lit
+         * Another file over a field that still says the category's own. A click on the cell's text reaches the radio
+         * as the label's own click, and Space or an arrow key landing on it is a click too (read in Chromium: an arrow
+         * onto the cell opens the browser and leaves the earlier cell lit), so this one listener hears them all. The
+         * cells are painted back at once as well: a cancelled radio click puts back the group's earlier choice in
+         * Chromium (read), and jsdom only unticks the clicked one (read in the harness: no cell lit). The answer is
+         * looked up in `root` when it arrives, as `wirePortraitPickers` does (F13).
+         */
+        grid.addEventListener("click", ev => {
+            const radio = ev.target.closest?.(`[name="newImgChoice"][value="${OTHER_PICTURE}"]`);
+            if (!radio) return;
+            ev.preventDefault();
+            paintItemPicture(root);
+            new foundry.applications.apps.FilePicker.implementation({
+                type: "image",
+                current: root.querySelector('[name="img.new"]')?.value || DEFAULT_RESULT_IMG,
+                callback: path => {
+                    const live = root.querySelector('[name="img.new"]');
+                    if (live) live.value = path;
+                    paintItemPicture(root);
+                }
+            }).render(true);
+        });
+        // The category's own follows the category: the preview and the first cell show what Add would give.
+        root.querySelector("[name=newCategory]")?.addEventListener("change", () => paintItemPicture(root));
+    }
+    paintItemPicture(root);
+}
+
 /** The "add an item" tab: what the entry is, where it can go, what else it can do. */
 function newItemPaneHtml(preset, presetTargets, roomTablesList) {
     /*
@@ -1828,13 +1958,14 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
             <fieldset class="drpg-tables-new">
                 <legend>${game.i18n.localize("DRPG.Tables.addItem")}</legend>
                 <div class="drpg-tables-new-head">
-                    <img src="${esc(preset?.img || DEFAULT_RESULT_IMG)}" alt=""
-                         class="drpg-project-portrait" data-drpg-portrait="new" />
+                    <img src="${esc(preset?.img || itemIcon(presetChoice?.key ?? categoryList[0]?.key))}" alt=""
+                         class="drpg-tables-preview" />
                     <input type="hidden" name="img.new" value="${esc(preset?.img || "")}" />
                     <label>${game.i18n.localize("DRPG.Items.name")}
                         <input type="text" name="newName" value="${esc(preset?.name ?? "")}"
                                placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
                 </div>
+                ${itemPictureGrid(preset?.img || "")}
                 <label>${game.i18n.localize("DRPG.Items.description")}
                     <textarea name="newText" rows="2"
                         placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
@@ -2544,7 +2675,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
                 },
                 always: ["close"]
             });
-            wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
+            wireItemPicture(root);
 
             for (const pane of root.querySelectorAll("[data-drpg-pane]")) wirePoolPane(pane, root);
             root.querySelector('[data-drpg-pane] input[aria-invalid="true"]')?.focus();

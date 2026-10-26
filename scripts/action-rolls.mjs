@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable, rolesOf } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -38,7 +38,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
-import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
+import { callGm, promptAndCallGm, promptForRequest } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
@@ -718,7 +718,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // A Free Critical still throws the dice - it just decides in advance what
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
-    const { LOADED_DIE } = await import("./forced-roll.mjs");
+    const { LOADED_DIE, loadedDieHeld } = await import("./forced-roll.mjs");
 
     // Always open the configuration window.
     //
@@ -807,8 +807,10 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // claim's `facts` told it which.
     const drawn = result?.[DRAWN_ROLL] ?? null;
     if (armedCalls.length && !drawn) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
-    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did.
-    const loaded = drawn ? drawn.loaded === true : free;
+    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did (E28). On a roll this browser
+    // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
+    // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
+    const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
 
     const outcome = {
         total,
@@ -1600,7 +1602,7 @@ function traitFieldHtml(actor, traits, { note = "" } = {}) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    return `<label class="drpg-trait-field">${game.i18n.localize("DRPG.Advance.whichTrait")}
+    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
         <select name="trait">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
     </label>`;
@@ -1998,6 +2000,8 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
                 label: game.i18n.localize("DRPG.Bridge.giveItem"),
                 data: { by: actor.id }
             },
+            // The GM's "there is none" is the Search's result, paid; the refusal is its own button (E16 C1).
+            ruledMissAction(actor),
             declineAction(actor, paid)
         ]
     });
@@ -2061,7 +2065,7 @@ async function searchNothing(actor, def, roll, { room, scene, category, goalKey,
 // room's own contents once the stash is empty. Nothing is drawn for a stash
 // - the loot is whatever its owner actually put in it, which is what makes
 // rifling through one worth the action.
-async function searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra = "", stash = null }) {
+async function searchStash(actor, def, roll, { room, scene, category, goalKey, tier, hit = null, stashOwner, stashLoot, extra = "", stash = null }) {
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
     // The declaration still counts. Somebody rummaging for a weapon who
@@ -2088,12 +2092,34 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
         // module uses: Despair, and a critical is never clumsy.
         clumsy: Boolean(roll.withFear) && !roll.isCritical
     });
-    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out - and on a GM's
-    // own client a refusal settles as done with `{ refused }` as its value, told already (E14 fix e1-G1).
-    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : { pending: true }) : null;
+    // What came out, on a GM's own client; that the GM moved it, on a player's (the answer's `taken`, E16 fix e1-G2); null
+    // when not carried out - and on a GM's own client a refusal settles as done with `{ refused }` as its value, told
+    // already (E14 fix e1-G1).
+    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : res.value?.taken ? { pending: true } : null) : null;
+
+    /*
+     * A WEAPON OUT OF A STASH LEAVES ITS TRACE (E16 part 2 C4, 26.10.2026; audit S02-18, the owner's Q6 of 19.10:
+     * "tak"). The handbooks say a Murder Weapon or a Cleaning Tool taken by a Search leaves a Prep Remnant, and a
+     * Search of the room's table does (`traceTheFind`), but this road left none: an accomplice hid the knife in a
+     * stash, the killer took it out with a Search, and the room held no trace of it. The trace now follows the
+     * thing taken, as the room's does - its category and its roles (`leaveSearchTrace`, inventory.mjs
+     * `leavesTraceFor`), the band the Search reached - once the steal was carried out: on a GM's own client its
+     * answer, on a player's the GM's answer that it moved (`taken`). A steal refused, or not carried out (full hands),
+     * leaves none: until E16 fix e1-G2 `vault.steal` was answered "ack", and a player's trace followed the GM's
+     * acceptance of the packet - a Prep Remnant of a knife another reach had taken first (the review's E16p2-BEH-2).
+     */
+    let placed = null, leftTrace = false;
+    if (got) {
+        ({ placed, leftTrace } = await leaveSearchTrace(actor, def, roll, {
+            hit, room, tier,
+            category: taken.getFlag(MODULE_ID, "category") ?? category,
+            drawn: { name: taken.name, roles: rolesOf(taken) },
+            granted: typeof got.getFlag === "function" ? got : taken
+        }));
+    }
 
     await noteRollContext(actor, {
-        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
+        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true, ...remnantRef(placed)
     });
     // Palm's rule (ROLL-10): the card names what came out only when this
     // client SAW it come out. A player's request is answered on the GM's
@@ -2105,9 +2131,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
     await report(actor, def, roll, {
-        success: true, text, extra, stash, room, tokensLeft: SearchTokens.left(room, scene)
+        success: true, text, extra, stash, leftTrace, room, tokensLeft: SearchTokens.left(room, scene)
     });
-    return { success: true, roll, tier, fromVault: true };
+    return { success: true, roll, tier, fromVault: true, leftTrace };
 }
 
     /*
@@ -2429,7 +2455,7 @@ async function performSearch(actor, def, options) {
 
     if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, scene, category, goalKey, extra, stash });
 
-    if (stashLoot.length) return searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, scene, category, goalKey, tier, hit, stashOwner, stashLoot, extra, stash });
 
     const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
@@ -2554,15 +2580,17 @@ function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = ""
+    extra = "", confirm = null, traitNote = "", showShut = false
 } = {}) {
     const usable = options.filter(o => !o.disabled);
-    if (!usable.length) {
+    // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
+    // that closes it (E16 part 2 C4; S02-26, the Rest window) - the reasons are the answer the player needs.
+    if (!usable.length && !(showShut && options.length)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.noVariants"));
         return null;
     }
 
-    const first = usable[0].value;
+    const first = usable[0]?.value ?? null;
 
     // A row's details are a sibling of its <label>, not a child: a list is no phrasing
     // content, and the stylesheet unfolds the block right after the picked row.
@@ -2601,7 +2629,9 @@ export async function chooseVariant({
         </form>`),
         render: options.some(o => o.confirm)
             ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
-        buttons: [
+        buttons: !usable.length ? [
+            { action: "cancel", default: true, label: game.i18n.localize("DRPG.Panel.close") }
+        ] : [
             {
                 action: "ok", default: true,
                 label: confirmFor(first),
@@ -3327,6 +3357,24 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);
             if (ok && conceal.withFear) bonus += CONCEALED_WITH_DESPAIR;
+            /*
+             * A FAILED CONCEALMENT IS TOLD TO THE ROOM (E16 part 2 C4, 26.10.2026; audit S02-17, the owner's Q5 of
+             * 19.10: "samo"). The failure's sentence ("the others get a general description of what you are doing")
+             * went on the roller's own card alone, so the witnesses it names were told nothing unless a GM noticed it
+             * and passed it on - while a Sabotage seen in the same room is announced to that room by itself
+             * (`performSabotage`). The room is told now, as Sabotage tells it (`roomAudience`: the GMs, the roller's
+             * players and the players of everyone standing there), in a neutral sentence that names the roller and
+             * the room and no project: a trap is the murder, and its name is the killer's secret.
+             */
+            if (!ok) {
+                await announce({
+                    content: `<p><em>${game.i18n.format("DRPG.Project.concealSeen", {
+                        actor: foundry.utils.escapeHTML(actor.name),
+                        room: foundry.utils.escapeHTML(roomOfActor(actor) ?? "-")
+                    })}</em></p>`,
+                    whisper: roomAudience(actor)
+                });
+            }
         } else {
             bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
             lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
@@ -3603,7 +3651,8 @@ async function performSabotage(actor, def, options, preset = null) {
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
             byGm,
-            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
+            // The bar `sabotageHit` judges, so the window says what the total must reach (E16 C0).
+            dc: sabotageBar(def, relief, penalty).map(band => band.min).join(" / "),
             context: { room, targetProjectId: project.id, penalty, relief, witnesses: witnesses.length }
         });
     } finally {
@@ -3793,12 +3842,28 @@ export function sabotageWatchedLine(actor, room, project) {
 }
 
 /**
+ * The Sabotage table as the roll's own total has to reach it: each band's `min` eased by the readied
+ * tool's `relief` (never below 0), then moved by the concealment's `penalty` - a penalty of -1 (one
+ * thrown with Despair) takes one off the total, so the total must reach one more.
+ *
+ * ONE BAR FOR THE WINDOW AND THE JUDGE (E16 part 2 C0, 26.10.2026; audit S02-14). The window wrote
+ * `t.min - relief + penalty` while `sabotageHit` scored `total + penalty` against the eased bands:
+ * with the Despair concealment's -1 the window read "beat 11 / 17" and a total needed 13 / 19, so an
+ * 11 or a 12 read as a success and came back "Nothing happens.". Both read this now; tier 1's R985
+ * holds each number to the least total the judge puts in its band.
+ */
+export function sabotageBar(def = ACTIONS.sabotage, relief = 0, penalty = 0) {
+    return easedBy(def.thresholds, relief).map(band => ({ ...band, min: band.min - penalty }));
+}
+
+/**
  * The band of the Sabotage table a roll reaches, or null: `penalty` on its total (a concealment
- * thrown with Despair), the readied tool's `relief` off the bands. The one reading `performSabotage`
- * and the GM's band of the Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
+ * thrown with Despair), the readied tool's `relief` off the bands - read as `sabotageBar`, the
+ * numbers the roll window shows. The one reading `performSabotage` and the GM's band of the
+ * Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
  */
 export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTIONS.sabotage) {
-    return roll?.isCritical ? def.critical : resolveThreshold((Number(roll?.total) || 0) + penalty, easedBy(def.thresholds, relief));
+    return roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, sabotageBar(def, relief, penalty));
 }
 
     // Guide's Sabotage table, by the repair project it demands:
@@ -4024,8 +4089,9 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
         if (!traceId) return null;
         // The price is charged inside - `chargeTamper` takes one step of the
         // chain on both routes, after the concealment roll, and charging here as
-        // well would take two (T-1).
-        return cleanup.attemptCleanup(actor, traceId, { viaAction });
+        // well would take two (T-1). The row's number goes to the window (E16 C0).
+        const row = erasable.find(t => t.id === traceId);
+        return cleanup.attemptCleanup(actor, traceId, { viaAction, dc: row?.dc ?? null });
     }
 
     if (picked.value === "reshape") {
@@ -4036,8 +4102,9 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
         // out of the question costs nothing at all.
         const change = await cleanup.askTransformChange(actor);
         if (!change) return null;
+        const row = erasable.find(t => t.id === traceId);
         return cleanup.attemptCleanup(actor, traceId, {
-            viaAction, mode: "transform", change
+            viaAction, mode: "transform", change, dc: row?.dc ?? null
         });
     }
 
@@ -4404,7 +4471,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
     // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
     // rolls (told as nothing carried out, vault.mjs `plantOnPerson`; fix e1-G4).
-    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     await noteRollContext(actor, {
@@ -4424,6 +4491,16 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
 }
 
 /** The action a Palm paid, handed back by its receipt, and said where something was paid (E14 part 1 C1, Q3). */
+/*
+ * A PALM OR A PLANT NO GM WAS THERE TO TAKE (E16 part 2 C5, 26.10.2026; audit S02-15). The last GM gone between the dice
+ * and the ask: the bridge sends nothing and answers `noGm` (bridge-guards.mjs `bridgeRequest`), so no roll was read and
+ * nothing was carried out - before the rolls are read, as the owner's Q3 of 18.10 reads, so the action comes back as for
+ * the one gate's refusal. `noAnswer` stays paid: a GM may have carried it out and only the answer was lost.
+ */
+function nobodyTook(ok, reason) {
+    return !ok && reason === "noGm";
+}
+
 async function palmBack(actor, paid) {
     await abort(actor, paid);
     if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
@@ -4569,7 +4646,7 @@ async function performPalm(actor, def, options) {
      * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
      * out (`refused`, vault.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
-    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+    if (nobodyTook(res.ok, res.reason) || TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
@@ -4726,7 +4803,7 @@ function roomAudience(actor) {
 function declineAction(actor, receipt = null) {
     return {
         action: "decline",
-        label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+        label: game.i18n.localize("DRPG.Bridge.refuseAttempt"),
         data: {
             by: actor.id,
             paid: receipt ? (receipt.pay ?? "action") : "none",
@@ -4735,9 +4812,29 @@ function declineAction(actor, receipt = null) {
             // cannot work out for itself.
             grant: String(Boolean(receipt?.grant)),
             // The words the far side answers a free card with - this button's own
-            // (`ruleDecline`, E09 fix r2-G7).
-            words: "there"
+            // (`ruleDecline`, E09 fix r2-G7; "refused" since E16 C1, when the
+            // button stopped reading "Nothing was there").
+            words: "refused"
         }
+    };
+}
+
+/**
+ * "NOTHING WAS THERE" IS A SEARCH'S RESULT, AND "NO HELP" A HINT'S (E16 part 2 C1, 26.10.2026;
+ * audit S02-16). The "something specific" card and the hint card offered one way to say there
+ * was nothing, and it was the refusal (`declineAction`): it handed the action back and told the
+ * thread the GM "turned the attempt down", so a specific Search that found nothing cost nothing
+ * but the room's token, and a hint the GM had no help for was free. The split ACT-17 made for
+ * Observe (`missAction`), made here: this button keeps the price and says the GM's ruling in its
+ * own words (messenger-app.mjs `ruleSearchMiss`); "Refuse the attempt" beside it still gives the
+ * price back. `words` picks between the two sentences and nothing else - the card is the
+ * player's to rewrite, and either sentence costs nothing more than the other.
+ */
+function ruledMissAction(actor, words = "there") {
+    return {
+        action: "searchMiss",
+        label: game.i18n.localize(words === "help" ? "DRPG.Bridge.noHelp" : "DRPG.Bridge.nothingThere"),
+        data: { by: actor.id, words }
     };
 }
 
@@ -4764,8 +4861,9 @@ function missAction(actor) {
  * The two buttons every ruling gets when there is nothing mechanical to apply.
  *
  * "Reply" posts the GM's sentence into the thread the question arrived in;
- * "There is nothing" hands the price back, because a question that is never
- * answered has not been paid for. Both are handled in `runCallAction`.
+ * "No help" is an answer, and keeps the price (`ruledMissAction`, E16 C1);
+ * "Refuse the attempt" hands the price back, because a question that is never
+ * answered has not been paid for. All three are handled in `runCallAction`.
  *
  * THE STEP TRAVELS, AND THE FAR SIDE PRICES IT (T-1). This card is authored on
  * the PLAYER's client - `callGm` posts it into their own thread - so anything
@@ -4782,6 +4880,7 @@ function gmRulingActions(actor, receipt = null) {
             label: game.i18n.localize("DRPG.Bridge.reply"),
             data: { by: actor.id }
         },
+        ruledMissAction(actor, "help"),
         declineAction(actor, receipt)
     ];
 }
@@ -5080,6 +5179,32 @@ async function askDeclaration(actor, def) {
     return { declaration: picked.value, request: readRequestField(picked.form) };
 }
 
+/*
+ * ONE CLASS TRIAL FILTER FOR ANALYZE (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "Płatne opcje Analyze w
+ * procesie odfiltrować" ... "odmawia choice 'hint' i 'stash' w classTrial, także z pakietu"). In a trial Analyze only
+ * identifies Truth Bullets: its picker offered a GM's hint and a stash hunt there, each paid with an action and then with
+ * Hope or Sanity, and only the passage was taken off (E80 C3, by a phase test of its own). One list now, read by the
+ * picker (`askWhatToAnalyze`) and by `performAnalyze` before the price, whatever the picker returned: a row of the picker
+ * (`row`: "bullet", "hint", "stash", "passage") with the condition that shuts it in a Class Trial (`shut`, handed the
+ * row's context: for "bullet" the bullet). Outside a trial no row is shut, so none is greyed (the owner, 11.10 A10:
+ * "E16 zostawia jeden filtr, a wiersz poza rozprawą nigdy nie jest wyszarzony"). E70 appends its Key Remnant read here,
+ * with its test in 66-trial-modes (session 0, 11.10); Frisk is no row (13.10 A11: the GM-online check covers it). The
+ * GMs refuse the stash hunt in a trial on their side too (vault.mjs `resolveStashSearch`), and the passage
+ * (passages-gm.mjs `resolvePassageSearch`): this list is the player's window, not the protection.
+ */
+export const ANALYZE_TRIAL_FILTER = [
+    { row: "hint", shut: () => true },
+    { row: "stash", shut: () => true },
+    { row: "passage", shut: () => true }
+];
+
+/** Whether `row` of the Analyze picker is shut now (`ANALYZE_TRIAL_FILTER`): only in a Class Trial, by one of its conditions. */
+export function analyzeRowShut(row, { phase = getClock()?.phase, ...context } = {}) {
+    return phase === "classTrial" && ANALYZE_TRIAL_FILTER.some(entry => entry.row === row && entry.shut(context));
+}
+
+/* The request whose refusal a shut row is told as (bridge-guards.mjs `sayNotDone`). */
+const ANALYZE_ROW_REQUEST = Object.freeze({ bullet: "analyze.resolve", hint: "analyze.resolve", stash: "vault.findStash", passage: "passage.find" });
 
 /**
  * Analyze: one action, two uses, and they no longer end the same way.
@@ -5142,10 +5267,12 @@ async function performAnalyze(actor, def, options) {
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
-    // Find Passage is no road in a Class Trial (E80 C3): its row is not offered there, and an
-    // Analyze that names it anyway is refused here, before the price - the GM refuses it too.
-    if (choice === "passage" && getClock().phase === "classTrial") {
-        sayNotDone("passage.find", "trialLocked", { nothingSpent: true });
+    // A row the Class Trial filter shuts (`ANALYZE_TRIAL_FILTER`; E80 C3 for the passage, E16 part 2 C3 for the hint and
+    // the stash) is not offered there, and an Analyze that names it anyway is refused here, before the price - the GMs
+    // refuse the stash hunt and the passage too.
+    const row = ruled ? choice : "bullet";
+    if (analyzeRowShut(row, { bullet: subject })) {
+        sayNotDone(ANALYZE_ROW_REQUEST[row], "trialLocked", { nothingSpent: true });
         return null;
     }
     if (!gmOnline()) {
@@ -5343,14 +5470,38 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         sayNotDone("vault.findStash", "noGm", { nothingSpent: true });
         return null;
     }
+    /* A CLASS TRIAL OPENED WHILE THE DICE WERE IN THE AIR (E16 part 2 C3): the GMs refuse the hunt before its throw is
+       read (vault.mjs `resolveStashSearch`), so the price comes back - by analogy with E14 part 1's Q3 ("a refusal before
+       the rolls are read refunds", 18.10). Asked here first, where the price is known, and again on the GMs' answer
+       below: a trial opened while the packet was in flight is refused there (E16 fix e1-G2). */
+    if (analyzeRowShut("stash")) {
+        if (charge) await refundPrice(actor, charge);
+        sayNotDone("vault.findStash", "trialLocked", { nothingSpent: true });
+        return null;
+    }
+
+    /* THE ATTEMPT BEFORE ITS ANSWER (E16 fix e1-G2, 26.10.2026), as `locatePassage`'s since E80 fix r1-G3: `vault.findStash`
+       is answered "reply" now, once the GMs have judged the search and whispered what it found, so this card, posted after
+       the answer, would come under the result. Posted before the request; a refusal is said after it. The roll the GM
+       scores the search on is the one in hand as it is posted, from the GMs' record of it (E08+E28 C14). */
+    const rollId = rollInHand(actor)?.messageId ?? null;
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${game.i18n.localize("DRPG.Analyze.stashSent")}</p>`, rollCardFlags(def, roll));
 
     const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        // The roll the GM scores the search on, from its own record of it (E08+E28 C14).
-        rollId: rollInHand(actor)?.messageId ?? null
+        rollId
     });
+    /* A REFUSAL GIVES THE PRICE BACK (E16 fix e1-G2; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): every refusal of the
+       row comes before the throw is read - its guards, the roll's record, a Class Trial opened while the packet was in
+       flight (`resolveStashSearch`). A GM's own search refused settles as done with `{ refused }` as its value; a
+       player's is the bridge's refusal, said already in both. No fact of a search on the roll. A wait that ends with no
+       answer is no refusal: what the GMs did is not known here, and the price stays. */
+    if (res.ok ? Boolean(res.value?.refused) : Boolean(res.refused)) {
+        if (charge) await refundPrice(actor, charge);
+        return null;
+    }
 
     // NOT `gmRuled`. A Reroll replays this from a threshold (reroll.mjs `settleStashFind`, E80 C4), on the GMs'
     // facts that this roll was a Find Stash and whether it opened one: a player's written by gm-bridge.mjs
@@ -5361,13 +5512,8 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         ...(game.user?.isGM ? { stashFound: Boolean(res.value?.found), ...(res.value?.place ? { findPlace: res.value.place } : {}) } : {})
     });
 
-    // Silent on the outcome, like `analyseBullet`: this client does not know
-    // what is in the room and must not be told by the shape of its own card.
-    // The result arrives as its own whisper a moment later - when the GM's client
-    // has the request (E31 review); a refusal has been said once already.
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
-        game.i18n.localize("DRPG.Analyze.stashSent")}</p>` : ""}`, rollCardFlags(def, roll));
-
+    // The card above is silent on the outcome, like `analyseBullet`'s: this client does not know what is in the room and
+    // must not be told by the shape of its own card. The result is the GMs' own whisper.
     return { roll, subject: null };
 }
 
@@ -5462,13 +5608,14 @@ async function askWhatToAnalyze(actor, def, bullets) {
                     n: def.stashThreshold
                 })
             },
-            // Never disabled either (`locatePassage`), and in every room; not offered in a Class Trial (E80 C3).
-            ...(getClock().phase === "classTrial" ? [] : [{
+            // Never disabled either (`locatePassage`), and in every room.
+            {
                 value: "passage", icon: "fa-dungeon",
                 label: game.i18n.localize("DRPG.Analyze.findPassage"),
                 hint: game.i18n.format("DRPG.Analyze.findPassageHint", { n: def.passageThreshold })
-            }])
-        ],
+            }
+        // In a Class Trial the rows the filter shuts are not offered at all (`ANALYZE_TRIAL_FILTER`), never greyed.
+        ].filter(option => !analyzeRowShut(option.value)),
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
                 <select name="bullet">${bullets
@@ -5632,44 +5779,17 @@ async function performListen(actor, def, options) {
  * you are standing in actually allows it, so the choice is informed.
  */
 async function performRest(actor) {
-    const { takeRest, roomAllows, restRoomsSentence, restSpent } = await import("./rest.mjs");
-    const place = locateActor(actor);
-    const room = place?.room ?? null;
-
-    // One row per rest, each carrying its own price and its own reason for
-    // being unavailable - spent already, or not allowed in this room. Both
-    // reasons used to be printed above a pair of buttons that stayed live
-    // regardless, so the player could pick the one the list had just told them
-    // they could not have.
-    const variant = kind => {
-        const spent = restSpent(actor, kind);
-        const allowed = roomAllows(room, kind, place?.scene);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
-        // character's scene, the school's for one with no token (E12 fix r1-G4).
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
-
-        return {
-            value: kind,
-            icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
-            label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
-            hint: `${game.i18n.format("DRPG.Action.willCost",
-                { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
-                allowed
-                    ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
-                    : elsewhere}`,
-            disabled: spent || !allowed,
-            why: spent
-                ? game.i18n.localize(kind === "long"
-                    ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : elsewhere
-        };
-    };
-
+    const { takeRest, restVariants } = await import("./rest.mjs");
+    // One row per rest, each with its price and its reason for being unavailable (rest.mjs `restVariants`, which the
+    // sheet's tile reads too). With both shut the window still opens, the two rows greyed with their reasons
+    // (`showShut`; E16 part 2 C4, 26.10.2026, audit S02-26): it used to answer "Nothing here can be done right now."
+    // alone, and a player was not told where a rest could be taken, nor that it was taken already.
     const picked = await chooseVariant({
         actor,
         title: ACTIONS.rest.label,
         intro: briefingBlock(actor, "rest", ACTIONS.rest),
-        options: [variant("short"), variant("long")]
+        options: restVariants(actor),
+        showShut: true
     });
 
     if (!picked) return null;
@@ -5906,23 +6026,22 @@ async function performDynamic(actor, options) {
     // they have not heard yet, and asking the player to pick a threshold before
     // saying what they are doing is backwards.
     const dynDef = dynamicDef();
-    const description = await promptAndCallGm(actor, {
+    /*
+     * ONE CARD (E16 part 2 C1, 26.10.2026; audit S02-34). The description went out through
+     * `promptAndCallGm`, a card with a Reply alone, and the difficulty below asked again with the
+     * card that carries Set difficulty and Refuse (gm-bridge.mjs `askDynamicByCard`): two cards
+     * with one description, and the first stayed "Awaiting a ruling." in the thread for the rest of
+     * the season. The window is asked alone now (`promptForRequest`, no card), and the GMs' one
+     * card is the difficulty's; a GM's own action is ruled in a window and posts none. Tier 2's
+     * E16-T25 counts the cards.
+     */
+    const description = await promptForRequest({
         title: dynDef.label,
         intro: briefingBlock(actor, "dynamic", dynDef),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
-        required: true,
-        room: roomOfActor(actor),
-        // Only "reply" here, and no refusal: nothing has been spent yet at this
-        // point - the difficulty window that follows is where this action is
-        // accepted or not, and it already refunds nothing because it has
-        // charged nothing.
-        actions: [{
-            action: "reply",
-            label: game.i18n.localize("DRPG.Bridge.reply"),
-            data: { by: actor.id }
-        }]
+        required: true
     });
     if (description === null) return null;
 
@@ -5967,12 +6086,13 @@ async function performDynamic(actor, options) {
     if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
-        dc: Array.isArray(band.range) ? `${band.range[0]}-${band.range[1]}` : null,
+        // The number the band passes from (`dynamicBar`), as "beat N" (E16 C0).
+        dc: dynamicBar(band),
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
     if (!roll) return abort(actor, paid);
 
-    const success = roll.isCritical || roll.total >= band.range[0];
+    const success = roll.isCritical || roll.total >= dynamicBar(band);
     const visibility = success ? band.remnant : null;
     let placed = null;
 
@@ -6006,9 +6126,10 @@ async function performDynamic(actor, options) {
         success,
         tier: success ? band.tier : null,
         leftTrace,
-        text: success ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
+        text: success ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
+    if (success) await offerDynamicFind(actor, { tier: band.tier, room: roomOfActor(actor), description, roll, rollId: rollInHand(actor)?.messageId ?? null });
 
     // The GM's difficulty band is the one thing a reroll must NOT re-ask for:
     // the ruling was about what the player described, not about the dice.
@@ -6026,6 +6147,91 @@ async function performDynamic(actor, options) {
 }
 
 /**
+ * The GMs' card for a Dynamic action that succeeded: Create an item, prefilled with the band's tier,
+ * the room and the player's words; Give an existing item; and Reply, for a success that is no item.
+ *
+ * A SUCCESS THE GM CAN GIVE (E16 part 2 C2, 26.10.2026; audit S02-09, the owner's D16: "przy sukcesie
+ * Dynamic GM dostaje kartę z przyciskiem createItem, jak w searchSpecific"). A success told the player
+ * "Tier 1" and nothing else, and the GMs had no card to answer it from; the handbook's Dynamic action
+ * "can yield" an item, so whether one is made stays the GM's. The card is searchSpecific's shape, read
+ * by the same rules (messenger-app.mjs `ruleCreateItem` opens the tables prefilled and gives nothing;
+ * `ruleGiveItem` opens the GM's give window), with Reply in place of its two "nothing" answers: the
+ * roll succeeded, and the action stays paid. Posted by the client that judged the success - the
+ * roller's own here, a GM's for a Reroll that turns a miss (reroll.mjs `settleDynamic`). Tier 2's
+ * E16-T26 reads the card's data after a success, a Reroll of it and a Reroll from a miss.
+ */
+export async function offerDynamicFind(actor, { tier, room = null, description = "", roll = null, rollId = null } = {}) {
+    const sent = await callGm(actor, {
+        title: dynamicDef().label,
+        request: description,
+        roll,
+        room,
+        gmBody: `<p>${game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+        // Lowercase data keys only, as searchSpecific's: `dataset` lowercases them.
+        actions: [
+            {
+                action: "createItem",
+                label: game.i18n.localize("DRPG.Bridge.createItem"),
+                // `roll`: the roll's message, by which a Reroll that misses ends this card (`withdrawDynamicFind`).
+                data: { by: actor.id, tier: String(tier), room: room ?? "", want: description ?? "", roll: rollId ?? "" }
+            },
+            { action: "giveItem", label: game.i18n.localize("DRPG.Bridge.giveItem"), data: { by: actor.id } },
+            { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } }
+        ]
+    });
+    // Not posted (no GM connected, said once by `callGm`): the roll and its price stand - the success is the
+    // roll's, not the card's - and the player asks a GM for the item once one is back.
+    if (!sent) return false;
+    return true;
+}
+
+/**
+ * A SUCCESS A REROLL TOOK BACK ENDS ITS CARD (E16 fix e1-G3, 26.10.2026; the review's E16p2-BEH-3 = E16R-02 = E16P2-R3).
+ * A Dynamic success posts the GMs' card above, and a Reroll that turned it into a miss took the trace back and told
+ * the player "Nothing" - but the card still read "The roll succeeded" with Create an item on it, and a GM who did not
+ * watch the Reroll made an item for a roll that had missed. On the GM that settles the Reroll (reroll.mjs
+ * `settleDynamic`): every card not yet answered whose Create an item names this character and this roll's message
+ * (`data-roll`, written by `offerDynamicFind`) is ended through gm-bridge.mjs `settleCall`, its buttons off, with
+ * the line that the success no longer stands. A card already answered is left as it was: what a GM gave on it is the
+ * GMs' to take back. A card a player's console wrote naming the roll is that player's own, and ends the same way.
+ * Answers how many cards it ended. Tier 2's E16-T26 reads it.
+ */
+export async function withdrawDynamicFind(actor, rollId) {
+    if (!game.user?.isGM || !actor?.id || !rollId) return 0;
+    const { contentOf } = await import("./secret.mjs");
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const { settleCall } = await import("./gm-bridge.mjs");
+    const names = message => {
+        const words = String(contentOf(message) ?? "");
+        if (!words.includes(rollId)) return false;
+        const box = document.createElement("template");
+        box.innerHTML = words;
+        return [...box.content.querySelectorAll('[data-drpg-call="createItem"]')]
+            .some(button => button.dataset.by === actor.id && button.dataset.roll === rollId);
+    };
+    const cards = (game.messages?.contents ?? []).filter(m => !m.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled) && names(m));
+    for (const card of cards) await settleCall(card, game.i18n.localize("DRPG.Action.dynamicRerollMissed"));
+    return cards.length;
+}
+
+/**
+ * The number a Dynamic band passes from: its lower one, or its only one.
+ *
+ * "BEAT N", NOT A RANGE (E16 part 2 C0, 26.10.2026; audit S13-30, the owner's D16: "pasmo zdaje się
+ * od dolnej liczby"). The GM's window offered "8-12 · Trivial" and the roll window read "beat 8-12",
+ * while the engine passes a band from its lower number - here, in reroll.mjs `settleDynamic` and on
+ * the GM who places the trace (gm-bridge.mjs, `ruled.range[0]`) - so a GM who picked Trivial thinking
+ * of 11 saw a 9 succeed. The engine is unchanged; what is shown is its number. Tier 2's E16-T21
+ * reads the GM's window, the roll window and a pass at the number.
+ */
+export function dynamicBar(band) {
+    const range = Array.isArray(band?.range) ? band.range : [band?.range];
+    const n = Number(range[0]);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
  * The GM's side of a Dynamic action: read what the player described, then set
  * the band and the trait it is rolled against.
  *
@@ -6037,7 +6243,7 @@ async function performDynamic(actor, options) {
  */
 export async function askDynamicDifficulty({ description, actorName, room } = {}) {
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
-        `<option value="${i}">${t.range[0]}–${t.range[1]} · ${t.difficulty}</option>`).join("");
+        `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Action.dynamicTitle") },
