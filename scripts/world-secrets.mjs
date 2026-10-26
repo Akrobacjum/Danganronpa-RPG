@@ -81,6 +81,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
         /* The world half of an incident: incident-store.mjs's `PUBLIC_INCIDENT`, written out (this file
            imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
            the method since E05 C8, the fight since E32 C2 - is the cast's. */
+        /* The clock carries no boundary's take-back (E17 fix ci-2, 26.10.2026): its snapshot holds every
+           character's budget keyed by actor id - 72-canary found the killer's id at
+           clock.lastAdvance.snapshot.actions on p1 and p2 at f7ac1e9d. A GM store since (gm-stores.mjs
+           `takeBackStore`); a null one is found too, as a field the clock should not have. */
+        clock: Object.freeze({
+            fields: Object.freeze(["lastAdvance"]),
+            since: "E17 fix ci-2", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42)"
+        }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",

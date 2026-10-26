@@ -414,6 +414,13 @@ export const SETTINGS = {
      */
     gmClockBeat: "gmClockBeat",
     /**
+     * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 fix ci-2, 26.10.2026): a GM store (gm-stores.mjs
+     * `takeBackStore`), one record `{ lastAdvance }` - every character's budget by actor id, the search tokens and the
+     * seals before the last boundary, for "End without advancing" and the rewind (clock.mjs `takeBackFor`). On the
+     * clock until then, which every player's browser holds. Synced, not backed up; no player copy.
+     */
+    gmTakeBack: "gmTakeBack",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -1001,15 +1008,18 @@ export const DEFAULT_CLOCK = {
      * calendar by hand forgets it (`setClock`).
      */
     refilledFor: null,
-    /**
-     * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 C7; audit S10-42):
-     * `{ for, at, snapshot }` - the boundary's stamp, when (`serverNow()`), and the
-     * actions, the Free Move and the grants of every character, the rooms' search
-     * tokens and the seals as they stood before it (clock.mjs `boundarySnapshot`) -
-     * or null. "End without advancing" and the rewind put the snapshot back within
-     * `TAKE_BACK_MS` of `at`, and forget it either way. Every value in it is one
-     * every browser already reads: the actors' resources and flags, and two world
-     * settings.
+    /*
+     * NOT HERE: WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 C7; audit S10-42), `lastAdvance`,
+     * which stood here from E17 C7 to E17 fix ci-2 (26.10.2026) and is the GMs' store "takeBack"
+     * since (gm-stores.mjs `takeBackStore`; clock.mjs `setClock` writes it, `withTakeBack` reads
+     * it beside the clock). `{ for, at, snapshot }` - the boundary's stamp, when (`serverNow()`),
+     * and the actions, the Free Move and the grants of every character, the rooms' search tokens
+     * and the seals as they stood before it (clock.mjs `boundarySnapshot`) - or null. "End
+     * without advancing" and the rewind put the snapshot back within `TAKE_BACK_MS` of `at`, and
+     * forget it either way. Each value in it is one every browser reads elsewhere, but the
+     * snapshot is keyed by actor id, so the clock named every character, the killer among them,
+     * in a world setting every player holds: 72-canary's world scan found it (the world-secrets
+     * rule's `clock.lastAdvance` since then).
      * AND WHAT STOOD BEFORE IT (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2,
      * R4): `refilledBefore`, the `refilledFor` the boundary found, which a take-back
      * writes back (it wrote null, so a boundary refilled by an Eclipse kept past five
@@ -1018,7 +1028,6 @@ export const DEFAULT_CLOCK = {
      * (clock.mjs `boundaryMemory`, at most `TAKE_BACK_DEPTH` deep), so two advances in
      * a row are taken back by two rewinds.
      */
-    lastAdvance: null,
     /**
      * THE CLOCK AS AN INCIDENT OPENED ON IT (E17 C7, 26.10.2026; audit S10-07): the
      * calendar and the stopwatch's fields of the clock when `openMurder` opened the
@@ -1727,6 +1736,13 @@ export function registerSettings() {
     });
     // The primary's beat (E17 C6): no `onChange` - read at `ready` alone, shown nowhere.
     game.settings.register(MODULE_ID, SETTINGS.gmClockBeat, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // What the last boundary would take back (E17 fix ci-2): no `onChange` - read when a GM ends an Eclipse or rewinds.
+    game.settings.register(MODULE_ID, SETTINGS.gmTakeBack, {
         scope: "client",
         config: false,
         type: Object,

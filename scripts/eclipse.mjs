@@ -22,7 +22,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
-import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack } from "./clock.mjs";
+import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
@@ -220,9 +220,10 @@ export async function startEclipse() {
      * opens (clock.mjs `boundaryStamp`) refilled already when an Eclipse for it was ended without advancing after
      * `TAKE_BACK_MS` (`refilledFor`): it refills nobody twice. What it is about to change - the budgets, the grants,
      * the seals, and the search tokens its end restocks - is kept before any of it moves (`lastAdvance`), for "End
-     * without advancing" and the rewind to put back. In the same write as the flag.
+     * without advancing" and the rewind to put back. In the same step as the flag's write; the memory is the GMs' store's
+     * since E17 fix ci-2, read beside the clock (clock.mjs `withTakeBack`) and written by `setClock`.
      */
-    const opening = getClock();
+    const opening = await withTakeBack(getClock());
     const boundary = boundaryStamp(opening);
     const again = opening.refilledFor === boundary;
     const snapshot = await boundarySnapshot();
@@ -416,7 +417,7 @@ export async function endEclipse({ advance = true } = {}) {
            the boundary refills when it is opened again; later, nothing is put back and the boundary stays refilled
            (`refilledFor`). The GM panel's "End without advancing" and the API's `endEclipse({ advance: false })` both
            come here. */
-        const closing = getClock();
+        const closing = await withTakeBack(getClock());
         const last = takeBackFor(closing, boundaryStamp(closing));
         await setClock({ eclipse: false, ...afterTakeBack(closing, last) });
         if (last) await takeBackBoundary(last);

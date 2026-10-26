@@ -72062,7 +72062,9 @@ const SCENARIOS = [
          * advance, a room's search tokens spent, a rewind at once, the boundary again; (e) the advance and a rewind six
          * minutes on, the boundary again; (f) the chevron pressed with DialogV2's confirm answered by the test. Read the
          * student's actions after each, the seal and the room's tokens. The clock, the actions, the seals and the tokens
-         * are put back.
+         * are put back. E17 fix ci-2: and with (a)'s Eclipse open, what the world's clock setting - which every player's
+         * browser holds - names of the student or breaks the world-secrets rule with: at f7ac1e9d the boundary's
+         * snapshot stood there, keyed by actor id (72-canary, CI run 40402423765).
          */
         needs(env.primaryGm());
         const J = stableJson;
@@ -72071,8 +72073,9 @@ const SCENARIOS = [
         const { murderState } = await import("./murder.mjs");
         const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
         const { actionsLeft, setActions } = await import("./actions.mjs");
-        const { rewindTimeOfDay } = await import("./clock.mjs");
+        const { rewindTimeOfDay, takeBackMemory } = await import("./clock.mjs");
         const { sealedRooms, sealRoom } = await import("./call-world.mjs");
+        const { findWorldSecrets } = await import("./world-secrets.mjs");
         const [student] = cast(1);
         must(!murderState(), "an incident is running - no Eclipse starts in one");
         const M6 = 6 * 60000;
@@ -72088,7 +72091,8 @@ const SCENARIOS = [
         const DialogV2 = foundry.applications.api.DialogV2;
         const confirmOwn = Object.getOwnPropertyDescriptor(DialogV2, "confirm");
         const age = async () => {
-            const last = getClock().lastAdvance;
+            // The take-back's memory is the GMs' store's since E17 fix ci-2 (clock.mjs `takeBackMemory`); `setClock` writes it there.
+            const last = await takeBackMemory();
             if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
         };
         const read = {};
@@ -72101,6 +72105,9 @@ const SCENARIOS = [
             await sealRoom(room);
             await E.startEclipse();
             const given = actionsLeft(student);
+            // E17 fix ci-2: what the boundary keeps to take back is the GMs', not the clock every browser holds.
+            read.inWorld = findWorldSecrets({ settings: { clock: game.settings.get(MODULE_ID, SETTINGS.clock) } }, { ids: [student.id] })
+                .map(h => `${h.path} (${h.rule})`);
             await E.endEclipse({ advance: false });
             read.endOnly = [given > 0, actionsLeft(student), sealedRooms().includes(room)];
             // (b)
@@ -72162,9 +72169,10 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
             await settle();
         }
-        equal(J(read), J({ endOnly: [true, 0, true], again: true, late: true, twice: 0, rewind: [null, true, 0, 0], rewound: true,
+        equal(J(read), J({ inWorld: [], endOnly: [true, 0, true], again: true, late: true, twice: 0, rewind: [null, true, 0, 0], rewound: true,
             lateRewind: true, lateAgain: 0, chevron: [[true, false], false] }),
-            "{endOnly: [the Eclipse refilled, the actions and the seal after End without advancing at once]; again: the same boundary "
+            "{inWorld: what the world's clock names of the student or breaks the world-secrets rule with, the Eclipse open (E17 fix ci-2); "
+            + "endOnly: [the Eclipse refilled, the actions and the seal after End without advancing at once]; again: the same boundary "
             + "refills again after that; late: End without advancing six minutes on keeps the refill; twice: the actions after the "
             + "boundary's third Eclipse; rewind: [the room's tokens after the advance, the clock still where the advance took it, the "
             + "actions and the room's tokens after a rewind at once]; rewound: the boundary refills after it; lateRewind: the actions "
@@ -72190,7 +72198,7 @@ const SCENARIOS = [
         const { murderState } = await import("./murder.mjs");
         const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
         const A = await import("./actions.mjs");
-        const { advanceTimeOfDay, rewindTimeOfDay } = await import("./clock.mjs");
+        const { advanceTimeOfDay, rewindTimeOfDay, takeBackMemory } = await import("./clock.mjs");
         const { FLAGS } = await import("./config.mjs");
         const [student] = cast(1);
         must(!murderState(), "an incident is running - no Eclipse starts in one");
@@ -72205,7 +72213,8 @@ const SCENARIOS = [
         const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
         const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
         const age = async () => {
-            const last = getClock().lastAdvance;
+            // The take-back's memory is the GMs' store's since E17 fix ci-2 (clock.mjs `takeBackMemory`); `setClock` writes it there.
+            const last = await takeBackMemory();
             if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
         };
         const kept = async () => {

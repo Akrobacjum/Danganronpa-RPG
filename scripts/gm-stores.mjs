@@ -887,6 +887,22 @@ export const clockBeatStore = defineGmStore({
 });
 
 /**
+ * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 fix ci-2, 26.10.2026; E17 C7's `lastAdvance`, audit S10-42). A
+ * record, `{ lastAdvance }`: clock.mjs `boundaryMemory`'s `{ for, at, snapshot, refilledBefore, previous }`, or null -
+ * the boundary's stamp, when, and every character's budget keyed by actor id, the rooms' search tokens and the seals
+ * as they stood before it. On the clock until this commit, where every player's browser held every character's id
+ * under it, the killer's among them (72-canary's world scan, CI run 40402423765). Written by clock.mjs `setClock` alone,
+ * in the clock's step: a patch's `lastAdvance`, and null with a write that moves the calendar or ends an Eclipse by
+ * hand; read beside the clock by `withTakeBack`. Synced, so another GM takes back what this one advanced; not backed
+ * up: it is worth five minutes (`TAKE_BACK_MS`), and a restore that lost it loses a take-back, never gives one. Cut by
+ * the reset's "clock" group with the clock it belongs to. No player copy and no old key.
+ */
+export const takeBackStore = defineGmStore({
+    name: "takeBack", key: SETTINGS.gmTakeBack,
+    kind: "record", fields: ["lastAdvance"], resetGroup: "clock", backup: false, sync: true
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

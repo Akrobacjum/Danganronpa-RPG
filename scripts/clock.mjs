@@ -197,12 +197,21 @@ export async function setClock(patch = {}) {
            and nothing older is taken back over it. */
         const calendarMoved = ["season", "chapter", "session", "day", "timeOfDay"]
             .some(k => patch[k] !== undefined && patch[k] !== before[k]);
-        if (calendarMoved || (before.eclipse && next.eclipse !== true)) {
-            if (patch.refilledFor === undefined) next.refilledFor = null;
-            if (patch.lastAdvance === undefined) next.lastAdvance = null;
-        }
+        const forget = calendarMoved || (before.eclipse && next.eclipse !== true);
+        if (forget && patch.refilledFor === undefined) next.refilledFor = null;
+        /* AND THE MEMORY IS THE GMS', NOT THE CLOCK'S (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d). Written
+           on the clock, `lastAdvance.snapshot.actions` named every character by actor id in a world setting every
+           player's browser holds, the killer among them: 72-canary's world scan found the killer's id at
+           `clock.lastAdvance.snapshot.actions.<id>` on p1 and p2 after every phase of its chapter, against the
+           world-secrets rule (world-secrets.mjs, `clock.lastAdvance` since this commit). It is a GM store's now
+           (gm-stores.mjs `takeBackStore`), written here in the same step as the clock: a patch's `lastAdvance` goes
+           there, a write that forgets the boundary empties it, and the clock carries none - one stored by f7ac1e9d
+           goes with the next write. */
+        const memory = patch.lastAdvance !== undefined ? (patch.lastAdvance ?? null) : (forget ? null : undefined);
+        delete next.lastAdvance;
 
         await game.settings.set(MODULE_ID, SETTINGS.clock, next);
+        if (memory !== undefined) await keepTakeBack(memory);
         return { before, next };
     });
     if (!written) return null;
@@ -293,7 +302,7 @@ export async function advanceTimeOfDay({
 } = {}) {
     if (!game.user.isGM) return null;
 
-    const before = getClock();
+    const before = await withTakeBack(getClock());
     const { timeOfDay, session, day, rolledOver } = clockAfter(before);
     /* ONCE A BOUNDARY (E17 C7, 26.10.2026; audit S10-42). The panel's "Next time of day" asks for a refill; an
        Eclipse opened for this boundary has given it already (`refilledFor`), and one ended without advancing after
@@ -394,6 +403,39 @@ export async function boundarySnapshot() {
  * are kept, so in play it is how many times the GM pressed Next within five minutes (E17 fix p2-G2).
  */
 export const TAKE_BACK_DEPTH = 4;
+
+/**
+ * THE TAKE-BACK'S MEMORY, FROM THE GMS' STORE (E17 fix ci-2, 26.10.2026): `boundaryMemory`'s record, the GMs' store
+ * "takeBack" (gm-stores.mjs `takeBackStore`), or null - none read before the stores open, as none kept. GM only:
+ * a player holds no copy.
+ */
+export async function takeBackMemory() {
+    if (!game.user?.isGM) return null;
+    try {
+        const { takeBackStore } = await import("./gm-stores.mjs");
+        return takeBackStore.record()?.lastAdvance ?? null;
+    } catch (err) {
+        warn("Could not read what the last boundary would take back", err);
+        return null;
+    }
+}
+
+/** `clock` with `takeBackMemory()` as its `lastAdvance`, the shape the boundary's pure helpers below read. */
+export async function withTakeBack(clock = getClock()) {
+    return { ...clock, lastAdvance: await takeBackMemory() };
+}
+
+/* `memory` kept in the GMs' store for `setClock`, inside its step: nothing written when it holds that already (a
+   calendar moved with nothing to forget). A store that cannot be written loses the take-back, never the clock write. */
+async function keepTakeBack(memory) {
+    try {
+        const [{ takeBackStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+        if (memory === null && (takeBackStore.record()?.lastAdvance ?? null) === null) return;
+        await takeBackStore.patch(RECORD, { lastAdvance: memory });
+    } catch (err) {
+        error("Could not keep what the boundary would take back", err);
+    }
+}
 
 /** `entry` and the entries under it that are younger than `TAKE_BACK_MS` at `now`, at most `depth` of them. Pure. */
 export function liveMemory(entry, now = serverNow(), depth = TAKE_BACK_DEPTH) {
@@ -518,7 +560,7 @@ export async function rewindTimeOfDay() {
      */
     await import("./call-effects.mjs").then(m => m.cancelGather()).catch(() => {});
 
-    const clock = getClock();
+    const clock = await withTakeBack(getClock());
     const index = TIMES_OF_DAY.indexOf(clock.timeOfDay);
     const prevIndex = (index - 1 + TIMES_OF_DAY.length) % TIMES_OF_DAY.length;
     const rolledBack = prevIndex === TIMES_OF_DAY.length - 1;

@@ -5958,7 +5958,11 @@ const INVARIANTS = [
             // (a trap's `false` until E32 C2, which left the stage alone there: now the fight's round at 0).
             ["murderState: only active, stage",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
-                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"]
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"],
+            // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
+            ["clock.lastAdvance",
+                s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === "lastAdvance"]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
