@@ -565,6 +565,22 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return res;
   }
   /* the glow after a picture on the curtain, with the voice tile's portrait between them since E78 C6 (both lie under it) */
+  /* WHERE A PICTURE'S OUTLINE LIES ON THE SCREEN (H83, 26.10.2026). The two pictures lean with their pane since H83
+     (glass.mjs `paneLayer`): a layer's box is its pane's box in the pane's turned frame, turned as its tile is, so its
+     upright bounds are not the pane's any more and the outline is read through the layer's own transform - each clip
+     point turned about the layer's origin from the corner `left`/`top` set (fixed, so the viewport's). `miss` is the
+     farthest of them from its pane's corner on the screen, `turn` the layer's angle and its tile's in degrees, `cover`
+     whether every corner lies inside the layer's box (no bare glass). */
+  const layerFit = (art, pane, at, tile) => {
+    const cs = getComputedStyle(art), angle = t => { const m = new DOMMatrix(t === "none" ? undefined : t); return [m, Math.atan2(m.b, m.a) * 180 / Math.PI]; };
+    const [m, turn] = angle(cs.transform), [, own] = angle(getComputedStyle(tile).transform), [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat);
+    const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
+    const L = parseFloat(cs.left), T = parseFloat(cs.top), w = art.offsetWidth, h = art.offsetHeight;
+    const miss = pts.length === pane.poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - pane.poly[i][0],
+      T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - pane.poly[i][1]))) : Infinity;
+    return { points: pts.length, miss: Math.round(miss * 100) / 100, turn: [turn, own].map(d => Math.round(d * 100) / 100),
+      cover: pts.every(([x, y]) => x >= -0.5 && y >= -0.5 && x <= w + 0.5 && y <= h + 0.5) };
+  };
   const glowAfter = art => { const n = art.nextElementSibling; return (n?.id === "drpg-voice-art" ? n.nextElementSibling : n)?.classList.contains("curtain-glow") ?? false; };
   window.drpgRoomCheck = async ({ cuts = true } = {}) => {
     const g = window.__glass, body = document.body, tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
@@ -852,11 +868,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const art = loose;
     if (!art || own) out.why.push(own ? "the picture is still inside the tile" : "no picture layer in the body");
     else {
-      const r = art.getBoundingClientRect(), cs = getComputedStyle(art), clip = cs.clipPath.match(/px/g)?.length ?? 0;
-      out.art = { box: [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top].map(Math.round), pane: [pane.x0, pane.y0, pane.x1, pane.y1], points: clip / 2,
+      const cs = getComputedStyle(art), fit = layerFit(art, pane, at, tile);
+      out.art = { ...fit, pane: [pane.x0, pane.y0, pane.x1, pane.y1],
         z: [cs.zIndex, cur.style.zIndex], under: art.previousElementSibling?.id || art.previousElementSibling?.className || null, picture: cs.backgroundImage !== "none" };
-      if (out.art.box.some((v, i) => !near(v, out.art.pane[i], 1.5))) out.why.push(`the picture at ${out.art.box} and its pane at ${out.art.pane}`);
-      if (out.art.points !== pane.poly.length) out.why.push(`the picture is clipped to ${out.art.points} points, its pane has ${pane.poly.length}`);
+      if (fit.points !== pane.poly.length) out.why.push(`the picture is clipped to ${fit.points} points, its pane has ${pane.poly.length}`);
+      else if (!(fit.miss <= 1.5) || !fit.cover) out.why.push(`the picture's outline is ${fit.miss} px off its pane at ${out.art.pane}${fit.cover ? "" : ", its box short of a corner"}`);
+      if (!near(fit.turn[0], fit.turn[1], 0.05)) out.why.push(`the picture is turned ${fit.turn[0]} deg, its tile ${fit.turn[1]} (H83: it leans with its pane)`);
       if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
       if (!out.art.picture) out.why.push("the picture's layer has no picture");
     }
@@ -1168,10 +1185,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     if (!loose || loose.parentElement !== body || own) out.why.push("the portrait is not on the curtain's pane");
     else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
     else {
-      const b = loose.getBoundingClientRect(), n = (/polygon\((.*)\)/.exec(loose.style.clipPath)?.[1] ?? "").split(",").filter(Boolean).length;
-      out.art = [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom), n];
-      if (!(near(b.left, pane.x0) && near(b.top, pane.y0) && near(b.right, pane.x1) && near(b.bottom, pane.y1)) || n !== pane.poly.length)
-        out.why.push(`the portrait is at ${out.art} and its pane at ${out.pane} with ${pane.poly.length} corners`);
+      const fit = layerFit(loose, pane, cur.getBoundingClientRect(), tile);
+      out.art = fit;
+      if (fit.points !== pane.poly.length || !(fit.miss <= 1) || !fit.cover)
+        out.why.push(`the portrait's outline (${fit.points} points) is ${fit.miss} px off its pane at ${out.pane} with ${pane.poly.length} corners${fit.cover ? "" : ", its box short of a corner"}`);
+      if (!near(fit.turn[0], fit.turn[1], 0.05)) out.why.push(`the portrait is turned ${fit.turn[0]} deg, its tile ${fit.turn[1]} (H83: it leans with its pane)`);
     }
     out.open = (g.LAST.open || []).some(a => a.name === "voice-left") ? check?.openFails ?? null : "none";
     if (out.open !== 0) out.why.push(`voice-left is ${out.open === "none" ? "not left open" : out.open + " point(s) covered"}`);

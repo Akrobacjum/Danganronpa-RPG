@@ -472,18 +472,50 @@ export function seatRoomArt() {
   if (!pane || !tile) {
     if (!tile || !tile.contains(art)) {
       art.removeAttribute("id");
-      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset"]) art.style.removeProperty(k);
+      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset", "transform", "transform-origin"]) art.style.removeProperty(k);
       if (tile) tile.prepend(art); else art.remove();
     }
     return;
   }
-  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
   art.id = "drpg-room-art";
   art.classList.toggle("is-open", tile.classList.contains("is-open"));
-  const set = { position: "fixed", inset: "auto", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
-    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
-  for (const [k, v] of Object.entries(set)) art.style.setProperty(k, v);
+  layOnPane(art, paneLayer(pane.poly, tileTurn("#drpg-room-tile")), cur);
   if (cur.nextElementSibling !== art) cur.after(art);
+}
+/* THE PICTURES LEAN WITH THEIR PANE (H83, the owner's 26.10.2026 note: "Tak jak grafika postaci jest obrocona z
+   kafelkiem, tak grafika pokoju tez powinna", and of the voice tile's portrait, "Tak, tez pochylic"). A block is
+   turned with its pane (`buildColumn`), so a portrait drawn in a block leans with the tile; these two layers stood
+   upright, the pane's box clipped to its outline. Now each is the smallest box that covers its pane in the pane's
+   own turned frame, turned by the very rotation its tile wears (the rule `applyRotations` writes for the tile's
+   selector) about the middle of the pane's upright box, and clipped to the pane's outline in that frame: the clip
+   turns with the box, so on the screen it is the pane's outline again, and the box covers every corner of it - no
+   bare glass. The gradient and the open shade are the layer's own ::before and ::after and lean with it. With no
+   turn (under 0.004 rad, the column's own "none") it is the pane's upright box as before. Measured in Chromium on
+   the glass harness on 26.10.2026, GM and player: at 1920x1080 the room's picture under the clock turned -8 deg with
+   its tile and the portrait 8, at 1366x768 the picture beside the notices 6 and the portrait 8, each outline within
+   0.05 px of its pane's corners and every corner inside the layer's box (drpgRoomCheck / drpgVoiceCheck `layerFit`);
+   the same pages with the layers held upright read 21-40 px off. Monokuma Legacy and the stacked 393x852 cut no pane,
+   and the pictures stay in their tiles. */
+export function paneLayer(poly, phi = 0) {
+  const b = bboxOf(poly), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+  const turned = Math.abs(phi) >= 0.004, c = Math.cos(turned ? phi : 0), s = Math.sin(turned ? phi : 0);
+  // each corner in the turned frame, about the middle: R(-phi)(q - centre)
+  const local = poly.map(([x, y]) => [(x - cx) * c + (y - cy) * s, -(x - cx) * s + (y - cy) * c]);
+  const l = bboxOf(local);
+  return { left: cx + l.x0, top: cy + l.y0, width: l.x1 - l.x0, height: l.y1 - l.y0, origin: (-l.x0).toFixed(2) + "px " + (-l.y0).toFixed(2) + "px",
+    transform: turned ? "rotate(" + phi + "rad)" : "none", clip: "polygon(" + local.map(q => (q[0] - l.x0).toFixed(1) + "px " + (q[1] - l.y0).toFixed(1) + "px").join(", ") + ")" };
+}
+/* The turn a fixed block wears now, read off the rule written for its selector (ROT), so the picture takes the
+   tile's own number and not a second computation of it. */
+function tileTurn(sel) {
+  const r = ROT.find(t => t.sel === sel && !t.rail);
+  return parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(r?.transform ?? "")?.[1] ?? "0") || 0;
+}
+function layOnPane(el, L, cur) {
+  const at = cur.getBoundingClientRect();
+  const set = { position: "fixed", inset: "auto", left: (at.left + L.left) + "px", top: (at.top + L.top) + "px", width: L.width + "px", height: L.height + "px",
+    "transform-origin": L.origin, transform: L.transform, "clip-path": L.clip, "z-index": cur.style.zIndex || "1" };
+  for (const [k, v] of Object.entries(set)) el.style.setProperty(k, v);
 }
 const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...poly.map(q => q[1])), x1: Math.max(...poly.map(q => q[0])), y1: Math.max(...poly.map(q => q[1])) });
 /* ---- the voice tile: a fixed block at the right wall under the Projects tray (E78 C6) ---------
@@ -592,16 +624,13 @@ export function seatVoiceArt() {
     if (!face) { art.remove(); return; }
     if (art.parentElement !== face) {
       art.removeAttribute("id");
-      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset"]) art.style.removeProperty(k);
+      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset", "transform", "transform-origin"]) art.style.removeProperty(k);
       face.prepend(art);
     }
     return;
   }
-  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
   art.id = "drpg-voice-art";
-  const set = { position: "fixed", inset: "auto", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
-    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
-  for (const [k, v] of Object.entries(set)) art.style.setProperty(k, v);
+  layOnPane(art, paneLayer(pane.poly, tileTurn("#drpg-voice-tile")), cur);
   const room = document.getElementById("drpg-room-art");
   const after = room && room.previousElementSibling === cur ? room : cur;
   if (after.nextElementSibling !== art) after.after(art);

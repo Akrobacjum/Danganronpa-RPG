@@ -2581,10 +2581,16 @@ const INVARIANTS = [
         const art = document.getElementById("drpg-voice-art");
         ok(art?.parentElement === document.body, "the voice tile's portrait is not on the curtain's pane");
         if (art) {
-            const b = art.getBoundingClientRect(), n = (/polygon\((.*)\)/.exec(art.style.clipPath)?.[1] ?? "").split(",").filter(Boolean).length;
-            ok(Math.abs(b.left - pane.x0) <= 1 && Math.abs(b.top - pane.y0) <= 1 && Math.abs(b.right - pane.x1) <= 1 && Math.abs(b.bottom - pane.y1) <= 1,
-                `the portrait is at ${[b.left, b.top, b.right, b.bottom].map(Math.round)}, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]}`);
-            equal(n, pane.poly.length, "the portrait's outline against its pane's corners");
+            // H83: the layer leans with its pane, so its outline is read through its own transform (glass-harness.html `layerFit`)
+            const fitOf = (el, poly, at, own) => { const cs = getComputedStyle(el), mat = t => new globalThis.DOMMatrix(t === "none" ? undefined : t), m = mat(cs.transform), o = mat(getComputedStyle(own).transform);
+                const [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat), L = parseFloat(cs.left), T = parseFloat(cs.top);
+                const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
+                const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
+                    T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
+                return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+            const f = fitOf(art, pane.poly, document.getElementById("drpg-curtain").getBoundingClientRect(), tile);
+            ok(f.miss <= 1 && Math.abs(f.turn[0] - f.turn[1]) <= 0.05, `the portrait's outline is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
+            equal(f.points, pane.poly.length, "the portrait's outline against its pane's corners");
         }
         const plate = tile.querySelector(".drpg-voice-tile-plate");
         equal(plate && getComputedStyle(plate).getPropertyValue("--brush").trim(), getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim(),
@@ -11886,10 +11892,16 @@ const INVARIANTS = [
             const art = document.getElementById("drpg-room-art");
             if (art || tile.querySelector(".drpg-room-tile-art")) {
                 ok(art && !tile.contains(art), "the picture is still inside the tile, not on its pane");
-                const r = art.getBoundingClientRect(), points = (getComputedStyle(art).clipPath.match(/px/g)?.length ?? 0) / 2;
-                const got = [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top];
-                ok(got.every((v, i) => near(v, [pane.x0, pane.y0, pane.x1, pane.y1][i], 1.5)) && points === pane.poly.length,
-                    `the picture at ${got.map(Math.round)} clipped to ${points} points, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]} with ${pane.poly.length}`);
+                // H83: the layer leans with its pane, so its outline is read through its own transform (glass-harness.html `layerFit`)
+                const fitOf = (el, poly, at, own) => { const cs = getComputedStyle(el), mat = t => new globalThis.DOMMatrix(t === "none" ? undefined : t), m = mat(cs.transform), o = mat(getComputedStyle(own).transform);
+                    const [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat), L = parseFloat(cs.left), T = parseFloat(cs.top);
+                    const pts = (/polygon\((.*)\)/.exec(cs.clipPath)?.[1] ?? "").split(",").filter(Boolean).map(q => q.trim().split(/\s+/).map(parseFloat));
+                    const miss = pts.length === poly.length ? Math.max(...pts.map(([x, y], i) => Math.hypot(L + ox + m.a * (x - ox) + m.c * (y - oy) + m.e - at.left - poly[i][0],
+                        T + oy + m.b * (x - ox) + m.d * (y - oy) + m.f - at.top - poly[i][1]))) : Infinity;
+                    return { points: pts.length, miss, turn: [Math.atan2(m.b, m.a), Math.atan2(o.b, o.a)].map(a => a * 180 / Math.PI) }; };
+                const f = fitOf(art, pane.poly, at, tile);
+                ok(f.miss <= 1.5 && f.points === pane.poly.length && Math.abs(f.turn[0] - f.turn[1]) <= 0.05,
+                    `the picture's outline (${f.points} points, its pane ${pane.poly.length}) is ${f.miss.toFixed(2)} px off its pane, turned ${f.turn.map(d => d.toFixed(2))} deg against its tile's`);
             }
         }
         let cuts = 0;
@@ -22558,6 +22570,56 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ leaveClue: ["body", false, true, "body", "body"], secureTrace: ["body", false, true, "body", "body"] }),
             "a trap's victim does not throw Body first [the trap table's first statistic, Shadow on it, Shadow on the direct table, Resolve's throw, the GMs' default]");
+    }],
+    ["R988 - the room tile's picture and the voice tile's portrait lean with their pane (H83, the owner's 26.10.2026 note): each layer is turned by the very rotation its tile wears, still cut to its pane's outline and still covering the pane, and with no turn it is the pane's upright box as before", async () => {
+        /*
+         * H83, 26.10.2026. Under Stained Glass a block turns with its pane (glass.mjs, "A block is rotated with its
+         * pane"), so a portrait drawn in a block leans with the tile; the two pictures `seatRoomArt` and `seatVoiceArt`
+         * lay on the body over the curtain stood upright inside a leaning pane. jsdom lays nothing out, so this reads
+         * the cut `cutBoxes` makes of R545's blocks (a player at 1920x1080, measured in Chromium on 14.10) and hands each
+         * pane and its tile's rotation to `paneLayer`, the box both seats write; the seats themselves are read in the
+         * source. Pure; nothing is written; no phase is asked.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.paneLayer === "function" && typeof G.cutBoxes === "function", "glass.mjs gives a test no road to the pictures' layer");
+        if (typeof G.paneLayer !== "function" || typeof G.cutBoxes !== "function") return;
+        const blocks = [["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: ["note-block", "room-block"].includes(cls) }));
+        // R549's: a player at 1366x768, the room tile beside the notices, where its column leans 6 degrees
+        const notes = [["hud", 16, 22, 265, 180], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 91],
+            ["note-block", 16, 446, 301, 252], ["room-block", 385, 608, 301, 129], ["voice-block", 1179, 253, 181, 262], ["launch", 1250, 643, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: ["note-block", "room-block"].includes(cls) }));
+        const turnOf = t => parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(t ?? "")?.[1] ?? "0");
+        // a layer's point (x, y) on the screen: turned by its transform about its origin, from its box's corner
+        const onScreen = (L, [x, y]) => { const a = turnOf(L.transform), [ox, oy] = L.origin.split(" ").map(parseFloat), c = Math.cos(a), s = Math.sin(a);
+            const X = x - ox, Y = y - oy; return [L.left + ox + X * c - Y * s, L.top + oy + X * s + Y * c]; };
+        const clipOf = L => (/polygon\((.*)\)/.exec(L.clip)?.[1] ?? "").split(",").map(q => q.trim().split(/\s+/).map(parseFloat));
+        const read = {};
+        for (const [cls, sel] of [["room-block", "#drpg-room-tile"], ["voice-block", "#drpg-voice-tile"], ["note-block", null]]) {
+            for (const [W, H, set] of [[1920, 1080, blocks], [1366, 768, notes]]) {
+                const cut = G.cutBoxes(W, H, set), pane = cut.panes.find(p => p.tone === cls && p.poly?.length);
+                if (!pane || (!sel && read.control)) continue;
+                const tile = sel ? cut.rotations.find(r => r.sel === sel) : null, phi = sel ? turnOf(tile?.transform) : 0.1;
+                const L = G.paneLayer(pane.poly, phi), clip = clipOf(L);
+                const miss = Math.max(...pane.poly.map((q, i) => { const p = clip[i] ? onScreen(L, clip[i]) : [NaN, NaN]; return Math.hypot(p[0] - q[0], p[1] - q[1]); }));
+                const cover = clip.every(([x, y]) => x >= -0.05 && y >= -0.05 && x <= L.width + 0.05 && y <= L.height + 0.05);
+                // the clip is written to 0.1 px and the origin to 0.01: a corner lands within 0.08 px of the pane's
+                const row = { W, phi: Number(phi.toFixed(4)), same: sel ? L.transform === (Math.abs(phi) < 0.004 ? "none" : tile.transform) : turnOf(L.transform) === 0.1,
+                    points: clip.length === pane.poly.length, miss: Number(miss.toFixed(3)), cover };
+                if (sel) (read[cls] ??= []).push(row); else read.control = row;
+            }
+        }
+        const rows = [...(read["room-block"] ?? []), ...(read["voice-block"] ?? [])];
+        ok(rows.length === 4 && ["room-block", "voice-block"].every(k => read[k]?.some(r => Math.abs(r.phi) >= 0.004)), `the cut did not turn each tile somewhere (${JSON.stringify(read)}) - this would measure no lean`);
+        ok([...rows, read.control].every(r => r?.same && r.points && r.miss < 0.08 && r.cover),
+            `a picture does not lean with its pane or leaves its outline: ${JSON.stringify(read)}`);
+        const flat = G.paneLayer([[10, 20], [110, 30], [100, 220], [0, 200]], 0);
+        equal(JSON.stringify([flat.left, flat.top, flat.width, flat.height, flat.transform]), JSON.stringify([0, 20, 110, 200, "none"]), "[the upright layer's box and its turn] - the pane's own box, as before H83");
+        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        const seat = (name, sel) => { const f = fnSource(glass, name); return [new RegExp(`paneLayer\\(pane\\.poly, tileTurn\\("${sel}"\\)\\)`).test(f), /"transform", "transform-origin"/.test(f)]; };
+        equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
+            "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
     }],
 ];
 
