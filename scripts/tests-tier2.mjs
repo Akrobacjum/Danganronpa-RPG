@@ -52041,6 +52041,14 @@ const SCENARIOS = [
             }
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
             await gmStoresIdle();
+            /* AND THE CHAPTER'S MOVE BACK IS HEARD BEFORE THE TEST ENDS (E17 fix ci-2, 26.10.2026; CI run 40402423765, suite
+               7/8). The clock put back moves the chapter, and `drpgTimeOfDayChanged` sends the GMs the trace digest of the
+               traces placed since the last one (remnants.mjs `flushTraceDigest`): a card this test's run posts, which the
+               runner's restore deletes. Since E17 C6 the clock's run comes `coalesceMs` after its last event (sync.mjs
+               `coalescer`), where it came at once before, so the card landed after the restore and was left: "restore
+               left: client:...secretCards.<id> (none) -> #...; ChatMessage "" (<id>) appeared", read here as the "2 new
+               traces" whisper of this test's two last traces (a probe on f7ac1e9d, 26.10.2026). */
+            await settle();
         }
         equal(stableJson(read), stableJson({ final: false, motive: null, offered: [5], cleared: 1, standing: [true, false] }),
             "last season's records of this chapter read as this season's (read in the new season: the Final Truth placed, the motive "
