@@ -2899,15 +2899,52 @@ export function eclipseId(clock = null) {
  * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
  * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
  * import eclipse.mjs (the cycle is noted at `crossingVerdict`).
+ *
+ * THE LARGER OF TWO COUNTS, AND WHAT IS IN FLIGHT (E17 C2, 26.10.2026; audit S10-44, S07-08). A row holds the crossings
+ * the owner's browser asked to have counted (`used`, the bridge's `eclipse.move`) and those the primary saw a player's
+ * move make (`seen`, movement.mjs `judgeArrival`), and a crossing is both asked and seen, so the count is the larger,
+ * never the sum (`eclipseCountOf`). A crossing this browser's judge has asked about and not yet heard back on counts
+ * too (`eclipseInFlight`): read only after the answer, a route of two crossings, or two drags faster than the round
+ * trip, each read the count from before the other (tier 2 E17-T4 at 730dffcf: the allowance held in flight, every
+ * one more let through).
  */
 export function eclipseMovesUsed(actorId, clock = null) {
     try {
         const id = eclipseId(clock);
         if (!id || !actorId) return 0;
         const row = game.user?.isGM ? gmStoreByName("eclipseMoves")?.get(actorId) : readMine("eclipseMoves")?.[actorId];
-        return row?.eclipse === id ? Math.max(0, Number(row.used) || 0) : 0;
+        const flying = inFlight.get(actorId);
+        return eclipseCountOf(row, id).count + (flying?.eclipse === id ? flying.n : 0);
     } catch {
         return 0;
+    }
+}
+
+/** A row of the Eclipse's crossings read for the Eclipse `id`: `{ used, seen, count }`, all 0 for another Eclipse's (E17 C2). */
+export function eclipseCountOf(row, id) {
+    if (!id || row?.eclipse !== id) return { used: 0, seen: 0, count: 0 };
+    const used = Math.max(0, Math.trunc(Number(row.used) || 0)), seen = Math.max(0, Math.trunc(Number(row.seen) || 0));
+    return { used, seen, count: Math.max(used, seen) };
+}
+
+/** The crossings this browser's Eclipse judge is waiting to hear counted, by actor id: `{ eclipse, n }` (E17 C2). */
+const inFlight = new Map();
+
+/**
+ * One crossing of this character in flight while `waiting` runs (eclipse.mjs `judgeEclipseCrossing`'s count): counted by
+ * `eclipseMovesUsed` from the call until `waiting` settles, whatever it answers. Answers what `waiting` answers.
+ */
+export async function eclipseInFlight(actorId, waiting, clock = null) {
+    const id = eclipseId(clock);
+    if (!id || !actorId) return waiting();
+    const held = inFlight.get(actorId);
+    inFlight.set(actorId, { eclipse: id, n: (held?.eclipse === id ? held.n : 0) + 1 });
+    try {
+        return await waiting();
+    } finally {
+        const now = inFlight.get(actorId);
+        if (now?.eclipse === id && now.n > 1) inFlight.set(actorId, { eclipse: id, n: now.n - 1 });
+        else if (now?.eclipse === id) inFlight.delete(actorId);
     }
 }
 

@@ -70344,6 +70344,301 @@ const SCENARIOS = [
                 + "sendBack: [the put-back held, the guard on the bedroom's centre, on the Hall spot], upstairs: x,y,floor,elevation after a jump into the locked Attic}");
     }],
 
+    ["the Eclipse counted on the GM (E17-T4): a console's crossings no packet announced are counted where the primary sees them and the one past the allowance is put back, eclipseSpent sent; a crossing seen and asked for counts once, an honest ask before its move is never put back; a crossing no GM answered is refused; one in flight counts", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-15 to E17-17, audit S10-44 and S07-08, A10 ("S07-08 ... idą do TEGO hooka i tej drogi").
+         * The Eclipse's count was the bridge's `eclipse.move` alone, which the mover's browser sends (eclipse.mjs
+         * `recordMove`): a console that moved its token and never asked crossed the dark map with nothing counted, and
+         * no GM's answer let a crossing stand uncounted. Now the primary counts a player's crossing where its judge of
+         * arrivals sees one (movement.mjs `judgeArrival`, the store's `seen`), the larger of the two counts is the count,
+         * and a crossing it sees past the allowance is put back by the GMs' audit (`eclipseSpent`) in either mode. On a
+         * scene of the suite's own: a row of rooms that touch, no walls, in an Eclipse that is no free placement. A
+         * player's move as the primary hears it is a GM's write naming the player (`SENT_BACK`, as E17-T2's). Read: (a) a
+         * console's walk of one room more than the allowance - where the token stands after each move, the codes its
+         * player was sent and the count; (b) the console's asks for those crossings arriving late - each counted once
+         * with its sighting, one more refused; (c) an honest player's asks each before its move - every move stands; (d)
+         * the Eclipse's judge with a recorder no GM answered (null), and with recorders held in flight: what the count
+         * reads while they are held and whether one more is let through. Red at 730dffcf: every move of (a) stood with
+         * nothing counted or sent, (b) counted from 1, (d) a crossing no GM answered stood and the held ones counted
+         * nothing.
+         */
+        needs(env.primaryGm(), "the sighting, the count and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            const ROOMS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE E17 T4 R${i}`);
+            const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+            scene = await Scene.create({ name: "SUITE E17 T4 count", width: 400 * ROOMS.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", ROOMS.map((name, i) => ({ name, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === ROOMS[0] && M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const count = () => E.movesUsed(student);
+            const fresh = async () => {
+                await S.eclipseMoveStore.drop(student.id);
+                await token.update({ x: 100, y: 100 }, PLACE);
+                await settle();
+            };
+            const walk = async (i, y) => {
+                const sent = told.length, before = { x: token.x, y: token.y };
+                await token.update({ x: 400 * i + 100, y }, asPlayer);
+                await settle();
+                await until(() => token.x !== 400 * i + 100 || M.standingOf(token)?.lawful !== false, 1200);
+                await settle();
+                return [M.roomOfToken(token), token.x === before.x && token.y === before.y, told.slice(sent), count()];
+            };
+
+            // (a) a console that never asks
+            await fresh();
+            const quiet = [];
+            for (let i = 1; i <= allowance + 1; i++) quiet.push(await walk(i, 100 + 10 * i));
+            const row = S.eclipseMoveStore.get(student.id);
+            // (b) its asks, late
+            const late = [];
+            for (let i = 1; i <= allowance + 1; i++) {
+                const out = await E.applyRecordedMove(student.id, { card: false });
+                late.push(out?.refused ? G.reasonOf(out.refused) : [out?.used ?? null, count()]);
+            }
+            // (c) an honest player: each ask before its move
+            await fresh();
+            const honest = [];
+            for (let i = 1; i <= allowance; i++) {
+                const out = await E.applyRecordedMove(student.id, { card: false });
+                honest.push([out?.used ?? null, ...(await walk(i, 200 + 10 * i))]);
+            }
+            // (d) the judge: no GM's answer; held in flight
+            await S.eclipseMoveStore.drop(student.id);
+            const warned = [];
+            const unanswered = await E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: async () => null });
+            let open = null;
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = Array.from({ length: allowance }, () => E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: () => gate }));
+            await settle();
+            const whileHeld = E.movesLeft(student);
+            const extra = await E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: async () => true });
+            open(true);
+            const heldOut = await Promise.all(held);
+            read = { quiet, seen: [row?.seen ?? null, row?.used ?? null], late, honest, judge: [unanswered, whileHeld, extra, heldOut, E.movesLeft(student), warned.length] };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const name = i => `SUITE E17 T4 R${i}`;
+        const quiet = Array.from({ length: allowance + 1 }, (_, k) => k < allowance ? [name(k + 1), false, [], k + 1] : [name(allowance), true, ["eclipseSpent"], allowance]);
+        const late = [...Array.from({ length: allowance }, () => [allowance, allowance]), "nothingLeft"];
+        const honest = Array.from({ length: allowance }, (_, k) => [k + 1, name(k + 1), false, [], k + 1]);
+        equal(stableJson(read), stableJson({ quiet, seen: [allowance, 0], late, honest, judge: [false, 0, false, Array(allowance).fill(true), allowance, 1] }),
+            "{quiet: a console's walk, each move [the room it stands in, put back, the codes its player was sent, the count]; seen: [the store's sightings, its asks]; "
+                + "late: that console's asks after [the count it answered, the count] or the refusal; honest: each ask before its move [the count, the move as in quiet]; "
+                + "judge: [a crossing no GM answered, crossings left while the allowance is held in flight, one more, the held ones' verdicts, left after, the warnings]}");
+    }],
+
+    ["an Eclipse route refused at a crossing goes back to the end of the last crossing it was allowed, that one counted, and a route counts its own crossings while the count it reads lags (E17-T4)", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-16, audit S07-08 (MAP-11's fix never reached the Eclipse's branch of the charge). A route
+         * of three crossings, in an Eclipse whose allowance is two, settled one crossing at a time (movement.mjs
+         * `chargeRoute`): the third refused put the token back where the drag began (`previous`), though the first two
+         * were counted - a student with two crossings who dragged through three rooms stood where they started with the
+         * allowance spent. And each crossing was judged by the count read again after the one before (`movesLeft`), which
+         * on the owner's browser is a copy the primary sends after it counts: a route faster than that copy saw the old
+         * count at every crossing. Here movement.mjs's charge, taken off `Hooks.events` as in E12's route test, is handed a
+         * plain token of a plain character whose id is a student's and whom no connected player owns, so the primary GM
+         * pays and counts in its store: recorded by our own revert in the first room of a row, then a drag with steps
+         * pending through the next rooms to one room past the allowance. Run twice: as it is, and with the store's write
+         * held (`eclipseMoveStore.patch` answering without writing), the lagging count's stand-in. Read: what the
+         * put-back wrote, and the count. Red at 730dffcf: put back to the drag's start; with the write held, no put-back.
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns, and counts it");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const patch = S.eclipseMoveStore.patch;
+        let read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            Hooks.on("createChatMessage", onMessage);
+            const ROOMS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE E17 T4 route R${i}`);
+            const region = (name, i) => ({ id: `suite-e17-t4-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+                bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+                testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+                getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+            const scene = { id: "suite-e17-t4-route", name: "SUITE E17 T4 route", grid: { size: 100 }, regions: new Set(ROOMS.map(region)) };
+            must(M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            const plain = { id: student.id, name: student.name, type: "character", items: [], system: { resources: {} },
+                getFlag: () => undefined, testUserPermission: () => false };
+            const route = async () => {
+                const written = [];
+                const token = { id: `suite-e17-t4-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                    actor: plain, update: async data => { written.push(data); return token; } };
+                await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+                for (let i = 1; i <= allowance + 1; i++) {
+                    const last = i === allowance + 1;
+                    Object.assign(token, { x: 400 * i + 100, y: 100 + 10 * i, movement: { pending: { waypoints: last ? [] : [{ x: 400 * (i + 1) + 100, y: 100 }] } } });
+                    await charge(token, { x: token.x, y: token.y }, {}, player.id);
+                }
+                await until(() => written.length > 0, 2000);
+                return written.map(w => `${w.x},${w.y}`);
+            };
+            await S.eclipseMoveStore.drop(student.id);
+            const counted = [await route(), E.movesUsed(student)];
+            await S.eclipseMoveStore.drop(student.id);
+            S.eclipseMoveStore.patch = () => Promise.resolve();
+            const lagging = [await route(), E.movesUsed(student)];
+            S.eclipseMoveStore.patch = patch;
+            read = [counted, lagging];
+        } finally {
+            S.eclipseMoveStore.patch = patch;
+            Hooks.off("createChatMessage", onMessage);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        const end = `${400 * allowance + 100},${100 + 10 * allowance}`;
+        equal(stableJson(read), stableJson([[[end], allowance], [[end], 0]]),
+            "[[what the put-back of the crossing past the allowance wrote, the count], the same with the store's write held]");
+    }],
+
+    ["a route whose continuation was vetoed settles the crossing it made at rest: charged, the traps told, and in an Eclipse counted (E17-T5)", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-18, audit S07-07. A drag's steps with waypoints pending were only noted (`notePathRoom`),
+         * and the route settled on the update that named its end; a continuation the mover's own veto refused never
+         * reached the server, so the token stood one room on with nothing paid, nothing counted and the traps told
+         * nothing until its next move. E79 C14 (1.2.79) re-reads a token at rest (`recheckAtRest`): a step still noted
+         * with no last step behind it is judged where the token stands once it has been quiet for `ROUTE_QUIET_MS`.
+         * This measures what that leaves (the stage's design note 4): movement.mjs's charge, taken off `Hooks.events`, is
+         * handed a plain token of a plain character no connected player owns (the primary pays) - its place recorded by
+         * our own revert in a Kitchen, then one step of a drag into a Dining with a step to a Storage still pending, and
+         * no update after. In daily life with crossing rooms costing a Move, with only the free Move: whether it was
+         * spent, and the traps' hook (`drpgRoomCrossed`) with the time from the step; in an Eclipse that is no free
+         * placement, for a student's id: the count. Green at 730dffcf: Base's re-read settles it (the stage's "verify").
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns, and counts it");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const chargeOn = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const made = [], crossed = [];
+        const onMessage = message => { made.push(message.id); };
+        const region = (name, i) => ({ id: `suite-e17-t5-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+            bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e17-t5-route", name: "SUITE E17 T5", grid: { size: 100 }, regions: new Set(["Kitchen", "Dining", "Storage"].map(region)) };
+        const onCrossed = event => { if (event?.tokenDoc?.parent === scene) crossed.push([event.from, event.to, Date.now()]); };
+        const vetoed = async actor => {
+            const written = [];
+            const token = { id: `suite-e17-t5-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                actor, update: async data => { written.push(data); return token; } };
+            await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 500, y: 120, movement: { pending: { waypoints: [{ x: 900, y: 100 }] } } });
+            const at = Date.now();
+            await charge(token, { x: 500, y: 120 }, {}, player.id);
+            return { at, written };
+        };
+        let read = null;
+        try {
+            Hooks.on("createChatMessage", onMessage);
+            Hooks.on("drpgRoomCrossed", onCrossed);
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            if (!chargeOn) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            const flags = { [FLAGS.freeMoveUsed]: false };
+            const daily = { id: "suite-e17-t5-actor", name: "SUITE E17 T5 a diner", type: "character", items: [], system: { resources: {} },
+                getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: () => false,
+                update: async changes => {
+                    for (const [key, value] of Object.entries(changes)) if (key.startsWith(`flags.${MODULE_ID}.`)) flags[key.slice(`flags.${MODULE_ID}.`.length)] = value;
+                    return daily;
+                } };
+            const first = await vetoed(daily);
+            const settled = await until(() => flags[FLAGS.freeMoveUsed] === true && crossed.length > 0, 6000);
+            const dailyRead = [settled, flags[FLAGS.freeMoveUsed], crossed.map(([from, to]) => `${from}>${to}`), first.written.length];
+            const late = crossed.length ? crossed[0][2] - first.at : null;
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            must(E.isEclipse() && E.eclipseAllowance() !== null, "no counted Eclipse runs - this would measure nothing");
+            await S.eclipseMoveStore.drop(student.id);
+            const plain = { id: student.id, name: student.name, type: "character", items: [], system: { resources: {} }, getFlag: () => undefined, testUserPermission: () => false };
+            const second = await vetoed(plain);
+            const counted = await until(() => E.movesUsed(student) === 1, 6000);
+            read = { daily: dailyRead, eclipse: [counted, E.movesUsed(student), second.written.length] };
+            ok(late !== null && late < 6000, `the traps were told ${late} ms after the step, not on the next move's time`);
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            Hooks.off("drpgRoomCrossed", onCrossed);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== chargeOn) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeOn);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ daily: [true, true, ["Kitchen>Dining"], 0], eclipse: [true, 1, 0] }),
+            "{daily: [settled in time, the free Move spent, the traps' crossings, put-back writes], eclipse: [counted in time, the count, put-back writes]}");
+    }],
+
     ...GRID
 ];
 

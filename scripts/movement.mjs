@@ -25,7 +25,7 @@ import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG } from "./config.mjs";
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
-    isDeceased, getClock
+    isDeceased, getClock, eclipseId, eclipseCountOf
 } from "./settings.mjs";
 // The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
 // that reaches neither this file nor vault.mjs (bedroom-keys.mjs's header).
@@ -43,7 +43,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural, serialWrite, ownerIdsOf } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -56,6 +56,9 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 // Who acts as the Mastermind (E79 fix r2-G2), for the witness judge: passages-gm.mjs is already in this file's static
 // graph through movement-audit.mjs, so the edge adds no module and no cycle that was not there.
 import { actsAsMastermind } from "./passages-gm.mjs";
+// The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
+// static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
+import { eclipseMoveStore } from "./gm-stores.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -990,7 +993,11 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         // Through a secret passage (E79 C3): the straight line from where the primary last saw the token to
         // where it stands, on the floor of the room it came from, against the GMs' records.
         const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
-        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
+        let verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
+        // An Eclipse's crossing the primary sees (E17 C2; `eclipseSighting`): counted, or past the allowance a rule's refusal.
+        const sighting = verdict === true && putBack && (asked || (mover && !mover.isGM)) ? eclipseSighting(student, was?.last?.room ?? null, tokenDoc) : null;
+        if (sighting?.spent) verdict = sighting.spent;
+        else if (sighting) noteSeenCrossing(sighting);
         if (verdict === true) now = standingHere(tokenDoc);
         else {
             /* A RULE'S REFUSAL OF A PLAYER'S MOVE (E17 C1; the note on `ruleOf`). Kept on the standing with the spot to put the
@@ -1037,6 +1044,56 @@ function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     if (from === to) return true;                      // the same room, a stairwell's floors too
     return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) },
         { mover, pay: false, via, elevation: ownElevation(tokenDoc), keyed: true });
+}
+
+/*
+ * THE ECLIPSE COUNTED WHERE THE PRIMARY SEES IT (E17 C2, 26.10.2026; audit S10-44, A10: "S07-08 ... idą do TEGO hooka i
+ * tej drogi"). The count was the bridge's `eclipse.move` alone (eclipse.mjs `recordMove`), which the mover's browser
+ * sends after its own judge: a console that moved its token and never asked crossed the dark map with nothing counted.
+ * Now a player's move the judge reads as a lawful crossing from one room to another in an Eclipse is a sighting,
+ * counted in the store's `seen` (the count is the larger of `seen` and the asked `used`, settings.mjs
+ * `eclipseCountOf`), and one past the allowance is a rule's refusal, `eclipseSpent`, which the GMs' audit puts back to
+ * the last lawful spot in either mode (movement-audit.mjs `RULE_CODES`). The sightings are judged against themselves,
+ * not against the larger count: an honest ask often reaches the primary before the move it asks about, and judged
+ * against the asks that move would read as past the allowance. Written in a step of the character's `crossingKey`, and
+ * held on the primary until then (`seenTally`), for a second move judged before the first's write runs. A
+ * Monokuma is not counted; a free-placement Eclipse counts and puts nothing back; a GM's move, an honoured put-back
+ * and a move the rules refused are no sighting. Tier 2 E17-T4.
+ */
+const seenTally = new Map();
+
+/** The sighting of an Eclipse crossing in this judged landing, `{ actorId, eclipse, seen }`, `{ spent }` past the allowance, or null. */
+function eclipseSighting(student, from, tokenDoc) {
+    const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
+    if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
+    const to = roomOfToken(tokenDoc), id = eclipseId(clock);
+    if (!from || !to || from === to || !id) return null;
+    const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    const tally = seenTally.get(student.id);
+    const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
+    if (allowance !== null && seen >= allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
+    return { actorId: student.id, eclipse: id, seen: seen + 1 };
+}
+
+/** Write a sighting (`eclipseSighting`) into the store, in a step of the character's key, and tell its owners their count. */
+function noteSeenCrossing({ actorId, eclipse, seen }) {
+    if (!isPrimaryGm()) return;
+    seenTally.set(actorId, { eclipse, seen });
+    // The tally holds a sighting only until its write: a reset of the store after it is the store's to answer.
+    const written = () => {
+        const held = seenTally.get(actorId);
+        if (held?.eclipse === eclipse && held.seen <= seen) seenTally.delete(actorId);
+    };
+    serialWrite(crossingKey(actorId), async () => {
+        await eclipseMoveStore.whenHydrated();
+        if (eclipseId() !== eclipse) return written();
+        const row = eclipseCountOf(eclipseMoveStore.get(actorId), eclipse);
+        await eclipseMoveStore.patch(actorId, { used: row.used, seen: Math.max(row.seen, seen), eclipse });
+        written();
+        const { sendMovesTo } = await import("./eclipse.mjs");
+        const actor = game.actors.get(actorId);
+        if (actor) for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
+    }).catch(err => error("Could not count an Eclipse crossing the GM saw", err));
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */
@@ -2213,17 +2270,29 @@ async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { r
     // player unlimited placement moves. This is also where a crossing gets
     // RECORDED, so skipping it would leave `movesLeft` reading two all the
     // way through the window.
-    const { isEclipse, judgeEclipseCrossing } = await import("./eclipse.mjs");
+    const { isEclipse, judgeEclipseCrossing, movesUsed } = await import("./eclipse.mjs");
     if (isEclipse()) {
         // Per crossing, like the economy below: the Eclipse's cap is two
         // CROSSINGS, and settling a whole route as one would have let a
         // multi-waypoint drag walk the map on a single allowance.
-        for (const [from, to, floors] of crossings) {
-            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc), ...(record ? { record } : {}) });
+        /* BACK TO THE LAST CROSSING ALLOWED, ITS OWN COUNT KEPT (E17 C2, 26.10.2026; audit S07-08). MAP-11's fix below never
+           reached this branch: a crossing refused put the token back where the drag began (`previous`), though the ones
+           before it were counted - two crossings spent and the token where it started. Now it goes to the spot the drag
+           stood on in the room the last allowed crossing reached (`notePathRoom`'s, as the economy's put-back), which the
+           GMs' record holds. And the route judges each crossing by the count it read before its first plus the crossings
+           allowed since (`used`), not by the count read again after each: on the owner's browser that is a copy the
+           primary sends after it counts, and a route faster than the copy read the old count at every crossing. Tier 2
+           E17-T4 at 730dffcf: put back to the drag's start; with the count's write held, three crossings on two stood. */
+        const used0 = movesUsed(actor);
+        let standing = previous, allowedSoFar = 0;
+        for (const [from, to, floors, spot] of crossings) {
+            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc), used: used0 + allowedSoFar, ...(record ? { record } : {}) });
             if (!allowed) {
-                await sendBack(tokenDoc, previous, before);
+                await sendBack(tokenDoc, standing, from);
                 return false;
             }
+            allowedSoFar++;
+            standing = spot ?? standing;
         }
         if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
         return true;

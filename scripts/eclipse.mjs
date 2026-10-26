@@ -17,7 +17,7 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
@@ -86,7 +86,8 @@ export function eclipseMoves() {
     if (!id) return out;
     const rows = game.user?.isGM ? eclipseMoveStore.entries() : (eclipseMoveCopy.read() ?? {});
     for (const [actorId, row] of Object.entries(rows ?? {})) {
-        if (row?.eclipse === id) out[actorId] = Math.max(0, Number(row.used) || 0);
+        // The larger of the asked and the seen count (E17 C2; settings.mjs `eclipseMovesUsed`), a copy's `used` alone.
+        if (row?.eclipse === id) out[actorId] = eclipseCountOf(row, id).count;
     }
     return out;
 }
@@ -898,7 +899,7 @@ function placingActors(dead) {
  * but `elevation`: movement.mjs `settleRoute` hands the crossing token's height, at which a passage in a wall
  * is read (H81 fix r1; movement.mjs `passageRooms`' note).
  */
-export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null, { clock = null, known, warn = null, record = recordMove, elevation = null } = {}) {
+export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null, { clock = null, known, warn = null, record = recordMove, elevation = null, used = null } = {}) {
     if (!(clock ? clock.eclipse === true : isEclipse())) return true;
     const say = warn ?? (text => ui.notifications.warn(text));
 
@@ -921,7 +922,11 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
     const free = allowance === null;
 
     if (!free) {
-        const left = movesLeft(actor, clock ?? getClock());
+        /* A ROUTE COUNTS ITS OWN CROSSINGS (E17 C2, 26.10.2026; audit S07-08): `used` is the count a route read before its
+           first crossing plus those it was allowed since (movement.mjs `chargeRoute`), so a count that has not caught up
+           with the crossings just made - the owner's copy, sent after the primary counts - is never read lower than they
+           are. Tier 2 E17-T4 at 730dffcf: with the count's write held, a route of three crossings on two was let through. */
+        const left = used === null ? movesLeft(actor, clock ?? getClock()) : Math.max(0, allowance - Math.max(used, movesUsed(actor)));
         if (left <= 0) {
             say(game.i18n.localize("DRPG.Eclipse.noMovesLeft"));
             return false;
@@ -947,12 +952,18 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
      * The crossing is counted on the primary GM's client, which judges the allowance
      * again - until 1.2.64 only this client judged it, and the count was a world
      * setting any browser could read. A crossing the GM finds beyond the allowance is
-     * refused (`nothingLeft`) and sent back; one no GM answered stands and is not
-     * counted, as it did (E31). The card that tells the owner the room they walked
+     * refused (`nothingLeft`) and sent back. The card that tells the owner the room they walked
      * into is posted by the GM too: posted here, its document named this character as
      * the speaker and this player as the author and the reader, in every browser.
+     *
+     * NO GM'S ANSWER IS A REFUSAL (E17 C2, 26.10.2026; audit S10-44). One no GM answered stood and was not counted
+     * (E31): with the GM gone in the dark, every crossing was let through with a "no GM" notice each time, the
+     * allowance counting nothing. Now only a counted crossing stands; the rest goes back. And the crossing counts
+     * while it waits for its answer (settings.mjs `eclipseInFlight`), so a second judged before the first is answered
+     * reads it (tier 2 E17-T4 at 730dffcf: a crossing no GM answered stood, and the whole allowance held in flight
+     * left one more through).
      */
-    return (await record(actor, to)) !== false;
+    return (await eclipseInFlight(actor.id, () => record(actor, to), clock)) === true;
 }
 
 /**
@@ -1021,10 +1032,17 @@ export async function countCrossingInStep(actorId, { to = null, card = true } = 
     const id = eclipseId();
     if (!actor || !id) return null;
     const allowance = eclipseAllowance();
-    const before = eclipseMovesUsed(actorId);
-    if (allowance !== null && before >= allowance) return { refused: "no crossings left this Eclipse" };
-    const used = before + 1;
-    await eclipseMoveStore.patch(actorId, { used, eclipse: id });
+    /* A CROSSING SEEN IS COUNTED ONCE (E17 C2, 26.10.2026; audit S10-44). The primary counts a player's crossing where it
+       sees one (`seen`, movement.mjs `judgeArrival`), whether or not the owner's browser asks, and an honest one is both
+       seen and asked: the count is the larger of the two (settings.mjs `eclipseCountOf`). An ask the sightings already
+       hold (`asked < seen`) is the same crossing told late, judged when it was seen, and is counted without the
+       allowance asked again; any other is judged against the count, as before. */
+    const { used: asked, seen, count: before } = eclipseCountOf(eclipseMoveStore.get(actorId), id);
+    if (asked >= seen) {
+        if (allowance !== null && before >= allowance) return { refused: "no crossings left this Eclipse" };
+    }
+    const used = Math.max(asked + 1, seen);
+    await eclipseMoveStore.patch(actorId, { used: asked + 1, seen, eclipse: id });
 
     // A free-placement Eclipse is still counted: the placement table reads it to see
     // who has put a token down. The ALLOWANCE, not the constant: under a darkening
@@ -1065,9 +1083,10 @@ export async function uncountCrossingInStep(actorId) {
     await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);
     const id = eclipseId();
-    const before = eclipseMovesUsed(actorId);
+    // The count one lower (E17 C2): both counts held to it, as the count is the larger of the two.
+    const { used, seen, count: before } = eclipseCountOf(eclipseMoveStore.get(actorId), id);
     if (!actor || !id || before < 1) return false;
-    await eclipseMoveStore.patch(actorId, { used: before - 1, eclipse: id });
+    await eclipseMoveStore.patch(actorId, { used: Math.min(used, before - 1), seen: Math.min(seen, before - 1), eclipse: id });
     for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
     return true;
 }
@@ -1113,7 +1132,8 @@ export function movesFor(userId) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = eclipseMoveStore.newest(actor.id);
         const row = eclipseMoveStore.get(actor.id);
-        if (row) moves[actor.id] = { used: Math.max(0, Number(row.used) || 0), eclipse: row.eclipse ?? null };
+        // The count, the larger of the asked and the seen (E17 C2): the owner's copy holds one number.
+        if (row) moves[actor.id] = { used: row.eclipse ? eclipseCountOf(row, row.eclipse).count : Math.max(0, Number(row.used) || 0), eclipse: row.eclipse ?? null };
     }
     return { moves, stamps };
 }

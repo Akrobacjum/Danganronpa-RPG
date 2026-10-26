@@ -39,10 +39,11 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
  * "the rules put back in either mode"), each a code of bridge-guards.mjs `REASONS` whose words a player's browser says
  * (`DRPG.Bridge.why.<code>`): the incident's lock, a GM's lock, a seal, Chained, the courtroom, and `cannotNow` for
  * another's bedroom shut to the mover (movement.mjs `ruleOf`: only the bedroom's `cannotNow`, never the connected-rooms
- * rule's, which is the walls' and floors' and follows `moveAudit`). `noBudget` is the payer's and never a put-back; a
- * spent Eclipse's `eclipseSpent` is E17 C2's. movement.mjs reads this list (it imports this file, R161).
+ * rule's, which is the walls' and floors' and follows `moveAudit`). `noBudget` is the payer's and never a put-back.
+ * Since E17 C2 a crossing the primary sees past the Eclipse's allowance too (`eclipseSpent`; movement.mjs
+ * `eclipseSighting`). movement.mjs reads this list (it imports this file, R161).
  */
-export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked"]);
+export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent"]);
 
 /** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, and since E17 C1
  *  the rules' codes (`RULE_CODES`) - the things the audit sends a token back for, one packet for all of them. */
