@@ -32289,6 +32289,198 @@ const SCENARIOS = [
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
     }],
 
+    ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask ends it, as interrupted, the target's window withdrawn and a yes after it not kept, a refusal's open force ended alike, and the searcher's wait ends with the primary (E18 C7)", async () => {
+        /*
+         * E18 C7, 26.10.2026; amend 5 (A11's Frisk ask on E18's one road), the stage's row E18-31. An open Frisk's ask is
+         * the primary's (frisk.mjs `friskAsks`), and the searcher's browser waits on it (gm-bridge.mjs `requestFriskAsk`)
+         * for the answer's clock and a margin. Nothing told the primary when that wait ran out: the searcher's browser had
+         * handed the action back, the primary still held the ask, and the target's yes after it posted the list to the
+         * searcher, or a refusal's force window stayed open and ended 'lets it go' to the target and the room. The one
+         * road's expiry (bridge-guards.mjs `createWaiter`'s `expired`, E18 C1's `ruling.expired`) now names the ask's
+         * request id, and the primary ends the ask it holds under that id for that sender as interrupted: no dice thrown,
+         * the target's window withdrawn (`frisk.cancel`), the searcher's card 'The moment has passed' (`endAsk`). A
+         * player's character and another whose connected player answers, alone in a room, outside an Eclipse and the
+         * Class Trial (the clock written straight to its setting and put back), the force on. Phases: an ask, then the
+         * answerer's expiry naming its id, the searcher's naming another id, the searcher's naming it, then the target's
+         * yes; an ask refused with the force open, then the searcher's expiry; and the wait's own options read in
+         * `requestFriskAsk` (the expiry, and `untilPrimaryLeaves`: the ask dies with the primary that holds it, so the
+         * wait ends when it leaves, bridge-guards.mjs `primaryGone`). Read: what the primary holds, the cards, the
+         * windows withdrawn, the searcher's answers and the yes's. Red at f7ac1e9d: no expiry ends either ask, the yes is
+         * kept and the list posted, and the wait names neither option.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const NAME = "Suite E18 C7 a brass button";
+        const ACT = "system.resources.actions.value";
+        const putBack = sheetAsFound(theirs, [ACT]);
+        const top = Math.max(1, actionsLeft(theirs));
+        const asPlayer = { [(await import("./roll-draw.mjs")).PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["list", "DRPG.Frisk.shownHeading", { who: other.name }], ["refused", "DRPG.Frisk.refused", { who: other.name }],
+            ["interrupted", "DRPG.Frisk.interrupted", {}], ["toTarget shown", "DRPG.Frisk.shown", { who: theirs.name }],
+            ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? "other";
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (["bridge.done", "frisk.cancel"].includes(packet?.action)) packets.push(packet);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const read = () => {
+            const fresh = packets.slice(marks.packets);
+            const out = {
+                cards: made.slice(marks.made).map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf).filter(k => k !== "other"),
+                withdrawn: fresh.filter(p => p.action === "frisk.cancel" && p.userId === answerer).length,
+                done: fresh.filter(p => p.action === "bridge.done" && p.userId === player.id).map(p => p.value?.outcome ?? null)
+            };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const judged = async (action, fields, from, requestId = `E18C7${foundry.utils.randomID(8)}`) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...F.friskAsks.values()].find(row => row.searcherId === searcherId) ?? null;
+        const ask = async rid => {
+            F.forgetFriskAsks();
+            await pay();
+            await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id, rid);
+            read();
+            return rowOf(theirs.id);
+        };
+        const holds = row => Boolean(row && F.friskAsks.has(row.askId));
+        const seen = {};
+        let stood = null;
+        marks = { packets: packets.length, made: made.length };
+        try {
+            if (clockWas.eclipse || clockWas.phase === "classTrial") {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "dailyLife" });
+                await settle();
+            }
+            stood = await aloneTogether(theirs, other);
+            await (await import("./remnants.mjs")).flushTraceDigest();
+            await settle();
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            const ridA = `E18C7a${foundry.utils.randomID(8)}`;
+            const rowA = await ask(ridA);
+            const steps = [rowA?.state ?? null];
+            await judged("ruling.expired", { rid: ridA }, answerer);
+            steps.push(holds(rowA));
+            await judged("ruling.expired", { rid: `${ridA}x` }, player.id);
+            steps.push(holds(rowA));
+            await judged("ruling.expired", { rid: ridA }, player.id);
+            steps.push(holds(rowA));
+            seen.expired = { steps, ...read(), yes: await judged("action.friskAnswer", { askId: rowA?.askId ?? null, allow: true }, answerer), after: read() };
+            const ridB = `E18C7b${foundry.utils.randomID(8)}`;
+            const rowB = await ask(ridB);
+            const no = await judged("action.friskAnswer", { askId: rowB?.askId ?? null, allow: false }, answerer);
+            const open = [rowB?.state ?? null, Number.isFinite(rowB?.forceUntil)];
+            read();
+            await judged("ruling.expired", { rid: ridB }, player.id);
+            seen.refused = { no, open, held: holds(rowB), ...read() };
+            const wait = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "requestFriskAsk");
+            seen.wait = [/\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(wait), /\buntilPrimaryLeaves:\s*true\b/.test(wait)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await putBack();
+            (await import("./roll-draw.mjs")).forgetPayments?.(theirs.id);
+            if (stood) await stood.back();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            expired: { steps: ["asking", true, true, false], cards: ["interrupted"], withdrawn: 1, done: ["interrupted"], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
+            // The searcher was answered once, with the refusal and its force: its expiry ends the ask with no second answer.
+            refused: { no: ["refused"], open: ["refused", true], held: false, cards: ["interrupted"], withdrawn: 0, done: [] },
+            wait: [true, true]
+        }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [the wait names the expiry and ends with the primary]");
+    }],
+
+    ["a Sabotage asked again under its request id answers what it answered the first time: one freeze, one repair, the same reply, while another player's packet under that id and the saboteur's under another are judged as new (E18 C7)", async () => {
+        /*
+         * E18 C7, 26.10.2026; audit S10-43 part 2, the stage's row E18-32. A player's Sabotage is asked again with its
+         * request id when a new primary can answer (gm-bridge.mjs `project.sabotage` is `resend: true`; bridge-guards.mjs
+         * `resendOnGmReady`), and a primary that had frozen the project and made its repair, and reloaded or left before
+         * its answer went, was asked again for a Sabotage it had carried out. The runner's roll check refused the resend
+         * ("that roll has already settled that action"), so the saboteur was told it was not done, with the project
+         * frozen by their roll. The repair's row in the GMs' store (E36 C3's meta, `saboteur`) keeps the request id beside
+         * the saboteur now (`sabotageAsk`), and a request asked again by its sender under its id answers the first one's
+         * result before any check (bridge-guards.mjs `judge`, the declaration's `again`). Keyed by Foundry's sender: a
+         * player who sends the same id gets nothing of it. A project in the player's character's room, a roll the GMs'
+         * record says came to 13. Read: the first answer, the resend's, another player's packet under the same id, the
+         * saboteur's under another id, the repairs made and the freeze. Red at f7ac1e9d: the resend is refused.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a second connected player sends a packet under the first one's id");
+        const { player, actor, where } = await playerInRoom();
+        const stranger = game.users.find(u => u.active && !u.isGM && u.id !== player.id) ?? null;
+        must(stranger, "no second connected player - this would measure nothing");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await projectPackets(player, actor);
+        const rid = `E18C7s${foundry.utils.randomID(8)}`;
+        const sabotage = async (fields, from, requestId) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "project.sabotage", requestId, actorId: actor.id, penalty: 0, relief: 0, ...fields }, from, {
+                send: (to, reply) => {
+                    if (reply?.action === "bridge.done") out.push(["done", reply.value?.repair?.id ?? null, reply.value?.repair?.name ?? null, reply.value?.target ?? null]);
+                    else if (reply?.action === "bridge.refused") out.push(["refused", reply.reason]);
+                }
+            });
+            await settle();
+            return out;
+        };
+        let seen = null;
+        try {
+            const target = await F.project(where.room);
+            const roll = await F.rolled(13, "sabotage");
+            const fields = { targetId: target, difficulty: 3, rollId: roll.id };
+            const repairs = () => F.P.allProjects().filter(p => F.P.repairs(p.id) === target).map(p => p.id);
+            const first = await sabotage(fields, player.id, rid);
+            const made = repairs();
+            const again = await sabotage(fields, player.id, rid);
+            const stranger_ = await sabotage(fields, stranger.id, rid);
+            const anew = await sabotage(fields, player.id, `${rid}n`);
+            seen = {
+                first: first.map(([kind, id, name, of]) => [kind, id === made[0], Boolean(name), of === F.P.allProjects().find(p => p.id === target)?.name]),
+                again: stableJson(again) === stableJson(first), stranger: stranger_.map(([kind]) => kind), anew: anew.map(([kind]) => kind),
+                repairs: repairs().length, frozen: F.P.isFrozen(target)
+            };
+        } finally {
+            await F.putBack();
+        }
+        equal(stableJson(seen), stableJson({ first: [["done", true, true, true]], again: true, stranger: ["refused"], anew: ["refused"], repairs: 1, frozen: true }),
+            "[the first answer: done, its repair, named, of the target], [the resend's answer the same], [another player's under that id], [the saboteur's under another id], [repairs made], [frozen]");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory

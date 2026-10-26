@@ -1674,6 +1674,19 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
         try {
             const prepared = decl.prepare ? await decl.prepare(payload) : null;
             const sender = senderOf(senderId);
+            /* ASKED AGAIN, ANSWERED AS BEFORE (E18 C7, 26.10.2026; audit S10-43 part 2). A request the waiter asks again
+               with its id (`resendOnGmReady`) reaches a primary that may have carried it out before it reloaded or took
+               over: its guards and its roll then judge the world its first run wrote - a project frozen, a roll settled -
+               and refused it, so the asker was told not done of a write that stood. A declaration's `again(sender, ctx)`
+               answers `{ reply }`, what the first run answered that sender under that id, read from what that run wrote
+               and keyed by Foundry's sender, never by the packet; null for a request it has not seen, judged as any other.
+               Before the guards, as it judges nothing new. */
+            const before = decl.again && sender && typeof ctx.requestId === "string" && ctx.requestId ? await decl.again(sender, ctx) : null;
+            if (before) {
+                if (!early && decl.answer !== "none") acknowledge();
+                if (decl.answer === "reply") answer(decl, ctx, before.reply ?? null, send);
+                return true;
+            }
             const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
             if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
             /* A result is the record's, not the packet's (E08+E28 C14, above). The roll is

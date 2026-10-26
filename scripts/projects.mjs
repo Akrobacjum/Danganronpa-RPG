@@ -1212,6 +1212,8 @@ export async function createProject({
      * asked, the GMs'. Not named `repairs`: that is this file's function (R21 reads a shadowed name as a value).
      */
     repairFor = null, saboteur = null,
+    // The request a player's Sabotage came under (E18 C7): its resend is answered this repair (`sabotageOfRequest`).
+    sabotageAsk = null,
     /*
      * A PROJECT THAT MAKES A PASSAGE (E15 part 2 C2): `presetTarget` is `{ preset, room }` - a key of passages-gm.mjs
      * `PASSAGE_PRESETS` and the neighbour the proposal named - and `passage` the stretch the approval picked. Both are
@@ -1293,6 +1295,7 @@ export async function createProject({
             trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
             ...(repairFor ? { repairs: repairFor } : {}),
             ...(saboteur ? { saboteur } : {}),
+            ...(saboteur && sabotageAsk ? { sabotageAsk } : {}),
             ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
             ...(passage ? { passage } : {})
         }
@@ -1359,7 +1362,7 @@ export function repairs(countdownId) {
  * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
-export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
+export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, requestId = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
         // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (gm-bridge.mjs `handleSabotage`),
@@ -1416,7 +1419,8 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
         // The pair, written by the step that makes the repair (`createInStep`), and who asked, when it was a
         // player (the bridge passes Foundry's sender): a Reroll may take back its own sabotage and nobody else's.
         repairFor: targetId,
-        saboteur
+        saboteur,
+        sabotageAsk: saboteur && typeof requestId === "string" && requestId ? requestId : null
     });
     if (!repair) {
         // Frozen by another Sabotage that reached the step first (E36 C3): told as the check above tells it.
@@ -1426,6 +1430,20 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
 
     log(`Project "${target.name}" frozen; repair "${repair.name}" created (${difficulty} progress).`);
     return { repair, target: target.name };
+}
+
+/**
+ * What a player's Sabotage under `requestId` answered (E18 C7, 26.10.2026; audit S10-43 part 2): `{ repair, target }`, as
+ * `sabotageProject` answered it, for the repair whose GMs' row names that saboteur and that request, while it still
+ * repairs its target; null otherwise. GM only (`secretsOf`): gm-bridge.mjs `sabotageAgain` reads it on the primary.
+ */
+export function sabotageOfRequest(saboteur, requestId) {
+    if (!game.user?.isGM || typeof saboteur !== "string" || !saboteur || typeof requestId !== "string" || !requestId) return null;
+    const projects = allProjects();
+    const repair = projects.find(p => secretsOf(p.id).saboteur === saboteur && secretsOf(p.id).sabotageAsk === requestId) ?? null;
+    const target = repair ? projects.find(p => p.id === repairs(repair.id)) ?? null : null;
+    if (!repair || !target) return null;
+    return { repair: { id: repair.id, name: repair.name, target: repair.start, trait: repair.trait ?? null }, target: target.name };
 }
 
 /**

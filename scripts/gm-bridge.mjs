@@ -780,7 +780,8 @@ async function handleFriskAsk(payload, sender, ctx) {
         if (!ctx?.requestId || !ctx.asker) return;
         game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: ctx.requestId, userId: ctx.asker, value }, { recipients: [ctx.asker] });
     };
-    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply });
+    // The request id is the ask's on E18's one road: the searcher's expiry names it (`expiredOnPrimary`, E18 C7).
+    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply, requestId: ctx?.requestId ?? null });
     if (out?.refused) return { refused: out.refused };
     if (out?.later) return { later: true };
     return { reply: out?.value ?? null };
@@ -1427,6 +1428,20 @@ async function handleRemnantEdit(payload, sender, ctx) {
     debug(`Retuned a Remnant on behalf of ${sender.name}.`, narrowed);
 }
 
+/*
+ * A SABOTAGE ASKED AGAIN (E18 C7, 26.10.2026; audit S10-43 part 2, the stage's row E18-32): the repair a player's
+ * Sabotage made keeps the request it was made under beside its saboteur (projects.mjs `sabotageOfRequest`), so the same
+ * sender's resend under that id is answered the first result (bridge-guards.mjs `judge`, `again`) instead of being
+ * refused by the roll it settled. A miss made no repair and a refused one none either: their resend is judged anew, and
+ * refused, as the first answered nothing.
+ */
+async function sabotageAgain(sender, ctx) {
+    if (sender.isGM) return null;
+    const { sabotageOfRequest } = await import("./projects.mjs");
+    const first = sabotageOfRequest(sender.id, ctx.requestId);
+    return first ? { reply: first } : null;
+}
+
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
@@ -1437,8 +1452,9 @@ async function handleSabotage(payload, sender, ctx) {
        rerolled into a success froze nothing. */
     const difficulty = Math.trunc(payload.difficulty);
     // Who asked, so that only their own Reroll can take it back (E03).
+    // And under which request (E18 C7): a resend of it answers this result again (`sabotageAgain`).
     const result = difficulty > 0 ? await sabotageProject(payload.targetId, difficulty,
-        { saboteur: sender.isGM ? null : sender.id }) : null;
+        { saboteur: sender.isGM ? null : sender.id, requestId: sender.isGM ? null : ctx?.requestId ?? null }) : null;
     /* Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a), on the
        row of the roll the packet names (fix r1-G1; the review's B1). The sender's newest Sabotage
        row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
@@ -2241,7 +2257,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingExpired,
         answer: "none", quiet: true,
-        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender" }
+        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk)" }
     },
     [ACTION_RULING_RECEIVED]: {
         label: "DRPG.Bridge.what.ruling.received",
@@ -2393,6 +2409,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ targetId: as.id, difficulty: as.num, actorId: as.id, rollId: as.id, penalty: as.num, relief: as.num }),
         run: handleSabotage,
+        again: sabotageAgain,
         answer: "reply", resend: true, queue: "project",
         // Of the project its roll was drawn for (fix r2-H2: `named`).
         rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
@@ -3903,7 +3920,9 @@ async function expiredOnPrimary(requestId, senderId) {
         await endSentOn(sentOn, { askerExpired: true });
         return true;
     }
-    return false;
+    // An open Frisk's ask, held by its request id and its asker in frisk.mjs's memory, not on a card (E18 C7).
+    const { expireFriskAsk } = await import("./frisk.mjs");
+    return expireFriskAsk(requestId, senderId);
 }
 
 /**
@@ -4325,6 +4344,13 @@ export function requestFriskUnseen({
 export function requestFriskAsk({ searcherId, targetId }) {
     return ask(ACTION_FRISK_ASK, { searcherId, targetId }, {
         onPrimary: true,
+        /* E18'S ONE ROAD (E18 C7, 26.10.2026; amend 5): the ask lives in the primary's memory (frisk.mjs `friskAsks`), so
+           it ends with that primary - the wait with it, at once, rather than at its clock a minute on (bridge-guards.mjs
+           `primaryGone`); and a wait that runs out tells the primary, which ends the ask so a yes after it is not kept
+           (`expired`, frisk.mjs `expireFriskAsk`). No receipt: the ask's end is its cards, posted before its answer
+           goes, and with a force open the follow is the searcher's next word. */
+        untilPrimaryLeaves: true,
+        expired: ACTION_RULING_EXPIRED,
         lateMs: TIMING.friskMarginMs,
         late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
         local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {

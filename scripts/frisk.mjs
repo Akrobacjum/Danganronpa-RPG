@@ -381,7 +381,9 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
  * follow finds no ask this primary held or ended, which ends it `interrupted` and the searcher's browser hands the action
  * back (`followFrisk`; E80 fix r2-G1, the review's fx-2). A GM that is no longer the
  * primary while it still holds asks (another GM connected whose turn it is) drops them at its next sweep, with no card
- * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Nothing enters world data
+ * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Since E18 C7 the ask is on
+ * E18's one road for its ends: the searcher's wait running out ends it here (`expireFriskAsk`), and the wait ends at once
+ * when the primary that holds it leaves (gm-bridge.mjs `requestFriskAsk`). Nothing enters world data
  * but the veiled cards: no flag, no item, no setting, no store.
  * ========================================================================== */
 
@@ -649,7 +651,7 @@ export async function sweepFriskAsks(now = Date.now()) {
  * incident, is asked of nobody (`silent`): the GMs get a notice and the clock runs as for a living target, so the asker
  * cannot tell a body from silence. Each answerer gets `frisk.ask` addressed to them alone.
  */
-export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, reply = null } = {}) {
+export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, reply = null, requestId = null } = {}) {
     const searcher = game.actors.get(searcherId) ?? null;
     const target = game.actors.get(targetId) ?? null;
     const why = personActionRefusal(searcher, target);
@@ -672,7 +674,8 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
 
     const place = gmPlaceOf(searcher);
     const askId = foundry.utils.randomID(16);
-    const row = { askId, asker: asker?.id ?? null, searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
+    const row = { askId, asker: asker?.id ?? null, requestId: typeof requestId === "string" && requestId ? requestId : null,
+        searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
         sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, answerUserIds: [], byGms: false, silent: null,
         at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null };
     friskAsks.set(askId, row);
@@ -829,6 +832,26 @@ export async function followFrisk({ searcherId, askId, rollId = null, total = 0,
     const won = Boolean(isCritical) || Number(total) >= ACTIONS.palm.frisk.threshold;
     await endAsk(row, won ? "forced" : "forceFailed");
     return { outcome: won ? "forced" : "forceFailed" };
+}
+
+/**
+ * THE SEARCHER STOPPED WAITING (E18 C7, 26.10.2026; amend 5, the stage's row E18-31). The searcher's browser waits on its
+ * ask for the answer's clock and a margin (gm-bridge.mjs `requestFriskAsk`), and when that wait runs out it hands the
+ * action back. Nothing told this primary, which still held the ask: the target's yes after it posted the list to a
+ * searcher whose action was back, and a refusal's force window stayed open until it ended 'lets it go' to the target and
+ * the room (tier 2 "a Frisk's ask its searcher stopped waiting for ends on the primary", red at f7ac1e9d). The wait now
+ * names E18's expiry (`ruling.expired`, bridge-guards.mjs `createWaiter`'s `expired`, with the ask's request id as `rid`),
+ * and gm-bridge.mjs `expiredOnPrimary` hands it here: the ask held under that request id for that sender - Foundry's,
+ * never the packet's - ends as `interrupted`, as a reload of this GM would have ended it: no dice thrown, the target's
+ * window withdrawn, the searcher's card 'The moment has passed', no word to the target or the room (`endAsk`). One being
+ * ended already, or another's, is left alone. Answers whether it ended one.
+ */
+export async function expireFriskAsk(requestId, senderId) {
+    if (typeof requestId !== "string" || !requestId || !senderId) return false;
+    const row = [...friskAsks.values()].find(held => held.requestId === requestId && held.asker === senderId) ?? null;
+    if (!row || row.ending) return false;
+    log(`The searcher's wait on a Frisk's ask ran out (${row.state}): the ask ends interrupted, with no dice thrown.`);
+    return endAsk(row, "interrupted");
 }
 
 /**

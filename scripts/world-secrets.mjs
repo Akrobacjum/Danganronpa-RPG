@@ -55,8 +55,8 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
         projectMeta: Object.freeze({
-            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"]),
-            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2)"
+            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"]),
+            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2)"
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({
