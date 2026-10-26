@@ -1010,6 +1010,13 @@ export const DEFAULT_CLOCK = {
      * `TAKE_BACK_MS` of `at`, and forget it either way. Every value in it is one
      * every browser already reads: the actors' resources and flags, and two world
      * settings.
+     * AND WHAT STOOD BEFORE IT (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2,
+     * R4): `refilledBefore`, the `refilledFor` the boundary found, which a take-back
+     * writes back (it wrote null, so a boundary refilled by an Eclipse kept past five
+     * minutes refilled again after a rewind of an advance that had not refilled it);
+     * and `previous`, the boundary before it while that one can still be taken back
+     * (clock.mjs `boundaryMemory`, at most `TAKE_BACK_DEPTH` deep), so two advances in
+     * a row are taken back by two rewinds.
      */
     lastAdvance: null,
     /**

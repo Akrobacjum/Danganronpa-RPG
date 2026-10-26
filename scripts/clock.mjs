@@ -20,7 +20,7 @@
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
 import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
-import { resetAllActions, budgetsOf, putBackBudgets } from "./actions.mjs";
+import { resetAllActions, budgetsOf, putBackBudgets, clearGrants } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, error, plural, serverNow, serialWrite } from "./utils.mjs";
 
@@ -301,8 +301,13 @@ export async function advanceTimeOfDay({
        to take back (`lastAdvance`): the snapshot an Eclipse for it took as it opened, before its refill, or one taken
        now. */
     const stamp = boundaryStamp(before);
+    /* AND THE GRANTS STILL END (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R7): the refill is the one place
+       the Sprint and Burst grants are zeroed, so a boundary refilled already let a grant bought since it outlive the
+       time of day it was bought for. No second refill; the grants end here all the same (actions.mjs `clearGrants`). */
+    let endGrants = false;
     if (resetActions && before.refilledFor === stamp) {
         resetActions = false;
+        endGrants = true;
         log("The actions were refilled for this time of day already; not again.");
     }
     const snapshot = before.lastAdvance?.for === stamp && before.lastAdvance.snapshot
@@ -320,7 +325,8 @@ export async function advanceTimeOfDay({
     // Where it goes is `clockAfter`'s, below.
     const next = await setClock({ ...also, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
-        lastAdvance: { for: stamp, at: serverNow(), snapshot } });
+        lastAdvance: boundaryMemory(before, stamp, snapshot) });
+    if (next && endGrants) await clearGrants();
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
@@ -380,6 +386,47 @@ export async function boundarySnapshot() {
         sealed: [...sealedRooms()],
         restrictions: foundry.utils.deepClone(restrictions() ?? {})
     };
+}
+
+/**
+ * How many boundaries in a row can be taken back: 4, a design number - one short of a whole day's five times of day,
+ * and each level a snapshot of every character's budget on the world's clock. Only levels younger than `TAKE_BACK_MS`
+ * are kept, so in play it is how many times the GM pressed Next within five minutes (E17 fix p2-G2).
+ */
+export const TAKE_BACK_DEPTH = 4;
+
+/** `entry` and the entries under it that are younger than `TAKE_BACK_MS` at `now`, at most `depth` of them. Pure. */
+export function liveMemory(entry, now = serverNow(), depth = TAKE_BACK_DEPTH) {
+    if (!entry?.snapshot || depth <= 0) return null;
+    const age = now - Number(entry.at);
+    if (!Number.isFinite(age) || age < 0 || age > TAKE_BACK_MS) return null;
+    return { ...entry, previous: liveMemory(entry.previous ?? null, now, depth - 1) };
+}
+
+/**
+ * THE MEMORY OF A BOUNDARY CROSSED NOW (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2, R4): `lastAdvance` for the
+ * boundary `stamp` of the clock `before`, with `snapshot`. `refilledBefore` is the `refilledFor` it found, which a
+ * take-back writes back - the take-back wrote null, and a boundary an Eclipse had refilled and kept past five minutes
+ * refilled a second time after a rewind of the advance that had not refilled it. `previous` is the boundary before it,
+ * still takeable (`liveMemory`), so a rewind after two advances in a row takes the second back and the next rewind the
+ * first. The advance that ends an Eclipse crosses the same boundary its opening named: it keeps the opening's
+ * `refilledBefore` and `previous`, as it keeps its snapshot. Pure but for the clock's time.
+ */
+export function boundaryMemory(before, stamp, snapshot, now = serverNow()) {
+    const prior = before?.lastAdvance ?? null;
+    const same = prior?.for === stamp;
+    return {
+        for: stamp, at: now, snapshot,
+        refilledBefore: same ? (prior.refilledBefore ?? null) : (before?.refilledFor ?? null),
+        previous: liveMemory(same ? (prior.previous ?? null) : prior, now, TAKE_BACK_DEPTH - 1)
+    };
+}
+
+/** What a take-back leaves on the clock: the `refilledFor` the boundary found, and the boundary before it. Pure. */
+export function afterTakeBack(clock, last, now = serverNow()) {
+    return last
+        ? { refilledFor: last.refilledBefore ?? null, lastAdvance: liveMemory(last.previous ?? null, now) }
+        : { refilledFor: clock?.refilledFor ?? null, lastAdvance: null };
 }
 
 /** `clock.lastAdvance` when it is the boundary `stamp` and younger than `TAKE_BACK_MS` at `now`, else null. Pure. */
@@ -480,14 +527,15 @@ export async function rewindTimeOfDay() {
        that led into this time of day, if it is `lastAdvance`'s and younger than `TAKE_BACK_MS` - the budgets, the
        search tokens and the seals as they stood before it, and the boundary refills again when it is crossed again.
        Later, nothing is put back and the boundary is kept as refilled (`refilledFor`), so crossing it again refills
-       nobody twice. The memory of what it changed goes either way: the table has played on it. */
+       nobody twice. The memory of what it changed goes either way: the table has played on it. Taken back, the
+       boundary is as refilled as it was before it was crossed, and the one before it can be taken back next
+       (`afterTakeBack`, E17 fix p2-G2). */
     const last = takeBackFor(clock, boundaryStamp(clock, clock));
     const next = await setClock({
         timeOfDay: TIMES_OF_DAY[prevIndex],
         session: rolledBack ? Math.max(1, clock.session - 1) : clock.session,
         day: rolledBack ? Math.max(1, (clock.day ?? 1) - 1) : (clock.day ?? 1),
-        refilledFor: last ? null : (clock.refilledFor ?? null),
-        lastAdvance: null
+        ...afterTakeBack(clock, last)
     });
 
     // A Despair Call lasts one time of day. Stepping the clock back left every

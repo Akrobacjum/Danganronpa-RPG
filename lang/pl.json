@@ -537,6 +537,7 @@
       "stillPlacingFreeTooltip": "Uczniowie, którzy w tym Eclipse jeszcze się nie ruszyli.",
       "startEclipseNamed": "Zacznij Eclipse ({time}) - gaśnie światło, każdy ustawia swój token (przejścia: {n})",
       "eclipseAsk": "Zacząć teraz {name}? Akcje wszystkich się odnawiają, Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
+      "eclipseAskRefilled": "Zacząć teraz {name}? Akcje zostały już na nie odnowione i drugi raz się nie odnowią; Calle kupione na tę porę dnia się kończą i dla całego stołu gaśnie światło.",
       "eclipseAskYes": "Zacznij",
       "eclipseAskNo": "Jeszcze nie",
       "startEclipseFree": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",

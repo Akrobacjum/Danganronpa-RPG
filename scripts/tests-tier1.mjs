@@ -23007,6 +23007,31 @@ const INVARIANTS = [
             + "the summary's start with a stamp, without, no clock; source: paintElapsed reads elapsedOf, settleElapsedPause writes unpausePatch and "
             + "writes no start, renderHud asks showsStopwatch, showDaySummary asks summarySince}");
     }],
+    ["R1004 - the chevron's question says what the Eclipse will do (E17 fix p2-G2): a boundary refilled already is told it refills nobody again, any other that everyone's actions refill", async () => {
+        /*
+         * E17 fix p2-G2, 26.10.2026; the end review's E17p2-R4 (goal). An Eclipse ended without advancing more than five
+         * minutes ago keeps its refill (`refilledFor`), and the next one for the same boundary refills nobody - but the
+         * chevron's question still said "Everyone's actions refill", and the GM was told what the module then did not do.
+         * Read pure: hud.mjs `eclipseQuestion(clock, name)`, the key and the words the question prints, for a clock whose
+         * boundary refilled already and for one whose did not; and askEclipse's source asks it. Red at 3fa1f5b4: no
+         * `eclipseQuestion`.
+         */
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        const base = { season: 1, chapter: 1, session: 2, day: 2, timeOfDay: "noon", eclipse: false, refilledFor: null };
+        const refilled = { ...base, refilledFor: boundaryStamp(base) };
+        const other = { ...base, refilledFor: boundaryStamp({ ...base, timeOfDay: "morning" }) };
+        const has = typeof H.eclipseQuestion === "function";
+        const got = has ? [base, refilled, other].map(c => H.eclipseQuestion(c, "Afternoon Eclipse").key) : null;
+        const words = has ? H.eclipseQuestion(refilled, "Afternoon Eclipse").text : null;
+        const sources = new Map(await moduleSources());
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        equal(J({ got, named: typeof words === "string" && words.includes("Afternoon Eclipse"), asks: /eclipseQuestion\(/.test(fnSource(hud, "askEclipse")) }),
+            J({ got: ["DRPG.Hud.eclipseAsk", "DRPG.Hud.eclipseAskRefilled", "DRPG.Hud.eclipseAsk"], named: true, asks: true }),
+            "{got: [the question's key for a boundary not refilled, refilled already, another boundary refilled]; named: the words name the "
+            + "Eclipse; asks: askEclipse prints eclipseQuestion's}");
+    }],
     ["R997 - the player's strip in an Eclipse (E17 C8): free placement draws one full foot, available, its tooltip 'place anywhere'; a count draws a foot a crossing and names them; a Monocub is told the placement alone; the actions' tooltip carries its numbers; the GM's Still placing counts who has not moved in free placement", async () => {
         /*
          * E17 C8, 26.10.2026; E17-36, audit S10-19. eclipse.mjs `movesLeft` answers `null` in a placement that allows

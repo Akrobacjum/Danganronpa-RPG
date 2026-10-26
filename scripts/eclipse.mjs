@@ -22,7 +22,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
-import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary } from "./clock.mjs";
+import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
@@ -180,9 +180,12 @@ export async function startEclipse() {
      * `clockForDisplay`), and an Eclipse told every screen at once that the GM was doing something: its public card
      * with its sound, the dimming on every browser, a whisper to every student. Refused here, the one writer of
      * `eclipse: true` the HUD's chevron, the GM panel's "Do it" and the API reach; the chevron is dimmed with the same
-     * words (hud.mjs). After the body's hold, whose words say what to do next when both stand (a body found at Stage 6). An
-     * incident opened during an Eclipse is not refused by this - the Eclipse runs on, and its end's card is the
-     * incident's narrowed one. Tier 2 "the Eclipse and the incident (E17-T10)".
+     * words (hud.mjs). After the body's hold, whose words say what to do next when both stand (a body found at Stage 6). No
+     * incident opens during an Eclipse: murder-rules.mjs `openMurder` refuses one (`DRPG.Eclipse.murderLocked`; tier 2
+     * "openMurder refuses during an Eclipse, but not once one has actually ended"), and the direct murders declared in
+     * the dark open in `endEclipse`'s `judgePendingMurders`, after the flag is cleared (E17 fix p2-G2: this said an
+     * incident opened in an Eclipse ran on with it, a road that does not exist). Tier 2 "the Eclipse and the incident
+     * (E17-T10)".
      * THE OPENING AND THE FIGHT, NOT STAGE 6. At Stage 6 every one of the incident's names is seated again and the
      * scene is theirs to arrange, and the betrayal (D18) is declared in the Eclipse that follows it: the accomplice's
      * offer is made at Stage 6 and the lights of that Eclipse close the incident (tier 2 "refused at the lights, the
@@ -225,9 +228,10 @@ export async function startEclipse() {
     const snapshot = await boundarySnapshot();
 
     // Named by when it began (`eclipseId`): what is declared and crossed in it counts
-    // in it alone, so the last Eclipse's crossings need no clearing (E05).
+    // in it alone, so the last Eclipse's crossings need no clearing (E05). The memory keeps
+    // the `refilledFor` it found and the boundary before it (clock.mjs `boundaryMemory`).
     await setClock({ eclipse: true, eclipseStartedAt: Date.now(), refilledFor: boundary,
-        lastAdvance: { for: boundary, at: serverNow(), snapshot } });
+        lastAdvance: boundaryMemory(opening, boundary, snapshot) });
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -261,11 +265,15 @@ export async function startEclipse() {
      * Imported here rather than at the top: clock.mjs already imports
      * actions.mjs, and eclipse.mjs already imports clock.mjs.
      */
-    const { resetAllActions } = await import("./actions.mjs");
+    const { resetAllActions, clearGrants } = await import("./actions.mjs");
     let refilled = [];
     try {
-        if (again) log("The actions were refilled for this time of day already; not again.");
-        else refilled = await resetAllActions();
+        /* Opened again, no second refill - but the grants bought since still end with the lights (E17 fix p2-G2; the
+           end review's E17p2-R7): the refill was the only place they ended (actions.mjs `clearGrants`). */
+        if (again) {
+            log("The actions were refilled for this time of day already; not again.");
+            await clearGrants();
+        } else refilled = await resetAllActions();
     } catch (err) {
         // Reported rather than swallowed, and the Eclipse still opens: a table
         // left in the dark with no way forward is worse than a table that has
@@ -410,7 +418,7 @@ export async function endEclipse({ advance = true } = {}) {
            come here. */
         const closing = getClock();
         const last = takeBackFor(closing, boundaryStamp(closing));
-        await setClock({ eclipse: false, refilledFor: last ? null : (closing.refilledFor ?? null), lastAdvance: null });
+        await setClock({ eclipse: false, ...afterTakeBack(closing, last) });
         if (last) await takeBackBoundary(last);
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },

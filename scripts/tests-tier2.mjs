@@ -71928,6 +71928,109 @@ const SCENARIOS = [
             + "an Eclipse running after a no]}");
     }],
 
+    ["the boundary taken back twice (E17-T10, E17 fix p2-G2): a rewind of a boundary that did not refill leaves it refilled, two advances are taken back by two rewinds, and a boundary opened again ends the grants bought since without a second refill", async () => {
+        /*
+         * E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2, R4, R7 (correctness) and R3, R6 (goal). Three roads the
+         * first test of the take-back never drove: (a) an Eclipse ended without advancing six minutes on (the refill
+         * kept), the budget spent, the panel's Next time of day (`advanceTimeOfDay({ resetActions: true })`, which
+         * refills nobody for a boundary refilled already), a rewind at once and Next again - the take-back wrote
+         * `refilledFor: null`, so the second Next refilled the boundary a second time; (b) from a spent budget, two
+         * advances and two rewinds at once - the take-back was one level, so the second rewind put back nothing; (c) a
+         * kept boundary, a Sprint and a Burst banked, the Eclipse opened again, then the same with Next - the repeated
+         * opening skipped the whole refill and with it the end of the grants. Read the student's actions and grants
+         * after each, and the time of day after (b). The clock, the actions, the grants and the seals are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const A = await import("./actions.mjs");
+        const { advanceTimeOfDay, rewindTimeOfDay } = await import("./clock.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one");
+        const M6 = 6 * 60000;
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: A.actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const flagsWas = Object.fromEntries([FLAGS.freeMoveUsed, FLAGS.freeMoveGrants, FLAGS.freeActionGrants]
+            .map(f => [f, student.getFlag(MODULE_ID, f) ?? null]));
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const age = async () => {
+            const last = getClock().lastAdvance;
+            if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
+        };
+        const kept = async () => {
+            await E.startEclipse();
+            await age();
+            await E.endEclipse({ advance: false });
+        };
+        const next = () => advanceTimeOfDay({ resetActions: true, announce: false });
+        const grants = () => [A.freeMovesLeft(student), A.freeActionsLeft(student)];
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            // (a)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            await A.setActions(student, 0);
+            await next();
+            const afterNext = A.actionsLeft(student);
+            await rewindTimeOfDay();
+            await next();
+            read.keptRewind = [afterNext, A.actionsLeft(student), getClock().refilledFor !== null];
+            // (b)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await A.setActions(student, 0);
+            const start = getClock().timeOfDay;
+            await next();
+            const refilled = A.actionsLeft(student);
+            await next();
+            await rewindTimeOfDay();
+            await rewindTimeOfDay();
+            read.twoRewinds = [refilled > 0, A.actionsLeft(student), getClock().timeOfDay === start];
+            // (c)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            const given = A.actionsLeft(student);
+            await A.grantFreeMoves(student, 1, { reason: "refund" });
+            await A.grantFreeActions(student, 1, { reason: "refund" });
+            const bought = grants();
+            await E.startEclipse();
+            read.openedAgain = [bought, grants(), A.actionsLeft(student) === given];
+            await E.endEclipse({ advance: false });
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            await A.grantFreeMoves(student, 1, { reason: "refund" });
+            await next();
+            read.nextAgain = [grants(), A.actionsLeft(student) === given];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }),
+                ...Object.fromEntries(Object.entries(flagsWas).filter(([, v]) => v !== null).map(([f, v]) => [`flags.${MODULE_ID}.${f}`, v])) });
+            for (const [f, v] of Object.entries(flagsWas)) if (v === null && student.getFlag(MODULE_ID, f) !== undefined) await student.unsetFlag(MODULE_ID, f);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokensWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ keptRewind: [0, 0, true], twoRewinds: [true, 0, true], openedAgain: [[1, 1], [0, 0], true], nextAgain: [[0, 0], true] }),
+            "{keptRewind: [the actions after Next over a kept boundary, after a rewind and Next again, the boundary still refilled]; twoRewinds: "
+            + "[the first advance refilled, the actions after two advances and two rewinds from none, the time of day back where it began]; "
+            + "openedAgain: [the grants banked over a kept boundary, after the Eclipse opened again, the actions not refilled again]; nextAgain: "
+            + "[the grants after Next over a kept boundary, the actions not refilled again]}");
+    }],
+
     ...GRID
 ];
 

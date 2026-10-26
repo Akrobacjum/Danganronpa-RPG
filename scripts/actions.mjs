@@ -441,6 +441,30 @@ export async function resetAllActions({ keepGrants = false } = {}) {
 }
 
 /**
+ * THE GRANTS END AT A BOUNDARY THAT REFILLS NOBODY (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R7 of both
+ * lenses). `resetActionsFor` is where the Sprint and Burst grants end, and a boundary refilled already - an Eclipse
+ * opened again after one was ended without advancing, or Next over such a boundary - refills nobody a second time, so
+ * a grant bought since outlived "the end of this time of day". This zeroes the banked grants alone, where any are
+ * left, of every character the refill would reach (a Monokuma and the dead but a Monocub are not), and leaves the
+ * actions and the Free Move as they stand. GM only. Answers how many were written.
+ */
+export async function clearGrants() {
+    if (!game.user.isGM) return 0;
+    let written = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || actor.getFlag(MODULE_ID, FLAGS.monokuma)) continue;
+        if (isDeceased(actor) && !actor.getFlag(MODULE_ID, FLAGS.monocub)) continue;
+        if (!freeMovesLeft(actor) && !freeActionsLeft(actor)) continue;
+        await trustedWrite(actor, {
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
+            [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
+        }, { reason: "setup" });
+        written += 1;
+    }
+    return written;
+}
+
+/**
  * EVERY CHARACTER'S BUDGET AS IT STANDS (E17 C7, 26.10.2026; audit S10-42): `{ [actorId]: { value, max, used, moves,
  * actions } }` - the actions, the Free Move spent, the banked Free Moves and free actions - for clock.mjs
  * `boundarySnapshot`, read before a boundary refills. Every character but a Monokuma, the dead with the living: the
