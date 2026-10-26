@@ -2092,9 +2092,10 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
         // module uses: Despair, and a critical is never clumsy.
         clumsy: Boolean(roll.withFear) && !roll.isCritical
     });
-    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out - and on a GM's
-    // own client a refusal settles as done with `{ refused }` as its value, told already (E14 fix e1-G1).
-    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : { pending: true }) : null;
+    // What came out, on a GM's own client; that the GM moved it, on a player's (the answer's `taken`, E16 fix e1-G2); null
+    // when not carried out - and on a GM's own client a refusal settles as done with `{ refused }` as its value, told
+    // already (E14 fix e1-G1).
+    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : res.value?.taken ? { pending: true } : null) : null;
 
     /*
      * A WEAPON OUT OF A STASH LEAVES ITS TRACE (E16 part 2 C4, 26.10.2026; audit S02-18, the owner's Q6 of 19.10:
@@ -2103,8 +2104,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
      * stash, the killer took it out with a Search, and the room held no trace of it. The trace now follows the
      * thing taken, as the room's does - its category and its roles (`leaveSearchTrace`, inventory.mjs
      * `leavesTraceFor`), the band the Search reached - once the steal was carried out: on a GM's own client its
-     * answer, on a player's the GM's acceptance of the packet (`pending`). A steal refused at once leaves none;
-     * what a GM refuses after accepting the packet is not read back here (`vault.steal` is answered "ack").
+     * answer, on a player's the GM's answer that it moved (`taken`). A steal refused, or not carried out (full hands),
+     * leaves none: until E16 fix e1-G2 `vault.steal` was answered "ack", and a player's trace followed the GM's
+     * acceptance of the packet - a Prep Remnant of a knife another reach had taken first (the review's E16p2-BEH-2).
      */
     let placed = null, leftTrace = false;
     if (got) {
@@ -5470,24 +5472,33 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     }
     /* A CLASS TRIAL OPENED WHILE THE DICE WERE IN THE AIR (E16 part 2 C3): the GMs refuse the hunt before its throw is
        read (vault.mjs `resolveStashSearch`), so the price comes back - by analogy with E14 part 1's Q3 ("a refusal before
-       the rolls are read refunds", 18.10). Asked here, where the price is known; the GMs' refusal of a player's packet is
-       told by the bridge after its "got it" (`vault.findStash` is answered "ack"), when this function has returned. */
+       the rolls are read refunds", 18.10). Asked here first, where the price is known, and again on the GMs' answer
+       below: a trial opened while the packet was in flight is refused there (E16 fix e1-G2). */
     if (analyzeRowShut("stash")) {
         if (charge) await refundPrice(actor, charge);
         sayNotDone("vault.findStash", "trialLocked", { nothingSpent: true });
         return null;
     }
 
+    /* THE ATTEMPT BEFORE ITS ANSWER (E16 fix e1-G2, 26.10.2026), as `locatePassage`'s since E80 fix r1-G3: `vault.findStash`
+       is answered "reply" now, once the GMs have judged the search and whispered what it found, so this card, posted after
+       the answer, would come under the result. Posted before the request; a refusal is said after it. The roll the GM
+       scores the search on is the one in hand as it is posted, from the GMs' record of it (E08+E28 C14). */
+    const rollId = rollInHand(actor)?.messageId ?? null;
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${game.i18n.localize("DRPG.Analyze.stashSent")}</p>`, rollCardFlags(def, roll));
+
     const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        // The roll the GM scores the search on, from its own record of it (E08+E28 C14).
-        rollId: rollInHand(actor)?.messageId ?? null
+        rollId
     });
-    // A GM's own search refused (in a Class Trial) settles as done with `{ refused }` as its value, said already by
-    // `requestStashSearch`: the price back, and no fact of a search on the roll.
-    if (res.ok && res.value?.refused) {
+    /* A REFUSAL GIVES THE PRICE BACK (E16 fix e1-G2; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): every refusal of the
+       row comes before the throw is read - its guards, the roll's record, a Class Trial opened while the packet was in
+       flight (`resolveStashSearch`). A GM's own search refused settles as done with `{ refused }` as its value; a
+       player's is the bridge's refusal, said already in both. No fact of a search on the roll. A wait that ends with no
+       answer is no refusal: what the GMs did is not known here, and the price stays. */
+    if (res.ok ? Boolean(res.value?.refused) : Boolean(res.refused)) {
         if (charge) await refundPrice(actor, charge);
         return null;
     }
@@ -5501,13 +5512,8 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         ...(game.user?.isGM ? { stashFound: Boolean(res.value?.found), ...(res.value?.place ? { findPlace: res.value.place } : {}) } : {})
     });
 
-    // Silent on the outcome, like `analyseBullet`: this client does not know
-    // what is in the room and must not be told by the shape of its own card.
-    // The result arrives as its own whisper a moment later - when the GM's client
-    // has the request (E31 review); a refusal has been said once already.
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
-        game.i18n.localize("DRPG.Analyze.stashSent")}</p>` : ""}`, rollCardFlags(def, roll));
-
+    // The card above is silent on the outcome, like `analyseBullet`'s: this client does not know what is in the room and
+    // must not be told by the shape of its own card. The result is the GMs' own whisper.
     return { roll, subject: null };
 }
 

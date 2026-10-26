@@ -69255,7 +69255,7 @@ const SCENARIOS = [
             passage: "the Class Trial is in session"
         }), "in a Class Trial a stash hunt was carried out, a trap told of it, its price kept or its refusal not told, or the passage searched "
             + "[a Reroll of a hunt thrown before the trial: stood, what it said, stashes found, the Hope given back, hunts; a player's packet: its verdict, "
-            + "what was sent back (its \"got it\" first: `vault.findStash` is answered \"ack\"), found, hunts; this GM's own search: answered, refused, told here, found, hunts; the picker naming the stash and the "
+            + "what was sent back (its \"got it\" first, as every packet past its guards), found, hunts; this GM's own search: answered, refused, told here, found, hunts; the picker naming the stash and the "
             + "hint: what the Analyze answered, the actions untouched, messages posted, told here, found, hunts; the passage's search: its refusal]");
     }],
 
@@ -69431,6 +69431,75 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ held: mine, compare: [mine, mine, true, []], rifle: "no such thing in that stash" }),
             "a mark taken before the found list was marked judged the sheet's list as the GMs' flag: the held read gave none, the compare put it back, or the rifle "
             + "met a stash unfound [the list as held; after the compare: the sheet's list, the mark's, the mark names the flag, the compare's rows for it; the rifle's refusal]");
+    }],
+
+    ["E16-T39 - the GMs answer a player's stash hunt and reach into a stash once carried out, so the asker gives the price back on a refusal and leaves a Search's trace only on a thing that moved (the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2)", async () => {
+        /*
+         * E16 fix e1-G2, 26.10.2026. `vault.findStash` and `vault.steal` were answered "ack": the asker heard "got it" as
+         * the guards passed, and a refusal of the run after it - a Class Trial opened while a hunt was in flight, a thing
+         * another reach had taken first - came when action-rolls.mjs `locateStash` and `searchStash` had returned: the
+         * hunt's price stayed spent, and a Search's Prep Remnant named a weapon that never moved. Both rows answer now
+         * ("reply"), and the asker reads the answer (`locateStash`'s refund on a refusal, `searchStash`'s trace on
+         * `taken`; on a player's browser, read in the source by R989). A connected player's character in a room holding
+         * two concealed stashes (`hiddenStashesHere`), outside a Class Trial: a roll of theirs kept on the GMs at 20 and
+         * its `vault.findStash` judged as the bridge judges that player's packet; then the first stash opened and a thing
+         * of its owner's put in it, and two `vault.steal` packets of that player's naming it (the drawer's free road, no
+         * Search). Read: each packet's answers in the order sent (action, reason, value), and where the thing is.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const S = await hiddenStashesHere();
+        const { V, player, actor, owners, where } = S;
+        const seen = new Set(game.messages.map(m => m.id));
+        const had = new Map([actor, owners[0]].map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        const judged = async packet => {
+            const heard = [];
+            await G.judge(BRIDGE_ACTIONS, { requestId: `E16T39${foundry.utils.randomID(8)}`, ...packet }, player.id,
+                { send: (to, reply) => heard.push([reply?.action ?? null, reply?.reason ?? null, reply?.value ?? null]) });
+            await settle();
+            await sheetAuditIdle();
+            return heard;
+        };
+        const read = {};
+        let F = null;
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 20 } });
+            read.hunt = [await judged({ action: "vault.findStash", actorId: actor.id, total: 20, isCritical: false, rollId: F.message.id }), S.opened()];
+            await forgetRifles(actor);
+            const region = V.regionsByName(where.scene).get(where.room);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owners[0].id, concealed: false }] });
+            const thing = await INV.grantItem(owners[0], { name: "SUITE E16-T39 a pencil case", category: "usable", tier: 1, override: true, quiet: true,
+                location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: where.room } });
+            must(thing && V.stashItemsIn(owners[0], where.room, where.scene).some(i => i.id === thing.id),
+                `${owners[0].name}'s thing is not in the stash - this would measure nothing`);
+            const reach = () => judged({ action: "vault.steal", thiefId: actor.id, ownerId: owners[0].id, itemId: thing.id });
+            const first = await reach();
+            const moved = [owners[0].items.has(thing.id), actor.items.some(i => i.name === thing.name)];
+            await forgetRifles(actor);
+            read.reach = [first, moved, await reach()];
+        } finally {
+            await F?.putBack();
+            await setClock({ phase });
+            await forgetRifles(actor);
+            for (const who of [actor, owners[0]]) for (const item of who.items.filter(i => !had.get(who.id).has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await S.putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({
+            hunt: [[["bridge.ack", null, null], ["bridge.done", null, true]], 1],
+            reach: [[["bridge.ack", null, null], ["bridge.done", null, { taken: true }]], [false, true], [["bridge.ack", null, null], ["bridge.refused", "missing", null]]]
+        }), "a player's stash hunt or reach into a stash was not answered once carried out, or said whether the thing moved "
+            + "[the hunt: its answers, stashes found; the reach: the first's answers, the thing still the owner's and now the thief's, the second's answers]");
     }],
 
     ["E16-T30 - a failed concealment of a trap's work is told to the room, naming the worker and the room and no project (audit S02-17, the owner's Q5)", async () => {

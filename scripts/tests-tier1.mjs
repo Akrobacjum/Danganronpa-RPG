@@ -22621,6 +22621,29 @@ const INVARIANTS = [
         equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
             "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
     }],
+    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-rolls.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
+        /*
+         * E16 fix e1-G2, 26.10.2026. On "ack" a refusal of the run came to a player's browser once `locateStash` and
+         * `searchStash` had returned: a Class Trial opened while a hunt was in flight kept its price, and a reach refused
+         * after the "got it" left a Search's Prep Remnant for a thing that never moved. Tier 2 cannot run a player's
+         * browser (E16-T39 drives the packets on the GM); the two readers are read here. Nothing is written; no phase is
+         * asked.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const locate = fnSource(src, "locateStash"), search = fnSource(src, "searchStash");
+        must(locate.length > 200 && search.length > 200, "locateStash or searchStash is gone - the reads below would measure nothing");
+        const at = (body, re) => body.search(re);
+        const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*if \(charge\) await refundPrice\(actor, charge\);\s*return null;/);
+        const card = at(locate, /DRPG\.Analyze\.stashSent/), asked = at(locate, /await requestStashSearch\(/), noted = at(locate, /noteRollContext\(/);
+        equal(stableJson([BRIDGE_ACTIONS["vault.findStash"]?.answer ?? null, BRIDGE_ACTIONS["vault.steal"]?.answer ?? null,
+            card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted,
+            /game\.user\.isGM \? res\.value : res\.value\?\.taken \? \{ pending: true \} : null/.test(search)]),
+        stableJson(["reply", "reply", true, true, true, true]),
+            "a refusal of a player's stash hunt or reach is heard after its asker returned, or the asker does not read it "
+            + "[vault.findStash's answer, vault.steal's answer, locateStash's card before its request, the request before the refund of a refusal, "
+            + "the refund before the roll is noted, searchStash's player's `got` read off `taken`]");
+    }],
 ];
 
 /**

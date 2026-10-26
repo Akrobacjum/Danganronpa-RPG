@@ -726,6 +726,8 @@ async function handleFindStash(payload, sender, ctx) {
     const rolls = await import("./action-rolls.mjs");
     await rolls.noteFactOn(rolls.rollOfFact({ rollId: payload.rollId ?? null, by: sender?.id ?? null, actorId: payload.actorId,
         actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found), ...(out?.place ? { findPlace: out.place } : {}) });
+    // Answered once judged (E16 fix e1-G2): the asker gives the price back on a refusal, which it hears only so.
+    return { reply: true };
 }
 
     // And out of their pockets. Same reasoning as the stash below, plus one
@@ -825,6 +827,8 @@ async function handleVaultSteal(payload, sender, ctx) {
         clumsy: payload.clumsy
     });
     if (out?.refused) return { refused: out.refused };
+    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-rolls.mjs `searchStash`).
+    return { reply: { taken: Boolean(out) } };
 }
 
 /*
@@ -2005,7 +2009,11 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
-        answer: "ack",
+        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-1 = E16R-04 = E16P2-R4): a Class Trial opened
+           while the packet was in flight is refused here before the throw is read, and the asker gives the price back
+           on that refusal (action-rolls.mjs `locateStash`; the owner's Q3 of 18.10 by analogy) - heard after its
+           "got it" while the row was "ack", when `locateStash` had returned and the price stayed spent. */
+        answer: "reply",
         // An Analyze's roll: a search for a hidden stash is one of the Analyze's roads (E08+E28 C14), and a roll thrown as
         // a Find Passage, another of them, settles none of it (`notFindPassageRoll`, E80 fix r1-G7).
         rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
@@ -2033,7 +2041,11 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("thiefId", "sender does not own the character searching")],
         sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
         run: handleVaultSteal,
-        answer: "ack",
+        /* "reply" since E16 fix e1-G2 (26.10.2026; the review's E16p2-BEH-2 = E16R-03 = E16P2-R2): a Search that takes a
+           Murder Weapon out of a stash leaves a Prep Remnant (E16 part 2 C4), and on "ack" it left one as the packet was
+           accepted - for a thing a GM then refused (another reach took it first, full hands, an undecided item). The
+           asker leaves it only on the answer's `taken` (`handleVaultSteal`, action-rolls.mjs `searchStash`). */
+        answer: "reply",
         // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
         rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
