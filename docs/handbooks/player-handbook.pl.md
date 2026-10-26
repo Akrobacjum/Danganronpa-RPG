@@ -282,7 +282,7 @@ Cokolwiek, byle opisane szczegółowo. GM ustala trudność i statystykę albo o
 |---|---|---|
 | Koszt | 1 akcja | 2 akcje |
 | Wybierz | 1 z trzech | 2 z trzech |
-| Jak często | raz na porę dnia | raz na sesję |
+| Jak często | raz na porę dnia rozdziału | raz na sesję rozdziału |
 | Gdzie | pokoje, które GM oznaczył | pokoje, które GM oznaczył |
 
 | Opcja | Long | Short |
@@ -788,13 +788,13 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut trwa już ta pora dnia i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
 **Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
 **Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy.
 
-**Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
+**Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
 **Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16).
 

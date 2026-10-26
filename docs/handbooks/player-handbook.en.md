@@ -282,7 +282,7 @@ Anything at all, provided you describe it in detail. The GM sets the difficulty 
 |---|---|---|
 | Cost | 1 action | 2 actions |
 | Choose | 1 of the three | 2 of the three |
-| How often | once per time of day | once per session |
+| How often | once per time of day of the chapter | once per session of the chapter |
 | Where | rooms the GM marked for it | rooms the GM marked for it |
 
 | Option | Long | Short |
@@ -788,13 +788,13 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 ## 16. Interface tips
 
-**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes this time of day has been running, and the name of the track you are hearing; the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. Click it for an explanation of where things stand and the description of your room.
+**The HUD** (left column): campaign name, chapter, day, phase and time of day, how many minutes of play this time of day has had (a pause, a reload and the break between two sessions add nothing; the line is not shown during an Eclipse), and the name of the track you are hearing; the room you stand in is on the room tile under it (chapter 3). During a trial it shows only the mode (Discussion, Debate, Objection or Rebuttal) in place of the time of day; the minutes line goes, and who holds the floor is on the Event panel. Click it for an explanation of where things stand and the description of your room.
 
 **Foundry's own buttons** are not on a player's screen: there is no bar of scene controls on the left, as there is no sidebar. Your token is selected and dragged as before, and the module changes none of Foundry's keys; what goes with the bar is drawing, map notes and the target button.
 
 **The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it.
 
-**The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
+**The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
 **The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16).
 
