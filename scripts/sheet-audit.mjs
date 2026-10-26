@@ -190,6 +190,21 @@ const CALLS_PATH = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
  */
 const MARKED_FLAGS = [...GM_FLAGS, FLAGS.pendingCall, FLAGS.restsTaken, ...LEDGER_FLAGS, FLAGS.freeMoveUsed];
 
+/*
+ * THE FLAGS A MARK WAS TAKEN WITH (E16 fix e1-G1, 26.10.2026; the review's E16p2-SEC-1 = E16R-01 = E16P2-R1). A mark holds
+ * only the `MARKED_FLAGS` its student held when it was taken (`markFrom`), and a world's marks are taken once and moved
+ * after (`fillMarks` fills a student with none) - so a flag that joins the list later is absent from every mark taken
+ * before, whatever the sheet held. `drpgStashesFound` joined at E16 part 2 C3: read as the GMs' flag, a world's first
+ * compare after the upgrade put every student's found list back to nothing, a put-back row each, and the held reads
+ * (`flagsHeldNow`) opened no stash found before it. So a mark names the flags it was taken with (`flagsMarked`); one with
+ * no list was taken with all but `FLAGS_MARKED_LATER`. A flag a mark was not taken with is the document's: `flagsHeldNow`
+ * reads it there, and the next compare (`compareOne`, at the primary's ready) takes it into the mark unjudged and names
+ * it - once, as a world updates, where a value a player wrote before the update stood anyway. Measured: E16-T38.
+ */
+const FLAGS_MARKED_LATER = ["drpgStashesFound"];
+const flagsMarkedBy = mark => Array.isArray(mark?.flagsMarked) ? mark.flagsMarked : MARKED_FLAGS.filter(key => !FLAGS_MARKED_LATER.includes(key));
+const flagsNotMarked = mark => MARKED_FLAGS.filter(key => !flagsMarkedBy(mark).includes(key));
+
 /** The reasons whose gain is a refund (the plan's 2.5): it takes credit and never more. A concealment's Sanity comes back as a refund too. */
 const REFUNDS = new Set(["refund", "reroll", "concealment"]);
 /** The reasons that only ever spend Hope (the payment that crosses a put-back, `movesOf`). */
@@ -346,6 +361,7 @@ function markFrom(actor) {
         traits: clone(system.traits ?? {}), experiences: clone(system.experiences ?? {}), resources: clone(system.resources ?? {}),
         rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}), scars: system.scars ?? 0,
         flags: Object.fromEntries(MARKED_FLAGS.filter(key => flags[key] !== undefined).map(key => [key, clone(flags[key])])),
+        flagsMarked: [...MARKED_FLAGS],
         effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, docData(effect)])),
         items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => heldItem(data))
             .map(([id, data]) => [id, itemCopy(data)])),
@@ -817,8 +833,10 @@ export async function flagsAsHeld(actor) {
 export function flagsHeldNow(actor) {
     const mark = heldMark(actor);
     const flags = mark ? clone(mark.flags ?? {}) : null;
+    // A flag the mark was not taken with is the document's until a compare takes it in (E16 fix e1-G1, `flagsMarked`).
+    const marked = mark ? flagsMarkedBy(mark) : [];
     return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
-        getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
+        getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) && marked.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
 }
 
 /*
@@ -2934,7 +2952,11 @@ async function compareOne(actor) {
         await settle();
         return null;
     }
-    const paths = differing(markAsDocument(mark), src).filter(path => !byGm(path));
+    // A flag the mark was not taken with (E16 fix e1-G1, `flagsMarked`) is taken in as the document holds it, not judged:
+    // `settle` writes the reading with the list of the flags it names.
+    const late = flagsNotMarked(mark).map(key => `flags.${MODULE_ID}.${key}`);
+    const takenIn = path => late.some(root => path === root || path.startsWith(`${root}.`));
+    const paths = differing(markAsDocument(mark), src).filter(path => !byGm(path) && !takenIn(path));
     const read = actorFindings(mark, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, true]))), src);
     // A GM's armed entry taken off with no GM watching stands on a roll in the chat as it does live (fix r2-H7), with no wait.
     const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, null, read.taken)) : read;

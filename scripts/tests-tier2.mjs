@@ -69284,7 +69284,7 @@ const SCENARIOS = [
         const listNow = () => foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
         const was = listNow();
         const seen = new Set(game.messages.map(m => m.id));
-        const read = {};
+        const read = {}, made = [];
         try {
             if (phase === "classTrial") await setClock({ phase: "investigation" });
             const judged = await asPlayerWrite(actor, { [PATH]: [S.key(owners[0])] }, player);
@@ -69310,8 +69310,55 @@ const SCENARIOS = [
                 await sheetAuditIdle();
             }
             read.search = [Boolean(out?.found), out?.owner ?? null, listNow(), foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags?.[V.VAULT_FLAGS.found] ?? null)];
+            /*
+             * E16 fix e1-G1, 26.10.2026 (the review's E16R-07 and E16p2-SEC-2 = E16R-05): the GMs' other readers of the
+             * list, each with the player's note naming both stashes left on the sheet (its put-back held off) over the
+             * GMs' list of the first: a rifle of the second stash, which the GMs hold unfound (`stealFromVault`); the
+             * room renamed and back (`carryRoomOnSheets`); and the first stash taken away (`setStash` present false,
+             * `forgetStashFound`). Read: the rifle's refusal, the list each GM write left, and the GMs' mark after the
+             * last. A reader of the sheet opens the second stash, or writes the player's note into the GMs' list.
+             */
+            const gone = owners.find(o => !V.stashItemsIn(o, S.where.room, S.where.scene).length);
+            must(gone, "neither stash is empty - the GM cannot take one away and this would measure nothing");
+            const other = owners.find(o => o !== gone);
+            const { grantItem } = await import("./inventory.mjs");
+            const thing = await grantItem(other, { name: "SUITE E16-T29 a pencil case", category: "usable", tier: 1, override: true, quiet: true });
+            if (thing) made.push(thing);
+            must(thing, `${other.name} was given no item to name in a rifle - this would measure nothing`);
+            await actor.setFlag(MODULE_ID, V.VAULT_FLAGS.found, [S.key(gone)]);
+            await sheetAuditIdle();
+            const both = [S.key(gone), S.key(other)];
+            const forge = async () => {
+                const verdict = (await asPlayerWrite(actor, { [PATH]: both }, player))?.verdict ?? null;
+                await sheetAuditIdle();
+                must(verdict === "putBack" && stableJson(listNow()) === stableJson(both),
+                    `the player's note was not left on the sheet with its put-back held off - this would measure nothing: ${stableJson([verdict, listNow()])}`);
+            };
+            const renamed = `E16-T29 ${foundry.utils.randomID(6)}`;
+            const veto2 = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === actor.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            try {
+                await forge();
+                const rifle = await V.stealFromVault({ thiefId: actor.id, ownerId: other.id, itemId: thing.id });
+                await V.carryRoomOnSheets(S.where.scene, S.where.room, renamed, []);
+                await sheetAuditIdle();
+                const carried = listNow();
+                await V.carryRoomOnSheets(S.where.scene, renamed, S.where.room, []);
+                await sheetAuditIdle();
+                await forge();
+                await V.setStash(S.where.room, gone.id, { present: false, scene: S.where.scene });
+                await sheetAuditIdle();
+                read.others = [rifle?.refused ?? null, carried, listNow(), foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags?.[V.VAULT_FLAGS.found] ?? null)];
+                read.renamed = `${S.where.scene.id}::${renamed}::${gone.id}`;
+            } finally {
+                Hooks.off("preUpdateActor", veto2);
+                await sheetAuditIdle();
+            }
         } finally {
             await setClock({ phase });
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
             for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
             await S.putBack();
             await sheetAuditIdle();
@@ -69320,6 +69367,70 @@ const SCENARIOS = [
         equal(stableJson(read.search), stableJson([true, owners[0].name, mine, mine]),
             "the GMs' search read the player's own note of a stash: it skipped that stash, opened another, or carried the note into the GMs' write "
             + "[found, whose stash, the list on the sheet and in the GMs' mark after it]");
+        equal(stableJson(read.others), stableJson(["no such stash where the character stands", [read.renamed], [], []]),
+            "a GM's reader of the found list read the player's own note: the rifle opened a stash the GMs hold unfound, or a GM's write carried the note "
+            + "[the rifle's refusal, the list after the room's rename, the list and the GMs' mark after the first stash was taken away]");
+    }],
+
+    ["E16-T38 - a mark taken before the found list was marked reads the sheet's list, and the next compare takes it in and puts nothing back (the review's E16p2-SEC-1, E16R-01, E16P2-R1)", async () => {
+        /*
+         * E16 fix e1-G1, 26.10.2026. A mark holds only the marked flags its student held when it was taken, and a world's
+         * marks are not taken again: in a world marked at 1.2.85 no mark holds the found list (it joined the marked flags at
+         * E16 part 2 C3), whatever the sheet held. Read by the review in the source: the first compare after the upgrade
+         * put every list back to nothing, and the GMs' held reads opened no stash found before it. A character in a room
+         * with two concealed stashes (`hiddenStashesHere`), outside a Class Trial, with the first found by a GM's write;
+         * then its mark as 1.2.85 took it - no list, no `flagsMarked`. Read: the list as the GMs hold it; then, after the
+         * compare at ready, the list on the sheet and in the mark, whether the mark names the flag, the compare's rows for
+         * it; then a rifle of the first stash naming a thing not in it (refused by the thing, past the concealment, when
+         * the GMs hold the stash found; by the stash, when they do not).
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the room's finder is found");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which compares at ready - this would measure nothing");
+        const { compareAtReady, sheetAuditIdle, flagsAsHeld } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const S = await hiddenStashesHere();
+        const { V, actor, owners } = S;
+        const KEY = V.VAULT_FLAGS.found, PATH = `flags.${MODULE_ID}.${KEY}`;
+        const listNow = () => foundry.utils.deepClone(actor.getFlag(MODULE_ID, KEY) ?? null);
+        const mine = [S.key(owners[0])];
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let thing = null;
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            thing = await grantItem(owners[0], { name: "SUITE E16-T38 a pencil case", category: "usable", tier: 1, override: true, quiet: true });
+            must(thing, `${owners[0].name} was given no item to name in a rifle - this would measure nothing`);
+            await actor.setFlag(MODULE_ID, KEY, mine);
+            await sheetAuditIdle();
+            const flags = { ...(foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags) ?? {}) };
+            delete flags[KEY];
+            await sheetMarkStore.patch(actor.id, { flags, flagsMarked: null });
+            must(!(KEY in (sheetMarkStore.get(actor.id)?.flags ?? {})) && stableJson(listNow()) === stableJson(mine),
+                `the mark still holds the list, or the sheet does not - this would measure nothing: ${stableJson([sheetMarkStore.get(actor.id)?.flags?.[KEY], listNow()])}`);
+            read.held = foundry.utils.deepClone((await flagsAsHeld(actor)).getFlag(MODULE_ID, KEY) ?? null);
+            const from = Date.now();
+            await compareAtReady();
+            await sheetAuditIdle();
+            await settle();
+            const mark = sheetMarkStore.get(actor.id);
+            read.compare = [listNow(), foundry.utils.deepClone(mark?.flags?.[KEY] ?? null), Boolean(mark?.flagsMarked?.includes?.(KEY)),
+                Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.away && r.actorId === actor.id && r.at >= from && PATH in (r.change ?? {})).map(r => r.verdict)];
+            read.rifle = (await V.stealFromVault({ thiefId: actor.id, ownerId: owners[0].id, itemId: thing.id }))?.refused ?? null;
+        } finally {
+            await setClock({ phase });
+            try { await thing?.delete(); } catch { /* already gone */ }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await S.putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ held: mine, compare: [mine, mine, true, []], rifle: "no such thing in that stash" }),
+            "a mark taken before the found list was marked judged the sheet's list as the GMs' flag: the held read gave none, the compare put it back, or the rifle "
+            + "met a stash unfound [the list as held; after the compare: the sheet's list, the mark's, the mark names the flag, the compare's rows for it; the rifle's refusal]");
     }],
 
     ["E16-T30 - a failed concealment of a trap's work is told to the room, naming the worker and the room and no project (audit S02-17, the owner's Q5)", async () => {

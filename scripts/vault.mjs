@@ -810,9 +810,15 @@ export async function setStash(room, actorId, { present = undefined, concealed =
  */
 async function forgetStashFound(room, ownerId, scene) {
     const gone = new Set([foundKey(room, ownerId, scene), foundKey(room, ownerId, null)]);
-    for (const actor of game.actors) {
-        const found = actor.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
-        if (!Array.isArray(found) || !found.length) continue;
+    // The finders' notes as the GMs hold them (E16 fix e1-G1, 26.10.2026; the review's E16p2-SEC-2 = E16R-05), as
+    // `carryRoomOnSheets` reads them: every write queued on a student judged first, then read in one pass. Read off the
+    // document, a player's note written while its put-back was on its way rode into this GM's write, which the audit
+    // takes as the GMs' - a forged find that then opened a concealed stash (`stealFromVault`). Measured: E16-T29.
+    const finders = [...(game.actors ?? [])];
+    await judgedFor(...finders.map(actor => actor.id));
+    for (const actor of finders) {
+        const found = stashesFoundBy(flagsHeldNow(actor));
+        if (!found.length) continue;
         const kept = found.filter(key => !gone.has(String(key)));
         if (kept.length === found.length) continue;
         await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, kept);
@@ -1000,8 +1006,8 @@ export function bedroomOwnerAnywhere(room) {
  * after every write queued on their owners has been judged (`judgedFor`), and in one
  * synchronous pass; each is one write
  * (`trustedWrite`: the stash's room is a protected flag), and a key whose name is still the one
- * `grantBedroomKey` gave it is renamed with it. The notes are read off the document, as
- * `hasFoundStash` reads them: the GMs keep no mark of them.
+ * `grantBedroomKey` gave it is renamed with it. The notes are read as the GMs hold them (`flagsHeldNow`, after
+ * `judgedFor`): the found list is a GM's flag since E16 part 2 C3.
  */
 export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(scene, to)) {
     if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
