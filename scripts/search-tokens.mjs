@@ -255,8 +255,10 @@ export class SearchTokens {
      * Spend one token. Returns true when it was spent, false when the room is
      * exhausted. Safe to call from a player client - it forwards to the GM.
      */
-    static async spend(roomName, sceneId, { actorId = null } = {}) {
-        return (await this.claim(roomName, sceneId, { actorId })).ok;
+    static async spend(roomName, sceneId, { actorId = null, onPrimary = false } = {}) {
+        const claimed = await this.claim(roomName, sceneId, { actorId, onPrimary });
+        // `onPrimary` (the bridge's spend, `runSpend`): a step that found this browser no longer the primary (E17 fix e1-G4).
+        return claimed.handedOver ? HANDED_OVER : claimed.ok;
     }
 
     /**
@@ -265,7 +267,7 @@ export class SearchTokens {
      * bare false, read as an unanswered request ("The search was not counted."); the reply names it now
      * (`runSpend`) and the Search says the seal (action-rolls.mjs `unclaimedOutcome`).
      */
-    static async claim(roomName, sceneId, { actorId = null } = {}) {
+    static async claim(roomName, sceneId, { actorId = null, onPrimary = false } = {}) {
         if (!roomName) return { ok: false, why: "empty" };
         if (!game.user.isGM) {
             // The searching character travels with the request: the GM spends a
@@ -282,8 +284,9 @@ export class SearchTokens {
             }
             return claimOf({ ok: res.ok, value: res.value, refused: res.refused });
         }
-        const ok = await this.#spendAsGm(roomName, sceneId);
-        return { ok, why: ok ? null : this.refusalOf(roomName, sceneId) };
+        const spent = await this.#spendAsGm(roomName, sceneId, { onPrimary });
+        if (spent === HANDED_OVER) return { ok: false, why: "refused", handedOver: true };
+        return { ok: spent, why: spent ? null : this.refusalOf(roomName, sceneId) };
     }
 
     /** Why the GM's spend in this room was refused: sealed, or out of tokens (`runSpend`'s reply, `claim`). */
@@ -299,6 +302,8 @@ export class SearchTokens {
     static async giveBack(roomName, sceneId) {
         if (!game.user.isGM || !roomName) return null;
         return serialWrite(SEARCH_KEY, async () => {
+            // The primary's alone (`returnToken`), asked again in the step (E17 fix e1-G4).
+            if (!isPrimaryGm()) return null;
             const store = foundry.utils.duplicate(this.store);
             const key = this.key(roomName, sceneId);
             const next = Math.min(this.max, this.storedLeft(store, key, roomName) + 1);
@@ -310,7 +315,7 @@ export class SearchTokens {
         });
     }
 
-    static async #spendAsGm(roomName, sceneId) {
+    static async #spendAsGm(roomName, sceneId, { onPrimary = false } = {}) {
         // THE LAST WORD, and deliberately down here rather than only in front
         // of the action. Every route to a search ends at this method - the
         // sheet's tile, a player's socket request, `game.drpg.useToken` from a
@@ -320,6 +325,10 @@ export class SearchTokens {
         if (this.sealed(roomName, sceneId)) return false;
 
         return serialWrite(SEARCH_KEY, async () => {
+            /* A player's spend the bridge runs is the primary's alone (E17 fix e1-G4, 26.10.2026; the review's E17P1-COR-8,
+               E17R-07): a GM whose id sorts first that connected while this step waited is the primary now, and writes the
+               counters from its own copy - refused here (`HANDED_OVER`), the player's Search ends with its action back. */
+            if (onPrimary && !isPrimaryGm()) return HANDED_OVER;
             const store = foundry.utils.duplicate(this.store);
             const key = this.key(roomName, sceneId);
             const current = this.storedLeft(store, key, roomName);
@@ -387,7 +396,6 @@ export class SearchTokens {
     static async reset({ notify = true } = {}) {
         if (!game.user.isGM) return false;
         await serialWrite(SEARCH_KEY, () => game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}));
-        forgetTokenReturns();
         if (notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
         return true;
     }
@@ -443,6 +451,8 @@ export function showSearchTokens() {
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
+/** `#spendAsGm`'s answer for a bridge's spend that found this browser no longer the primary (E17 fix e1-G4). */
+const HANDED_OVER = "handedOver";
 const ACTION_SPEND = "searchTokens.spend";
 const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
@@ -481,9 +491,10 @@ const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${ro
 /**
  * A REFILL ENDS EVERY TOKEN'S RETURN (E17 fix e1-G3, 26.10.2026; the review's E17P1-SEC-7). The ledger kept a spend's token
  * across a time of day's refill, so a spender whose room another player spent from in the new time of day asked the old
- * token back and the room held one more than the GM set. The tokens' entries go at every refill: this GM's
- * (`SearchTokens.reset`), and another GM's, read where the setting turns empty (`registerSearchTokenSocket`'s
- * `updateSetting`). A plant's entries stay: a plant handed out is an item, which a refill does not make again.
+ * token back and the room held one more than the GM set. The tokens' entries go at every refill, whichever GM wrote it
+ * (`SearchTokens.reset`): read on the primary where the setting turns empty (`registerSearchTokenSocket`'s
+ * `updateSetting`, which the writer's own browser fires too). A plant's entries stay: a plant handed out is an item,
+ * which a refill does not make again.
  */
 function forgetTokenReturns() {
     for (const [id, entry] of handedOut) if (entry?.kind === "token") handedOut.delete(id);
@@ -614,7 +625,9 @@ export function guardTokenReturn(sender, payload, ctx) {
  */
 async function runSpend(payload, sender, ctx) {
     const sceneId = searchSceneOf(sender, payload, ctx);
-    const ok = await SearchTokens.spend(payload.roomName, sceneId);
+    const spent = await SearchTokens.spend(payload.roomName, sceneId, { onPrimary: true });
+    if (spent === HANDED_OVER) return { refused: "nothing was carried out: the GM's browser stopped being the primary while the spend waited" };
+    const ok = Boolean(spent);
     // Only a spend that SUCCEEDED earns a look for a plant: a refused search
     // is not a search, and a plant handed out for one would be a free item
     // from a sealed or exhausted room. The look itself comes later, from a

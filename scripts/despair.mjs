@@ -19,7 +19,7 @@
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, warn, error, isPrimaryGm, plural, serialWrite } from "./utils.mjs";
+import { announce, whisperToOwner, log, warn, error, isPrimaryGm, primaryGmId, plural, serialWrite } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -72,6 +72,8 @@ export async function prunePools(removedId = null) {
 }
 
 async function pruneInStep(removedId) {
+    // The primary's alone, asked again in the step (E17 fix e1-G4): a GM that stopped being the primary while it waited prunes nothing.
+    if (!isPrimaryGm()) return null;
     const store = pools();
     const cleaned = {};
     for (const [userId, value] of Object.entries(store)) {
@@ -296,7 +298,7 @@ async function writePool(userId, value) {
  * different things: this one is INCOME, and an absolute `setDespair(id, 20)` is
  * a GM correcting a number by hand, which should not darken the world.
  */
-export async function adjustDespair(userId, delta) {
+export async function adjustDespair(userId, delta, { clamp = false } = {}) {
     /*
      * ONE WRITER (DESP-12). The pools are one world object, written whole from
      * the local cache; two GM clients writing at once - the primary awarding a
@@ -304,31 +306,27 @@ export async function adjustDespair(userId, delta) {
      * one write. An assistant GM's adjustment goes to the primary over the
      * bridge, like a player's reroll correction does, and is applied there.
      */
-    if (game.user?.isGM && !isPrimaryGm() && userId) {
-        try {
-            // `sendDespairToPrimary`, not `requestDespairAdjust` (retired in E08+E28 C8):
-            // that one handed a GM straight back here. And no `hasGm` - it was never exported, so asking
-            // for it threw and this fell through to writing locally, every time.
-            const { sendDespairToPrimary } = await import("./gm-bridge.mjs");
-            const { primaryGmId } = await import("./utils.mjs");
-            const primary = game.users.get(primaryGmId() ?? "");
-            if (primary?.active && primary.id !== game.user.id) {
-                void sendDespairToPrimary(userId, delta);
-                return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
-            }
-        } catch (err) {
-            warn("Could not route a Despair adjustment to the primary GM; writing it here", err);
-        }
-    }
+    const routed = await routeToPrimary(userId, delta, clamp);
+    if (routed !== null) return routed;
 
-    // Read inside the step that writes (E17 C0): read before it, ten +1 together all read the same pool.
-    const { before, wanted, applied } = await serialWrite(DESPAIR_KEY, async () => {
+    /* Read inside the step that writes (E17 C0): read before it, ten +1 together all read the same pool. And the primary
+       asked again in it (E17 fix e1-G4, 26.10.2026; the review's E17P1-COR-8, E17R-07): a GM whose id sorts first that
+       connected while this step waited is the primary now, and its own steps write the same setting from its own copy -
+       a step begun here goes to it instead, as one asked from here would. */
+    const out = await serialWrite(DESPAIR_KEY, async () => {
+        if (primaryElsewhere(userId)) return { handed: true };
         const held = getDespair(userId);
         return { before: held, wanted: held + delta, applied: await writePool(userId, held + delta) };
     });
+    if (out.handed) return (await routeToPrimary(userId, delta, clamp)) ?? getDespair(userId);
+    const { before, wanted, applied } = out;
 
+    /* A GM'S SETTING NEVER SPILLS (E17 fix e1-G4; the review's E17R-04, E17P1-R4). The pip asks a change of the one writer
+       since E17 C5, and a point the primary added before the bar drew again made the pip's +1 run past the maximum: the
+       excess spilled into the overflow, where Base's absolute `setDespair` clamped - a GM's correction advanced a
+       darkening. `clamp` (the pip's, carried as `despair.adjust`'s `clamp`) holds the pool at the maximum and spills nothing. */
     const max = despairMax();
-    if (delta > 0 && wanted > max) {
+    if (!clamp && delta > 0 && wanted > max) {
         try {
             await spillFrom(userId, before, delta, "pool spill");
         } catch (err) {
@@ -340,6 +338,29 @@ export async function adjustDespair(userId, delta) {
     }
 
     return applied;
+}
+
+/** Whether this GM is not the primary while another GM, connected, is: a change of a pool goes to that one (`adjustDespair`). */
+function primaryElsewhere(userId) {
+    if (!game.user?.isGM || !userId || isPrimaryGm()) return false;
+    const primary = game.users.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user.id);
+}
+
+/** A change of a pool asked of the primary from another GM (`adjustDespair`): the pool as this GM expects it, or null when it is this GM's to write. */
+async function routeToPrimary(userId, delta, clamp) {
+    if (!primaryElsewhere(userId)) return null;
+    try {
+        // `sendDespairToPrimary`, not `requestDespairAdjust` (retired in E08+E28 C8):
+        // that one handed a GM straight back here. And no `hasGm` - it was never exported, so asking
+        // for it threw and this fell through to writing locally, every time.
+        const { sendDespairToPrimary } = await import("./gm-bridge.mjs");
+        void sendDespairToPrimary(userId, delta, { clamp });
+        return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
+    } catch (err) {
+        warn("Could not route a Despair adjustment to the primary GM; writing it here", err);
+        return null;
+    }
 }
 
 /**
@@ -603,6 +624,8 @@ async function settleOnce() {
     await despairOwedStore.whenHydrated();
     // The pools read in the step that writes them (E17 C0), so a +1 queued beside the settlement is not written over.
     return serialWrite(DESPAIR_KEY, async () => {
+        // The primary's alone, asked again in the step (E17 fix e1-G4): a new primary settles its own.
+        if (!isPrimaryGm()) return 0;
         const plan = settlementOf(Object.entries(despairOwedStore.entries()), pools(), timeOfDayMark());
         if (plan.write) await game.settings.set(MODULE_ID, SETTINGS.despairPools, plan.pools);
         if (plan.drop.length) await despairOwedStore.dropMany(plan.drop);
@@ -1025,7 +1048,7 @@ function buildRow(user) {
                 const target = i === shown ? i - 1 : i;
                 const delta = target - shown;
                 shown = target;
-                return adjustDespair(user.id, delta);
+                return adjustDespair(user.id, delta, { clamp: true });
             };
             pip.addEventListener("click", set);
             pip.addEventListener("keydown", event => {

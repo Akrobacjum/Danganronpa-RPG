@@ -1655,7 +1655,7 @@ async function handleDespair(payload, sender, ctx) {
     const delta = Math.trunc(payload.delta);
     const target = game.users.get(payload.targetUserId);
     const { adjustDespair } = await import("./despair.mjs");
-    await adjustDespair(target.id, delta);
+    await adjustDespair(target.id, delta, { clamp: payload.clamp === true });
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
 }
 
@@ -2503,7 +2503,8 @@ export const BRIDGE_ACTIONS = table({
         // A player's point was a Reroll's, paid for by a receipt, until E08+E28 C8: the GM settles a
         // Reroll's Despair itself (reroll.mjs), and an Assistant GM's correction comes here (DESP-12).
         guards: [gmOnly("an undo is the GM's own Reroll's"), guardDespairDelta, guardDespairPool],
-        sanitize: pick({ targetUserId: as.id, delta: as.num }),
+        // `clamp` (E17 fix e1-G4): a GM's pip, held at the maximum with nothing spilled; a GM's flag, false from a player.
+        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag }),
         run: handleDespair,
         answer: "reply",
         claims: { targetUserId: guardDespairPool }
@@ -3080,8 +3081,8 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  * The caller has already checked that the primary is online and is somebody else.
  * The runner judges on the primary GM only, so there is one writer.
  */
-export function sendDespairToPrimary(targetUserId, delta) {
-    return ask(ACTION_DESPAIR, { targetUserId, delta });
+export function sendDespairToPrimary(targetUserId, delta, { clamp = false } = {}) {
+    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}) });
 }
 
 /**

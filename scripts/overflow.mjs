@@ -287,6 +287,22 @@ export const OVERFLOW_KEY = "overflow";
  * not distinguish them, and should not: what darkens the world is the quantity
  * of Despair loose in it, not the mood in which it got there.
  */
+/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`). */
+function primaryElsewhere() {
+    if (isPrimaryGm()) return false;
+    const primary = game.users.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user.id);
+}
+
+/** `addOverflow` asked of the primary from another GM: its count after, null when not added, undefined when it is this GM's to add. */
+async function askPrimaryToAdd(n, reason) {
+    // Only a GM that is not the primary asks, while another connected GM is (R6: a GM never asks itself down the socket).
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowAdd } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowAdd(n, reason);
+    return res.ok ? (res.value?.after ?? null) : null;
+}
+
 export async function addOverflow(amount, { reason = "spill" } = {}) {
     if (!game.user.isGM) return null;
     const n = Math.round(Number(amount));
@@ -297,14 +313,8 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
        (Rot, Earthquake) ran there. Another GM asks the primary (gm-bridge.mjs `overflow.add`, a GM's alone) and
        answers its count after, or null when it was not added; with no primary connected it adds here, as
        `adjustDespair` writes. Tier 2 E17-T8. */
-    if (!isPrimaryGm()) {
-        const primary = game.users.get(primaryGmId() ?? "");
-        if (primary?.active && primary.id !== game.user.id) {
-            const { requestOverflowAdd } = await import("./gm-bridge.mjs");
-            const res = await requestOverflowAdd(n, reason);
-            return res.ok ? (res.value?.after ?? null) : null;
-        }
-    }
+    const asked = await askPrimaryToAdd(n, reason);
+    if (asked !== undefined) return asked;
 
     /* The count is read once the store holds the other GMs' copies (E05 fix r2-G2; review
        S2-m7), as the Eclipse's is (eclipse.mjs `applyRecordedMove`): read before, a GM back
@@ -313,11 +323,15 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
        same wait stands in `checkOverflow` and `resetOverflow`. */
     await overflowStore.whenHydrated();
     // Read in the step that writes (E17 C0; audit S10-23), as every write of the count and the stamp is.
-    const { before, after } = await serialWrite(OVERFLOW_KEY, async () => {
+    // The primary asked again in the step (E17 fix e1-G4; the review's E17P1-COR-8, E17R-07): a handover while it waited sends it on.
+    const added = await serialWrite(OVERFLOW_KEY, async () => {
+        if (primaryElsewhere()) return null;
         const was = state();
         await overflowStore.patch(RECORD, { count: was.count + n });
         return { before: was, after: was.count + n };
     });
+    if (!added) return (await askPrimaryToAdd(n, reason)) ?? null;
+    const { before, after } = added;
     log(`Despair overflow +${n} (${reason}) -> ${after}/${overflowThreshold()}.`);
 
     /*

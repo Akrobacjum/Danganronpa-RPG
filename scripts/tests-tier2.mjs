@@ -69995,6 +69995,10 @@ const SCENARIOS = [
             seen.clock = [clock.suiteE17a ?? null, clock.suiteE17b ?? null];
             await game.settings.set(MODULE_ID, SETTINGS.clock, saved.clock);
 
+            // The fixture sets what it reads (E17 fix e1-G4; the review's E17R-09): out of a Class Trial or an Eclipse first,
+            // as E17-T2, T3 and T6 do - mid-trial `startEclipse` refuses (trialFirst), and in an Eclipse it would start a second.
+            const now = getClock() ?? {};
+            if (now.phase === "classTrial" || now.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
             await setClock({ timeOfDay: "morning" });
             await E.startEclipse();
             await settle();
@@ -71477,6 +71481,129 @@ const SCENARIOS = [
         }), "a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either [the pips: what was sent to the primary, "
             + "the pool before the primary judged it and after; the overflow: what was sent, whether the answer was the count after, the count's rise; "
             + "a gone user's pool after this GM's prune and the primary's; a player's two asks: what was told, the pool, the count's rise]");
+    }],
+
+    ["a pip's change never spills, and a step queued on a GM that stopped being the primary goes to the new one (E17-T8): Despair asked of it, the overflow added through it, a player's spend refused and a prune left to it", async () => {
+        /*
+         * E17 fix e1-G4, 26.10.2026; the review's E17R-04 and E17P1-R4 (a pip's +1 on a pool the primary had raised since the
+         * bar was drawn ran past the maximum, and the excess spilled into the overflow, where Base's absolute write clamped)
+         * and E17P1-COR-8 and E17R-07 (a step queued on the primary ran on after a GM whose id sorts first connected, and
+         * both browsers wrote the same setting from their own copies). (1) On this GM, the primary: its pool at the maximum
+         * less one, the bar drawn, the pool raised by one as a roll's point is, then the pip of the maximum clicked as it was
+         * drawn. Read: the pool and the overflow's rise. (2) A handover mid-queue: each key held by a step of the suite's own
+         * (`DESPAIR_KEY`, `OVERFLOW_KEY`, `SEARCH_KEY`), a change queued behind it while this GM is the primary - three
+         * Despair +1, an overflow +1, a player's spend as the bridge runs it, a prune of a pool no user has - then a second
+         * GM set in the users' list (`A`, a Gamemaster whose id sorts first, E17-T8's) and the keys let go. Read: what was
+         * sent to A, the pool, the overflow's count and the room's tokens on this GM before A judged anything, the spend's
+         * answer, the gone pool, and the pool after A's judgement (this browser judging A's packets as E17-T8 does). Red at
+         * 12c2eb6d: the pip spilled 1; the queued steps wrote here (pool +3, overflow +1, a token spent, the pool pruned).
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm, serialWrite } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - its pip would measure nothing");
+        const max = D.despairMax();
+        must(max >= 4, `a pool holds ${max} - this would measure nothing`);
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose spend is run");
+        const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser1", ROOM = "SUITE E17 T8 room", SCENE = "zE17T8noScene00";
+        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}), tokens: foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {}),
+            overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ["despair.adjust", "overflow.add"].includes(packet?.action) && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.delta ?? packet.amount ?? null]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const pool = () => D.getDespair(game.user.id);
+        const pip = n => document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${game.user.id}"] .drpg-despair-pip[data-value="${n}"]`);
+        const tokens = () => ST.SearchTokens.store[ST.SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const read = {};
+        try {
+            // (1) the pip's change, clamped
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: max - 1 });
+            await settle();
+            D.renderDespairBar();
+            const top = pip(max);
+            must(top, "the Despair bar drew no pip of the maximum for this GM's pool");
+            const count0 = O.overflowCount();
+            await D.adjustDespair(game.user.id, 1);
+            await settle();
+            top.click();
+            await settle();
+            await until(() => pool() === max, 1500);
+            read.pip = [pool(), O.overflowCount() - count0];
+
+            // (2) a handover mid-queue
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: 2, [GONE]: 3 });
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await settle();
+            const count1 = O.overflowCount();
+            let open = null;
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = [D.DESPAIR_KEY, O.OVERFLOW_KEY, ST.SEARCH_KEY].map(key => serialWrite(key, () => gate));
+            const changes = [D.adjustDespair(game.user.id, 1), D.adjustDespair(game.user.id, 1), D.adjustDespair(game.user.id, 1),
+                O.addOverflow(1, { reason: "suite E17-T8 handover" }), D.prunePools()];
+            const spendAs = ST.SEARCH_ACTIONS["searchTokens.spend"];
+            const spend = spendAs.run(spendAs.sanitize({ roomName: ROOM, sceneId: SCENE }, player), player, { requestId: "suite-e17t8-handover" });
+            inPlay = true;
+            arrive();
+            must(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            open();
+            await Promise.all(held);
+            const answer = await spend;
+            await settle();
+            read.handover = { sent: sentToA.splice(0).sort(), pool: pool(), overflow: O.overflowCount() - count1, tokens: tokens(),
+                spend: answer?.refused ? G.reasonOf(answer.refused) : stableJson(answer?.reply ?? null), gone: Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE) };
+            const settled = Promise.all(changes);
+            await drain();
+            await settled;
+            read.handover.after = [pool(), O.overflowCount() - count1];
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            pip: [max, 0],
+            handover: { sent: [["despair.adjust", 1], ["despair.adjust", 1], ["despair.adjust", 1], ["overflow.add", 1]], pool: 2, overflow: 0, tokens: "full",
+                spend: "refused", gone: true, after: [5, 1] }
+        }), "{pip: [the pool after a pip's +1 over a point the primary added, the overflow's rise], handover: [what was sent to the new primary, the pool, the overflow's rise "
+            + "and the room's tokens here before it judged, the player's spend's answer, the gone pool still held, then the pool and the overflow's rise after its judgement]}");
     }],
 
     ...GRID

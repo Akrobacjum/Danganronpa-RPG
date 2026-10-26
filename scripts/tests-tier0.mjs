@@ -4776,7 +4776,8 @@ const REGRESSIONS = [
         const despair = stripComments(sources.get("despair.mjs") ?? "");
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         const adjust = bodyOf(despair, "export async function adjustDespair(", { until: "\nexport " });
-        ok(/sendDespairToPrimary\(userId, delta\)/.test(adjust),
+        // The pip's `clamp` rides along since E17 fix e1-G4 (`routeToPrimary`, below `adjustDespair` and read with it).
+        ok(/sendDespairToPrimary\(userId, delta(?:, \{ clamp \})?\)/.test(adjust),
             "an assistant GM's Despair is not sent to the primary");
         ok(!/requestDespairAdjust|hasGm/.test(adjust),
             "adjustDespair reaches for a road that loops or a name that is not exported");
