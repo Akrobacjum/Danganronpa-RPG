@@ -46,14 +46,21 @@
  * otherwise (E37's risk sentence: a narrowed pass never leaves another player's hidden token visible). State, not only
  * counts.
  *
+ * E88 fix G4 (27.10.2026; findings E88-TEST-1, E88R-03): the state check run on the roads that still run the whole
+ * pass under C2's narrowed walk - an Eclipse starting and ending, a Truth Bullet given, a Mastermind's lair - each with
+ * another player's step after it, and the backstop the narrowing took away: a `visible` written outside a token's own
+ * refresh is put right by the once-a-second sweep (visibility.mjs `SWEEP_MS`).
+ *
  * E88 C4 (27.10.2026; E88-09): a setting write renders what it changed. For the Despair write each browser holds two
  * stand-in sheets in `ui.windows` - Aiko's and a Monokuma's, counting their renders - and the write renders the
  * Monokuma's alone and builds no status strip (at 7baff238: both rendered, a strip on every browser).
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
-   by run-all's line, and 38.3 s and 41.9 s the next two. 126 s is three times the slowest. */
-export const timeoutMs = 126000;
+   by run-all's line, and 38.3 s and 41.9 s the next two. 126 s is three times the slowest. E88 fix G4 adds the other
+   roads (an Eclipse, a bullet, a lair, the sweep's backstop): 83.1 s twice (27.10.2026, cluster's own line, under the
+   harness lock), so 250 s. */
+export const timeoutMs = 250000;
 export const accounts = [{ who: "p4", id: "USERP4S860000000", name: "Player Four", role: 1, character: null, color: "#2a627f" }];
 
 const MOD = "danganronpa-rpg";
@@ -234,6 +241,67 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     if (!botanLedger.includes("Dorm A")) await gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
         await F.setDiscovery(academy, { actorId: "${IDS.botan}", rooms: ["Dorm A"], value: false }); return true;`);
     await settle(800);
+
+    /* ------------------------------ the narrowed pass on its other roads (E88 fix G4) ------------------------------ */
+    /* Findings E88-TEST-1 and E88R-03, 27.10.2026. C2 checked its state on another player's move, an own move and a walk
+       into and out of a room; the roads that still run the whole pass under the narrowed walk were read, not run, and
+       the next-frame walk of every placeable - the second line, since 2026-08-23, against the engine writing `visible`
+       after this file - became a walk of the tokens refreshed in the frame. Under Stained Glass, each followed by
+       another player's step and the state check above: an Eclipse starting and, with the step, ending; a Truth Bullet
+       given to Aiko; a Mastermind (Aiko) with her lair in Dorm B. And the backstop: on p1's browser Chie's `visible` is
+       written true outside her own refresh (she stands in Dorm B, off p1's screen) while only Botan refreshes, twice,
+       1.2 s apart: the once-a-second sweep (visibility.mjs `SWEEP_MS`) must hide her again. Red at 00bcd809: Chie stood
+       on p1's screen after both steps. Everything is put back. */
+    phase("the narrowed pass on its other roads (E88 fix G4)");
+    await Promise.all(Object.values(clients).map(c => c.eval(`await game.settings.set("${MOD}", "theme", "stainedGlass"); return true;`)));
+    await settle(1200);
+    let roadStep = 100;
+    const botanStep = async () => {
+        await p2.eval(`${ACADEMY} const t = academy.tokens.get("TOKBOTAN00000000"); await t.update({ x: t.x + ${roadStep} }, ${MOVE}); return true;`);
+        roadStep = -roadStep;
+        await settle(1200);
+    };
+    const roads = {};
+    const eclipseOn = await gm.eval(`await game.drpg.startEclipse(); return game.drpg.isEclipse();`, { timeout: 60000 });
+    await settle(1500);
+    roads.eclipseStart = await stateHolds("stainedGlass", "an Eclipse starting");
+    await botanStep();
+    roads.eclipseStep = await stateHolds("stainedGlass", "another player's move in an Eclipse");
+    await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs"); await E.endEclipse({ advance: false }); return true;`, { timeout: 60000 });
+    await settle(1500);
+    const eclipseOff = await gm.eval(`return game.drpg.isEclipse();`);
+    roads.eclipseEnd = await stateHolds("stainedGlass", "an Eclipse ending");
+    check("fix G4: the Eclipse started and ended for these reads", eclipseOn === true && eclipseOff === false, J({ eclipseOn, eclipseOff }));
+    const bulletId = await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = await B.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "E88 fix G4 bullet", realType: "neutral", visibility: "obvious", playerText: "Seen." });
+        return item?.id ?? null;`);
+    await settle(1500);
+    roads.bullet = await stateHolds("stainedGlass", "a Truth Bullet given to Aiko");
+    await botanStep();
+    roads.bulletStep = await stateHolds("stainedGlass", "another player's move with Aiko's new bullet");
+    await gm.eval(`await game.actors.get("${IDS.aiko}").items.get(${J(bulletId)})?.delete(); return true;`);
+    await settle(800);
+    const mastermindWas = await gm.eval(`const M = await import("${repoUrl}/scripts/mastermind.mjs"); return { actorId: M.mastermindActor?.()?.id ?? null, room: M.mastermindLair() };`);
+    await gm.eval(`const M = await import("${repoUrl}/scripts/mastermind.mjs"); await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Dorm B" }); return true;`);
+    await settle(1500);
+    const lair = await p1.eval(`const M = await import("${repoUrl}/scripts/mastermind.mjs"); return M.myLairRoom();`);
+    roads.lair = await stateHolds("stainedGlass", "Aiko made the Mastermind, her lair Dorm B");
+    await botanStep();
+    roads.lairStep = await stateHolds("stainedGlass", "another player's move with Aiko's lair in Dorm B");
+    check("fix G4: a bullet was given and the Mastermind's lair reached her player's browser for these reads", Boolean(bulletId) && lair === "Dorm B", J({ bulletId, lair, mastermindWas }));
+    const M_BACK = mastermindWas.actorId ? `await M.setMastermind(game.actors.get(${J(mastermindWas.actorId)}), { room: ${J(mastermindWas.room)} });` : `await M.clearMastermind();`;
+    await gm.eval(`const M = await import("${repoUrl}/scripts/mastermind.mjs"); ${M_BACK} return true;`);
+    await settle(1200);
+    const planted = await p1.eval(`const t = canvas.tokens.get("TOKCHIE000000000"); const was = Boolean(t?.visible); if (t) t.visible = true; return { was, now: Boolean(t?.visible) };`);
+    await botanStep();
+    await botanStep();
+    const chie = await p1.eval(`return Boolean(canvas.tokens.get("TOKCHIE000000000")?.visible);`);
+    roads.backstop = await stateHolds("stainedGlass", "Chie's visible written outside her refresh on p1's browser and two of Botan's steps");
+    check("fix G4: a token whose visible the engine wrote outside its own refresh is hidden again within a second by the sweep, while another token refreshes (E88-TEST-1; E37's risk)",
+        planted.was === false && planted.now === true && chie === false, J({ planted, chie }));
+    const botanBack = await gm.eval(`${ACADEMY} const t = academy.tokens.get("TOKBOTAN00000000"); await t.update(${J(at.TOKBOTAN00000000)}, ${MOVE}); return { x: t.x, y: t.y };`);
+    await settle(1200);
+    note("fix G4 roads", J({ botanBack, roads: Object.fromEntries(Object.entries(roads).map(([k, r]) => [k, Object.fromEntries(Object.entries(r).map(([w, x]) => [w, x.off.length]))])) }));
 
     /* ------------------------------ the seams' light drawn once (E88 C1) ------------------------------ */
     /* E88-05. The harness's canvas has no renderer, so every halo above stayed on its live filter (the rows keep C0's

@@ -127,6 +127,18 @@ let pendingFrame = 0;
    refresh in that frame. */
 const refreshedThisFrame = new Set();
 
+/* AND EVERY TOKEN, AT MOST ONCE A SECOND (E88 fix G4, 27.10.2026; finding E88-TEST-1). C2's narrowing took away the walk
+   of every placeable after any refresh, which was the second line against the engine writing `visible` OUTSIDE a
+   token's own refresh - the 2026-08-23 shape of the regression, for a token that did not refresh in that frame. So a
+   frame that walks the refreshed tokens also walks every other placeable when SWEEP_MS have passed since the last such
+   sweep: a token shown by a write outside its refresh is hidden again within a second while anything on the map
+   refreshes, at the price of one walk of the placeables a second during movement (none at rest). Scenario 86's "the
+   narrowed pass on its other roads" plants that write on p1's browser (Chie shown while only Botan refreshes): at
+   00bcd809 she stayed on p1's screen after two of Botan's steps 1.2 s apart; with the sweep she is hidden. Counted
+   `visibility.reassert.sweep` and `.sweep.tokens`, apart from the walk of the refreshed (`visibility.reassert.tokens`). */
+const SWEEP_MS = 1000;
+let lastSweep = -Infinity;
+
 function reassertNextFrame(token) {
     if (token) refreshedThisFrame.add(token);
     if (pendingFrame) return;
@@ -139,6 +151,19 @@ function reassertNextFrame(token) {
             count("visibility.reassert");
             count("visibility.reassert.tokens", tokens.length);
             for (const one of tokens) if (!one?.destroyed) applyToToken(one);
+            const now = performance.now();
+            if (now - lastSweep >= SWEEP_MS) {
+                lastSweep = now;
+                const walked = new Set(tokens);
+                let swept = 0;
+                for (const one of canvas.tokens?.placeables ?? []) {
+                    if (walked.has(one) || one?.destroyed) continue;
+                    applyToToken(one);
+                    swept++;
+                }
+                count("visibility.reassert.sweep");
+                count("visibility.reassert.sweep.tokens", swept);
+            }
         } catch {
             // Same contract as `applyToToken`: never break the canvas over this.
         } finally {
