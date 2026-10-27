@@ -54622,7 +54622,7 @@ const SCENARIOS = [
             `whether ${user.name} knows the project in the room ${student.name} found and the one in the room not found, viewing the projects' scene and another`);
     }],
 
-    ["a public project is known to whoever proposed it, and to a player whose character stands in its room whatever the record says (H84-04)", async () => {
+    ["a public project is known to whoever proposed it, and to a player whose character stands in its room whatever the record says, and who proposed it is in no public meta (H84-04)", async () => {
         /*
          * H84-04, 27.10.2026; the owner's live session on 1.2.85 ("the author did not see their own public project"),
          * triage C4. `knowsProject` asked the discovery record alone: a proposer whose room the approval changed, or whose
@@ -54634,6 +54634,13 @@ const SCENARIOS = [
          * player and for another player; the second project's `sealedViewers` (public meta, what the proposer's own
          * browser reads); and the record of the first room. Red at 7a79b30c: the proposer knew none of the three, and the
          * proposed project named nobody.
+         * H84 fix G3 (the end review's H84-SEC-02/H84R-5, H84-SEC-03/H84R-07/H84R-4): who proposed a public project is
+         * the GMs' (`by`, PROJECT_SECRET_FIELDS) and is in no public meta: no project's `sealedViewers` names the
+         * proposer; this GM answers from `by`; the proposer's own browser from a private card the GM posts them, veiled,
+         * whose meta names the project (`PROJECT_KNOWN`; scenario 66 E4 reads it on p1). Read too: the card this GM holds
+         * for the second project and the GMs' mark `proposerTold`; then, for a project made before 1.2.88 (the mark
+         * taken off), `tellProposers` twice - the cards it posts each time, and the mark after. Red at b9540ce7: the
+         * proposed project's `sealedViewers` named the proposer, no card, no mark, no `tellProposers`.
          */
         const [student] = cast(1);
         needs(world.ownedByPlayer(student), "a GM knows every project, so the reading would be \"yes\" whatever the rule");
@@ -54646,7 +54653,10 @@ const SCENARIOS = [
         const R = await import("./rooms.mjs");
         const G = await import("./gm-store.mjs");
         const ROOMS = ["SUITE H84-04 where the student stands", "SUITE H84-04 the proposed room", "SUITE H84-04 nobody's room"];
+        const S = await import("./secret.mjs");
         let read = null;
+        const before = new Set(game.messages.map(m => m.id));
+        const cardsOf = id => game.messages.filter(m => !before.has(m.id) && S.cardMeta(m, P.PROJECT_KNOWN ?? "projectKnown") === id).length;
         await G.withGmStoreWorld(`suite-h8404-${foundry.utils.randomID(8)}`, async () => {
             let scene = null;
             const made = [];
@@ -54668,17 +54678,31 @@ const SCENARIOS = [
                     proposer: made.map(id => P.knowsProject(id, user)),
                     other: made.map(id => P.knowsProject(id, other)),
                     sealed: made.map(id => (P.metaFor(id).sealedViewers ?? []).includes(user.id)),
-                    recorded: F.discoveredFor(scene.id, student.id).includes(ROOMS[0])
+                    recorded: F.discoveredFor(scene.id, student.id).includes(ROOMS[0]),
+                    told: [cardsOf(made[1]), P.secretsOf(made[1]).proposerTold ?? null]
                 };
+                // A project made before 1.2.88: no mark. The primary's load tells its proposer once.
+                await P.applyProjectChange(made[1], { meta: { proposerTold: null } }, { by: { kind: "gm" } });
+                const was = cardsOf(made[1]);
+                await P.tellProposers?.();
+                await settle();
+                const once = cardsOf(made[1]) - was;
+                await P.tellProposers?.();
+                await settle();
+                read.backfill = [once, cardsOf(made[1]) - was - once, P.secretsOf(made[1]).proposerTold ?? null];
             } finally {
                 for (const id of made) await P.deleteProject(id);
                 await scene?.delete();
+                const posted = game.messages.filter(m => !before.has(m.id)).map(m => m.id);
+                if (posted.length) await ChatMessage.deleteDocuments(posted);
                 await settle();
             }
         });
-        equal(stableJson(read), stableJson({ proposer: [true, true, false], other: [false, false, false], sealed: [false, true, false], recorded: false }),
+        equal(stableJson(read), stableJson({ proposer: [true, true, false], other: [false, false, false], sealed: [false, false, false], recorded: false,
+            told: [1, true], backfill: [1, 0, true] }),
             `whether ${user.name} (${student.name} stands in the first room, its cell unticked, and proposed the second) and ${other.name} know the three projects; `
-            + "whose sealedViewers name the proposer; whether the record holds the first room");
+            + "whose sealedViewers name the proposer (none may); whether the record holds the first room; the proposer's cards this GM holds and the GMs' mark; "
+            + "for a project with no mark, the cards the load's tell posts the first time and the second, and the mark after");
     }],
 
     ["the project manager keeps a room it did not change, whatever scene is on screen", async () => {

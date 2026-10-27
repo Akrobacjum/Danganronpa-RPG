@@ -5860,8 +5860,8 @@ const INVARIANTS = [
         const FIXTURES = [
             // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
             // Passage's `passage` and `target` and a project's Observe finders, `foundBy`; E18 C7 the request a player's
-            // Sabotage came under, `sabotageAsk`.
-            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"].map(f => [`projectMeta.${f}`,
+            // Sabotage came under, `sabotageAsk`; H84 fix G3 whether a public project's proposer was told, `proposerTold`.
+            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.

@@ -435,6 +435,8 @@ Hooks.once("ready", () => {
     // because a repainted page is the louder problem of the two.
     safely("the stylesheet check", verifyStylesheet);
     safely("project secrecy", sealProjects);
+    // The proposers of public projects made before 1.2.88, told once (H84 fix G3; projects.mjs `tellProposers`).
+    safely("projects' proposers", tellProposersOnLoad);
     safely("bedroom keys", issueMissingKeys);
     safely("the Remnant actor", reconcileRemnantActorOnLoad);
     safely("item table wording", refreshTableCopyOnLoad);
@@ -497,6 +499,14 @@ function reconcileRemnantActorOnLoad() {
  *
  * Silent, and writes nothing when nothing is missing.
  */
+function tellProposersOnLoad() {
+    // One client, as the keys below: the primary GM, which holds the GMs' rows and writes the marks.
+    if (!isPrimaryGm()) return;
+    import("./projects.mjs")
+        .then(m => m.tellProposers())
+        .catch(err => error("Could not tell the proposers of the older projects", err));
+}
+
 function issueMissingKeys() {
     // One client - see `refreshTableCopyOnLoad`. Two GMs reaching this together
     // is two clients creating the same key on the same actor.

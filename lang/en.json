@@ -2977,6 +2977,7 @@
       "proposalTitle": "Propose a project",
       "proposalPrompt": "Say what you are actually doing and why here. The GM reads this with your answers and decides - they may change the scale, the room or the wording before it starts.",
       "proposalPlaceholder": "What you are building, and what you want out of it…",
+      "proposerKnows": "Your project “{name}” is under way in {room}. It shows on your Projects tray and on the map.",
       "proposalSent": "“{name}” has gone to the GM. Nothing starts until they approve it.",
       "approveButton": "Review and approve",
       "declineButton": "Turn it down",
