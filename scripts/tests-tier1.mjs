@@ -21690,6 +21690,141 @@ const INVARIANTS = [
         equal(JSON.stringify([r1 - r0, at("utils.cssColour.read") - r1, first === again]), JSON.stringify([1, 1, true]),
             "[stylesheet reads for two asks, reads for one ask after the body's class was written, the same colour twice]");
     }],
+    ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
+        /*
+         * E88 C3, 27.10.2026; E88-08. The masked raster over the fog is two screen-sized TilingSprites drawn into a
+         * filter's texture and a mask pass (PIXI 7 draws a sprite mask as a SpriteMaskFilter), and the backdrop under
+         * the map an ink rectangle and two more, on every frame the canvas renders, whatever moved - the player alone
+         * in a fogged room pays it all the time. Neither stands on a headless canvas (no renderer.render, a stub
+         * ticker: C0's numbers, fog.driftTick 0), so this runs fog.mjs's own hold on stand-ins, writing nothing and
+         * touching nothing of the layer on screen: 60 frames of 1/60 s, each the order a real frame keeps - the drift's
+         * step (`driftStep`) and the tiles placed (`placeTiles`), the renderer's prerender (`redrawHeld`, which draws a
+         * picture again when what it shows changed), the main pass's transforms carried down the tree as PIXI's
+         * updateTransform does, then each layer's render (`holdStill`'s). The pixels and a frame's time are a table's
+         * (LIVE-E88-02, LIVE-E88-01): what is counted here is the module's choice to draw, from what, and what a frame
+         * shows. Red at da2965ac (E88 C2): fog.mjs had none of the seven names, every frame drew both layers live (one
+         * mask pass a frame).
+         */
+        const F = await import("./fog.mjs");
+        const missing = ["driftState", "driftStep", "placeTiles", "holdStill", "redrawHeld", "releaseHeld", "heldGate"].filter(n => typeof F[n] !== "function");
+        if (missing.length) {
+            equal(JSON.stringify(missing), "[]", "fog.mjs's raster hold: the names it does not hand out");
+            return;
+        }
+        // A transform of a uniform scale and a translation, carried down the tree as PIXI's Transform carries its matrix.
+        class T {
+            constructor() { this.s = 1; this.x = 0; this.y = 0; this.worldTransform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 }; }
+            updateTransform(parent) {
+                const p = parent.worldTransform;
+                this.worldTransform = { a: p.a * this.s, b: 0, c: 0, d: p.d * this.s, tx: p.a * this.x + p.tx, ty: p.d * this.y + p.ty };
+            }
+        }
+        class Node {
+            constructor(name) { Object.assign(this, { name, children: [], parent: null, transform: new T(), visible: true, renderable: true, alpha: 1, worldAlpha: 1, destroyed: false }); }
+            get worldTransform() { return this.transform.worldTransform; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            render(r) { r.frames.push(`${this.name} live`); }
+            destroy() { this.destroyed = true; }
+        }
+        const tile = kind => Object.assign(new Node(kind), { drpgKind: kind, texture: { kind }, width: 1920, height: 1080, tileTransform: { rotation: 0 },
+            tilePosition: { x: 0, y: 0, set(x, y) { this.x = x; this.y = y; } } });
+        const lib = {
+            Transform: T,
+            RenderTexture: { create: o => ({ ...o, destroyed: false, destroy() { this.destroyed = true; } }) },
+            Sprite: class extends Node { constructor(texture) { super("picture"); this.texture = texture; } render(r) { r.frames.push("picture"); } }
+        };
+        const update = (node, parent = new T()) => {
+            node.transform.updateTransform(parent);
+            node.worldAlpha = node.alpha * (node.parent?.worldAlpha ?? 1);
+            for (const c of node.children) update(c, node.transform);
+        };
+        const run = ({ moving = true, canDraw = true, each = () => {}, prerender = () => true } = {}) => {
+            const root = new Node("stage"), layer = root.addChild(new Node("fog")), under = root.addChild(new Node("rendered"));
+            const mask = layer.addChild(Object.assign(new Node("mask"), { renderable: false, texture: { label: "fog1", baseTexture: { dirtyId: 1 }, _updateID: 1 } }));
+            const raster = layer.addChild(new Node("raster"));
+            raster.addChild(tile("dots"), tile("lines"));
+            raster.mask = mask;
+            const backdrop = under.addChild(new Node("backdrop"));
+            backdrop.addChild(Object.assign(new Node("ink"), { drpgDrawn: { w: 1920, h: 1080, ink: 0x1a1620 } }), tile("dots"), tile("lines"));
+            F.holdStill(raster, "raster");
+            F.holdStill(backdrop, "backdrop");
+            const renderer = { resolution: 1, screen: { width: 1920, height: 1080 }, frames: [], renders: [],
+                render(node, opts) { const mark = this.frames.length; node.render(this); this.renders.push(`${node.name}${opts?.renderTexture ? "" : " ON SCREEN"}: ${this.frames.splice(mark).join()}`); } };
+            const drift = F.driftState(), held = new Set(), shown = { raster: [], backdrop: [] }, afterTen = [];
+            const s = { root, layer, mask, raster, backdrop };
+            for (let f = 0; f < 60; f++) {
+                each(f, s);
+                F.driftStep(drift, 1000 / 60, { moving, snap: canDraw });
+                F.placeTiles(raster, drift.shown, 1920, 1080, 0);
+                F.placeTiles(backdrop, drift.shown, 1920, 1080, 0);
+                if (f === 9) afterTen.push(drift.shown.dots.y, drift.shown.lines.x);
+                if (prerender(f)) F.redrawHeld([raster, backdrop], { renderer, lib: canDraw ? lib : {}, held });
+                update(root);
+                for (const [name, node] of [["raster", raster], ["backdrop", backdrop]]) {
+                    const mark = renderer.frames.length;
+                    node.render(renderer);
+                    shown[name].push(renderer.frames.splice(mark).join());
+                }
+            }
+            const drawn = name => renderer.renders.filter(x => x.startsWith(`${name}:`)).length;
+            const tally = list => Object.entries(list.reduce((o, x) => ({ ...o, [x]: (o[x] ?? 0) + 1 }), {})).sort().map(([k, n]) => `${k} ${n}`).join(", ");
+            return { s, held, renderer, drift, afterTen, shown, drawn,
+                row: [drawn("raster"), drawn("backdrop"), tally(shown.raster), tally(shown.backdrop)] };
+        };
+
+        const rest = run();
+        equal(JSON.stringify([...rest.row, [...new Set(rest.renderer.renders)], rest.afterTen.every(Number.isInteger)]),
+            JSON.stringify([10, 10, "picture 60", "picture 60", ["raster: raster live", "backdrop: backdrop live"], true]),
+            "at rest, 60 frames: [raster pictures drawn, backdrop pictures drawn, what the raster's frames showed, the backdrop's, what each picture was drawn from, the drift's offset in whole pixels]");
+
+        const pan = run({ each: (f, s) => { s.root.transform.x -= 3; } });
+        equal(JSON.stringify(pan.row), JSON.stringify([60, 10, "picture 60", "picture 60"]),
+            "a pan of 3 px a frame: [raster pictures, backdrop pictures, the raster's frames, the backdrop's]");
+
+        const swap = run({ each: (f, s) => { if (f === 33) s.mask.texture = { label: "fog2", baseTexture: { dirtyId: 1 }, _updateID: 1 }; } });
+        const refill = run({ each: (f, s) => { if (f === 33) s.mask.texture.baseTexture.dirtyId += 1; } });
+        equal(JSON.stringify([swap.row.slice(0, 2), refill.row.slice(0, 2), swap.shown.raster[33]]), JSON.stringify([[11, 10], [11, 10], "picture"]),
+            "[raster and backdrop pictures with the mask swapped at frame 33, with the mask's texture drawn again in place, what frame 33 showed]");
+
+        const still = run({ moving: false });
+        equal(JSON.stringify(still.row), JSON.stringify([1, 1, "picture 60", "picture 60"]), "reduced motion: [raster pictures, backdrop pictures, the raster's frames, the backdrop's]");
+
+        // Frame 30: the camera moved and no prerender came before the main pass - the old picture must not be shown.
+        const missed = run({ each: (f, s) => { if (f === 30) s.root.transform.x = 50; }, prerender: f => f !== 30 });
+        equal(JSON.stringify([missed.shown.raster[30], missed.shown.backdrop[30], missed.shown.raster[31]]), JSON.stringify(["raster live", "picture", "picture"]),
+            "the camera moved with no prerender before the frame: [what the raster showed on that frame, the backdrop, the raster on the next]");
+
+        const none = run({ canDraw: false });
+        equal(JSON.stringify([...none.row, none.held.size, none.afterTen.every(Number.isInteger)]), JSON.stringify([0, 0, "raster live 60", "backdrop live 60", 0, false]),
+            "no texture to draw into: [raster pictures, backdrop pictures, the raster's frames, the backdrop's, pictures held, the drift in whole pixels]");
+
+        const pictures = [...rest.held].map(n => n.drpgHeld?.rt);
+        rest.s.raster.destroyed = true;
+        F.redrawHeld([], { renderer: rest.renderer, lib, held: rest.held });
+        const afterSweep = [pictures[0]?.destroyed, pictures[1]?.destroyed, rest.held.size];
+        F.releaseHeld(rest.s.backdrop, rest.held);
+        equal(JSON.stringify([...afterSweep, pictures[1]?.destroyed, rest.held.size, rest.s.backdrop.drpgHeld ?? null]), JSON.stringify([true, false, 1, true, 0, null]),
+            "[the destroyed raster's picture freed, the backdrop's kept, pictures held after the sweep; the backdrop's freed when released, pictures held, what the backdrop still points at]");
+
+        // The prerender's gate (`heldGate`): the picture's own render emits a prerender and a postrender of its own.
+        const drawnAt = [];
+        let gate = null;
+        let step = "";
+        gate = F.heldGate(() => { drawnAt.push(step); gate.before(); gate.after(); });
+        gate.tick();
+        step = "a frame";
+        gate.before(); gate.after();
+        step = "a frame with a render inside its pass";
+        gate.before(); gate.before(); gate.after(); gate.after();
+        step = "a render that returned with no postrender";
+        gate.before();
+        step = "a render later in that frame";
+        gate.before(); gate.after();
+        step = "the next frame";
+        gate.tick(); gate.before(); gate.after();
+        equal(JSON.stringify(drawnAt), JSON.stringify(["a frame", "a frame with a render inside its pass", "a render that returned with no postrender", "the next frame"]),
+            "the prerenders that drew the pictures");
+    }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*

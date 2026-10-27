@@ -28,6 +28,9 @@
  *   utils.cssColour, utils.cssColour.read                               a canvas colour asked; read off the stylesheet
  *                                                                       (kept until the body changes since E88 C2)
  *   fog.repaintFog, fog.buildFogTexture, fog.driftTick                  a repaint asked, a texture built, a drift frame
+ *   fog.held.raster | .backdrop | .live | .freed                        a layer drawn into its picture, a frame that drew
+ *                                                                       a held layer live (its picture out of date), a
+ *                                                                       picture freed (fog.mjs, E88 C3)
  *   clock.refreshSheets, clock.refreshSheets.rendered                   a sheet pass, and the sheets it rendered
  *   hud.renderHud, playerStatus.render                                  the HUD and the status strip drawn
  *   glass.pulseFrame, glass.paintBand                                   the curtain's pulse frame, a window band painted
