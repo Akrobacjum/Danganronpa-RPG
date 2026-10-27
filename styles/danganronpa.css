@@ -13672,6 +13672,32 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     margin-top: 0;
 }
 
+/* The GM's bar (E70 C1): six buttons in one fixed row in every mode, so nothing moves under the pointer when the
+   floor changes; a button that would change nothing is greyed and keeps its title (the reason). Wraps on a narrow
+   window rather than scrolling it. Not measured at a table: LIVE-E70-01 (1366x768, both themes). */
+.drpg-trial-console .drpg-trial-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 2px;
+}
+
+.drpg-trial-console .drpg-trial-bar-op {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-trial-console .drpg-trial-bar-op[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.drpg-trial-console .drpg-trial-bar-op.drpg-bar-next:not([aria-disabled="true"]) {
+    border-color: var(--drpg-crimson);
+}
+
 /* ---- season setup: the row that is allowed to stay unticked ------------- */
 
 /* An optional step is not an outstanding one. It gets the dimmer mark and no

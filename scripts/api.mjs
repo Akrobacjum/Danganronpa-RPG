@@ -120,7 +120,7 @@ import {
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
     startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
-    extendFloor, endFloor
+    extendFloor, endFloor, skipStep, adjustTime, endMode
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
     trialProgressChapter } from "./vote.mjs";
@@ -1053,6 +1053,16 @@ export const DrpgApi = {
     advanceFloorNow,
     extendFloor,
     endFloor,
+    /*
+     * THE GM'S BAR, A FUNCTION PER BUTTON (E70 C1; S18-76): Skip, -30 s / +30 s (`adjustTime(-30)`, `adjustTime(30)`),
+     * End this mode and Back to the debate (`returnToDebate()` above, with the time the debate had). Each refuses
+     * outside a Class Trial and says why; on a GM that is not the primary each reaches the primary as the console's
+     * button does. The older names stay (D25): `advanceFloorNow` is Skip without the trial's check, `extendFloor` is
+     * +30 s, `endFloor` closes the floor whatever runs.
+     */
+    skipStep,
+    adjustTime,
+    endMode,
 
     openVote,
     closeVote,

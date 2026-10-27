@@ -38896,6 +38896,210 @@ const SCENARIOS = [
             + "(4) the GM's +30 s by trial.gm, the floor after a player's end, and what each sender was told, (5) the floor after a player's Now and what it was told");
     }],
 
+    ["the trial console stays open across an Objection and its rebuttal, and the GM's bar is told to the table (E70-T2)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-06, E70-07. The console's footer is built once, and the window opened again whenever
+         * its signature changed - and the signature named the floor's mode, so every Objection and every rebuttal's end
+         * closed the console under the GM's pointer and drew a new one. Read on this primary, in a Class Trial, with the
+         * console drawn (the harness's DialogV2 draws real windows): a debate of 300 s, then an Objection by the API - the
+         * same window still open, and only one; then the bar's +30 s pressed in it - thirty seconds more on the floor and
+         * "GM: +30 s" on the Event panel's trial card (its note, `gmNoteText`); then Skip - the rebuttal, the same window, and the chat card
+         * "Turn skipped" naming the objector; then End this mode - no floor, and the card "The GM ends the Rebuttal.".
+         * Red at f388d722: a new window at the Objection, and no bar. The clock, the floor and the cards are put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const posted = () => game.messages.filter(m => !seen.has(m.id)).map(m => String(m.content ?? ""));
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const app = consoles()[0] ?? null;
+            ok(app?.element, "the trial console did not open");
+            if (!app?.element) return;
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            await wait(1500);
+            read.objection = [F.trialFloor()?.mode ?? null, consoles().length, consoles()[0] === app];
+            const press = op => {
+                const button = app.element?.querySelector(`[data-drpg-bar="${op}"]`);
+                button?.click();
+                return Boolean(button);
+            };
+            const left = F.secondsLeft();
+            const plus = press("plus");
+            await until(() => F.secondsLeft() > left + 20, 4000);
+            read.plus = [plus, F.secondsLeft() - left >= 25, typeof E.gmNoteText === "function" ? E.gmNoteText(F.trialFloor()) : null];
+            const skip = press("skip");
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await wait(1500);
+            const skipped = game.i18n.format("DRPG.Floor.turnSkipped", { name: objector.name });
+            read.skip = [skip, F.trialFloor()?.mode ?? null, consoles()[0] === app, posted().filter(c => c.includes(skipped)).length];
+            const ended = press("endMode");
+            await until(() => !F.trialFloor(), 4000);
+            const words = game.i18n.format("DRPG.Floor.modeEnded", { mode: game.i18n.localize("DRPG.Floor.mode.rebuttal") });
+            await until(() => posted().some(c => c.includes(words)), 3000);
+            read.endMode = [ended, F.trialFloor(), posted().filter(c => c.includes(words)).length];
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            objection: ["objection", 1, true],
+            plus: [true, true, game.i18n.format("DRPG.Floor.gmNoteAdjust", { seconds: "+30" })],
+            skip: [true, "rebuttal", true, 1],
+            endMode: [true, null, 1]
+        }), "(1) the floor, how many consoles and whether it is the same one after the Objection; (2) the bar's +30 s pressed, the time it put on, the Event card's note; "
+            + "(3) Skip pressed, the floor, the same console, the cards naming the turn skipped; (4) End this mode pressed, the floor, its cards");
+    }],
+
+    ["Back to the debate gives the debate the time it had when the Objection cut in (E70-T3)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-05 (TR31 = 1: "Back to the debate gives the rest"). A debate of 600 s with 500 s left
+         * is cut by an Objection (the API's), and the GM presses Back to the debate during the Objection's minute: the
+         * debate comes back with its 500 s, not its 600 again. A floor written before 1.2.90 - an Objection with no
+         * stack - goes back to its budget, as before. Red at f388d722: 600 s both times. The floor is put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 600, startedAt: serverNow() - 100_000,
+                pending: false, messageId: null
+            });
+            await settle();
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            const objection = F.trialFloor()?.mode ?? null;
+            await F.returnToDebate();
+            await settle();
+            read.back = [objection, F.trialFloor()?.mode ?? null, Math.abs(F.secondsLeft() - 500) <= 3, F.trialFloor()?.seconds ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 600,
+                startedAt: serverNow() - 5_000, pending: false, messageId: null
+            });
+            await settle();
+            await F.returnToDebate();
+            await settle();
+            read.old = [F.trialFloor()?.mode ?? null, F.trialFloor()?.seconds ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ back: ["objection", "debate", true, 500], old: ["debate", 600] }),
+            "(1) the floor after the Objection, after Back to the debate, whether it had the 500 s left, its budget; (2) an old floor's debate and budget");
+    }],
+
+    ["a function of game.drpg for each button of the GM's bar, and the same floor by trial.gm (E70-T4)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-08 (S18-76, D25). Each button of the bar is a `game.drpg` function a macro or another
+         * GM's console can call - `skipStep`, `adjustTime`, `endMode`, `returnToDebate` - and the older names stay
+         * (`advanceFloorNow`, `extendFloor`, `endFloor`, trial-floor.mjs's own functions). Read on this primary in a
+         * Class Trial, on an Objection with 50 s left and a debate under it with 200 s: +30 s leaves 80 s, -30 s 50 s,
+         * Skip opens the rebuttal, Back to the debate gives the 200 s, End this mode empties the floor; then on the same
+         * Objection the bridge's runner handed "trial.gm" as this GM sends it - +30 s, then End this mode - moves it
+         * the same; then, the campaign back in Daily Life with the same Objection written, the same two by "trial.gm" are
+         * refused and the floor's clock stays (DX2 = 2: the primary judges its own clock). Scenario 63 Z presses each on
+         * a GM that is not the primary. Red at f388d722: no such functions.
+         * The clock, the floor and the cards are put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const names = ["skipStep", "adjustTime", "endMode", "returnToDebate"];
+        const read = {
+            fns: names.map(n => typeof api[n] === "function"),
+            aliases: [api.advanceFloorNow === F.advanceFloorNow, api.extendFloor === F.extendFloor, api.endFloor === F.endFloor]
+        };
+        const fixture = async () => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 300,
+                startedAt: serverNow() - 10_000, pending: false, messageId: null,
+                before: [{ messageId: null, before: { mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }]
+            });
+            await settle();
+        };
+        const near = want => Math.abs(F.secondsLeft() - want) <= 3;
+        try {
+            if (read.fns.every(Boolean)) {
+                await setClock({ ...clock, phase: "classTrial" });
+                await fixture();
+                await api.adjustTime(30);
+                read.plus = near(80);
+                await api.adjustTime(-30);
+                read.minus = near(50);
+                await api.skipStep();
+                await settle();
+                read.skip = F.trialFloor()?.mode ?? null;
+                await api.returnToDebate();
+                await settle();
+                read.back = [F.trialFloor()?.mode ?? null, near(200)];
+                await api.endMode();
+                await settle();
+                read.endMode = F.trialFloor();
+                await fixture();
+                const heard = [];
+                const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4PLUS", op: "adjust", seconds: 30 }, game.user.id, { send });
+                const bridged = near(80);
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4END", op: "endMode" }, game.user.id, { send });
+                read.bridge = [bridged, F.trialFloor(), heard];
+                await setClock({ ...getClock(), phase: "dailyLife" });
+                await fixture();
+                const at = F.trialFloor()?.startedAt ?? null, outside = [];
+                const sendOut = (to, packet) => { if (packet?.action !== "bridge.ack") outside.push(packet?.action ?? null); };
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4OUT", op: "adjust", seconds: 30 }, game.user.id, { send: sendOut });
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4OUTEND", op: "endMode" }, game.user.id, { send: sendOut });
+                read.outside = [F.trialFloor()?.mode ?? null, F.trialFloor()?.startedAt === at, outside];
+            }
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            fns: [true, true, true, true], aliases: [true, true, true],
+            plus: true, minus: true, skip: "rebuttal", back: ["debate", true], endMode: null,
+            bridge: [true, null, ["bridge.done", "bridge.done"]],
+            outside: ["objection", true, ["bridge.refused", "bridge.refused"]]
+        }), "(1) the bar's functions on game.drpg and the older names; (2) +30 s, -30 s, Skip, Back to the debate, End this mode by them; (3) +30 s and End this mode by trial.gm, and what this GM was told; "
+            + "(4) outside a Class Trial: the floor and whether its clock stayed after +30 s and End this mode by trial.gm, and what this GM was told");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary

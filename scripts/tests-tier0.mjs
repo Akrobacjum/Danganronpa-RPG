@@ -3018,12 +3018,18 @@ const REGRESSIONS = [
             "the closing is reported after the road that returns early, so a vote nobody answered "
             + "leaves the console printing its voters");
 
+        // Since E70 C1 the arithmetic is floor-machine.mjs `nextFloor`'s `adjust` row, which `extendFloorInStep` asks;
+        // tier 1 R1024 drives it (+30 s on a debate 40 s over leaves 30 s).
         const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
         const extend = bodyOf(floorSrc, "export async function extendFloor", { until: "export async function endFloor" });
-        ok(extend.includes("secondsLeft("),
-            "extendFloor stopped asking how much is left, so an overrun mode stays overrun");
-        ok(extend.includes("Math.max("), "extendFloor no longer clamps an expired clock at zero");
-        ok(!/startedAt \?\? Date\.now\(\)\) \+ extraSeconds/.test(extend),
+        ok(/nextFloor\(floor, \{ type: "adjust", seconds: extraSeconds \}/.test(extend),
+            "extendFloor no longer asks the floor's machine for its +30 s");
+        const machine = stripComments(sources.get("floor-machine.mjs") ?? "");
+        const adjust = bodyOf(machine, 'case "adjust": {', { until: 'case "back": {' });
+        ok(adjust.includes("leftAt(floor, now)"),
+            "the machine's +30 s stopped asking how much is left, so an overrun mode stays overrun");
+        ok(/Math\.max\(Math\.max\(left, 0\) \+ seconds, 0\)/.test(adjust), "the machine's +30 s no longer clamps an expired clock at zero");
+        ok(!/startedAt \?\? Date\.now\(\)\) \+ extraSeconds/.test(extend + adjust),
             "the flat push on `startedAt` is back");
     }],
 
@@ -15529,6 +15535,42 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({ tick: true, write: true, end: true, onPrimary: true, step: true }),
             "a writer of the floor no longer asks whether this is the primary GM before it writes, or a GM's button no longer goes to the primary");
+    }],
+
+    ["R1026 - the trial console's footer follows the floor's family, not its mode (E70 C1): trial-floor-ui.mjs `trialSignature` and `trialNextStep` read no mode (no `.mode`, no `restrictive`, no `FLOOR_MODES`), the signature reads `floorFamily(floor)`, and `trialButtons` draws none of the mode's buttons (Now, Back to the debate, +30 s, Re-point), which are the bar's", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-06 (S18-75). The console's footer is built once per window, and the window opens
+         * again whenever `trialSignature` changes; with the mode in it, every Objection and every rebuttal's end closed
+         * the console under the GM's pointer and opened a new one (tier 2 E70-T2 at f388d722). The buttons that depend
+         * on the mode are the bar's since E70 C1, inside the live region. Read in trial-floor-ui.mjs, comments blanked;
+         * the reader is shown a clean twin first, then the 1.2.79 signature with the mode. Red at f388d722: the
+         * signature read `floor?.mode` and `restrictive`, and `trialNextStep` answered "now" by `restrictive`.
+         */
+        const readOf = src => {
+            const sig = fnSource(src, "trialSignature"), next = fnSource(src, "trialNextStep"), buttons = fnSource(src, "trialButtons");
+            const modal = /\.mode\b|\brestrictive\b|FLOOR_MODES/;
+            return {
+                cut: [sig, next, buttons].every(body => body.length > 100),
+                signature: !modal.test(sig) && /\bfloorFamily\(floor\)/.test(sig),
+                next: !modal.test(next),
+                footer: !/action: "(?:now|debate|extend|repoint)"/.test(buttons)
+            };
+        };
+        const pad = "// " + "x".repeat(100) + "\n";
+        const twin = [
+            `function trialNextStep({ floor, running }) {\n${pad}    if (running && floor) return "closeDebate";\n    return "start";\n}`,
+            `function trialSignature(view) {\n${pad}    const { floor, running } = view;\n    return [running, floorFamily(floor)].join("|");\n}`,
+            `function trialButtons({ floor }) {\n${pad}    return [{ action: "closeDebate" }, { action: "close" }];\n}`
+        ].join("\n");
+        const all = { cut: true, signature: true, next: true, footer: true };
+        equal(JSON.stringify(readOf(twin)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const old = twin.replace("[running, floorFamily(floor)]", "[running, Boolean(floor), floor?.mode ?? \"-\"]")
+            .replace('return [{ action: "closeDebate" }', 'return [{ action: "now" }, { action: "closeDebate" }');
+        equal(JSON.stringify(readOf(old)), JSON.stringify({ ...all, signature: false, footer: false }),
+            "the reader misses the mode in a planted signature or a mode's button in a planted footer");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        equal(JSON.stringify(readOf(src)), JSON.stringify(all),
+            "the console's signature, next step or footer reads the floor's mode again, so the console reopens at every Objection (read: cut, signature, next, footer)");
     }],
 
     ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {

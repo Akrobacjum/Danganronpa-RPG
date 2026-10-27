@@ -19,7 +19,7 @@
  * rows, so that theme stays exactly the look it was.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
@@ -367,6 +367,33 @@ function afterVerdictCard(clock) {
  * `votesIn` and `pendingVoters` answer on that client alone. HOW anybody voted
  * is not here and is not anywhere: that is the one thing the guide keeps.
  */
+/*
+ * THE GM'S CHANGE OF THE CLOCK, TOLD FOR A FEW SECONDS (E70 C1, 27.10.2026; E70-07). -30 s, +30 s and Back to the
+ * debate change the numbers every screen counts, and a player who looks up to find the clock thirty seconds richer has
+ * nobody to ask why: the floor carries the GM's note (`gmNote`, floor-machine.mjs), and the trial's card says it -
+ * "GM: +30 s" - for `TRIAL.modes.gm.noteSeconds`, counted on this browser's own clock from the moment it first saw the
+ * note, so a browser that loads late or runs a minute off still shows it for the same ten seconds. Skip and End this
+ * mode are told in chat instead (trial-floor.mjs `postFloorCard`). The panel is drawn again when the note runs out.
+ */
+const notesSeen = new Map();
+let noteTimer = null;
+
+export function gmNoteText(floor) {
+    const note = floor?.gmNote;
+    if (!note?.key || !note.at) return null;
+    const id = `${note.key}|${note.at}`;
+    if (!notesSeen.has(id)) {
+        if (notesSeen.size > 20) notesSeen.clear();
+        notesSeen.set(id, Date.now());
+    }
+    const left = TRIAL.modes.gm.noteSeconds * 1000 - (Date.now() - notesSeen.get(id));
+    if (left <= 0) return null;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { noteTimer = null; renderEvents(); }, left + 50);
+    const seconds = Number(note.seconds) || 0;
+    return game.i18n.format(note.key, { seconds: seconds > 0 ? `+${seconds}` : String(seconds) });
+}
+
 export function trialCard(clock) {
     try {
         if (clock.phase !== "classTrial") return null;
@@ -413,6 +440,7 @@ export function trialCard(clock) {
             title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
             sub: speaker,
             meta,
+            note: gmNoteText(floor),
             // The debate's countdown, only while a floor is open: a trial in session
             // with nobody holding the floor has no clock running (see `paintTrialClock`).
             clock: Boolean(floor)

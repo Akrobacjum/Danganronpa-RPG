@@ -24424,6 +24424,170 @@ const INVARIANTS = [
             JSON.stringify([true, [], false, false, 1]),
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
+
+    ["R1023 - one table says what each mode of the floor allows (E70 C1, S18-79): trial-floor.mjs `modeAllows(floor, kind, actorId)` answers, on every floor of today's three modes and with none, what `maySpeak`, `floorRefusal` and `targetRefusal` answered at 1.2.89, and those three answer it still", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-03 (amend 4 (e)). `maySpeak`, `floorRefusal` and `targetRefusal` each spelled the
+         * modes' rules in a switch of their own, so the HUD, the Objection window and the primary's judgement could
+         * drift apart one mode at a time; they answer from `MODE_RULES` now, and part 2's modes are rows there. 1.2.89's
+         * answers are written out here as they were read in its code (every state: no floor, a debate, a pending and a
+         * filled Objection, a rebuttal; every role: the holder, the target, a third student), and held against both the
+         * table and the three functions. Red at f388d722: no `modeAllows`.
+         */
+        const F = await import("./trial-floor.mjs");
+        ok(typeof F.modeAllows === "function" && F.MODE_RULES && typeof F.MODE_RULES === "object",
+            "trial-floor.mjs has no modeAllows or no MODE_RULES - the modes' rules are still spelled one function at a time");
+        if (typeof F.modeAllows !== "function") return;
+        const H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", O = "otherAAAAAAAAAAA";
+        const at = mode => mode && { active: true, mode, holderId: mode === "debate" ? null : H, targetId: mode === "debate" ? null : T,
+            seconds: 300, startedAt: 1, pending: false, messageId: null };
+        const floors = { none: null, debate: at("debate"), pending: { ...at("objection"), pending: true, messageId: "cardAAAAAAAAAAAA" },
+            objection: at("objection"), rebuttal: at("rebuttal") };
+        // 1.2.89's three functions, as they read (trial-floor.mjs at 1a1bf1ff).
+        const speak89 = (a, f) => !f ? true : f.mode === "objection" ? a === f.holderId : f.mode === "rebuttal" ? a === f.holderId || a === f.targetId : true;
+        const object89 = f => Boolean(f) && f.mode !== "objection";
+        const target89 = (o, t, f) => Boolean(o && t) && o !== t && !(f?.mode === "rebuttal" && ![f.holderId, f.targetId].includes(t));
+        const pairs = [[O, H], [O, T], [H, T], [T, H], [H, O], [O, O], [null, T]];
+        const read = {}, want = {};
+        for (const [name, f] of Object.entries(floors)) {
+            read[name] = {
+                speak: [H, T, O].map(a => F.modeAllows(f, "speak", a)),
+                speakFn: [H, T, O].map(a => F.maySpeak(a, f)),
+                object: f ? F.modeAllows(f, "object") : false,
+                objectFn: F.floorRefusal(f) === null,
+                target: pairs.map(([o, t]) => Boolean(o && t) && o !== t && (!f || F.modeAllows(f, "target", t))),
+                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f) === null)
+            };
+            const speak = [H, T, O].map(a => speak89(a, f)), target = pairs.map(([o, t]) => target89(o, t, f));
+            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target };
+        }
+        equal(stableJson(read), stableJson(want),
+            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair)");
+    }],
+
+    ["R1024 - the floor's one engine (E70 C1, S18-72): floor-machine.mjs `nextFloor(floor, event, ctx)` is pure and answers each row - a timed mode run out, Skip, -30 s and +30 s, an Objection's stack, Back to the debate, End this mode, a lapse - as the GM's bar and the heartbeat need", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-03, E70-04, E70-05. Every road that moves the floor - the heartbeat, the GM's bar, a
+         * seizure, the API - asks this one function in the primary's step, so its rows are read here without a world, at
+         * a fixed `now`, on floors frozen to the bottom (a write into one throws): (1) due: an Objection's minute becomes
+         * the rebuttal, a rebuttal ends the floor, a pending Objection lapses back to the debate with the seconds the
+         * debate had, a debate has no next step; (2) Skip: refused in a debate, told as "Turn skipped" with whose turn;
+         * (3) -30 s at 20 s of an Objection is its Skip, a debate goes to zero at most, and a debate with nothing left
+         * refuses; (4) +30 s on a debate 40 s over leaves 30 s (F9), on an Objection with 50 s left leaves 80 s, past its
+         * 60 (TR26), with the GM's note; (5) an Objection on a debate with 200 s left pushes the debate and its 200 s,
+         * with the card; Back to the debate from the rebuttal gives those 200 s (TR31), a floor from before 1.2.90 its
+         * budget, a debate without seconds nothing, and with seconds a debate of them; (6) End this mode ends the floor
+         * with its card; (7) start empties the stack; (8) the input is unchanged. Red at f388d722: no floor-machine.mjs.
+         */
+        let M = null;
+        try {
+            M = await import("./floor-machine.mjs");
+        } catch {
+            M = null;
+        }
+        ok(typeof M?.nextFloor === "function", "floor-machine.mjs has no nextFloor - each writer of the floor still spells its own move");
+        if (typeof M?.nextFloor !== "function") return;
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", CARD = "cardAAAAAAAAAAAA";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const debate = (left, seconds = 300) => ({ active: true, mode: "debate", holderId: null, targetId: null, seconds,
+            startedAt: NOW - (seconds - left) * 1000, pending: false, messageId: null, before: [] });
+        const timed = (mode, left, extra = {}) => ({ active: true, mode, holderId: H, targetId: T, seconds: 300,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000, pending: false, messageId: null,
+            before: [{ messageId: CARD, before: { mode: "debate", holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }], ...extra });
+        const go = (floor, event) => M.nextFloor(freeze(JSON.parse(JSON.stringify(floor))), event, { now: NOW });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, left: r.floor ? M.leftAt(r.floor, NOW) : null, seconds: r.floor?.seconds ?? null,
+                stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                note: r.floor?.gmNote?.key ?? null, cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? c.mode ?? null]) };
+        const old = { ...debate(0), mode: "rebuttal", holderId: H, targetId: T, startedAt: NOW - 60_000, seconds: 240 };
+        delete old.before;
+        const input = timed("objection", 20);
+        const before = JSON.stringify(input);
+        const read = {
+            dueObjection: shape(go(timed("objection", 0), { type: "due" })),
+            dueRebuttal: shape(go(timed("rebuttal", 0), { type: "due" })),
+            duePending: shape(go(timed("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            dueDebate: shape(go(debate(0), { type: "due" })),
+            skipDebate: shape(go(debate(100), { type: "skip" })),
+            skipObjection: shape(go(timed("objection", 40), { type: "skip" })),
+            minusObjection: shape(go(input, { type: "adjust", seconds: -30 })),
+            minusDebate: shape(go(debate(20), { type: "adjust", seconds: -30 })),
+            minusEmpty: shape(go(debate(0), { type: "adjust", seconds: -30 })),
+            plusOverrun: shape(go(debate(-40), { type: "adjust", seconds: 30 })),
+            plusPastLimit: shape(go(timed("objection", 50), { type: "adjust", seconds: 30 })),
+            objection: shape(go(debate(200), { type: "objection", holderId: H, targetId: T, cardId: CARD })),
+            back: shape(go(timed("rebuttal", 90), { type: "back" })),
+            backOld: shape(go(old, { type: "back" })),
+            backDebate: shape(go(debate(100), { type: "back" })),
+            backGiven: shape(go(debate(100), { type: "back", seconds: 120 })),
+            endMode: shape(go(timed("rebuttal", 90), { type: "endMode" })),
+            start: shape(go(timed("rebuttal", 90), { type: "start", seconds: 180 })),
+            unchanged: JSON.stringify(input) === before
+        };
+        const stack = [[CARD, "debate", 200]];
+        const skipped = [["DRPG.Floor.turnSkipped", H]];
+        equal(stableJson(read), stableJson({
+            dueObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: [] },
+            dueRebuttal: { mode: null, left: null, seconds: null, stack: [], note: null, cards: [] },
+            duePending: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
+            dueDebate: { refused: "DRPG.Floor.bar.noTurn" },
+            skipDebate: { refused: "DRPG.Floor.bar.noTurn" },
+            skipObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: skipped },
+            minusObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: skipped },
+            minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
+            plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            plusPastLimit: { mode: "objection", left: 80, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            objection: { mode: "objection", left: 60, seconds: 300, stack, note: null, cards: [] },
+            back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
+            backOld: { mode: "debate", left: 240, seconds: 240, stack: [], note: null, cards: [] },
+            backDebate: { refused: "DRPG.Floor.bar.inDebate" },
+            backGiven: { mode: "debate", left: 120, seconds: 120, stack: [], note: null, cards: [] },
+            endMode: { mode: null, left: null, seconds: null, stack: [], note: null, cards: [["DRPG.Floor.modeEnded", "rebuttal"]] },
+            start: { mode: "debate", left: 180, seconds: 180, stack: [], note: null, cards: [] },
+            unchanged: true
+        }), "a row of the floor's machine answers otherwise (per row: the mode, seconds left and budget it writes, its stack, the GM's note, the cards it posts - or its refusal)");
+    }],
+
+    ["R1025 - the GM's bar in every mode (E70 C1, S18-75; TR21, DX2): trial-floor.mjs `BAR_OPS` is Skip, -30 s, +30 s, End this mode, Back to the debate, Re-point in that order, and `barRefusal` greys each one with its own reason on every state - all of them outside a Class Trial and with no floor - and lets through the rest", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-04. The bar stays put: the same six buttons in the same order in every mode, and a
+         * button whose op would change nothing is greyed with the reason its op gives (the machine's refusal, which the
+         * primary's step gives again). Read at a fixed `now` on six states: outside a trial (a debate on the floor), no
+         * floor, a debate with 100 s left, a debate with none left, a pending and a filled Objection, a rebuttal. Red at
+         * f388d722: no `BAR_OPS`, no `barRefusal`.
+         */
+        const F = await import("./trial-floor.mjs");
+        ok(Array.isArray(F.BAR_OPS) && typeof F.barRefusal === "function", "trial-floor.mjs has no BAR_OPS or no barRefusal - the GM has no bar");
+        if (typeof F.barRefusal !== "function") return;
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA";
+        const debate = left => ({ active: true, mode: "debate", holderId: null, targetId: null, seconds: 300, startedAt: NOW - (300 - left) * 1000, pending: false, messageId: null });
+        const timed = (mode, extra = {}) => ({ active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: NOW - 10_000, pending: false, messageId: null, ...extra });
+        const states = {
+            outside: [debate(100), false], none: [null, true], debate: [debate(100), true], spent: [debate(0), true],
+            pending: [timed("objection", { pending: true, messageId: "cardAAAAAAAAAAAA" }), true], objection: [timed("objection"), true], rebuttal: [timed("rebuttal"), true]
+        };
+        const read = { order: [...F.BAR_OPS] };
+        for (const [name, [floor, running]] of Object.entries(states)) {
+            read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running, now: NOW })]));
+        }
+        const all = key => Object.fromEntries(["skip", "minus", "plus", "endMode", "back", "repoint"].map(op => [op, key]));
+        const open = { skip: null, minus: null, plus: null, endMode: null, back: null, repoint: null };
+        equal(stableJson(read), stableJson({
+            order: ["skip", "minus", "plus", "endMode", "back", "repoint"],
+            outside: all("DRPG.Floor.bar.notTrial"),
+            none: all("DRPG.Floor.bar.noMode"),
+            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            pending: open,
+            objection: open,
+            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" }
+        }), "the bar's order, or a button's greying on a state, is not what the GM was promised (per state: each op's reason, null where it may be pressed)");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.bar ?? {});
+        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "skip", "minus", "plus", "endMode", "label"];
+        equal(JSON.stringify(reasons.filter(k => !lang.en[k] || !lang.pl[k])), "[]", "a reason or a label of the bar has no words in English or Polish");
+    }],
 ];
 
 /**

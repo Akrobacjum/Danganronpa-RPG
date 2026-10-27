@@ -93,6 +93,8 @@
  *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes is withdrawn at once (fix
  *      r4-G2), the card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
  *      p1 for a name and lands, filled, at the student named.
+ *   Z  (run after Y; E70 C1, 27.10.2026) gm3, not the primary, presses the GM's bar by its game.drpg functions on an
+ *      Objection gm2 holds: gm2 and gm3 read one floor after each press, moved as the bar promises.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -1116,6 +1118,41 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             && yNamedCard.how === "named" && yNamedCard.item === ySetup.item && yNamedCard.actions === 2, J({ yNoRoom, yNamed, yNamedCard }));
     await gm2.eval(`${Fy} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63yClock); return true;`);
     await settle(500);
+    /* ------------------------------ Z. the GM's bar on another GM ------------------------------ */
+
+    /* E70 C1 (27.10.2026; E70-08, S18-76; the C0 gap "no scenario sends trial.gm from a second GM"). gm3, a GM that is
+       not the primary while gm2 is connected, presses each of the bar's buttons by its game.drpg function on an
+       Objection gm2 holds with 50 s left and a debate under it with 200 s: +30 s, -30 s, Skip, Back to the debate, End
+       this mode. After each, gm2's floor (the primary's) and gm3's read the same mode and the same seconds left within
+       2 s, and moved as the bar promises: 80 s, 50 s, the rebuttal, the debate with its 200 s, no floor. Red at
+       f388d722: no such functions on game.drpg. */
+    begin("Z", "the GM's bar on a GM that is not the primary: each button by its game.drpg function, the same floor on both");
+    const Fz = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    await gm2.eval(`${Fz} globalThis.__s63zClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63zClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialQueue", { active: true, mode: F.FLOOR_MODES.objection, holderId: "${IDS.aiko}", targetId: "${IDS.chie}",
+            seconds: 300, startedAt: U.serverNow() - 10000, pending: false, messageId: null,
+            before: [{ messageId: null, before: { mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }] });
+        return true;`);
+    await settle(800);
+    const zFloor = client => client.eval(`${Fz} const f = F.trialFloor(); return f ? [f.mode, F.secondsLeft(f)] : null;`);
+    const zPresses = [["plus", "game.drpg.adjustTime(30)"], ["minus", "game.drpg.adjustTime(-30)"], ["skip", "game.drpg.skipStep()"],
+        ["back", "game.drpg.returnToDebate()"], ["endMode", "game.drpg.endMode()"]];
+    const zRead = { primary: await gm3.eval(`${Fz} return U.isPrimaryGm();`) };
+    for (const [op, call] of zPresses) {
+        await gm3.eval(`if (typeof ${call.split("(")[0]} === "function") await ${call}; return true;`, { timeout: 30000 });
+        await settle(800);
+        zRead[op] = [await zFloor(gm2), await zFloor(gm3)];
+    }
+    await gm2.eval(`${Fz} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63zClock); return true;`);
+    await settle(500);
+    const zSame = ([a, b]) => (a === null && b === null) || (Boolean(a && b) && a[0] === b[0] && Math.abs(a[1] - b[1]) <= 2);
+    const zAt = ([a], mode, left) => (mode === null ? a === null : Boolean(a) && a[0] === mode && Math.abs(a[1] - left) <= 3);
+    verdict("gm3, not the primary, presses +30 s, -30 s, Skip, Back to the debate and End this mode by game.drpg: gm2 and gm3 read one floor after each, moved as the bar promises",
+        zRead.primary === false && zPresses.every(([op]) => zSame(zRead[op]))
+            && zAt(zRead.plus, "objection", 80) && zAt(zRead.minus, "objection", 50) && zAt(zRead.skip, "rebuttal", 120)
+            && zAt(zRead.back, "debate", 200) && zAt(zRead.endMode, null), J(zRead));
+
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

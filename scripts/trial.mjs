@@ -645,7 +645,8 @@ async function seizeFloor(message, objectorId, targetId) {
 
     let opened = null;
     try {
-        opened = await openObjectionInStep(objectorId, targetId);
+        // The card goes on the floor's stack with the floor it interrupted (E70 C1): C2's Overrule finds it there.
+        opened = await openObjectionInStep(objectorId, targetId, { cardId: message.id });
     } catch (err) {
         error("Could not open the objection", err);
     }

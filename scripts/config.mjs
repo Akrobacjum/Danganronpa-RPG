@@ -3633,6 +3633,15 @@ export const TRIAL = {
      */
     objectionPickSeconds: 30,
     /**
+     * The GM's bar on the trial console (E70 C1, 27.10.2026; TR21, TR26, DX2): -30 s and +30 s move the running mode's
+     * clock by `adjustSeconds`; `panicAdjustSeconds` is the step a Panic Round's bar will use (E70 part 2 reads it); a
+     * GM's change of the clock is told in the Event panel as "GM: +30 s" for `noteSeconds`, counted on each browser's
+     * own clock from the moment it saw it. The owner's TR17: these are estimates, not measured at a table (LIVE-E70-01).
+     */
+    modes: {
+        gm: { adjustSeconds: 30, panicAdjustSeconds: 5, noteSeconds: 10 }
+    },
+    /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
      * an Objection's target (trial-speakers.mjs; the owner's default D2 of 17.10.2026): a cough, a laugh or a "hm"
      * is not the floor. Whether a second is right at a real table, and how soon LiveKit lists somebody after their

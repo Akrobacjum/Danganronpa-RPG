@@ -9,7 +9,7 @@
 import { TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
-    extendFloor, returnToDebate, advanceFloorNow, FLOOR_MODES
+    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode
 } from "./trial-floor.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -52,7 +52,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * title key of its own. The body keys (`Floor.debateOpened`, `debateClosed`, `trialClosed`,
  * `trialOpened`) are unchanged: tier 2 finds an end card by the words of its body.
  */
-function trialEventCard(titleKey, ...paragraphs) {
+export function trialEventCard(titleKey, ...paragraphs) {
     return `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize(titleKey)}</div>
             ${paragraphs.map(text => `<p>${text}</p>`).join("\n            ")}
@@ -579,6 +579,11 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
         view.table = tableDoor({ running, hall, active: game.scenes?.active ?? null,
             back: hall ? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall }) : null });
         view.next = trialNextStep(view);
+        /* THE BAR'S FIRST BUTTON (E70 C1): Skip while an Objection or a rebuttal runs - the step Enter pressed
+           before the bar, which is no footer button now (the footer's step stays one for the whole debate, so the
+           console does not reopen at every Objection, E70-06); the lead says what the floor waits for. */
+        view.barNext = running && view.restrictive ? "skip" : null;
+        view.lead = view.barNext ? "now" : view.next;
         return view;
 }
 
@@ -606,9 +611,13 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
  * not the verdict's runner (`verdictRunner`) the lead names the runner and no button is the next step, so
  * Enter presses nothing - the one state in which the next step is not a button.
  */
-function trialNextStep({ floor, running, restrictive, progress, afterwards, stopped, runner }) {
+function trialNextStep({ floor, running, progress, afterwards, stopped, runner }) {
     if (!afterwards) return "start";
-    if (running && restrictive) return "now";
+    /* THE WHOLE DEBATE IS ONE STEP OF THE FOOTER (E70 C1, 27.10.2026; E70-06). An Objection or a rebuttal made
+       Now the footer's step, and the step is in the console's signature, so the console closed and opened again at
+       every Objection and at its rebuttal's end - under the GM's pointer, at the tensest moment of the trial. The
+       footer's step is Close Debate for every mode of the debate now, and the bar's first button is Skip while an
+       Objection or a rebuttal runs (`readTrial`'s `barNext`). Enter presses the footer's step only. */
     if (running && floor) return "closeDebate";
     if (progress.verdictApplied && runner && runner !== game.user.id) return stopped ? "finishElsewhere" : "verdictElsewhere";
     if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
@@ -630,6 +639,64 @@ const TRIAL_LEADS = {
     verdictElsewhere: "DRPG.Floor.lead.verdictElsewhere",
     chapterEnd: "DRPG.Floor.lead.chapterEnd"
 };
+
+/*
+ * THE GM'S BAR (E70 C1, 27.10.2026; S18-75; TR21). Skip, -30 s, +30 s, End this mode, Back to the debate and Re-point,
+ * in that order in every mode, so a button is where it was a second ago whatever the floor did (C2 puts Overrule after
+ * +30 s): one that would change nothing is greyed - `aria-disabled`, still focusable and still showing its title - with
+ * the reason trial-floor.mjs `barRefusal` gives, and pressing it says that reason. Only while a Class Trial runs (DX2).
+ * Each button is a `game.drpg` function too (api.mjs), which another GM's console reaches the primary by.
+ */
+const BAR_LABELS = {
+    skip: "DRPG.Floor.bar.skip",
+    minus: "DRPG.Floor.bar.minus",
+    plus: "DRPG.Floor.bar.plus",
+    endMode: "DRPG.Floor.bar.endMode",
+    back: "DRPG.Floor.backToDebate",
+    repoint: "DRPG.Floor.repoint"
+};
+
+const BAR_ACTIONS = {
+    skip: () => skipStep(),
+    minus: () => adjustTime(-TRIAL.modes.gm.adjustSeconds),
+    plus: () => adjustTime(TRIAL.modes.gm.adjustSeconds),
+    endMode: () => endMode(),
+    back: () => returnToDebate(),
+    // E79 C16: the running Objection aimed at somebody else, picked in a window of its own - this console's body is
+    // redrawn every second and holds no field (`repointDialog`).
+    repoint: async () => {
+        const { repointDialog } = await import("./trial.mjs");
+        await repointDialog();
+    }
+};
+
+/** A bar button pressed: its op, or the reason it is greyed, said to this GM. */
+function runBarOp(op) {
+    const run = BAR_ACTIONS[op];
+    if (!run) return;
+    const refused = barRefusal(op);
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
+        return;
+    }
+    Promise.resolve().then(run).catch(err => error(`The trial bar's ${op} failed`, err));
+}
+
+/** The bar's markup, by the console's reading (`readTrial`): nothing outside a running trial. */
+function trialBar({ floor, running, barNext }) {
+    if (!running) return "";
+    const now = serverNow();
+    const buttons = BAR_OPS.map(op => {
+        const refused = barRefusal(op, floor, { running, now });
+        const label = game.i18n.localize(BAR_LABELS[op]);
+        const next = op === barNext ? " drpg-bar-next" : "";
+        return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${refused
+            ? ` aria-disabled="true" title="${esc(game.i18n.localize(refused))}"` : ""}>${esc(label)}</button>`;
+    });
+    return `<div class="drpg-trial-bar" role="toolbar" aria-label="${esc(game.i18n.localize("DRPG.Floor.bar.label"))}">
+                ${buttons.join("\n                ")}
+            </div>`;
+}
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
@@ -727,7 +794,7 @@ function trialConsoleHtml(view) {
            standing says so first. The register's line stays (E10 C12: it is what to check before a Start),
            and so does a verdict that stopped, which Finish the verdict below it answers. */
         const lead = `<p class="drpg-trial-lead">${running || !afterwards ? ""
-            : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.format(TRIAL_LEADS[next],
+            : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.format(TRIAL_LEADS[view.lead ?? next],
                 { name: esc(game.users.get(runner ?? "")?.name ?? "?") })}</p>`;
         if (!running) {
             return `<div class="drpg-trial-console">
@@ -749,6 +816,7 @@ function trialConsoleHtml(view) {
             ${debateLine}
             ${floor ? `<p class="notes">${game.i18n.localize(restrictive
                 ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
+            ${trialBar(view)}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
             ${voteLine}
@@ -772,18 +840,22 @@ function trialConsoleHtml(view) {
  * change arriving from somebody else behave the same as one they made.
  */
 function trialSignature(view) {
-    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, next, table } = view;
+    const { floor, running, finalNow, progress, afterwards, stopped, next, table } = view;
         // `next` too (E10 C14): the default is a button's property, so a vote opened by another GM
         // moves Enter only by drawing the footer again. And the table's door (E13 C6), which another GM's
         // activation turns from one into the other.
-        // The mode too since 1.2.79: Re-point stands only while an Objection runs (`trialButtons`), and an
-        // Objection and a rebuttal are both `restrictive`.
-        return [running, Boolean(floor), floor?.mode ?? "-", restrictive, finalNow, afterwards,
+        /* BY FAMILY, NOT BY MODE (E70 C1, 27.10.2026; E70-06). The mode was in it since 1.2.79, for Re-point, which
+           stood in the footer only while an Objection ran: so every Objection and every rebuttal's end closed the
+           console and opened it again (tier 2 E70-T2 at f388d722: a new window at the Objection). The buttons that
+           depend on the mode are the bar's now, inside the live region (`trialBar`), and the footer changes only
+           with the floor's family - a debate and its exchange are one, no floor is another (trial-floor.mjs
+           `floorFamily`). Tier 0 R1026 holds this function to reading no mode. */
+        return [running, floorFamily(floor), finalNow, afterwards,
             progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-"].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
-function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, table, isDefault }) {
+function trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }) {
     return [
         ...(running
             ? [
@@ -794,20 +866,8 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                         label: game.i18n.localize("DRPG.Floor.closeDebate") }
                     : { action: "openDebate", default: isDefault("openDebate"),
                         label: game.i18n.localize("DRPG.Floor.openDebate") },
-                // A debate in free discussion has nothing to cut short - it
-                // deliberately does not expire (see `advanceIfDue`), so
-                // "end now" would have nothing to end.
-                ...(restrictive
-                    ? [{ action: "now", label: game.i18n.localize("DRPG.Floor.endNow"),
-                        default: isDefault("now") },
-                       { action: "debate", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
-                    : []),
-                ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : []),
-                // E79 C16: the running Objection aimed at somebody else, picked in a window of its own - this
-                // console's body is redrawn every second and holds no field (`repointDialog`).
-                ...(floor?.mode === FLOOR_MODES.objection
-                    ? [{ action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint") }]
-                    : [])
+                // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
+                // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
               ]
             : []),
         ...(afterwards
@@ -867,13 +927,6 @@ const TRIAL_ACTIONS = {
     end: () => endClassTrial(),
     openDebate: () => openDebate(),
     closeDebate: () => closeDebate(),
-    now: () => advanceFloorNow(),
-    debate: () => returnToDebate(),
-    extend: () => extendFloor(30),
-    repoint: async () => {
-        const { repointDialog } = await import("./trial.mjs");
-        await repointDialog();
-    },
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
        button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the
@@ -933,7 +986,7 @@ export async function manageClassTrial() {
     const signature = () => trialSignature(read());
 
     const view = read();
-    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, table } = view;
+    const { floor, running, finalNow, progress, afterwards, stopped, table } = view;
 
     // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`).
     const isDefault = action => view.next === action;
@@ -945,7 +998,7 @@ export async function manageClassTrial() {
         classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
         content: dialogContent(buildConsole()),
-        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, table, isDefault }),
+        buttons: trialButtons({ floor, running, finalNow, progress, afterwards, stopped, table, isDefault }),
         render: (event, dialog) => {
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
@@ -1023,13 +1076,34 @@ export async function manageClassTrial() {
              * this console, this tick has to stop forcing or it will rebuild under
              * the GM's cursor.
              */
+            /*
+             * THE BAR'S BUTTONS, BY DELEGATION (E70 C1). The bar is drawn inside the live region, which the tick below
+             * replaces every second, so a listener on a button would be gone a second later: one listener on the
+             * window, which outlives every rebuild, reads the button pressed. A press held across a rebuild would land
+             * on the new button's parent and do nothing, so the tick waits while a pointer is down on the bar (not
+             * measured headless: the harness draws no pointer; LIVE-E70-01). The window stays open: a bar op changes
+             * the floor, and the console follows it by its live region and its signature.
+             */
+            let pressing = false;
+            dialog.element?.addEventListener("pointerdown", event => {
+                if (event.target?.closest?.("[data-drpg-bar]")) pressing = true;
+            });
+            dialog.element?.addEventListener("pointerup", () => { pressing = false; });
+            dialog.element?.addEventListener("click", event => {
+                const button = event.target?.closest?.("[data-drpg-bar]");
+                if (!button) return;
+                event.preventDefault();
+                pressing = false;
+                runBarOp(button.dataset.drpgBar);
+            });
+
             const ticker = setInterval(() => {
                 // Closed, or replaced by a newer console: so is the interval.
                 if (!dialog.element?.isConnected) {
                     clearInterval(ticker);
                     return;
                 }
-                if (!trialFloor()) return;
+                if (!trialFloor() || pressing) return;
                 live.refresh();
             }, 1000);
         },

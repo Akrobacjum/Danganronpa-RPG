@@ -2824,7 +2824,8 @@ export const BRIDGE_ACTIONS = table({
     /*
      * A GM'S CHANGE OF THE FLOOR, RUN ON THE PRIMARY GM (E70 C0, 27.10.2026; amend 5 (d)). Every public writer of the
      * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `fillObjection`, `withdrawObjection`,
-     * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`) asks this on a GM that is not the primary, and
+     * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`, and since E70 C1 the bar's `adjustTime` and
+     * `endMode`, which the primary refuses outside a Class Trial) asks this on a GM that is not the primary, and
      * the primary runs the op's twin in a step of the floor's key (`floorOnPrimary`): one writer of the floor, the
      * primary, one write at a time. Its ops are `FLOOR_OP_NAMES` (tier 0 R1020 holds the two lists equal). A GM's
      * request only: a player's console has the four rows above for what a player may do on the floor.
@@ -2833,7 +2834,8 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.trial.gm",
         guards: [gmOnly("only a GM changes the trial's floor")],
         sanitize: pick({
-            op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end"),
+            op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
+                "adjust", "endMode"),
             seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id
         }),
         run: handleTrialGm,
