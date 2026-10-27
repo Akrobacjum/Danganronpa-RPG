@@ -60,6 +60,8 @@ import { SEAM_GLOW } from "./motion.mjs";
    like the room border it stands inside, so it takes the same number from the
    same place rather than a second copy of the formula. */
 import { seamWidth } from "./fog.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const RING_NAME = "drpgOwnRing";
 /* The seam's light, told apart from the seam: anything measuring "the frame" by
@@ -87,7 +89,7 @@ function glassOn() {
 }
 
 export function registerOwnRing() {
-    Hooks.on("refreshToken", token => paint(token));
+    Hooks.on("refreshToken", token => { count("refreshToken.ownRing"); paint(token); });
     Hooks.on("canvasReady", () => { ringZoom = 0; repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
@@ -229,6 +231,7 @@ function paint(token) {
         const whose = frameOf(token);
 
         if (!whose) {
+            count("ownRing.skipped");
             if (existing) {
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
@@ -240,11 +243,13 @@ function paint(token) {
            else's token that WOULD be a leak - a frame over the fog where a student stands -
            and for their own it is a drawing of something that is not there. */
         if (!token.visible) {
+            count("ownRing.skipped");
             if (existing) existing.visible = false;
             return;
         }
 
         const { group, halo, core } = ringParts(token);
+        count("ownRing.rebuilt");
         group.visible = true;
         core.clear();
         halo.clear();

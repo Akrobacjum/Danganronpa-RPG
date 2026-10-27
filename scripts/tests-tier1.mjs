@@ -21419,6 +21419,70 @@ const INVARIANTS = [
             "[a named, tied trace with no subject; a trace with no name, untied, with a subject; askWhichRemnant draws with remnantPickLabel]");
     }],
 
+    ["R1009 - the frame's stopwatch reads what the canvas does (E88 C0): a visibility pass counts itself and the tokens it flags, the refresh each flag asks for reaches every `refreshToken` listener once per token and each ring's paint says whether it drew, the filters on screen are the ring halos the paints left, and `fps()` reads a window, refuses a second call while it runs and puts back every hold", async () => {
+        /*
+         * E88 C0, 27.10.2026; E88-01, E88-02. Every suspect of the owner's lag (several players, many Remnants, a
+         * player alone in a fogged room) was found by reading, and the stage measures before it optimises: perf-counters.mjs
+         * counts each suspect's runs, `game.drpg.counters()` reads them with the filters on the canvas, `game.drpg.fps()`
+         * prints a window of frames, the counters' deltas and each suspect held alone. Read here on this client's scene on
+         * screen: `applyAll` once, then the refreshes its render flags ask for, then the walk of the canvas against each
+         * token's ring read directly, then `fps()` for a fifth of a second with three frames a hold. Headless the
+         * milliseconds are jsdom's timer and are not asserted; only that the window ran, what it counted and what it put
+         * back. Red at 768af5fb with the counters added and the harness's token as it was (no `renderFlags`, a getter-only
+         * `visible`, no `addChildAt`): the flags reached no `refreshToken` listener, and no ring was ever painted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const LISTENERS = ["refreshToken.visibility", "refreshToken.ownRing", "refreshToken.remnantRing", "refreshToken.remnantIcons"];
+        const before = C.snapshot();
+        V.applyAll();
+        const pass = C.delta(before, C.snapshot());
+        await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= n), 2000);
+        const moved = C.delta(before, C.snapshot());
+        const paints = (moved["ownRing.rebuilt"] ?? 0) + (moved["ownRing.skipped"] ?? 0);
+        const colours = C.snapshot()["utils.cssColour"] ?? 0;
+        U.cssColour("--drpg-bone", 0);
+        equal(JSON.stringify([pass["visibility.applyAll"], pass["visibility.applyAll.tokens"], LISTENERS.map(k => (moved[k] ?? 0) >= n),
+            paints >= (moved["refreshToken.ownRing"] ?? 0), (C.snapshot()["utils.cssColour"] ?? 0) - colours]),
+            JSON.stringify([1, n, LISTENERS.map(() => true), true, 1]),
+            `[passes, tokens it flagged, each refreshToken listener ran for every token, every own-ring paint counted as drawn or skipped, a colour read counted] over ${n} tokens: ${JSON.stringify(moved)}`);
+
+        // The filters on screen: the walk against each token's ring halo, read off the token.
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const halo = (token, ring) => { const group = token[ring]; const glow = group?.children?.[0];
+            return token.visible && group && !group.destroyed && group.visible !== false && glow?.visible !== false ? (glow?.filters?.length ?? 0) : 0; };
+        const direct = ["drpgOwnRing", "drpgRemnantRing"].map(ring => tokens.reduce((sum, t) => sum + halo(t, ring), 0));
+        const live = (await D.countersNow()).live;
+        const framed = tokens.filter(t => t.drpgOwnRing && !t.drpgOwnRing.destroyed).length;
+        equal(JSON.stringify([live.byName.drpgOwnRingGlow ?? 0, live.byName.drpgRemnantRingGlow ?? 0, glass ? framed === 0 || direct[0] + direct[1] > 0 : direct[0] + direct[1] === 0]),
+            JSON.stringify([...direct, true]),
+            `[own-ring halo filters on screen, Remnant-ring halo filters, a framed token's halo blurred under Stained Glass and none under Monokuma Legacy] (${glass ? "Stained Glass" : "Legacy"}, ${framed} token(s) framed): ${JSON.stringify(live)}`);
+        ok(framed > 0, `no token on this scene wears a frame after the pass (${n} tokens): the ring paints never reached a token`);
+
+        // fps(): a short window, a second call refused while it runs, and every hold back where it was.
+        const { fogFrameParts } = await import("./fog.mjs");
+        const filtered = [];
+        C.liveCanvasFilters([canvas.stage, ...tokens], { collect: filtered });
+        const print = () => JSON.stringify({ body: [...document.body.classList].sort(), still: Boolean(document.getElementById("drpg-fps-still")),
+            filters: filtered.map(node => Boolean(node.filters?.length)), ticker: Boolean(canvas.app?.ticker?.started),
+            fog: (({ raster, backdrop, drift }) => [raster?.visible ?? null, backdrop?.visible ?? null, typeof drift])(fogFrameParts()) });
+        const kept = filtered.map(node => node.filters);
+        const was = print();
+        const first = game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
+        const second = await game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
+        const text = await first;
+        equal(JSON.stringify([/Watched [\d.]+ s: \d+ frames/.test(text), /Each held alone for 3 frames/.test(text), (text.match(/^ {2}the /gm) ?? []).length >= 9,
+            /already running/.test(second), print() === was, filtered.every((node, i) => node.filters === kept[i])]),
+            JSON.stringify([true, true, true, true, true, true]),
+            `[a window read, the holds read, nine holds listed, the second call refused, the page as it was, each filter list the same object] before ${was}, after ${print()}:\n${text}`);
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one

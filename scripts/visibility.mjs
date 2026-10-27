@@ -32,6 +32,8 @@ import { myLairRoom } from "./mastermind.mjs";
 import { knowsProject } from "./projects.mjs";
 import { projectIdOf } from "./projects-map.mjs";
 import { debug } from "./utils.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 export function registerVisibility() {
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from
@@ -39,6 +41,7 @@ export function registerVisibility() {
     // alone was immediately overwritten - which is why standing at a gap in a
     // wall still showed the room beyond.
     Hooks.on("refreshToken", token => {
+        count("refreshToken.visibility");
         // One of ours moved: where WE are may have changed, so the memo of our
         // own rooms is no longer good. Somebody else's refresh cannot change it.
         if (token?.isOwner) forgetMyRooms();
@@ -47,7 +50,7 @@ export function registerVisibility() {
         reassertNextFrame();
     });
 
-    Hooks.on("sightRefresh", () => applyAll());
+    Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); applyAll(); });
     Hooks.on("canvasReady", () => applyAll());
     Hooks.on("updateToken", (doc, changes) => {
         // `hidden` as well as a move: that is the write `revealRemnantToFinder`
@@ -128,7 +131,10 @@ function reassertNextFrame() {
         pendingFrame = 0;
         try {
             if (!canvas?.ready) return;
-            for (const token of canvas.tokens?.placeables ?? []) applyToToken(token);
+            const placeables = canvas.tokens?.placeables ?? [];
+            count("visibility.reassert");
+            count("visibility.reassert.tokens", placeables.length);
+            for (const token of placeables) applyToToken(token);
         } catch {
             // Same contract as `applyToToken`: never break the canvas over this.
         }
@@ -146,6 +152,7 @@ function isMyTruthBullet(item) {
  * Foundry has had its say and its result is the one that sticks.
  */
 function applyToToken(token) {
+    count("visibility.applyToToken");
     try {
         if (token?.document?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) {
             applyToRemnantToken(token);
@@ -348,6 +355,7 @@ function applyToRemnantToken(token) {
  * client legitimately holds: they are in it.
  */
 function myIncidentTrace(tokenDoc) {
+    count("visibility.myIncidentTrace");
     try {
         if (!tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
 
@@ -448,8 +456,11 @@ function enforcing() {
 export function applyAll() {
     if (!canvas?.ready) return;
     forgetMyRooms();
+    const placeables = canvas.tokens?.placeables ?? [];
+    count("visibility.applyAll");
+    count("visibility.applyAll.tokens", placeables.length);
 
-    for (const token of canvas.tokens?.placeables ?? []) {
+    for (const token of placeables) {
         /*
          * THE FLAG IS THE UN-HIDE PATH, AND THE COMMENT HERE USED TO SAY
          * SOMETHING ELSE.

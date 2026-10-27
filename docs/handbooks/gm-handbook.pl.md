@@ -1031,12 +1031,22 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `traceClicks()` | kliknięcie, które nic nie robi |
 | `fileSizes()` | hostowany świat, który zdaje się serwować stare pliki |
 | `perf()` | motyw, który się przycina; od 1.2.69 także to, ile kosztował w drodze rzut, który losowała twoja przeglądarka - ostatnie pięćdziesiąt losowań, w których ta przeglądarka brała udział, od pakietu do odpowiedzi tutaj, od prośby do pokazania kości u gracza, a od 1.2.82 także od prośby do startu kości, który przychodzi przed odpowiedzią |
+| `fps({ toChat: false })` | stół, który laguje: pięć sekund liczby klatek (środkowa klatka, najwolniejsza dwudziesta część, ile klatek trwało ponad 33 i ponad 50 ms), co moduł w tym czasie zrobił i ile kosztuje każdy z jego efektów, wyłączany po kolei na mniej więcej sekundę i przywracany - mapa na końcu, która na tę sekundę stoi. Jedno uruchomienie naraz; `counters()` czyta same liczniki modułu (od 1.2.89) |
 | `a11y()` | kontrolki, których czytnik ekranu nie umie nazwać |
 | `relayGuard()` | czy strażnik przekaźnika GM-a w Daggerheart stoi (`state: "ok"`) i czego odmówił w tej sesji |
 | `rollFlags()` | rzuty graczy wylosowane w ostatniej półgodzinie (tak daleko, jak sięga Reroll), w których okno rzutu podało statystykę, doświadczenie, premię albo kości, jakich nie dała lista przeglądarki GMa, która je wylosowała, albo pominęło premię, kość przewagi albo kość ukrytej skrytki, które ta lista dała, albo które czekały na statystykę, której żaden GM nie wybrał; o każdym GMowie dostali szept, gdy go wylosowano, każdy policzono tak, jak daje lista, a linia może kończyć się tym, co GM policzył |
 | `sheetWrites()` | zmiany, które przeglądarki graczy zrobiły na swoich uczniach w ostatniej dobie, a przeglądarka głównego GMa cofnęła, zgłosiła albo wpisała na listę, albo zostawiła na tym, co je pokrywało: kto, który uczeń, powód, który podała zmiana, każde pole przed i po, co zwrot wziął z wcześniej zapłaconego i jak oraz kto rozstrzygnął zgłoszoną; od 1.2.69 także trzy ślady (`refused`, `forged`, `rewrite`: co i ile razy) i przyrost z przekaźnika pokryty własnym rzutem gracza |
 | `publicRoll(formula, { flavor })` | jedyny rzut, który czytają wszyscy, gdy rzuty są wymuszone jako prywatne - remis w głosowaniu, loteria Monokumy; tylko GM, ta sama droga co kafelek **Rzut publiczny** w panelu (odczytane z kodu; od 1.2.69) |
 | panelowy **Dziennik debugowania** (Diagnostyka) | jego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu |
+
+**Gdy stół laguje: co zmierzyć i co odesłać.** Zmierz, zanim cokolwiek zmienisz, na komputerze GMa i na najsłabszym komputerze gracza, i odeślij jeden blok z każdego komputera:
+
+1. Zanotuj przeglądarkę i to, czy rysuje na karcie graficznej (`chrome://gpu`, "Canvas: Hardware accelerated"), rozmiar ekranu i powiększenie strony, *Performance Mode* i *Maximum Framerate* Foundry (ustawienia rdzenia), motyw, ilu graczy jest połączonych i ile tokenów i Remnantów stoi na scenie. DevTools -> Rendering -> "Frame Rendering Stats" pokazuje liczbę klatek na żywo.
+2. Wszyscy stoją w miejscu; jeden gracz stoi w pokoju, a wszystko inne jest pod mgłą. W konsoli (F12): `await game.drpg.perf()` (raport przychodzi do ciebie szeptem), potem `await game.drpg.fps({ toChat: false })`. Skopiuj to, co obie wypiszą.
+3. W oknie Wygląd, po jednym, za każdym razem odczytując liczbę klatek: *Szkło rozmywa mapę* wyłączone, *Puls szkła* wyłączony, *Nazwa stanu za zegarem* wyłączona, *Ograniczone animacje* włączone; potem motyw *Monokuma Legacy*. Zanotuj liczbę przy każdym i przywróć każdy przełącznik.
+4. Gdy inny gracz przechodzi przez trzy pokoje: `await game.drpg.whySlow()`, potem jeszcze raz `fps()`. Pusta tabela `whySlow()` przy niskiej liczbie klatek znaczy, że kosztuje rysowanie, nie skrypt: wypisuje tylko klatki dłuższe niż 50 ms.
+5. Na komputerze GMa, przy największej liczbie postawionych Remnantów, jeszcze raz krok 2: GM widzi każdy pierścień.
+6. Głos: GM i jeden gracz włączają *Szczegółowe logi w konsoli* i ustawiają konsolę na Verbose; po zerwaniu dźwięku kopiują każdą linię zaczynającą się od "Voice:" razem z godziną i piszą, czy ktoś przechodził przez drzwi albo stał w przejściu lub na korytarzu, czy trwał Eclipse i czy to samo konto było otwarte w drugim oknie. Na czas tej próby wyłącz proximity-voice-chat.
 
 Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
 

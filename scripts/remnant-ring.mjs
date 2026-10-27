@@ -41,6 +41,8 @@ import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
    border the token is standing inside, so it takes the same number from the same place
    rather than a second copy of the formula that could drift from it. */
 import { seamWidth } from "./fog.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 /* The seam's light, told apart from the seam - the same reason
@@ -77,7 +79,7 @@ const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
 const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint cannot be read
 
 export function registerRemnantRings() {
-    Hooks.on("refreshToken", token => paint(token));
+    Hooks.on("refreshToken", token => { count("refreshToken.remnantRing"); paint(token); });
     Hooks.on("canvasReady", () => { ringZoom = 0; repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
@@ -452,6 +454,7 @@ function paint(token) {
         const project = isRemnant ? null : projectIdOf(token.document);
 
         if (!isRemnant && !project) {
+            count("remnantRing.skipped");
             if (existing) {
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
@@ -465,17 +468,20 @@ function paint(token) {
         // visibility.mjs decides per client whether it is on this person's map,
         // and a ring drawn regardless would announce it to everybody.
         if (!token.visible) {
+            count("remnantRing.skipped");
             if (existing) existing.visible = false;
             return;
         }
 
         const { colour, reinforced } = frameFor(token.document, isRemnant);
         if (colour == null) {
+            count("remnantRing.skipped");
             if (existing) existing.visible = false;
             return;
         }
 
         const { group, halo, core } = ringParts(token);
+        count("remnantRing.rebuilt");
         group.visible = true;
         core.clear();
         halo.clear();

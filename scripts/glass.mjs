@@ -21,6 +21,8 @@ import { SETTINGS, getSetting, shortScreen, BREAKPOINTS } from "./settings.mjs";
 import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
 import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
@@ -3015,8 +3017,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   }
 
   function pulseFrame(t) {
+    count("glass.pulseFrame");
     for (const j of [...curtains, ...windows]) {
       if (!j.pulse || !j.panes || !j.el.isConnected) continue;
+      count("glass.pulseFrame.panes", j.panes.length);
       const g = j.pulse.getContext("2d"), k = j.pulseK;
       g.clearRect(0, 0, j.pulse.width, j.pulse.height);
       const accRGB = hex(j.acc).join(",");
@@ -3534,6 +3538,7 @@ globalThis.drpgGlassBeat = beatAt;
 
 /* ---- module windows: the stained glass on the title band only --------------- */
 function paintBand(job) {
+  count("glass.paintBand");
   const w = job.el, c = w.querySelector(":scope > canvas.sg");
   if (!c || w.clientWidth < 10) return;
   const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));

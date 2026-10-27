@@ -157,6 +157,7 @@ belongs to.
 | 83 | scenarios/83-roll-integrity.mjs | ci, local-gate | exists | E33 | every legal road a player's roll takes read clean (E33 C4), and the five an item takes between two characters - a hand-over, a stash rifled, a Plant, a steal, a body's loot - each asked from a player's page (L12-L16, E35 C5); twelve forgeries from a player's console, each undone or never applied and traced to that player (C5b) |
 | 84 | scenarios/84-viewports.mjs | local-gate | planned | E49 | 1366x768, 1280x720, interface scale 80-120% |
 | 85 | scenarios/85-chaos.mjs | ci | planned | E38 | reloads mid-vote, mid-incident and mid-card; players going offline |
+| 86 | scenarios/86-frame-work.mjs | ci | exists | E88 | the work one event costs every browser, read off the module's counters on a GM and four players with 16 tokens and 30 Remnants: at rest, another player's move, an own move, a Despair write, the clock, a discovery ledger write, under both themes; the counts recorded, never judged (E88 C0) |
 | 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
 <!-- scenarios:end -->
 

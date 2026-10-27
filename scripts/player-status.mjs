@@ -29,6 +29,8 @@ import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural } from "./utils.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -172,6 +174,7 @@ function keepMounted() {
 }
 
 export function renderPlayerStatus() {
+    count("playerStatus.render");
     try {
         // Same rail, same moment: whatever redrew the strip may also have
         // changed whether the effects widget has anything to show.

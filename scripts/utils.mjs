@@ -5,6 +5,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -867,6 +869,7 @@ export function guardTextFields(root) {
  * there and nowhere else.
  */
 export function cssColour(name, fallback = 0x8a8296) {
+    count("utils.cssColour");
     try {
         const raw = (getComputedStyle(document.body).getPropertyValue(name)
             || getComputedStyle(document.documentElement).getPropertyValue(name)).trim();

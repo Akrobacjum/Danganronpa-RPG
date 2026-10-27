@@ -55,6 +55,26 @@
       }
     ]
   },
+  "frameCost": {
+    "stage": "E88",
+    "file": "scripts/diagnostics.mjs",
+    "export": "frameCost",
+    "api": "game.drpg.fps",
+    "why": "E88 C0 (27.10.2026): the owner's lag with several players, many Remnants and a player alone in a fogged room. perf() is left byte for byte (its body's sha256 is e08ec85edbafc9af664620f21a6f891e033d7baa9f82d665635c4aa22fec8de7 at 768af5fb and after C0); fps() is a second reading beside it, not a revision of it",
+    "measures": [
+      "window: rAF gaps over `seconds` (5): frames, fps, median, p95, frames over 33 and over 50 ms",
+      "counters: perf-counters.mjs deltas over the same window, each with its rate a second",
+      "live: filters (blurs) and masks on drawn canvas objects, by object name",
+      "holds, each alone for `frames` (60) frames against the page as it stands: the room outline's halo filters, the ring halos' filters, the fog raster and the backdrop, the drift callback, drpg-no-blur, drpg-no-pulse, drpg-no-ticker, every CSS animation paused, the canvas ticker stopped (last)"
+    ],
+    "sideEffects": [
+      "each hold is undone in its own finally; the map stands still for the canvas hold",
+      "report() whispers the text to the caller unless { toChat: false }"
+    ],
+    "probe": "node audit/glass-sweep.mjs --frame-cost: the curtain's CSS priced in headless Chromium on audit/glass-harness.html, both themes at 1920x1080 and 1366x768, the board still and redrawn every frame; software rasterising, a shape and not a table number",
+    "headless": "R1009 asserts that fps() reads a window, refuses a second call and restores every hold; scenario 86-frame-work records the counters per event on five browsers. No millisecond of either is a table's",
+    "liveRun": "LIVE-E88-01 and LIVE-E88-04: the table's fps() before (1.2.87/1.2.88) and after the E88 train, the GM's browser and the weakest player's, both themes"
+  },
   "headless": {
     "verdict": "no line of perf() is a table number headless",
     "measuredWith": "jsdom 30.0.1, Node 22.22.2 (the E30 registries design, 7.2)",

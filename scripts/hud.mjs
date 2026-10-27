@@ -26,6 +26,8 @@ import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTim
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, debug, serverNow, tickerRuns } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 // A leaf: settings.mjs imports config.mjs and nothing else. Its reader used to
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
@@ -476,6 +478,7 @@ function hudHeader(clock) {
  * to be since the panel was written. */
 
 export function renderHud() {
+    count("hud.renderHud");
     try {
         /*
          * THE TOP-LEFT CORNER (Dawid, 29.08), which is a different column.

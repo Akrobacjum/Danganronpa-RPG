@@ -221,6 +221,9 @@ export function buildDocumentClasses(ctx) {
             return this.parent ? `${this.parent.uuid}.${this.documentName}.${this.id}` : `${this.documentName}.${this.id}`;
         }
         get isOwner() { return this.testUserPermission(ctx.gameRef().user, "OWNER"); }
+        /* Foundry's ClientDocument getter (E88 C0): some user who is not a GM owns this. own-ring.mjs `frameOf` asks it
+           for a student's frame; without it no other student's token was ever framed headless. */
+        get hasPlayerOwner() { return (ctx.gameRef().users?.contents ?? []).some(u => !u.isGM && this.testUserPermission(u, "OWNER")); }
         get limited() { return !this.testUserPermission(ctx.gameRef().user, "OBSERVER"); }
         get visible() { return this.testUserPermission(ctx.gameRef().user, "LIMITED"); }
         get isEmbedded() { return !!this.parent; }

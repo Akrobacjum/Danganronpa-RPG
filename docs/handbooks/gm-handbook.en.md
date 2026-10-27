@@ -1031,12 +1031,22 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `traceClicks()` | a click that does nothing |
 | `fileSizes()` | a hosted world that seems to serve the old files |
 | `perf()` | a theme that stutters; since 1.2.69 also what a roll your browser drew cost on its way - the last fifty draws this browser took part in, packet in to answer out here, asked to dice shown on a player's, and since 1.2.82 asked to dice started, which comes before the answer |
+| `fps({ toChat: false })` | a table that lags: five seconds of the frame rate (the middle frame, the slowest twentieth, how many frames took over 33 and over 50 ms), what the module did in them, and what each of its effects costs, switched off one at a time for about a second and put back - the map last, which stands still for that second. One run at a time; `counters()` reads the module's counts alone (since 1.2.89) |
 | `a11y()` | controls a screen reader cannot name |
 | `relayGuard()` | whether the guard on Daggerheart's GM relay is standing (`state: "ok"`), and what it has refused this session |
 | `rollFlags()` | the players' rolls drawn in the last half hour (as long as a Reroll can reach) whose roll window claimed a statistic, an experience, a bonus or dice the list of the GM's browser that drew them did not give, or left out a bonus, an advantage die or a hidden stash's die the list gave, or that waited for a statistic no GM picked; each was whispered to the GMs as it was drawn and counted as the list gives, and a line may end with what the GM counted |
 | `sheetWrites()` | the changes players' browsers made on their students in the last day that the primary GM's browser put back, flagged or listed, or let stand on what covered them: who, which student, the reason the change named, each field before and after, what a refund took back of what was paid before, and how and by whom a flagged one was decided; since 1.2.69 also the three traces (`refused`, `forged`, `rewrite`: what, and how many times) and a relay gain covered by the player's own roll |
 | `publicRoll(formula, { flavor })` | the one roll everybody reads while rolls are forced private - a vote's tie, Monokuma's lottery; GM only, the same road as the panel's **Public roll** tile (read in the code; since 1.2.69) |
 | the panel's **Debug log** (Diagnostics) | its Copy button produces the paste a bug report needs |
+
+**When the table lags: what to measure, and what to send back.** Measure before you change anything, on the GM's machine and on the weakest player's, and send one block a machine:
+
+1. Note the browser and whether it draws on the GPU (`chrome://gpu`, "Canvas: Hardware accelerated"), the screen size and the page zoom, Foundry's *Performance Mode* and *Maximum Framerate* (core settings), the theme, how many players are connected, and how many tokens and Remnants stand on the scene. DevTools -> Rendering -> "Frame Rendering Stats" shows the frame rate live.
+2. Everyone stands still; one player stands in a room with everything else under fog. In the console (F12): `await game.drpg.perf()` (its report is whispered to you), then `await game.drpg.fps({ toChat: false })`. Copy what both print.
+3. In Look, one at a time, reading the frame rate each time: *Glass blurs the map* off, *Glass pulse* off, *State name behind the clock* off, *Reduced motion* on; then the theme *Monokuma Legacy*. Note the number for each, and put every switch back.
+4. While another player walks across three rooms: `await game.drpg.whySlow()`, then `fps()` again. An empty `whySlow()` table with a low frame rate means the cost is drawing, not script: it lists frames over 50 ms only.
+5. On the GM's machine, with the most Remnants placed, step 2 again: the GM sees every ring.
+6. Voice: the GM and one player turn on *Verbose console logging* and set the console to Verbose; after a cut-out, copy every line starting "Voice:" with its time, and say whether anybody crossed a door or stood in a doorway or a corridor, whether an Eclipse was running, and whether the same account was open in a second window. Turn proximity-voice-chat off for this.
 
 Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
 

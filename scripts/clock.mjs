@@ -23,6 +23,8 @@ import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./set
 import { resetAllActions, budgetsOf, putBackBudgets, clearGrants } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, error, plural, serverNow, serialWrite } from "./utils.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 /**
  * Current clock, always with every field present. Defined in settings.mjs -
@@ -763,11 +765,12 @@ export function refreshSheets() {
     // Sheets only. This used to render the HUD too, and every sync kind that
     // also ran `renderHud` itself paid for the HUD twice (CORE-12); the kinds
     // that relied on the side effect now ask for the HUD by name in sync.mjs.
+    count("clock.refreshSheets");
     for (const app of Object.values(ui.windows ?? {})) {
-        if (app?.document?.type === "character") app.render(false);
+        if (app?.document?.type === "character") { count("clock.refreshSheets.rendered"); app.render(false); }
     }
     for (const app of foundry.applications?.instances?.values() ?? []) {
-        if (app?.document?.type === "character") app.render(false);
+        if (app?.document?.type === "character") { count("clock.refreshSheets.rendered"); app.render(false); }
     }
 }
 

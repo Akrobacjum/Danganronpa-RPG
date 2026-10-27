@@ -83,6 +83,8 @@ import {
     rezoomRoomOutline, recolourRoomOutline
 } from "./fog-reveal.mjs";
 import { sceneUncoveredPercent } from "./fog-diagnostics.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
 export { whatIsHere, checkRegions, sceneUncoveredPercent } from "./fog-diagnostics.mjs";
 
@@ -2731,6 +2733,7 @@ function registerDoorControls() {
 }
 
 export function repaintFog() {
+    count("fog.repaintFog");
     // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
     scheduleFloorSwitcher();
     try {
@@ -2917,6 +2920,7 @@ function stand(reason) {
  * @returns {{texture: PIXI.RenderTexture, fogged: number, veiled: number, cleared: number}|null}
  */
 function buildFogTexture({ regions, shading, rect, ink }) {
+    count("fog.buildFogTexture");
     const renderer = canvas?.app?.renderer;
     if (!renderer) return null;
 
@@ -3527,6 +3531,7 @@ function startDrift() {
     if (!ticker) return;
 
     driftTick = () => {
+        count("fog.driftTick");
         const seconds = motionOff() ? 0 : (ticker.deltaMS ?? 16) / 1000;
 
         // ONE OFFSET FOR EVERY RASTER ON SCREEN. The fog's raster and the
@@ -3605,6 +3610,17 @@ function startDrift() {
     };
 
     ticker.add(driftTick);
+}
+
+/**
+ * WHAT OF THE FOG IS DRAWN OR RUN ON EVERY FRAME (E88 C0), for diagnostics.mjs `frameCost` to hold one at a time:
+ * the masked raster over the fog and the backdrop behind the map, found by name as `driftTick` finds them, and the
+ * drift's own ticker callback with the ticker it runs on. Read only: nothing here changes them.
+ */
+export function fogFrameParts() {
+    const raster = findLayer()?.children?.find(c => c?.name === RASTER_GROUP) ?? null;
+    const backdrop = (canvas?.rendered ?? canvas?.stage)?.children?.find(c => c?.name === BACKDROP_LAYER) ?? null;
+    return { raster, backdrop, drift: driftTick, ticker: canvas?.app?.ticker ?? null };
 }
 
 function stopDrift() {

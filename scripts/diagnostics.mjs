@@ -1646,3 +1646,166 @@ export async function perfReport({ frames = 60 } = {}) {
     lines.push("on top of whatever Foundry and the system are doing with the same frame.");
     return report("Danganronpa RPG - what the theme costs this machine", lines);
 }
+
+/* ==========================================================================
+ * WHERE THE FRAME GOES (E88 C0, 27.10.2026)
+ * ==========================================================================
+ * The owner's report of 27.10: lag with several players, with many Remnants, and for a player standing alone in
+ * a room with everything else under fog. `perf()` above prices the curtain's pulse and blur and is left exactly as
+ * it is (LIVE-E33-05 compares its readings across releases by its body's hash, audit/perf-baseline.json); `whySlow`
+ * sees only frames over 50 ms, so a steady 30 fps prints "No long frames at all". This is the third reading: the
+ * frame time as it stands, the module's own counters over the same window (perf-counters.mjs), and what each
+ * suspect E88's spec names costs, by holding it alone for `frames` frames and taking the frames again. Every hold
+ * is undone in its own `finally`, the canvas's last: it stops `canvas.app.ticker`, which is what splits the
+ * canvas's share of a frame from the page's. The map stands still for that second, which is why a line is printed
+ * before anything starts (the owner's Q1, on its default).
+ *
+ * Nothing is written to the world; `{ toChat: false }` keeps the report out of the chat as well. A second call
+ * while one runs is refused: two windows holding the same suspects would undo each other's holds.
+ * Headless, every millisecond here is jsdom's timer, not a frame (perf-baseline.json `headless.verdict`): the
+ * harness asserts that it runs, reads the counters and puts every hold back (R1009), never what it prints.
+ */
+let frameCostRunning = false;
+
+const RING_HALOS = new Set(["drpgOwnRingGlow", "drpgRemnantRingGlow"]);
+
+/** Every display object the walk can start from: the stage, and each token (the harness keeps its tokens apart). */
+function canvasRoots() {
+    const roots = [];
+    try {
+        if (globalThis.canvas?.stage) roots.push(canvas.stage);
+        for (const token of canvas?.tokens?.placeables ?? []) roots.push(token);
+    } catch { /* no canvas on this page: nothing to walk */ }
+    return roots;
+}
+
+/** `game.drpg.counters()`: the counters as they stand and the filters on screen now; `{ reset: true }` zeroes them after. */
+export async function countersNow({ reset = false } = {}) {
+    const C = await import("./perf-counters.mjs");
+    const out = { counts: C.snapshot(), live: C.liveCanvasFilters(canvasRoots()) };
+    if (reset) C.reset();
+    return out;
+}
+
+export async function frameCost({ seconds = 5, frames = 60, toChat = true } = {}) {
+    if (frameCostRunning) {
+        const message = "fps() is already running in this browser - wait for it to finish.";
+        log(message);
+        return message;
+    }
+    frameCostRunning = true;
+    try {
+        return await frameCostRun({ seconds, frames, toChat });
+    } finally {
+        frameCostRunning = false;
+    }
+}
+
+async function frameCostRun({ seconds, frames, toChat }) {
+    const C = await import("./perf-counters.mjs");
+    const lines = [];
+    const round = n => Math.round(n * 100) / 100;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    const mean = async () => {
+        await frame();
+        const t0 = performance.now();
+        for (let i = 0; i < frames; i++) await frame();
+        return (performance.now() - t0) / frames;
+    };
+    const themed = document.body.classList.contains("drpg-theme-stained-glass");
+    const holds = [];
+    log(`fps(): about ${Math.round(seconds + (frames * 10) / 60)} s. The module's effects switch off one at a time for a moment each, the map last; everything comes back by itself.`);
+
+    /* THE WINDOW: every frame's length while the page stands as it is, and the counters around it. */
+    const before = C.snapshot();
+    const gaps = [];
+    let at = await frame();
+    const start = at, end = start + seconds * 1000;
+    while (at < end) {
+        const next = await frame();
+        gaps.push(next - at);
+        at = next;
+    }
+    const moved = C.delta(before, C.snapshot());
+    const sorted = [...gaps].sort((a, b) => a - b);
+    const pick = q => sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] : 0;
+    const elapsed = (at - start) / 1000 || 1;
+    lines.push(`Screen ${innerWidth} x ${innerHeight}, device pixel ratio ${devicePixelRatio}; ${themed ? "Stained Glass" : "Monokuma Legacy"}`);
+    lines.push(`Watched ${round(elapsed)} s: ${gaps.length} frames, ${Math.round(gaps.length / elapsed)} fps; median ${round(pick(0.5))} ms, p95 ${round(pick(0.95))} ms;`
+        + ` ${gaps.filter(g => g > 33).length} over 33 ms, ${gaps.filter(g => g > 50).length} over 50 ms`);
+    const live = C.liveCanvasFilters(canvasRoots());
+    lines.push(`On the canvas now: ${live.filters} filter(s) (${live.blurs} blur) on ${live.objects} object(s), ${live.masks} mask(s)`
+        + (Object.keys(live.byName).length ? ` - ${Object.entries(live.byName).map(([n, k]) => `${n} ${k}`).join(", ")}` : ""));
+    lines.push("");
+    lines.push("The module's work in that window (count, per second):");
+    const names = Object.keys(moved);
+    if (!names.length) lines.push("  nothing counted");
+    for (const name of names) lines.push(`  ${name.padEnd(32)} ${String(moved[name]).padStart(7)}  ${String(round(moved[name] / elapsed)).padStart(8)}/s`);
+
+    /* THE HOLDS. Each starts its hold and returns the undo, or null when there is nothing of it on this screen. */
+    const filtered = () => { const found = []; C.liveCanvasFilters(canvasRoots(), { collect: found }); return found; };
+    const dropFilters = nodes => {
+        if (!nodes.length) return null;
+        const kept = nodes.map(node => [node, node.filters]);
+        for (const node of nodes) node.filters = null;
+        return () => { for (const [node, filters] of kept) if (!node.destroyed) node.filters = filters; };
+    };
+    const bodyClass = name => {
+        if (document.body.classList.contains(name)) return null;
+        document.body.classList.add(name);
+        return () => document.body.classList.remove(name);
+    };
+    let fog = null;
+    try { fog = (await import("./fog.mjs")).fogFrameParts(); } catch (err) { debug("fps(): the fog's parts could not be read", err); }
+    holds.push(["the room outline's halo filters", () => dropFilters(filtered().filter(n => !RING_HALOS.has(n.name)))]);
+    holds.push(["the ring halos' filters", () => dropFilters(filtered().filter(n => RING_HALOS.has(n.name)))]);
+    holds.push(["the fog raster and the backdrop", () => {
+        const parts = [fog?.raster, fog?.backdrop].filter(p => p && !p.destroyed && p.visible !== false);
+        if (!parts.length) return null;
+        for (const p of parts) p.visible = false;
+        return () => { for (const p of parts) if (!p.destroyed) p.visible = true; };
+    }]);
+    holds.push(["the drift callback", () => {
+        const { drift, ticker } = fog ?? {};
+        if (!drift || typeof ticker?.remove !== "function") return null;
+        ticker.remove(drift);
+        return () => import("./fog.mjs").then(m => { if (m.fogFrameParts().drift === drift) ticker.add(drift); });
+    }]);
+    holds.push(["the blur (drpg-no-blur)", () => (themed ? bodyClass("drpg-no-blur") : null)]);
+    holds.push(["the pulse (drpg-no-pulse)", () => (themed ? bodyClass("drpg-no-pulse") : null)]);
+    holds.push(["the ticker (drpg-no-ticker)", () => bodyClass("drpg-no-ticker")]);
+    holds.push(["the endless CSS animations", () => {
+        const style = document.createElement("style");
+        style.id = "drpg-fps-still";
+        style.textContent = "body *, body *::before, body *::after { animation-play-state: paused !important; }";
+        document.head.append(style);
+        return () => style.remove();
+    }]);
+    holds.push(["the canvas (its ticker stopped)", () => {
+        const ticker = globalThis.canvas?.app?.ticker;
+        if (!ticker?.started || typeof ticker.stop !== "function") return null;
+        ticker.stop();
+        return () => ticker.start();
+    }]);
+
+    lines.push("");
+    const asIs = await mean();
+    lines.push(`Each held alone for ${frames} frames, against ${round(asIs)} ms/frame as it stands:`);
+    for (const [label, start] of holds) {
+        let undo = null;
+        try {
+            undo = start();
+            if (!undo) { lines.push(`  ${label.padEnd(34)} nothing of it here`); continue; }
+            const held = await mean();
+            lines.push(`  ${label.padEnd(34)} ${String(round(held)).padStart(7)} ms/frame, ${String(round(asIs - held)).padStart(7)} ms less`);
+        } catch (err) {
+            lines.push(`  ${label.padEnd(34)} could not be held: ${err?.message ?? err}`);
+        } finally {
+            try { await undo?.(); } catch (err) { debug(`fps(): ${label} did not come back by itself`, err); }
+        }
+    }
+    lines.push("");
+    lines.push("A frame budget is 16.7 ms at 60 Hz. \"ms less\" is one reading against one other on this machine;");
+    lines.push("run it twice and read the two together.");
+    return report("Danganronpa RPG - where the frame goes", lines, { toChat });
+}
