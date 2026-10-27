@@ -65,7 +65,7 @@ import { count } from "./perf-counters.mjs";
 /* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
    (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
    `seamWidth`; fog-reveal.mjs imports neither ring file back. */
-import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly } from "./fog-reveal.mjs";
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly, haloBlurOn } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgOwnRing";
 /* The seam's light, told apart from the seam: anything measuring "the frame" by
@@ -340,7 +340,13 @@ function paint(token, flags) {
         halo.visible = true;
         shape.draw(halo, seam);
         const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
-        if (Blur) {
+        // With the glass's blur off the live light is the passes alone, as the baked one is (E88 fix G3, E88-END-02; Q2).
+        // The list is kept aside, not dropped, and worn again when the blur comes back: the same filter, retuned below.
+        if (!haloBlurOn()) {
+            if (halo.filters?.length) halo.drpgLiveFilters = halo.filters;
+            halo.filters = null;
+        } else if (Blur) {
+            if (!halo.filters?.length && halo.drpgLiveFilters) halo.filters = halo.drpgLiveFilters;
             // Kept and retuned, not rebuilt: `refreshToken` fires on every step a token takes.
             let filter = halo.filters?.[0];
             if (!(filter instanceof Blur)) { filter = new Blur(Math.max(6, seam * 6), 3); halo.filters = [filter]; }

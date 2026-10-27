@@ -1148,9 +1148,10 @@ export const HALO_NAMES = Object.freeze({
  * it in `group`, and stand the Graphics down - kept, stroked and named, so `rewidth` strokes it again and a reader of
  * its passes (scenario 76) reads what the light is made of. `seen` is the layer the outline is seen through. The live
  * filter it was made with is kept on it (`drpgHaloFilter`) and is the bake's; with the blur off the passes go alone.
- * False when it could not bake (no renderer, no bounds, past the cap): the Graphics draws live as before.
+ * False when it could not bake (no renderer, no bounds, past the cap): the Graphics draws live as before, blurred
+ * only while the blur is on. Exported for R1018.
  */
-function bakeOutlineHalo(group, halo, seen) {
+export function bakeOutlineHalo(group, halo, seen) {
     if (!halo || halo.destroyed || !group || group.destroyed) return false;
     let sprite = group.children.find(c => c?.name === OUTLINE_HALO_BAKED) ?? null;
     if (sprite?.drpgOwnedTexture) {
@@ -1160,9 +1161,11 @@ function bakeOutlineHalo(group, halo, seen) {
     }
     const filter = halo.drpgHaloFilter ?? halo.filters?.[0] ?? null;
     halo.drpgHaloFilter = filter;
+    // The live light honours the blur switch as the baked one does (E88 fix G3, finding E88-END-02; Q2): with "Szkło
+    // rozmywa mapę" off a room past the cap is as sharp as a smaller room, and pays no blur a frame.
     const live = () => {
         count("halo.live");
-        halo.filters = filter ? [filter] : null;
+        halo.filters = filter && haloBlurOn() ? [filter] : null;
         halo.visible = true;
         if (sprite) { sprite.visible = false; sprite.texture = PIXI.Texture.EMPTY; }
         return false;

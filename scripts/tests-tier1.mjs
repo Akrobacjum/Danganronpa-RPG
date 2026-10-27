@@ -22124,6 +22124,105 @@ const INVARIANTS = [
             "[a line reading the filters not the module's (one planted), and each of the module's halo holds found something to hold]");
         ok(took < 8000, `fps() with 120 frames a hold and a 150 ms hold ended in ${Math.round(took)} ms: each hold is bounded by time\n${text}`);
     }],
+    ["R1018 - with the glass's blur off the map's halos are sharp everywhere (E88 fix G3; Q2): a ring or the room outline that cannot be drawn once (past the cap, no renderer) keeps no live blur either", async () => {
+        /*
+         * E88 fix G3, 27.10.2026; finding E88-END-02. Q2's default: with "Szkło rozmywa mapę" off the halos lose their
+         * bloom. The baked light honoured it (`wearHalo`'s `blur`, `bakeOutlineHalo`'s `haloBlurOn()`), the live
+         * fallback did not: the outline's `live()` put its BlurFilter back and both rings' live branch always made one.
+         * The fallback is taken whenever the bake passes MAX_FOG_TEXTURE (2048 device pixels) or the browser has no
+         * renderer - so a player who turned the blur off to save frames still paid a per-frame blur on a large room
+         * zoomed in. Read here on this client's canvas with the bakers handed no renderer (fog-reveal.mjs `HALO_IO`,
+         * put back after), so every paint takes the fallback as it does past the cap: the
+         * blur switched off by its body class (settings.mjs `applyTheme` sets it; put back after), every ring painted
+         * again, the ring glows' live blurs counted; then fog-reveal.mjs `bakeOutlineHalo` on a halo of the test's own
+         * that carries its BlurFilter. Red at 00bcd809: ring glows kept their blurs, the outline's halo got its filter
+         * back.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const R = await import("./fog-reveal.mjs");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const LISTENERS = ["refreshToken.ownRing", "refreshToken.remnantRing"];
+        const repaint = async () => {
+            const before = C.snapshot();
+            V.applyAll();
+            await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= tokens.length), 2000);
+            await new Promise(r => setTimeout(r, 50));
+        };
+        const ringBlurs = async () => { const live = (await D.countersNow()).live; return (live.byName.drpgOwnRingGlow ?? 0) + (live.byName.drpgRemnantRingGlow ?? 0); };
+        const had = document.body.classList.contains("drpg-no-blur");
+        let on = null, off = null, outline = null;
+        const io = R.HALO_IO.renderer;
+        try {
+            R.HALO_IO.renderer = () => null;
+            document.body.classList.remove("drpg-no-blur");
+            await repaint();
+            on = await ringBlurs();
+            document.body.classList.add("drpg-no-blur");
+            await repaint();
+            off = await ringBlurs();
+            equal(typeof R.bakeOutlineHalo, "function", "fog-reveal.mjs's outline baker, exported for this test (`bakeOutlineHalo`)");
+            if (typeof R.bakeOutlineHalo === "function") {
+                const group = new PIXI.Container(), halo = new PIXI.Graphics();
+                const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+                halo.name = "drpgRoomOutlineGlow";
+                halo.beginFill?.(0xffffff, 1); halo.drawRect?.(0, 0, 400, 300); halo.endFill?.();
+                halo.filters = Blur ? [new Blur(6, 3)] : [{ blur: 6 }];
+                group.addChild(halo);
+                const baked = R.bakeOutlineHalo(group, halo, group);
+                outline = { baked, filters: (halo.filters ?? []).length, visible: halo.visible };
+                group.destroy({ children: true });
+            }
+        } finally {
+            R.HALO_IO.renderer = io;
+            document.body.classList.toggle("drpg-no-blur", had);
+            await repaint();
+        }
+        ok(!glass || on > 0, `under Stained Glass with the blur on, the fallback draws its live blur (${on} on the ring glows): the reading below reads something`);
+        equal(JSON.stringify([off, outline]), JSON.stringify([0, { baked: false, filters: 0, visible: true }]),
+            `[live blurs on the ring glows with the blur off (on: ${on}), the outline's halo with no renderer and the blur off: drawn live, no filter] (${glass ? "Stained Glass" : "Legacy"})`);
+    }],
+    ["R1019 - the glass's pulse decides on the canvas's own step (E88 fix G3, E88-10): a job whose panes' fills moved by a thousandth but not by 1/255, the step the canvas stores, is not drawn again; one that moved by a step is", async () => {
+        /*
+         * E88 fix G3, 27.10.2026; finding E88R-04. E88-10 asks that the pulse skip a pane whose fill moved under 1/255.
+         * C5's `pulseJob` compared the fills' thousandths, finer than the 1/255 a canvas stores, so a thousandth that
+         * stayed inside one stored step drew the layer again for the same pixels. Run here on a stand-in job (R1014's
+         * shape, a context that counts what it is asked to draw): one frame drawn, then each pane's remembered dark fill
+         * set one thousandth off inside its stored step and the same moment asked again - nothing must be drawn; then a
+         * whole step off - drawn. Red at 00bcd809: the thousandth drew. What this saves on a curtain is the commit's
+         * Chromium reading (a pane's fill moves more than one step a 66 ms frame for most of its cycle).
+         */
+        const G = await import("./glass.mjs");
+        must(typeof G.pulseJob === "function", "glass.mjs has no pulseJob - R1014 says so");
+        const drawn = { clear: 0 };
+        const ctx = { globalCompositeOperation: "source-over", globalAlpha: 1, fillStyle: "",
+            clearRect() { drawn.clear++; }, fill() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, drawImage() {} };
+        const pane = (poly, phase, omega, stained) => ({ poly, phase, omega, stained, content: false, empty: true, bb: { x0: 0, y0: 0 } });
+        const job = { el: { isConnected: true }, acc: "#ff4f8b", pulseK: 0.5, pulse: { width: 100, height: 80, getContext: () => ctx },
+            panes: [pane([[0, 0], [120, 0], [120, 80]], 0.4, 2 * Math.PI / 9, true), pane([[0, 0], [0, 80], [120, 80]], 2.1, 2 * Math.PI / 14, false)] };
+        const byte = q => Math.round(q * 0.255);
+        G.pulseJob(job, 3000);
+        const nudge = within => {
+            for (const p of job.panes) {
+                const q = p.drawnDark;
+                if (within) p.drawnDark = q > 0 && byte(q - 1) === byte(q) ? q - 1 : byte(q + 1) === byte(q) ? q + 1 : q;
+                else p.drawnDark = q + 4;
+            }
+        };
+        must(job.panes.every(p => p.drawnDark > 0), `a pane drew no dark fill at 3 s - this would read nothing: ${JSON.stringify(job.panes.map(p => p.drawnDark))}`);
+        nudge(true);
+        const nudged = job.panes.map(p => p.drawnDark);
+        const before = drawn.clear;
+        const inside = G.pulseJob(job, 3000);
+        nudge(false);
+        const outside = G.pulseJob(job, 3000);
+        equal(JSON.stringify([inside, outside, drawn.clear - before]), JSON.stringify([false, true, 1]),
+            `[a thousandth inside the stored step drew, a whole step drew, layers cleared] (the remembered darks nudged to ${JSON.stringify(nudged)})`);
+    }],
     ["R1016 - the books say how to read fps() and what to turn off (E88 C7, E88-13): each GM handbook's reading of fps() names every heading fps() prints, by the words it prints them in, and the Look's switches in the order to turn them off, by their names in that language, the theme last; each player handbook says the same switches in that order; each GM handbook's voice section says what a doorway keeps (LIVE-E88-03)", async () => {
         /*
          * E88 C7, 27.10.2026. The owner's table lagged and the stage's first answer is a reading: `fps()` prints

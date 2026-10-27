@@ -3038,6 +3038,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const DARK_FILLS = [];
   const darkFill = q => DARK_FILLS[q] ??= "rgba(2,1,4," + (q / 1000).toFixed(3) + ")";
   const stepOf = (x, floor, n) => (x > floor ? Math.round(x * n) : 0);
+  /* A thousandth's alpha as the canvas stores it, in 1/255 (E88 fix G3, 27.10.2026; finding E88R-04). C5 skipped a job
+     only when no pane's fill moved by a thousandth, finer than the 1/255 a canvas keeps: on a curtain some fill moves a
+     thousandth nearly every frame, and 455 of 455 frames drew. A job is now drawn when a pane's fill moves on the
+     stored step; a thousandth that stays inside one step leaves the layer the picture it holds. Measured in headless
+     Chromium (27.10.2026; a scratch probe running C5's pulseJob and this one on the same synthetic panes on a 480x270
+     layer, 455 frames of 66 ms, every frame read back): 0 pixels differ; frames drawn 455 of 455 against 455 at 24
+     panes, 454 against 455 at 4, 446 against 453 at 2. A pane's fill moves more than one stored step in a 66 ms frame
+     for most of its cycle, so the skip still seldom fires; the frame time is a table's. Undefined (never drawn) stays
+     apart from every step. */
+  const byte = q => (q === undefined ? -1 : Math.round(q * 0.255));
   function scaledPoly(p, k) {
     if (p.scaledFrom !== p.poly || p.scaledK !== k) { p.scaled = p.poly.map(q => [q[0] * k, q[1] * k]); p.scaledFrom = p.poly; p.scaledK = k; }
     return p.scaled;
@@ -3064,7 +3074,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       // the texture of coloured glass shows only while the pane is lit
       const tex = p.tex && lit > 0.02 ? Math.min(1, lit * 1.1) : 0;
       p.nextDark = stepOf(dark, 0.01, 1000); p.nextLight = stepOf(light, 0.005, 1000); p.nextTex = stepOf(tex, 0, 255); p.texAlpha = tex;
-      if (p.nextDark !== p.drawnDark || p.nextLight !== p.drawnLight || p.nextTex !== p.drawnTex) moved = true;
+      // moved: a fill's alpha on the canvas's own 1/255 step (`byte`), not the string's thousandth (E88 fix G3, E88R-04)
+      if (byte(p.nextDark) !== byte(p.drawnDark) || byte(p.nextLight) !== byte(p.drawnLight) || p.nextTex !== p.drawnTex) moved = true;
     }
     if (!moved) { count("glass.pulseFrame.kept"); return false; }
     count("glass.pulseFrame.panes", j.panes.length);
