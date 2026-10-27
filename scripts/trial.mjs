@@ -534,6 +534,10 @@ async function refusePlayersCard(message) {
  * was this file's own promise, and the bridge's Objection (`objectOnPrimary`) held it by hand with a release in a
  * `finally`; both are steps of utils.mjs `serialWrite` under this key now, in the order they were asked, and a step
  * that throws fails only its own caller (tier 0 R991, R45).
+ *
+ * THE FLOOR'S KEY SINCE E70 C0 (27.10.2026; amend 5 (d)): every write of the floor is a step of it on the primary GM
+ * (trial-floor.mjs `floorStep`, which imports it from here), the evidence's fill too (`evidenceOnPrimary`), so a
+ * seizure, the heartbeat and a GM's button read and write the floor one after another.
  */
 export const SEIZE_KEY = "trial.seize";
 
@@ -577,7 +581,8 @@ async function seizeFloor(message, objectorId, targetId) {
     const actor = game.actors.get(objectorId);
     if (!actor) return null;
 
-    const { floorRefusal, targetRefusal, openObjection, trialFloor } =
+    // The in-step twin (E70 C0): this is a step of SEIZE_KEY, and the public `openObjection` would queue behind it.
+    const { floorRefusal, targetRefusal, openObjectionInStep, trialFloor } =
         await import("./trial-floor.mjs");
 
     /** Mark the card and tell the objector why their minute did not happen. */
@@ -640,7 +645,7 @@ async function seizeFloor(message, objectorId, targetId) {
 
     let opened = null;
     try {
-        opened = await openObjection(objectorId, targetId);
+        opened = await openObjectionInStep(objectorId, targetId);
     } catch (err) {
         error("Could not open the objection", err);
     }
@@ -714,7 +719,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         const actor = game.actors.get(actorId ?? "");
         if (!actor) return { refused: "no such character" };
         if (!inClassTrial()) return { refused: "no Class Trial is in session" };
-        const { objectionOpen, mayObjectTo, openObjection, trialFloor } = await import("./trial-floor.mjs");
+        const { objectionOpen, mayObjectTo, openObjectionInStep, trialFloor } = await import("./trial-floor.mjs");
         if (!objectionOpen()) return { refused: "the trial's floor is not open to an objection now" };
         if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
         // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20).
@@ -778,7 +783,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
 
         let opened = null;
         try {
-            opened = await openObjection(actor.id, target.id, { pending: true, messageId: message.id });
+            opened = await openObjectionInStep(actor.id, target.id, { pending: true, messageId: message.id });
         } catch (err) {
             error("Could not open the objection", err);
         }
@@ -817,50 +822,56 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * minute with the pending words on the table while its objector was told it failed. The floor goes back to the
  * debate and the card is marked withdrawn, nothing given back, as at a lapse.
  *
+ * A STEP OF THE FLOOR'S KEY (E70 C0): the fill read the floor and wrote it outside `SEIZE_KEY`, beside the seizures
+ * and the heartbeat that are steps of it; the read, the fill and a put-back are one step now, through the floor's
+ * in-step twins (`fillObjectionInStep`, and `unfill`'s `returnToDebateInStep`).
+ *
  * @param {{actorId: string, itemId: string, comment?: string}} request
  */
 export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
-    const actor = game.actors.get(actorId ?? "");
-    if (!actor) return { refused: "no such character" };
-    const { noteTooLong } = await import("./pre-session-note.mjs");
-    if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
-    const { trialFloor, pendingFor, fillObjection } = await import("./trial-floor.mjs");
-    const floor = trialFloor();
-    const message = floor?.messageId ? (game.messages.get(floor.messageId) ?? null) : null;
-    if (!message || !pendingFor(floor, actor.id, message.id)) {
-        return { refused: "that objection is no longer waiting for its Truth Bullet" };
-    }
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
-    const held = itemId ? await itemAsHeld(actor, itemId) : null;
-    const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
-    const data = item ? truthBulletData(bulletAsHeld(item)) : null;
-    if (!data) return { refused: "that character holds no such Truth Bullet" };
+    return serialWrite(SEIZE_KEY, async () => {
+        const actor = game.actors.get(actorId ?? "");
+        if (!actor) return { refused: "no such character" };
+        const { noteTooLong } = await import("./pre-session-note.mjs");
+        if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
+        const { trialFloor, pendingFor, fillObjectionInStep } = await import("./trial-floor.mjs");
+        const floor = trialFloor();
+        const message = floor?.messageId ? (game.messages.get(floor.messageId) ?? null) : null;
+        if (!message || !pendingFor(floor, actor.id, message.id)) {
+            return { refused: "that objection is no longer waiting for its Truth Bullet" };
+        }
+        const { itemAsHeld } = await import("./sheet-audit.mjs");
+        const held = itemId ? await itemAsHeld(actor, itemId) : null;
+        const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
+        const data = item ? truthBulletData(bulletAsHeld(item)) : null;
+        if (!data) return { refused: "that character holds no such Truth Bullet" };
 
-    if (!(await fillObjection(actor.id, message.id))) {
-        return { refused: "that objection is no longer waiting for its Truth Bullet" };
-    }
-    try {
-        await message.update({
-            content: buildCard(actor, holderView(data), {
-                objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null
-            }),
-            flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
-        });
-    } catch (err) {
-        error("Could not put the Truth Bullet on the Objection's card", err);
-        await unfill(actor.id, message.id);
-        return { refused: "the objection's card could not be filled" };
-    }
-    log(`${actor.name} objected with "${data.name}".`);
-    return { reply: { item: data.name } };
+        if (!(await fillObjectionInStep(actor.id, message.id))) {
+            return { refused: "that objection is no longer waiting for its Truth Bullet" };
+        }
+        try {
+            await message.update({
+                content: buildCard(actor, holderView(data), {
+                    objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null
+                }),
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
+            });
+        } catch (err) {
+            error("Could not put the Truth Bullet on the Objection's card", err);
+            await unfill(actor.id, message.id);
+            return { refused: "the objection's card could not be filled" };
+        }
+        log(`${actor.name} objected with "${data.name}".`);
+        return { reply: { item: data.name } };
+    });
 }
 
 /** `evidenceOnPrimary`'s put-back when its card could not be filled: the floor it filled back to the debate, the card withdrawn. */
 async function unfill(objectorId, messageId) {
     try {
-        const { trialFloor, returnToDebate, FLOOR_MODES } = await import("./trial-floor.mjs");
+        const { trialFloor, returnToDebateInStep, FLOOR_MODES } = await import("./trial-floor.mjs");
         const floor = trialFloor();
-        if (floor?.mode === FLOOR_MODES.objection && floor.holderId === objectorId && floor.messageId === messageId) await returnToDebate({});
+        if (floor?.mode === FLOOR_MODES.objection && floor.holderId === objectorId && floor.messageId === messageId) await returnToDebateInStep({});
         await withdrawObjectionCard(messageId);
     } catch (err) {
         error("Could not put the floor back after the Objection's card could not be filled", err);

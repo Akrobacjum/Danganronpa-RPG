@@ -71,6 +71,8 @@ const ACTION_TRIAL_EVIDENCE = "trial.evidence";
 const ACTION_TRIAL_WITHDRAW = "trial.withdraw";
 /** GM -> primary GM: the running Objection aimed at somebody else, from the trial console (E79 C16; trial.mjs `repointOnPrimary`). */
 const ACTION_FLOOR_REPOINT = "floor.repoint";
+/** GM -> primary GM: a GM's change of the trial's floor, run in the floor's step there (E70 C0; trial-floor.mjs `floorStep`). */
+const ACTION_TRIAL_GM = "trial.gm";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1813,6 +1815,20 @@ async function handleFloorRepoint(payload) {
     return { reply: out?.reply ?? null };
 }
 
+/**
+ * The run of `trial.gm` (E70 C0): a GM's change of the floor in a step of the floor's key on this primary (trial-floor.mjs
+ * `floorOnPrimary`). An op that changed nothing - its own refusal, a floor that moved on - is refused here, so the GM
+ * who pressed is told.
+ */
+async function handleTrialGm(payload) {
+    const { floorOnPrimary } = await import("./trial-floor.mjs");
+    const out = await floorOnPrimary(payload.op, {
+        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId
+    });
+    if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
+    return { reply: out };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2806,6 +2822,29 @@ export const BRIDGE_ACTIONS = table({
         }
     },
     /*
+     * A GM'S CHANGE OF THE FLOOR, RUN ON THE PRIMARY GM (E70 C0, 27.10.2026; amend 5 (d)). Every public writer of the
+     * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `fillObjection`, `withdrawObjection`,
+     * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`) asks this on a GM that is not the primary, and
+     * the primary runs the op's twin in a step of the floor's key (`floorOnPrimary`): one writer of the floor, the
+     * primary, one write at a time. Its ops are `FLOOR_OP_NAMES` (tier 0 R1020 holds the two lists equal). A GM's
+     * request only: a player's console has the four rows above for what a player may do on the floor.
+     */
+    [ACTION_TRIAL_GM]: {
+        label: "DRPG.Bridge.what.trial.gm",
+        guards: [gmOnly("only a GM changes the trial's floor")],
+        sanitize: pick({
+            op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end"),
+            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id
+        }),
+        run: handleTrialGm,
+        answer: "reply",
+        claims: {
+            actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
+            targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
+            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds; any other changes nothing"
+        }
+    },
+    /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
      * each GM's ruling used to run on its own browser against its own copy of the synced
      * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
@@ -3078,6 +3117,17 @@ export function requestRepoint(targetId) {
             if (out?.refused) sayNotDone(ACTION_FLOOR_REPOINT, reasonOf(out.refused));
             return out?.reply ?? null;
         })
+    });
+}
+
+/**
+ * A GM's change of the trial's floor, asked of the primary GM (E70 C0; trial-floor.mjs `floorStep`). Its value is the
+ * floor written, `{}` for an end; the primary itself runs it in place.
+ */
+export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null } = {}) {
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId }, {
+        onPrimary: true,
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId }))
     });
 }
 

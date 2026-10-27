@@ -2325,7 +2325,8 @@ const REGRESSIONS = [
 
         ok(seize.includes("payPrice(") && seize.includes("refundPrice("),
             "the seizure stopped paying, or stopped handing it back when the floor did not move");
-        ok(seize.indexOf("payPrice(") < seize.indexOf("openObjection("),
+        // The floor's in-step twin since E70 C0: the seizure is a step of SEIZE_KEY, and the public writer would wait on it.
+        ok(seize.indexOf("payPrice(") < seize.indexOf("openObjectionInStep("),
             "the price is taken after the floor moves, which cannot be undone if it fails");
         ok(seize.includes("testUserPermission("),
             "anybody can post an objection in somebody else's name again");
@@ -7661,6 +7662,11 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.withdraw#actorId", "judged (E79 fix r4-G2): knownSender + owns(actorId); the floor must be that character's pending Objection (`withdrawObjection`, `pendingFor`)"],
             ["PACKET gm-bridge.mjs#trial.withdraw#messageId", "judged (E79 fix r4-G2): the card of the objector's own Objection on the floor the primary holds, still pending (`pendingFor`); any other changes nothing"],
             ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#op", "judged (E70 C0): gmOnly; one of trial-floor.mjs `FLOOR_OP_NAMES` (`as.oneOf`), else nothing is run (`floorOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#seconds", "judged (E70 C0): gmOnly; `as.num`, a count of 0 or less read as the op's default (`FLOOR_OPS`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.gm#targetId", "judged (E70 C0): gmOnly; held by `targetRefusal` to a student the floor lets the objector aim at (an Objection, a re-point)"],
+            ["PACKET gm-bridge.mjs#trial.gm#messageId", "judged (E70 C0): gmOnly; held by `pendingFor` to the pending Objection's card on the floor the primary holds"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
@@ -11254,7 +11260,8 @@ const REGRESSIONS = [
         const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
         const now = topLevelFunction(utils, "serverNow") ?? "";
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
-        const floorFns = ["startFloor", "openObjection", "openRebuttal", "returnToDebate", "extendFloor", "secondsLeft"];
+        // The floor's writes are the in-step twins since E70 C0 (trial-floor.mjs `FLOOR_OPS`); the public writers hand them on.
+        const floorFns = ["startFloorInStep", "openObjectionInStep", "openRebuttalInStep", "returnToDebateInStep", "extendFloorInStep", "secondsLeft"];
         const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "wipeSeason"]];
         const cut = [...floorFns.map(name => [name, fnSource(floor, name)]), ...timeFns.map(([src, name]) => [name, fnSource(src, name)])];
         ok(cut.every(([, body]) => body.length > 150), `a function this reads is cut short: ${cut.filter(([, b]) => b.length <= 150).map(([n]) => n).join(", ")}`);
@@ -11264,7 +11271,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(server), JSON.stringify(cut.map(([name]) => name)), "a stamp or a count of the trial's clock or the time of day reads no server time (S06-37)");
         const advance = fnSource(floor, "advanceIfDue");
         const guard = advance.search(/if \(advancing\) return;/), raised = advance.search(/advancing = true;/);
-        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/openRebuttal\(\)/)
+        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/serialWrite\(SEIZE_KEY/)
             && /finally \{\s*advancing = false;/.test(advance),
             "the heartbeat writes a transition while the last one is on its way, or a write that threw stops it for good (S06-38)");
         ok(/addEventListener\("visibilitychange",[^]*?advanceIfDue\(\)/.test(fnSource(floor, "registerTrialFloor")),
@@ -11785,8 +11792,9 @@ const REGRESSIONS = [
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
                 .every(re => re.test(fnSource(vote, "eligibleVoters"))),
-            inWorld: /setTrialProgress\(\{ vote:/.test(fnSource(vote, "ballotFor")),
-            lateBallot: /issued: \[\.\.\.issued, sender\.id\]/.test(fnSource(vote, "ballotFor")),
+            inWorld: /setTrialProgress\(now => \(\{ vote:/.test(fnSource(vote, "ballotFor")),
+            // The record's step's own list since E70 C0 (`setTrialProgress` with a function).
+            lateBallot: /issued: \[\.\.\.now\.vote\.issued\.filter\(id => id !== sender\.id\), sender\.id\]/.test(fnSource(vote, "ballotFor")),
             majority: /return Math\.floor\(issued \/ 2\) \+ 1;/.test(fnSource(vote, "majorityOf")),
             nobodyFirst: /executedOptions = `<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(verdict),
             cancelFirst: cancelFirst.test(verdict),
@@ -14997,7 +15005,7 @@ const REGRESSIONS = [
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
     }],
 
-    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain; and (E70 C0) every write of the trial's floor and of its record lies in a step of trial.mjs `SEIZE_KEY` and of vote.mjs `TRIAL_PROGRESS_KEY`", async () => {
         /*
          * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
          * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
@@ -15032,17 +15040,23 @@ const REGRESSIONS = [
          * Eclipse's end) are not rows. The reader is shown planted source first: a clean twin that must read clean,
          * then one fault of each rule alone. Red at 9f727e07 (1.2.86): no key of the six exists, so every write of
          * every row stands outside a step, settleRoute and objectOnPrimary hold none, and trial.mjs keeps `seizing`.
+         * E70 C0 (27.10.2026; E70-01, amend 5 (d)) adds two rows: the trial's floor (`SETTINGS.trialQueue`) under the
+         * seizures' key, and its record (`SETTINGS.trialProgress`) under `TRIAL_PROGRESS_KEY`. Red at e2085d7b: the
+         * floor's two writes (trial-floor.mjs `writeFloor`, `endFloor`) and the record's (vote.mjs `setTrialProgress`)
+         * stood outside every step, and the season reset handed both settings to `emptied` (rule (d)).
          */
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
         const KEYS = {
             despair: /^(?:[\w$]+\s*\.\s*)?DESPAIR_KEY$/, searchTokens: /^(?:[\w$]+\s*\.\s*)?SEARCH_KEY$/,
             clock: /^(?:[\w$]+\s*\.\s*)?CLOCK_KEY$/, overflow: /^(?:[\w$]+\s*\.\s*)?OVERFLOW_KEY$/,
             seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/,
-            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/
+            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/,
+            progress: /^(?:[\w$]+\s*\.\s*)?TRIAL_PROGRESS_KEY$/
         };
         const SETS = [["despair", /^SETTINGS\s*\.\s*(?:despairPools|poolNames|extraPoolUsers)$/], ["searchTokens", /^SETTINGS\s*\.\s*searchTokens$/],
             ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/],
-            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/]];
+            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/],
+            ["seize", /^SETTINGS\s*\.\s*trialQueue$/], ["progress", /^SETTINGS\s*\.\s*trialProgress$/]];
         const CALLS = [["overflow", /(?<![\w$])overflowStore\s*\.\s*patch\s*\(/g], ["crossing", /(?<![\w$])eclipseMoveStore\s*\.\s*patch\s*\(/g],
             ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
             ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
@@ -15208,6 +15222,19 @@ const REGRESSIONS = [
                 "}",
                 "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
             ],
+            "trial-floor.mjs": [
+                "import { SEIZE_KEY } from \"./trial.mjs\";",
+                "async function writeFloor(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, patch); return patch; }",
+                "export async function endFloorInStep() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); return {}; }",
+                "const FLOOR_OPS = { extend: () => writeFloor({ startedAt: 1 }), end: () => endFloorInStep() };",
+                "export function floorOnPrimary(op) { return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op]()); }",
+                "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }"
+            ],
+            "vote.mjs": [
+                "export const TRIAL_PROGRESS_KEY = \"trial.progress\";",
+                "async function writeInStep(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, patch); }",
+                "export function setTrialProgress(patch) { return serialWrite(TRIAL_PROGRESS_KEY, () => writeInStep(patch)); }"
+            ],
             "projects-secrecy.mjs": [
                 "export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;",
                 "export async function writeAllCountdowns(data) { await game.settings.set(DH, COUNTDOWNS, data); }",
@@ -15262,26 +15289,246 @@ const REGRESSIONS = [
             "a setting handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
                 "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
                 "export const RESETS = { searchTokens: wipe(SETTINGS.searchTokens, {}) };"
+            ] }, ["through wipe season-setup.mjs#RESETS"]],
+            "the floor written by a GM's button outside its key": [{ "trial-floor.mjs": [...clean["trial-floor.mjs"],
+                "export async function extendFloor() { return writeFloor({ startedAt: 2 }); }"
+            ] }, ["seize outside trial-floor.mjs#writeFloor"]],
+            "the record written outside its key": [{ "vote.mjs": [...clean["vote.mjs"],
+                "export async function resetTrialProgress() { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}); }"
+            ] }, ["progress outside vote.mjs#resetTrialProgress"]],
+            "the season reset's floor handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
+                "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
+                "export const RESETS = { trialFloor: wipe(SETTINGS.trialQueue, {}) };"
             ] }, ["through wipe season-setup.mjs#RESETS"]]
         };
         const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
         const twin = censusOf(planted(clean));
-        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3, projects: 2 }]),
-            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings', 2 projects') - it would read the module wrong too");
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 4, crossing: 3, projects: 2, progress: 1 }]),
+            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures and 2 floor writes, 3 crossings', 2 projects', 1 record write) - it would read the module wrong too");
         const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
             .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
         equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs"].every(file => sources.has(file)),
+        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs",
+            "trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)),
             "a file of the census is not served - this test reads nothing until it is");
         const { broken, read, table } = censusOf(sources);
-        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4
-            && read.projects >= 6,
+        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 5 && read.crossing >= 4
+            && read.projects >= 6 && read.progress >= 2,
             `${JSON.stringify(read)} writes read in the module - this would measure nothing`);
         log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
         equal(JSON.stringify(broken), "[]",
             "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
+    }],
+
+    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset (`wipeSeason`), `SETTINGS.trialProgress` only in vote.mjs `writeTrialProgressInStep` and the season reset; a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-01 (amend 5 (d)). R991 holds each write of the two settings to a step of its key; this
+         * holds who writes them at all, so a new writer is a decision a test has to be changed for, not a line that
+         * slips in beside a public writer. Read in the module's files without the suite's (tests.mjs, tests-*.mjs),
+         * comments blanked: every `game.settings.set(` whose key is `SETTINGS.trialQueue` or `SETTINGS.trialProgress`,
+         * by the top-level statement it stands in; a key handed to a writer in a variable is R991's rule (d). The
+         * reader is shown a clean twin first, then the twin with one more writer. And the ops: trial-floor.mjs
+         * `FLOOR_OP_NAMES`, the keys of its `FLOOR_OPS` as written, and the `as.oneOf` of gm-bridge.mjs "trial.gm" are
+         * one list. Red at e2085d7b: `endFloor` wrote the floor and `setTrialProgress` the record, and no row existed.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const ROWS = [["floor", /^SETTINGS\s*\.\s*trialQueue$/], ["record", /^SETTINGS\s*\.\s*trialProgress$/]];
+        const WRITERS = ["floor season-setup.mjs#wipeSeason", "floor trial-floor.mjs#endFloorInStep", "floor trial-floor.mjs#writeFloor",
+            "record season-setup.mjs#wipeSeason", "record vote.mjs#writeTrialProgressInStep"];
+        const writersOf = sources => {
+            const found = new Set();
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs") || SUITE.test(file)) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                for (const m of blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const text = args[1] ? code.slice(args[1].start, args[1].end).trim() : "";
+                    const row = ROWS.find(([, re]) => re.test(text));
+                    if (!row) continue;
+                    const decl = decls.findLast(d => d.start <= m.index);
+                    found.add(`${row[0]} ${file}#${decl?.name ?? `L${lineAt(code, m.index)}`}`);
+                }
+            }
+            return [...found].sort();
+        };
+        const clean = new Map([
+            ["trial-floor.mjs", [
+                "async function writeFloor(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, patch); }",
+                "export async function endFloorInStep() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); }",
+                "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }",
+                "// game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"
+            ].join("\n")],
+            ["vote.mjs", "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }"],
+            ["season-setup.mjs", [
+                "async function wipeSeason(plan) {",
+                "    const rows = { trialFloor: () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}),",
+                "        trialProgress: () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}) };",
+                "}"
+            ].join("\n")],
+            ["tests-tier2.mjs", "export const T = () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"]
+        ]);
+        equal(JSON.stringify(writersOf(clean)), JSON.stringify(WRITERS), "the writers' reader does not read its clean twin as the named writers");
+        const planted = new Map([...clean, ["trial-floor-ui.mjs", "export async function closeDebate() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); }"]]);
+        equal(JSON.stringify(writersOf(planted)), JSON.stringify([...WRITERS, "floor trial-floor-ui.mjs#closeDebate"].sort()),
+            "the writers' reader misses a planted writer of the floor");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        const found = writersOf(sources);
+        log(`R1020: the writers read in the module: ${found.join("; ")}`);
+        equal(JSON.stringify(found), JSON.stringify(WRITERS),
+            "the trial's floor or record is written by a function the census does not name (setting and file#statement), or a named writer is gone");
+
+        const F = await import("./trial-floor.mjs");
+        const ops = bodyOf(blankComments(sources.get("trial-floor.mjs")), "const FLOOR_OPS = {", { until: "\n};" });
+        const keys = [...ops.matchAll(/^ {4}([\w$]+):/gm)].map(m => m[1]);
+        // The row as written: its `pick` keeps only the kinds of its fields, so the list is read off gm-bridge.mjs.
+        const row = bodyOf(blankComments(sources.get("gm-bridge.mjs") ?? ""), "[ACTION_TRIAL_GM]: {", { until: "\n    },\n" });
+        const listed = row.match(/\bop:\s*as\.oneOf\(([^)]*)\)/)?.[1] ?? null;
+        const allowed = listed === null ? null : [...listed.matchAll(/"([^"]*)"/g)].map(m => m[1]);
+        equal(JSON.stringify([keys, allowed]), JSON.stringify([[...F.FLOOR_OP_NAMES], [...F.FLOOR_OP_NAMES]]),
+            "the floor's ops, the keys of FLOOR_OPS and the GMs' row trial.gm's ops are not one list ([FLOOR_OPS' keys, trial.gm's ops] against FLOOR_OP_NAMES)");
+    }],
+
+    ["R1021 - no step of the floor's key or of the record's calls into a function that opens a step of the same key (E70 C0): from inside `serialWrite(SEIZE_KEY, ...)` and `serialWrite(TRIAL_PROGRESS_KEY, ...)` no call reaches a function holding a step of that key, which would wait for ever behind itself; a planted public writer called from a seizure, from `advanceFrom` and from the record's step is caught", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-02. A step of a key that awaits a function which opens another step of the same key
+         * waits for itself: utils.mjs `serialWrite` runs a key's steps one after another, so the inner step starts only
+         * after the outer one ends, which it never does - the seizures, the heartbeat and every GM's button behind it
+         * stop for good. So every public writer has an in-step twin (trial-floor.mjs `FLOOR_OPS`, vote.mjs
+         * `writeTrialProgressInStep`) and a step calls the twin. Read in the module's files without the suite's,
+         * comments and literals blanked: each `serialWrite(` whose first argument is the key, and from its arguments
+         * every call `name(` (or `name[...](`) of a top-level function of the same file or of a file it imports
+         * (statically or through `import(`), followed into that function, and so on; a function holding a step of the
+         * key (the `wrapper`) reached that way is the fault, named with the statement whose step reached it. Not
+         * followed: a method of an object (`x.name(`), a function handed on by reference, and the functions a caller
+         * hands `setTrialProgress` (they run in its step; none calls it at 27.10). The reader is shown a clean twin
+         * first, then three faults. Red at e2085d7b: `advanceFrom`, `seizeFloor` and `objectOnPrimary` called the
+         * public `endFloor`, `openRebuttal` and `openObjection` - no step then, so nothing waited; at this commit they
+         * would.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const KEYS = { seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, progress: /^(?:[\w$]+\s*\.\s*)?TRIAL_PROGRESS_KEY$/ };
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const reachOf = sources => {
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => { d.end = decls[i + 1]?.start ?? blank.length; d.id = `${file}#${d.name ?? "?"}`; });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$.])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    const key = args[0] ? Object.keys(KEYS).find(k => KEYS[k].test(code.slice(args[0].start, args[0].end).trim())) : null;
+                    if (key) steps.push({ key, start: args[0].end, end: close, at: declAt(m.index) });
+                }
+                return { file, blank, decls, imports, steps };
+            });
+            const byName = new Map();
+            for (const f of files) for (const d of f.decls) if (d.name) byName.set(d.name, [...(byName.get(d.name) ?? []), { f, d }]);
+            const resolve = (f, name) => {
+                const all = byName.get(name) ?? [];
+                const own = all.filter(x => x.f === f);
+                return own.length ? own : all.filter(x => f.imports.has(x.f.file));
+            };
+            const broken = new Set(), counted = Object.fromEntries(Object.keys(KEYS).map(k => [k, 0]));
+            for (const key of Object.keys(KEYS)) {
+                const wrappers = new Set(files.flatMap(f => f.steps.filter(s => s.key === key && s.at).map(s => s.at.id)));
+                for (const f of files) for (const step of f.steps.filter(s => s.key === key)) {
+                    counted[key]++;
+                    const seen = new Set(), queue = [[f, step.start, step.end]];
+                    while (queue.length) {
+                        const [g, a, b] = queue.pop();
+                        for (const m of g.blank.slice(a, b).matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\[[^\]\n]*\]\s*)?\(/g)) {
+                            for (const { f: h, d } of resolve(g, m[1])) {
+                                if (seen.has(d.id)) continue;
+                                seen.add(d.id);
+                                if (wrappers.has(d.id)) broken.add(`${key} ${step.at?.id ?? f.file} reaches ${d.id}`);
+                                else queue.push([h, d.start, d.end]);
+                            }
+                        }
+                    }
+                }
+            }
+            return { broken: [...broken].sort(), counted };
+        };
+        const twin = {
+            "trial-floor.mjs": [
+                "import { SEIZE_KEY } from \"./trial.mjs\";",
+                "async function writeFloor(p) { return p; }",
+                "export async function endFloorInStep() { return writeFloor({}); }",
+                "export async function openObjectionInStep(m) { return writeFloor(m); }",
+                "const FLOOR_OPS = { end: () => endFloorInStep() };",
+                "export function floorOnPrimary(op) { return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op]()); }",
+                "export async function endFloor() { return floorOnPrimary(\"end\"); }",
+                "async function advanceFrom(floor) { return endFloorInStep(); }",
+                "export async function advanceIfDue() { await serialWrite(SEIZE_KEY, () => advanceFrom({})); }"
+            ],
+            "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "async function seizeFloor(m) { const { openObjectionInStep } = await import(\"./trial-floor.mjs\"); return openObjectionInStep(m); }",
+                "export function registerTrial() { Hooks.on(\"createChatMessage\", m => { serialWrite(SEIZE_KEY, () => seizeFloor(m)); }); }"
+            ],
+            "vote.mjs": [
+                "export const TRIAL_PROGRESS_KEY = \"trial.progress\";",
+                "async function writeInStep(patch) { return patch; }",
+                "export function setTrialProgress(patch) { return serialWrite(TRIAL_PROGRESS_KEY, () => writeInStep(patch)); }",
+                "export function resetTrialProgress() { return setTrialProgress({}); }"
+            ],
+            "tests-tier2.mjs": ["export const T = () => serialWrite(SEIZE_KEY, () => endFloor());"]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const swap = (file, from, to) => ({ ...twin, [file]: twin[file].map(line => line.startsWith(from) ? to : line) });
+        const faults = [
+            [swap("trial.mjs", "async function seizeFloor", "async function seizeFloor(m) { const { endFloor } = await import(\"./trial-floor.mjs\"); return endFloor(); }"),
+                ["seize trial.mjs#registerTrial reaches trial-floor.mjs#floorOnPrimary"]],
+            [swap("trial-floor.mjs", "async function advanceFrom", "async function advanceFrom(floor) { return endFloor(); }"),
+                ["seize trial-floor.mjs#advanceIfDue reaches trial-floor.mjs#floorOnPrimary"]],
+            [swap("vote.mjs", "async function writeInStep", "async function writeInStep(patch) { return resetTrialProgress(); }"),
+                ["progress vote.mjs#setTrialProgress reaches vote.mjs#setTrialProgress"]]
+        ];
+        const clean = reachOf(planted(twin));
+        equal(JSON.stringify(clean), JSON.stringify({ broken: [], counted: { seize: 3, progress: 1 } }),
+            "the reach reader does not read its clean twin clean, or not all of its steps (3 of the floor's key, 1 of the record's)");
+        const misread = faults.map(([files, want]) => [reachOf(planted(files)).broken, want]).filter(([got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the reach reader misses a planted fault, or reads one more ([read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["trial-floor.mjs", "trial.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        const { broken, counted } = reachOf(sources);
+        log(`R1021: steps read ${JSON.stringify(counted)}`);
+        ok(counted.seize >= 7 && counted.progress >= 2, `${JSON.stringify(counted)} steps read in the module - this would measure nothing`);
+        equal(JSON.stringify(broken), "[]", "a step of the floor's or the record's key reaches a function that opens a step of the same key, and would wait for itself (key, the step's statement, the function reached)");
+    }],
+
+    ["R1022 - the floor is moved on and written on the primary GM alone (E70 C0, S18-72): `advanceIfDue` asks `isPrimaryGm()` before its step, `writeFloor` and `endFloorInStep` before their write, `floorOnPrimary` before its step, and `floorStep` asks the primary by trial.gm from any other GM", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-02 (S18-72's R-test; amend (l): `advanceIfDue` was primary-only since E10 C13, and
+         * nothing read it). Every client counts the floor's clock, and two GMs writing the move it makes restart the
+         * next mode's timer on the second write (E10 C13). Since E70 C0 every writer of the floor is the primary's: the
+         * heartbeat's tick, the two functions that write the setting, and the step a GM's button opens, which on any
+         * other GM goes to the primary as "trial.gm". Read in trial-floor.mjs, comments blanked: each guard comes before
+         * what it guards. Red at e2085d7b: `writeFloor` asked `game.user.isGM` only, and `floorOnPrimary`, `floorStep`
+         * and `endFloorInStep` did not exist.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
+        const before = (body, guard, act) => body.search(guard) >= 0 && body.indexOf(act) > body.search(guard);
+        const tick = fnSource(src, "advanceIfDue"), write = fnSource(src, "writeFloor"), end = fnSource(src, "endFloorInStep");
+        const onPrimary = fnSource(src, "floorOnPrimary"), step = fnSource(src, "floorStep");
+        const read = {
+            tick: before(tick, /if \(!floor \|\| !isPrimaryGm\(\)\) return;/, "serialWrite(SEIZE_KEY"),
+            write: before(write, /if \(!isPrimaryGm\(\)\) return null;/, "game.settings.set("),
+            end: before(end, /if \(!isPrimaryGm\(\)\) return null;/, "game.settings.set("),
+            onPrimary: before(onPrimary, /if \(!isPrimaryGm\(\) \|\|/, "serialWrite(SEIZE_KEY"),
+            step: before(step, /if \(isPrimaryGm\(\)\) return floorOnPrimary\(/, "requestTrialGm(")
+        };
+        equal(JSON.stringify(read), JSON.stringify({ tick: true, write: true, end: true, onPrimary: true, step: true }),
+            "a writer of the floor no longer asks whether this is the primary GM before it writes, or a GM's button no longer goes to the primary");
     }],
 
     ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {

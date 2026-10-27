@@ -51,8 +51,9 @@
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, error, serverNow } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
+import { SEIZE_KEY } from "./trial.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -104,11 +105,70 @@ export function trialFloor() {
     };
 }
 
+/*
+ * ONE WRITER OF THE FLOOR, IN ONE QUEUE (E70 C0, 27.10.2026; E70-01, E70-02, amend 5 (d) of the plan's E70). Every
+ * public writer below wrote the floor on whichever GM called it, each spreading its patch over the floor it read: a
+ * second GM's +30 s beside the primary's heartbeat, or a seizure beside the console's Back to debate, read the same
+ * floor and the later write dropped the earlier one's move (tier 2 E70-T1 at e2085d7b: the GM's +30 s moved the floor
+ * while a step of the seizures' key was held). Now the floor is written only on the primary GM, and only inside a step
+ * of trial.mjs `SEIZE_KEY` - the key E17 C0 gave the seizures - read and written in the same step:
+ *   - each public writer is `floorStep(op, args)`: on the primary a step of the key running the op's in-step twin
+ *     (`FLOOR_OPS`), on another GM the request "trial.gm" (gm-bridge.mjs, gmOnly), which runs the same step there;
+ *   - the heartbeat's tick and the GM's Now are steps of the key too (`advanceIfDue`, `advanceFloorOnPrimary`), and the
+ *     latch `advancing` stays: it keeps a second tick from queueing a second move behind the first;
+ *   - a step never calls a public writer, which would queue behind itself and wait for ever: the seizures
+ *     (trial.mjs `seizeFloor`, `objectOnPrimary`, `evidenceOnPrimary`, `unfill`) and `advanceFrom` call the twins.
+ * The census is tier 0 R991's floor row and R1020 (who writes the setting), R1021 (no step reaches its key's wrapper)
+ * and R1022 (the primary-only reads).
+ */
 async function writeFloor(patch) {
-    if (!game.user.isGM) return null;
+    if (!isPrimaryGm()) return null;
     const next = { ...(game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {}), ...patch };
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, next);
     return next;
+}
+
+/** The ops a GM's change of the floor names, here and in gm-bridge.mjs "trial.gm" (its `as.oneOf`): `FLOOR_OPS`' keys. */
+export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end"]);
+
+/*
+ * Each op's in-step twin, handed what the op reads. A count the bridge did not carry reads 0 there (`as.num`), and
+ * stands for the default it stood for before the request existed.
+ */
+const FLOOR_OPS = {
+    start: ({ seconds }) => startFloorInStep(Number(seconds) > 0 ? seconds : TRIAL.speakSeconds),
+    objection: ({ actorId, targetId, pending = false, messageId = null }) =>
+        openObjectionInStep(actorId, targetId, { pending, messageId }),
+    rebuttal: () => openRebuttalInStep(),
+    fill: ({ actorId, messageId }) => fillObjectionInStep(actorId, messageId),
+    withdraw: ({ actorId, messageId }) => withdrawObjectionInStep(actorId, messageId),
+    repoint: ({ targetId }) => repointObjectionInStep(targetId),
+    back: ({ seconds }) => returnToDebateInStep({ seconds: Number(seconds) > 0 ? seconds : null }),
+    extend: ({ seconds }) => extendFloorInStep(Number(seconds) > 0 ? seconds : 30),
+    end: () => endFloorInStep()
+};
+
+/**
+ * A change of the floor on the primary GM: a step of `SEIZE_KEY` running `op`'s twin, its answer the floor written
+ * (`{}` for an end) or null when the op refused or this is not the primary. Asked by `floorStep` here and by the
+ * bridge's "trial.gm" for another GM.
+ */
+export function floorOnPrimary(op, args = {}) {
+    if (!isPrimaryGm() || !FLOOR_OP_NAMES.includes(op)) return Promise.resolve(null);
+    return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op](args ?? {}));
+}
+
+/**
+ * A GM's change of the floor, wherever it is asked: on the primary its step (`floorOnPrimary`), on another GM the
+ * request "trial.gm" to the primary (gm-bridge.mjs `requestTrialGm`), whose answer is the floor written or null; the
+ * bridge has told this GM why when it is refused. Null on a player's browser.
+ */
+export async function floorStep(op, args = {}) {
+    if (!game.user.isGM) return null;
+    if (isPrimaryGm()) return floorOnPrimary(op, args);
+    const { requestTrialGm } = await import("./gm-bridge.mjs");
+    const res = await requestTrialGm(op, args);
+    return res.ok ? (res.value ?? null) : null;
 }
 
 /** How long the current mode is meant to run. */
@@ -220,6 +280,12 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
         error("Could not switch the campaign phase to the Class Trial", err);
     }
 
+    // The phase above on this GM, as before (its own key, CLOCK_KEY); the floor in the floor's step on the primary.
+    return floorStep("start", { seconds });
+}
+
+/** `startFloor`'s write, in a step of `SEIZE_KEY` on the primary. */
+export async function startFloorInStep(seconds = TRIAL.speakSeconds) {
     const replaced = trialFloor();
     const opened = await writeFloor({
         active: true,
@@ -342,7 +408,11 @@ export async function openObjection(objectorId, targetId, { pending = false, mes
     // asked by the player's own window as well, and a client-side isGM test
     // would refuse every player in the game.
     if (!game.user.isGM) return null;
+    return floorStep("objection", { actorId: objectorId, targetId, pending, messageId });
+}
 
+/** `openObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (the seizures call it there). */
+export async function openObjectionInStep(objectorId, targetId, { pending = false, messageId = null } = {}) {
     const floor = trialFloor();
 
     // WHICH MODES AN OBJECTION MAY INTERRUPT.
@@ -446,6 +516,11 @@ export async function openObjection(objectorId, targetId, { pending = false, mes
 /** Move to the rebuttal: the same pair, two minutes, both of them talking. */
 export async function openRebuttal() {
     if (!game.user.isGM) return null;
+    return floorStep("rebuttal");
+}
+
+/** `openRebuttal`'s write, in a step of `SEIZE_KEY` on the primary. */
+export async function openRebuttalInStep() {
     const floor = trialFloor();
     if (!floor) return null;
 
@@ -463,6 +538,12 @@ export async function openRebuttal() {
  * @returns {Promise<object|null>} the floor written, or null
  */
 export async function fillObjection(objectorId, messageId) {
+    if (!game.user.isGM) return null;
+    return floorStep("fill", { actorId: objectorId, messageId });
+}
+
+/** `fillObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`). */
+export async function fillObjectionInStep(objectorId, messageId) {
     // Under the heartbeat's latch (`advancing`): a fill read inside the seconds and written after the lapse would
     // turn the debate the lapse wrote into an objection's floor with nobody's card on it.
     if (!game.user.isGM || advancing) return null;
@@ -513,11 +594,17 @@ async function withdrawReplaced(floor) {
  * @returns {Promise<object|null>} the floor written, or null
  */
 export async function withdrawObjection(objectorId, messageId) {
+    if (!game.user.isGM) return null;
+    return floorStep("withdraw", { actorId: objectorId, messageId });
+}
+
+/** `withdrawObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
+export async function withdrawObjectionInStep(objectorId, messageId) {
     if (!game.user.isGM || advancing) return null;
     if (!pendingFor(trialFloor(), objectorId, messageId)) return null;
     advancing = true;
     try {
-        return await returnToDebate({});
+        return await returnToDebateInStep({});
     } finally {
         advancing = false;
     }
@@ -532,6 +619,11 @@ export async function withdrawObjection(objectorId, messageId) {
  */
 export async function repointObjection(targetId) {
     if (!game.user.isGM) return null;
+    return floorStep("repoint", { targetId });
+}
+
+/** `repointObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
+export async function repointObjectionInStep(targetId) {
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection) return null;
     if (targetRefusal(floor.holderId, targetId, floor)) return null;
@@ -541,6 +633,11 @@ export async function repointObjection(targetId) {
 /** Back to everybody talking at once. The GM's budget starts again. */
 export async function returnToDebate({ seconds = null } = {}) {
     if (!game.user.isGM) return null;
+    return floorStep("back", { seconds });
+}
+
+/** `returnToDebate`'s write, in a step of `SEIZE_KEY` on the primary (a lapse, a withdrawal, trial.mjs `unfill`). */
+export async function returnToDebateInStep({ seconds = null } = {}) {
     const floor = trialFloor();
     if (!floor) return null;
 
@@ -560,6 +657,11 @@ export async function returnToDebate({ seconds = null } = {}) {
 /** Give the current mode more time, without changing whose it is. */
 export async function extendFloor(extraSeconds = 30) {
     if (!game.user.isGM) return null;
+    return floorStep("extend", { seconds: extraSeconds });
+}
+
+/** `extendFloor`'s write, in a step of `SEIZE_KEY` on the primary. */
+export async function extendFloorInStep(extraSeconds = 30) {
     const floor = trialFloor();
     if (!floor) return null;
 
@@ -601,10 +703,18 @@ export async function extendFloor(extraSeconds = 30) {
  */
 export async function endFloor() {
     if (!game.user.isGM) return null;
+    // On another GM (clock.mjs `reconcilePhase` out of the trial, the console's Close the debate): "trial.gm".
+    await floorStep("end");
+    return null;
+}
+
+/** `endFloor`'s write, in a step of `SEIZE_KEY` on the primary: the empty queue, `{}` its answer. */
+export async function endFloorInStep() {
+    if (!isPrimaryGm()) return null;
     const floor = trialFloor();
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
     await withdrawReplaced(floor);
-    return null;
+    return {};
 }
 
 /* ==========================================================================
@@ -676,7 +786,11 @@ export async function advanceFloorOnPrimary(seen) {
 
     advancing = true;
     try {
-        return await advanceFrom(floor);
+        // Read again in the step (E70 C0): a step queued ahead of this one may have moved the floor on.
+        return await serialWrite(SEIZE_KEY, () => {
+            const now = trialFloor();
+            return floorAsSeen(seen, now) ? advanceFrom(now) : null;
+        });
     } finally {
         advancing = false;
     }
@@ -686,7 +800,7 @@ export async function advanceFloorOnPrimary(seen) {
 async function advanceFrom(floor) {
     // A pending Objection's next step is its lapse (E79 C16): no evidence came, so there is nothing to answer.
     if (floor.mode === FLOOR_MODES.objection && floor.pending) return lapseObjection();
-    if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
+    if (floor.mode === FLOOR_MODES.objection) return openRebuttalInStep();
     /*
      * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
      * an open debate.
@@ -702,11 +816,21 @@ async function advanceFrom(floor) {
      * and the table was still being timed. Ending it puts them back where the
      * exchange began.
      */
-    if (floor.mode === FLOOR_MODES.rebuttal) return endFloor();
+    if (floor.mode === FLOOR_MODES.rebuttal) return endFloorInStep();
     return null;
 }
 
 let advancing = false;
+
+/**
+ * Whether the floor's mode has run out into a move: a pending Objection's seconds are the primary's test's, to the
+ * millisecond (`msLeft`, fix r4-G2). A debate past its budget makes no move (it turns the clock red), so it is never due
+ * and the heartbeat queues no step for it.
+ */
+function isDue(floor) {
+    if (floor.mode === FLOOR_MODES.debate) return false;
+    return floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) <= 0 : secondsLeft(floor) <= 0;
+}
 
 /**
  * A pending Objection whose seconds ran out with no Truth Bullet (E79 C16, 1.2.79; the owner's default D4 of
@@ -716,7 +840,7 @@ let advancing = false;
  * by `returnToDebate`, after the floor, as on every road that replaces a pending floor (`withdrawReplaced`).
  */
 async function lapseObjection() {
-    return returnToDebate({});
+    return returnToDebateInStep({});
 }
 
 /**
@@ -750,16 +874,16 @@ async function advanceIfDue() {
     if (advancing) return;
     const floor = trialFloor();
     if (!floor || !isPrimaryGm()) return;
-    // A pending Objection's seconds are the primary's test's, to the millisecond (`msLeft`, fix r4-G2).
-    if (floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) > 0 : secondsLeft(floor) > 0) return;
+    if (!isDue(floor)) return;
 
     advancing = true;
     try {
-        if (floor.mode === FLOOR_MODES.objection && floor.pending) await lapseObjection();
-        else if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
-        // Same rule when the clock runs it out as when the GM brings it
-        // forward - see `advanceFloorNow`.
-        else if (floor.mode === FLOOR_MODES.rebuttal) await endFloor();
+        // Same rule when the clock runs it out as when the GM brings it forward - see `advanceFloorNow` - and in a
+        // step of the floor's key (E70 C0), the floor read again there: a step ahead of this one may have moved it.
+        await serialWrite(SEIZE_KEY, () => {
+            const now = trialFloor();
+            return now && isDue(now) ? advanceFrom(now) : null;
+        });
     } catch (err) {
         error("Could not advance the trial floor to its next mode", err);
     } finally {

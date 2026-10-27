@@ -38804,6 +38804,82 @@ const SCENARIOS = [
             + "(read per order: the heartbeat's write started, the floor moved on, the rebuttal writes asked for)");
     }],
 
+    ["one writer of the trial's records (E70-T1): two record writes in one tick both land, a record's function reads what its step finds, a floor write waits for the floor's key, and a GM's change of the floor reaches the primary by trial.gm while a player's is refused", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-01, E70-02 (amend 5 (d): trial-floor.mjs and vote.mjs write through `serialWrite`).
+         * Foundry changes a setting's cached value only when the server answers, so two writes of the trial's record
+         * begun within one round trip each spread their patch over the record they read, and the second dropped the
+         * first's field; the floor was written at once by whichever GM asked, beside the primary's queue of seizures
+         * (`SEIZE_KEY`). Read on this primary: (1) two `setTrialProgress` of two fields of the suite's own, together:
+         * both are in the record after; (2) two `setTrialProgress(fn)` that each add one to a counter of the suite's
+         * own: it ends at 2, each function handed the record its step found; (3) on a debate set here, a step of this
+         * test held on `SEIZE_KEY` and the GM's +30 s pressed: the floor does not move while the step is held, and moves
+         * once it opens; (4) the bridge's runner handed a "trial.gm" +30 s as this GM sends it, then an end of the floor
+         * as a connected player sends it (Foundry's sender): the first moves the floor and is answered done, the second is
+         * refused (gmOnly) and the floor stays. Red at e2085d7b: (1) one field, (2) no counter (a function was spread as
+         * a patch), (3) the floor moved inside the held step, (4) no such row (judge answered nothing). The floor and the
+         * record are written back as found.
+         */
+        const F = await import("./trial-floor.mjs");
+        const T = await import("./trial.mjs");
+        const V = await import("./vote.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { serialWrite, isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the queue it reads is the primary's");
+        const player = game.users.find(u => !u.isGM && u.active);
+        must(player, "no player is connected - the refusal read here would be nobody's");
+        const saved = {
+            floor: foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {}),
+            progress: foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {})
+        };
+        const read = {};
+        let open = () => {};
+        try {
+            await Promise.all([V.setTrialProgress({ e70t1a: 1 }), V.setTrialProgress({ e70t1b: 2 })]);
+            const record = getSetting(SETTINGS.trialProgress) ?? {};
+            read.record = [record.e70t1a ?? null, record.e70t1b ?? null];
+            const bump = progress => ({ e70t1n: (progress?.e70t1n ?? 0) + 1 });
+            await Promise.all([V.setTrialProgress(bump), V.setTrialProgress(bump)]);
+            read.counter = getSetting(SETTINGS.trialProgress)?.e70t1n ?? null;
+
+            const start = serverNow() - 10_000;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 600, startedAt: start,
+                pending: false, messageId: null
+            });
+            await settle();
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = serialWrite(T.SEIZE_KEY, () => gate);
+            const extended = F.extendFloor(30);
+            await wait(400);
+            read.whileHeld = F.trialFloor()?.startedAt === start;
+            open();
+            await held;
+            read.afterHeld = Boolean(await extended) && F.trialFloor()?.startedAt > start;
+
+            const heard = [];
+            const send = (to, packet) => heard.push([to === game.user.id ? "gm" : to === player.id ? "player" : String(to),
+                packet?.action ?? null, packet?.reason ?? null]);
+            const before = F.trialFloor()?.startedAt ?? 0;
+            await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T1GM", op: "extend", seconds: 30 }, game.user.id, { send });
+            const moved = (F.trialFloor()?.startedAt ?? 0) > before;
+            await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T1PLAYER", op: "end" }, player.id, { send });
+            read.row = { moved, stays: F.trialFloor()?.mode === F.FLOOR_MODES.debate, heard };
+        } finally {
+            open();
+            await serialWrite(T.SEIZE_KEY, () => null).catch(() => null);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, saved.floor);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, saved.progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            record: [1, 2], counter: 2, whileHeld: true, afterHeld: true,
+            row: { moved: true, stays: true, heard: [["gm", "bridge.ack", null], ["gm", "bridge.done", null], ["player", "bridge.refused", "gmOnly"]] }
+        }), "(1) the two record writes, (2) the counter two functions raised, (3) the floor while the floor's key was held and after, "
+            + "(4) the GM's +30 s by trial.gm, the floor after a player's end, and what each sender was told");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary

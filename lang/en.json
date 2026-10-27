@@ -3142,6 +3142,7 @@
         "trial.evidence": "Put your Truth Bullet on the Objection",
         "trial.withdraw": "Withdraw your Objection",
         "floor.repoint": "Re-point the Objection",
+        "trial.gm": "A GM's change to the trial's floor, run on the primary GM",
         "advancement.offers": "Level Up offers to choose from",
         "murder.openingAsk": "Your opening roll",
         "murder.openingCancel": "The opening roll called off",

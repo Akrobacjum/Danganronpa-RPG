@@ -42,7 +42,7 @@ import { ballotStore, deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serialWrite } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -160,10 +160,33 @@ export function trialProgressChapter() {
     }
 }
 
-/** Amend the record. GM only, and always stamped with the chapter it is about. */
-export async function setTrialProgress(patch = {}) {
-    if (!game.user.isGM) return null;
-    const next = { ...trialProgress(), ...patch, chapter: getClock().chapter };
+/**
+ * The record's key in this browser's queue (utils.mjs `serialWrite`; E70 C0, 27.10.2026, amend 5 (d)). Every write of
+ * the record is a step of it, read and written in the same step: two writes begun within a server round trip each
+ * spread their patch over the record they read, and the second dropped the first's field (tier 2 E70-T1 at e2085d7b:
+ * of two fields written together one was left).
+ */
+export const TRIAL_PROGRESS_KEY = "trial.progress";
+
+/**
+ * Amend the record. GM only, and always stamped with the chapter it is about.
+ *
+ * `patch` is the fields to write, or a function handed the record as its step finds it that answers them (null:
+ * nothing is written). A caller that builds its patch from a record it read earlier - a list it adds to, a vote it
+ * closes - passes the function, or a write that landed between its read and its step is written over.
+ *
+ * A step never calls this (it would wait for its own key): the step's work is `writeTrialProgressInStep`.
+ */
+export function setTrialProgress(patch = {}) {
+    if (!game.user.isGM) return Promise.resolve(null);
+    return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
+}
+
+async function writeTrialProgressInStep(patch) {
+    const before = trialProgress();
+    const change = typeof patch === "function" ? patch(before) : patch;
+    if (!change) return null;
+    const next = { ...before, ...change, chapter: getClock().chapter };
     try {
         await game.settings.set(MODULE_ID, SETTINGS.trialProgress, next);
     } catch (err) {
@@ -183,11 +206,11 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
     // and numbers its first vote after the last one: a ballot of the first trial
     // is of an older round, so no count of the second can read it. `keysCharged`
     // is not named, so the merge keeps it - the Key fee is the chapter's (E09 C7).
-    const { round } = trialProgress().vote;
-    return setTrialProgress({
+    // The round as the record's step finds it (E70 C0).
+    return setTrialProgress(now => ({
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
-        vote: { ...blankVote(), round }, accused: [], total: 0, accusedIds: [], verdict: null
-    });
+        vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null
+    }));
 }
 
 /* ==========================================================================
@@ -331,7 +354,8 @@ export async function ballotFor(sender) {
         const { round, picks, issued } = progress.vote;
         if (roundBallots(progress).some(([userId]) => userId === sender.id)) return { cast: true, round };
         if (!issued.includes(sender.id)) {
-            await setTrialProgress({ vote: { ...progress.vote, issued: [...issued, sender.id] } });
+            // A function (E70 C0): the record its step finds, not the one read above, which a step may have moved on.
+            await setTrialProgress(now => ({ vote: { ...now.vote, issued: [...now.vote.issued.filter(id => id !== sender.id), sender.id] } }));
             Hooks.callAll("drpgBallotsChanged");
             log(`Handed ${sender.name} a ballot, asked for in round ${round} (${issued.length + 1} issued).`);
         }
@@ -574,7 +598,7 @@ async function sendAgain(progress, op) {
         .filter(({ user }) => !back.has(user.id) && (op === "remind" || handed.has(user.id)));
     const joined = voters.map(({ user }) => user.id).filter(userId => !handed.has(userId));
     if (joined.length) {
-        await setTrialProgress({ vote: { ...progress.vote, issued: [...progress.vote.issued, ...joined] } });
+        await setTrialProgress(now => ({ vote: { ...now.vote, issued: [...now.vote.issued.filter(id => !joined.includes(id)), ...joined] } }));
     }
     if (!voters.length) return { sent: 0 };
 
@@ -1048,7 +1072,8 @@ async function closeRound(progress) {
     // the count reads the store, and one that arrives during it waits for it and
     // finds the vote closed - refused, never recorded after the count was read.
     const vote = { ...progress.vote, open: false, closedAt: Date.now() };
-    await setTrialProgress({ vote });
+    // The vote as its step finds it, closed (E70 C0); `vote` above is what the count below reads, as before.
+    await setTrialProgress(now => ({ vote: { ...now.vote, open: false, closedAt: vote.closedAt } }));
     // ABOVE the nobody-answered return: a hook placed after it would leave the
     // console printing a list of voters for a vote that no longer exists (F8).
     Hooks.callAll("drpgBallotsChanged");

@@ -5901,6 +5901,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objRepoint, "gmOnly") && objRepoint.logged.some(r => /only a GM re-points an objection/.test(r))
             && objRepoint.after.mode === "objection" && objRepoint.after.target === ids.chie && objRepoint.after.cards === objRepoint.before.cards,
         JSON.stringify(objRepoint), { flow: "class-trial" });
+    /* E70 C0 (1.2.90; amend 5 (d)): a GM's change of the floor, asked of the primary (`trial.gm`, a GM's only), forged from
+       p1's console during Aiko's running Objection as an end of the floor. Refused gmOnly and told with its code, logged on
+       the GM; the floor still the Objection aimed at Chie, nothing posted. The legal road is a second GM's (63, E70 C1). */
+    const objTrialGm = await objSend(p1, "trial.gm", { op: "end" }, "SECOBJTRIALGM");
+    check("SECURITY: p1's end of the floor through the GMs' row (trial.gm) during Aiko's running Objection is refused (gmOnly) and told - the floor as it was",
+        refusedAs(objTrialGm, "gmOnly") && objTrialGm.logged.some(r => /only a GM changes the trial's floor/.test(r))
+            && objTrialGm.after.mode === "objection" && objTrialGm.after.target === ids.chie && objTrialGm.after.cards === objTrialGm.before.cards,
+        JSON.stringify(objTrialGm), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

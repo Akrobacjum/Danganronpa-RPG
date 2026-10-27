@@ -92,9 +92,11 @@ export const FLOWS = Object.freeze([
     // (`trial.evidence`), and a GM re-points it (`floor.repoint`); 63 drives the three, 33 the legal pair from a player
     // and 30 the forged ones. E79 fix r4-G2: the objector's closed picker withdraws it (`trial.withdraw`); 33 sends it
     // from p1, 30 a forged one from p2.
+    // E70 C0 (1.2.90): every GM's change of the floor on a GM that is not the primary is asked of it through `trial.gm`
+    // (trial-floor.mjs `floorStep`); 30 sends a forged one from p1. No scenario sends it from a second GM until E70 C1.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
-            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint"],
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
