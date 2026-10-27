@@ -3624,7 +3624,8 @@ function dressBand(band, seedBase) {
     // the same two numbers `paintBand` would give the canvas, so this compares like with like
     const W = Math.max(60, Math.round(job.el.clientWidth));
     const H = Math.max(24, Math.round(job.el.clientHeight));
-    if (job.W === W && job.H === H && resolveAcc(job.el) === job.acc) return;
+    // E88 C4: a redraw that finds the band's box and colour as painted, counted (`fps()`, scenario 86).
+    if (job.W === W && job.H === H && resolveAcc(job.el) === job.acc) { count("glass.paintBand.kept"); return; }
     paintBand(job);
   });
   return job;

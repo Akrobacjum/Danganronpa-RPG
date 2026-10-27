@@ -22,7 +22,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
 import { resetAllActions, budgetsOf, putBackBudgets, clearGrants } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, error, plural, serverNow, serialWrite } from "./utils.mjs";
+import { announce, log, warn, error, debug, plural, serverNow, serialWrite } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -760,18 +760,49 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
 /**
  * Redraw everything that shows the clock. Runs on every client, because the
  * setting change fires locally after the world value syncs.
+ *
+ * `only`, a test on the sheet's actor, narrows the pass to the sheets that read
+ * what was written (E88 C4: a Despair pool is read by a Monokuma's sheet alone,
+ * sync.mjs SYNC.despair). A minimised sheet is not rendered: nobody can see its
+ * body, and it is rendered once when it is restored (`renderOnRestore`).
  */
-export function refreshSheets() {
+export function refreshSheets({ only = null } = {}) {
     // Sheets only. This used to render the HUD too, and every sync kind that
     // also ran `renderHud` itself paid for the HUD twice (CORE-12); the kinds
     // that relied on the side effect now ask for the HUD by name in sync.mjs.
     count("clock.refreshSheets");
-    for (const app of Object.values(ui.windows ?? {})) {
-        if (app?.document?.type === "character") { count("clock.refreshSheets.rendered"); app.render(false); }
-    }
-    for (const app of foundry.applications?.instances?.values() ?? []) {
-        if (app?.document?.type === "character") { count("clock.refreshSheets.rendered"); app.render(false); }
-    }
+    const pass = app => {
+        if (app?.document?.type !== "character") return;
+        if (only && !only(app.document)) return;
+        if (app.minimized === true || app._minimized === true) { count("clock.refreshSheets.minimized"); renderOnRestore(app); return; }
+        count("clock.refreshSheets.rendered");
+        app.render(false);
+    };
+    for (const app of Object.values(ui.windows ?? {})) pass(app);
+    for (const app of foundry.applications?.instances?.values() ?? []) pass(app);
+}
+
+/*
+ * A MINIMISED SHEET IS RENDERED WHEN IT IS RESTORED, ONCE (E88 C4, 27.10.2026; E88-09). Every sheet pass rendered
+ * every open character sheet, a minimised one too - its whole body built behind a title bar. The pass passes it by
+ * and wraps this one window's `maximize` (ApplicationV2's and V1's restore, the title bar's double click included)
+ * so that the restore renders it with what the world holds then, after which its own `maximize` is put back. A
+ * sheet passed by twice is wrapped once. Its pixels on the restore are the table's to see (no layout headless):
+ * R1013 holds the order on a stand-in.
+ */
+const waitingRestore = new WeakSet();
+function renderOnRestore(app) {
+    if (waitingRestore.has(app) || typeof app.maximize !== "function") return;
+    waitingRestore.add(app);
+    const own = Object.hasOwn(app, "maximize"), original = app.maximize;
+    app.maximize = async function (...args) {
+        if (own) app.maximize = original;
+        else delete app.maximize;
+        waitingRestore.delete(app);
+        const result = await original.apply(this, args);
+        try { count("clock.refreshSheets.rendered"); this.render(false); } catch (err) { debug("A restored sheet could not be rendered", err); }
+        return result;
+    };
 }
 
 /**

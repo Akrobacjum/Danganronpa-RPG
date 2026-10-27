@@ -32,8 +32,12 @@
  *                                                                       a held layer live (its picture out of date), a
  *                                                                       picture freed (fog.mjs, E88 C3)
  *   clock.refreshSheets, clock.refreshSheets.rendered                   a sheet pass, and the sheets it rendered
+ *   clock.refreshSheets.minimized                                       a minimised sheet passed by, rendered on its
+ *                                                                       restore (E88 C4)
  *   hud.renderHud, playerStatus.render                                  the HUD and the status strip drawn
  *   glass.pulseFrame, glass.paintBand                                   the curtain's pulse frame, a window band painted
+ *   glass.paintBand.kept                                                a window redrawn whose band's box and colour
+ *                                                                       stood, so nothing was painted (E88 C4)
  *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that
  *                                                                       wore one already drawn, a light left on its live
  *                                                                       filter, a texture freed (fog-reveal.mjs, E88 C1)

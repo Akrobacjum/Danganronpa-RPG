@@ -20,9 +20,9 @@
  *   clock      the time of day moved and put back (`setTimeOfDay`, then `setClock`, as 13 does)
  *   ledger     a room discovered for Aiko (fog.mjs `setDiscovery`), the discovery ledger's write
  * Under Stained Glass and again under Monokuma Legacy (the theme is each browser's own setting, put back after).
- * No sheet is counted rendered: the harness's actor sheet is a stand-in that registers in neither `ui.windows` nor
- * `foundry.applications.instances` (read 27.10.2026), so `clock.refreshSheets.rendered` is 0 here by construction;
- * the sheets a write renders are E37's 81-render-budget's, on real sheets.
+ * The harness's actor sheet is a stand-in that registers in neither `ui.windows` nor `foundry.applications.instances`
+ * (read 27.10.2026), so `clock.refreshSheets.rendered` counts only the stand-ins E88 C4 opens for the Despair write
+ * (below); the sheets a write renders on real sheets are E37's 81-render-budget's.
  *
  * WHAT IS CHECKED, AND WHAT IS ONLY RECORDED. The checks hold that the table was laid as asked and that each
  * event was counted on the browsers it reaches - they are true at Base and stay true through E88's optimisations.
@@ -45,6 +45,10 @@
  * every move each browser's every token is checked against a whole pass run there and then: none shown or hidden
  * otherwise (E37's risk sentence: a narrowed pass never leaves another player's hidden token visible). State, not only
  * counts.
+ *
+ * E88 C4 (27.10.2026; E88-09): a setting write renders what it changed. For the Despair write each browser holds two
+ * stand-in sheets in `ui.windows` - Aiko's and a Monokuma's, counting their renders - and the write renders the
+ * Monokuma's alone and builds no status strip (at 7baff238: both rendered, a strip on every browser).
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -100,6 +104,17 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         return { moved, live: { filters: c.live.filters, blurs: c.live.blurs, masks: c.live.masks, byName: c.live.byName },
             glass: document.body.classList.contains("drpg-theme-stained-glass") };`;
     const rows = {};
+    /* E88 C4: two stand-in character sheets in `ui.windows`, the registry clock.mjs `refreshSheets` walks (the harness's
+       own sheet registers in none, so the sheets a pass renders were 0 here by construction at C0): Aiko's and a
+       Monokuma's, each counting its renders. Taken out by UNPLANT, which hands back the counts. */
+    const PLANT = `const renders = globalThis.__s86sheets = { student: 0, monokuma: 0 };
+        const sheet = (id, doc) => ({ appId: id, id, document: doc, rendered: true, element: null, position: {},
+            render() { renders[id.slice(4)] += 1; return this; }, bringToTop() {}, async close() {} });
+        ui.windows["s86-student"] = sheet("s86-student", game.actors.get("${IDS.aiko}"));
+        ui.windows["s86-monokuma"] = sheet("s86-monokuma", { type: "character", name: "Monokuma", getFlag: (scope, key) => key === "monokuma" || undefined });
+        return true;`;
+    const UNPLANT = `delete ui.windows["s86-student"]; delete ui.windows["s86-monokuma"];
+        const out = globalThis.__s86sheets; delete globalThis.__s86sheets; return out;`;
     /* E88 C2: each token as this browser shows it now against a whole pass run there and then (its refreshes flushed) -
        a token the narrowed pass left shown or hidden otherwise is named. Botan's own reading is handed back. */
     const STATE = `const V = await import("${repoUrl}/scripts/visibility.mjs");
@@ -184,9 +199,16 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         const leave = await stateHolds(theme, "Botan walked back out of Dorm A");
         check(`${theme}: C2 - Botan walked back out of Dorm A leaves Aiko's player's screen by his own refresh (E88-06)`,
             leave.p1.botan === false && oneRefresh(outside, "p1"), J({ moved: outside.p1.moved, leave }));
+        // E88 C4: a student's and a Monokuma's stand-in sheet open on every browser for the write, each counting its renders.
+        await Promise.all(Object.values(clients).map(c => c.eval(PLANT)));
         const pool = await measure(theme, "despair", () => gm.eval(`await game.drpg.setDespair(game.user.id, ${Number(despair) === 3 ? 4 : 3}); return true;`));
+        const sheets = {};
+        for (const [who, c] of Object.entries(clients)) sheets[who] = await c.eval(UNPLANT);
         check(`${theme}: a Despair write is counted on every browser`,
             Object.keys(clients).every(who => beyondRest(theme, pool, who)), J(Object.fromEntries(Object.entries(pool).map(([who, r]) => [who, r.moved]))));
+        check(`${theme}: C4 - a Despair write renders the Monokuma's sheet open on every browser and not the student's, and builds no status strip (E88-09)`,
+            Object.keys(clients).every(who => J(sheets[who]) === J({ student: 0, monokuma: 1 }) && !pool[who].moved["playerStatus.render"]),
+            J({ sheets, strip: Object.fromEntries(Object.entries(pool).map(([who, r]) => [who, r.moved["playerStatus.render"] ?? 0])) }));
         await gm.eval(`await game.drpg.setDespair(game.user.id, ${J(despair)}); return true;`);
         await settle(800);
         const clock = await measure(theme, "clock", () => gm.eval(`

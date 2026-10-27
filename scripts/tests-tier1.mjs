@@ -21826,6 +21826,90 @@ const INVARIANTS = [
             "the prerenders that drew the pictures");
     }],
 
+    ["R1013 - a setting write renders what it changed (E88 C4): a Despair write renders the Monokumas' sheets and no student's, a sheet pass leaves a minimised sheet for its restore and renders it then, and the status strip redraws for a module setting it reads and for no other", async () => {
+        /*
+         * E88 C4, 27.10.2026; E88-09. Scenario 86 at 7baff238 (C3): a write of the GM's Despair pool asked a sheet pass,
+         * the HUD and the status strip on every browser, and the sheet pass renders every open character sheet - a
+         * student's reads nothing of a pool (sheet.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the
+         * strip redrew for every module setting written, whatever it reads. Read here on stand-in sheets standing in
+         * `ui.windows` for the length of the test (a student, a Monokuma, a minimised student; each counts its renders
+         * and is taken out in `finally`), through sync.mjs's own `applyKind` for SYNC.despair, then clock.mjs
+         * `refreshSheets` and the minimised one's restore; and the settings the strip reads, gathered off
+         * `game.settings.get` while it is built on this browser and for a student in and out of an Eclipse, against
+         * player-status.mjs `stripReadsSetting`, which its `updateSetting` listener asks. Nothing is written. Red at
+         * 7baff238: the student's sheet rendered on a Despair write, the minimised one on the pass, and no
+         * `stripReadsSetting`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student whose strip is built");
+        const S = await import("./sync.mjs");
+        const K = await import("./clock.mjs");
+        const PS = await import("./player-status.mjs");
+        const M = await import("./monokuma.mjs");
+        const student = studentActors().find(a => !a.getFlag?.(MODULE_ID, FLAGS.deceased)) ?? studentActors()[0];
+        must(student, "no student in this world - the strip would be built for nobody");
+
+        // Three stand-in sheets in the registry the sheet pass walks; each counts its renders.
+        const renders = {};
+        const sheet = (id, doc, extra = {}) => ({ appId: id, id, document: doc, rendered: true, element: null, position: {},
+            render() { renders[id] = (renders[id] ?? 0) + 1; return this; }, bringToTop() {}, async close() {}, ...extra });
+        const monokuma = { type: "character", name: "R1013 Monokuma", getFlag: (scope, key) => (key === FLAGS.monokuma ? true : undefined) };
+        const ids = ["R1013-student", "R1013-monokuma", "R1013-minimised"];
+        const stand = [sheet(ids[0], student), sheet(ids[1], monokuma), sheet(ids[2], student, {
+            minimized: true, async maximize() { this.minimized = false; return this; }
+        })];
+        const windows = ui.windows ?? {};
+        must(ids.every(id => !(id in windows)), "a window of this world already holds one of the stand-ins' ids");
+        let despair, pass, restored, again;
+        try {
+            stand.forEach(app => { windows[app.appId] = app; });
+            S.applyKind(S.SYNC.despair);
+            await S.syncIdle({ kinds: [S.SYNC.despair] });
+            despair = ids.map(id => renders[id] ?? 0);
+            Object.keys(renders).forEach(k => delete renders[k]);
+            K.refreshSheets();
+            pass = ids.map(id => renders[id] ?? 0);
+            await stand[2].maximize();
+            restored = renders[ids[2]] ?? 0;
+            Object.keys(renders).forEach(k => delete renders[k]);
+            K.refreshSheets();
+            again = ids.map(id => renders[id] ?? 0);
+        } finally {
+            ids.forEach(id => { if (windows[id] && stand.includes(windows[id])) delete windows[id]; });
+        }
+        equal(JSON.stringify(despair), JSON.stringify([0, 1, 0]),
+            "[a student's sheet, a Monokuma's, a minimised student's] rendered on a Despair write");
+        equal(JSON.stringify([pass, restored, again, Object.hasOwn(stand[2], "maximize")]), JSON.stringify([[1, 1, 0], 1, [1, 1, 1], true]),
+            "[the sheets a pass renders, the minimised one rendered on its restore, the next pass, its own maximize put back]");
+
+        // The settings the strip reads, gathered off every read while it is built.
+        const reads = new Set();
+        const ownGet = Object.hasOwn(game.settings, "get"), get = game.settings.get;
+        game.settings.get = function (scope, key, ...rest) {
+            if (scope === MODULE_ID) reads.add(key);
+            return get.call(this, scope, key, ...rest);
+        };
+        try {
+            PS.renderPlayerStatus();
+            PS.buildPlayerView(student, { remember: false });
+            PS.buildPlayerView(student, { remember: false, eclipse: true });
+            PS.buildPlayerView(student, { remember: false, eclipse: false });
+            PS.stillPlacing([student]);
+            M.ownStudent();
+        } finally {
+            if (ownGet) game.settings.get = get;
+            else delete game.settings.get;
+        }
+        const asks = typeof PS.stripReadsSetting === "function" ? PS.stripReadsSetting : null;
+        const missed = [...reads].filter(key => !asks?.({ key: `${MODULE_ID}.${key}` }));
+        equal(JSON.stringify([reads.size > 0, missed]), JSON.stringify([true, []]),
+            `[the strip read a module setting, the settings it read that do not redraw it] (read: ${JSON.stringify([...reads].sort())})`);
+        const unread = [SETTINGS.despairPools, SETTINGS.poolNames, SETTINGS.killingGameRules].filter(key => !reads.has(key));
+        must(unread.length > 0, "the strip read every setting this test would write past it - nothing to hold the listener to");
+        equal(JSON.stringify([unread.map(key => asks?.({ key: `${MODULE_ID}.${key}` }) ?? true), asks?.({ key: "core.R1013" }) ?? true]),
+            JSON.stringify([unread.map(() => false), false]),
+            `[the strip redraws for ${unread.join(", ")}, for another package's setting]`);
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
