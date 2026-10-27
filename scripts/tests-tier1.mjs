@@ -22027,6 +22027,70 @@ const INVARIANTS = [
             JSON.stringify({ otherScene: "main", otherFloor: "main", roomGone: "main", noToken: "main", eclipse: "main", trial: "main", fresh: "main" }),
             "where each walk ends outside every room: kept where it may not be (another scene or floor, a room deleted, a pass with no token, an Eclipse or the trial between, a memory that starts empty - a new primary GM)");
     }],
+    ["R1016 - the books say how to read fps() and what to turn off (E88 C7, E88-13): each GM handbook's reading of fps() names every heading fps() prints, by the words it prints them in, and the Look's switches in the order to turn them off, by their names in that language, the theme last; each player handbook says the same switches in that order; each GM handbook's voice section says what a doorway keeps (LIVE-E88-03)", async () => {
+        /*
+         * E88 C7, 27.10.2026. The owner's table lagged and the stage's first answer is a reading: `fps()` prints
+         * English headings (console English, like perf()) and the handbooks tell a GM or a player what each means
+         * and which switch to try first. A book that names a heading the console stopped printing, or a switch by a
+         * name the Look no longer shows, sends a lagging table to look for something that is not there.
+         * Read: diagnostics.mjs `frameCostRun` for the headings, lang/en.json and lang/pl.json for the four Look
+         * switches' names (DRPG.Settings.<key>.name), the four handbooks fetched as R125 fetches them, each passage
+         * found by its bold lead line, the switches found one after another (each searched from where the last was
+         * found, so the order is read, not only their presence). THE CONTROL: the same search with the switches
+         * reversed must miss in every passage, so the order is what passes. Red at c506a879 (C6): no handbook has
+         * either passage and the voice sections do not cite LIVE-E88-03.
+         */
+        const J = stableJson;
+        const run = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/diagnostics.mjs`).then(lfText)), "frameCostRun");
+        const headings = ["On the canvas now", "Seams' light drawn once", "The module's work", "Each held alone", "the canvas"];
+        equal(J(headings.filter(h => !run.includes(h))), J([]), "[the headings the books name that frameCostRun no longer prints]");
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const switches = lang => ["glassBlur", "glassPulse", "hudTicker", "reducedMotion"].map(k => flats[lang][`DRPG.Settings.${k}.name`]);
+        for (const lang of ["en", "pl"]) must(switches(lang).every(s => typeof s === "string" && s.length > 3), `${lang}.json lacks a Look switch's name: ${J(switches(lang))}`);
+        const books = {};
+        for (const name of ["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            books[name] = await lfText(res);
+        }
+        const lead = (text, start) => text.split("\n").find(line => line.startsWith(start)) ?? "";
+        const inOrder = (text, words) => {
+            const low = text.toLowerCase();
+            let at = 0;
+            for (const word of words) {
+                const found = low.indexOf(word.toLowerCase(), at);
+                if (found < 0) return false;
+                at = found + word.length;
+            }
+            return true;
+        };
+        const passages = {
+            "gm-handbook.en": lead(books["gm-handbook.en"], "**Reading `fps()`"),
+            "gm-handbook.pl": lead(books["gm-handbook.pl"], "**Jak czytać `fps()`"),
+            "player-handbook.en": lead(books["player-handbook.en"], "**If the screen stutters**"),
+            "player-handbook.pl": lead(books["player-handbook.pl"], "**Gdy ekran się przycina**")
+        };
+        const wrong = [], control = [];
+        for (const [name, text] of Object.entries(passages)) {
+            const lang = name.endsWith(".pl") ? "pl" : "en";
+            if (!text) { wrong.push(`${name}: no passage`); continue; }
+            const order = [...switches(lang), "Monokuma Legacy"];
+            if (!inOrder(text, order)) wrong.push(`${name}: the switches not named in the order ${J(order)}`);
+            if (inOrder(text, [...order].reverse())) control.push(name);
+            if (name.startsWith("gm-")) for (const h of headings) if (!text.includes(`*${h}`)) wrong.push(`${name}: names no ${h}`);
+        }
+        const voice = { "gm-handbook.en": "### 9.5 Voice", "gm-handbook.pl": "### 9.5 Głos" };
+        for (const [name, heading] of Object.entries(voice)) {
+            const section = books[name].match(new RegExp(`^${heading}\\n([\\s\\S]*?)(?=^#{2,3} )`, "m"))?.[1] ?? "";
+            if (!section.includes("LIVE-E88-03")) wrong.push(`${name}: section 9.5 does not say what a doorway keeps (LIVE-E88-03)`);
+        }
+        equal(J(wrong), J([]), "[what the books lack of fps()'s reading and the switches]");
+        equal(J(control), J([]), "[passages that pass with the switches reversed - the order would not be read]");
+    }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
