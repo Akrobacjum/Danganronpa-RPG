@@ -32,7 +32,10 @@ import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
-import { discoveredFor, myDiscoveredRooms } from "./fog.mjs";
+import { discoveredFor, myDiscoveredRooms, roomsStoodInNow } from "./fog.mjs";
+// What a private card's meta says on this browser (H84 fix G3, `proposedBy`). secret.mjs reaches nothing that imports
+// this file (read 27.10.2026: its imports are bridge-guards, utils, rooms, config, settings and gm-store), so no cycle (R161).
+import { cardMeta } from "./secret.mjs";
 // Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
@@ -141,6 +144,18 @@ export function knowsProject(countdownId, user = game.user) {
     const room = roomOf(countdownId);
     if (!room) return true;
 
+    /* WHO MADE IT KNOWS IT (H84-04, 27.10.2026; the owner's live session on 1.2.85, triage C4). A public project knew its
+       proposer no better than anybody else: the record alone was asked, and a proposer whose character the GM had
+       placed in the room, or moved, or whose room the approval changed, did not see their own project on the tray or
+       the map. Answered from what each browser may hold (`proposedBy`): a GM's from the GMs' `by`, the proposer's own
+       from the private card the GM sent them. De0626e1 wrote the proposer's owners into the public meta's
+       `sealedViewers` instead, which put who proposed a public project - a GM-only field until then - in every
+       player's console (the end review's H84-SEC-02, H84R-5; fixed in H84 fix G3). */
+    if (proposedBy(countdownId, user)) return true;
+    /* Who knew it while it was sealed, when it was revealed (`revealChange` keeps them in `sealedViewers`, public since
+       E05, the exposure S09-05 accepts): they still know it. */
+    if ((metaFor(countdownId).sealedViewers ?? []).includes(user?.id)) return true;
+
     /* Any character this person holds having been there is enough. A player
        running two students knows what either of them has seen - the same rule
        `incidentWitness` uses for the incident's seats. */
@@ -155,6 +170,78 @@ export function knowsProject(countdownId, user = game.user) {
     const sceneIds = ref ? [ref.sceneId] : placeScenes().filter(s => roomRegions(s, room).length).map(s => s.id);
     if (!sceneIds.length) return false;
     return hasStoodIn(user, room, sceneIds);
+}
+
+/**
+ * WHETHER `user` PROPOSED THIS PUBLIC PROJECT, AS THIS BROWSER MAY KNOW IT (H84 fix G3, 27.10.2026; the end review's
+ * H84-SEC-02, H84R-5). Who proposed a project is the GMs' (`by`, projects-secrecy.mjs `PROJECT_SECRET_FIELDS`), so it is
+ * read where it is held: on a GM's browser from `by` (an owner of the proposing character); on the proposer's own
+ * browser from the private card the GMs sent them (`tellProposer`), whose meta names the project (`PROJECT_KNOWN`) and
+ * travels with its words to its readers alone (secret.mjs); a card a GM did not write counts for nothing. Nobody else's
+ * browser holds either. A card's words reach a browser that was away when a GM gives them again (secret.mjs
+ * `askForWords`); until then the room rule below answers.
+ */
+function proposedBy(countdownId, user) {
+    if (!user) return false;
+    if (game.user?.isGM) return ownerIdsOfId(secretsOf(countdownId).by).includes(user.id);
+    return user === game.user && projectsToldHere().has(countdownId);
+}
+
+/** The meta key of the proposer's card that names the project (`tellProposer`, `proposedBy`). */
+export const PROJECT_KNOWN = "projectKnown";
+
+/* The projects the GMs' cards on this browser name (`projectsToldHere`); emptied when a card or its words arrive or go. */
+let toldHere = null;
+
+/** The ids of the projects this browser's private cards from a GM name as its user's own (`PROJECT_KNOWN`). */
+function projectsToldHere() {
+    if (toldHere) return toldHere;
+    const told = new Set();
+    for (const message of game.messages ?? []) {
+        if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;
+        const id = cardMeta(message, PROJECT_KNOWN);
+        if (typeof id === "string" && id) told.add(id);
+    }
+    toldHere = told;
+    return told;
+}
+
+/**
+ * Send the proposer of a public project the private card that tells their browser they know it (H84 fix G3): to the
+ * owners of the proposing character and the GMs, veiled (the document names no reader and no speaker, so who proposed
+ * it is not read off the card either), its meta naming the project (`PROJECT_KNOWN`). A GM's; `by`, `name` and `room`
+ * as the caller holds them (a GM that is not the primary may not hold the new project's GM row yet). Answers whether a
+ * card was posted: none for a secret project, one with no room (known to everybody who sees it), or a character no
+ * player owns.
+ */
+export async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = rawCountdown(countdownId)?.name, room = roomOf(countdownId) } = {}) {
+    if (!game.user?.isGM || !countdownId || !room || isSecret(countdownId)) return false;
+    const actor = game.actors.get(by ?? "");
+    if (!actor || !ownerIdsOfId(actor.id).some(id => !game.users.get(id)?.isGM)) return false;
+    const posted = await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Project.proposerKnows",
+        { name: foundry.utils.escapeHTML(name ?? "?"), room: foundry.utils.escapeHTML(room) })}</p>`,
+    { veiled: true, flags: { [MODULE_ID]: { [PROJECT_KNOWN]: countdownId } } });
+    return Boolean(posted);
+}
+
+/**
+ * THE PROPOSERS OF PROJECTS MADE BEFORE 1.2.88 ARE TOLD ONCE (H84 fix G3, 27.10.2026; the end review's H84-SEC-03,
+ * H84R-07, H84R-4: the owner's own reported project was made on 1.2.85, and its proposer still did not see it). On the
+ * primary GM, at its load: every public project with a room, a proposer (`by`) and no `proposerTold` in the GMs' row,
+ * not finished, is told (`tellProposer`) and marked, so the next load posts nothing. Answers how many were told.
+ */
+export async function tellProposers() {
+    if (!isPrimaryGm()) return 0;
+    if (await projectSecretStore.whenHydrated?.() === "timedOut") return 0;
+    let told = 0;
+    for (const project of allProjects()) {
+        const row = secretsOf(project.id);
+        if (!row?.by || row.proposerTold || isComplete(project) || isSecret(project.id) || !roomOf(project.id)) continue;
+        if (await tellProposer(project.id, { by: row.by, name: project.name, room: roomOf(project.id) })) told++;
+        await applyProjectChange(project.id, { meta: { proposerTold: true } }, { by: { kind: "system" } });
+    }
+    if (told) log(`Told ${told} proposer(s) of a public project made before 1.2.88 that they know it.`);
+    return told;
 }
 
 /**
@@ -182,6 +269,17 @@ export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermi
         return sceneIds.some(sceneId => myDiscoveredRooms(game.scenes?.get(sceneId), { mastermind: true }).has(room));
     }
     try {
+        /* THE ROOM A CHARACTER STANDS IN IS KNOWN, AS THE FOG KNOWS IT (H84-04, 27.10.2026; triage C4). The fog clears
+           the rooms a player's tokens stand in now and the ones this browser saw them reach before the record caught up
+           (fog.mjs `myCurrentRooms`, `mirroredFor`); this asked the record alone, so a character the GM placed in a
+           room (seeded fill-only, so an unticked cell stays unticked) or whose row had not reached this browser stood in
+           a room the fog drew clear and did not see the public project in it. Both are read here: the scene's tokens
+           for anybody, the fog's own union on this player's own browser. */
+        for (const sceneId of sceneIds) {
+            const scene = game.scenes?.get(sceneId);
+            if (roomsStoodInNow(scene, user).has(room)) return true;
+            if (user === game.user && !user.isGM && myDiscoveredRooms(scene, { mastermind: false, gm: false }).has(room)) return true;
+        }
         for (const actor of game.actors ?? []) {
             if (actor.type !== "character") continue;
             if (!actor.testUserPermission(user, "OWNER")) continue;
@@ -1168,6 +1266,17 @@ export function registerProjectChanges() {
         if (key !== `${MODULE_ID}.${SETTINGS.gmRerollBookmarks}` || !isPrimaryGm()) return;
         releaseKeptProjects().catch(err => error("Could not let a kept project go", err));
     });
+    /* A proposer's card, or its words, came or went (H84 fix G3): `projectsToldHere` reads again, and the tray and the
+       project tokens ask again whom they show when the words name a project. */
+    const forget = () => { toldHere = null; };
+    Hooks.on("createChatMessage", forget);
+    Hooks.on("deleteChatMessage", forget);
+    Hooks.on("drpgSecretStored", message => {
+        forget();
+        if (!cardMeta(message, PROJECT_KNOWN)) return;
+        import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
+        import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
+    });
 }
 
 /**
@@ -1297,10 +1406,20 @@ export async function createProject({
             ...(saboteur ? { saboteur } : {}),
             ...(saboteur && sabotageAsk ? { sabotageAsk } : {}),
             ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
-            ...(passage ? { passage } : {})
+            ...(passage ? { passage } : {}),
+            /* A PUBLIC PROJECT IS KNOWN TO WHOEVER PROPOSED IT (H84-04; H84 fix G3): the GMs' mark that its proposer is
+               told below, by a private card (`tellProposer`) - never their user ids in the public meta. */
+            ...(!hidden && by && room ? { proposerTold: true } : {})
         }
     }, { by: { kind: "gm" } });
     if (!made?.created) return null;
+    if (!hidden && by && room) {
+        try {
+            await tellProposer(id, { by, name, room });
+        } catch (err) {
+            error(`Could not tell the proposer of "${name}" that they know it`, err);
+        }
+    }
 
     /* ONTO THE MAP, if it has a room to stand in: by the change itself (`applyProjectChange` ends with the
        token's sync, E36 C4), on the primary GM's browser where the change ran. Until E36 this placed the

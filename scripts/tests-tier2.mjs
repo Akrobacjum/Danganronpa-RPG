@@ -28079,7 +28079,12 @@ const SCENARIOS = [
         const players = game.users.filter(u => !u.isGM);
         const [insider, outsider] = players;
 
-        const room = scene.regions?.contents?.[0]?.name ?? null;
+        /* A room the outsider's characters do not stand in now (H84-04, 27.10.2026): the room a character stands in is
+           known as the fog knows it, so "never been in its room" needs a room none of them is in at the moment. */
+        const { roomOfToken } = await import("./movement.mjs");
+        const standing = new Set(Array.from(scene.tokens ?? []).filter(t => t.actor?.type === "character"
+            && t.actor.testUserPermission(outsider, "OWNER")).map(t => roomOfToken(t)));
+        const room = scene.regions?.contents?.find(r => !standing.has(r.name))?.name ?? null;
         const made = [];
         try {
             /* ---- the secret road ------------------------------------------- */
@@ -28367,13 +28372,21 @@ const SCENARIOS = [
         needs(world.atLeast("namedRooms"), "the tray gate only bites on a project with a room");
         needs(world.atLeast("playersWithCharacter"), "discovery is recorded per character");
         const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
-        const room = scene.regions?.contents?.find(r => r.name?.trim())?.name ?? null;
 
         /* The first player who actually HOLDS somebody: discovery is recorded
            per character, so an account with no character can never discover
            anything and would make every assertion below trivially true. */
         const outsider = game.users.filter(u => !u.isGM).find(u => game.actors
             .some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+
+        /* A room the outsider's characters do not stand in now (H84-04, 27.10.2026, as the token test above): the room a
+           character stands in is known as the fog knows it, so "not found yet" needs a room none of them is in at the
+           moment. This took the scene's first named room; headless that is "Dorm A", where PlayerOne's student stands
+           (measured 27.10.2026 at 4a17f888), so the project read known with the record cleared - CI's suite 2/8 on
+           4a17f888 failed it the same way. A cleared record cannot make a room unknown that a token stands in. */
+        const standing = fog.roomsStoodInNow(scene, outsider);
+        const room = scene.regions?.contents?.find(r => r.name?.trim() && !standing.has(r.name))?.name ?? null;
+        must(room, `every named room of ${scene?.name} has a character of ${outsider?.name}'s standing in it - "not found" would measure nothing`);
 
         const mine = game.actors.filter(a => a.type === "character"
             && a.testUserPermission(outsider, "OWNER")).map(a => a.id);
@@ -54617,6 +54630,89 @@ const SCENARIOS = [
             `whether ${user.name} knows the project in the room ${student.name} found and the one in the room not found, viewing the projects' scene and another`);
     }],
 
+    ["a public project is known to whoever proposed it, and to a player whose character stands in its room whatever the record says, and who proposed it is in no public meta (H84-04)", async () => {
+        /*
+         * H84-04, 27.10.2026; the owner's live session on 1.2.85 ("the author did not see their own public project"),
+         * triage C4. `knowsProject` asked the discovery record alone: a proposer whose room the approval changed, or whose
+         * character the GM had placed (seeded fill-only, so an unticked cell stays unticked), or whose row had not reached
+         * their browser, did not see their own project on the tray or the map, while their fog drew the room clear. Here,
+         * in a GM-store world of the suite's own, a scene of three rooms: a student of a player's stands in the first,
+         * whose cell is unticked; a project in each - the first's and the third's made by the GM, the second's proposed
+         * by that student. Read on this GM, as the "Known by" card reads it (`knowsProject(id, user)`), for the student's
+         * player and for another player; the second project's `sealedViewers` (public meta, what the proposer's own
+         * browser reads); and the record of the first room. Red at 7a79b30c: the proposer knew none of the three, and the
+         * proposed project named nobody.
+         * H84 fix G3 (the end review's H84-SEC-02/H84R-5, H84-SEC-03/H84R-07/H84R-4): who proposed a public project is
+         * the GMs' (`by`, PROJECT_SECRET_FIELDS) and is in no public meta: no project's `sealedViewers` names the
+         * proposer; this GM answers from `by`; the proposer's own browser from a private card the GM posts them, veiled,
+         * whose meta names the project (`PROJECT_KNOWN`; scenario 66 E4 reads it on p1). Read too: the card this GM holds
+         * for the second project and the GMs' mark `proposerTold`; then, for a project made before 1.2.88 (the mark
+         * taken off), `tellProposers` twice - the cards it posts each time, and the mark after. Red at b9540ce7: the
+         * proposed project's `sealedViewers` named the proposer, no card, no mark, no `tellProposers`.
+         */
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "a GM knows every project, so the reading would be \"yes\" whatever the rule");
+        needs(world.atLeast("playerAccounts", 2), "the proposer and another player");
+        const user = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const other = game.users.find(u => !u.isGM && u.id !== user.id && !student.testUserPermission(u, "OWNER"));
+        must(other, `every other player owns ${student.name} too - the other player's reading would measure nothing`);
+        const P = await import("./projects.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const ROOMS = ["SUITE H84-04 where the student stands", "SUITE H84-04 the proposed room", "SUITE H84-04 nobody's room"];
+        const S = await import("./secret.mjs");
+        let read = null;
+        const before = new Set(game.messages.map(m => m.id));
+        const cardsOf = id => game.messages.filter(m => !before.has(m.id) && S.cardMeta(m, P.PROJECT_KNOWN ?? "projectKnown") === id).length;
+        await G.withGmStoreWorld(`suite-h8404-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const made = [];
+            try {
+                scene = await Scene.create({ name: "SUITE H84-04 the projects' scene", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", ROOMS.map((room, i) => ({ name: room,
+                    shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+                await settle();
+                await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: ROOMS[0], value: false }]);
+                await settle();
+                for (const [i, room] of ROOMS.entries()) {
+                    const id = (await P.createProject({ name: `SUITE H84-04 ${i}`, target: 6, room, ...(i === 1 ? { by: student.id } : {}) }))?.id ?? null;
+                    must(id, "could not create a project - this would measure nothing");
+                    made.push(id);
+                }
+                await settle();
+                read = {
+                    proposer: made.map(id => P.knowsProject(id, user)),
+                    other: made.map(id => P.knowsProject(id, other)),
+                    sealed: made.map(id => (P.metaFor(id).sealedViewers ?? []).includes(user.id)),
+                    recorded: F.discoveredFor(scene.id, student.id).includes(ROOMS[0]),
+                    told: [cardsOf(made[1]), P.secretsOf(made[1]).proposerTold ?? null]
+                };
+                // A project made before 1.2.88: no mark. The primary's load tells its proposer once.
+                await P.applyProjectChange(made[1], { meta: { proposerTold: null } }, { by: { kind: "gm" } });
+                const was = cardsOf(made[1]);
+                await P.tellProposers?.();
+                await settle();
+                const once = cardsOf(made[1]) - was;
+                await P.tellProposers?.();
+                await settle();
+                read.backfill = [once, cardsOf(made[1]) - was - once, P.secretsOf(made[1]).proposerTold ?? null];
+            } finally {
+                for (const id of made) await P.deleteProject(id);
+                await scene?.delete();
+                const posted = game.messages.filter(m => !before.has(m.id)).map(m => m.id);
+                if (posted.length) await ChatMessage.deleteDocuments(posted);
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson({ proposer: [true, true, false], other: [false, false, false], sealed: [false, false, false], recorded: false,
+            told: [1, true], backfill: [1, 0, true] }),
+            `whether ${user.name} (${student.name} stands in the first room, its cell unticked, and proposed the second) and ${other.name} know the three projects; `
+            + "whose sealedViewers name the proposer (none may); whether the record holds the first room; the proposer's cards this GM holds and the GMs' mark; "
+            + "for a project with no mark, the cards the load's tell posts the first time and the second, and the mark after");
+    }],
+
     ["the project manager keeps a room it did not change, whatever scene is on screen", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 V1, audit S09-03. The manager's room select listed the rooms
@@ -63422,6 +63518,238 @@ const SCENARIOS = [
             "a key the taker held was copied, stayed with the giver or was told more or less than once, or a key moved lost its room, or a key handed over left its giver ([the giver's keys to the room, the taker's, the taker's lines, the result's room, its copy])");
     }],
 
+    ["H84-01: one key per room - two grants at once make one key, the sweep points the owner's own key a rename left dead at the room instead of making a second but never another student's copy, keeps one of two keys to the owner's room, and a key taken by a student whose own key to that room is stashed is not copied", async () => {
+        /*
+         * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A1): two rows under Room Keys for one
+         * bedroom. Three roads, each read here as the GMs hold the sheets: (b) two grants of one key at once - the
+         * primary's ready sweep is started and not awaited, and Room Setup's Apply, a GM's Give and a key's handover
+         * can each overlap it - both passed `grantBedroomKey`'s "already holds one" before either key landed;
+         * (a) a rename the carry did not reach (fog.mjs `noteRegionName` carries only on the primary, for the room's
+         * last piece, from a name it saw) leaves the owner's key naming a room that is no bedroom anywhere, and the
+         * next sweep made a key of the new name beside it - the state is set here as such a rename leaves it, the
+         * key's room written by a GM's write to a name no region holds, since a rename the harness's primary sees
+         * is carried; (c) inventory.mjs `transferItem`'s key rule asked `keysHeldBy(to)` without the stash, so a
+         * thief whose own key to the room was put away took a copy. A student of the test's own owns a bedroom
+         * drawn on the scene on screen; then two students alone together, the taker's key stashed. Read: the keys
+         * to the room after two grants at once; after the sweep, the keys to the room, to the dead name, whether
+         * the one key is the same item and its name; the taker's keys to the room and the steal's answer. Red at
+         * 774b28a9 on all three (measured on the harness, 27.10.2026): two keys at once, the sweep's second key beside
+         * the dead one, two keys on the taker and no `keyHeld`.
+         * H84 fix G2 (the end review's H84R-02/H84R-2, H84R-03/H84R-3): (d) the owner's one dead key a copy of
+         * another student's (described as theirs, to a room nobody owns now, as a shared key whose room's owner was
+         * cleared): the sweep makes the owner a key and leaves the copy; (e) two keys of the owner's to their own
+         * bedroom, one carried and one stashed (as the 1.2.85 races left them): the sweep keeps the carried one. Read:
+         * the keys to the room, to the copy's room, whether the room's key is the copy; the keys to the room after the
+         * sweep and whether the one left is the carried one. Red at 68aa984e: the copy repointed, both keys kept.
+         */
+        needs(world.atLeast("scenes", 1), "a bedroom is a region on a scene");
+        // Asked before anything is written (rule 2): the steal's two students, stood alone together by `aloneTogether`.
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const [giver, taker] = cast(2);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the key rule reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { initCharacter } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { ROOM_FLAG } = await import("./rooms.mjs");
+        const scene = game.scenes.viewed ?? game.scenes.contents[0];
+        const ROOM = "SUITE H84-01 a bedroom", GONE = "SUITE H84-01 the name it had", STOLEN = "SUITE H84-01 a room keyed twice";
+        const SHARED = "SUITE H84-01 a room shared once";
+        const described = (room, name) => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+            room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name) })}</p>`;
+        const keysTo = (actor, room) => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
+        const read = {};
+        let owner = null, region = null;
+        try {
+            [owner] = await Actor.createDocuments([{ name: "SUITE H84-01 an owner", type: "character" }]);
+            await initCharacter(owner, { quiet: true });
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+                flags: { [MODULE_ID]: { [ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id } } }]);
+            await settle();
+            await Promise.all([V.grantBedroomKey(owner, ROOM, { silent: true, scene }), V.grantBedroomKey(owner, ROOM, { silent: true, scene })]);
+            await sheetAuditIdle();
+            read.atOnce = keysTo(owner, ROOM).length;
+            const [first] = keysTo(owner, ROOM);
+            must(first, "no key was made to the bedroom - this would measure nothing");
+            for (const extra of keysTo(owner, ROOM).slice(1)) await extra.delete();
+            // As a rename the carry missed leaves the owner's own grant: its room, its name and its description the old name's.
+            await trustedWrite(first, { [`flags.${MODULE_ID}.${BEDROOM_KEY_FLAG}`]: GONE, name: game.i18n.format("DRPG.Vault.keyName", { room: GONE }),
+                "system.description": described(GONE, owner.name) }, { reason: "setup" });
+            await sheetAuditIdle();
+            must(keysTo(owner, GONE).length === 1 && !keysTo(owner, ROOM).length && !V.bedroomOwnerAnywhere(GONE),
+                "the key was not left naming a room that is no bedroom anywhere - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            const now = keysTo(owner, ROOM);
+            read.swept = [now.length, keysTo(owner, GONE).length, now[0]?.id === first.id, now[0]?.name ?? null];
+
+            // (d) The owner's only dead key is another student's copy: no key of their own to the room.
+            for (const k of keysTo(owner, ROOM)) await k.delete();
+            const copy = await INV.grantItem(owner, { name: game.i18n.format("DRPG.Vault.keyName", { room: SHARED }), category: "bedroomKey", tier: null,
+                override: true, quiet: true, description: described(SHARED, "SUITE H84-01 somebody else"), extraFlags: { [BEDROOM_KEY_FLAG]: SHARED } });
+            await sheetAuditIdle();
+            must(copy && keysTo(owner, SHARED).length === 1 && !keysTo(owner, ROOM).length && !V.bedroomOwnerAnywhere(SHARED),
+                "the copy was not the owner's one dead key, or the owner still held a key to the room - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            read.copy = [keysTo(owner, ROOM).length, keysTo(owner, SHARED).length, keysTo(owner, ROOM)[0]?.id === copy.id];
+
+            // (e) Two keys of the owner's to their own bedroom, one carried and one stashed.
+            const carried = keysTo(owner, ROOM)[0];
+            const stashed = await INV.grantItem(owner, { name: game.i18n.format("DRPG.Vault.keyName", { room: ROOM }), category: "bedroomKey", tier: null,
+                override: true, quiet: true, location: INV.LOCATIONS.vault, description: described(ROOM, owner.name), extraFlags: { [BEDROOM_KEY_FLAG]: ROOM } });
+            await sheetAuditIdle();
+            must(carried && stashed && keysTo(owner, ROOM).length === 2, "the owner did not hold two keys to the room - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            read.twice = [keysTo(owner, ROOM).length, keysTo(owner, ROOM)[0]?.id === carried.id];
+        } finally {
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            if (owner) await owner.delete();
+            await sheetAuditIdle();
+        }
+
+        const fixture = await aloneTogether(giver, taker, { asked: true });
+        const NAME = "SUITE H84-01 a key";
+        const key = (actor, location) => INV.grantItem(actor, { name: NAME, category: "bedroomKey", tier: null, override: true, quiet: true, location,
+            extraFlags: { [BEDROOM_KEY_FLAG]: STOLEN } });
+        try {
+            const put = await key(taker, INV.LOCATIONS.vault);
+            const stolen = await key(giver, INV.LOCATIONS.carried);
+            await sheetAuditIdle();
+            must(put && stolen && INV.isStashed(taker.items.get(put.id)) && keysTo(taker, STOLEN).length === 1,
+                "the taker's key was not made in the stash, or the giver's not made - this would measure nothing");
+            const steal = await INV.transferItem(giver, taker, stolen, { mode: "steal" });
+            await settle();
+            read.stashed = [keysTo(taker, STOLEN).length, steal?.keyHeld ?? null, keysTo(giver, STOLEN).length];
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === STOLEN)) await i.delete();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ atOnce: 1, swept: [1, 0, true, game.i18n.format("DRPG.Vault.keyName", { room: ROOM })],
+            copy: [1, 1, false], twice: [1, true], stashed: [1, STOLEN, 0] }),
+            "a room's key was made twice: by two grants at once, by the sweep beside a key a rename left dead, or by a steal from a student whose own key to the room is stashed; "
+            + "or the sweep turned another student's copy into the owner's key, or left two keys of the owner's to their own room "
+            + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; with a copy the keys to the room, to the "
+            + "copy's room, the room's key the copy; with two keys the keys after the sweep, the carried one kept; the taker's keys, the steal's room, the giver's keys)");
+    }],
+
+    ["H84-02: one trace, one Truth Bullet per character - a trace whose find for them is being made is not offered to their next Observe, an Observe never resolved holds nothing, two Observes aimed at it at once make one bullet, and a second resolve of one Observe while its find is described is refused", async () => {
+        /*
+         * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A3): two identical Truth Bullets of one
+         * trace. A second Observe of the same character, declared before the first was resolved - the first waiting
+         * on the GM's describe window - was offered the same trace, since observe.mjs `observeCandidates` left out only
+         * the traces already copied, and `createFind` made the bullet with no second look. H84 fix G1 (the end review's
+         * H84R-01, H84R-1, H84-SEC-01): 385febe7 held the trace for every row of theirs with no result, for an hour, so
+         * an Observe whose roll window the player closed - its row written before the dice, never resolved - kept the
+         * trace from their next one; and the primary's "notThere" named nothing a second GM's picker could leave out
+         * (H84R-04). A trace is placed where a connected player's character stands, and the GM's pick of it
+         * (`pickObserveTarget`) declares an Observe on it: read whether the character's next Observe is offered it with
+         * that one never resolved, and once it is resolved as a miss. Then two picks of it at once (both must land, or
+         * the rest measures nothing: H84R-08), both resolved on a success, the first find's describe window held open
+         * while the trace is asked for again (offered? a pick of it answered with what is held?) and the second is
+         * scored, and the first one's resolve asked twice in that time. Between the two, an Observe card's picker on this GM
+         * with the trace noted as held by the primary (`noteHeldOnPrimary`): its options, against the same picker without.
+         * Read: the offers, the held answer, the second resolve's refusal, the character's bullets of the trace and the
+         * picker's options. Any other window of the GM's is closed at once. The miss's Sanity is put back. Red at
+         * 774b28a9 (measured on the harness, 27.10.2026): offered while pending, two bullets, no refusal; red at
+         * 68aa984e: offered after the unresolved pick false, no `held`, the picker's options the same.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const sanity = actor.system.resources.stress.value;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        let answer = null, hold = false;
+        // While `hold`, the first window - a find's description - waits for the test; every other one is closed at once.
+        D.wait = cfg => {
+            asked.push(cfg?.content?.outerHTML ?? String(cfg?.content ?? ""));
+            if (hold && !answer) return new Promise(resolve => { answer = resolve; });
+            return Promise.resolve(null);
+        };
+        const offered = async id => (await observe.observeCandidates(actor)).candidates.some(c => c.token.id === id);
+        const resolve = key => observe.resolveObserve({ key, total: 30, isCritical: false, actorId: actor.id, senderIsGm: true });
+        const read = {};
+        let trace = null, first = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace two Observes aim at" });
+            must(trace, "the trace was not placed");
+            must(await offered(trace.id), "the placed trace is not offered to the character where it lies - this would measure nothing");
+            const pick = () => observe.pickObserveTarget({ actorId: actor.id, room: where.room, tokenId: trace.id, userId: player.id });
+            // An Observe whose roll never came: its row is written and nothing resolves it.
+            const one = await pick();
+            must(one?.ok, `the GM's pick of the trace was not written: ${stableJson(one)}`);
+            const unresolved = await offered(trace.id);
+            await observe.resolveObserve({ key: one.key, total: 1, isCritical: false, actorId: actor.id, senderIsGm: true });
+            read.offered = [unresolved, await offered(trace.id)];
+            // The card's picker on this GM, before any bullet of the trace: the options without and with the trace noted as held by the primary.
+            const options = () => (asked.at(-1)?.match(/<option /g) ?? []).length;
+            const before = asked.length;
+            const plain = (await observe.observeCandidates(actor)).candidates.length;
+            await observe.pickFromCard({ rid: "SUITEH8402rid000", by: actor.id });
+            const drawn = asked.length > before ? options() : 0;
+            observe.noteHeldOnPrimary?.("SUITEH8402rid001", [trace.id]);
+            const at = asked.length;
+            await observe.pickFromCard({ rid: "SUITEH8402rid001", by: actor.id });
+            read.picker = [drawn === plain, plain - (asked.length > at ? options() : 0)];
+
+            const both = await Promise.all([pick(), pick()]);
+            const keys = both.filter(p => p?.ok).map(p => p.key);
+            must(keys.length === 2, `two picks of the trace at once were not both written - the rest would measure nothing: ${stableJson(both)}`);
+            hold = true;
+            first = resolve(keys[0]);
+            await until(() => answer);
+            read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
+            const again = await resolve(keys[0]);
+            const rest = await Promise.all(keys.slice(1).map(resolve));
+            answer(null);
+            await first;
+            first = null;
+            await settle();
+            read.again = again?.refused ?? null;
+            read.rest = rest.map(r => Boolean(r?.success));
+            read.bullets = actor.items.filter(i => !had.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id).length;
+
+        } finally {
+            if (answer) answer(null);
+            if (first) await first;
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (actor.system.resources.stress.value !== sanity) await trustedWrite(actor, { "system.resources.stress.value": sanity }, { reason: "gmRuling" });
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        // The other picks' results are the run's interleaving, not a verdict: said, not held.
+        equal(stableJson([read.offered, read.describing, read.again, read.bullets, read.picker]),
+            stableJson([[true, true], [false, stableJson([trace.id])], "the GM is still describing what that Observe found", 1, [true, 1]]),
+            "a character's next Observe was not offered a trace their earlier one aims at and never resolved, or not once it was resolved, or was offered "
+            + "it while its find was described (and a pick of it not answered with the trace held), or a second resolve of one Observe was not refused "
+            + "while its find was described, or Observes aimed at one trace made more than one bullet, or a card's picker did not leave out the trace "
+            + "the primary holds (read: offered with the first unresolved and after its miss; offered while described, the held answer; the second "
+            + `resolve's refusal; the bullets; the picker's options as the candidates, and the options the held trace took) - their successes ${stableJson(read.rest)}`);
+    }],
+
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-38's second half, E35-10. The harm: the taker has the copy and the giver
@@ -71725,6 +72053,125 @@ const SCENARIOS = [
         }), "a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either [the pips: what was sent to the primary, "
             + "the pool before the primary judged it and after; the overflow: what was sent, whether the answer was the count after, the count's rise; "
             + "a gone user's pool after this GM's prune and the primary's; a player's two asks: what was told, the pool, the count's rise]");
+    }],
+
+    ["a GM clears the overflow from Despair Flow's Overflow tab, asked first, on the primary, and a drawn darkening stands (H84-06)", async () => {
+        /*
+         * H84-06, 27.10.2026; the owner's live session on 1.2.85 ("as GM I cannot clear the despair overflow pool"),
+         * triage C6. `resetOverflow` had two callers, the verdict and the season reset; no GM surface offered a clear, and
+         * the only road was the console. Read: (1) the Overflow tab's markup (`overflowSection`): a Clear button, and the
+         * window wiring it to gm-team-dialog.mjs `clearOverflowFromTab`; (2) the count set to 5 and a stamp in the world (a Rot
+         * of a session that never ran), Clear pressed and the question answered Cancel, then Clear: what was asked, the
+         * count after each, the stamp left as it was;
+         * (3) the count set to 5 with a second GM `A` the primary (as E17-T8 sets one): the packet sent to A, the count
+         * after A judged it; (4) a player's `overflow.clear`, judged: what was told, the count. The count and the stamp put
+         * back after. Red at the commit's parent: no button, no `clearOverflowFromTab`.
+         */
+        const O = await import("./overflow.mjs");
+        const T = await import("./gm-team-dialog.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const pane = document.createElement("div");
+        pane.innerHTML = O.overflowSection();
+        const button = pane.querySelector("[data-drpg-overflow-clear]");
+        const src = stripComments(new Map(await moduleSources()).get("gm-team-dialog.mjs") ?? "");
+        ok(button && typeof T.clearOverflowFromTab === "function",
+            "the Overflow tab has no Clear, or gm-team-dialog.mjs no `clearOverflowFromTab` - a GM still cannot clear the overflow but from the console");
+        if (!button || typeof T.clearOverflowFromTab !== "function") return;
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose ask is judged");
+        const EVENT = `module.${MODULE_ID}`;
+        const A = { id: "!H8406primaryGM", name: "H84-06 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const stamp = () => stableJson(getSetting(SETTINGS.overflow) ?? {});
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const asked = [], answers = [];
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        const read = { button: [button.textContent.trim() === game.i18n.localize("DRPG.Overflow.clear"),
+            /\bclearOverflowFromTab\(/.test(fnSource(src, "openGmTeamDialog"))] };
+        try {
+            Dialog.wait = async config => {
+                asked.push([config.window?.title ?? null, String(config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
+                return answers.shift() ?? null;
+            };
+            // A stamp that is there to be kept: a Rot of a session that never ran, an event, so nothing runs for it.
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { effect: "rot", session: -1, day: 1, timeOfDay: "morning" } });
+            const before = stamp();
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            answers.push("cancel");
+            const no = await T.clearOverflowFromTab();
+            await settle();
+            const afterNo = O.overflowCount();
+            answers.push("clear");
+            const yes = await T.clearOverflowFromTab();
+            await settle();
+            read.here = { no, afterNo, yes, afterYes: O.overflowCount(), stampKept: stamp() === before, asked: asked.splice(0) };
+
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            socket.emit = function (event, packet, options, ...rest) {
+                const to = options?.recipients ?? [];
+                if (inPlay && event === EVENT && packet?.action === "overflow.clear" && to.includes(A.id)) {
+                    sentToA.push(packet.action);
+                    queued.push(packet);
+                    return socket;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            inPlay = true;
+            arrive();
+            ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            const cleared = O.clearOverflowAsGm();
+            await settle();
+            const beforeA = O.overflowCount();
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+            read.second = { sent: sentToA.splice(0), beforeA, answered: await cleared, after: O.overflowCount() };
+            inPlay = false;
+            depart();
+
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            const told = [];
+            const verdict = await G.judge(BRIDGE_ACTIONS, { action: "overflow.clear", requestId: "suite-h8406-player", userId: player.id }, player.id,
+                { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+            await settle();
+            read.player = [verdict === false ? "no row" : told.join(","), O.overflowCount()];
+        } finally {
+            inPlay = false;
+            depart();
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+        }
+        const title = game.i18n.localize("DRPG.Overflow.clear");
+        const buttons = [["cancel", true], ["clear", false]];
+        equal(stableJson(read), stableJson({
+            button: [true, true],
+            here: { no: false, afterNo: 5, yes: true, afterYes: 0, stampKept: true, asked: [[title, true, buttons], [title, true, buttons]] },
+            second: { sent: ["overflow.clear"], beforeA: 5, answered: true, after: 0 },
+            player: ["gmOnly", 5]
+        }), "[the tab's Clear and its wiring; on the primary: Cancel answered, the count, Clear answered, the count, the stamp kept, what was asked; "
+            + "with a second GM the primary: what was sent to it, the count before it judged, the answer, the count after; a player's ask: what was told, the count]");
     }],
 
     ["a pip's change never spills, and a step queued on a GM that stopped being the primary goes to the new one (E17-T8): Despair asked of it, the overflow added through it, a player's spend refused and a prune left to it", async () => {

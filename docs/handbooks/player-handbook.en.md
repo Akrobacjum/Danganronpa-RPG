@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.87, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.88, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -202,7 +202,7 @@ Some rooms are good places to look for a category and some are bad; the roll win
 
 ### Observe - Eye, 1 action
 
-Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others. A miss costs you **1 Sanity**. A critical also identifies what kind of trace it is and earns you a substantial hint from the GM.
+Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others. A miss costs you **1 Sanity**. A critical also identifies what kind of trace it is and earns you a substantial hint from the GM. You hold one copy of a trace at most: a trace you already hold, or one whose find from another Observe of yours the GM is still describing, is not where your gaze lands, and a second copy of a trace is never made.
 
 You choose how you are looking:
 
@@ -256,7 +256,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 
   The GM approves it like any proposal, and checks it again when it is finished: if the wall, the passage or the item is no longer what it was, nothing happens and the GM is told why. A Reroll of the roll that finished a Secret Passage, a breach or a seal takes it back.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.
-- A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once you have stood in its room; a secret one only for the people in on it. Double-click it for its card.
+- A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once your character has stood in its room, or stands in it now, and to whoever proposed it from the moment the GM approves it (a private card tells you; for a project approved before 1.2.88, at the GM's next load); the rest of the table sees it only when their own character has been there. A secret one only for the people in on it. Double-click it for its card.
 - **Sabotage** (same tile, the project's statistic): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
 
 > [!WARNING]

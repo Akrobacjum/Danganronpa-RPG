@@ -48,6 +48,8 @@ const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 /** GM -> primary GM: add to the overflow's count (E17 C5) - see overflow.mjs `addOverflow`. */
 const ACTION_OVERFLOW_ADD = "overflow.add";
+/** GM -> primary GM: a GM's Clear of the overflow's count (H84-06) - see overflow.mjs `clearOverflowAsGm`. */
+const ACTION_OVERFLOW_CLEAR = "overflow.clear";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
@@ -1665,6 +1667,14 @@ async function handleOverflowAdd(payload, sender, ctx) {
     return { reply: { after } };
 }
 
+/** The run of `overflow.clear` (H84-06): the primary's own `resetOverflow` of the count alone, for the GM who asked. */
+async function handleOverflowClear(payload, sender, ctx) {
+    const { resetOverflow } = await import("./overflow.mjs");
+    const cleared = await resetOverflow({ reason: `a GM (${sender.name})`, countOnly: true });
+    if (!cleared) return { refused: "nothing was carried out: the overflow was not cleared" };
+    return { reply: { cleared: true } };
+}
+
 async function handleDespair(payload, sender, ctx) {
     // A GM's alone since E08+E28 C8, as a Reroll's point is the GM's own (reroll.mjs); the size
     // and the pool are the declaration's guards.
@@ -2540,6 +2550,20 @@ export const BRIDGE_ACTIONS = table({
         run: handleOverflowAdd,
         answer: "reply"
     },
+    /*
+     * A GM'S CLEAR OF THE OVERFLOW, ON THE PRIMARY GM (H84-06, 27.10.2026; triage C6): Despair Flow's Overflow tab on a GM
+     * that is not the primary (overflow.mjs `clearOverflowAsGm`). A GM's alone, as `overflow.add`: a player's console that
+     * could ask would take back the Despair the Monokuma has spilled. Nothing rides the packet; the run zeroes the count
+     * and leaves a drawn darkening standing. Tier 2 "a GM clears the overflow ... (H84-06)" judges a player's ask (refused)
+     * and a second GM's (cleared on the primary).
+     */
+    [ACTION_OVERFLOW_CLEAR]: {
+        label: "DRPG.Bridge.what.overflow.clear",
+        guards: [gmOnly("only a GM clears the overflow")],
+        sanitize: pick({}),
+        run: handleOverflowClear,
+        answer: "reply"
+    },
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
@@ -3111,6 +3135,14 @@ export function requestOverflowAdd(amount, reason) {
 }
 
 /**
+ * A GM that is not the primary clears the overflow's count (H84-06; overflow.mjs `clearOverflowAsGm`), which asked only
+ * once it knew the primary is connected and is somebody else. Its value is `{ cleared: true }`.
+ */
+export function requestOverflowClear() {
+    return ask(ACTION_OVERFLOW_CLEAR, {});
+}
+
+/**
  * Sabotage writes two world settings; the GM applies it and this waits for the
  * real outcome rather than assuming the request will land.
  *
@@ -3635,7 +3667,7 @@ async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = fal
         const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.observer ?? null, request: asked.request });
         if (!picked.ok) {
             warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
-            return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
+            return { value: "notThere", told: "DRPG.Observe.pickNotThere", held: picked.held ?? [] };
         }
         answer({ ok: true, key: picked.key });
         return { value: "picked", told: null };
@@ -3656,6 +3688,8 @@ export async function askObservePick({ rid, actorId, tokenId = null, refuse = fa
         local: () => observePickOnPrimary(asked, game.user.id)
     });
     if (!res.ok) return null;
+    // The traces the primary leaves out (H84 fix G1): the picker on this browser leaves them out too (observe.mjs `pickFromCard`).
+    if (Array.isArray(res.value?.held) && res.value.held.length) (await import("./observe.mjs")).noteHeldOnPrimary(rid, res.value.held);
     const told = res.value?.told ?? null;
     if (told) ui.notifications.warn(game.i18n.format(told, { name: game.actors.get(actorId ?? "")?.name ?? "?" }));
     return res.value?.value ?? null;

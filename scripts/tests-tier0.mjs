@@ -7448,6 +7448,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
             ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
@@ -7938,7 +7939,8 @@ const REGRESSIONS = [
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
             ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks; since E14 part 1 C2 a key in hand only (bedroom-keys.mjs `keyRooms`), the stash's too when `grantBedroomKey` asks whether one is held (`stashed: true`) [1b.2]"],
-            ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
+            ["SHEET vault.mjs#grantKeyNow", "out of scope as a reader - `grantBedroomKey`'s step in its queue since H84 (one grant at a time per student), the reads moved with it (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
+            ["SHEET vault.mjs#repointDeadKey", "out of scope as a reader (H84): `itemsHeldNow` inside `grantKeyNow`'s step, after its `judgedFor`; for the room's owner alone it points their one dead key at the room (`trustedWrite`, `setup`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, since fix r1-G1 its `deathId` (the death a discovery's stamp names, `announcedIn`), and C12's `sameSeason` reads `epoch` (E11 C12)"],
@@ -7956,7 +7958,7 @@ const REGRESSIONS = [
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
         const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
-            "vault.mjs": ["keysHeldBy", "grantBedroomKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
+            "vault.mjs": ["keysHeldBy", "grantBedroomKey", "grantKeyNow", "repointDeadKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
             "gm-panel.mjs": ["nextStep", "openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
             "murder-rules.mjs": ["endMurder", "closeIncident", "registerMurder"], "visibility.mjs": ["applyToProjectToken", "applyToToken"],
             "sync.mjs": ["registerSync"], "mastermind.mjs": ["finalTruthPlacedThisChapter"], "settings.mjs": ["bodyDiscoveryFresh", "deathRecordFor"] };
@@ -13250,7 +13252,7 @@ const REGRESSIONS = [
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }],
 
-    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in the compact fit (H81-10), and in the wall's full fit level with the microphone, lifted by `--drpg-voice-lift` as the buttons are (H84-03); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
          * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
@@ -13281,6 +13283,12 @@ const REGRESSIONS = [
          * face keeps in the row while it shows, under Legacy and under Stained Glass. Placed in Chromium (the glass
          * harness's checks, which read each band against the widest of the words in both languages): 139 px still
          * on a Legacy desk, 140 and 68 over a face named "Mai". Red at dc35104: none of the five declared.
+         * H84-03, 27.10.2026 (the owner's 1.2.85 table: "connected" too low on the LiveKit panel): since E78 fix r2-H3
+         * the buttons on the wall's full fit stand on the pane above the tile's box (`top: calc(7px -
+         * var(--drpg-voice-lift, 0px))`), and the word stayed 6 px under the tile's own top, about 47 px under the
+         * microphone it was placed beside (the triage's Chromium read at 53bb2f3e: word 283, microphone 259, pane
+         * 228 at 1920x1080). The full fit's top is now the buttons' own, so the word's 30 px band is the microphone's
+         * row. Red at d99adf4b: "6px". Where it lands on the pane is the glass harness's voice check (`drpgVoiceParts`).
          */
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
@@ -13363,7 +13371,7 @@ const REGRESSIONS = [
                 .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
-        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [],
+        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
             still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
         + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");

@@ -26,7 +26,7 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
-import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm } from "./overflow.mjs";
+import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
@@ -123,6 +123,31 @@ async function confirmRemovePool(user) {
         rejectClose: false
     });
     return answer === "remove";
+}
+
+/**
+ * The Overflow tab's Clear (H84-06, 27.10.2026; the owner's live session on 1.2.85, triage C6): asked first, then the
+ * count back to 0 on the primary (overflow.mjs `clearOverflowAsGm`), the darkening already drawn left standing. Cancel
+ * first and the default, as `confirmRemovePool` and for its reason: Enter answers no. The window stays open; its count
+ * line follows the store (`keepFresh`). Answers true when cleared.
+ */
+export async function clearOverflowFromTab() {
+    if (!game.user.isGM) return false;
+    const { count, threshold } = overflowStatus();
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Overflow.clear") },
+        classes: ["drpg-panel", "drpg-narrow", "drpg-window-clearoverflow"],
+        content: `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Overflow.clearAsk", { count, max: threshold }))}</p>`,
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "clear", label: game.i18n.localize("DRPG.Overflow.clearConfirm") }
+        ],
+        rejectClose: false
+    });
+    if (answer !== "clear") return false;
+    const cleared = await clearOverflowAsGm();
+    if (cleared) ui.notifications.info(game.i18n.localize("DRPG.Overflow.cleared"));
+    return Boolean(cleared);
 }
 
 /**
@@ -283,6 +308,10 @@ export async function openGmTeamDialog({ draft = null } = {}) {
             paintTeamDraft(dialog.element, draft);
             wireMonokumaLive(dialog);
             if (roster.length) wireAssignmentLive(dialog, gms);
+            dialog.element.querySelector("[data-drpg-overflow-clear]")?.addEventListener("click", event => {
+                event.preventDefault();
+                void clearOverflowFromTab();
+            });
 
             /* THE ONE NUMBER ON THIS WINDOW THAT MOVES WHILE IT IS OPEN.
 

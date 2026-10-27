@@ -107,9 +107,10 @@ export const FLOWS = Object.freeze([
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
-    // player's and a second GM's. No scenario sends one yet.
+    // player's and a second GM's. No scenario sends one yet. H84-06 (27.10.2026): a GM's Clear of the count on the primary
+    // (`overflow.clear`, gmOnly); tier 2 "a GM clears the overflow ... (H84-06)" judges a player's and a second GM's.
     { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust", "overflow.add"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["despair.adjust", "overflow.add", "overflow.clear"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",

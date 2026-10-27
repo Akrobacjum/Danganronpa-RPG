@@ -30,7 +30,7 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
 import {
-    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug
+    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
@@ -300,9 +300,33 @@ export async function observeCandidates(actor, { room = null, preferOwn = false 
     if (!where?.room) return { where: null, candidates: [] };
     if (room && where.room !== room) return { where, candidates: [] };
     const already = copiedRemnants(actor);
+    for (const id of pendingTracesOf(actor.id)) already.add(id);
     const candidates = rankForObserve(where.room, where.scene, { preferSource: preferOwn ? actor.id : null })
         .filter(c => !already.has(c.token.id));
     return { where, candidates };
+}
+
+/**
+ * THE TRACES THIS CHARACTER'S OWN OBSERVES ARE BEING SCORED ON (H84, 27.10.2026; the owner's session on 1.2.85, triage A3).
+ * `observeCandidates` left out only the traces already copied, so an Observe declared while the first one's find waited on
+ * the GM's describe window was offered the same trace (the ranking is deterministic), and both made a bullet of it.
+ *
+ * ONLY WHILE THE FIND IS MADE, NOT FOR EVERY ROW WITHOUT A RESULT (H84 fix G1, 27.10.2026; the end review's H84R-01,
+ * H84R-1, H84-SEC-01). 385febe7 held back the trace of every row of the character's with no result, for the pending
+ * TTL (an hour). A General, Non-obvious or Follow my traces Observe writes its row before the dice (action-rolls.mjs
+ * `observeRanked`), and a player who closes the roll window (`abort`), a spend that fails, or an answer that comes after
+ * the player's ask gave up leaves a row nothing resolves: the trace was then not offered to that character for the
+ * hour - the room's one trace fell to a GM's ruling, of two the other was aimed at (tier 2 "H84-02 ...": offered after
+ * an unresolved pick false at 68aa984e, true here). The long wait the triage named is the describe window, and
+ * `resolveObserve` marks it (`describing`, key -> character), so that is what holds a trace now: the rows of this
+ * character's whose keys are being scored on this client. A second Observe aimed at the trace in the seconds between a
+ * row and its resolve is stopped where the bullet is made (`createFind`'s check inside `observeFindKey`). A
+ * project-only row aims at no trace.
+ */
+function pendingTracesOf(actorId) {
+    readPending();
+    return [...describing].filter(([key, owner]) => owner === actorId).map(([key]) => pending.get(key))
+        .filter(entry => entry?.tokenId && !entry.projectOnly).map(entry => entry.tokenId);
 }
 
 /** Write one Observe's pending row for the trace `chosen` (and the project `secret`, if any), and answer its key. */
@@ -348,7 +372,10 @@ export async function pickObserveTarget({ actorId, room, tokenId, userId = null,
     if (!actor) return { ok: false, reason: "noActor" };
     const { where, candidates } = await observeCandidates(actor, { room });
     const chosen = candidates.find(c => c.token.id === tokenId);
-    if (!chosen) return { ok: false, reason: "notThere" };
+    /* `held`: the traces left out because this character's find of them is being made here (`pendingTracesOf`), so a
+       GM who picked on another browser, whose picker read its own rows, is not offered them again (H84 fix G1; the end
+       review's H84R-04): gm-bridge.mjs `observePickOnPrimary` answers them, `pickFromCard` leaves them out. */
+    if (!chosen) return { ok: false, reason: "notThere", held: pendingTracesOf(actor.id) };
     return { ok: true, key: await pendObserve({ actor, userId, where, declaration: DECLARATIONS.specific, request, chosen }) };
 }
 
@@ -362,7 +389,9 @@ export async function pickObserveTarget({ actorId, room, tokenId, userId = null,
 export async function pickFromCard({ rid, by, request = "" } = {}) {
     const actor = game.actors.get(by ?? "");
     if (!game.user.isGM || !actor || !rid) return null;
-    const { where, candidates } = await observeCandidates(actor);
+    const { where, candidates: all } = await observeCandidates(actor);
+    const held = heldOnPrimary.get(rid);
+    const candidates = held ? all.filter(c => !held.has(c.token.id)) : all;
     if (!candidates.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Observe.pickNothing", { name: actor.name }));
         return null;
@@ -370,7 +399,26 @@ export async function pickFromCard({ rid, by, request = "" } = {}) {
     const chosen = await askWhichRemnant(actor, where.room, request, candidates, { refuse: false });
     if (!chosen) return null;
     const { askObservePick } = await import("./gm-bridge.mjs");
-    return askObservePick({ rid, actorId: actor.id, tokenId: chosen.token.id });
+    const answered = await askObservePick({ rid, actorId: actor.id, tokenId: chosen.token.id });
+    if (answered === "picked" || answered === "gone") heldOnPrimary.delete(rid);
+    return answered;
+}
+
+/**
+ * The traces the primary GM said it leaves out of an Observe card's pick, by the card's request id (H84 fix G1; the end
+ * review's H84R-04): the character's find of them is being made there (`pendingTracesOf` holds the primary's rows, and
+ * each GM's rows are its own). Without this a second GM's picker, read from its own rows, led with the trace the primary
+ * had just answered "notThere" for, and opened so again. Noted by gm-bridge.mjs `askObservePick` from the primary's
+ * answer; read by `pickFromCard`; dropped once the card is picked or gone.
+ */
+const heldOnPrimary = new Map();
+
+/** The primary's `held` for an Observe card's request `rid` (gm-bridge.mjs `askObservePick`): ids of traces. */
+export function noteHeldOnPrimary(rid, ids = []) {
+    if (!rid) return;
+    const known = heldOnPrimary.get(rid) ?? new Set();
+    for (const id of ids ?? []) if (typeof id === "string" && id) known.add(id);
+    if (known.size) heldOnPrimary.set(rid, known);
 }
 
 /* ==========================================================================
@@ -528,20 +576,33 @@ function mostRelevant(candidates) {
 }
 
 /**
+ * One option of the GM's trace picker (`askWhichRemnant`): the name the GM gave the trace, then its visibility and type,
+ * whether it is tied, its subject and its DC.
+ *
+ * THE NAME FIRST (H84-07, 27.10.2026; the owner's live session on 1.2.85, triage B5). The options read
+ * "<visibility> <type> · tied · <subject> · DC n" and left out `public.name`, which the GM wrote when the trace was
+ * first described and which is what the Truth Bullet will be called: two Prep traces with no subject in one room read
+ * the same, and the GM chose between them blind. The GM panel's Give a Truth Bullet (gm-items.mjs
+ * `bulletTraceOptions`) leads with the name already. A trace with no name yet starts with its type, as before - not
+ * with the neutral token name, which every trace shares. Pure, for tier 1 R1008.
+ */
+export function remnantPickLabel({ data = {}, dc = null } = {}) {
+    return [
+        data.public?.name || null,
+        `${data.visibilityLabel} ${data.typeLabel}`,
+        data.tiedToCrime ? game.i18n.localize("DRPG.Observe.tiedFlag") : null,
+        data.subject || null,
+        `DC ${dc}`
+    ].filter(Boolean).join(" · ");
+}
+
+/**
  * The GM decides which trace is closest to what the player asked for. From a card
  * (`refuse: false`) the picker has no Refuse of its own: the card has one, and closing the
  * picker leaves the card to be answered.
  */
 async function askWhichRemnant(actor, room, request, candidates, { refuse = true } = {}) {
-    const options = candidates.map((c, i) => {
-        const label = [
-            `${c.data.visibilityLabel} ${c.data.typeLabel}`,
-            c.data.tiedToCrime ? game.i18n.localize("DRPG.Observe.tiedFlag") : null,
-            c.data.subject || null,
-            `DC ${c.dc}`
-        ].filter(Boolean).join(" · ");
-        return `<option value="${i}">${foundry.utils.escapeHTML(label)}</option>`;
-    }).join("");
+    const options = candidates.map((c, i) => `<option value="${i}">${foundry.utils.escapeHTML(remnantPickLabel(c))}</option>`).join("");
 
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Observe.pickTitle") },
@@ -673,6 +734,11 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
 
     const refused = observeResolveRefusal(entry, { actorId, senderId, senderIsGm, undo });
     if (refused) return { refused };
+    /* A SECOND RESOLVE OF ONE OBSERVE WHILE ITS FIND IS DESCRIBED (H84, 27.10.2026): the result is written once the GM
+       has described the find, so a second resolve of the key in that time passed `observeResolveRefusal` and scored it
+       again - a second bullet, or (since `createFind` re-checks the copy) a result with none written over the first's.
+       Refused as the Reroll is in that time (reason "busy", bridge-guards.mjs); tier 2 "H84-02 ...". */
+    if (!undo && describing.has(key)) return { refused: "the GM is still describing what that Observe found" };
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;
@@ -939,6 +1005,9 @@ async function createFind(actor, entry, isCritical) {
         remnantPublicById, setRemnantPublicById, revealRemnantToFinderById
     } = await import("./remnants.mjs");
 
+    // A copy already held is no find (H84; `alreadyHeld` below): asked before the GM is asked to describe it.
+    if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
+
     const stored = remnantPublicById(entry.sceneId, entry.tokenId);
     const neutralName = game.i18n.localize("DRPG.Remnant.tokenName");
     // Has anybody actually described this yet, or is `stored.name` just the
@@ -967,7 +1036,12 @@ async function createFind(actor, entry, isCritical) {
         }
     }
 
-    const item = await createTruthBullet(actor, {
+    /* ONE COPY PER CHARACTER, CHECKED WHERE IT IS MADE (H84, 27.10.2026; triage A3). The check above runs before the
+       GM's describe window, which waits as long as the GM takes; two Observes aimed at one trace (declared before
+       either one's find was being made: `pendingTracesOf` holds a trace only then) both passed it and both made a bullet - tier 2 "H84-02 ...": 2 with this
+       check taken out (mutant h8402-noRecheck, 27.10.2026), 1 here. The copy is read again and the bullet made in one step of `serialWrite` under the character's
+       key, after the window: the step awaits the create and its secret, never a person. */
+    const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
         name: pub?.name || written?.name || fallbackName,
         realType: data.type,
         /*
@@ -1011,7 +1085,9 @@ async function createFind(actor, entry, isCritical) {
         // find shows it at once (tier 2 "a copy made between the death and the discovery holds
         // the death's tie back until the death is the table's").
         tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId })
-    });
+    }));
+    if (made === HELD) return alreadyHeld(actor, entry);
+    const item = made;
 
     if (!item) return null;
 
@@ -1035,6 +1111,19 @@ async function createFind(actor, entry, isCritical) {
 
     log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
     return item;
+}
+
+/** `createFind`'s answer inside its step when the character holds a copy of the trace already. */
+const HELD = Symbol("held");
+
+/** The queue key of a character's finds (`createFind`). */
+export const observeFindKey = actorId => `observeFind/${actorId}`;
+
+/** A find of a trace the character holds a copy of: no bullet, the character told, and null for `createFind`. */
+async function alreadyHeld(actor, entry) {
+    log(`Observe: ${actor.name} already holds a copy of the trace in ${entry.room}; no second Truth Bullet was made.`);
+    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.alreadyHeld")}</p>`);
+    return null;
 }
 
 /** The GM's sentence, prefilled. Never blocks the result - see `createFind`. */

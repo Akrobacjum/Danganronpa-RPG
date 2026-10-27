@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.87, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.88, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -202,7 +202,7 @@ Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe;
 
 ### Observe - Eye, 1 akcja
 
-Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa.
+Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
 
 Wybierasz, jak patrzysz:
 
@@ -256,7 +256,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 
   GM zatwierdza go jak każdą propozycję i sprawdza jeszcze raz, gdy jest ukończony: jeśli ściana, przejście albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom albo zasypanie, cofa je.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.
-- Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy już stałeś w jego pokoju; tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
+- Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy twoja postać już stała w jego pokoju albo stoi w nim teraz, a proponującemu od chwili, gdy GM go zatwierdzi (mówi ci o tym prywatna karta; o projekcie zatwierdzonym przed 1.2.88 - przy najbliższym wczytaniu u GMa); reszta stołu widzi go dopiero, gdy ich własna postać tam była. Tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
 - **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
 
 > [!WARNING]

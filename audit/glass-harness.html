@@ -113,8 +113,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
     <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
-        <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
-        <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div></div></div></div></div>
+        <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div>
       </div></div></div>
   </div>
   <div id="sidebar"><div id="sidebar-content"><span class="stub-text">Chat Log</span><i class="fa-solid fa-gear stub-icon" inert></i></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
@@ -905,6 +905,13 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      beside the face as it is drawn, not in its place: until then the compact form and Monokuma Legacy gave it the
      plate's place, empty while nobody spoke, and only the full form on the wall was held off the plate. The sweep's
      `plantVoice` `onPlate` stands it on the plate and must fail.
+     THE WORD BESIDE THE MICROPHONE (H84-03, 27.10.2026; the owner's 1.2.85 table, in Polish: the "connected" band too
+     low on the LiveKit panel). On the wall in the full form the word stands where the microphone's line stood, left of
+     the buttons, so it is lifted onto the pane with them: there it is judged like them, by its four corners turned
+     with the tile on the voice pane rather than in the tile's box, and its top in the tile's frame must be the
+     microphone's within 2 px (`word.row`, the word's top less the microphone's). At d99adf4b it stood 6 px under the
+     tile's own top, 46 under the microphone (row 46 at 1920x1080 and 1366x768 in Chromium, 27.10.2026; 0 since). The sweep's
+     `plantVoice` `low` stands it there again and must fail.
      Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
@@ -917,11 +924,13 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const pane = corner ? (window.__glass?.LAST?.panes || []).find(p => p.tone === "voice-block") : null;
     const m = /^matrix\(([-\d.e]+), ([-\d.e]+),/.exec(getComputedStyle(tile).transform), cs = m ? +m[1] : 1, sn = m ? +m[2] : 0;
     const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null, word: null };
+    let micAt = null;
     if (corner && (!pane || !cut)) why.push("no voice pane to stand the buttons on");
     for (const b of tile.querySelectorAll(".drpg-voice-tile-controls > .drpg-launch-mini")) {
       const r = at(b), cls = b.classList.contains("drpg-voice-mic") ? "microphone" : "speaker", i = b.querySelector(".drpg-pxi");
       const mask = i ? getComputedStyle(i).maskImage || getComputedStyle(i).webkitMaskImage : "none";
       read.buttons.push(r);
+      if (cls === "microphone") micAt = r;
       if (pane && cut && r) {
         const d = b.getBoundingClientRect(), cx = (d.left + d.right) / 2 - cut.left, cy = (d.top + d.bottom) / 2 - cut.top, hw = b.offsetWidth / 2, hh = b.offsetHeight / 2;
         const off = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => [cx + x * cs - y * sn, cy + x * sn + y * cs]).filter(([x, y]) => !inside(pane.poly, x, y));
@@ -956,8 +965,15 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       const ink = rgba(cr.color), back = rgba(cw.backgroundColor);
       const ratio = under => { const bg = back.slice(0, 3).map((v, i) => v * back[3] + under[i] * (1 - back[3])); const [hi, lo] = [lum(ink), lum(bg)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
       const worst = Math.min(ratio([255, 255, 255]), ratio([0, 0, 0]));
-      read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10 };
-      if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
+      read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10, row: null };
+      if (corner && pane && cut && r) {
+        const d = word.getBoundingClientRect(), cx = (d.left + d.right) / 2 - cut.left, cy = (d.top + d.bottom) / 2 - cut.top, hw = word.offsetWidth / 2, hh = word.offsetHeight / 2;
+        const off = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => [cx + x * cs - y * sn, cy + x * sn + y * cs]).filter(([x, y]) => !inside(pane.poly, x, y));
+        if (off.length) why.push(`the state word has ${off.length} corner(s) off the voice pane`);
+        read.word.row = micAt ? Math.round(r[1] - micAt[1]) : null;
+        if (read.word.row === null || Math.abs(read.word.row) > 2) why.push(`the state word stands ${read.word.row} px under the microphone's top, not beside it`);
+      } else if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
+      if (!r || (out(r) && !(corner && pane && cut))) { /* told above */ }
       else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
       else if (read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
       if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
@@ -967,6 +983,32 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       word.replaceChildren(...was.kids);
       word.hidden = was.word;
     }
+    return { read, why };
+  };
+  /* THE PROJECTS TRAY'S ICONS (H84-05, 27.10.2026; the owner's 1.2.85 table, in Polish: the minus on the Projects panel
+     has no graphic). The tray's rows above carry Daggerheart's buttons as its countdowns.hbs (2.10.11) draws them, an
+     `<i class="fa-solid fa-minus">` in an `<a>` and the same with `fa-plus`, and a hidden countdown's `fa-eye-slash`;
+     none wears a drpg- class, so pixel-icons.css masks none of them, and each draws only while it keeps Font
+     Awesome's face. Font Awesome is not loaded here, so for the reading alone the page adds a stand-in for its own
+     rule - the face set on the icon itself, without `!important` - and takes it away before it answers, so no other
+     reading of the page sees it. Every icon in the tray must then compute a Font Awesome face. At d99adf4b each one
+     under Stained Glass computed VT323 (stained-glass.css's tray rule `#countdowns *`, `!important`); under Monokuma
+     Legacy, with the pixel face or without, Font Awesome. `drpgTrayIcons({ plant: true })` is the sweep's control:
+     that rule put back on the page for the reading, which must fail under Stained Glass. Under Monokuma Legacy it
+     matches nothing, and a planted `#countdowns *` would not show either: with the pixel face the base sheet's
+     `body.drpg-pixel-font #interface i[class*="fa-"]` restores Font Awesome at a higher specificity (read here,
+     27.10.2026), so the sweep runs the control under Stained Glass alone. Answers { read, why }. */
+  window.drpgTrayIcons = ({ plant = false } = {}) => {
+    const why = [], icons = [...document.querySelectorAll('#countdowns i[class*="fa-"]')];
+    const stand = document.createElement("style");
+    stand.textContent = '.fa-solid { font-family: "Font Awesome 7 Pro"; }'
+      + (plant ? " body.drpg-theme-stained-glass #countdowns, body.drpg-theme-stained-glass #countdowns * { font-family: var(--drpg-font-chrome) !important; }" : "");
+    document.head.append(stand);
+    const first = v => v.split(",")[0].trim().replace(/^["']|["']$/g, "");
+    const read = icons.map(i => [[...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? i.className, first(getComputedStyle(i).fontFamily)]);
+    stand.remove();
+    if (!icons.length) why.push("the tray holds no icon - nothing was read");
+    for (const [name, face] of read) if (!/Font Awesome/.test(face)) why.push(`the tray's ${name} wears ${face}, not Font Awesome`);
     return { read, why };
   };
   /* THE LIST 'WHO YOU HEAR' ON THE SCREEN (E78 fix r2-H2, 14.10.2026; verify E78-8 and doneWhen E78-9, which gave

@@ -23,7 +23,8 @@
  *      mark Apply writes (C1), and a player's walk into the other piece (V4, C2a).
  *   E  a project in a room Aiko has found: whether p1 knows it with its camera on Floor 1, the
  *      Annex and nothing; the gather ordered with the GM's camera on the Annex and on nothing
- *      (V5, C5 / R118); a Public Announcement for a room of the Annex, bought by the Monokuma on Floor 1 (C5).
+ *      (V5, C5 / R118); a Public Announcement for a room of the Annex, bought by the Monokuma on Floor 1 (C5); a public
+ *      project Aiko proposed in a room she has not been in, read on p1 and p2 (E4, H84 fix G3).
  *   F  Aiko's second token on the Annex: where `locateActor` puts her with the GM's camera on
  *      either scene; a direct murder parked in Dorm A before two others, judged at the end of the
  *      Eclipse with the GM looking at the Annex (C3).
@@ -365,6 +366,32 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         J({ setE, knowsP1, knowsGm }));
     check("E2: the gather ordered to Dorm A with the GM's camera on the Annex and on nothing is held on Floor 1 both times, unwarned (E12 C5)",
         J(gather.orders) === J([IDS.scene, IDS.scene]) && gather.warned === 0 && gather.left === null, J(gather));
+    /* E4 (H84 fix G3; the end review's H84R-06/H84R-6, H84-SEC-02/H84R-5): a public project p1's Aiko proposed, approved by
+       the GM into a room of Floor 1 neither Aiko nor Botan has been in or stands in. On p1, its own browser: `knowsProject`
+       and the tray's `hideUndiscovered` (a row of the project's, as Daggerheart draws it) - the proposer knows it from the
+       GM's private card (projects.mjs `PROJECT_KNOWN`). On p2: it does not know it, and its copy of the public meta names
+       no viewer and its GM store nothing. At b9540ce7 the proposer was in the public meta's `sealedViewers`, which p2 read
+       (E4 red there: p2's sealedViewers [p1's id]). */
+    const setE4 = await gm.eval(`${SCENES} const P = await import("${repoUrl}/scripts/projects.mjs"), F = await import("${repoUrl}/scripts/fog.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const known = new Set([...F.discoveredFor(academy.id, "${IDS.aiko}"), ...F.discoveredFor(academy.id, "${IDS.botan}"),
+            ...[...academy.tokens].filter(t => ["${IDS.aiko}", "${IDS.botan}"].includes(t.actorId)).map(t => M.roomOfToken(t))]);
+        const room = M.allRooms(academy).find(r => !known.has(r)) ?? null;
+        const made = room ? await P.createProject({ name: "H84 fix G3 66 Aiko's proposal", target: 6, room, by: "${IDS.aiko}" }) : null;
+        return { room, id: made?.id ?? null };`, { timeout: 60000 });
+    await settle(1500);
+    const PROPOSED = `const P = await import("${repoUrl}/scripts/projects.mjs"), T = await import("${repoUrl}/scripts/projects-tray.mjs");
+        const root = document.createElement("div");
+        root.innerHTML = '<div class="countdown-container" data-countdown="${setE4.id}"><div class="countdown-content"><header>x</header></div></div>';
+        return { knows: P.knowsProject("${setE4.id}"), removed: T.hideUndiscovered(root), viewers: P.metaFor("${setE4.id}").sealedViewers ?? [],
+            secrets: Object.keys(P.secretsOf("${setE4.id}")).length };`;
+    const proposedP1 = setE4.id ? await p1.eval(PROPOSED) : null, proposedP2 = setE4.id ? await p2.eval(PROPOSED) : null;
+    if (setE4.id) await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs"); await P.deleteProject("${setE4.id}"); return true;`, { timeout: 30000 });
+    check("E4: a public project p1's Aiko proposed into a room she has not been in is known on p1's own browser and kept on its tray; p2 does not know it, "
+        + "and nobody's copy of the public meta names who proposed it (H84 fix G3)",
+        Boolean(setE4.room && setE4.id) && proposedP1?.knows === true && proposedP1?.removed === 0 && proposedP2?.knows === false && proposedP2?.removed === 1
+        && J(proposedP1?.viewers) === J([]) && J(proposedP2?.viewers) === J([]) && proposedP2?.secrets === 0,
+        J({ setE4, proposedP1, proposedP2 }));
     /* E3 (E12 C5): the Public Announcement as the Monokuma buys it, its token on Floor 1, with the GM's camera on an
        Annex that holds a Boiler and Floor 1 none. The room is the picker's answer and the scene is the caller's
        (`gatherSceneOf`), never the camera's nor a `sceneId` riding the choice: the Boiler is refused before the

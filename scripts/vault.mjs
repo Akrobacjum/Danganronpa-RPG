@@ -41,7 +41,7 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { roomStockTables } from "./tables.mjs";
-import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
+import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural, serialWrite,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
@@ -246,8 +246,24 @@ export function mayEnterBedroom(actor, room, scene = null) {
  * Idempotent on purpose: Room Setup saves the whole table every time, so this
  * runs on rooms whose owner has not changed at all.
  */
-export async function grantBedroomKey(actor, room, { silent = false, scene } = {}) {
+export async function grantBedroomKey(actor, room, { silent = false, scene, tidy = false } = {}) {
     if (!game.user.isGM || !actor || !room) return null;
+    /* ONE GRANT AT A TIME PER STUDENT (H84, 27.10.2026; the owner's session on 1.2.85, triage A1 (b)). The read below
+       and the create were two steps with an await between them, and nothing queued them: the primary's ready sweep is
+       started and not awaited, and Room Setup's Apply, a GM's Give and a key's handover can each land inside it, so two
+       grants both read "holds none" and both made a key (tier 2 "H84-01: one key per room ...": two grants at once made
+       2 at 774b28a9, 1 here). The whole grant is one step of `serialWrite` under the student's key; the step awaits
+       the audit's queue, the item's create and a whisper, none of which waits for a grant (read in the code,
+       27.10.2026). Two GMs granting at once on two browsers are not queued by this (the queue is per browser): the
+       ready sweep runs on the primary alone, the other roads are a GM's click. */
+    return serialWrite(bedroomKeyKey(actor.id), () => grantKeyNow(actor, room, { silent, scene, tidy }));
+}
+
+/** The queue key of a student's key grants (`grantBedroomKey`). */
+export const bedroomKeyKey = actorId => `bedroomKey/${actorId}`;
+
+/** `grantBedroomKey`'s step, inside its queue. */
+async function grantKeyNow(actor, room, { silent, scene, tidy = false }) {
     /* Every write queued on the student judged first (E11 C10), so a key this GM made a moment ago
        is in the mark and reads as held. Measured on the harness on 10.10.2026: with nothing else
        queued on the student the key was in the mark by a second grant made at once without this
@@ -260,10 +276,6 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
        Room Setup, the ready sweep, the reset, the GMs' item manager and a key's handover (read in
        the code, 10.10.2026). */
     await judgedFor(actor.id);
-    // A key in the student's stash is still theirs (E14 part 1 C2): the sweep makes no second one beside it.
-    if (keysHeldBy(actor, { stashed: true }).has(room)) return null;
-
-    const { grantItem } = await import("./inventory.mjs");
     // Named on the key, so it reads as "Kaede's room" rather than "Room 3".
     // The scene is passed in by the sweep, which walks rooms on scenes nobody
     // is currently looking at - the default lookup would find no owner there
@@ -272,6 +284,14 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
     // while the GM looks at another scene used to read "Owner: -" (ITEM-16).
     const owner = game.actors.get((scene ? vaultOwnerOf(room, scene) : null)
         ?? bedroomOwnerAnywhere(room) ?? "");
+    // The sweep's (`tidy`): the owner's extra keys to their own bedroom go first, in this same step (H84 fix G2).
+    if (tidy && owner?.id === actor.id) await tidyRoomKeys(actor, room);
+    // A key in the student's stash is still theirs (E14 part 1 C2): the sweep makes no second one beside it.
+    if (keysHeldBy(actor, { stashed: true }).has(room)) return null;
+
+    const { grantItem } = await import("./inventory.mjs");
+    const repointed = owner?.id === actor.id ? await repointDeadKey(actor, room) : null;
+    if (repointed) return repointed;
     const item = await grantItem(actor, {
         reason: "gmRuling",
         name: game.i18n.format("DRPG.Vault.keyName", { room }),
@@ -293,6 +313,91 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
             { room: foundry.utils.escapeHTML(room) })}</p>`);
     }
     return item;
+}
+
+/**
+ * THE OWNER'S KEY A RENAME LEFT DEAD IS THE ROOM'S KEY (H84, 27.10.2026; triage A1 (a)). A key is a room's name, and a
+ * rename carries the keys only where fog.mjs `noteRegionName` carries it - on the primary, for the room's last piece of
+ * that name, from a name that GM saw, and where no other scene holds a bedroom of the old name (`carryRoomOnSheets`). In
+ * every other case the owner's key named a room that is no bedroom anywhere, and the next sweep made a key of the new
+ * name beside it: two rows under Room Keys, one of them opening nothing. Here, for the owner of `room` who holds no key
+ * to it, such a dead key is written to name `room` instead (`trustedWrite`, "setup", as the carry writes it; its name and
+ * description too while they are still `grantBedroomKey`'s), so no second key is made. Only when it cannot be another
+ * room's: exactly one dead key among the owner's (carried or stashed, read as the GMs hold them), and `room` the one
+ * bedroom of theirs they hold no key to. Otherwise the key is made as before and the dead one stays for a GM.
+ *
+ * ONLY A KEY THAT WAS THEIR OWN (H84 fix G2, 27.10.2026; the end review's H84R-03, H84R-3). A dead key is any key to a
+ * room no bedroom bears, and 477bd5b2 counted a copy among them: a key another student shared (handover.mjs `shareKey`)
+ * whose room's owner the GM then cleared, or one stolen from a student whose room a rename the carry missed left dead,
+ * was rewritten into the owner's key to their own bedroom - named for it, still described as the other student's, and
+ * the copy the GM was told of gone. Only a key `grantBedroomKey` made for this student as the room's owner is counted:
+ * its description is the grant's, naming its room and this student as owner (`text` below), as the GMs hold it. A copy
+ * names its own owner, so it stays where it is and a key is made (tier 2 "H84-01 ...": the shared copy repointed at
+ * 68aa984e, a new key beside it here). A key
+ * opens nothing for its owner at their own door (bedroom-keys.mjs `bedroomShutTo`), so this changes no door. Answers the
+ * key, or null.
+ */
+async function repointDeadKey(actor, room) {
+    const held = itemsHeldNow(actor);
+    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+        room: foundry.utils.escapeHTML(name), owner: foundry.utils.escapeHTML(actor.name ?? "-") })}</p>`;
+    const ownGrant = item => (item.system?.description ?? actor.items.get(item.id)?.system?.description) === text(keyRoomOf(item));
+    const dead = held.filter(item => keyRoomOf(item) && !bedroomOwnerAnywhere(keyRoomOf(item)) && ownGrant(item));
+    if (dead.length !== 1) return null;
+    const keyed = keyRooms(held, { stashed: true });
+    const lacking = new Set();
+    for (const scene of game.scenes ?? []) {
+        for (const region of scene.regions ?? []) {
+            if (region.name && region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id && !keyed.has(region.name)) lacking.add(region.name);
+        }
+    }
+    if (lacking.size !== 1 || !lacking.has(room)) return null;
+    const key = actor.items.get(dead[0].id);
+    if (!key) return null;
+    const was = keyRoomOf(dead[0]);
+    const changes = { [`flags.${MODULE_ID}.${KEY_FLAG}`]: room };
+    if (key.name === game.i18n.format("DRPG.Vault.keyName", { room: was })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room });
+    if (key.system?.description === text(was)) changes["system.description"] = text(room);
+    try {
+        await trustedWrite(key, changes, { reason: "setup" });
+    } catch (err) {
+        error(`Could not point ${actor.name}'s key to ${was} at ${room}`, err);
+        return null;
+    }
+    log(`${actor.name}'s key named "${was}", which is no bedroom any more; it opens "${room}" now, and no second key was made.`);
+    return keyRoomOf(actor.items.get(key.id)) === room ? key : null;
+}
+
+/**
+ * THE SWEEP KEEPS ONE KEY OF THE OWNER'S TO THEIR OWN BEDROOM (H84 fix G2, 27.10.2026; the end review's H84R-02, H84R-2;
+ * NOTES H84-01 "sweep deduplicates by room"). 477bd5b2 stopped a third key, and two already on a sheet stayed: the 1.2.85
+ * races left them in the owner's world, and two GMs granting on two browsers at once can still make a pair
+ * (LIVE-H84-01 (a)). For the owner of `room`, inside their `bedroomKeyKey` step after `judgedFor`, every key of theirs
+ * to that room but one is taken by a GM's ruling (`trustedDelete`, "gmRuling", as `takeOldOwnersKeys` takes a key):
+ * the one kept is a carried key before a stashed one, then the oldest (`_stats.createdTime`), then the lower id. Read
+ * as the GMs hold the student (`itemsHeldNow`). A copy of another student's key to another room is never touched. The
+ * GM is told on screen and in the log. Answers how many were taken.
+ */
+async function tidyRoomKeys(actor, room) {
+    const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room)
+        .map(item => ({ item, doc: actor.items.get(item.id) })).filter(({ doc }) => doc);
+    if (keys.length < 2) return 0;
+    keys.sort((a, b) => (Number(isStashed(a.item)) - Number(isStashed(b.item)))
+        || ((a.doc._stats?.createdTime ?? 0) - (b.doc._stats?.createdTime ?? 0)) || a.doc.id.localeCompare(b.doc.id));
+    let taken = 0;
+    for (const { doc } of keys.slice(1)) {
+        try {
+            await trustedDelete(doc, { reason: "gmRuling" });
+            taken++;
+        } catch (err) {
+            error(`Could not take ${actor.name}'s extra key to ${room}`, err);
+        }
+    }
+    if (taken) {
+        log(`${actor.name} held ${keys.length} keys to their own bedroom "${room}"; one is kept (${keys[0].doc.id}) and ${taken} taken.`);
+        ui.notifications?.info(game.i18n.format("DRPG.Vault.keyDuplicatesTaken", { actor: actor.name, room }));
+    }
+    return taken;
 }
 
 /**
@@ -329,7 +434,8 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
             if (owners && !owners.includes(ownerId)) continue;
             const owner = game.actors.get(ownerId);
             if (!owner) continue;
-            if (await grantBedroomKey(owner, region.name, { silent, scene })) made++;
+            // `tidy`: the owner's extra keys to this room are taken first (`tidyRoomKeys`, H84 fix G2).
+            if (await grantBedroomKey(owner, region.name, { silent, scene, tidy: true })) made++;
         }
     }
 

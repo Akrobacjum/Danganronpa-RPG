@@ -92,8 +92,13 @@ export function metaFor(countdownId) {
  * And `sabotageAsk` since E18 C7 (26.10.2026; audit S10-43 part 2): the request id a player's Sabotage came under, on its
  * repair's row beside `saboteur`, so the same player's resend of it is answered the first result (projects.mjs
  * `sabotageOfRequest`). Which request froze a project is the saboteur's secret as much as their user id.
+ *
+ * And `proposerTold` since H84 fix G3 (27.10.2026; the end review's H84-SEC-02, H84R-5): whether the proposer of a public
+ * project was sent the private card that tells their own browser they know it (projects.mjs `tellProposer`). It is a
+ * fact about `by`, so it is the GMs' as `by` is: a public mark of it would say which projects a player proposed.
  */
-export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"]);
+export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy",
+    "proposerTold"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
