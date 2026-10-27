@@ -21345,6 +21345,60 @@ const INVARIANTS = [
         }), "[the primary leaving with a second GM here: the wait's end at once, what it sent], [the only GM leaving: still waiting, then the clock's end and its expiry] - the wait does not end at once only when another GM takes over, the lone GM's leaving ended it, or the clock told the GMs nothing");
     }],
 
+    ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
+        /*
+         * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
+         * Daggerheart's countdowns (2.10.11, templates/ui/countdowns/parts/countdowns.hbs): its buttons are
+         * `<a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a>` and the same with `fa-plus`,
+         * a hidden countdown wears `fa-eye-slash` and a looping one `fa-repeat`, and none of them carries a drpg-
+         * class, so pixel-icons.css masks none of them. Font Awesome sets its face on the icon itself, with no
+         * `!important`; stained-glass.css's tray rule `#countdowns *` set the chrome face `!important` on every
+         * element in the tray, the icons too, and the minus's glyph (U+F068, private use) has no shape in VT323,
+         * while the plus's is "+" (the triage's Chromium read at 53bb2f3e: the minus's `::before` in `VT323,
+         * "Courier New", monospace`). Every other such sweep in that file leaves out `i` and `[class*="fa-"]`.
+         * Read here: the cascade of the module's sheets from their text (`styleCascade`), on Daggerheart's row
+         * built on a body of its own in three dresses - Stained Glass, Monokuma Legacy, Legacy with the pixel
+         * face - for the font-family that wins on each icon (none, or the base sheet's Font Awesome restore under
+         * the pixel face) and on the row's name (the chrome face under Stained Glass: the tray still speaks it).
+         * The reader is held first to the rule as d99adf4b had it, planted back: it must see the chrome face win
+         * on the minus. Red at d99adf4b: the minus, plus, eye-slash and loop all read the chrome face. In Chromium
+         * the same is the glass harness's `drpgTrayIcons` (the sweep's "tray" clause).
+         */
+        const C = await styleCascade();
+        const ICONS = ["fa-minus", "fa-plus", "fa-eye-slash", "fa-repeat"];
+        const DRESSES = { glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm",
+            pixel: "drpg-theme-monokuma-legacy drpg-pixel-font drpg-gm" };
+        const read = () => Object.fromEntries(Object.entries(DRESSES).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-category-container">
+                <div class="countdown-container" data-countdown="r1007"><div class="countdown-main-container"><div class="countdown-content">
+                <header>R1007</header><div class="countdown-tools"><div class="countdown-tool-controls">
+                <a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div>
+                <a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div>
+                <div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i><span><a class="looping-container" data-action="loopCountdown">
+                <i class="loop-marker fa-solid fa-repeat"></i></a></span></div></div></div></div></div></div></div></div>`;
+            const face = el => {
+                const w = el ? C.winner(el, "font-family") : null;
+                return w ? (/Font Awesome/.test(w.value) ? "Font Awesome" : w.value) : null;
+            };
+            return [dress, { name: face(body.querySelector("header")), icons: ICONS.map(fa => face(body.querySelector(`i.${fa}`))) }];
+        }));
+        const planted = { file: "planted", selector: "body.drpg-theme-stained-glass #countdowns, body.drpg-theme-stained-glass #countdowns *",
+            decls: [{ property: "font-family", value: "var(--drpg-font-chrome)", important: true }] };
+        C.rules.push(planted);
+        let seen;
+        try { seen = read().glass.icons[0]; } finally { C.rules.splice(C.rules.indexOf(planted), 1); }
+        equal(seen, "var(--drpg-font-chrome)", "the reader does not see the d99adf4b tray rule, planted back, put the chrome face on the minus");
+        const quiet = [null, null, null, null], restored = ["Font Awesome", "Font Awesome", "Font Awesome", "Font Awesome"];
+        const got = read();
+        ok([quiet, restored].some(want => JSON.stringify(got.pixel.icons) === JSON.stringify(want)), `under the pixel face the tray's icons read ${JSON.stringify(got.pixel.icons)}`);
+        equal(JSON.stringify({ glass: got.glass, legacy: got.legacy }), JSON.stringify({
+            glass: { name: "var(--drpg-font-chrome)", icons: quiet }, legacy: { name: null, icons: quiet }
+        }), "[the face that wins on the tray's row name and on its minus, plus, eye-slash and loop: Stained Glass; Monokuma Legacy] - null is Daggerheart's own (Font Awesome on an icon)");
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one

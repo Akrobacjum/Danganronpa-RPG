@@ -13250,7 +13250,7 @@ const REGRESSIONS = [
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }],
 
-    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in the compact fit (H81-10), and in the wall's full fit level with the microphone, lifted by `--drpg-voice-lift` as the buttons are (H84-03); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
          * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
@@ -13281,6 +13281,12 @@ const REGRESSIONS = [
          * face keeps in the row while it shows, under Legacy and under Stained Glass. Placed in Chromium (the glass
          * harness's checks, which read each band against the widest of the words in both languages): 139 px still
          * on a Legacy desk, 140 and 68 over a face named "Mai". Red at dc35104: none of the five declared.
+         * H84-03, 27.10.2026 (the owner's 1.2.85 table: "connected" too low on the LiveKit panel): since E78 fix r2-H3
+         * the buttons on the wall's full fit stand on the pane above the tile's box (`top: calc(7px -
+         * var(--drpg-voice-lift, 0px))`), and the word stayed 6 px under the tile's own top, about 47 px under the
+         * microphone it was placed beside (the triage's Chromium read at 53bb2f3e: word 283, microphone 259, pane
+         * 228 at 1920x1080). The full fit's top is now the buttons' own, so the word's 30 px band is the microphone's
+         * row. Red at d99adf4b: "6px". Where it lands on the pane is the glass harness's voice check (`drpgVoiceParts`).
          */
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
@@ -13363,7 +13369,7 @@ const REGRESSIONS = [
                 .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
             rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
                 .map(sel => last(sel, "min-width"))
-        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [],
+        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["calc(7px - var(--drpg-voice-lift, 0px))", "auto"], compact: ["2px", "auto"], faceRaised: [],
             still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
         "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
         + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");

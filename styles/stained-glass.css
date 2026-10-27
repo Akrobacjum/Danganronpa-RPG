@@ -1108,9 +1108,15 @@ body.drpg-theme-stained-glass #countdowns {
    pane for the GM too and gave the Scenes tab back to the GM alone; both now follow every theme. */
 
 /* ---- the Projects tray: the chrome face like the rest of the rail, and a pane the size of the clock's,
-   so the two top corners of the glass weigh the same */
+   so the two top corners of the glass weigh the same. Its text only (H84-05, 27.10.2026; the owner's 1.2.85
+   table: the minus on the Projects panel had no graphic): the tray is Daggerheart's, its -1 and +1 are
+   `<i class="fa-solid fa-minus">` and `fa-plus` with no drpg- class, which pixel-icons.css does not mask, and
+   `#countdowns *` took Font Awesome's face from them as from every element. The minus's glyph (U+F068) has no
+   shape in VT323, the plus's is "+"; a hidden countdown's eye-slash and a loop's repeat went blank the same way.
+   Read in Chromium on the glass harness's tray (its stand-in for Font Awesome's rule, `drpgTrayIcons`): every
+   icon VT323 at d99adf4b, Font Awesome here; the row's name keeps the chrome face (R1007), as the other sweeps of this file. */
 body.drpg-theme-stained-glass #countdowns,
-body.drpg-theme-stained-glass #countdowns * {
+body.drpg-theme-stained-glass #countdowns *:not(i):not([class*="fa-"]) {
     font-family: var(--drpg-font-chrome) !important;
 }
 /* A4. The tray's pane is the size of the tray. A floor of 150 px was there to balance the
@@ -1313,14 +1319,20 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fi
     gap: 4px;
 }
 /* The state word (E79 C15) where the microphone's line stood, left of the buttons; in the game state's colour at
-   full ink on the note's dark plate (the clock's ticker is that colour as an outline at 22 %). */
+   full ink on the note's dark plate (the clock's ticker is that colour as an outline at 22 %). On the wall's full
+   form it is lifted with them (H84-03, 27.10.2026; the owner's 1.2.85 table, in Polish: "connected" too low on the
+   LiveKit panel): until then it kept H81-10's 6 px under the tile's own top, 46 px under the microphone it
+   stands beside, level with the speaker's middle (the triage's Chromium read at 53bb2f3e: word 283, microphone 259,
+   pane 228 at 1920x1080). Its top is now the buttons', so its 30 px band is the microphone's row: read in Chromium on
+   the glass harness (`drpgVoiceParts`' `word.row`, the word's top less the microphone's, in the tile's frame), 46 at
+   d99adf4b and 0 here, its corners on the voice pane at every wall size of the sweep. */
 body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {
     font-family: var(--drpg-font-chrome);
     letter-spacing: 0.04em;
     color: var(--drpg-glass-accent);
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-state {
-    top: 6px;
+    top: calc(7px - var(--drpg-voice-lift, 0px));
     bottom: auto;
     right: 40px;
 }

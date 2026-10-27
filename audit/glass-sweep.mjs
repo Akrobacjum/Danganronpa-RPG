@@ -133,7 +133,8 @@
  * settled (`data-fit`) and a tile whose buttons or name plate leave it, whose plate lies under the buttons, whose name
  * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
  * control, once per run: the tile forced 15 px tall, the speaker's glyph stripped of its mask, and (H81-10) the state
- * word stood on the name plate at the tile's foot. 1366x600 and
+ * word stood on the name plate at the tile's foot, and (H84-03) the word on the wall's full form 6 px under the tile's
+ * own top, 47 px under the microphone it stands beside, where d99adf4b stood it (`low`). 1366x600 and
  * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
  * Since E78 fix r2-H2 (14.10.2026; the verify ledger's E78-8, E78-13, doneWhen E78-3 and E78-9) every size also opens
  * the list 'Who you hear' (the page's `drpgVoiceList`: voice-tile.mjs's own list, eight rows) and fails it outside the
@@ -509,6 +510,13 @@ async function plantVoice() {
         for (const k of Object.keys(put)) word?.style.removeProperty(k);
         res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && /over the name plate/.test(r.why) };
     }
+    if (tile.dataset.fit !== "compact") {   // low (H84-03): the state word 6 px under the tile's own top, where d99adf4b stood it
+        const word = tile.querySelector(".drpg-voice-tile-state");
+        word?.style.setProperty("top", "6px", "important");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        word?.style.removeProperty("top");
+        res.low = { ok: r.ok, why: r.why, pass: !r.ok && /not beside it/.test(r.why) };
+    }
     {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
         const plate = tile.querySelector(".drpg-voice-tile-plate");
         plate.style.setProperty("--brush", "rgb(1, 2, 3)");
@@ -687,6 +695,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
+const trayControlled = new Set();
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
@@ -907,6 +916,26 @@ try {
                     }
                 }
             }
+            /* THE PROJECTS TRAY'S ICONS (H84-05, 27.10.2026): every size, both roles, the page's `drpgTrayIcons` - each
+               Font Awesome icon of Daggerheart's tray rows must compute a Font Awesome face over the page's stand-in
+               for Font Awesome's own rule. Its control, once, under Stained Glass: the tray rule as d99adf4b had it put
+               back for the reading, which must read not ok (under Legacy that rule matches nothing: the page's note).
+               The line prints `tray ok <icons read>`. */
+            {
+                const ti = await page.evaluate(() => window.drpgTrayIcons?.() ?? null);
+                if (!ti) fails.push("the page defines no drpgTrayIcons");
+                else {
+                    line += ` | tray ${ti.why.length ? "NOT ok" : "ok"} ${ti.read.length}`;
+                    if (ti.why.length) fails.push("tray: " + ti.why.join("; "));
+                    if (control && theme === "stained" && !trayControlled.has(theme)) {
+                        trayControlled.add(theme);
+                        const ctl = await page.evaluate(() => window.drpgTrayIcons({ plant: true }));
+                        const pass = ctl.why.some(w => /not Font Awesome/.test(w));
+                        console.log(`  tray control chrome ${pass ? "sees it" : "MISSES IT"}: ${ctl.why.join("; ").slice(0, 110)}`);
+                        if (!pass) fails.push("tray control chrome reads as a pass");
+                    }
+                }
+            }
             if (windows) {
                 const fc = await page.evaluate(() => window.drpgFoundryCut?.() ?? null);
                 if (!fc) fails.push("the page defines no drpgFoundryCut");
@@ -1046,6 +1075,7 @@ if (control && notices && themes.includes("stained") && !fillControlled) { bad++
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (control && docks && lines && !dockControlled) { bad++; console.log("FAIL: the dock's control never ran (no size read the dock ok)"); }
 if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
+if (control && themes.includes("stained") && !trayControlled.has("stained")) { bad++; console.log("FAIL: the tray's control never ran (no Stained Glass page was read)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);
