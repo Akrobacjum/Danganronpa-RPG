@@ -3667,7 +3667,7 @@ async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = fal
         const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.observer ?? null, request: asked.request });
         if (!picked.ok) {
             warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
-            return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
+            return { value: "notThere", told: "DRPG.Observe.pickNotThere", held: picked.held ?? [] };
         }
         answer({ ok: true, key: picked.key });
         return { value: "picked", told: null };
@@ -3688,6 +3688,8 @@ export async function askObservePick({ rid, actorId, tokenId = null, refuse = fa
         local: () => observePickOnPrimary(asked, game.user.id)
     });
     if (!res.ok) return null;
+    // The traces the primary leaves out (H84 fix G1): the picker on this browser leaves them out too (observe.mjs `pickFromCard`).
+    if (Array.isArray(res.value?.held) && res.value.held.length) (await import("./observe.mjs")).noteHeldOnPrimary(rid, res.value.held);
     const told = res.value?.told ?? null;
     if (told) ui.notifications.warn(game.i18n.format(told, { name: game.actors.get(actorId ?? "")?.name ?? "?" }));
     return res.value?.value ?? null;

@@ -202,7 +202,7 @@ Some rooms are good places to look for a category and some are bad; the roll win
 
 ### Observe - Eye, 1 action
 
-Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others. A miss costs you **1 Sanity**. A critical also identifies what kind of trace it is and earns you a substantial hint from the GM. You hold one copy of a trace at most: a trace you already hold, or one another Observe of yours is still waiting on, is not where your gaze lands.
+Look for evidence. A hit copies a Remnant into your inventory as a **Neutral Truth Bullet** and leaves the original in place for others. A miss costs you **1 Sanity**. A critical also identifies what kind of trace it is and earns you a substantial hint from the GM. You hold one copy of a trace at most: a trace you already hold, or one whose find from another Observe of yours the GM is still describing, is not where your gaze lands, and a second copy of a trace is never made.
 
 You choose how you are looking:
 

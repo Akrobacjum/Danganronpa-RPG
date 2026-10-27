@@ -63573,19 +63573,26 @@ const SCENARIOS = [
             + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; the taker's keys, the steal's room, the giver's keys)");
     }],
 
-    ["H84-02: one trace, one Truth Bullet per character - a trace a pending Observe of theirs aims at is not offered to their next one until it is resolved, two Observes aimed at it at once make one bullet, and a second resolve of one Observe while its find is described is refused", async () => {
+    ["H84-02: one trace, one Truth Bullet per character - a trace whose find for them is being made is not offered to their next Observe, an Observe never resolved holds nothing, two Observes aimed at it at once make one bullet, and a second resolve of one Observe while its find is described is refused", async () => {
         /*
          * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A3): two identical Truth Bullets of one
          * trace. A second Observe of the same character, declared before the first was resolved - the first waiting
-         * on the GM's describe window or on a named-target card - was offered the same trace, since observe.mjs
-         * `observeCandidates` left out only the traces already copied, and `createFind` made the bullet with no
-         * second look. A trace is placed where a connected player's character stands, and the GM's pick of it
-         * (`pickObserveTarget`) declares an Observe on it: read whether the character's next Observe is offered it
-         * while that one waits, and again once it is resolved as a miss. Then two picks of it at once, both resolved
-         * on a success, the first find's describe window held open while the second is scored and the first one's
-         * resolve asked twice in that time. Read: the two picks' answers, the second resolve's refusal, and the
-         * character's bullets of the trace. Any other window of the GM's is closed at once. The miss's Sanity is put
-         * back. Red at 774b28a9 (measured on the harness, 27.10.2026): offered while pending, two bullets, no refusal.
+         * on the GM's describe window - was offered the same trace, since observe.mjs `observeCandidates` left out only
+         * the traces already copied, and `createFind` made the bullet with no second look. H84 fix G1 (the end review's
+         * H84R-01, H84R-1, H84-SEC-01): 385febe7 held the trace for every row of theirs with no result, for an hour, so
+         * an Observe whose roll window the player closed - its row written before the dice, never resolved - kept the
+         * trace from their next one; and the primary's "notThere" named nothing a second GM's picker could leave out
+         * (H84R-04). A trace is placed where a connected player's character stands, and the GM's pick of it
+         * (`pickObserveTarget`) declares an Observe on it: read whether the character's next Observe is offered it with
+         * that one never resolved, and once it is resolved as a miss. Then two picks of it at once (both must land, or
+         * the rest measures nothing: H84R-08), both resolved on a success, the first find's describe window held open
+         * while the trace is asked for again (offered? a pick of it answered with what is held?) and the second is
+         * scored, and the first one's resolve asked twice in that time. Between the two, an Observe card's picker on this GM
+         * with the trace noted as held by the primary (`noteHeldOnPrimary`): its options, against the same picker without.
+         * Read: the offers, the held answer, the second resolve's refusal, the character's bullets of the trace and the
+         * picker's options. Any other window of the GM's is closed at once. The miss's Sanity is put back. Red at
+         * 774b28a9 (measured on the harness, 27.10.2026): offered while pending, two bullets, no refusal; red at
+         * 68aa984e: offered after the unresolved pick false, no `held`, the picker's options the same.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's");
@@ -63602,7 +63609,7 @@ const SCENARIOS = [
         let answer = null, hold = false;
         // While `hold`, the first window - a find's description - waits for the test; every other one is closed at once.
         D.wait = cfg => {
-            asked.push(cfg?.window?.title ?? "");
+            asked.push(cfg?.content?.outerHTML ?? String(cfg?.content ?? ""));
             if (hold && !answer) return new Promise(resolve => { answer = resolve; });
             return Promise.resolve(null);
         };
@@ -63616,19 +63623,30 @@ const SCENARIOS = [
             must(trace, "the trace was not placed");
             must(await offered(trace.id), "the placed trace is not offered to the character where it lies - this would measure nothing");
             const pick = () => observe.pickObserveTarget({ actorId: actor.id, room: where.room, tokenId: trace.id, userId: player.id });
+            // An Observe whose roll never came: its row is written and nothing resolves it.
             const one = await pick();
             must(one?.ok, `the GM's pick of the trace was not written: ${stableJson(one)}`);
-            const whilePending = await offered(trace.id);
+            const unresolved = await offered(trace.id);
             await observe.resolveObserve({ key: one.key, total: 1, isCritical: false, actorId: actor.id, senderIsGm: true });
-            read.offered = [whilePending, await offered(trace.id)];
+            read.offered = [unresolved, await offered(trace.id)];
+            // The card's picker on this GM, before any bullet of the trace: the options without and with the trace noted as held by the primary.
+            const options = () => (asked.at(-1)?.match(/<option /g) ?? []).length;
+            const before = asked.length;
+            const plain = (await observe.observeCandidates(actor)).candidates.length;
+            await observe.pickFromCard({ rid: "SUITEH8402rid000", by: actor.id });
+            const drawn = asked.length > before ? options() : 0;
+            observe.noteHeldOnPrimary?.("SUITEH8402rid001", [trace.id]);
+            const at = asked.length;
+            await observe.pickFromCard({ rid: "SUITEH8402rid001", by: actor.id });
+            read.picker = [drawn === plain, plain - (asked.length > at ? options() : 0)];
 
             const both = await Promise.all([pick(), pick()]);
-            read.picks = both.map(p => Boolean(p?.ok));
             const keys = both.filter(p => p?.ok).map(p => p.key);
-            must(keys.length > 0, `neither pick of the trace at once was written - the rest would measure nothing (offered after the miss: ${read.offered[1]})`);
+            must(keys.length === 2, `two picks of the trace at once were not both written - the rest would measure nothing: ${stableJson(both)}`);
             hold = true;
             first = resolve(keys[0]);
             await until(() => answer);
+            read.describing = [await offered(trace.id), stableJson((await pick())?.held ?? null)];
             const again = await resolve(keys[0]);
             const rest = await Promise.all(keys.slice(1).map(resolve));
             answer(null);
@@ -63638,6 +63656,7 @@ const SCENARIOS = [
             read.again = again?.refused ?? null;
             read.rest = rest.map(r => Boolean(r?.success));
             read.bullets = actor.items.filter(i => !had.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id).length;
+
         } finally {
             if (answer) answer(null);
             if (first) await first;
@@ -63655,12 +63674,14 @@ const SCENARIOS = [
                 if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
             }
         }
-        // The two picks at once and the other picks' results are the run's interleaving, not a verdict: said, not held.
-        equal(stableJson([read.offered, read.again, read.bullets]), stableJson([[false, true], "the GM is still describing what that Observe found", 1]),
-            "a character's second Observe was offered a trace their first one aims at, or not offered it again once that one was resolved, or a second "
-            + "resolve of one Observe was not refused while its find was described, or Observes aimed at one trace made more than one bullet (read: offered "
-            + `while pending and after the miss; the second resolve's refusal; the character's bullets of the trace) - picks at once ${stableJson(read.picks)}, `
-            + `their successes ${stableJson(read.rest)}`);
+        // The other picks' results are the run's interleaving, not a verdict: said, not held.
+        equal(stableJson([read.offered, read.describing, read.again, read.bullets, read.picker]),
+            stableJson([[true, true], [false, stableJson([trace.id])], "the GM is still describing what that Observe found", 1, [true, 1]]),
+            "a character's next Observe was not offered a trace their earlier one aims at and never resolved, or not once it was resolved, or was offered "
+            + "it while its find was described (and a pick of it not answered with the trace held), or a second resolve of one Observe was not refused "
+            + "while its find was described, or Observes aimed at one trace made more than one bullet, or a card's picker did not leave out the trace "
+            + "the primary holds (read: offered with the first unresolved and after its miss; offered while described, the held answer; the second "
+            + `resolve's refusal; the bullets; the picker's options as the candidates, and the options the held trace took) - their successes ${stableJson(read.rest)}`);
     }],
 
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
