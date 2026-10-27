@@ -2039,6 +2039,7 @@
       "whichKey": "Whose room?",
       "giveKeyNote": "A copy - the owner keeps theirs. Only rooms that belong to somebody are listed: a room with no owner has no door to unlock.",
       "keyGivenGm": "{actor} now holds the key to {room}.",
+      "keyDuplicatesTaken": "{actor} held more than one key to {room}: one is kept, and the extra copies were taken.",
       "keyTakenGm": "{actor} no longer holds the key to {room}: the room is not theirs any more.",
       "keyTakenBack": "Your key to {room} was taken back: the room is not yours any more.",
       "keyCopiesGm": "Copies of the key to {room} are still held by {holders}. They open its door for its new owner too; take them away by hand if they should go with the room.",

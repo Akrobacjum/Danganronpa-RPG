@@ -2086,6 +2086,7 @@
       "whichKey": "Czyj pokój?",
       "giveKeyNote": "Kopia - właściciel zachowuje swój. Wymienione są tylko pokoje, które do kogoś należą: pokój bez właściciela nie ma drzwi do otwarcia.",
       "keyGivenGm": "{actor} ma teraz klucz do: {room}.",
+      "keyDuplicatesTaken": "{actor} - więcej niż jeden klucz do pokoju {room}: jeden zostaje, a nadmiarowe kopie zabrano.",
       "keyTakenGm": "{actor} nie ma już klucza do: {room}. Ten pokój nie należy już do tej postaci.",
       "keyTakenBack": "Twój klucz do: {room} został zabrany. Ten pokój nie jest już twój.",
       "keyCopiesGm": "Kopie klucza do: {room} wciąż mają: {holders}. Otwierają też drzwi nowego właściciela; zabierz je ręcznie, jeśli mają odejść razem z pokojem.",

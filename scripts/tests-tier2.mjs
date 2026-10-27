@@ -63486,7 +63486,7 @@ const SCENARIOS = [
             "a key the taker held was copied, stayed with the giver or was told more or less than once, or a key moved lost its room, or a key handed over left its giver ([the giver's keys to the room, the taker's, the taker's lines, the result's room, its copy])");
     }],
 
-    ["H84-01: one key per room - two grants at once make one key, the sweep points the key a rename left dead at the room instead of making a second, and a key taken by a student whose own key to that room is stashed is not copied", async () => {
+    ["H84-01: one key per room - two grants at once make one key, the sweep points the owner's own key a rename left dead at the room instead of making a second but never another student's copy, keeps one of two keys to the owner's room, and a key taken by a student whose own key to that room is stashed is not copied", async () => {
         /*
          * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A1): two rows under Room Keys for one
          * bedroom. Three roads, each read here as the GMs hold the sheets: (b) two grants of one key at once - the
@@ -63503,6 +63503,12 @@ const SCENARIOS = [
          * the one key is the same item and its name; the taker's keys to the room and the steal's answer. Red at
          * 774b28a9 on all three (measured on the harness, 27.10.2026): two keys at once, the sweep's second key beside
          * the dead one, two keys on the taker and no `keyHeld`.
+         * H84 fix G2 (the end review's H84R-02/H84R-2, H84R-03/H84R-3): (d) the owner's one dead key a copy of
+         * another student's (described as theirs, to a room nobody owns now, as a shared key whose room's owner was
+         * cleared): the sweep makes the owner a key and leaves the copy; (e) two keys of the owner's to their own
+         * bedroom, one carried and one stashed (as the 1.2.85 races left them): the sweep keeps the carried one. Read:
+         * the keys to the room, to the copy's room, whether the room's key is the copy; the keys to the room after the
+         * sweep and whether the one left is the carried one. Red at 68aa984e: the copy repointed, both keys kept.
          */
         needs(world.atLeast("scenes", 1), "a bedroom is a region on a scene");
         // Asked before anything is written (rule 2): the steal's two students, stood alone together by `aloneTogether`.
@@ -63520,6 +63526,9 @@ const SCENARIOS = [
         const { ROOM_FLAG } = await import("./rooms.mjs");
         const scene = game.scenes.viewed ?? game.scenes.contents[0];
         const ROOM = "SUITE H84-01 a bedroom", GONE = "SUITE H84-01 the name it had", STOLEN = "SUITE H84-01 a room keyed twice";
+        const SHARED = "SUITE H84-01 a room shared once";
+        const described = (room, name) => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+            room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name) })}</p>`;
         const keysTo = (actor, room) => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
         const read = {};
         let owner = null, region = null;
@@ -63535,8 +63544,9 @@ const SCENARIOS = [
             const [first] = keysTo(owner, ROOM);
             must(first, "no key was made to the bedroom - this would measure nothing");
             for (const extra of keysTo(owner, ROOM).slice(1)) await extra.delete();
-            await trustedWrite(first, { [`flags.${MODULE_ID}.${BEDROOM_KEY_FLAG}`]: GONE, name: game.i18n.format("DRPG.Vault.keyName", { room: GONE }) },
-                { reason: "setup" });
+            // As a rename the carry missed leaves the owner's own grant: its room, its name and its description the old name's.
+            await trustedWrite(first, { [`flags.${MODULE_ID}.${BEDROOM_KEY_FLAG}`]: GONE, name: game.i18n.format("DRPG.Vault.keyName", { room: GONE }),
+                "system.description": described(GONE, owner.name) }, { reason: "setup" });
             await sheetAuditIdle();
             must(keysTo(owner, GONE).length === 1 && !keysTo(owner, ROOM).length && !V.bedroomOwnerAnywhere(GONE),
                 "the key was not left naming a room that is no bedroom anywhere - this would measure nothing");
@@ -63544,6 +63554,27 @@ const SCENARIOS = [
             await sheetAuditIdle();
             const now = keysTo(owner, ROOM);
             read.swept = [now.length, keysTo(owner, GONE).length, now[0]?.id === first.id, now[0]?.name ?? null];
+
+            // (d) The owner's only dead key is another student's copy: no key of their own to the room.
+            for (const k of keysTo(owner, ROOM)) await k.delete();
+            const copy = await INV.grantItem(owner, { name: game.i18n.format("DRPG.Vault.keyName", { room: SHARED }), category: "bedroomKey", tier: null,
+                override: true, quiet: true, description: described(SHARED, "SUITE H84-01 somebody else"), extraFlags: { [BEDROOM_KEY_FLAG]: SHARED } });
+            await sheetAuditIdle();
+            must(copy && keysTo(owner, SHARED).length === 1 && !keysTo(owner, ROOM).length && !V.bedroomOwnerAnywhere(SHARED),
+                "the copy was not the owner's one dead key, or the owner still held a key to the room - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            read.copy = [keysTo(owner, ROOM).length, keysTo(owner, SHARED).length, keysTo(owner, ROOM)[0]?.id === copy.id];
+
+            // (e) Two keys of the owner's to their own bedroom, one carried and one stashed.
+            const carried = keysTo(owner, ROOM)[0];
+            const stashed = await INV.grantItem(owner, { name: game.i18n.format("DRPG.Vault.keyName", { room: ROOM }), category: "bedroomKey", tier: null,
+                override: true, quiet: true, location: INV.LOCATIONS.vault, description: described(ROOM, owner.name), extraFlags: { [BEDROOM_KEY_FLAG]: ROOM } });
+            await sheetAuditIdle();
+            must(carried && stashed && keysTo(owner, ROOM).length === 2, "the owner did not hold two keys to the room - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            read.twice = [keysTo(owner, ROOM).length, keysTo(owner, ROOM)[0]?.id === carried.id];
         } finally {
             if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
             if (owner) await owner.delete();
@@ -63568,9 +63599,12 @@ const SCENARIOS = [
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ atOnce: 1, swept: [1, 0, true, game.i18n.format("DRPG.Vault.keyName", { room: ROOM })], stashed: [1, STOLEN, 0] }),
-            "a room's key was made twice: by two grants at once, by the sweep beside a key a rename left dead, or by a steal from a student whose own key to the room is stashed "
-            + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; the taker's keys, the steal's room, the giver's keys)");
+        equal(stableJson(read), stableJson({ atOnce: 1, swept: [1, 0, true, game.i18n.format("DRPG.Vault.keyName", { room: ROOM })],
+            copy: [1, 1, false], twice: [1, true], stashed: [1, STOLEN, 0] }),
+            "a room's key was made twice: by two grants at once, by the sweep beside a key a rename left dead, or by a steal from a student whose own key to the room is stashed; "
+            + "or the sweep turned another student's copy into the owner's key, or left two keys of the owner's to their own room "
+            + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; with a copy the keys to the room, to the "
+            + "copy's room, the room's key the copy; with two keys the keys after the sweep, the carried one kept; the taker's keys, the steal's room, the giver's keys)");
     }],
 
     ["H84-02: one trace, one Truth Bullet per character - a trace whose find for them is being made is not offered to their next Observe, an Observe never resolved holds nothing, two Observes aimed at it at once make one bullet, and a second resolve of one Observe while its find is described is refused", async () => {
