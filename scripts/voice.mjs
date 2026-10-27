@@ -46,11 +46,13 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms, moveRefused, whenAtRest } from "./movement.mjs";
-import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
+import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
+// E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const AV_MODULE = "avclient-livekit";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -88,6 +90,73 @@ const HEARTBEAT_MS = 60000;
 const draggedNow = new Map();
 /** Each character token's move updates as this browser heard them, so a pass asked late knows whether a newer one came. */
 const moveTurns = new Map();
+
+/**
+ * The room each character's token last stood in on this browser's passes (E88 C6, 27.10.2026; triage C3, the owner's
+ * voice cut-outs "as if it disconnected", and Q3's default): actor id -> `{ sceneId, level, room, gap }`. In memory
+ * only (no world data, the stage's rule): a reload, or a new primary GM, starts it empty, and a token outside every
+ * room is then placed as before E88 - the main room.
+ *
+ * WHY. Every change of voice room is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and a
+ * token outside every region was `CLAIM.nowhere`, the main room. A crossing over a doorway square or an undrawn
+ * corridor was two reconnects for one crossing - into the main room, then into the next room - and a step into the
+ * gap and back two for none. Scenario 75 I at addc1522 (1.2.88's voice.mjs), 27.10.2026: Aiko from the Gym onto a
+ * square between the Gym and Dorm B, then into Dorm B - p1 sent the main room at +2 ms and Dorm B at +1804, two
+ * connects in p1's Debug log; Dorm B, the gap and Dorm B again - the same two for no change of room. With this map:
+ * one send and one connect, and none (the commit's message has the run).
+ */
+const roomsKept = new Map();
+
+/**
+ * `locate` for `placeVoices` that keeps a token's last room while it stands outside every room (E88 C6): `{ locate,
+ * done }`. `locate(actor)` asks `where(actor)` (movement.mjs `locateActor`); a token in a room is remembered and
+ * answered as it stands, and a token outside every room on the scene and the floor its remembered room is on, while
+ * that room is still a room there (`stands`), is answered as standing in it, `kept: true`. A token on another scene or
+ * floor, a room deleted, no token, or nothing remembered: as it stands - the main room, as before. `done()` after the
+ * pass forgets every character `locate` was not asked about in it: `voiceClaim` asks only for the living, connected
+ * and placed by their tokens, so an Eclipse, the trial, a death or a lost connection clears what it remembered, and
+ * nobody comes out of one into a room they left before it. A token dragged by a GM into a corridor on purpose keeps
+ * its room too (Q3's default asks no reason); a move into another room, off the scene, or a pass in an Eclipse or the
+ * trial ends it. Counted for `fps()` and scenario 75: `voice.gap` each time a token outside every room is located,
+ * `voice.gap.kept` each time its room is kept; the first pass that keeps one says so in the Debug log.
+ *
+ * @param {Map<string, object>} memory   `roomsKept`, or a test's own
+ * @param {(actor: object) => object|null} where  actor -> `{ scene, room, level }` or null
+ * @param {object} [options]
+ * @param {(scene: object, room: string) => boolean} [options.stands]  whether `room` is still a room on `scene`
+ * @returns {{locate: (actor: object) => object|null, done: () => void}}
+ */
+export function keepRoomsThroughGaps(memory, where, { stands = (scene, room) => roomRegions(scene, room).length > 0 } = {}) {
+    const seen = new Set();
+    const locate = actor => {
+        const place = where(actor);
+        if (!actor?.id) return place;
+        seen.add(actor.id);
+        if (!place?.scene) {
+            memory.delete(actor.id);
+            return place;
+        }
+        const level = place.level ?? null;
+        if (place.room) {
+            memory.set(actor.id, { sceneId: place.scene.id, level, room: place.room, gap: false });
+            return place;
+        }
+        count("voice.gap");
+        const last = memory.get(actor.id);
+        if (!last || last.sceneId !== place.scene.id || last.level !== level || !stands(place.scene, last.room)) {
+            memory.delete(actor.id);
+            return place;
+        }
+        count("voice.gap.kept");
+        if (!last.gap) debug(`Voice: "${actor.name ?? actor.id}" stands outside every room - keeps the voice of "${last.room}" until the next room.`);
+        last.gap = true;
+        return { ...place, room: last.room, kept: true };
+    };
+    const done = () => {
+        for (const id of [...memory.keys()]) if (!seen.has(id)) memory.delete(id);
+    };
+    return { locate, done };
+}
 
 function markDragged(tokenId, pending) {
     clearTimeout(draggedNow.get(tokenId));
@@ -726,7 +795,7 @@ function targetForUser(byUser, userId) {
 const CLAIM = {
     none: 0,      // nobody is holding this character
     dead: 1,      // silenced - the dead channel or the main room (D8), but a live character outranks it
-    nowhere: 2,   // alive, no token, or standing outside every region
+    nowhere: 2,   // alive, no token, or standing outside every region (since E88 C6 not when the room it came from is kept)
     inRoom: 3,    // alive and standing somewhere: the only claim with a room of its own
     trial: 4      // the Class Trial: the main room for everybody (D8); in a trial every connected account makes it
 };
@@ -748,12 +817,19 @@ export async function voiceTargets() {
     const eclipse = isEclipse();
     const trial = getClock().phase === "classTrial";
 
+    // A token outside every room keeps the room it came from (E88 C6, `keepRoomsThroughGaps`) - on the primary GM
+    // alone, whose passes follow every settled move. Anywhere else the map is emptied, so a GM who becomes the primary
+    // starts with nothing kept (a token outside every room: the main room, as before E88) rather than with the rooms a
+    // dry run (`voicePlan`) read there long ago.
+    if (!isPrimaryGm()) roomsKept.clear();
+    const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     const { rows, byUser, claims, waits, held } = await placeVoices({
         actors: game.actors.filter(a => a.type === "character"), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
-        locate: actor => locateActor(actor),
+        locate: gaps.locate,
         users: game.users.filter(u => u.active)
     });
+    gaps.done();
 
     // Only a real disagreement counts. Two characters in the same room, or two
     // that both want the main room, are not a conflict - they are one answer
@@ -1180,8 +1256,9 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         row.room = where?.room ?? null;
         row.target = liveKitRoomFor(row.scene?.id ?? null, row.room);
         row.claim = row.room ? CLAIM.inRoom : CLAIM.nowhere;
+        row.kept = Boolean(where?.kept);
         row.why = row.room
-            ? `${row.scene?.name ?? "?"} · ${row.room}`
+            ? `${row.scene?.name ?? "?"} · ${row.room}${row.kept ? " (outside every room: the room it came from)" : ""}`
             : "no room - token outside every region, or no token";
     }
     return row;

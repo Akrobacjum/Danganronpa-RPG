@@ -44,6 +44,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { activeGmIds, primaryGmId, debug, error } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
+// E88 C6: each connect this page runs and the ms it took, for `fps()` and scenario 75 (perf-counters.mjs, a leaf).
+import { count } from "./perf-counters.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const AV_MODULE = "avclient-livekit";
@@ -80,6 +82,9 @@ let chain = Promise.resolve();
  * a second confirmation for a room we are already in the middle of joining.
  */
 let applying = false;
+
+/** The connects and disconnects `applyBreakout` ran on this page since it loaded (E88 C6), for its Debug line. */
+let connectsHere = 0;
 
 /**
  * Whether this file is moving the client between rooms now (`applying`), for the voice tile's state word (E79
@@ -570,7 +575,14 @@ export async function applyBreakout(room, { remember = true } = {}) {
         return "failed";
     } finally {
         setApplying(false);
-        debug(`Voice: the connect for "${target ?? "the main room"}" took ${Math.round(performance.now() - startedAt)} ms.`);
+        // E88 C6 (E88-12): which connect of this page it was (`connectsHere`, which `game.drpg.counters({ reset: true })`
+        // does not zero), so that a table's Debug log counts the reconnects a crossing cost without lining the lines up
+        // by hand; `voice.connect.ms` adds up the time this line already took.
+        const took = Math.round(performance.now() - startedAt);
+        connectsHere += 1;
+        count("voice.connect");
+        count("voice.connect.ms", took);
+        debug(`Voice: the connect for "${target ?? "the main room"}" took ${took} ms (connect ${connectsHere} on this page).`);
     }
 
     if (!leave && connected === false) {

@@ -21951,6 +21951,82 @@ const INVARIANTS = [
         equal(JSON.stringify(drawn.styles.filter(s => !/^rgba\((2,1,4|255,79,139),0\.\d{3}\)$/.test(s))), "[]",
             "fill styles other than the dark's and the accent's in thousandths");
     }],
+    ["R1015 - a token outside every room keeps the voice room it came from (E88 C6, Q3's default): a crossing from one room through a gap into the next is one assignment, a step into the gap and back none; another scene, another floor, a room deleted, no token, an Eclipse or the trial between, or nothing remembered gives the main room as before", async () => {
+        /*
+         * E88 C6, 27.10.2026; E88-12, triage C3 (the owner's voice cut-outs "as if it disconnected"). Every change of
+         * voice room is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and until C6 a token
+         * outside every region was `CLAIM.nowhere`, the main room: a crossing over a doorway square was two reconnects,
+         * a step into the gap and back two for none (scenario 75 I at addc1522: p1 sent the main room at +2 ms and
+         * Dorm B at +1804). Read here on plain objects, nothing written and nothing sent: voice.mjs
+         * `keepRoomsThroughGaps` - the `locate` `voiceTargets` hands `placeVoices` on the primary - over a memory of the
+         * test's own, one pass a step, each pass's rooms sent through `sendInPasses` to an `assign` that counts what it
+         * is handed and differs from the last (the ledger's `settled`, stood in). Red at addc1522: no `keepRoomsThroughGaps`.
+         */
+        const V = await import("./voice.mjs");
+        const C = await import("./perf-counters.mjs");
+        equal(typeof V.keepRoomsThroughGaps, "function", "voice.mjs's locate that keeps a room through a gap (`keepRoomsThroughGaps`)");
+        if (typeof V.keepRoomsThroughGaps !== "function") return;
+        const school = { id: "R1015SCHOOL00000", name: "R1015 School", rooms: ["Dorm A", "Dorm B"] };
+        const other = { id: "R1015OTHER000000", name: "R1015 Other", rooms: ["Dorm A"] };
+        const user = { id: "R1015PLAYER00000", name: "R1015 Player", active: true, isGM: false };
+        const actor = { id: "R1015ACTOR000000", name: "R1015 Aiko", type: "character", getFlag: () => undefined };
+        const names = [school, other].flatMap(s => s.rooms.map(r => [V.liveKitRoomFor(s.id, r), `${s.name.slice(6)}:${r}`]));
+        const label = target => (target === null ? "main" : names.find(([room]) => room === target)?.[1] ?? `?${target}`);
+        /* One walk: each step `[scene, room, level]` (room null: outside every room; a step null: no token), or "eclipse" /
+           "trial" for a pass in one. Answers the rooms each pass placed and the assignments sent, starting in the main room. */
+        const walk = async (steps, { memory = new Map(), gone = [] } = {}) => {
+            let last = null;
+            const placed = [], sent = [];
+            for (const step of steps) {
+                const eclipse = step === "eclipse", trial = step === "trial";
+                const where = Array.isArray(step) ? { scene: step[0], room: step[1], level: step[2] ?? null } : null;
+                const gaps = V.keepRoomsThroughGaps(memory, () => where, { stands: (scene, room) => scene.rooms.includes(room) && !gone.includes(room) });
+                const { byUser } = await V.placeVoices({
+                    actors: [actor], eclipse, trial, death: eclipse || trial ? null : { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                    locate: gaps.locate, userOf: () => user, dead: () => false, monokumaOf: () => false, users: [user]
+                });
+                gaps.done();
+                placed.push(eclipse || trial ? step : label(byUser.get(user.id)?.target ?? null));
+                await V.sendInPasses(V.applyOrder(byUser, "R1015GM000000000"), new Map(), {
+                    ownId: "R1015GM000000000", waitFor: async () => null,
+                    assign: (userId, row) => {
+                        if ((row.target ?? null) === last) return false;
+                        last = row.target ?? null;
+                        sent.push(label(last));
+                        return true;
+                    }
+                });
+            }
+            return { placed, sent };
+        };
+        const before = C.snapshot();
+        const cross = await walk([[school, "Dorm A"], [school, null], [school, "Dorm B"]]);
+        const moved = C.delta(before, C.snapshot());
+        equal(JSON.stringify(cross), JSON.stringify({ placed: ["School:Dorm A", "School:Dorm A", "School:Dorm B"], sent: ["School:Dorm A", "School:Dorm B"] }),
+            "Dorm A, the gap, Dorm B: the rooms placed and sent - the gap is not one assignment of its own (the main room)");
+        equal(JSON.stringify([moved["voice.gap"] ?? 0, moved["voice.gap.kept"] ?? 0]), JSON.stringify([1, 1]),
+            "the crossing's counters [voice.gap, voice.gap.kept]: one pass outside every room, its room kept");
+        const back = await walk([[school, "Dorm A"], [school, null], [school, null], [school, "Dorm A"]]);
+        equal(JSON.stringify(back.sent), JSON.stringify(["School:Dorm A"]), "Dorm A, the gap for two passes, Dorm A: nothing sent after the first room");
+        const rows = new Map();
+        V.keepRoomsThroughGaps(rows, () => ({ scene: school, room: "Dorm A", level: null }), { stands: () => true }).locate(actor);
+        const kept = V.voiceClaim({ user, locate: () => V.keepRoomsThroughGaps(rows, () => ({ scene: school, room: null, level: null }), { stands: () => true }).locate(actor) });
+        equal(JSON.stringify([kept.claim > V.voiceClaim({ user, locate: () => ({ scene: school, room: null }) }).claim, kept.kept, kept.why.includes("the room it came from")]),
+            JSON.stringify([true, true, true]), `a kept row (a stronger claim than outside every room, kept, said in its why: "${kept.why}")`);
+        // Each of these ends outside every room with nothing it may keep: the main room, as before C6.
+        const ends = {
+            otherScene: await walk([[school, "Dorm A"], [other, null]]),
+            otherFloor: await walk([[school, "Dorm A", "L1"], [school, null, "L2"]]),
+            roomGone: await walk([[school, "Dorm A"], [school, null]], { gone: ["Dorm A"] }),
+            noToken: await walk([[school, "Dorm A"], null, [school, null]]),
+            eclipse: await walk([[school, "Dorm A"], "eclipse", [school, null]]),
+            trial: await walk([[school, "Dorm A"], "trial", [school, null]]),
+            fresh: await walk([[school, null]])
+        };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(ends).map(([k, r]) => [k, r.placed.at(-1)]))),
+            JSON.stringify({ otherScene: "main", otherFloor: "main", roomGone: "main", noToken: "main", eclipse: "main", trial: "main", fresh: "main" }),
+            "where each walk ends outside every room: kept where it may not be (another scene or floor, a room deleted, a pass with no token, an Eclipse or the trial between, a memory that starts empty - a new primary GM)");
+    }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
