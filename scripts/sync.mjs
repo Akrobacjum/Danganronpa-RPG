@@ -239,7 +239,7 @@ export function coalescer(run, {
     schedule = (fn, ms) => setTimeout(fn, ms), cancel = id => clearTimeout(id)
 } = {}) {
     const pending = new Map();
-    return (kind, data = {}) => {
+    const push = (kind, data = {}) => {
         const at = now();
         const held = pending.get(kind);
         const entry = held ?? { first: at, data: {}, timer: null };
@@ -253,9 +253,49 @@ export function coalescer(run, {
         pending.set(kind, entry);
         if (held) debug(`sync: ${kind} merged`);
     };
+    /* The kinds whose run is still to come (E17 fix ci-3): what `syncIdle` waits out. */
+    push.pending = () => [...pending.keys()];
+    return push;
 }
 
 const apply = coalescer((kind, data) => refresh(kind, data));
+
+/** The runs `refresh` started and that have not settled yet, each with its kind (E17 fix ci-3; `syncIdle`). */
+const running = new Map();
+
+/**
+ * WHEN THE BUS HAS NOTHING LEFT TO DO ON THIS BROWSER (E17 fix ci-3, 26.10.2026; CI run 40418039458 on 15f204c5,
+ * suite 2/8). Resolves once no run of `kinds` (every kind when none is named) is waiting in `apply` and every run of
+ * them `refresh` started has settled - its redraws done and its hooks called (`drpgTimeOfDayChanged` and the rest go
+ * out inside one such run) - looking again after each wait, since a run can push another. Answers the kinds it saw
+ * waiting. Bounded by `timeout` (ms): a run that never settles is let go rather than waited on for ever, and the
+ * caller reads the world as it then stands.
+ *
+ * For whoever writes the world and then reads it back whole - tier 2's restore. Since E17 C6 a write of the clock
+ * runs `coalesceMs` after its burst's last event and at most `COALESCE_MAX_WAIT_MS` after its first, where it ran at
+ * once before; a test that put its clock back in its `finally` and returned had its time of day's run - and the
+ * trace digest that run sends the GMs (remnants.mjs `flushTraceDigest`) - land after the restore had deleted the
+ * test's chat: measured on the harness 26.10, "a Key row's Place button ...": the restore's deletion at +17 ms, the
+ * clock's run at +109 ms, the digest of the test's Key trace at +178 ms, and "restore left: ... ChatMessage appeared".
+ * What a hook's listener goes on to do after its first await is not a run of the bus and not waited on here; the
+ * listener that posts a card says when it is done itself (`traceDigestIdle`), as the owed Despair does
+ * (`settleOwed`).
+ */
+export async function syncIdle({ kinds = null, timeout = COALESCE_MAX_WAIT_MS * 10 } = {}) {
+    const asked = kind => !kinds || kinds.includes(kind);
+    const seen = new Set();
+    const deadline = Date.now() + timeout;
+    for (;;) {
+        const waiting = apply.pending().filter(asked);
+        waiting.forEach(kind => seen.add(kind));
+        const runs = [...running].filter(([, kind]) => asked(kind)).map(([held]) => held);
+        if (!waiting.length && !runs.length) return [...seen];
+        const left = deadline - Date.now();
+        if (left <= 0) return [...seen];
+        const step = new Promise(resolve => setTimeout(resolve, Math.min(left, waiting.length ? TIMING.coalesceMs / 4 : left)));
+        await (waiting.length ? step : Promise.race([Promise.allSettled(runs), step]));
+    }
+}
 
 /**
  * WHAT THIS BROWSER LAST TOLD ITS LISTENERS ABOUT THE CLOCK (E17 C6, 26.10.2026; audit
@@ -299,7 +339,12 @@ function refresh(kind, data = {}) {
     const run = (label, fn) => {
         try {
             const result = fn();
-            if (result?.catch) result.catch(err => error(`sync ${kind}/${label} failed`, err));
+            if (result?.catch) {
+                // Held until it settles, for `syncIdle` (E17 fix ci-3).
+                const held = result.catch(err => error(`sync ${kind}/${label} failed`, err));
+                running.set(held, kind);
+                held.finally(() => running.delete(held));
+            }
         } catch (err) {
             error(`sync ${kind}/${label} failed`, err);
         }

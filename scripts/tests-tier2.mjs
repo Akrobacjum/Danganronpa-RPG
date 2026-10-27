@@ -197,6 +197,26 @@ async function restore(snap) {
      * recorded values below - which is what "put back" means.
      */
     if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
+    /*
+     * THEN THE BUS LET RUN OUT, AND THE DIGEST IT SENT LET LAND (E17 fix ci-3, 26.10.2026; CI run 40418039458 on
+     * 15f204c5, suite 2/8). Since E17 C6 a write of the clock runs `coalesceMs` after its burst's last event (sync.mjs
+     * `coalescer`), so the run of a clock a test put back in its `finally` - or put back just above - comes while this
+     * function is under way, and the trace digest its `drpgTimeOfDayChanged` sends the GMs (remnants.mjs
+     * `flushTraceDigest`) is a card posted after the chat below was cleared: "restore left: client:...secretCards.<id>
+     * (none) -> #...; ChatMessage "" (<id>) appeared", after "a Key row's Place button ..." there and after "last
+     * season's chapter is not this one" on f7ac1e9d (823174bc's fix, in that test alone). Measured here on the
+     * harness, that Key row test alone: the clock's run 109 ms after this function began, the deletion of chat
+     * at 17 ms, the digest at 178 ms - red on every run. Waited for here, before anything is put back, every run
+     * the test left lands on the world it left, and the steps below put back what it wrote; a write that lands
+     * after them is still the dump's to find. The clock's and the Eclipse's runs alone: theirs are the hooks whose
+     * listeners write the world (the digest, the owed Despair, the betrayal windows) and the assembly's teleport; the
+     * other kinds redraw. Waiting for every kind cost 222 s over a whole run of tiers 0-2 here (26.10: 1146 restores
+     * waited, median 177 ms), most of it for the `restrictions` redraw of the runner's own `endMurder`, pending in 1103
+     * of them; 296 found a run of the clock pending, and their waits came to 71 s.
+     */
+    const { syncIdle, SYNC } = await import("./sync.mjs");
+    await syncIdle({ kinds: [SYNC.clock, SYNC.eclipse] });
+    await (await import("./remnants.mjs")).traceDigestIdle();
     /* The settlement a change of the time of day asks for writes the pools' world value, the
        mark with it (E05 fix r2-G2). Asked by the hook some milliseconds after the clock's write,
        it landed on the pools put back below - measured on the harness 27.09: "restore left
@@ -52041,14 +52061,9 @@ const SCENARIOS = [
             }
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
             await gmStoresIdle();
-            /* AND THE CHAPTER'S MOVE BACK IS HEARD BEFORE THE TEST ENDS (E17 fix ci-2, 26.10.2026; CI run 40402423765, suite
-               7/8). The clock put back moves the chapter, and `drpgTimeOfDayChanged` sends the GMs the trace digest of the
-               traces placed since the last one (remnants.mjs `flushTraceDigest`): a card this test's run posts, which the
-               runner's restore deletes. Since E17 C6 the clock's run comes `coalesceMs` after its last event (sync.mjs
-               `coalescer`), where it came at once before, so the card landed after the restore and was left: "restore
-               left: client:...secretCards.<id> (none) -> #...; ChatMessage "" (<id>) appeared", read here as the "2 new
-               traces" whisper of this test's two last traces (a probe on f7ac1e9d, 26.10.2026). */
-            await settle();
+            /* The trace digest the clock put back sends the GMs is waited for by the runner's restore, which deletes it
+               (`restore`, E17 fix ci-3: the bus let run out and the digest let land); the `settle()` that stood here for it
+               (823174bc, E17 fix ci-2) was the same wait in this test alone. */
         }
         equal(stableJson(read), stableJson({ final: false, motive: null, offered: [5], cleared: 1, standing: [true, false] }),
             "last season's records of this chapter read as this season's (read in the new season: the Final Truth placed, the motive "
