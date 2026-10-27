@@ -46,19 +46,13 @@ export function registerVisibility() {
         // own rooms is no longer good. Somebody else's refresh cannot change it.
         if (token?.isOwner) forgetMyRooms();
         applyToToken(token);
-        // …and again after this frame's refresh has finished. See below.
-        reassertNextFrame();
+        // …and again after this frame's refresh has finished, this token among the ones refreshed in it. See below.
+        reassertNextFrame(token);
     });
 
     Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); applyAll(); });
     Hooks.on("canvasReady", () => applyAll());
-    Hooks.on("updateToken", (doc, changes) => {
-        // `hidden` as well as a move: that is the write `revealRemnantToFinder`
-        // makes, and it is the one moment a Remnant's visibility actually needs
-        // recomputing for everyone who is not the finder.
-        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
-        if (isMoveChange(changes) || changes.hidden !== undefined) applyAll();
-    });
+    Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());
     Hooks.on("drpgTimeOfDayChanged", () => applyAll());
@@ -124,21 +118,75 @@ export function registerVisibility() {
  * is the whole budget.
  */
 let pendingFrame = 0;
+/* THE TOKENS REFRESHED IN THIS FRAME, AND ONLY THEY ARE WALKED AGAIN (E88 C2, 27.10.2026; E88-07). The walk used to be
+   every placeable for any refresh at all: scenario 86 at 41cf2e9f counted 46 tokens walked on every browser for one
+   token's step. What the second pass guards against is the engine writing `visible` after this file's hook inside a
+   token's own refresh, so the tokens that can need it are the ones refreshed in the frame - and a whole pass
+   (`applyAll`) asks every token for its refresh, so after one of those every token is in here. A token whose `visible`
+   the engine wrote without refreshing it was not caught by the old walk either, unless some other token happened to
+   refresh in that frame. */
+const refreshedThisFrame = new Set();
 
-function reassertNextFrame() {
+function reassertNextFrame(token) {
+    if (token) refreshedThisFrame.add(token);
     if (pendingFrame) return;
     pendingFrame = requestAnimationFrame(() => {
         pendingFrame = 0;
+        const tokens = [...refreshedThisFrame];
+        refreshedThisFrame.clear();
         try {
             if (!canvas?.ready) return;
-            const placeables = canvas.tokens?.placeables ?? [];
             count("visibility.reassert");
-            count("visibility.reassert.tokens", placeables.length);
-            for (const token of placeables) applyToToken(token);
+            count("visibility.reassert.tokens", tokens.length);
+            for (const one of tokens) if (!one?.destroyed) applyToToken(one);
         } catch {
             // Same contract as `applyToToken`: never break the canvas over this.
+        } finally {
+            // The incident's cast is read once for this frame's verdicts and asked again by the next (`myIncidentTrace`).
+            incidentEntitled = null;
         }
     });
+}
+
+/**
+ * WHICH VISIBILITY PASS A TOKEN'S UPDATE ASKS FOR (E88 C2, 27.10.2026; E88-06): "all", "one" or null.
+ *
+ * Until C2 every move by anybody ran `applyAll` on every browser - each placeable's refresh asked, so each ring painted
+ * and each trace dressed again: scenario 86 at 41cf2e9f counted 46 refreshes of every listener on every browser for
+ * one step of Botan's inside the Cafeteria, and the GM's browser drew 34 rings again for it. A verdict reads where THIS
+ * viewer's own tokens stand (`myRooms`, and the lair through it), the Eclipse, the setting, the viewer's bullets and the
+ * incident's cast - none of which a token the viewer does not own changes by moving. So that move asks for its own
+ * token's verdict alone ("one"), and a move of one of the viewer's own still asks every token's ("all"), as does a
+ * change of `hidden` (`revealRemnantToFinder`'s write, kept as it was). A GM's verdicts read no room at all
+ * (`tokenShownTo` returns before them; a trace and a project leave a GM to Foundry), so on a GM's browser every move
+ * is "one". `viewer` is `{ gm }`, this browser's by default, so the rule reads without a canvas (R1011).
+ */
+export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }) {
+    // `hidden` as well as a move: that is the write `revealRemnantToFinder`
+    // makes, and it is the one moment a Remnant's visibility actually needs
+    // recomputing for everyone who is not the finder.
+    if (changes?.hidden !== undefined) return "all";
+    // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+    if (!isMoveChange(changes)) return null;
+    return !viewer.gm && doc?.isOwner ? "all" : "one";
+}
+
+/**
+ * The `updateToken` listener: the pass `movePass` names. "one" is the moved token's verdict asked again the way
+ * `applyAll` asks each of its tokens - its refresh flagged, which is the road that gives Foundry back a token this
+ * file hid (see `applyAll`'s note: a token stepping from another room into the viewer's comes back by it), and the
+ * verdict carried to its sprite now. A token on a scene not on screen has no placeable (`object` is the drawn token of
+ * the scene on screen alone, so the camera is not read here: rooms.mjs CAMERA_READERS), and is asked nothing.
+ */
+export function passForTokenUpdate(doc, changes) {
+    const pass = movePass(doc, changes);
+    if (pass === "all") return applyAll();
+    if (pass !== "one" || !canvas?.ready) return;
+    const token = doc?.object;
+    if (!token || token.destroyed) return;
+    count("visibility.applyOne");
+    token.renderFlags?.set?.({ refreshVisibility: true });
+    applyToToken(token);
 }
 
 function isMyTruthBullet(item) {
@@ -354,11 +402,27 @@ function applyToRemnantToken(token) {
  * The entitlement is the live incident's participant list, which a player's
  * client legitimately holds: they are in it.
  */
+/* Whether this viewer is one of the live incident's cast whom its traces show to, read once for a frame's or a pass's
+   verdicts (E88 C2): null until read; dropped by `forgetMyRooms` (each `applyAll`, each refresh of an own token) and
+   after each next-frame walk. It reads no token: each trace asked the same three settings and the same actors walk. */
+let incidentEntitled = null;
+
 function myIncidentTrace(tokenDoc) {
     count("visibility.myIncidentTrace");
     try {
         if (!tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
+        if (incidentEntitled === null) {
+            count("visibility.incidentCast");
+            incidentEntitled = inTheIncident();
+        }
+        return incidentEntitled;
+    } catch {
+        return false;
+    }
+}
 
+function inTheIncident() {
+    try {
         const state = game.settings.get(MODULE_ID, SETTINGS.murderState);
         if (!state?.active) return false;
 
@@ -525,6 +589,7 @@ let myRemnantRefsCache = null;
 function forgetMyRooms() {
     myRoomsCache = null;
     myRemnantRefsCache = null;
+    incidentEntitled = null;
 }
 
 function myRooms() {

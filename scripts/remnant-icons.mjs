@@ -143,11 +143,19 @@ function textureFor(path) {
     return null;
 }
 
-/** Dress one token, or undress it back to the document's texture and name. */
-function apply(token) {
+/**
+ * Dress one token, or undress it back to the document's texture and name.
+ *
+ * NOT A TRACE THIS SCREEN DOES NOT SHOW (E88 C2, 27.10.2026). A hidden trace's mesh is not drawn, and every road that
+ * shows it again is a refresh of it (Foundry's own visibility, asked by visibility.mjs), which runs this again - so it
+ * is dressed when it comes on screen, not on every refresh while it is off it. Scenario 86 at 41cf2e9f: 30 traces
+ * dressed on each player's browser for one step of somebody else's, all 30 hidden there. Exported for R1011.
+ */
+export function dressTrace(token) {
     try {
         const doc = token?.document;
         if (!doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
+        if (token.visible === false) return;
 
         const mesh = token.mesh;
         if (!mesh || mesh.destroyed) return;
@@ -169,7 +177,7 @@ function apply(token) {
 }
 
 function applyAll() {
-    for (const token of canvas?.tokens?.placeables ?? []) apply(token);
+    for (const token of canvas?.tokens?.placeables ?? []) dressTrace(token);
 }
 
 /**
@@ -185,7 +193,7 @@ export function repaintRemnants() {
 
 /**
  * Load every icon this client could ever need - the action set for a GM, plus
- * whatever the documents themselves wear - so `apply` stays synchronous on the
+ * whatever the documents themselves wear - so `dressTrace` stays synchronous on the
  * refresh path. A path that fails to load is dropped and its tokens simply
  * keep the texture Foundry drew; said once out loud, not once per refresh.
  */
@@ -217,7 +225,7 @@ export function registerRemnantIcons() {
 
     // After the ring's own refresh handler and Foundry's: refreshToken fires
     // post-refresh, so the mesh this reads is the one on screen.
-    Hooks.on("refreshToken", token => { count("refreshToken.remnantIcons"); apply(token); });
+    Hooks.on("refreshToken", token => { count("refreshToken.remnantIcons"); dressTrace(token); });
 
     for (const hook of ["createItem", "updateItem", "deleteItem"]) {
         Hooks.on(hook, item => {

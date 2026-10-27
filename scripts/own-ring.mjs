@@ -51,7 +51,7 @@
  * two answers to when a token is redrawn.
  */
 
-import { debug, cssColour } from "./utils.mjs";
+import { debug, cssColour, forgetCssColours } from "./utils.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 /* The frame is the Remnant frame's, so its light is too: the three additive passes the
    curtain's seams and the evidence frames share (motion.mjs `SEAM_GLOW`), drawn by fog-reveal.mjs
@@ -65,7 +65,7 @@ import { count } from "./perf-counters.mjs";
 /* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
    (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
    `seamWidth`; fog-reveal.mjs imports neither ring file back. */
-import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED } from "./fog-reveal.mjs";
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgOwnRing";
 /* The seam's light, told apart from the seam: anything measuring "the frame" by
@@ -93,7 +93,9 @@ function glassOn() {
 }
 
 export function registerOwnRing() {
-    Hooks.on("refreshToken", token => { count("refreshToken.ownRing"); paint(token); });
+    // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags
+    // (a repaint of the scene, an ownership change) always draws again.
+    Hooks.on("refreshToken", (token, flags) => { count("refreshToken.ownRing"); paint(token, flags ?? {}); });
     Hooks.on("canvasReady", () => { ringZoom = 0; restrikeHalos(); sweepHalos(); repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
@@ -121,6 +123,8 @@ export function registerOwnRing() {
        is what catches the Eclipse and a change of theme. */
     let hourTimer = 0;
     new MutationObserver(() => {
+        // The colours the stylesheet answers may have changed with it (utils.mjs `cssColour`'s memo, E88 C2).
+        forgetCssColours();
         clearTimeout(hourTimer);
         hourTimer = setTimeout(() => {
             try { repaintAll(); } catch (err) { debug("Could not repaint the own-token rings", err); }
@@ -237,10 +241,13 @@ function bakedLight() {
 /**
  * Draw, update or remove one token's frame.
  *
- * Everything is rebuilt each refresh rather than cached: a token that changes size
- * or owner mid-scene would otherwise keep a frame drawn for what it used to be.
+ * Rebuilt whole when asked without `flags` (a repaint of the scene, an ownership change). A refresh (`flags`, the
+ * refresh's own) keeps the frame as drawn when what it was drawn for has not changed (E88 C2): a refresh that only
+ * moves the token, or one whose frame key - whose, size, colour, theme, seam - is the one it was drawn with, while its
+ * light still stands (fog-reveal.mjs `ringKept`). A token that changes size or owner mid-scene changes the key, so it
+ * is never left wearing a frame drawn for what it used to be.
  */
-function paint(token) {
+function paint(token, flags) {
     try {
         if (!token?.document) return;
         const existing = token[RING_NAME];
@@ -265,17 +272,32 @@ function paint(token) {
             return;
         }
 
-        const { group, halo, baked, core } = ringParts(token);
-        count("ownRing.rebuilt");
-        group.visible = true;
-        core.clear();
-        halo.clear();
+        if (flags && positionOnly(flags) && ringKept(existing)) {
+            count("ownRing.kept");
+            existing.visible = true;
+            return;
+        }
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
         const colour = whose === "mine" ? cssColour("--drpg-bone", BONE_FALLBACK) : hourColour();
+        const glass = glassOn();
+        const key = [glass ? "glass" : "legacy", whose, `${w}x${h}`, colour, glass ? seamWidth().toFixed(5) : ""].join("|");
+        if (flags && ringKept(existing, key)) {
+            count("ownRing.kept");
+            existing.visible = true;
+            return;
+        }
 
-        if (!glassOn()) {
+        const { group, halo, baked, core } = ringParts(token);
+        count("ownRing.rebuilt");
+        group.visible = true;
+        group.drpgRingKey = key;
+        group.drpgRingLight = glass ? null : "";
+        core.clear();
+        halo.clear();
+
+        if (!glass) {
             /* MONOKUMA LEGACY: the Remnant frame to the pixel - four filled bars on
                integer coordinates, one cell of the token's 12-cell grid thick, no bloom.
 
@@ -312,6 +334,7 @@ function paint(token) {
         if (wearHalo(baked, { seen: token.parent ?? token, key: `own|${w}x${h}|${colour}`, seamFactor: 1, shape })) {
             halo.visible = false;
             halo.filters = null;
+            group.drpgRingLight = baked.drpgHaloKey;
             return;
         }
         halo.visible = true;

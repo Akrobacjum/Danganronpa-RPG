@@ -36,6 +36,15 @@
  * and draws nothing, and checks that at rest no ring carries a live blur, that the 30 Remnants wear one texture and
  * the students one, that a clock move draws only the students' light again, and that the outline of the room Aiko
  * stands in shows its light from a texture of its own, drawn once more when it is struck again.
+ *
+ * E88 C2 (27.10.2026; E88-06, E88-07): one move, one refresh. In each theme's events, another player's settled move
+ * asks no whole visibility pass on the browsers that do not own the token - its own refresh alone in each listener,
+ * the next frame's walk of it alone, no other ring drawn again - and an own move asks the whole pass on the mover's
+ * browser and draws no ring whose frame did not change. Two more events: the GM moves Botan into Dorm A, where Aiko
+ * stands alone ("into my room": he comes onto p1's screen by his own refresh), and back out ("out of my room"). After
+ * every move each browser's every token is checked against a whole pass run there and then: none shown or hidden
+ * otherwise (E37's risk sentence: a narrowed pass never leaves another player's hidden token visible). State, not only
+ * counts.
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -91,6 +100,30 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         return { moved, live: { filters: c.live.filters, blurs: c.live.blurs, masks: c.live.masks, byName: c.live.byName },
             glass: document.body.classList.contains("drpg-theme-stained-glass") };`;
     const rows = {};
+    /* E88 C2: each token as this browser shows it now against a whole pass run there and then (its refreshes flushed) -
+       a token the narrowed pass left shown or hidden otherwise is named. Botan's own reading is handed back. */
+    const STATE = `const V = await import("${repoUrl}/scripts/visibility.mjs");
+        const shown = () => Object.fromEntries(canvas.tokens.placeables.map(t => [t.id, Boolean(t.visible)]));
+        const now = shown();
+        V.applyAll();
+        await new Promise(r => setTimeout(r, 250));
+        const fresh = shown();
+        return { off: Object.keys(fresh).filter(id => fresh[id] !== now[id]).map(id => [canvas.tokens.get(id)?.name ?? id, now[id], fresh[id]]),
+            botan: now.TOKBOTAN00000000 ?? null, tokens: Object.keys(now).length };`;
+    const stateHolds = async (theme, event) => {
+        const read = {};
+        for (const [who, c] of Object.entries(clients)) read[who] = await c.eval(STATE);
+        check(`${theme}: after ${event} every browser shows each token as a whole pass run there would (E88 C2; E37's risk)`,
+            Object.values(read).every(r => r?.tokens === 46 && r.off.length === 0), J(read));
+        return read;
+    };
+    const LISTENERS = ["refreshToken.visibility", "refreshToken.ownRing", "refreshToken.remnantRing", "refreshToken.remnantIcons"];
+    const drawn = m => (m["ownRing.rebuilt"] ?? 0) + (m["remnantRing.rebuilt"] ?? 0);
+    // Another's move on browser `who`: no whole pass, the moved token's refresh alone in each listener, walked alone the next frame.
+    const oneRefresh = (read, who) => { const m = read[who]?.moved ?? {};
+        return !m["visibility.applyAll"] && (m["visibility.applyOne"] ?? 0) === 1 && LISTENERS.every(k => (m[k] ?? 0) === 1)
+            && (m["visibility.reassert.tokens"] ?? 0) === 1 && drawn(m) <= 1; };
+    const moved = read => J(Object.fromEntries(Object.entries(read).map(([who, r]) => [who, r.moved])));
     const measure = async (theme, event, act) => {
         await Promise.all(Object.values(clients).map(c => c.eval(SNAP)));
         await act();
@@ -110,6 +143,8 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     const at = await gm.eval(`${ACADEMY} return Object.fromEntries(["TOKAIKO000000000", "TOKBOTAN00000000"].map(id => [id, { x: academy.tokens.get(id).x, y: academy.tokens.get(id).y }]));`);
     const despair = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
     const ledger = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); return F.discoveredFor("${IDS.scene}", "${IDS.aiko}");`);
+    // Botan's, for C2's walk into Dorm A: the room he finds there is forgotten again after the events.
+    const botanLedger = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); return F.discoveredFor("${IDS.scene}", "${IDS.botan}");`);
     const themes = {};
     for (const [who, c] of Object.entries(clients)) themes[who] = await c.eval(`return game.settings.get("${MOD}", "theme");`);
 
@@ -124,10 +159,31 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         check(`${theme}: another player's settled move is counted on every browser, the moved token refreshed on each`,
             Object.keys(clients).every(who => beyondRest(theme, other, who) && (other[who].moved["refreshToken.visibility"] ?? 0) >= 1),
             J(Object.fromEntries(Object.entries(other).map(([who, r]) => [who, r.moved]))));
+        check(`${theme}: C2 - Botan's step costs the browsers that do not own him his own refresh alone: no whole pass, one refresh in each listener, one token walked the next frame, no other ring drawn again (E88-06, E88-07)`,
+            ["gm", "p1", "p3", "p4"].every(who => oneRefresh(other, who)), moved(other));
+        await stateHolds(theme, "another player's move");
         const own = await measure(theme, "own move", () => p1.eval(`${ACADEMY}
             const t = academy.tokens.get("TOKAIKO000000000"); await t.update({ x: t.x + ${step} }, ${MOVE}); return true;`));
         check(`${theme}: an own move is counted on every browser`,
             Object.keys(clients).every(who => beyondRest(theme, own, who)), J(Object.fromEntries(Object.entries(own).map(([who, r]) => [who, r.moved]))));
+        check(`${theme}: C2 - Aiko's step asks every token's verdict on her player's browser and draws no ring whose frame did not change; the others pay her refresh alone (E88-06)`,
+            (own.p1.moved["visibility.applyAll"] ?? 0) >= 1 && (own.p1.moved["refreshToken.visibility"] ?? 0) >= 46 && drawn(own.p1.moved) === 0
+                && ["gm", "p2", "p3", "p4"].every(who => oneRefresh(own, who)), moved(own));
+        await stateHolds(theme, "an own move");
+        /* Botan walked by the GM into Dorm A, where Aiko stands alone, and back out: on p1's browser he comes on screen by
+           his own refresh (the road `applyAll`'s note keeps: Foundry is asked again for a token this file hid) and goes off
+           it the same way; every other token stays as it was everywhere. */
+        const botanAt = await gm.eval(`${ACADEMY} const t = academy.tokens.get("TOKBOTAN00000000"); return { x: t.x, y: t.y };`);
+        const inside = await measure(theme, "into my room", () => gm.eval(`${ACADEMY}
+            await academy.tokens.get("TOKBOTAN00000000").update({ x: 600, y: 650 }, ${MOVE}); return true;`));
+        const enter = await stateHolds(theme, "Botan walked into Dorm A");
+        check(`${theme}: C2 - Botan walked into Dorm A comes onto Aiko's player's screen by his own refresh, and stays off the screens of p3 and p4 (E88-06)`,
+            enter.p1.botan === true && enter.p3.botan === false && enter.p4.botan === false && oneRefresh(inside, "p1"), J({ moved: inside.p1.moved, enter }));
+        const outside = await measure(theme, "out of my room", () => gm.eval(`${ACADEMY}
+            await academy.tokens.get("TOKBOTAN00000000").update(${J(botanAt)}, ${MOVE}); return true;`));
+        const leave = await stateHolds(theme, "Botan walked back out of Dorm A");
+        check(`${theme}: C2 - Botan walked back out of Dorm A leaves Aiko's player's screen by his own refresh (E88-06)`,
+            leave.p1.botan === false && oneRefresh(outside, "p1"), J({ moved: outside.p1.moved, leave }));
         const pool = await measure(theme, "despair", () => gm.eval(`await game.drpg.setDespair(game.user.id, ${Number(despair) === 3 ? 4 : 3}); return true;`));
         check(`${theme}: a Despair write is counted on every browser`,
             Object.keys(clients).every(who => beyondRest(theme, pool, who)), J(Object.fromEntries(Object.entries(pool).map(([who, r]) => [who, r.moved]))));
@@ -152,6 +208,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: ${J(ledger)}, value: ${ledger.length > 0} }); return true;`);
         await settle(800);
     }
+
+    if (!botanLedger.includes("Dorm A")) await gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
+        await F.setDiscovery(academy, { actorId: "${IDS.botan}", rooms: ["Dorm A"], value: false }); return true;`);
+    await settle(800);
 
     /* ------------------------------ the seams' light drawn once (E88 C1) ------------------------------ */
     /* E88-05. The harness's canvas has no renderer, so every halo above stayed on its live filter (the rows keep C0's
@@ -186,6 +246,16 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     check("C1: at rest on the GM's browser no ring carries a live blur; the 30 Remnants wear one texture and the students one, each drawn once",
         baked?.ringBlurs === 0 && baked.remnant === 30 && baked.remnantTextures === 1 && baked.own >= 1 && baked.ownTextures === baked.ownKeys
             && baked.renders === 1 + baked.ownKeys, J(baked));
+    /* E88 C2: with the light drawn once, a second whole pass on the GM's browser finds every frame standing - no ring and
+       no texture drawn again (at 41cf2e9f each of the 34 was drawn again on every refresh). */
+    const again = await gm.eval(`const before = (await game.drpg.counters()).counts;
+        const V = await import("${repoUrl}/scripts/visibility.mjs"); V.applyAll();
+        await new Promise(r => setTimeout(r, 400));
+        const after = (await game.drpg.counters()).counts, d = k => (after[k] ?? 0) - (before[k] ?? 0);
+        return { renders: globalThis.__s86halo.renders, rebuilt: d("ownRing.rebuilt") + d("remnantRing.rebuilt"), kept: d("ownRing.kept") + d("remnantRing.kept") };`);
+    note("C2 second pass, GM", J(again));
+    check("C2: a second pass on the GM's browser with the light drawn once draws no ring and no texture again, every frame kept (E88-06)",
+        again?.renders === baked.renders && again.rebuilt === 0 && again.kept >= baked.own + baked.remnant, J({ baked, again }));
     await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
         const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
         const before = C.getClock();

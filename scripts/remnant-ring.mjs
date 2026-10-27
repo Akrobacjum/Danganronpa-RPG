@@ -35,7 +35,7 @@ import { myBulletForRemnant } from "./visibility.mjs";
    visibility.mjs imports it - and it does not import this one, so the static import
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
-import { debug, error, esc, cssColour } from "./utils.mjs";
+import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
 import { glassOn as motionGlassOn } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
@@ -46,7 +46,7 @@ import { count } from "./perf-counters.mjs";
 /* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
    (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
    `seamWidth`; fog-reveal.mjs imports neither ring file back. */
-import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED } from "./fog-reveal.mjs";
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 /* The seam's light, told apart from the seam - the same reason
@@ -83,7 +83,9 @@ const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
 const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint cannot be read
 
 export function registerRemnantRings() {
-    Hooks.on("refreshToken", token => { count("refreshToken.remnantRing"); paint(token); });
+    // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags
+    // (a repaint of the scene, a type written on the token) always draws again.
+    Hooks.on("refreshToken", (token, flags) => { count("refreshToken.remnantRing"); paint(token, flags ?? {}); });
     Hooks.on("canvasReady", () => { ringZoom = 0; restrikeHalos(); sweepHalos(); repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
@@ -109,6 +111,8 @@ export function registerRemnantRings() {
        changing IS the colour changing, with nothing in between to get the order wrong. */
     let themeTimer = 0;
     new MutationObserver(() => {
+        // The colours the stylesheet answers may have changed with it (utils.mjs `cssColour`'s memo, E88 C2).
+        forgetCssColours();
         clearTimeout(themeTimer);
         themeTimer = setTimeout(() => {
             try { repaintAll(); } catch (err) { debug("Could not repaint the Remnant rings", err); }
@@ -453,11 +457,15 @@ function ringParts(token) {
 /**
  * Draw, update or remove one token's ring.
  *
- * Everything is rebuilt each refresh rather than cached: a token that changes
- * size, type or Remnant-ness mid-scene would otherwise keep a ring drawn for
- * what it used to be, and the cost of a circle is not worth the bookkeeping.
+ * Rebuilt whole when asked without `flags` (a repaint of the scene, a type written on the token). A refresh (`flags`,
+ * the refresh's own) keeps the ring as drawn when what it was drawn for has not changed (E88 C2): a refresh that only
+ * moves the token, or one whose frame key - Remnant or project, size, colour, weight, theme, seam - is the one it was
+ * drawn with, while its light still stands (fog-reveal.mjs `ringKept`). "The cost of a circle is not worth the
+ * bookkeeping", this said until C2; scenario 86 at 41cf2e9f counted 30 of them drawn again on the GM's browser for
+ * one step of somebody else's, and the key is the size, the type's colour and the weight that would otherwise have
+ * left a token wearing a ring drawn for what it used to be.
  */
-function paint(token) {
+function paint(token, flags) {
     try {
         if (!token?.document) return;
 
@@ -486,6 +494,12 @@ function paint(token) {
             return;
         }
 
+        if (flags && positionOnly(flags) && ringKept(existing)) {
+            count("remnantRing.kept");
+            existing.visible = true;
+            return;
+        }
+
         const { colour, reinforced } = frameFor(token.document, isRemnant);
         if (colour == null) {
             count("remnantRing.skipped");
@@ -493,16 +507,26 @@ function paint(token) {
             return;
         }
 
+        const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
+        const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
+        const glass = glassOn();
+        const key = [glass ? "glass" : "legacy", isRemnant ? "remnant" : "project", `${w}x${h}`, colour, reinforced ? 2 : 1,
+            glass ? seamWidth().toFixed(5) : ""].join("|");
+        if (flags && ringKept(existing, key)) {
+            count("remnantRing.kept");
+            existing.visible = true;
+            return;
+        }
+
         const { group, halo, baked, core } = ringParts(token);
         count("remnantRing.rebuilt");
         group.visible = true;
+        group.drpgRingKey = key;
+        group.drpgRingLight = glass ? null : "";
         core.clear();
         halo.clear();
 
-        const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
-        const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
-
-        if (!glassOn()) {
+        if (!glass) {
             halo.visible = false;
             releaseHalo(baked);
             // A square pixel frame: four filled bars on integer coordinates, one
@@ -557,6 +581,7 @@ function paint(token) {
         if (wearHalo(baked, { seen: token.parent ?? token, key: `remnant|${w}x${h}|${colour}`, seamFactor: reinforced ? 2 : 1, shape })) {
             halo.visible = false;
             halo.filters = null;
+            group.drpgRingLight = baked.drpgHaloKey;
             return;
         }
         halo.visible = true;

@@ -21445,13 +21445,14 @@ const INVARIANTS = [
         const pass = C.delta(before, C.snapshot());
         await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= n), 2000);
         const moved = C.delta(before, C.snapshot());
-        const paints = (moved["ownRing.rebuilt"] ?? 0) + (moved["ownRing.skipped"] ?? 0);
+        // Since E88 C2 a refresh may keep a frame that still stands (`ownRing.kept`; R1011).
+        const paints = (moved["ownRing.rebuilt"] ?? 0) + (moved["ownRing.skipped"] ?? 0) + (moved["ownRing.kept"] ?? 0);
         const colours = C.snapshot()["utils.cssColour"] ?? 0;
         U.cssColour("--drpg-bone", 0);
         equal(JSON.stringify([pass["visibility.applyAll"], pass["visibility.applyAll.tokens"], LISTENERS.map(k => (moved[k] ?? 0) >= n),
             paints >= (moved["refreshToken.ownRing"] ?? 0), (C.snapshot()["utils.cssColour"] ?? 0) - colours]),
             JSON.stringify([1, n, LISTENERS.map(() => true), true, 1]),
-            `[passes, tokens it flagged, each refreshToken listener ran for every token, every own-ring paint counted as drawn or skipped, a colour read counted] over ${n} tokens: ${JSON.stringify(moved)}`);
+            `[passes, tokens it flagged, each refreshToken listener ran for every token, every own-ring paint counted as drawn, skipped or kept, a colour asked counted] over ${n} tokens: ${JSON.stringify(moved)}`);
 
         // The filters on screen: the walk against each token's ring halo, read off the token.
         const glass = document.body.classList.contains("drpg-theme-stained-glass");
@@ -21585,6 +21586,109 @@ const INVARIANTS = [
             + `the thirty on one texture composited as the live filter was, a recolour draws one more, the thirty wear the new one, the old one freed with its last wearer, `
             + `the blur off draws the passes alone and adds them, a ${side} x ${side} shape worn, a browser with no renderer worn, both counted live, renders in all, `
             + `every texture freed with its wearers] ${JSON.stringify({ one, all, edges, gone, renders: rendered.length })}`);
+    }],
+
+    ["R1011 - one move, one refresh (E88 C2): a token's update asks the whole visibility pass only for a move of the viewer's own or a change of hidden, another token's move asks its own refresh alone and the next frame walks only what was refreshed, a ring whose drawing still stands is kept on a refresh and on one that only moves it, a hidden trace is not dressed, and a canvas colour is read once until the body changes", async () => {
+        /*
+         * E88 C2, 27.10.2026; E88-06, E88-07. Scenario 86 at 41cf2e9f: one step of Botan's inside the Cafeteria cost every
+         * browser a refresh of all 46 placeables in every `refreshToken` listener, a next-frame walk of 46, 30 traces dressed
+         * and, on the GM's, 34 rings drawn again and 34 colours read off the stylesheet. Read here on this client's scene on
+         * screen, writing nothing: visibility.mjs `movePass` on plain stand-ins; `passForTokenUpdate` handed a token's
+         * own position as a move (no write - the listener's own call); two visibility passes back to back, the second
+         * finding every frame drawn for what it still is; a refresh that only moves a framed token; remnant-icons.mjs
+         * `dressTrace` on a stand-in trace off screen and on one on screen; utils.mjs `cssColour` around a write of the
+         * body's own class back onto it, which is what the ring files' observers watch. A ring whose light was left live
+         * while this browser has a renderer is drawn again (fog-reveal.mjs `ringKept`), so the second pass expects those
+         * and only those. Red at 41cf2e9f: no `movePass`, no `passForTokenUpdate`, no `dressTrace`; every ring drawn again
+         * on the second pass; `utils.cssColour.read` never counted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const U = await import("./utils.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const I = await import("./remnant-icons.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const at = name => C.snapshot()[name] ?? 0;
+        const frames = async k => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); };
+        const LISTENERS = ["refreshToken.visibility", "refreshToken.ownRing", "refreshToken.remnantRing", "refreshToken.remnantIcons"];
+        const rebuilt = d => (d["ownRing.rebuilt"] ?? 0) + (d["remnantRing.rebuilt"] ?? 0);
+        const kept = d => (d["ownRing.kept"] ?? 0) + (d["remnantRing.kept"] ?? 0);
+
+        // The rule, on stand-ins: [a change of hidden, the viewer's own move, another's move, any move on a GM's screen, no move].
+        const rule = typeof V.movePass === "function" ? [V.movePass({ isOwner: false }, { hidden: true }, { gm: false }),
+            V.movePass({ isOwner: true }, { x: 1 }, { gm: false }), V.movePass({ isOwner: false }, { y: 1 }, { gm: false }),
+            V.movePass({ isOwner: true }, { x: 1 }, { gm: true }), V.movePass({ isOwner: false }, { name: "R1011" }, { gm: false })] : "no movePass";
+        equal(JSON.stringify(rule), JSON.stringify(["all", "all", "one", "one", null]),
+            "[a change of hidden, the viewer's own move, another token's move, any move on a GM's screen, a change that is no move]");
+
+        // Two passes back to back: the second keeps every frame drawn by the first, but a live light beside a renderer.
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const b0 = C.snapshot();
+        V.applyAll();
+        await until(() => LISTENERS.every(k => (C.delta(b0, C.snapshot())[k] ?? 0) >= n), 2000);
+        await frames(2);
+        const rings = tokens.flatMap(t => ["drpgOwnRing", "drpgRemnantRing"].map(r => t.visible ? t[r] : null))
+            .filter(g => g && !g.destroyed && g.visible !== false);
+        const renderer = typeof FR.HALO_IO.renderer()?.render === "function";
+        const liveBesideRenderer = renderer && glass ? rings.filter(g => !g.children?.find(c => c?.name === FR.HALO_BAKED)?.visible).length : 0;
+        const b1 = C.snapshot();
+        V.applyAll();
+        await until(() => LISTENERS.every(k => (C.delta(b1, C.snapshot())[k] ?? 0) >= n), 2000);
+        await frames(2);
+        const second = C.delta(b1, C.snapshot());
+        equal(JSON.stringify([rings.length > 0, rebuilt(second), kept(second) >= rings.length - liveBesideRenderer]),
+            JSON.stringify([true, liveBesideRenderer, true]),
+            `[a frame on this screen, rings drawn again on the second pass, rings kept] (${glass ? "Stained Glass" : "Legacy"}, ${rings.length} framed, ${liveBesideRenderer} live beside a renderer): ${JSON.stringify(second)}`);
+
+        // Another token's move: its own refresh alone, no whole pass, and the next frame walks only it.
+        const other = tokens.find(t => game.user.isGM || !t.document?.isOwner);
+        must(other, "every token on this scene is this player's own - another token's move cannot be read here");
+        const b2 = C.snapshot();
+        if (typeof V.passForTokenUpdate === "function") V.passForTokenUpdate(other.document, { x: other.document.x });
+        await until(() => (C.delta(b2, C.snapshot())["visibility.reassert"] ?? 0) >= 1, 1500);
+        await frames(2);
+        const one = C.delta(b2, C.snapshot());
+        equal(JSON.stringify([one["visibility.applyAll"] ?? 0, one["visibility.applyOne"] ?? 0, one["refreshToken.visibility"] ?? 0,
+            one["visibility.reassert.tokens"] ?? 0, rebuilt(one) <= 1]),
+            JSON.stringify([0, 1, 1, 1, true]),
+            `[whole passes, one-token passes, refreshes, tokens walked the next frame, at most the moved token's ring drawn] for ${other.name}: ${JSON.stringify(one)}`);
+
+        // A refresh that only moves a framed token keeps its frame (Foundry's slide refreshes it every frame).
+        const framed = typeof FR.ringKept === "function" ? tokens.find(t => t.visible && ["drpgOwnRing", "drpgRemnantRing"].some(r => FR.ringKept(t[r]))) : null;
+        if (framed) {
+            const b3 = C.snapshot();
+            Hooks.callAll("refreshToken", framed, { refreshPosition: true });
+            const slide = C.delta(b3, C.snapshot());
+            equal(JSON.stringify([rebuilt(slide), kept(slide)]), JSON.stringify([0, 1]),
+                `[rings drawn again, rings kept] on a position-only refresh of ${framed.name}: ${JSON.stringify(slide)}`);
+        }
+
+        // A trace off this screen is not dressed; one on it is.
+        const trace = visible => ({ document: { getFlag: (scope, key) => (key === "isRemnant" ? true : undefined), texture: {}, name: "R1011" },
+            mesh: new PIXI.Sprite(), nameplate: null, visible });
+        const dressed = () => at("remnantIcons.apply");
+        const d0 = dressed();
+        if (typeof I.dressTrace === "function") I.dressTrace(trace(false));
+        const d1 = dressed();
+        if (typeof I.dressTrace === "function") I.dressTrace(trace(true));
+        equal(JSON.stringify([d1 - d0, dressed() - d1]), JSON.stringify([0, 1]), "[a trace off screen dressed, one on screen dressed]");
+
+        // A canvas colour: read once until the body changes, then once more.
+        const bodyAgain = () => { document.body.className = document.body.className; };
+        bodyAgain();
+        await new Promise(r => setTimeout(r, 0));
+        const r0 = at("utils.cssColour.read");
+        const first = U.cssColour("--drpg-bone", 0);
+        const again = U.cssColour("--drpg-bone", 0);
+        const r1 = at("utils.cssColour.read");
+        bodyAgain();
+        await new Promise(r => setTimeout(r, 0));
+        U.cssColour("--drpg-bone", 0);
+        equal(JSON.stringify([r1 - r0, at("utils.cssColour.read") - r1, first === again]), JSON.stringify([1, 1, true]),
+            "[stylesheet reads for two asks, reads for one ask after the body's class was written, the same colour twice]");
     }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {

@@ -17,7 +17,8 @@
  * `pixelFontReady`. And the seams' light drawn once (E88 C1): `wearHalo`,
  * `releaseHalo`, `sweepHalos`, `restrikeHalos`, `haloStats`, `ringHalo`,
  * `haloBlurOn`, `HALO_IO`, `HALO_BAKED`, with `bakeTexture` and
- * `bakeOutlineHalo` - the rings' textures (own-ring.mjs, remnant-ring.mjs) and
+ * `bakeOutlineHalo`, and what lets a ring keep its drawing on a refresh (E88 C2:
+ * `ringKept`, `positionOnly`) - the rings' textures (own-ring.mjs, remnant-ring.mjs) and
  * the standing outline's, in memory only (`haloCache`, `haloStruck`). What it does not hold: when a reveal plays (fog.mjs's
  * `playDiscoveryAnimation`, which reads the animations switch) or for which room
  * (`announceRoom`), the layer, the dissolve, the raster, the ledger and the
@@ -1088,6 +1089,39 @@ export function wearHalo(sprite, { seen, key, seamFactor = 1, shape, blur = halo
     applyPlace(sprite, entry.place);
     sprite.visible = true;
     return true;
+}
+
+/**
+ * A REFRESH THAT ONLY MOVES THE TOKEN (E88 C2, 27.10.2026; E88-07): flags asking `refreshPosition` and nothing else.
+ * Foundry refreshes a sliding token on every frame of its slide, and a ring is a child of its token, so it moves with
+ * it: nothing of its drawing reads where the token stands. Which flags v14 sets on each frame of a slide is read from
+ * Foundry's documented render flags, not from v14's source (LIVE-E88-05); a slide that sets more than this falls to
+ * the frame key (`ringKept`) and is kept by it as well.
+ */
+export function positionOnly(flags) {
+    const asked = Object.entries(flags ?? {}).filter(([, on]) => on).map(([name]) => name);
+    return asked.length > 0 && asked.every(name => name === "refreshPosition");
+}
+
+/**
+ * WHETHER A RING'S DRAWING STILL STANDS FOR ITS FRAME KEY (E88 C2, 27.10.2026; E88-06). `group` is the ring's container
+ * as its painter left it: `drpgRingKey` the frame it drew (theme, whose or which type, size, colour, weight, seam) and
+ * `drpgRingLight` its light - the texture key its sprite was handed by `wearHalo`, "" where the theme draws no light
+ * (Monokuma Legacy), null where the light was left on its live filter. Kept when the key is the one asked and the
+ * light is still as drawn: the sprite wearing that texture still (no release, no sweep, no other key since), or a live
+ * light with still no renderer to draw it once. A live light beside a renderer is drawn again, as before C2: a shape
+ * past the cap keeps its live filter that way, and a renderer handed over late (scenario 86's stand-in) takes the ring.
+ * Until C2 every refresh drew every ring again: scenario 86 at 41cf2e9f, 34 rings on the GM's browser for one step.
+ */
+export function ringKept(group, key) {
+    if (!group || group.destroyed || !group.drpgRingKey || (key !== undefined && group.drpgRingKey !== key)) return false;
+    const light = group.drpgRingLight;
+    if (light === "") return true;
+    if (typeof light === "string") {
+        const baked = group.children?.find(c => c?.name === HALO_BAKED);
+        return Boolean(baked && !baked.destroyed && baked.visible && baked.drpgHaloKey === light);
+    }
+    return typeof HALO_IO.renderer()?.render !== "function";
 }
 
 /** The standing outline's own sprite of its light (not shared: one room, one shape), named apart from the light itself. */

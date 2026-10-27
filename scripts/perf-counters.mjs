@@ -16,13 +16,17 @@
  *
  * THE NAMES (each counted where the work runs, `<file>.<what>`):
  *   refreshToken.visibility | .ownRing | .remnantRing | .remnantIcons   one per run of that `refreshToken` listener
- *   ownRing.rebuilt | .skipped, remnantRing.rebuilt | .skipped         a ring drawn again, or a paint that drew none
+ *   ownRing.rebuilt | .skipped | .kept, remnantRing (the same)         a ring drawn again, a paint that drew none, a
+ *                                                                       refresh that kept the drawing standing (E88 C2)
  *   visibility.applyAll, visibility.applyAll.tokens                     whole passes, and the tokens each flagged
+ *   visibility.applyOne                                                 a move that asked its own token alone (E88 C2)
  *   visibility.applyToToken                                             one verdict carried to a sprite
  *   visibility.reassert, visibility.reassert.tokens                     next-frame walks, and the tokens walked
- *   visibility.myIncidentTrace, visibility.sightRefresh                 the D11 read; Foundry's sight refresh heard
+ *   visibility.myIncidentTrace, visibility.sightRefresh                 the D11 ask; Foundry's sight refresh heard
+ *   visibility.incidentCast                                             the D11 cast read, once a frame or pass (E88 C2)
  *   remnantIcons.apply                                                  a trace dressed on a refresh
- *   utils.cssColour                                                     a computed-style read for a canvas colour
+ *   utils.cssColour, utils.cssColour.read                               a canvas colour asked; read off the stylesheet
+ *                                                                       (kept until the body changes since E88 C2)
  *   fog.repaintFog, fog.buildFogTexture, fog.driftTick                  a repaint asked, a texture built, a drift frame
  *   clock.refreshSheets, clock.refreshSheets.rendered                   a sheet pass, and the sheets it rendered
  *   hud.renderHud, playerStatus.render                                  the HUD and the status strip drawn
