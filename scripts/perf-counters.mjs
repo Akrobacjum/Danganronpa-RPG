@@ -36,6 +36,8 @@
  *                                                                       restore (E88 C4)
  *   hud.renderHud, playerStatus.render                                  the HUD and the status strip drawn
  *   glass.pulseFrame, glass.paintBand                                   the curtain's pulse frame, a window band painted
+ *   glass.pulseFrame.panes, glass.pulseFrame.kept                       the panes a pulse frame filled; a job whose
+ *                                                                       fills moved by no step, not drawn (E88 C5)
  *   glass.paintBand.kept                                                a window redrawn whose band's box and colour
  *                                                                       stood, so nothing was painted (E88 C4)
  *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that

@@ -187,7 +187,7 @@
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
  *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
- *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...]   (E88 C0: below)
+ *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -331,9 +331,15 @@ catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--
    redraws its canvas (a filled rectangle that moves a pixel a frame). Every hold is put back before the next, and the
    body's classes and the paused animations are read after each to say so. Headless Chromium rasterises in software
    (perf-baseline.json `headless`): the numbers are a SHAPE - which hold moves the frame and by how much against the
-   others - never a table's frame time. A table's is `game.drpg.fps()`. Exit 1 when a hold did not come back. */
-async function frameCostProbe(frames) {
+   others - never a table's frame time. A table's is `game.drpg.fps()`. Exit 1 when a hold did not come back.
+   `--glow <n>` (E88 C5) first plants n waiting Calls (`.drpg-pending-call`, the sheet's badge of a Call armed on its
+   character) in the page's module window, so the seam glows (`drpg-sg-seam-glow`, a box-shadow animated on every frame
+   while something waits) run and their hold reads something: as loaded the page has none of them waiting. */
+async function frameCostProbe([frames, glow]) {
     const body = document.body;
+    const host = document.querySelector(".drpg-panel .window-content") ?? body;
+    for (let i = 0; i < glow; i++) { const b = document.createElement("span"); b.className = "drpg-pending-call drpg-pending-hope"; b.textContent = "Call"; host.append(b); }
+    if (glow) await new Promise(res => setTimeout(res, 1500));
     const frame = () => new Promise(res => requestAnimationFrame(res));
     const mean = async () => { await frame(); const t0 = performance.now(); for (let i = 0; i < frames; i++) await frame(); return (performance.now() - t0) / frames; };
     const endless = () => document.getAnimations().filter(a => a.effect?.getComputedTiming?.().iterations === Infinity && a.playState === "running");
@@ -381,7 +387,7 @@ if (args.includes("--frame-cost")) {
             await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
             await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
             await page.waitForTimeout(waitMs);
-            const r = await page.evaluate(frameCostProbe, frames);
+            const r = await page.evaluate(frameCostProbe, [frames, Number(opt("--glow") ?? 0)]);
             const asIs = b => r.rows.find(row => row.board === b && row.hold === "as it stands").ms;
             for (const row of r.rows) {
                 const ms = row.ms == null ? "    -" : row.ms.toFixed(1).padStart(6);

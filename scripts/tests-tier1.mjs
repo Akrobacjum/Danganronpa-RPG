@@ -21909,6 +21909,48 @@ const INVARIANTS = [
             JSON.stringify([unread.map(() => false), false]),
             `[the strip redraws for ${unread.join(", ")}, for another package's setting]`);
     }],
+    ["R1014 - the glass's pulse draws what moved (E88 C5): a pane's polygon is scaled to its layer once and kept, a pulse frame none of whose panes' fills moved by a step draws nothing and keeps the layer's picture, one where a pane moved draws the job whole, and a layer painted again is drawn on the next frame", async () => {
+        /*
+         * E88 C5, 27.10.2026; E88-10. glass.mjs `pulseFrame` at 7baff238 cleared each curtain's and each band's pulse
+         * layer every 66 ms and filled every pane again, scaling the pane's polygon twice a pane a frame (`poly.map`),
+         * whether or not its light had moved. jsdom draws no 2d canvas (C0: `pulseFrame.panes` 0 headless), so this runs
+         * `pulseJob` on a stand-in job: two panes whose polygons count their `map` calls and a context that counts what
+         * it is asked to draw. Frames at 1 s, the same moment again (no fill moved), 4 s later, and once more at 4 s after the layer is painted again. Nothing on the page is touched.
+         * Red at 7baff238: no `pulseJob`.
+         */
+        const G = await import("./glass.mjs");
+        must(typeof document?.createElement === "function", "no document to stand a pulse layer in");
+        let maps = 0;
+        const polygon = points => { const poly = points.map(q => [...q]); poly.map = function (...args) { maps++; return Array.prototype.map.apply(this, args); }; return poly; };
+        const drawn = { clear: 0, fill: 0, styles: [] };
+        const ctx = {
+            globalCompositeOperation: "source-over", globalAlpha: 1,
+            set fillStyle(v) { drawn.styles.push(v); }, get fillStyle() { return drawn.styles.at(-1) ?? ""; },
+            clearRect() { drawn.clear++; }, fill() { drawn.fill++; }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, drawImage() {}
+        };
+        const pane = (poly, phase, omega, stained) => ({ poly: polygon(poly), phase, omega, stained, content: false, empty: true, bb: { x0: 0, y0: 0 } });
+        const job = { el: { isConnected: true }, acc: "#ff4f8b", pulseK: 0.5, pulse: { width: 100, height: 80, getContext: () => ctx },
+            panes: [pane([[0, 0], [120, 0], [120, 80]], 0.4, 2 * Math.PI / 9, true), pane([[0, 0], [0, 80], [120, 80]], 2.1, 2 * Math.PI / 14, false)] };
+        equal(typeof G.pulseJob, "function", "glass.mjs's pulse for one job (`pulseJob`)");
+        const frame = t => {
+            const before = { clear: drawn.clear, fill: drawn.fill, maps };
+            const did = G.pulseJob(job, t);
+            return [did, drawn.clear - before.clear, drawn.fill - before.fill, maps - before.maps];
+        };
+        const first = frame(1000);
+        const still = frame(1000);
+        const later = frame(5000);
+        job.pulseOn = null;
+        const repainted = frame(5000);
+        const k = job.panes[0].scaled?.[1];
+        equal(JSON.stringify([first[0], first[1], first[2] > 0, first[3]]), JSON.stringify([true, 1, true, 2]),
+            "[the first frame drew, layers cleared, panes filled, polygons scaled (one a pane)]");
+        equal(JSON.stringify([still, later[0], later[3], repainted[0], repainted[3], k]),
+            JSON.stringify([[false, 0, 0, 0], true, 0, true, 0, [60, 0]]),
+            "[the same moment again: drew, cleared, filled, scaled; four seconds later: drew, scaled; painted again: drew, scaled; a scaled corner]");
+        equal(JSON.stringify(drawn.styles.filter(s => !/^rgba\((2,1,4|255,79,139),0\.\d{3}\)$/.test(s))), "[]",
+            "fill styles other than the dark's and the accent's in thousandths");
+    }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*

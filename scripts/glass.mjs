@@ -3011,40 +3011,86 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       p.phase = Math.atan2(cy, cx) * 1.6 + Math.hypot(cx, cy) / 420 + h * 1.2;
       p.omega = 2 * Math.PI / (9 + h * 7);
     }
-    job.pulse = pc; job.acc = acc;
+    // a layer whose size was set again is cleared: drawn on the next pulse frame whatever its steps say (E88 C5)
+    job.pulse = pc; job.acc = acc; job.pulseOn = null;
     job.painted = true;
     return true;
   }
 
+  /*
+   * THE PULSE DRAWS WHAT MOVED (E88 C5, 27.10.2026; E88-10). Every 66 ms each curtain and each window band cleared its
+   * pulse layer and filled every pane again, building two scaled copies of the pane's polygon (`poly.map`) and up to
+   * three colour strings per pane, whether or not the pane's light had changed. The light of a pane moves on a
+   * 9-16 s cosine. So a pane's three fills are taken as the steps they are drawn in - the dark's and the light's
+   * alpha in the thousandths their strings always carried, the texture's in the 1/255 the canvas keeps - and a job
+   * none of whose panes moved by a step is not drawn at all: the layer keeps the picture it holds. A job with one pane
+   * moved is drawn whole, as before: its panes meet at antialiased seams, and clearing one pane under a clip would eat
+   * its neighbours' edge pixels (read, not tried). The polygons scaled to the layer are kept on the pane
+   * (`scaledPoly`, again only when the pane's polygon or the layer's scale changed), and the fill strings are made
+   * once a step (`DARK_FILLS`; the light's per job and accent, `lightFills`), the same strings as before but where a
+   * fill's thousandths fall on a tie of the float. Measured in headless Chromium (27.10.2026; 24 synthetic panes on a
+   * 480x270 layer, three of them textured, 455 frames of 66 ms against 7baff238's loop on the same panes, every tenth
+   * frame read back): 0 pixels of 46 frames differ; all 455 frames drew (on a curtain a fill moves a thousandth nearly
+   * every frame, so the skip seldom fires there); 600 frames cost 29.7-46.9 ms against 38.5-65.6 ms (four runs,
+   * software). A layer painted again by `curtainPaint` or `paintBand` (a new canvas, a new size, new panes, a new
+   * accent) is drawn on the next frame.
+   */
+  const DARK_FILLS = [];
+  const darkFill = q => DARK_FILLS[q] ??= "rgba(2,1,4," + (q / 1000).toFixed(3) + ")";
+  const stepOf = (x, floor, n) => (x > floor ? Math.round(x * n) : 0);
+  function scaledPoly(p, k) {
+    if (p.scaledFrom !== p.poly || p.scaledK !== k) { p.scaled = p.poly.map(q => [q[0] * k, q[1] * k]); p.scaledFrom = p.poly; p.scaledK = k; }
+    return p.scaled;
+  }
+  /** One job's pulse layer at `t` (ms): whether it drew. Exported for R1014, which runs it on a stand-in job. */
+  export function pulseJob(j, t) {
+    if (!j.pulse || !j.panes || !j.el.isConnected) return false;
+    let moved = j.pulseOn !== j.pulse || j.pulseOf !== j.panes || j.pulseAcc !== j.acc
+      || j.pulseW !== j.pulse.width || j.pulseH !== j.pulse.height;
+    for (const p of j.panes) {
+      let v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);        // 0 bright ... 1 dark
+      /* THE PANE UNDER SOMETHING WAITING BEATS FASTER. `scanUrgent` and `beatAt` have written
+         `urgentUntil` since 1.2.27 and nothing ever read it, so the audit page's "the element
+         stands still and its glass answers" drew exactly nothing. The fast rhythm is blended
+         in and out over a third of a second, so the pane changes tempo instead of jumping. */
+      if (p.urgentUntil) {
+        const k = Math.max(0, Math.min(1, (p.urgentUntil - t) / 300));
+        if (k > 0) v = v + (0.5 - 0.5 * Math.cos(t / 1000 * (2 * Math.PI / 1.6) + p.phase) - v) * k;
+        else p.urgentUntil = 0;
+      }
+      const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
+      const lit = Math.pow(1 - v, 3);
+      const light = (p.stained ? 0.16 : 0.05) * lit;
+      // the texture of coloured glass shows only while the pane is lit
+      const tex = p.tex && lit > 0.02 ? Math.min(1, lit * 1.1) : 0;
+      p.nextDark = stepOf(dark, 0.01, 1000); p.nextLight = stepOf(light, 0.005, 1000); p.nextTex = stepOf(tex, 0, 255); p.texAlpha = tex;
+      if (p.nextDark !== p.drawnDark || p.nextLight !== p.drawnLight || p.nextTex !== p.drawnTex) moved = true;
+    }
+    if (!moved) { count("glass.pulseFrame.kept"); return false; }
+    count("glass.pulseFrame.panes", j.panes.length);
+    const g = j.pulse.getContext("2d"), k = j.pulseK;
+    g.clearRect(0, 0, j.pulse.width, j.pulse.height);
+    if (j.lightFillsFor !== j.acc) { j.lightFills = []; j.lightFillsFor = j.acc; j.accRGB = hex(j.acc).join(","); }
+    const lights = j.lightFills;
+    for (const p of j.panes) {
+      const poly = scaledPoly(p, k);
+      if (p.nextDark) { g.globalCompositeOperation = "source-over"; g.fillStyle = darkFill(p.nextDark); path(g, poly); g.fill(); }
+      if (p.nextLight) {
+        g.globalCompositeOperation = "lighter";
+        g.fillStyle = lights[p.nextLight] ??= "rgba(" + j.accRGB + "," + (p.nextLight / 1000).toFixed(3) + ")";
+        path(g, poly); g.fill();
+      }
+      if (p.nextTex) { g.globalCompositeOperation = "lighter"; g.globalAlpha = p.texAlpha; g.drawImage(p.tex, p.bb.x0 * k, p.bb.y0 * k, p.tex.width * k, p.tex.height * k); g.globalAlpha = 1; }
+      p.drawnDark = p.nextDark; p.drawnLight = p.nextLight; p.drawnTex = p.nextTex;
+    }
+    g.globalCompositeOperation = "source-over";
+    j.pulseOn = j.pulse; j.pulseOf = j.panes; j.pulseAcc = j.acc; j.pulseW = j.pulse.width; j.pulseH = j.pulse.height;
+    return true;
+  }
   function pulseFrame(t) {
     count("glass.pulseFrame");
-    for (const j of [...curtains, ...windows]) {
-      if (!j.pulse || !j.panes || !j.el.isConnected) continue;
-      count("glass.pulseFrame.panes", j.panes.length);
-      const g = j.pulse.getContext("2d"), k = j.pulseK;
-      g.clearRect(0, 0, j.pulse.width, j.pulse.height);
-      const accRGB = hex(j.acc).join(",");
-      for (const p of j.panes) {
-        let v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);        // 0 bright ... 1 dark
-        /* THE PANE UNDER SOMETHING WAITING BEATS FASTER. `scanUrgent` and `beatAt` have written
-           `urgentUntil` since 1.2.27 and nothing ever read it, so the audit page's "the element
-           stands still and its glass answers" drew exactly nothing. The fast rhythm is blended
-           in and out over a third of a second, so the pane changes tempo instead of jumping. */
-        if (p.urgentUntil) {
-          const k = Math.max(0, Math.min(1, (p.urgentUntil - t) / 300));
-          if (k > 0) v = v + (0.5 - 0.5 * Math.cos(t / 1000 * (2 * Math.PI / 1.6) + p.phase) - v) * k;
-          else p.urgentUntil = 0;
-        }
-        const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
-        if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
-        const lit = Math.pow(1 - v, 3);
-        const light = (p.stained ? 0.16 : 0.05) * lit;
-        if (light > 0.005) { g.globalCompositeOperation = "lighter"; g.fillStyle = "rgba(" + accRGB + "," + light.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
-        // the texture of coloured glass shows only while the pane is lit
-        if (p.tex && lit > 0.02) { g.globalCompositeOperation = "lighter"; g.globalAlpha = Math.min(1, lit * 1.1); g.drawImage(p.tex, p.bb.x0 * k, p.bb.y0 * k, p.tex.width * k, p.tex.height * k); g.globalAlpha = 1; }
-      }
-      g.globalCompositeOperation = "source-over";
-    }
+    for (const j of curtains) pulseJob(j, t);
+    for (const j of windows) pulseJob(j, t);
   }
 
 /* ---- lifecycle -------------------------------------------------------------- */
@@ -3551,7 +3597,7 @@ function paintBand(job) {
   paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: false, inset: 0, seamCtx: seamCanvas.getContext("2d") });
   const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
   for (const p of panes) { const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2; p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7); }
-  job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H;
+  job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H; job.pulseOn = null;
 }
 /* a flash of every seam in Bone (or the accent) that fades over `ms`: the glass has just set */
 /* The light rises, is held, and goes out slowly. The first version snapped to full white and
