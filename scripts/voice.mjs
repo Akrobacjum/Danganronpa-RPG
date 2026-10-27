@@ -45,12 +45,14 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
-import { allRooms, moveRefused, whenAtRest } from "./movement.mjs";
-import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
+import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
+import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
+// E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const AV_MODULE = "avclient-livekit";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -88,6 +90,100 @@ const HEARTBEAT_MS = 60000;
 const draggedNow = new Map();
 /** Each character token's move updates as this browser heard them, so a pass asked late knows whether a newer one came. */
 const moveTurns = new Map();
+
+/**
+ * The room each character's token last stood in on this browser's passes (E88 C6, 27.10.2026; triage C3, the owner's
+ * voice cut-outs "as if it disconnected", and Q3's default): actor id -> `{ sceneId, level, room, gap }`. In memory
+ * only (no world data, the stage's rule): a reload, or a new primary GM, starts it empty, and a token outside every
+ * room is then placed as before E88 - the main room.
+ *
+ * WHY. Every change of voice room is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and a
+ * token outside every region was `CLAIM.nowhere`, the main room. A crossing over a doorway square or an undrawn
+ * corridor was two reconnects for one crossing - into the main room, then into the next room - and a step into the
+ * gap and back two for none. Scenario 75 I at addc1522 (1.2.88's voice.mjs), 27.10.2026: Aiko from the Gym onto a
+ * square between the Gym and Dorm B, then into Dorm B - p1 sent the main room at +2 ms and Dorm B at +1804, two
+ * connects in p1's Debug log; Dorm B, the gap and Dorm B again - the same two for no change of room. With this map:
+ * one send and one connect, and none (the commit's message has the run).
+ */
+const roomsKept = new Map();
+
+/**
+ * Empty `roomsKept` on a browser that is not the primary GM now (E88 fix G1, 27.10.2026; finding E88-SEC-1). The map is
+ * a primary's own: it follows the passes the primary runs on every settled move, and a browser that is not the primary
+ * runs none, so what it holds goes stale the moment another GM takes over. Until this fix it was emptied only inside
+ * `voiceTargets`, which every caller but a GM's dry run (`voicePlan`) reaches on the primary alone - so a GM that
+ * stopped being the primary kept its map and used it again when it was the primary once more: scenario 17 V1 at
+ * 001e9af5, the Assistant alone kept Aiko in Dorm A, a full Gamemaster came and went while she walked into the Gym
+ * and out, and the Assistant's first pass after placed her in Dorm A again. Asked wherever the primary can change -
+ * a user connecting or leaving, a user's role written - and by the heartbeat, on every browser, before any of them
+ * returns for not being the primary; so a GM that becomes the primary starts with nothing kept (a token outside every
+ * room: the main room, as before E88).
+ */
+function standDownRoomsKept() {
+    if (!isPrimaryGm()) roomsKept.clear();
+}
+
+/**
+ * `locate` for `placeVoices` that keeps a token's last room while it stands outside every room (E88 C6): `{ locate,
+ * done }`. `locate(actor)` asks `where(actor)` (movement.mjs `locateActor`); a token in a room is remembered and
+ * answered as it stands, and a token outside every room on the scene and the floor its remembered room is on, while
+ * that room is still a room there (`stands`), is answered as standing in it, `kept: true`. A token on another scene or
+ * floor, a room deleted, no token, or nothing remembered: as it stands - the main room, as before. `done()` after the
+ * pass forgets every character `locate` was not asked about in it: `voiceClaim` asks only for the living, connected
+ * and placed by their tokens, so an Eclipse, the trial, a death or a lost connection clears what it remembered, and
+ * nobody comes out of one into a room they left before it. A token dragged by a GM into a corridor on purpose keeps
+ * its room too (Q3's default asks no reason); a move into another room, off the scene, or a pass in an Eclipse or the
+ * trial ends it. Counted for `fps()` and scenario 75: `voice.gap` each time a token outside every room is located,
+ * `voice.gap.kept` each time its room is kept; the first pass that keeps one says so in the Debug log.
+ *
+ * WHO KEEPS, AND FROM WHAT (E88 fix G1, 27.10.2026). A living player's token only (`keeps`; the spec's C6 line, findings
+ * E88-END-03 and E88R-06): a Monokuma's token is a GM's voice, and a GM who walks it out of a room into a corridor
+ * means to leave that room, so it is placed as it stands - the main room - and nothing of it is remembered. And a room
+ * is remembered only from a token whose latest move this browser has judged and not refused (`settled`, movement.mjs
+ * `moveVerdict`; finding E88-SEC-2): a refused entry from a doorway square, read by a pass another token's settled move
+ * asked before the put-back landed, is placed where it stands for that pass, as before E88, and not remembered - so
+ * after the put-back the token keeps the room it came from, not the room it was refused.
+ *
+ * @param {Map<string, object>} memory   `roomsKept`, or a test's own
+ * @param {(actor: object) => object|null} where  actor -> `{ scene, room, level, tokenDoc }` or null
+ * @param {object} [options]
+ * @param {(scene: object, room: string) => boolean} [options.stands]  whether `room` is still a room on `scene`
+ * @param {(actor: object) => boolean} [options.keeps]  whether this character keeps a room through a gap at all
+ * @param {(place: object) => boolean} [options.settled]  whether the token's room may be remembered
+ * @returns {{locate: (actor: object) => object|null, done: () => void}}
+ */
+export function keepRoomsThroughGaps(memory, where, { stands = (scene, room) => roomRegions(scene, room).length > 0,
+    keeps = actor => !isMonokuma(actor), settled = place => moveVerdict(place.tokenDoc) === false } = {}) {
+    const seen = new Set();
+    const locate = actor => {
+        const place = where(actor);
+        if (!actor?.id) return place;
+        seen.add(actor.id);
+        if (!place?.scene || !keeps(actor)) {
+            memory.delete(actor.id);
+            return place;
+        }
+        const level = place.level ?? null;
+        if (place.room) {
+            if (settled(place)) memory.set(actor.id, { sceneId: place.scene.id, level, room: place.room, gap: false });
+            return place;
+        }
+        count("voice.gap");
+        const last = memory.get(actor.id);
+        if (!last || last.sceneId !== place.scene.id || last.level !== level || !stands(place.scene, last.room)) {
+            memory.delete(actor.id);
+            return place;
+        }
+        count("voice.gap.kept");
+        if (!last.gap) debug(`Voice: "${actor.name ?? actor.id}" stands outside every room - keeps the voice of "${last.room}" until the next room.`);
+        last.gap = true;
+        return { ...place, room: last.room, kept: true };
+    };
+    const done = () => {
+        for (const id of [...memory.keys()]) if (!seen.has(id)) memory.delete(id);
+    };
+    return { locate, done };
+}
 
 function markDragged(tokenId, pending) {
     clearTimeout(draggedNow.get(tokenId));
@@ -181,10 +277,15 @@ export function registerVoice() {
      * is the path that does not depend on this GM guessing when they are ready.
      */
     Hooks.on("userConnected", (user, connected) => {
+        standDownRoomsKept();
         if (!isPrimaryGm()) return;
         forget(user.id);
         if (!connected) return;
         scheduleReconcile({ force: true });
+    });
+    // A role written can change the primary (`primaryGmId` prefers a full Gamemaster): the kept rooms are a primary's own.
+    Hooks.on("updateUser", (user, changes) => {
+        if ("role" in (changes ?? {})) standDownRoomsKept();
     });
     // What changes whose voice goes where without moving a token (`reconcileTrigger`): without these the change
     // would not land until the next time somebody happened to walk somewhere, or the heartbeat.
@@ -726,7 +827,7 @@ function targetForUser(byUser, userId) {
 const CLAIM = {
     none: 0,      // nobody is holding this character
     dead: 1,      // silenced - the dead channel or the main room (D8), but a live character outranks it
-    nowhere: 2,   // alive, no token, or standing outside every region
+    nowhere: 2,   // alive, no token, or standing outside every region (since E88 C6 not when the room it came from is kept)
     inRoom: 3,    // alive and standing somewhere: the only claim with a room of its own
     trial: 4      // the Class Trial: the main room for everybody (D8); in a trial every connected account makes it
 };
@@ -748,12 +849,18 @@ export async function voiceTargets() {
     const eclipse = isEclipse();
     const trial = getClock().phase === "classTrial";
 
+    // A token outside every room keeps the room it came from (E88 C6, `keepRoomsThroughGaps`) - on the primary GM
+    // alone, whose passes follow every settled move. Anywhere else the map is emptied (`standDownRoomsKept`, here for a
+    // dry run's `voicePlan` and at every change of primary), so a GM who becomes the primary starts with nothing kept.
+    standDownRoomsKept();
+    const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     const { rows, byUser, claims, waits, held } = await placeVoices({
         actors: game.actors.filter(a => a.type === "character"), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
-        locate: actor => locateActor(actor),
+        locate: gaps.locate,
         users: game.users.filter(u => u.active)
     });
+    gaps.done();
 
     // Only a real disagreement counts. Two characters in the same room, or two
     // that both want the main room, are not a conflict - they are one answer
@@ -1180,8 +1287,9 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         row.room = where?.room ?? null;
         row.target = liveKitRoomFor(row.scene?.id ?? null, row.room);
         row.claim = row.room ? CLAIM.inRoom : CLAIM.nowhere;
+        row.kept = Boolean(where?.kept);
         row.why = row.room
-            ? `${row.scene?.name ?? "?"} · ${row.room}`
+            ? `${row.scene?.name ?? "?"} · ${row.room}${row.kept ? " (outside every room: the room it came from)" : ""}`
             : "no room - token outside every region, or no token";
     }
     return row;
@@ -1304,6 +1412,7 @@ export function scheduleReconcile({ immediate = false, force = false } = {}) {
 function startHeartbeat() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
+        standDownRoomsKept();
         if (!isPrimaryGm()) return;
         if (!getSetting(SETTINGS.voiceEnabled)) return;
         reconcileNow();

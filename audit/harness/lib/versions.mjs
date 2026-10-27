@@ -64,7 +64,11 @@ export const UNCONFIRMED = [
     "LIVE-E05-01", "LIVE-E05-02", "LIVE-E05-06", "LIVE-E05-07", "LIVE-E05-08", "LIVE-E05-09",
     "LIVE-E05-10", "LIVE-E05-12", "LIVE-E05-13",
     "LIVE-E06-01", "LIVE-E06-02", "LIVE-E06-03", "LIVE-E06-04", "LIVE-E06-05", "LIVE-E06-06",
-    "LIVE-E06-07", "LIVE-E06-08"
+    "LIVE-E06-07", "LIVE-E06-08",
+    /* E88's (C0, 27.10.2026): a token's refresh as client-entry.mjs models it - render flags gathered and flushed once
+       a token a frame, `refreshVisibility` giving Foundry's own `visible` back, one refresh for a move where v14 slides
+       it frame by frame. Every canvas count scenario 86 and R1009 read stands on it. */
+    "LIVE-E88-05"
 ];
 
 function readJson(file) {

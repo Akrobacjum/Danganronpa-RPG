@@ -1114,6 +1114,29 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         await game.settings.set("${MOD}", "chargeMovement", was.charge);
         return { actions: game.drpg.actionsLeft(actor), free: actor.getFlag("${MOD}", "freeMoveUsed") ?? null, charge: game.settings.get("${MOD}", "chargeMovement"), was };`,
     { timeout: 30000 });
+    /* E88 C6 (E88-12; triage C3, the owner's 27.10.2026 voice cut-outs "as if it disconnected"). Every voice room change
+       is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and a token outside every region was
+       `CLAIM.nowhere`: the main room. So a crossing over a doorway square or an undrawn corridor between two rooms was
+       two reconnects - into the main room, then into the next room - for one crossing, and a step into the gap and back
+       two for none. Here Aiko steps from the Gym onto a square between the Gym and Dorm B (x 950, y 1450: no region
+       holds its centre) and stands there 1800 ms, past the trailing pass, then into Dorm B; then from Dorm B into the
+       gap and back. Read on the GM's sends to p1, p1's applies, p1's Debug lines of a connect ("took N ms") and the
+       counters (perf-counters.mjs: p1's voice.connect, the GM's voice.gap and voice.gap.kept). Red first at addc1522
+       (voice.mjs as 1.2.88 shipped it), 27.10.2026: see the commit's message. */
+    const counters = async client => (await client.eval(`return (await import("${repoUrl}/scripts/perf-counters.mjs")).snapshot();`));
+    const gapReading = async gmJs => {
+        const [g0, p0] = [await counters(gm), await counters(p1)];
+        const r = await reading(gmJs);
+        const [g1, p1c] = [await counters(gm), await counters(p1)];
+        const d = (a, b, k) => (b[k] ?? 0) - (a[k] ?? 0);
+        return { ...r, connects: d(p0, p1c, "voice.connect"), gaps: d(g0, g1, "voice.gap"), kept: d(g0, g1, "voice.gap.kept") };
+    };
+    const gapCross = await gapReading(`const t0 = Date.now(); await aiko.update({ x: 950, y: 1450 }, ${MOVE}); await sleep(1800);
+        const between = M.roomOfToken(aiko), last = Date.now() - t0; await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE}); await sleep(1800);
+        return { t0, last, between, from: room("Gym"), want: room("Dorm B"), here: M.roomOfToken(aiko), ev: H.ev.splice(0) };`);
+    const gapBack = await gapReading(`const t0 = Date.now(); await aiko.update({ x: 950, y: 1450 }, ${MOVE}); await sleep(1800);
+        const between = M.roomOfToken(aiko); await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE}); await sleep(1800);
+        return { t0, between, want: room("Dorm B"), here: M.roomOfToken(aiko), ev: H.ev.splice(0) };`);
     const gmOff = await gm.eval(`${GMJS}
         await game.settings.set("${MOD}", "voiceEnabled", false);
         await sleep(600);
@@ -1163,6 +1186,16 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && took(chained).length === 2 && took(chained).every(n => n >= 1990 && n < 3000)
             && [cross, walk, drag].every(r => took(r).length === 1 && took(r)[0] < 200),
         J({ chained, after, took: [cross, walk, drag, chained].map(took) }));
+    check("I: a crossing through a gap - Aiko from the Gym onto a square outside every room for 1800 ms, past the trailing pass, then into Dorm B - sends p1 one room, Dorm B's, never the main room, and p1's Debug log says one connect (E88-12)",
+        gapCross.between === null && gapCross.here === "Dorm B" && gapCross.toP1.length === 1 && gapCross.toP1[0].room === gapCross.want
+            && gapCross.toP1[0].ms >= gapCross.last && gapCross.applied.length === 1 && took(gapCross).length === 1,
+        J({ gapCross, took: took(gapCross) }));
+    check("I: a step into the gap and back - Dorm B, the square outside every room for 1800 ms, Dorm B again - sends p1 nothing and p1 connects not at all (E88-12)",
+        gapBack.between === null && gapBack.here === "Dorm B" && gapBack.toP1.length === 0 && gapBack.applied.length === 0 && took(gapBack).length === 0,
+        J({ gapBack, took: took(gapBack) }));
+    check("I: the counters say the same - p1's voice.connect is 1 for the crossing through the gap and 0 for the step and back, and the primary GM counted Aiko outside every room and keeping her room on each of its passes there (voice.gap, voice.gap.kept) (E88-12)",
+        gapCross.connects === 1 && gapBack.connects === 0 && gapCross.gaps >= 1 && gapCross.kept === gapCross.gaps && gapBack.gaps >= 1 && gapBack.kept === gapBack.gaps,
+        J({ cross: [gapCross.connects, gapCross.gaps, gapCross.kept], back: [gapBack.connects, gapBack.gaps, gapBack.kept] }));
     check("I: put back - voice off, Aiko and Botan where the seed stands them, p1 in the main room with its debug setting as it was",
         gmOff.voice === false && J(gmOff.aiko) === J([300, 300]) && J(gmOff.botan) === J([1300, 300]) && hOff.room === hOff.main && hOff.debug === hOn.debugWas,
         J({ gmOff, hOff }));

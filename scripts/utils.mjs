@@ -5,6 +5,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -865,31 +867,54 @@ export function guardTextFields(root) {
  * document element first drew every ring in yesterday's colour and looked right
  * doing it. `documentElement` stays as the fallback for a token somebody declares
  * there and nowhere else.
+ *
+ * READ ONCE UNTIL THE BODY CHANGES (E88 C2, 27.10.2026). Two computed-style reads a call, and the rings asked one or two
+ * per token per refresh: scenario 86 at 41cf2e9f counted 34 on the GM's browser for one step of somebody else's. What
+ * moves these colours is the theme, the phase, the hour and the Eclipse, each an attribute of `body` (`class`,
+ * `data-drpg-phase`, `data-drpg-time`), and the two ring files already watch exactly those: their observers call
+ * `forgetCssColours` before anything repaints (own-ring.mjs, remnant-ring.mjs). Counted as `utils.cssColour` a call
+ * and `utils.cssColour.read` a read of the stylesheet. A read that throws is not kept.
  */
+const cssColourMemo = new Map();
+
+/** Every colour `cssColour` keeps, dropped: the next call of each reads the stylesheet again. */
+export function forgetCssColours() {
+    cssColourMemo.clear();
+}
+
 export function cssColour(name, fallback = 0x8a8296) {
+    count("utils.cssColour");
+    if (cssColourMemo.has(name)) return cssColourMemo.get(name) ?? fallback;
     try {
-        const raw = (getComputedStyle(document.body).getPropertyValue(name)
-            || getComputedStyle(document.documentElement).getPropertyValue(name)).trim();
-        if (!raw) return fallback;
-
-        const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-        if (hex) {
-            const digits = hex[1].length === 3
-                ? hex[1].split("").map(c => c + c).join("")
-                : hex[1];
-            return Number.parseInt(digits, 16);
-        }
-
-        const rgb = raw.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
-        if (rgb) {
-            const [r, g, b] = rgb.slice(1, 4).map(n => Math.max(0, Math.min(255, Math.round(Number(n)))));
-            return (r << 16) + (g << 8) + b;
-        }
-
-        return fallback;
+        count("utils.cssColour.read");
+        const value = parseCssColour((getComputedStyle(document.body).getPropertyValue(name)
+            || getComputedStyle(document.documentElement).getPropertyValue(name)).trim());
+        cssColourMemo.set(name, value);
+        return value ?? fallback;
     } catch {
         return fallback;
     }
+}
+
+/** A computed colour as a number, or null for one this cannot read (the caller's fallback is drawn). */
+function parseCssColour(raw) {
+    if (!raw) return null;
+
+    const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hex) {
+        const digits = hex[1].length === 3
+            ? hex[1].split("").map(c => c + c).join("")
+            : hex[1];
+        return Number.parseInt(digits, 16);
+    }
+
+    const rgb = raw.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+    if (rgb) {
+        const [r, g, b] = rgb.slice(1, 4).map(n => Math.max(0, Math.min(255, Math.round(Number(n)))));
+        return (r << 16) + (g << 8) + b;
+    }
+
+    return null;
 }
 
 /**

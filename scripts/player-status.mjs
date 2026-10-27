@@ -20,6 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
@@ -29,6 +30,8 @@ import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural } from "./utils.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -54,9 +57,9 @@ export function registerPlayerStatus() {
     Hooks.on("deleteActiveEffect", effect => {
         if (relevant(effect?.parent)) syncEffectsWidget();
     });
-    // The clock refills budgets.
+    // The clock refills budgets; the settings the strip reads, and no other (E88 C4: `stripReadsSetting`).
     Hooks.on("updateSetting", setting => {
-        if (setting?.key?.startsWith(`${MODULE_ID}.`)) renderPlayerStatus();
+        if (stripReadsSetting(setting)) renderPlayerStatus();
     });
     // A character being assigned, reassigned or cleared changes whose numbers
     // these are - and until now nothing redrew for it, so a player who was
@@ -172,6 +175,7 @@ function keepMounted() {
 }
 
 export function renderPlayerStatus() {
+    count("playerStatus.render");
     try {
         // Same rail, same moment: whatever redrew the strip may also have
         // changed whether the effects widget has anything to show.
@@ -605,3 +609,22 @@ function buildTableView() {
 }
 
 export { WIDGET_ID };
+
+/*
+ * THE SETTINGS THIS STRIP READS, AND NO OTHER (E88 C4, 27.10.2026; E88-09). The `updateSetting` listener redrew the
+ * strip for every module setting written - a Despair spent, a rule reworded, a project advanced - and scenario 86 at
+ * 7baff238 counted a strip built on every browser for each Despair write, which reads nothing of a pool (the strip's
+ * height opposite the Despair panel is a body property the panel's own render sets: despair.mjs, `matchStripToDespair`).
+ * Gathered off `game.settings.get` while the strip was built (R1013, on the GM's browser, a student's strip in and
+ * out of an Eclipse and the table's): `clock`, `overflow` and `language`. Added by reading, for the branches that run
+ * did not take: `overflowRules` (overflow.mjs `overflowRules`, read while a darkening costs an action or the free
+ * Move) and `theme` (motion.mjs reads it when a spent pip flares). The actor, the user and the Eclipse have their own
+ * hooks above; the GMs' stores and their copies are client settings, which fire no `updateSetting`. R1013 fails when
+ * the strip reads a module setting this list lacks.
+ */
+const STRIP_SETTINGS = new Set([SETTINGS.clock, SETTINGS.overflow, SETTINGS.overflowRules, SETTINGS.language, SETTINGS.theme]);
+/** Whether a written Setting document is one the strip reads (its `updateSetting` listener). */
+export function stripReadsSetting(setting) {
+    const key = String(setting?.key ?? "");
+    return key.startsWith(`${MODULE_ID}.`) && STRIP_SETTINGS.has(key.slice(MODULE_ID.length + 1));
+}

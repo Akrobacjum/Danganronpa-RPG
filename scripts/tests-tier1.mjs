@@ -21419,6 +21419,875 @@ const INVARIANTS = [
             "[a named, tied trace with no subject; a trace with no name, untied, with a subject; askWhichRemnant draws with remnantPickLabel]");
     }],
 
+    ["R1009 - the frame's stopwatch reads what the canvas does (E88 C0): a visibility pass counts itself and the tokens it flags, the refresh each flag asks for reaches every `refreshToken` listener once per token and each ring's paint says whether it drew, the filters on screen are the ring halos the paints left, and `fps()` reads a window, refuses a second call while it runs and puts back every hold", async () => {
+        /*
+         * E88 C0, 27.10.2026; E88-01, E88-02. Every suspect of the owner's lag (several players, many Remnants, a
+         * player alone in a fogged room) was found by reading, and the stage measures before it optimises: perf-counters.mjs
+         * counts each suspect's runs, `game.drpg.counters()` reads them with the filters on the canvas, `game.drpg.fps()`
+         * prints a window of frames, the counters' deltas and each suspect held alone. Read here on this client's scene on
+         * screen: `applyAll` once, then the refreshes its render flags ask for, then the walk of the canvas against each
+         * token's ring read directly, then `fps()` for a fifth of a second with three frames a hold. Headless the
+         * milliseconds are jsdom's timer and are not asserted; only that the window ran, what it counted and what it put
+         * back. Red at 768af5fb with the counters added and the harness's token as it was (no `renderFlags`, a getter-only
+         * `visible`, no `addChildAt`): the flags reached no `refreshToken` listener, and no ring was ever painted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const U = await import("./utils.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const LISTENERS = ["refreshToken.visibility", "refreshToken.ownRing", "refreshToken.remnantRing", "refreshToken.remnantIcons"];
+        const before = C.snapshot();
+        V.applyAll();
+        const pass = C.delta(before, C.snapshot());
+        await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= n), 2000);
+        const moved = C.delta(before, C.snapshot());
+        // Since E88 C2 a refresh may keep a frame that still stands (`ownRing.kept`; R1011).
+        const paints = (moved["ownRing.rebuilt"] ?? 0) + (moved["ownRing.skipped"] ?? 0) + (moved["ownRing.kept"] ?? 0);
+        const colours = C.snapshot()["utils.cssColour"] ?? 0;
+        U.cssColour("--drpg-bone", 0);
+        equal(JSON.stringify([pass["visibility.applyAll"], pass["visibility.applyAll.tokens"], LISTENERS.map(k => (moved[k] ?? 0) >= n),
+            paints >= (moved["refreshToken.ownRing"] ?? 0), (C.snapshot()["utils.cssColour"] ?? 0) - colours]),
+            JSON.stringify([1, n, LISTENERS.map(() => true), true, 1]),
+            `[passes, tokens it flagged, each refreshToken listener ran for every token, every own-ring paint counted as drawn, skipped or kept, a colour asked counted] over ${n} tokens: ${JSON.stringify(moved)}`);
+
+        // The filters on screen: the walk against each token's ring halo, read off the token.
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const halo = (token, ring) => { const group = token[ring]; const glow = group?.children?.[0];
+            return token.visible && group && !group.destroyed && group.visible !== false && glow?.visible !== false ? (glow?.filters?.length ?? 0) : 0; };
+        const direct = ["drpgOwnRing", "drpgRemnantRing"].map(ring => tokens.reduce((sum, t) => sum + halo(t, ring), 0));
+        const live = (await D.countersNow()).live;
+        const framed = tokens.filter(t => t.drpgOwnRing && !t.drpgOwnRing.destroyed).length;
+        // Since E88 C1 a framed token's light is a drawn texture where a renderer can make one (fog-reveal.mjs `wearHalo`; R1010).
+        const drawn = tokens.filter(t => ["drpgOwnRing", "drpgRemnantRing"].some(ring => t[ring]?.children?.find(c => c?.name === "drpgHaloBaked")?.visible)).length;
+        equal(JSON.stringify([live.byName.drpgOwnRingGlow ?? 0, live.byName.drpgRemnantRingGlow ?? 0, glass ? framed === 0 || direct[0] + direct[1] + drawn > 0 : direct[0] + direct[1] + drawn === 0]),
+            JSON.stringify([...direct, true]),
+            `[own-ring halo filters on screen, Remnant-ring halo filters, a framed token's halo blurred or drawn under Stained Glass and neither under Monokuma Legacy] (${glass ? "Stained Glass" : "Legacy"}, ${framed} token(s) framed, ${drawn} drawn): ${JSON.stringify(live)}`);
+        ok(framed > 0, `no token on this scene wears a frame after the pass (${n} tokens): the ring paints never reached a token`);
+
+        // fps(): a short window, a second call refused while it runs, and every hold back where it was.
+        const { fogFrameParts } = await import("./fog.mjs");
+        const filtered = [];
+        C.liveCanvasFilters([canvas.stage, ...tokens], { collect: filtered });
+        const print = () => JSON.stringify({ body: [...document.body.classList].sort(), still: Boolean(document.getElementById("drpg-fps-still")),
+            filters: filtered.map(node => Boolean(node.filters?.length)), ticker: Boolean(canvas.app?.ticker?.started),
+            fog: (({ raster, backdrop, drift }) => [raster?.visible ?? null, backdrop?.visible ?? null, typeof drift])(fogFrameParts()) });
+        const kept = filtered.map(node => node.filters);
+        const was = print();
+        const first = game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
+        const second = await game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
+        const text = await first;
+        equal(JSON.stringify([/Watched [\d.]+ s: \d+ frames/.test(text), /Each held alone for up to 3 frames or 1 s/.test(text), (text.match(/^ {2}the /gm) ?? []).length >= 11,
+            /already running/.test(second), print() === was, filtered.every((node, i) => node.filters === kept[i])]),
+            JSON.stringify([true, true, true, true, true, true]),
+            `[a window read, the holds read, eleven holds listed, the second call refused, the page as it was, each filter list the same object] before ${was}, after ${print()}:\n${text}`);
+    }],
+
+    ["R1010 - the seams' light is drawn once (E88 C1): at rest no ring on this screen carries a live blur, every token of one frame shape wears one texture, a recolour draws one more and frees the old with its last wearer, the blur switch off draws the passes alone, and a shape past the cap or a browser with no renderer keeps the live halo", async () => {
+        /*
+         * E88 C1, 27.10.2026; E88-05. C0 counted 34 quality-3 blurs at rest on the GM's canvas with 30 Remnants and 4
+         * students (scenario 86), one per ring, each paid on every frame the canvas renders. fog-reveal.mjs `wearHalo`
+         * renders a ring's three passes and their blur once into a texture keyed by its frame shape and shows it by a
+         * sprite; the live halo stays for a browser that cannot. Read first on this client's scene on screen: a pass
+         * repaints every ring, then the filters on the canvas are walked. The harness has no renderer, so there a
+         * stand-in renderer that records each render is handed to the baker for the pass and taken back after (its
+         * textures hold no pixels: what is measured is that the module chose the texture and how many it made); with a
+         * real renderer the textures are real. Then the baker alone on thirty sprites of its own with the stand-in.
+         * The pixels themselves are a table's (LIVE-E88-02). Red at 395c8fce (C0): every framed token's halo carried its
+         * live blur under Stained Glass, and fog-reveal.mjs had no `wearHalo`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const R = await import("./fog-reveal.mjs");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const LISTENERS = ["refreshToken.ownRing", "refreshToken.remnantRing"];
+        const repaint = async () => {
+            const before = C.snapshot();
+            V.applyAll();
+            await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= n), 2000);
+        };
+        const rendered = [];
+        const stand = { resolution: 1, render: (node, { renderTexture }) => {
+            const light = node?.children?.[0];
+            rendered.push({ texture: renderTexture, blend: light?.blendMode,
+                blurs: (light?.filters ?? []).filter(f => typeof f?.blur === "number").map(f => [f.blur, f.padding]),
+                filterBlend: light?.filters?.[0]?.blendMode ?? null });
+        } };
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const swap = typeof canvas.app?.renderer?.render !== "function" && R.HALO_IO && typeof R.HALO_IO.renderer === "function";
+        const io = swap ? R.HALO_IO.renderer : null;
+        let scene = null;
+        try {
+            if (swap) R.HALO_IO.renderer = () => stand;
+            await repaint();
+            const live = (await D.countersNow()).live;
+            const worn = [];
+            for (const token of tokens) {
+                for (const ring of ["drpgOwnRing", "drpgRemnantRing"]) {
+                    const group = token[ring];
+                    if (!token.visible || !group || group.destroyed || group.visible === false) continue;
+                    const sprite = group.children?.find(c => c?.name === "drpgHaloBaked");
+                    if (sprite?.visible) worn.push(sprite);
+                }
+            }
+            const byKey = new Map();
+            for (const sprite of worn) (byKey.get(sprite.drpgHaloKey) ?? byKey.set(sprite.drpgHaloKey, new Set()).get(sprite.drpgHaloKey)).add(sprite.texture);
+            scene = { ownLive: live.byName.drpgOwnRingGlow ?? 0, remnantLive: live.byName.drpgRemnantRingGlow ?? 0, worn: worn.length,
+                shapes: byKey.size, oneTextureEach: [...byKey.values()].every(set => set.size === 1), framed: tokens.filter(t => t.drpgOwnRing && !t.drpgOwnRing.destroyed && t.visible).length };
+        } finally {
+            if (swap) { R.HALO_IO.renderer = io; await repaint(); }
+        }
+        equal(JSON.stringify([scene.ownLive, scene.remnantLive, glass ? scene.framed === 0 || scene.worn > 0 : scene.worn === 0, scene.oneTextureEach, scene.shapes <= scene.worn]),
+            JSON.stringify([0, 0, true, true, true]),
+            `[own-ring halo blurs on screen, Remnant-ring halo blurs, a framed token wears a drawn light under Stained Glass and none under Monokuma Legacy, one texture a shape, no more shapes than wearers] (${glass ? "Stained Glass" : "Legacy"}${swap ? ", the stand-in renderer" : ""}): ${JSON.stringify(scene)}`);
+
+        // The baker alone: thirty sprites of one shape, a recolour, the blur off, a shape past the cap, no renderer.
+        must(typeof R.wearHalo === "function", "fog-reveal.mjs has no wearHalo - the rest reads nothing");
+        rendered.length = 0;
+        const layer = new PIXI.Container();
+        const sprites = Array.from({ length: 30 }, () => layer.addChild(new PIXI.Container()).addChild(new PIXI.Sprite()));
+        const zoom = Number.isFinite(canvas.stage?.scale?.x) && canvas.stage.scale.x > 0.05 ? canvas.stage.scale.x : 1;
+        const seam = 1 / zoom;
+        const wear = (sprite, colour, opts = {}) => R.wearHalo(sprite, { seen: layer, key: `R1010|${colour}`, shape: R.ringHalo(100, 100, colour), renderer: stand, blur: true, ...opts });
+        const before = C.snapshot();
+        const first = sprites.map(s => wear(s, 0x123456));
+        const one = C.delta(before, C.snapshot());
+        const firstTexture = rendered[0]?.texture ?? null;
+        const shared = sprites.every(s => s.texture === firstTexture) && sprites[0].blendMode === (rendered[0]?.filterBlend ?? PIXI.BLEND_MODES?.NORMAL ?? 0);
+        const recolouredOne = wear(sprites[0], 0x654321);
+        const afterOne = rendered.length;
+        sprites.slice(1).forEach(s => wear(s, 0x654321));
+        const all = C.delta(before, C.snapshot());
+        const sharp = new PIXI.Sprite();
+        layer.addChild(sharp);
+        const sharpWorn = wear(sharp, 0x0f0f0f, { blur: false });
+        const big = layer.addChild(new PIXI.Sprite());
+        const side = Math.ceil(2100 / zoom);   // past MAX_FOG_TEXTURE (2048) on the screen at this zoom
+        const tooBig = R.wearHalo(big, { seen: layer, key: "R1010|big", shape: R.ringHalo(side, side, 0x123456), renderer: stand, blur: true });
+        const none = R.wearHalo(layer.addChild(new PIXI.Sprite()), { seen: layer, key: "R1010|none", shape: R.ringHalo(100, 100, 0x123456), renderer: null });
+        const edges = C.delta(before, C.snapshot());
+        layer.destroy({ children: true });
+        R.sweepHalos();
+        const gone = C.delta(before, C.snapshot());
+        const BLEND = PIXI.BLEND_MODES ?? {};
+        equal(JSON.stringify([first.every(Boolean), one["halo.baked"] ?? 0, one["halo.shared"] ?? 0, rendered[0]?.blurs, rendered[0]?.blend === (BLEND.ADD ?? 1), shared,
+            recolouredOne && afterOne === 2, rendered.length >= 2 && sprites.every(s => s.texture === rendered[1].texture), (all["halo.freed"] ?? 0) >= 1,
+            sharpWorn && rendered[2]?.blurs.length === 0 && sharp.blendMode === (BLEND.ADD ?? 1), tooBig, none, (edges["halo.live"] ?? 0) >= 2, rendered.length,
+            (gone["halo.freed"] ?? 0) >= 3]),
+            JSON.stringify([true, 1, 29, [[Math.max(6, seam * 6), seam * 14]], true, true, true, true, true, true, false, false, true, 3, true]),
+            `[30 sprites worn, textures drawn, sprites that wore one already drawn, the drawing's blur [strength, padding] as the live halo's at seam ${seam}, its passes additive, `
+            + `the thirty on one texture composited as the live filter was, a recolour draws one more, the thirty wear the new one, the old one freed with its last wearer, `
+            + `the blur off draws the passes alone and adds them, a ${side} x ${side} shape worn, a browser with no renderer worn, both counted live, renders in all, `
+            + `every texture freed with its wearers] ${JSON.stringify({ one, all, edges, gone, renders: rendered.length })}`);
+    }],
+
+    ["R1011 - one move, one refresh (E88 C2): a token's update asks the whole visibility pass only for a move of the viewer's own or a change of hidden, another token's move asks its own refresh alone and the next frame walks only what was refreshed, a ring whose drawing still stands is kept on a refresh and on one that only moves it, a hidden trace is not dressed, and a canvas colour is read once until the body changes", async () => {
+        /*
+         * E88 C2, 27.10.2026; E88-06, E88-07. Scenario 86 at 41cf2e9f: one step of Botan's inside the Cafeteria cost every
+         * browser a refresh of all 46 placeables in every `refreshToken` listener, a next-frame walk of 46, 30 traces dressed
+         * and, on the GM's, 34 rings drawn again and 34 colours read off the stylesheet. Read here on this client's scene on
+         * screen, writing nothing: visibility.mjs `movePass` on plain stand-ins; `passForTokenUpdate` handed a token's
+         * own position as a move (no write - the listener's own call); two visibility passes back to back, the second
+         * finding every frame drawn for what it still is; a refresh that only moves a framed token; remnant-icons.mjs
+         * `dressTrace` on a stand-in trace off screen and on one on screen; utils.mjs `cssColour` around a write of the
+         * body's own class back onto it, which is what the ring files' observers watch. A ring whose light was left live
+         * while this browser has a renderer is drawn again (fog-reveal.mjs `ringKept`), so the second pass expects those
+         * and only those. Red at 41cf2e9f: no `movePass`, no `passForTokenUpdate`, no `dressTrace`; every ring drawn again
+         * on the second pass; `utils.cssColour.read` never counted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const U = await import("./utils.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const I = await import("./remnant-icons.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const at = name => C.snapshot()[name] ?? 0;
+        const frames = async k => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); };
+        const LISTENERS = ["refreshToken.visibility", "refreshToken.ownRing", "refreshToken.remnantRing", "refreshToken.remnantIcons"];
+        const rebuilt = d => (d["ownRing.rebuilt"] ?? 0) + (d["remnantRing.rebuilt"] ?? 0);
+        const kept = d => (d["ownRing.kept"] ?? 0) + (d["remnantRing.kept"] ?? 0);
+
+        // The rule, on stand-ins: [a change of hidden, the viewer's own move, another's move, any move on a GM's screen, no move].
+        const rule = typeof V.movePass === "function" ? [V.movePass({ isOwner: false }, { hidden: true }, { gm: false }),
+            V.movePass({ isOwner: true }, { x: 1 }, { gm: false }), V.movePass({ isOwner: false }, { y: 1 }, { gm: false }),
+            V.movePass({ isOwner: true }, { x: 1 }, { gm: true }), V.movePass({ isOwner: false }, { name: "R1011" }, { gm: false })] : "no movePass";
+        equal(JSON.stringify(rule), JSON.stringify(["all", "all", "one", "one", null]),
+            "[a change of hidden, the viewer's own move, another token's move, any move on a GM's screen, a change that is no move]");
+
+        // Two passes back to back: the second keeps every frame drawn by the first, but a live light beside a renderer.
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const b0 = C.snapshot();
+        V.applyAll();
+        await until(() => LISTENERS.every(k => (C.delta(b0, C.snapshot())[k] ?? 0) >= n), 2000);
+        await frames(2);
+        const rings = tokens.flatMap(t => ["drpgOwnRing", "drpgRemnantRing"].map(r => t.visible ? t[r] : null))
+            .filter(g => g && !g.destroyed && g.visible !== false);
+        const renderer = typeof FR.HALO_IO.renderer()?.render === "function";
+        const liveBesideRenderer = renderer && glass ? rings.filter(g => !g.children?.find(c => c?.name === FR.HALO_BAKED)?.visible).length : 0;
+        const b1 = C.snapshot();
+        V.applyAll();
+        await until(() => LISTENERS.every(k => (C.delta(b1, C.snapshot())[k] ?? 0) >= n), 2000);
+        await frames(2);
+        const second = C.delta(b1, C.snapshot());
+        equal(JSON.stringify([rings.length > 0, rebuilt(second), kept(second) >= rings.length - liveBesideRenderer]),
+            JSON.stringify([true, liveBesideRenderer, true]),
+            `[a frame on this screen, rings drawn again on the second pass, rings kept] (${glass ? "Stained Glass" : "Legacy"}, ${rings.length} framed, ${liveBesideRenderer} live beside a renderer): ${JSON.stringify(second)}`);
+
+        // Another token's move: its own refresh alone, no whole pass, and the next frame walks only it.
+        const other = tokens.find(t => game.user.isGM || !t.document?.isOwner);
+        must(other, "every token on this scene is this player's own - another token's move cannot be read here");
+        const b2 = C.snapshot();
+        if (typeof V.passForTokenUpdate === "function") V.passForTokenUpdate(other.document, { x: other.document.x });
+        await until(() => (C.delta(b2, C.snapshot())["visibility.reassert"] ?? 0) >= 1, 1500);
+        await frames(2);
+        const one = C.delta(b2, C.snapshot());
+        equal(JSON.stringify([one["visibility.applyAll"] ?? 0, one["visibility.applyOne"] ?? 0, one["refreshToken.visibility"] ?? 0,
+            one["visibility.reassert.tokens"] ?? 0, rebuilt(one) <= 1]),
+            JSON.stringify([0, 1, 1, 1, true]),
+            `[whole passes, one-token passes, refreshes, tokens walked the next frame, at most the moved token's ring drawn] for ${other.name}: ${JSON.stringify(one)}`);
+
+        // A refresh that only moves a framed token keeps its frame (Foundry's slide refreshes it every frame).
+        const framed = typeof FR.ringKept === "function" ? tokens.find(t => t.visible && ["drpgOwnRing", "drpgRemnantRing"].some(r => FR.ringKept(t[r]))) : null;
+        if (framed) {
+            const b3 = C.snapshot();
+            Hooks.callAll("refreshToken", framed, { refreshPosition: true });
+            const slide = C.delta(b3, C.snapshot());
+            equal(JSON.stringify([rebuilt(slide), kept(slide)]), JSON.stringify([0, 1]),
+                `[rings drawn again, rings kept] on a position-only refresh of ${framed.name}: ${JSON.stringify(slide)}`);
+        }
+
+        // A trace off this screen is not dressed; one on it is.
+        const trace = visible => ({ document: { getFlag: (scope, key) => (key === "isRemnant" ? true : undefined), texture: {}, name: "R1011" },
+            mesh: new PIXI.Sprite(), nameplate: null, visible });
+        const dressed = () => at("remnantIcons.apply");
+        const d0 = dressed();
+        if (typeof I.dressTrace === "function") I.dressTrace(trace(false));
+        const d1 = dressed();
+        if (typeof I.dressTrace === "function") I.dressTrace(trace(true));
+        equal(JSON.stringify([d1 - d0, dressed() - d1]), JSON.stringify([0, 1]), "[a trace off screen dressed, one on screen dressed]");
+
+        // A canvas colour: read once until the body changes, then once more.
+        const bodyAgain = () => { document.body.className = document.body.className; };
+        bodyAgain();
+        await new Promise(r => setTimeout(r, 0));
+        const r0 = at("utils.cssColour.read");
+        const first = U.cssColour("--drpg-bone", 0);
+        const again = U.cssColour("--drpg-bone", 0);
+        const r1 = at("utils.cssColour.read");
+        bodyAgain();
+        await new Promise(r => setTimeout(r, 0));
+        U.cssColour("--drpg-bone", 0);
+        equal(JSON.stringify([r1 - r0, at("utils.cssColour.read") - r1, first === again]), JSON.stringify([1, 1, true]),
+            "[stylesheet reads for two asks, reads for one ask after the body's class was written, the same colour twice]");
+    }],
+    ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
+        /*
+         * E88 C3, 27.10.2026; E88-08. The masked raster over the fog is two screen-sized TilingSprites drawn into a
+         * filter's texture and a mask pass (PIXI 7 draws a sprite mask as a SpriteMaskFilter), and the backdrop under
+         * the map an ink rectangle and two more, on every frame the canvas renders, whatever moved - the player alone
+         * in a fogged room pays it all the time. Neither stands on a headless canvas (no renderer.render, a stub
+         * ticker: C0's numbers, fog.driftTick 0), so this runs fog.mjs's own hold on stand-ins, writing nothing and
+         * touching nothing of the layer on screen: 60 frames of 1/60 s, each the order a real frame keeps - the drift's
+         * step (`driftStep`) and the tiles placed (`placeTiles`), the renderer's prerender (`redrawHeld`, which draws a
+         * picture again when what it shows changed), the main pass's transforms carried down the tree as PIXI's
+         * updateTransform does, then each layer's render (`holdStill`'s). The pixels and a frame's time are a table's
+         * (LIVE-E88-02, LIVE-E88-01): what is counted here is the module's choice to draw, from what, and what a frame
+         * shows. Red at da2965ac (E88 C2): fog.mjs had none of the seven names, every frame drew both layers live (one
+         * mask pass a frame).
+         */
+        const F = await import("./fog.mjs");
+        const missing = ["driftState", "driftStep", "placeTiles", "holdStill", "redrawHeld", "releaseHeld", "heldGate"].filter(n => typeof F[n] !== "function");
+        if (missing.length) {
+            equal(JSON.stringify(missing), "[]", "fog.mjs's raster hold: the names it does not hand out");
+            return;
+        }
+        // A transform of a uniform scale and a translation, carried down the tree as PIXI's Transform carries its matrix.
+        class T {
+            constructor() { this.s = 1; this.x = 0; this.y = 0; this.worldTransform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 }; }
+            updateTransform(parent) {
+                const p = parent.worldTransform;
+                this.worldTransform = { a: p.a * this.s, b: 0, c: 0, d: p.d * this.s, tx: p.a * this.x + p.tx, ty: p.d * this.y + p.ty };
+            }
+        }
+        class Node {
+            constructor(name) { Object.assign(this, { name, children: [], parent: null, transform: new T(), visible: true, renderable: true, alpha: 1, worldAlpha: 1, destroyed: false }); }
+            get worldTransform() { return this.transform.worldTransform; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            render(r) { r.frames.push(`${this.name} live`); }
+            destroy() { this.destroyed = true; }
+        }
+        const tile = kind => Object.assign(new Node(kind), { drpgKind: kind, texture: { kind }, width: 1920, height: 1080, tileTransform: { rotation: 0 },
+            tilePosition: { x: 0, y: 0, set(x, y) { this.x = x; this.y = y; } } });
+        const lib = {
+            Transform: T,
+            RenderTexture: { create: o => ({ ...o, destroyed: false, destroy() { this.destroyed = true; } }) },
+            Sprite: class extends Node { constructor(texture) { super("picture"); this.texture = texture; } render(r) { r.frames.push("picture"); } }
+        };
+        const update = (node, parent = new T()) => {
+            node.transform.updateTransform(parent);
+            node.worldAlpha = node.alpha * (node.parent?.worldAlpha ?? 1);
+            for (const c of node.children) update(c, node.transform);
+        };
+        const run = ({ moving = true, canDraw = true, each = () => {}, prerender = () => true } = {}) => {
+            const root = new Node("stage"), layer = root.addChild(new Node("fog")), under = root.addChild(new Node("rendered"));
+            const mask = layer.addChild(Object.assign(new Node("mask"), { renderable: false, texture: { label: "fog1", baseTexture: { dirtyId: 1 }, _updateID: 1 } }));
+            const raster = layer.addChild(new Node("raster"));
+            raster.addChild(tile("dots"), tile("lines"));
+            raster.mask = mask;
+            const backdrop = under.addChild(new Node("backdrop"));
+            backdrop.addChild(Object.assign(new Node("ink"), { drpgDrawn: { w: 1920, h: 1080, ink: 0x1a1620 } }), tile("dots"), tile("lines"));
+            F.holdStill(raster, "raster");
+            F.holdStill(backdrop, "backdrop");
+            const renderer = { resolution: 1, screen: { width: 1920, height: 1080 }, frames: [], renders: [],
+                render(node, opts) { const mark = this.frames.length; node.render(this); this.renders.push(`${node.name}${opts?.renderTexture ? "" : " ON SCREEN"}: ${this.frames.splice(mark).join()}`); } };
+            const drift = F.driftState(), held = new Set(), shown = { raster: [], backdrop: [] }, afterTen = [];
+            const s = { root, layer, mask, raster, backdrop };
+            for (let f = 0; f < 60; f++) {
+                each(f, s);
+                F.driftStep(drift, 1000 / 60, { moving, snap: canDraw });
+                F.placeTiles(raster, drift.shown, 1920, 1080, 0);
+                F.placeTiles(backdrop, drift.shown, 1920, 1080, 0);
+                if (f === 9) afterTen.push(drift.shown.dots.y, drift.shown.lines.x);
+                if (prerender(f)) F.redrawHeld([raster, backdrop], { renderer, lib: canDraw ? lib : {}, held });
+                update(root);
+                for (const [name, node] of [["raster", raster], ["backdrop", backdrop]]) {
+                    const mark = renderer.frames.length;
+                    node.render(renderer);
+                    shown[name].push(renderer.frames.splice(mark).join());
+                }
+            }
+            const drawn = name => renderer.renders.filter(x => x.startsWith(`${name}:`)).length;
+            const tally = list => Object.entries(list.reduce((o, x) => ({ ...o, [x]: (o[x] ?? 0) + 1 }), {})).sort().map(([k, n]) => `${k} ${n}`).join(", ");
+            return { s, held, renderer, drift, afterTen, shown, drawn,
+                row: [drawn("raster"), drawn("backdrop"), tally(shown.raster), tally(shown.backdrop)] };
+        };
+
+        const rest = run();
+        equal(JSON.stringify([...rest.row, [...new Set(rest.renderer.renders)], rest.afterTen.every(Number.isInteger)]),
+            JSON.stringify([10, 10, "picture 60", "picture 60", ["raster: raster live", "backdrop: backdrop live"], true]),
+            "at rest, 60 frames: [raster pictures drawn, backdrop pictures drawn, what the raster's frames showed, the backdrop's, what each picture was drawn from, the drift's offset in whole pixels]");
+
+        const pan = run({ each: (f, s) => { s.root.transform.x -= 3; } });
+        equal(JSON.stringify(pan.row), JSON.stringify([60, 10, "picture 60", "picture 60"]),
+            "a pan of 3 px a frame: [raster pictures, backdrop pictures, the raster's frames, the backdrop's]");
+
+        const swap = run({ each: (f, s) => { if (f === 33) s.mask.texture = { label: "fog2", baseTexture: { dirtyId: 1 }, _updateID: 1 }; } });
+        const refill = run({ each: (f, s) => { if (f === 33) s.mask.texture.baseTexture.dirtyId += 1; } });
+        equal(JSON.stringify([swap.row.slice(0, 2), refill.row.slice(0, 2), swap.shown.raster[33]]), JSON.stringify([[11, 10], [11, 10], "picture"]),
+            "[raster and backdrop pictures with the mask swapped at frame 33, with the mask's texture drawn again in place, what frame 33 showed]");
+
+        const still = run({ moving: false });
+        equal(JSON.stringify(still.row), JSON.stringify([1, 1, "picture 60", "picture 60"]), "reduced motion: [raster pictures, backdrop pictures, the raster's frames, the backdrop's]");
+
+        // Frame 30: the camera moved and no prerender came before the main pass - the old picture must not be shown.
+        const missed = run({ each: (f, s) => { if (f === 30) s.root.transform.x = 50; }, prerender: f => f !== 30 });
+        equal(JSON.stringify([missed.shown.raster[30], missed.shown.backdrop[30], missed.shown.raster[31]]), JSON.stringify(["raster live", "picture", "picture"]),
+            "the camera moved with no prerender before the frame: [what the raster showed on that frame, the backdrop, the raster on the next]");
+
+        const none = run({ canDraw: false });
+        equal(JSON.stringify([...none.row, none.held.size, none.afterTen.every(Number.isInteger)]), JSON.stringify([0, 0, "raster live 60", "backdrop live 60", 0, false]),
+            "no texture to draw into: [raster pictures, backdrop pictures, the raster's frames, the backdrop's, pictures held, the drift in whole pixels]");
+
+        const pictures = [...rest.held].map(n => n.drpgHeld?.rt);
+        rest.s.raster.destroyed = true;
+        F.redrawHeld([], { renderer: rest.renderer, lib, held: rest.held });
+        const afterSweep = [pictures[0]?.destroyed, pictures[1]?.destroyed, rest.held.size];
+        F.releaseHeld(rest.s.backdrop, rest.held);
+        equal(JSON.stringify([...afterSweep, pictures[1]?.destroyed, rest.held.size, rest.s.backdrop.drpgHeld ?? null]), JSON.stringify([true, false, 1, true, 0, null]),
+            "[the destroyed raster's picture freed, the backdrop's kept, pictures held after the sweep; the backdrop's freed when released, pictures held, what the backdrop still points at]");
+
+        // The prerender's gate (`heldGate`): the picture's own render emits a prerender and a postrender of its own.
+        const drawnAt = [];
+        let gate = null;
+        let step = "";
+        gate = F.heldGate(() => { drawnAt.push(step); gate.before(); gate.after(); });
+        gate.tick();
+        step = "a frame";
+        gate.before(); gate.after();
+        step = "a frame with a render inside its pass";
+        gate.before(); gate.before(); gate.after(); gate.after();
+        step = "a render that returned with no postrender";
+        gate.before();
+        step = "a render later in that frame";
+        gate.before(); gate.after();
+        step = "the next frame";
+        gate.tick(); gate.before(); gate.after();
+        equal(JSON.stringify(drawnAt), JSON.stringify(["a frame", "a frame with a render inside its pass", "a render that returned with no postrender", "the next frame"]),
+            "the prerenders that drew the pictures");
+    }],
+
+    ["R1013 - a setting write renders what it changed (E88 C4): a Despair write renders the Monokumas' sheets and no student's, a sheet pass leaves a minimised sheet for its restore and renders it then, and the status strip redraws for a module setting it reads and for no other", async () => {
+        /*
+         * E88 C4, 27.10.2026; E88-09. Scenario 86 at 7baff238 (C3): a write of the GM's Despair pool asked a sheet pass,
+         * the HUD and the status strip on every browser, and the sheet pass renders every open character sheet - a
+         * student's reads nothing of a pool (sheet.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the
+         * strip redrew for every module setting written, whatever it reads. Read here on stand-in sheets standing in
+         * `ui.windows` for the length of the test (a student, a Monokuma, a minimised student; each counts its renders
+         * and is taken out in `finally`), through sync.mjs's own `applyKind` for SYNC.despair, then clock.mjs
+         * `refreshSheets` and the minimised one's restore; and the settings the strip reads, gathered off
+         * `game.settings.get` while it is built on this browser and for a student in and out of an Eclipse, against
+         * player-status.mjs `stripReadsSetting`, which its `updateSetting` listener asks. Nothing is written. Red at
+         * 7baff238: the student's sheet rendered on a Despair write, the minimised one on the pass, and no
+         * `stripReadsSetting`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student whose strip is built");
+        const S = await import("./sync.mjs");
+        const K = await import("./clock.mjs");
+        const PS = await import("./player-status.mjs");
+        const M = await import("./monokuma.mjs");
+        const student = studentActors().find(a => !a.getFlag?.(MODULE_ID, FLAGS.deceased)) ?? studentActors()[0];
+        must(student, "no student in this world - the strip would be built for nobody");
+
+        // Three stand-in sheets in the registry the sheet pass walks; each counts its renders.
+        const renders = {};
+        const sheet = (id, doc, extra = {}) => ({ appId: id, id, document: doc, rendered: true, element: null, position: {},
+            render() { renders[id] = (renders[id] ?? 0) + 1; return this; }, bringToTop() {}, async close() {}, ...extra });
+        const monokuma = { type: "character", name: "R1013 Monokuma", getFlag: (scope, key) => (key === FLAGS.monokuma ? true : undefined) };
+        const ids = ["R1013-student", "R1013-monokuma", "R1013-minimised"];
+        const stand = [sheet(ids[0], student), sheet(ids[1], monokuma), sheet(ids[2], student, {
+            minimized: true, async maximize() { this.minimized = false; return this; }
+        })];
+        const windows = ui.windows ?? {};
+        must(ids.every(id => !(id in windows)), "a window of this world already holds one of the stand-ins' ids");
+        let despair, pass, restored, again;
+        try {
+            stand.forEach(app => { windows[app.appId] = app; });
+            S.applyKind(S.SYNC.despair);
+            await S.syncIdle({ kinds: [S.SYNC.despair] });
+            despair = ids.map(id => renders[id] ?? 0);
+            Object.keys(renders).forEach(k => delete renders[k]);
+            K.refreshSheets();
+            pass = ids.map(id => renders[id] ?? 0);
+            await stand[2].maximize();
+            restored = renders[ids[2]] ?? 0;
+            Object.keys(renders).forEach(k => delete renders[k]);
+            K.refreshSheets();
+            again = ids.map(id => renders[id] ?? 0);
+        } finally {
+            ids.forEach(id => { if (windows[id] && stand.includes(windows[id])) delete windows[id]; });
+        }
+        equal(JSON.stringify(despair), JSON.stringify([0, 1, 0]),
+            "[a student's sheet, a Monokuma's, a minimised student's] rendered on a Despair write");
+        equal(JSON.stringify([pass, restored, again, Object.hasOwn(stand[2], "maximize")]), JSON.stringify([[1, 1, 0], 1, [1, 1, 1], true]),
+            "[the sheets a pass renders, the minimised one rendered on its restore, the next pass, its own maximize put back]");
+
+        // The settings the strip reads, gathered off every read while it is built.
+        const reads = new Set();
+        const ownGet = Object.hasOwn(game.settings, "get"), get = game.settings.get;
+        game.settings.get = function (scope, key, ...rest) {
+            if (scope === MODULE_ID) reads.add(key);
+            return get.call(this, scope, key, ...rest);
+        };
+        try {
+            PS.renderPlayerStatus();
+            PS.buildPlayerView(student, { remember: false });
+            PS.buildPlayerView(student, { remember: false, eclipse: true });
+            PS.buildPlayerView(student, { remember: false, eclipse: false });
+            PS.stillPlacing([student]);
+            M.ownStudent();
+        } finally {
+            if (ownGet) game.settings.get = get;
+            else delete game.settings.get;
+        }
+        const asks = typeof PS.stripReadsSetting === "function" ? PS.stripReadsSetting : null;
+        const missed = [...reads].filter(key => !asks?.({ key: `${MODULE_ID}.${key}` }));
+        equal(JSON.stringify([reads.size > 0, missed]), JSON.stringify([true, []]),
+            `[the strip read a module setting, the settings it read that do not redraw it] (read: ${JSON.stringify([...reads].sort())})`);
+        const unread = [SETTINGS.despairPools, SETTINGS.poolNames, SETTINGS.killingGameRules].filter(key => !reads.has(key));
+        must(unread.length > 0, "the strip read every setting this test would write past it - nothing to hold the listener to");
+        equal(JSON.stringify([unread.map(key => asks?.({ key: `${MODULE_ID}.${key}` }) ?? true), asks?.({ key: "core.R1013" }) ?? true]),
+            JSON.stringify([unread.map(() => false), false]),
+            `[the strip redraws for ${unread.join(", ")}, for another package's setting]`);
+    }],
+    ["R1014 - the glass's pulse draws what moved (E88 C5): a pane's polygon is scaled to its layer once and kept, a pulse frame none of whose panes' fills moved by a step draws nothing and keeps the layer's picture, one where a pane moved draws the job whole, and a layer painted again is drawn on the next frame", async () => {
+        /*
+         * E88 C5, 27.10.2026; E88-10. glass.mjs `pulseFrame` at 7baff238 cleared each curtain's and each band's pulse
+         * layer every 66 ms and filled every pane again, scaling the pane's polygon twice a pane a frame (`poly.map`),
+         * whether or not its light had moved. jsdom draws no 2d canvas (C0: `pulseFrame.panes` 0 headless), so this runs
+         * `pulseJob` on a stand-in job: two panes whose polygons count their `map` calls and a context that counts what
+         * it is asked to draw. Frames at 1 s, the same moment again (no fill moved), 4 s later, and once more at 4 s after the layer is painted again. Nothing on the page is touched.
+         * Red at 7baff238: no `pulseJob`.
+         */
+        const G = await import("./glass.mjs");
+        must(typeof document?.createElement === "function", "no document to stand a pulse layer in");
+        let maps = 0;
+        const polygon = points => { const poly = points.map(q => [...q]); poly.map = function (...args) { maps++; return Array.prototype.map.apply(this, args); }; return poly; };
+        const drawn = { clear: 0, fill: 0, styles: [] };
+        const ctx = {
+            globalCompositeOperation: "source-over", globalAlpha: 1,
+            set fillStyle(v) { drawn.styles.push(v); }, get fillStyle() { return drawn.styles.at(-1) ?? ""; },
+            clearRect() { drawn.clear++; }, fill() { drawn.fill++; }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, drawImage() {}
+        };
+        const pane = (poly, phase, omega, stained) => ({ poly: polygon(poly), phase, omega, stained, content: false, empty: true, bb: { x0: 0, y0: 0 } });
+        const job = { el: { isConnected: true }, acc: "#ff4f8b", pulseK: 0.5, pulse: { width: 100, height: 80, getContext: () => ctx },
+            panes: [pane([[0, 0], [120, 0], [120, 80]], 0.4, 2 * Math.PI / 9, true), pane([[0, 0], [0, 80], [120, 80]], 2.1, 2 * Math.PI / 14, false)] };
+        equal(typeof G.pulseJob, "function", "glass.mjs's pulse for one job (`pulseJob`)");
+        const frame = t => {
+            const before = { clear: drawn.clear, fill: drawn.fill, maps };
+            const did = G.pulseJob(job, t);
+            return [did, drawn.clear - before.clear, drawn.fill - before.fill, maps - before.maps];
+        };
+        const first = frame(1000);
+        const still = frame(1000);
+        const later = frame(5000);
+        job.pulseOn = null;
+        const repainted = frame(5000);
+        const k = job.panes[0].scaled?.[1];
+        equal(JSON.stringify([first[0], first[1], first[2] > 0, first[3]]), JSON.stringify([true, 1, true, 2]),
+            "[the first frame drew, layers cleared, panes filled, polygons scaled (one a pane)]");
+        equal(JSON.stringify([still, later[0], later[3], repainted[0], repainted[3], k]),
+            JSON.stringify([[false, 0, 0, 0], true, 0, true, 0, [60, 0]]),
+            "[the same moment again: drew, cleared, filled, scaled; four seconds later: drew, scaled; painted again: drew, scaled; a scaled corner]");
+        equal(JSON.stringify(drawn.styles.filter(s => !/^rgba\((2,1,4|255,79,139),0\.\d{3}\)$/.test(s))), "[]",
+            "fill styles other than the dark's and the accent's in thousandths");
+    }],
+    ["R1015 - a token outside every room keeps the voice room it came from (E88 C6, Q3's default): a crossing from one room through a gap into the next is one assignment, a step into the gap and back none; another scene, another floor, a room deleted, no token, an Eclipse or the trial between, or nothing remembered gives the main room as before; a Monokuma keeps nothing, and a refused or unjudged entry is not remembered (E88 fix G1)", async () => {
+        /*
+         * E88 C6, 27.10.2026; E88-12, triage C3 (the owner's voice cut-outs "as if it disconnected"). Every change of
+         * voice room is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and until C6 a token
+         * outside every region was `CLAIM.nowhere`, the main room: a crossing over a doorway square was two reconnects,
+         * a step into the gap and back two for none (scenario 75 I at addc1522: p1 sent the main room at +2 ms and
+         * Dorm B at +1804). Read here on plain objects, nothing written and nothing sent: voice.mjs
+         * `keepRoomsThroughGaps` - the `locate` `voiceTargets` hands `placeVoices` on the primary - over a memory of the
+         * test's own, one pass a step, each pass's rooms sent through `sendInPasses` to an `assign` that counts what it
+         * is handed and differs from the last (the ledger's `settled`, stood in). Red at addc1522: no `keepRoomsThroughGaps`.
+         */
+        const V = await import("./voice.mjs");
+        const C = await import("./perf-counters.mjs");
+        equal(typeof V.keepRoomsThroughGaps, "function", "voice.mjs's locate that keeps a room through a gap (`keepRoomsThroughGaps`)");
+        if (typeof V.keepRoomsThroughGaps !== "function") return;
+        const school = { id: "R1015SCHOOL00000", name: "R1015 School", rooms: ["Dorm A", "Dorm B"] };
+        const other = { id: "R1015OTHER000000", name: "R1015 Other", rooms: ["Dorm A"] };
+        const user = { id: "R1015PLAYER00000", name: "R1015 Player", active: true, isGM: false };
+        const actor = { id: "R1015ACTOR000000", name: "R1015 Aiko", type: "character", getFlag: () => undefined };
+        const names = [school, other].flatMap(s => s.rooms.map(r => [V.liveKitRoomFor(s.id, r), `${s.name.slice(6)}:${r}`]));
+        const label = target => (target === null ? "main" : names.find(([room]) => room === target)?.[1] ?? `?${target}`);
+        /* One walk: each step `[scene, room, level]` (room null: outside every room; a step null: no token), or "eclipse" /
+           "trial" for a pass in one. Answers the rooms each pass placed and the assignments sent, starting in the main room. */
+        const walk = async (steps, { memory = new Map(), gone = [] } = {}) => {
+            let last = null;
+            const placed = [], sent = [];
+            for (const step of steps) {
+                const eclipse = step === "eclipse", trial = step === "trial";
+                const where = Array.isArray(step) ? { scene: step[0], room: step[1], level: step[2] ?? null } : null;
+                const gaps = V.keepRoomsThroughGaps(memory, () => where, { stands: (scene, room) => scene.rooms.includes(room) && !gone.includes(room) });
+                const { byUser } = await V.placeVoices({
+                    actors: [actor], eclipse, trial, death: eclipse || trial ? null : { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                    locate: gaps.locate, userOf: () => user, dead: () => false, monokumaOf: () => false, users: [user]
+                });
+                gaps.done();
+                placed.push(eclipse || trial ? step : label(byUser.get(user.id)?.target ?? null));
+                await V.sendInPasses(V.applyOrder(byUser, "R1015GM000000000"), new Map(), {
+                    ownId: "R1015GM000000000", waitFor: async () => null,
+                    assign: (userId, row) => {
+                        if ((row.target ?? null) === last) return false;
+                        last = row.target ?? null;
+                        sent.push(label(last));
+                        return true;
+                    }
+                });
+            }
+            return { placed, sent };
+        };
+        const before = C.snapshot();
+        const cross = await walk([[school, "Dorm A"], [school, null], [school, "Dorm B"]]);
+        const moved = C.delta(before, C.snapshot());
+        equal(JSON.stringify(cross), JSON.stringify({ placed: ["School:Dorm A", "School:Dorm A", "School:Dorm B"], sent: ["School:Dorm A", "School:Dorm B"] }),
+            "Dorm A, the gap, Dorm B: the rooms placed and sent - the gap is not one assignment of its own (the main room)");
+        equal(JSON.stringify([moved["voice.gap"] ?? 0, moved["voice.gap.kept"] ?? 0]), JSON.stringify([1, 1]),
+            "the crossing's counters [voice.gap, voice.gap.kept]: one pass outside every room, its room kept");
+        const back = await walk([[school, "Dorm A"], [school, null], [school, null], [school, "Dorm A"]]);
+        equal(JSON.stringify(back.sent), JSON.stringify(["School:Dorm A"]), "Dorm A, the gap for two passes, Dorm A: nothing sent after the first room");
+        const rows = new Map();
+        V.keepRoomsThroughGaps(rows, () => ({ scene: school, room: "Dorm A", level: null }), { stands: () => true }).locate(actor);
+        const kept = V.voiceClaim({ user, locate: () => V.keepRoomsThroughGaps(rows, () => ({ scene: school, room: null, level: null }), { stands: () => true }).locate(actor) });
+        equal(JSON.stringify([kept.claim > V.voiceClaim({ user, locate: () => ({ scene: school, room: null }) }).claim, kept.kept, kept.why.includes("the room it came from")]),
+            JSON.stringify([true, true, true]), `a kept row (a stronger claim than outside every room, kept, said in its why: "${kept.why}")`);
+        // Each of these ends outside every room with nothing it may keep: the main room, as before C6.
+        const ends = {
+            otherScene: await walk([[school, "Dorm A"], [other, null]]),
+            otherFloor: await walk([[school, "Dorm A", "L1"], [school, null, "L2"]]),
+            roomGone: await walk([[school, "Dorm A"], [school, null]], { gone: ["Dorm A"] }),
+            noToken: await walk([[school, "Dorm A"], null, [school, null]]),
+            eclipse: await walk([[school, "Dorm A"], "eclipse", [school, null]]),
+            trial: await walk([[school, "Dorm A"], "trial", [school, null]]),
+            fresh: await walk([[school, null]])
+        };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(ends).map(([k, r]) => [k, r.placed.at(-1)]))),
+            JSON.stringify({ otherScene: "main", otherFloor: "main", roomGone: "main", noToken: "main", eclipse: "main", trial: "main", fresh: "main" }),
+            "where each walk ends outside every room: kept where it may not be (another scene or floor, a room deleted, a pass with no token, an Eclipse or the trial between, a memory that starts empty - a new primary GM)");
+        /* E88 fix G1, 27.10.2026. E88-END-03 and E88R-06: the spec keeps the room for "a living player"; a Monokuma's
+           token is a GM's voice, and a GM who walks it out of a room into a corridor means to leave that room - so a
+           Monokuma keeps nothing (`keeps`, by default `!isMonokuma`, read here off the flag the stand-in carries).
+           E88-SEC-2: a room is remembered only from a token whose latest move this browser has judged and not refused
+           (`settled`, by default movement.mjs `moveVerdict` false): a refused entry from a gap, read by a pass another
+           token's move asked before the put-back landed, is placed where it stands for that pass, as before E88, and
+           not remembered, so after the put-back the token is outside every room with the room it came from (here
+           nothing: the main room). Red at 001e9af5: the Monokuma kept Dorm A, the refused entry left Dorm B
+           remembered. */
+        const monokuma = { ...actor, id: "R1015MONOKUMA000", name: "R1015 Monokuma", getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.monokuma };
+        const mono = new Map();
+        const monoPlaced = [[school, "Dorm A"], [school, null]].map(([scene, room]) =>
+            V.keepRoomsThroughGaps(mono, () => ({ scene, room, level: null }), { stands: () => true }).locate(monokuma));
+        equal(JSON.stringify([monoPlaced.map(p => [p.room ?? "gap", p.kept === true]), mono.size]), JSON.stringify([[["Dorm A", false], ["gap", false]], 0]),
+            "a Monokuma's token from Dorm A into the gap: [[placed, kept] a pass], rooms remembered - outside every room it is the main room, as before E88");
+        const judged = new Map();
+        const refusedEntry = [[school, null, true], [school, "Dorm B", false], [school, null, true]].map(([scene, room, settled]) =>
+            V.keepRoomsThroughGaps(judged, () => ({ scene, room, level: null }), { stands: () => true, settled: () => settled }).locate(actor));
+        equal(JSON.stringify(refusedEntry.map(p => [p.room ?? "gap", p.kept === true])), JSON.stringify([["gap", false], ["Dorm B", false], ["gap", false]]),
+            "a refused entry from a gap with a racing pass: the gap, Dorm B unjudged (placed for that pass, not remembered), the gap after the put-back - the main room, not Dorm B kept");
+        equal(typeof (await import("./movement.mjs")).moveVerdict, "function",
+            "the default judge: movement.mjs's synchronous reading of a move's verdict (`moveVerdict`)");
+        const fresh = new Map();
+        V.keepRoomsThroughGaps(fresh, () => ({ scene: school, room: "Dorm A", level: null, tokenDoc: { id: "R1015NOMOVE00000" } }), { stands: () => true }).locate(actor);
+        equal(fresh.get(actor.id)?.room ?? null, "Dorm A", "a token this browser saw no move of is remembered by the default judge (no verdict pending)");
+    }],
+    ["R1017 - fps() holds the module's own light and nothing else (E88 fix G2): the outline's and the rings' live halo filters by their names, their baked pictures by theirs, a filter not the module's read on a line of its own and never switched off, a hold put back only where it still stands, and each hold bounded by time as well as frames", async () => {
+        /*
+         * E88 fix G2, 27.10.2026; findings E88-END-01 (major), E88R-01 (major), E88-BEH-1, E88R-02. Until this fix the
+         * hold "the room outline's halo filters" took every filtered object under canvas.stage whose name was not a
+         * ring glow's - since C1 the outline's light is a baked picture with no filter, so at rest it caught only
+         * Foundry's filters (its vision and lighting, a token's detection filter) and other modules', switched them
+         * off for the hold, and printed their saving under the outline's name; and nothing held the baked pictures, so
+         * fps() could not price suspects 1 and 4 after C1 at all. A hold's undo wrote back the list it took over any
+         * list assigned during the hold. And a hold was `frames` frames whatever their length: 60 frames at 15 fps are
+         * 4 s a hold, about 45 s a run, where the books say about a second each.
+         * Read here on this client's canvas, nothing written to the world: five stand-ins planted on canvas.stage -
+         * a foreign filtered node (Foundry's, say), the outline's live glow (`drpgRoomOutlineGlow`) and its baked
+         * picture (`drpgRoomOutlineGlowBaked`), a ring's live glow (`drpgOwnRingGlow`) and a ring's baked picture
+         * (`drpgHaloBaked`) - and a frame watcher that records, each frame, whether each stands; mid-hold the watcher
+         * gives the outline's glow a new filter list (a re-strike), which must survive the undo. Then fps() with 120
+         * frames a hold (about 2 s each at this harness's frame) and a hold of 150 ms: it must end within 8 s, each hold
+         * bounded by time. Red at
+         * 0b1e4413: the foreign node's filters were switched off, the baked pictures never hidden, the re-strike
+         * overwritten, and no "Foundry's own filters" line.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen");
+        must(canvas.ready && canvas.stage, "the canvas is not ready - this would measure nothing");
+        const J = JSON.stringify;
+        const filter = tag => ({ tag, blur: 1, enabled: true });
+        const node = (name, filters = null) => { const c = new PIXI.Container(); c.name = name; if (filters) c.filters = filters; return c; };
+        const foreign = node("R1017ForeignFilter", [filter("foreign")]);
+        const outline = node("drpgRoomOutlineGlow", [filter("outline")]);
+        const outlineBaked = node("drpgRoomOutlineGlowBaked");
+        const ring = node("drpgOwnRingGlow", [filter("ring")]);
+        const ringBaked = node("drpgHaloBaked");
+        const planted = [foreign, outline, outlineBaked, ring, ringBaked];
+        const foreignList = foreign.filters, ringList = ring.filters;
+        const restruck = [filter("outline-restruck")];
+        const seen = { foreignOff: 0, outlineOff: 0, outlineBakedOff: 0, ringOff: 0, ringBakedOff: 0, frames: 0 };
+        let watching = true, struck = false;
+        const watch = () => {
+            if (!watching) return;
+            seen.frames++;
+            if (!foreign.filters?.length) seen.foreignOff++;
+            if (!outline.filters?.length) {
+                seen.outlineOff++;
+                if (!struck) { struck = true; outline.filters = restruck; }
+            }
+            if (outlineBaked.visible === false) seen.outlineBakedOff++;
+            if (!ring.filters?.length) seen.ringOff++;
+            if (ringBaked.visible === false) seen.ringBakedOff++;
+            requestAnimationFrame(watch);
+        };
+        for (const n of planted) canvas.stage.addChild(n);
+        let text = "", took = 0;
+        try {
+            requestAnimationFrame(watch);
+            const t0 = performance.now();
+            text = await game.drpg.fps({ seconds: 0.2, frames: 120, holdMs: 150, toChat: false });
+            took = performance.now() - t0;
+        } finally {
+            watching = false;
+            for (const n of planted) { canvas.stage.removeChild(n); n.destroy?.(); }
+        }
+        const line = label => text.split("\n").find(l => l.includes(label)) ?? "";
+        equal(J({ foreignOff: seen.foreignOff, foreignSame: foreign.filters === foreignList, outlineHeld: seen.outlineOff > 0, restruckKept: outline.filters === restruck,
+            outlineBakedHeld: seen.outlineBakedOff > 0, ringHeld: seen.ringOff > 0, ringSame: ring.filters === ringList, ringBakedHeld: seen.ringBakedOff > 0,
+            bakedBack: [outlineBaked.visible, ringBaked.visible] }),
+            J({ foreignOff: 0, foreignSame: true, outlineHeld: true, restruckKept: true, outlineBakedHeld: true, ringHeld: true, ringSame: true, ringBakedHeld: true,
+            bakedBack: [true, true] }),
+            `[a foreign filter never switched off and the same list after, the outline's live glow held and its re-strike kept, each baked picture hidden and shown again, the ring's glow held and the same list after] over ${seen.frames} frames:\n${text}`);
+        equal(J([/Foundry's own filters/.test(text) && /\b1 filter/.test(line("Foundry's own filters")), /nothing of it here/.test(line("the room outline's live halo")),
+            /nothing of it here/.test(line("the room outline's baked light")), /nothing of it here/.test(line("the ring halos' baked light"))]),
+            J([true, false, false, false]),
+            "[a line reading the filters not the module's (one planted), and each of the module's halo holds found something to hold]");
+        ok(took < 8000, `fps() with 120 frames a hold and a 150 ms hold ended in ${Math.round(took)} ms: each hold is bounded by time\n${text}`);
+    }],
+    ["R1018 - with the glass's blur off the map's halos are sharp everywhere (E88 fix G3; Q2): a ring or the room outline that cannot be drawn once (past the cap, no renderer) keeps no live blur either", async () => {
+        /*
+         * E88 fix G3, 27.10.2026; finding E88-END-02. Q2's default: with "Szkło rozmywa mapę" off the halos lose their
+         * bloom. The baked light honoured it (`wearHalo`'s `blur`, `bakeOutlineHalo`'s `haloBlurOn()`), the live
+         * fallback did not: the outline's `live()` put its BlurFilter back and both rings' live branch always made one.
+         * The fallback is taken whenever the bake passes MAX_FOG_TEXTURE (2048 device pixels) or the browser has no
+         * renderer - so a player who turned the blur off to save frames still paid a per-frame blur on a large room
+         * zoomed in. Read here on this client's canvas with the bakers handed no renderer (fog-reveal.mjs `HALO_IO`,
+         * put back after), so every paint takes the fallback as it does past the cap: the
+         * blur switched off by its body class (settings.mjs `applyTheme` sets it; put back after), every ring painted
+         * again, the ring glows' live blurs counted; then fog-reveal.mjs `bakeOutlineHalo` on a halo of the test's own
+         * that carries its BlurFilter. Red at 00bcd809: ring glows kept their blurs, the outline's halo got its filter
+         * back.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const R = await import("./fog-reveal.mjs");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const LISTENERS = ["refreshToken.ownRing", "refreshToken.remnantRing"];
+        const repaint = async () => {
+            const before = C.snapshot();
+            V.applyAll();
+            await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= tokens.length), 2000);
+            await new Promise(r => setTimeout(r, 50));
+        };
+        const ringBlurs = async () => { const live = (await D.countersNow()).live; return (live.byName.drpgOwnRingGlow ?? 0) + (live.byName.drpgRemnantRingGlow ?? 0); };
+        const had = document.body.classList.contains("drpg-no-blur");
+        let on = null, off = null, outline = null;
+        const io = R.HALO_IO.renderer;
+        try {
+            R.HALO_IO.renderer = () => null;
+            document.body.classList.remove("drpg-no-blur");
+            await repaint();
+            on = await ringBlurs();
+            document.body.classList.add("drpg-no-blur");
+            await repaint();
+            off = await ringBlurs();
+            equal(typeof R.bakeOutlineHalo, "function", "fog-reveal.mjs's outline baker, exported for this test (`bakeOutlineHalo`)");
+            if (typeof R.bakeOutlineHalo === "function") {
+                const group = new PIXI.Container(), halo = new PIXI.Graphics();
+                const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+                halo.name = "drpgRoomOutlineGlow";
+                halo.beginFill?.(0xffffff, 1); halo.drawRect?.(0, 0, 400, 300); halo.endFill?.();
+                halo.filters = Blur ? [new Blur(6, 3)] : [{ blur: 6 }];
+                group.addChild(halo);
+                const baked = R.bakeOutlineHalo(group, halo, group);
+                outline = { baked, filters: (halo.filters ?? []).length, visible: halo.visible };
+                group.destroy({ children: true });
+            }
+        } finally {
+            R.HALO_IO.renderer = io;
+            document.body.classList.toggle("drpg-no-blur", had);
+            await repaint();
+        }
+        ok(!glass || on > 0, `under Stained Glass with the blur on, the fallback draws its live blur (${on} on the ring glows): the reading below reads something`);
+        equal(JSON.stringify([off, outline]), JSON.stringify([0, { baked: false, filters: 0, visible: true }]),
+            `[live blurs on the ring glows with the blur off (on: ${on}), the outline's halo with no renderer and the blur off: drawn live, no filter] (${glass ? "Stained Glass" : "Legacy"})`);
+    }],
+    ["R1019 - the glass's pulse decides on the canvas's own step (E88 fix G3, E88-10): a job whose panes' fills moved by a thousandth but not by 1/255, the step the canvas stores, is not drawn again; one that moved by a step is", async () => {
+        /*
+         * E88 fix G3, 27.10.2026; finding E88R-04. E88-10 asks that the pulse skip a pane whose fill moved under 1/255.
+         * C5's `pulseJob` compared the fills' thousandths, finer than the 1/255 a canvas stores, so a thousandth that
+         * stayed inside one stored step drew the layer again for the same pixels. Run here on a stand-in job (R1014's
+         * shape, a context that counts what it is asked to draw): one frame drawn, then each pane's remembered dark fill
+         * set one thousandth off inside its stored step and the same moment asked again - nothing must be drawn; then a
+         * whole step off - drawn. Red at 00bcd809: the thousandth drew. What this saves on a curtain is the commit's
+         * Chromium reading (a pane's fill moves more than one step a 66 ms frame for most of its cycle).
+         */
+        const G = await import("./glass.mjs");
+        must(typeof G.pulseJob === "function", "glass.mjs has no pulseJob - R1014 says so");
+        const drawn = { clear: 0 };
+        const ctx = { globalCompositeOperation: "source-over", globalAlpha: 1, fillStyle: "",
+            clearRect() { drawn.clear++; }, fill() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, drawImage() {} };
+        const pane = (poly, phase, omega, stained) => ({ poly, phase, omega, stained, content: false, empty: true, bb: { x0: 0, y0: 0 } });
+        const job = { el: { isConnected: true }, acc: "#ff4f8b", pulseK: 0.5, pulse: { width: 100, height: 80, getContext: () => ctx },
+            panes: [pane([[0, 0], [120, 0], [120, 80]], 0.4, 2 * Math.PI / 9, true), pane([[0, 0], [0, 80], [120, 80]], 2.1, 2 * Math.PI / 14, false)] };
+        const byte = q => Math.round(q * 0.255);
+        G.pulseJob(job, 3000);
+        const nudge = within => {
+            for (const p of job.panes) {
+                const q = p.drawnDark;
+                if (within) p.drawnDark = q > 0 && byte(q - 1) === byte(q) ? q - 1 : byte(q + 1) === byte(q) ? q + 1 : q;
+                else p.drawnDark = q + 4;
+            }
+        };
+        must(job.panes.every(p => p.drawnDark > 0), `a pane drew no dark fill at 3 s - this would read nothing: ${JSON.stringify(job.panes.map(p => p.drawnDark))}`);
+        nudge(true);
+        const nudged = job.panes.map(p => p.drawnDark);
+        const before = drawn.clear;
+        const inside = G.pulseJob(job, 3000);
+        nudge(false);
+        const outside = G.pulseJob(job, 3000);
+        equal(JSON.stringify([inside, outside, drawn.clear - before]), JSON.stringify([false, true, 1]),
+            `[a thousandth inside the stored step drew, a whole step drew, layers cleared] (the remembered darks nudged to ${JSON.stringify(nudged)})`);
+    }],
+    ["R1016 - the books say how to read fps() and what to turn off (E88 C7, E88-13): each GM handbook's reading of fps() names every heading fps() prints, by the words it prints them in, and the Look's switches in the order to turn them off, by their names in that language, the theme last; each player handbook says the same switches in that order; each GM handbook's voice section says what a doorway keeps (LIVE-E88-03)", async () => {
+        /*
+         * E88 C7, 27.10.2026. The owner's table lagged and the stage's first answer is a reading: `fps()` prints
+         * English headings (console English, like perf()) and the handbooks tell a GM or a player what each means
+         * and which switch to try first. A book that names a heading the console stopped printing, or a switch by a
+         * name the Look no longer shows, sends a lagging table to look for something that is not there.
+         * Read: diagnostics.mjs `frameCostRun` for the headings, lang/en.json and lang/pl.json for the four Look
+         * switches' names (DRPG.Settings.<key>.name), the four handbooks fetched as R125 fetches them, each passage
+         * found by its bold lead line, the switches found one after another (each searched from where the last was
+         * found, so the order is read, not only their presence). THE CONTROL: the same search with the switches
+         * reversed must miss in every passage, so the order is what passes. Red at c506a879 (C6): no handbook has
+         * either passage and the voice sections do not cite LIVE-E88-03.
+         */
+        const J = stableJson;
+        const run = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/diagnostics.mjs`).then(lfText)), "frameCostRun");
+        const headings = ["On the canvas now", "Seams' light drawn once", "The module's work", "Each held alone", "the canvas"];
+        equal(J(headings.filter(h => !run.includes(h))), J([]), "[the headings the books name that frameCostRun no longer prints]");
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const switches = lang => ["glassBlur", "glassPulse", "hudTicker", "reducedMotion"].map(k => flats[lang][`DRPG.Settings.${k}.name`]);
+        for (const lang of ["en", "pl"]) must(switches(lang).every(s => typeof s === "string" && s.length > 3), `${lang}.json lacks a Look switch's name: ${J(switches(lang))}`);
+        const books = {};
+        for (const name of ["gm-handbook.en", "gm-handbook.pl", "player-handbook.en", "player-handbook.pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            books[name] = await lfText(res);
+        }
+        const lead = (text, start) => text.split("\n").find(line => line.startsWith(start)) ?? "";
+        const inOrder = (text, words) => {
+            const low = text.toLowerCase();
+            let at = 0;
+            for (const word of words) {
+                const found = low.indexOf(word.toLowerCase(), at);
+                if (found < 0) return false;
+                at = found + word.length;
+            }
+            return true;
+        };
+        const passages = {
+            "gm-handbook.en": lead(books["gm-handbook.en"], "**Reading `fps()`"),
+            "gm-handbook.pl": lead(books["gm-handbook.pl"], "**Jak czytać `fps()`"),
+            "player-handbook.en": lead(books["player-handbook.en"], "**If the screen stutters**"),
+            "player-handbook.pl": lead(books["player-handbook.pl"], "**Gdy ekran się przycina**")
+        };
+        const wrong = [], control = [];
+        for (const [name, text] of Object.entries(passages)) {
+            const lang = name.endsWith(".pl") ? "pl" : "en";
+            if (!text) { wrong.push(`${name}: no passage`); continue; }
+            const order = [...switches(lang), "Monokuma Legacy"];
+            if (!inOrder(text, order)) wrong.push(`${name}: the switches not named in the order ${J(order)}`);
+            if (inOrder(text, [...order].reverse())) control.push(name);
+            if (name.startsWith("gm-")) for (const h of headings) if (!text.includes(`*${h}`)) wrong.push(`${name}: names no ${h}`);
+        }
+        const voice = { "gm-handbook.en": "### 9.5 Voice", "gm-handbook.pl": "### 9.5 Głos" };
+        for (const [name, heading] of Object.entries(voice)) {
+            const section = books[name].match(new RegExp(`^${heading}\\n([\\s\\S]*?)(?=^#{2,3} )`, "m"))?.[1] ?? "";
+            if (!section.includes("LIVE-E88-03")) wrong.push(`${name}: section 9.5 does not say what a doorway keeps (LIVE-E88-03)`);
+        }
+        equal(J(wrong), J([]), "[what the books lack of fps()'s reading and the switches]");
+        equal(J(control), J([]), "[passages that pass with the switches reversed - the order would not be read]");
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one

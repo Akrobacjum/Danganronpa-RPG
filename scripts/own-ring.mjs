@@ -51,15 +51,21 @@
  * two answers to when a token is redrawn.
  */
 
-import { debug, cssColour } from "./utils.mjs";
+import { debug, cssColour, forgetCssColours } from "./utils.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 /* The frame is the Remnant frame's, so its light is too: the three additive passes the
-   curtain's seams and the evidence frames share. */
-import { SEAM_GLOW } from "./motion.mjs";
+   curtain's seams and the evidence frames share (motion.mjs `SEAM_GLOW`), drawn by fog-reveal.mjs
+   `ringHalo` for both rings since E88 C1. */
 /* The curtain's hairline, in the scene units this draws in. The frame is a seam
    like the room border it stands inside, so it takes the same number from the
    same place rather than a second copy of the formula. */
 import { seamWidth } from "./fog.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
+/* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
+   (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
+   `seamWidth`; fog-reveal.mjs imports neither ring file back. */
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED, ringKept, positionOnly, haloBlurOn } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgOwnRing";
 /* The seam's light, told apart from the seam: anything measuring "the frame" by
@@ -87,8 +93,10 @@ function glassOn() {
 }
 
 export function registerOwnRing() {
-    Hooks.on("refreshToken", token => paint(token));
-    Hooks.on("canvasReady", () => { ringZoom = 0; repaintAll(); });
+    // The refresh's flags go to `paint` (E88 C2): a refresh may keep a drawing that still stands; a call without flags
+    // (a repaint of the scene, an ownership change) always draws again.
+    Hooks.on("refreshToken", (token, flags) => { count("refreshToken.ownRing"); paint(token, flags ?? {}); });
+    Hooks.on("canvasReady", () => { ringZoom = 0; restrikeHalos(); sweepHalos(); repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
        redraw it: `refreshToken` fires when a token moves, never when the view does.
@@ -103,6 +111,7 @@ export function registerOwnRing() {
         if (!Number.isFinite(zoom) || zoom <= 0.05) return;
         if (ringZoom && Math.abs(Math.log(zoom / ringZoom)) < 0.18) return;
         ringZoom = zoom;
+        restrikeHalos();
         repaintAll();
     });
 
@@ -114,6 +123,8 @@ export function registerOwnRing() {
        is what catches the Eclipse and a change of theme. */
     let hourTimer = 0;
     new MutationObserver(() => {
+        // The colours the stylesheet answers may have changed with it (utils.mjs `cssColour`'s memo, E88 C2).
+        forgetCssColours();
         clearTimeout(hourTimer);
         hourTimer = setTimeout(() => {
             try { repaintAll(); } catch (err) { debug("Could not repaint the own-token rings", err); }
@@ -210,26 +221,42 @@ function ringParts(token) {
         const halo = new PIXI.Graphics();
         halo.name = RING_GLOW_NAME;
         halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
-        group.addChild(halo, new PIXI.Graphics());
+        group.addChild(halo, bakedLight(), new PIXI.Graphics());
         token[RING_NAME] = group;
     }
-    return { group, halo: group.children[0], core: group.children[1] };
+    const [halo, baked, core] = group.children;
+    return { group, halo, baked, core };
+}
+
+/* The light drawn once (E88 C1): a sprite over the texture its frame shape shares, between the live halo it stands in
+   for - kept, empty and hidden while the sprite shows, drawn as before where no texture can be made - and the core. */
+function bakedLight() {
+    const sprite = new PIXI.Sprite();
+    sprite.name = HALO_BAKED;
+    sprite.eventMode = "none";
+    sprite.visible = false;
+    return sprite;
 }
 
 /**
  * Draw, update or remove one token's frame.
  *
- * Everything is rebuilt each refresh rather than cached: a token that changes size
- * or owner mid-scene would otherwise keep a frame drawn for what it used to be.
+ * Rebuilt whole when asked without `flags` (a repaint of the scene, an ownership change). A refresh (`flags`, the
+ * refresh's own) keeps the frame as drawn when what it was drawn for has not changed (E88 C2): a refresh that only
+ * moves the token, or one whose frame key - whose, size, colour, theme, seam - is the one it was drawn with, while its
+ * light still stands (fog-reveal.mjs `ringKept`). A token that changes size or owner mid-scene changes the key, so it
+ * is never left wearing a frame drawn for what it used to be.
  */
-function paint(token) {
+function paint(token, flags) {
     try {
         if (!token?.document) return;
         const existing = token[RING_NAME];
         const whose = frameOf(token);
 
         if (!whose) {
+            count("ownRing.skipped");
             if (existing) {
+                releaseHalo(existing.children?.find(c => c?.name === HALO_BAKED));
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
             }
@@ -240,20 +267,37 @@ function paint(token) {
            else's token that WOULD be a leak - a frame over the fog where a student stands -
            and for their own it is a drawing of something that is not there. */
         if (!token.visible) {
+            count("ownRing.skipped");
             if (existing) existing.visible = false;
             return;
         }
 
-        const { group, halo, core } = ringParts(token);
-        group.visible = true;
-        core.clear();
-        halo.clear();
+        if (flags && positionOnly(flags) && ringKept(existing)) {
+            count("ownRing.kept");
+            existing.visible = true;
+            return;
+        }
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
         const colour = whose === "mine" ? cssColour("--drpg-bone", BONE_FALLBACK) : hourColour();
+        const glass = glassOn();
+        const key = [glass ? "glass" : "legacy", whose, `${w}x${h}`, colour, glass ? seamWidth().toFixed(5) : ""].join("|");
+        if (flags && ringKept(existing, key)) {
+            count("ownRing.kept");
+            existing.visible = true;
+            return;
+        }
 
-        if (!glassOn()) {
+        const { group, halo, baked, core } = ringParts(token);
+        count("ownRing.rebuilt");
+        group.visible = true;
+        group.drpgRingKey = key;
+        group.drpgRingLight = glass ? null : "";
+        core.clear();
+        halo.clear();
+
+        if (!glass) {
             /* MONOKUMA LEGACY: the Remnant frame to the pixel - four filled bars on
                integer coordinates, one cell of the token's 12-cell grid thick, no bloom.
 
@@ -264,6 +308,7 @@ function paint(token) {
                crossing it; under the isometric view that edge is the floor under the
                student's feet. */
             halo.visible = false;
+            releaseHalo(baked);
             const t = Math.max(1, Math.round(Math.min(w, h) / 12));
             core.beginFill(colour, 0.95);
             core.drawRect(0, 0, w, t);
@@ -280,15 +325,28 @@ function paint(token) {
            by half the CORE width, so the light straddles the line. */
         const seam = seamWidth();
         const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
-        halo.visible = true;
         core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
         core.drawRect(...rect);
-        for (const [k, alpha] of SEAM_GLOW) {
-            halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
-            halo.drawRect(...rect);
+        /* THE LIGHT, DRAWN ONCE (E88 C1): the same passes and blur rendered into the texture every frame of this
+           shape and colour wears (fog-reveal.mjs `wearHalo`), instead of a blur paid on every frame of the canvas.
+           The live halo below stays for a browser that cannot make the texture. */
+        const shape = ringHalo(w, h, colour);
+        if (wearHalo(baked, { seen: token.parent ?? token, key: `own|${w}x${h}|${colour}`, seamFactor: 1, shape })) {
+            halo.visible = false;
+            halo.filters = null;
+            group.drpgRingLight = baked.drpgHaloKey;
+            return;
         }
+        halo.visible = true;
+        shape.draw(halo, seam);
         const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
-        if (Blur) {
+        // With the glass's blur off the live light is the passes alone, as the baked one is (E88 fix G3, E88-END-02; Q2).
+        // The list is kept aside, not dropped, and worn again when the blur comes back: the same filter, retuned below.
+        if (!haloBlurOn()) {
+            if (halo.filters?.length) halo.drpgLiveFilters = halo.filters;
+            halo.filters = null;
+        } else if (Blur) {
+            if (!halo.filters?.length && halo.drpgLiveFilters) halo.filters = halo.drpgLiveFilters;
             // Kept and retuned, not rebuilt: `refreshToken` fires on every step a token takes.
             let filter = halo.filters?.[0];
             if (!(filter instanceof Blur)) { filter = new Blur(Math.max(6, seam * 6), 3); halo.filters = [filter]; }

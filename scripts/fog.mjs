@@ -83,6 +83,8 @@ import {
     rezoomRoomOutline, recolourRoomOutline
 } from "./fog-reveal.mjs";
 import { sceneUncoveredPercent } from "./fog-diagnostics.mjs";
+// E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
+import { count } from "./perf-counters.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
 export { whatIsHere, checkRegions, sceneUncoveredPercent } from "./fog-diagnostics.mjs";
 
@@ -2289,6 +2291,8 @@ export function diagnoseFog() {
         // Holes cut at the last build, against where the tokens stand now.
         clearancesCutAt: lastClearances,
         rasterDrifting: Boolean(driftTick),
+        // E88 C3: whether the raster and the backdrop are drawn into pictures here (false: drawn live every frame).
+        rasterHeld: Boolean(heldRenderer),
         rasterOffset: (() => {
             const group = findLayer()?.children.find(c => c?.name === RASTER_GROUP);
             const sprite = group?.children?.[0];
@@ -2731,6 +2735,7 @@ function registerDoorControls() {
 }
 
 export function repaintFog() {
+    count("fog.repaintFog");
     // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
     scheduleFloorSwitcher();
     try {
@@ -2917,6 +2922,7 @@ function stand(reason) {
  * @returns {{texture: PIXI.RenderTexture, fogged: number, veiled: number, cleared: number}|null}
  */
 function buildFogTexture({ regions, shading, rect, ink }) {
+    count("fog.buildFogTexture");
     const renderer = canvas?.app?.renderer;
     if (!renderer) return null;
 
@@ -3445,7 +3451,9 @@ function ensureBackdrop() {
 function dropBackdrop() {
     const parent = canvas?.rendered ?? canvas?.stage;
     const layer = parent?.children?.find(c => c?.name === BACKDROP_LAYER);
-    if (layer && !layer.destroyed) layer.destroy({ children: true });
+    if (!layer || layer.destroyed) return;
+    releaseHeld(layer);
+    layer.destroy({ children: true });
 }
 
 /**
@@ -3492,8 +3500,8 @@ function pinToScreen(group) {
 /* --- the drift ----------------------------------------------------------- */
 
 let driftTick = null;
-/** Shared by the fog's raster and the backdrop's, so they never drift apart. */
-const driftOffset = { dots: { x: 0, y: 0 }, lines: { x: 0, y: 0 } };
+/** Shared by the fog's raster and the backdrop's, so they never drift apart (`driftStep`). */
+const drift = driftState();
 
 /**
  * The ink colour, re-read from the stylesheet at most twice a second rather
@@ -3527,17 +3535,16 @@ function startDrift() {
     if (!ticker) return;
 
     driftTick = () => {
-        const seconds = motionOff() ? 0 : (ticker.deltaMS ?? 16) / 1000;
+        count("fog.driftTick");
+        heldHooks.tick();
 
         // ONE OFFSET FOR EVERY RASTER ON SCREEN. The fog's raster and the
         // backdrop's are two sprites showing one surface, so their phase has to
         // be identical - accumulated once here rather than per sprite, which
         // would let floating-point drift pull them apart over a long session
-        // and put a visible seam exactly at the edge of the map.
-        driftOffset.dots.x += RASTER_DOT_DRIFT.x * seconds;
-        driftOffset.dots.y += RASTER_DOT_DRIFT.y * seconds;
-        driftOffset.lines.x += RASTER_LINE_DRIFT.x * seconds;
-        driftOffset.lines.y += RASTER_LINE_DRIFT.y * seconds;
+        // and put a visible seam exactly at the edge of the map. Shown in whole
+        // pixels while the pictures hold them (E88 C3, `driftStep`).
+        driftStep(drift, ticker.deltaMS ?? 16, { moving: !motionOff(), snap: Boolean(heldRenderer) });
 
         const screen = canvas?.app?.renderer?.screen;
         const width = Math.max(1, Math.round(screen?.width ?? window.innerWidth));
@@ -3569,6 +3576,7 @@ function startDrift() {
         for (const group of [fogRaster, backdrop]) {
             if (!group || group.destroyed) continue;
             pinToScreen(group);
+            holdStill(group, group === backdrop ? "backdrop" : "raster");
 
             for (const sprite of group.children) {
                 if (sprite.destroyed) continue;
@@ -3589,22 +3597,39 @@ function startDrift() {
                         sprite.endFill();
                         sprite.drpgDrawn = { w: width, h: height, ink };
                     }
-                    continue;
                 }
-
-                const offset = driftOffset[sprite.drpgKind];
-                if (!offset) continue;
-                if (sprite.width !== width) sprite.width = width;
-                if (sprite.height !== height) sprite.height = height;
-                if (sprite.tileTransform.rotation !== tileAngle) {
-                    sprite.tileTransform.rotation = tileAngle;
-                }
-                sprite.tilePosition.set(offset.x, offset.y);
             }
+            placeTiles(group, drift.shown, width, height, tileAngle);
         }
     };
 
     ticker.add(driftTick);
+    holdOnRenderer(canvas?.app?.renderer);
+}
+
+/** Each tiling sprite of `group` at the shown offset of its kind, the screen's size and the map's angle. */
+export function placeTiles(group, shown, width, height, tileAngle) {
+    for (const sprite of group?.children ?? []) {
+        const offset = shown[sprite?.drpgKind];
+        if (!offset || sprite.destroyed) continue;
+        if (sprite.width !== width) sprite.width = width;
+        if (sprite.height !== height) sprite.height = height;
+        if (sprite.tileTransform.rotation !== tileAngle) {
+            sprite.tileTransform.rotation = tileAngle;
+        }
+        sprite.tilePosition.set(offset.x, offset.y);
+    }
+}
+
+/**
+ * WHAT OF THE FOG IS DRAWN OR RUN ON EVERY FRAME (E88 C0), for diagnostics.mjs `frameCost` to hold one at a time:
+ * the masked raster over the fog and the backdrop behind the map, found by name as `driftTick` finds them, and the
+ * drift's own ticker callback with the ticker it runs on. Read only: nothing here changes them.
+ */
+export function fogFrameParts() {
+    const raster = findLayer()?.children?.find(c => c?.name === RASTER_GROUP) ?? null;
+    const backdrop = (canvas?.rendered ?? canvas?.stage)?.children?.find(c => c?.name === BACKDROP_LAYER) ?? null;
+    return { raster, backdrop, drift: driftTick, ticker: canvas?.app?.ticker ?? null };
 }
 
 function stopDrift() {
@@ -3613,6 +3638,249 @@ function stopDrift() {
         canvas?.app?.ticker?.remove(driftTick);
     } catch { /* the ticker is going away anyway */ }
     driftTick = null;
+    holdOffRenderer();
+}
+
+/* --- the raster held still (E88 C3) ---------------------------------------- */
+
+/*
+ * THE RASTER IS DRAWN INTO A PICTURE, AND THE FRAMES SHOW THE PICTURE (E88 C3, 27.10.2026; E88-08).
+ *
+ * Foundry draws the canvas on every tick of its ticker whether or not anything moved, so what stands on screen is
+ * paid every frame. Of the fog's own that is two layers: the masked raster over the fog (two screen-sized
+ * TilingSprites drawn into a filter's texture and a mask pass - PIXI 7's MaskSystem draws a sprite mask as a
+ * SpriteMaskFilter, read in its source, to be confirmed on v14's PIXI) and
+ * the backdrop under the map (an ink rectangle and two more TilingSprites), both themes, whenever the fog is on: the
+ * player alone in a fogged room of the owner's report (27.10) pays them on every frame and little else. At rest
+ * neither changes but for the drift, 6 and 8 px a second (RASTER_DOT_DRIFT, RASTER_LINE_DRIFT).
+ *
+ * So each layer is drawn into a screen-sized RenderTexture of its own and the frame draws one sprite of it in the
+ * layer's place (`holdStill`), and the picture is drawn again only when what it shows changed (`heldKey`): the
+ * drift's shown offset, which moves in whole pixels and at most once every RASTER_STEP_MS (`driftStep`: at most ten
+ * pictures a second at rest; R1012 counts 10 of each in 60 frames, the first and nine steps); for the raster the
+ * camera (the mask's world transform: a pan draws a picture on every frame, as every frame was drawn before) and the
+ * mask itself (another texture, or the same one drawn again); the screen's size and resolution; the ink; for the
+ * backdrop not the camera, which it stands still against. Under reduced motion the drift
+ * stands, and so does the picture. Each picture is the live layer's pixels at its offset: the same tiles, the same
+ * mask pass, into a texture of the screen's size and resolution, shown 1:1 where the layer stood. What does change
+ * is the drift's motion: steps of one whole pixel, six to eight a second, where it slid by a fraction of a pixel on
+ * every frame (the sampler's LINEAR blend, `drawTile`'s note) - the cost of not drawing it again. LIVE-E88-02's
+ * screenshots judge both, in both themes.
+ *
+ * WHEN THE PICTURE IS DRAWN: the renderer's `prerender`, emitted by `renderer.render` before it updates a transform
+ * or binds a target. PIXI's Application renders at UPDATE_PRIORITY.LOW, after the ticker's other callbacks (a pan's
+ * animation among them), so this is the point of a frame where the tick's updates are done and nothing of the pass
+ * is under way: a render into a texture here leaves nothing for the pass to restore, as the pass binds its own
+ * target after it. A render from inside the pass (PIXI's cacheAsBitmap does that) has to save and restore the
+ * target itself, and under a filter higher up the tree the FilterSystem's stack would send the mask pass's output
+ * to that filter's texture (read in PIXI 7's source, not run). The world transforms at
+ * prerender are the last frame's, so the mask's are freshened down its own chain first (`freshen`) - the same
+ * products the pass computes a moment later. Only an outermost render's prerender draws (`heldGate`): the render
+ * into a picture emits one of its own, and so would any render started inside the pass.
+ *
+ * WHEN THE PICTURE IS SHOWN: only while its key is the key of the frame being drawn, read again inside the pass
+ * (`holdStill`). A frame no prerender came before - a renderer that does not emit one, a render of somebody else's
+ * - draws the layer live, as before, never an old picture over a moved map (R1012's missed frame).
+ *
+ * WHERE IT CANNOT: a renderer with no `render` or `on`, a PIXI with no RenderTexture (headless: the harness's) - the
+ * layers draw live and the drift slides by fractions as before, nothing held. Read in PIXI 7's API, not run on v14's
+ * PIXI: the table's (LIVE-E88-02).
+ */
+
+/** The fewest milliseconds between two pictures of the drift: ten a second at most (E88-08). */
+export const RASTER_STEP_MS = 100;
+
+/** The drift's state: the offset as it accumulates (`raw`) and the one the tiles show (`shown`), on a clock of its own. */
+export function driftState() {
+    return { raw: { dots: { x: 0, y: 0 }, lines: { x: 0, y: 0 } }, shown: { dots: { x: 0, y: 0 }, lines: { x: 0, y: 0 } }, clock: 0, shownAt: null };
+}
+
+/**
+ * One frame of the drift, `ms` long. `moving` false holds it (reduced motion). With `snap` the shown offset is the
+ * raw one rounded to whole pixels, moved only when that changed and RASTER_STEP_MS have passed since it last moved
+ * (one clock for both kinds, so the raster and the backdrop always show one phase); without, it is the raw offset,
+ * as before E88. Returns whether the shown offset moved.
+ */
+export function driftStep(state, ms, { moving = true, snap = false } = {}) {
+    state.clock += ms;
+    if (moving) {
+        const seconds = ms / 1000;
+        state.raw.dots.x += RASTER_DOT_DRIFT.x * seconds;
+        state.raw.dots.y += RASTER_DOT_DRIFT.y * seconds;
+        state.raw.lines.x += RASTER_LINE_DRIFT.x * seconds;
+        state.raw.lines.y += RASTER_LINE_DRIFT.y * seconds;
+    }
+    const kinds = ["dots", "lines"];
+    const next = kind => (snap ? { x: Math.round(state.raw[kind].x), y: Math.round(state.raw[kind].y) } : state.raw[kind]);
+    const moved = kinds.some(k => next(k).x !== state.shown[k].x || next(k).y !== state.shown[k].y);
+    if (!moved) return false;
+    if (snap && state.shownAt !== null && state.clock - state.shownAt < RASTER_STEP_MS) return false;
+    for (const k of kinds) Object.assign(state.shown[k], next(k));
+    state.shownAt = snap ? state.clock : null;
+    return true;
+}
+
+/** The layers that hold a picture now (their `drpgHeld`), for the sweep in `redrawHeld`. */
+const heldNodes = new Set();
+/** The renderer whose prerender draws the pictures, while the drift runs; null when none can. */
+let heldRenderer = null;
+
+/**
+ * The renderer's prerender and postrender, and the ticker's frame: `redraw` runs on the prerender of an OUTERMOST
+ * render only. A render started inside another - the pass's own, if anything renders into a texture mid-pass, or
+ * this one's own render into a picture - is one deep and skipped, so a picture is never drawn while another target
+ * is bound. A render that returns between the two (PIXI's lost context) leaves the depth up; the next frame's
+ * `tick` (the drift, a ticker callback, never inside a render) puts it back to nought.
+ */
+export function heldGate(redraw) {
+    let depth = 0;
+    return {
+        before: () => {
+            if (depth++ > 0) return;
+            try {
+                redraw();
+            } catch (err) {
+                debug("Fog: the raster's picture could not be drawn; the layer draws live", err);
+            }
+        },
+        after: () => { if (depth > 0) depth--; },
+        tick: () => { depth = 0; }
+    };
+}
+
+const heldHooks = heldGate(() => {
+    const { raster, backdrop } = fogFrameParts();
+    redrawHeld([raster, backdrop], { renderer: heldRenderer });
+});
+
+function canHold(renderer, lib) {
+    return typeof renderer?.render === "function" && typeof lib?.RenderTexture?.create === "function"
+        && typeof lib?.Sprite === "function" && typeof lib?.Transform === "function";
+}
+
+function holdOnRenderer(renderer) {
+    if (heldRenderer === renderer) return;
+    holdOffRenderer();
+    if (typeof renderer?.on !== "function" || typeof renderer?.off !== "function" || !canHold(renderer, globalThis.PIXI)) return;
+    renderer.on("prerender", heldHooks.before);
+    renderer.on("postrender", heldHooks.after);
+    heldHooks.tick();
+    heldRenderer = renderer;
+}
+
+function holdOffRenderer() {
+    try {
+        heldRenderer?.off("prerender", heldHooks.before);
+        heldRenderer?.off("postrender", heldHooks.after);
+    } catch { /* the renderer is going away */ }
+    heldRenderer = null;
+}
+
+/** What a layer's picture shows: drawn again when any of it changed, shown only while it is the frame's. */
+function heldKey(node, renderer) {
+    const screen = renderer?.screen;
+    const key = [renderer?.resolution ?? 1, Math.max(1, Math.round(screen?.width ?? 1)), Math.max(1, Math.round(screen?.height ?? 1))];
+    for (const c of node.children) {
+        if (c.drpgKind) key.push(c.visible, c.texture, c.tilePosition.x, c.tilePosition.y, c.tileTransform.rotation, c.width, c.height);
+        else if (c.drpgDrawn) key.push(c.visible, c.drpgDrawn.w, c.drpgDrawn.h, c.drpgDrawn.ink);
+        else key.push(c);
+    }
+    const mask = node.mask;
+    if (mask) {
+        const t = mask.texture, wt = mask.worldTransform;
+        key.push(t, t?.baseTexture?.dirtyId, t?._updateID, wt.a, wt.b, wt.c, wt.d, wt.tx, wt.ty, mask.worldAlpha);
+    }
+    return key;
+}
+
+const sameKey = (a, b) => Boolean(a && b) && a.length === b.length && a.every((v, i) => v === b[i]);
+
+/** The node's world transform and alpha, carried down its own chain from the root as the pass will carry them. */
+function freshen(node, lib) {
+    const chain = [];
+    for (let n = node; n; n = n.parent) chain.unshift(n);
+    let parent = new lib.Transform(), alpha = 1;
+    for (const n of chain) {
+        n.transform.updateTransform(parent);
+        parent = n.transform;
+        alpha *= n.alpha;
+    }
+    if (typeof node._boundsID === "number") node._boundsID++;
+    node.worldAlpha = alpha;
+}
+
+function onScreen(node) {
+    for (let n = node; n; n = n.parent) if (!n.visible) return false;
+    return node.renderable !== false;
+}
+
+/**
+ * Let `node` (the raster's group or the backdrop) draw its picture in its place: its own render, kept, draws it live
+ * whenever the picture is not the frame's, and the render into the picture itself (`heldBusy` on the node).
+ */
+export function holdStill(node, kind) {
+    if (!node || node.drpgHeldRender) return;
+    const live = node.render;
+    node.drpgHeldRender = kind;
+    node.render = function (renderer) {
+        const held = this.drpgHeld;
+        if (!held || this.drpgHeldDrawing || !sameKey(held.key, heldKey(this, renderer))) {
+            if (held && !this.drpgHeldDrawing) count("fog.held.live");
+            return live.call(this, renderer);
+        }
+        if (!this.visible || this.worldAlpha <= 0 || !this.renderable) return;
+        held.sprite.transform.updateTransform(this.transform);
+        held.sprite.worldAlpha = this.worldAlpha;
+        held.sprite.render(renderer);
+    };
+}
+
+/**
+ * The prerender's work: each held layer of `nodes` on screen whose picture is not what it shows now is drawn into it
+ * again; a held layer since destroyed frees its picture. Returns the pictures drawn.
+ */
+export function redrawHeld(nodes, { renderer, lib = globalThis.PIXI, held = heldNodes } = {}) {
+    for (const node of [...held]) if (node.destroyed) releaseHeld(node, held);
+    if (!canHold(renderer, lib)) return 0;
+    let drawn = 0;
+    for (const node of nodes) {
+        if (!node || node.destroyed || !node.drpgHeldRender || !onScreen(node)) continue;
+        if (node.mask) freshen(node.mask, lib);
+        const key = heldKey(node, renderer);
+        let pic = node.drpgHeld;
+        if (pic && sameKey(pic.key, key)) continue;
+        const [resolution, width, height] = key;
+        if (!pic || pic.rt.destroyed || pic.width !== width || pic.height !== height || pic.resolution !== resolution) {
+            releaseHeld(node, held);
+            const rt = lib.RenderTexture.create({ width, height, resolution });
+            pic = node.drpgHeld = { rt, sprite: new lib.Sprite(rt), width, height, resolution, key: null };
+            held.add(node);
+        }
+        node.drpgHeldDrawing = true;
+        try {
+            renderer.render(node, { renderTexture: pic.rt, clear: true });
+            pic.key = key;
+            drawn++;
+            count(`fog.held.${node.drpgHeldRender}`);
+        } catch (err) {
+            pic.key = null;
+            debug("Fog: a layer could not be drawn into its picture; it draws live", err);
+        } finally {
+            node.drpgHeldDrawing = false;
+        }
+    }
+    return drawn;
+}
+
+/** Free `node`'s picture; the layer draws live until the next prerender draws one again. */
+export function releaseHeld(node, held = heldNodes) {
+    const pic = node?.drpgHeld;
+    held.delete(node);
+    if (!pic) return;
+    node.drpgHeld = null;
+    try { pic.sprite?.destroy?.(); } catch { /* the sprite only shows the texture */ }
+    if (!pic.rt.destroyed) pic.rt.destroy(true);
+    count("fog.held.freed");
 }
 
 /**
@@ -3703,7 +3971,10 @@ function clearLayer(container) {
         // The mask must lose its reference before the sprite that owns the
         // texture is destroyed, or PIXI keeps a filter pointing at freed GPU
         // memory for a frame.
-        if (child.name === RASTER_GROUP) child.mask = null;
+        if (child.name === RASTER_GROUP) {
+            child.mask = null;
+            releaseHeld(child);
+        }
         if (child.name === FOG_SPRITE) dropSprite(child);
         else {
             // The FX group's doorway glow owns a render texture that only

@@ -1129,6 +1129,33 @@ const canvas = {
         _wrap(tokenDoc) {
             let w = tokenWrappers.get(tokenDoc.id);
             if (!w) {
+                /* A TOKEN'S REFRESH, AS FAR AS THE MODULE'S LISTENERS SEE IT (E88 C0, 27.10.2026). Until C0 this token had
+                   no `renderFlags`, so `applyAll`'s `renderFlags?.set?.(...)` asked for nothing and `refreshToken` never
+                   fired headless; and its `visible` was a getter alone, so `hide()` threw inside `applyToToken`'s catch.
+                   Every canvas count was zero by construction (R1009 red at 768af5fb). Modelled now, from Foundry's
+                   documented render flags and not from v14's source (LIVE-E88-05, environment.unconfirmed): `set` gathers
+                   the flags asked of this token, and on the next animation frame - one refresh a token a frame, however
+                   many times it was asked - a `refreshVisibility` among them puts Foundry's own answer back (`!hidden`,
+                   or a GM; the room fog leaves token vision off), on the token and its mesh, and `refreshToken` fires
+                   with the flags. `visible` holds what the module last wrote until a refresh gives Foundry's answer back,
+                   which is what makes `applyAll`'s flag the un-hide road it is at a table. Not modelled: a move's slide,
+                   which at a table refreshes the moving token on every frame of it (a table measures that); the order
+                   of Foundry's own refresh steps inside one flush. */
+                let written;
+                const foundryVisible = () => !tokenDoc.hidden || game.user.isGM;
+                const asked = {};
+                let queued = false;
+                const flush = () => {
+                    queued = false;
+                    const flags = { ...asked };
+                    for (const key of Object.keys(asked)) delete asked[key];
+                    if (canvas.scene?.tokens?.get(tokenDoc.id) !== tokenDoc) return;
+                    if (flags.refreshVisibility) {
+                        written = undefined;
+                        w.mesh.visible = foundryVisible();
+                    }
+                    hooks.callAll("refreshToken", w, flags);
+                };
                 w = {
                     get id() { return tokenDoc.id; },
                     document: tokenDoc,
@@ -1137,7 +1164,19 @@ const canvas = {
                     get x() { return tokenDoc.x; }, get y() { return tokenDoc.y; },
                     get w() { return (tokenDoc.width ?? 1) * 100; }, get h() { return (tokenDoc.height ?? 1) * 100; },
                     get center() { return tokenDoc.center; },
-                    get visible() { return !tokenDoc.hidden || game.user.isGM; },
+                    // Foundry's PlaceableObject#isOwner, the document's (E88 C0): visibility.mjs asks it for the viewer's own
+                    // token, and without it a player's own token was judged another's and hidden from its owner.
+                    get isOwner() { return Boolean(tokenDoc.isOwner); },
+                    get visible() { return written ?? foundryVisible(); },
+                    set visible(value) { written = Boolean(value); },
+                    renderFlags: {
+                        set(flags) {
+                            for (const [key, on] of Object.entries(flags ?? {})) if (on) asked[key] = true;
+                            if (queued) return;
+                            queued = true;
+                            globalThis.requestAnimationFrame(flush);
+                        }
+                    },
                     get controlled() { return canvas.tokens.controlled.includes(w); },
                     control() { if (!canvas.tokens.controlled.includes(w)) canvas.tokens.controlled.push(w); return true; },
                     release() { const i = canvas.tokens.controlled.indexOf(w); if (i >= 0) canvas.tokens.controlled.splice(i, 1); return true; },
@@ -1147,8 +1186,10 @@ const canvas = {
                     border: new PIXI.Graphics(),
                     tooltip: new PIXI.Text(""),
                     children: [],
-                    addChild(c) { this.children.push(c); return c; },
-                    removeChild(c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; },
+                    addChild(c) { c.parent = this; this.children.push(c); return c; },
+                    // PIXI's own (E88 C0): own-ring.mjs `ringParts` puts the frame under everything else at index 0.
+                    addChildAt(c, i) { c.parent = this; this.children.splice(i, 0, c); return c; },
+                    removeChild(c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); c.parent = null; return c; },
                     getChildByName(n) { return this.children.find(c => c.name === n) ?? null; },
                     sortableChildren: true
                 };
@@ -1169,6 +1210,23 @@ const canvas = {
 };
 globalThis.canvas = canvas;
 game.canvas = canvas;
+/* WHAT FOUNDRY REFRESHES WHEN A TOKEN'S DOCUMENT CHANGES (E88 C0; LIVE-E88-05). `Token#_onUpdate` asks the drawn token
+   for the refresh its changed fields need; modelled for the fields the module's listeners read - a move (x, y,
+   elevation, a floor), a resize, `hidden` - as one refresh of that token, on the scene on screen. A new token is drawn
+   and refreshed whole. Foundry's slide, a refresh on every frame of it, is not modelled (one refresh for a move). */
+hooks.on("updateToken", (doc, changes) => {
+    if (doc?.parent !== canvas.scene) return;
+    const c = changes ?? {};
+    const flags = {};
+    if (["x", "y", "elevation", "level"].some(k => k in c)) flags.refreshPosition = true;
+    if ("width" in c || "height" in c) flags.refreshSize = true;
+    if ("hidden" in c) flags.refreshVisibility = true;
+    if (Object.keys(flags).length) canvas.tokens._wrap(doc).renderFlags.set(flags);
+});
+hooks.on("createToken", doc => {
+    if (doc?.parent !== canvas.scene) return;
+    canvas.tokens._wrap(doc).renderFlags.set({ refreshVisibility: true, refreshPosition: true, refreshSize: true, refreshState: true });
+});
 /* `canvas.rendered` IS A GROUP, NOT A FLAG (E11 fix r2-H5, 11.10.2026; the round-2 goal review's five Fog
    "reveal on arrival" TypeErrors in 65's log). Foundry's `canvas.rendered` is the canvas group that holds
    `canvas.primary` and `canvas.interface`, and the fog mounts its layer there, just below the interface

@@ -32,7 +32,10 @@
  *      primary after loading beside gm2 (H12), and `ag3`, a third Assistant
  *      declared late, after loading beside ag2 alone (H13, E16 fix r1e-G1);
  *      before D, a put-back of the world's copy another write overtook (H14,
- *      H15, E16 fix r1f-G1).
+ *      H15, E16 fix r1f-G1);
+ *   V  the voice rooms kept through a gap (E88 C6) are the primary's alone: a GM
+ *      that stops being the primary and becomes it again keeps none of them
+ *      (V1, E88 fix G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
@@ -792,4 +795,43 @@ export async function run({ gm, ag, gm2, ag2, ag3, p1, p2, p3, check, settle, op
     check("H13: a full Gamemaster's dice look on a character stands when an Assistant that loaded beside another Assistant becomes the primary",
         h13.primary === "USERAG3000000000" && h13.row === "sky" && Object.values(h13.held).every(colour => colour === "sky")
         && h13.writes.length === 0 && h13.errors.length === 0, JSON.stringify(h13));
+
+    /* E88 fix G1 (finding E88-SEC-1, 27.10.2026). Since E88 C6 the primary keeps the voice room a token came from while
+       it stands outside every room (voice.mjs `roomsKept`, `keepRoomsThroughGaps`). The map is emptied only inside
+       `voiceTargets` on a browser that is not the primary, and every caller of voiceTargets but a GM's dry run returns
+       before it there - so a GM that stopped being the primary kept its map and used it again when it was the primary
+       once more. V1: ag3, an Assistant alone and the primary, reads Aiko in Dorm A and then on a square outside every
+       room (x 950, y 1450: the gap scenario 75 I uses) and keeps Dorm A - the control; gm2, a full Gamemaster, loads and
+       is the primary, and on its watch Aiko walks into the Gym and out onto the same square, where gm2 keeps the Gym;
+       gm2 leaves and ag3 is the primary again. Its first pass must find Aiko outside every room with nothing kept - the
+       main room - and not Dorm A, which she left on gm2's watch. Each pass is voiceTargets called on the primary
+       (the voice is off in this scenario, so no other pass runs on any browser between them). Red at 001e9af5: ag3's
+       pass placed Aiko in Dorm A, kept. Aiko goes back to where the seed stands her. */
+    const v1Pass = async client => client.eval(`const V = await import("${repoUrl}/scripts/voice.mjs"), lk = name => V.liveKitRoomFor("${scene}", name);
+        const row = (await V.voiceTargets()).rows.find(r => r.actor?.id === "${IDS.aiko}");
+        const name = ["Dorm A", "Gym"].find(n => lk(n) === row?.target) ?? (row?.target ? "?" + row.target : "main");
+        return { who: game.user.id, primary: ${utils}.primaryGmId(), room: name, kept: row?.kept === true };`);
+    const v1Move = async (client, where) => client.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.scenes.get("${scene}").tokens.get("TOKAIKO000000000");
+        const spot = ${JSON.stringify(where)}, to = typeof spot === "string" ? M.positionIn(spot, aiko) : spot;
+        await aiko.update(to, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 300));
+        return M.roomOfToken(aiko);`);
+    const v1 = { seed: await ag3.eval(`const t = game.scenes.get("${scene}").tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y };`), steps: [] };
+    v1.steps.push({ at: await v1Move(ag3, "Dorm A"), ...(await v1Pass(ag3)) });
+    v1.steps.push({ at: await v1Move(ag3, { x: 950, y: 1450 }), ...(await v1Pass(ag3)) });
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await gm2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
+    await settle(600);
+    v1.steps.push({ at: await v1Move(gm2, "Gym"), ...(await v1Pass(gm2)) });
+    v1.steps.push({ at: await v1Move(gm2, { x: 950, y: 1450 }), ...(await v1Pass(gm2)) });
+    await disconnect("gm2");
+    await settle(600);
+    v1.steps.push({ at: await v1Move(ag3, { x: 950, y: 1450 }), ...(await v1Pass(ag3)) });
+    v1.back = await v1Move(ag3, v1.seed);
+    v1.end = await ag3.eval(`const t = game.scenes.get("${scene}").tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y };`);
+    const v1Read = v1.steps.map(s => [s.who === s.primary, s.at ?? "gap", s.room, s.kept]);
+    check("V1: a GM that stops being the primary forgets the voice rooms it kept through a gap - Aiko kept in Dorm A on the Assistant's watch, in the Gym on a full Gamemaster's, and once the Gamemaster leaves the Assistant's first pass finds her outside every room with nothing kept: the main room, not Dorm A (E88-SEC-1)",
+        JSON.stringify(v1Read) === JSON.stringify([[true, "Dorm A", "Dorm A", false], [true, "gap", "Dorm A", true], [true, "Gym", "Gym", false],
+            [true, "gap", "Gym", true], [true, "gap", "main", false]])
+            && v1.end.x === v1.seed.x && v1.end.y === v1.seed.y, JSON.stringify({ v1Read, v1 }));
 }

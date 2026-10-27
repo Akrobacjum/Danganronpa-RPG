@@ -69,7 +69,7 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseGmStores, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow } from "./diagnostics.mjs";
+    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
@@ -1387,6 +1387,15 @@ export const DrpgApi = {
      *  `game.drpg.perf()` - every performance number in the audit was measured
      *  headlessly, and this is the only one measured where somebody is playing. */
     perf: perfReport,
+    /** Where the frame goes on THIS machine (E88 C0): the frame time over `seconds` (median, p95, fps, frames over
+     *  33 and 50 ms), the module's counters over the same window, the filters on the canvas, and each suspect held
+     *  alone for `frames` frames or `holdMs` (1 s) - the halos live and baked, the fog's raster and drift, the blur,
+     *  the pulse, the ticker, the CSS animations, the canvas last; Foundry's own filters read, never held (E88 fix
+     *  G2). `await game.drpg.fps({ toChat: false })`; every hold is put back. */
+    fps: frameCost,
+    /** The module's counters as they stand and the filters on the canvas now (E88 C0, perf-counters.mjs);
+     *  `game.drpg.counters({ reset: true })` reads them, then zeroes them. */
+    counters: countersNow,
     /** The GM's two Foundry windows, 'Foundry tools' (the sidebar) and 'Map tools' (the scene
      *  controls), opened together, or closed together when either is open (E77 C5; the corner's
      *  launcher, `#drpg-foundry-tools`, since C6). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */

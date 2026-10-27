@@ -187,6 +187,7 @@
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
  *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
+ *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -320,6 +321,87 @@ if (!base) {
 let browser;
 try { browser = await chromium.launch(opt("--chromium") ? { executablePath: opt("--chromium") } : {}); }
 catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--chromium <executable> names one): ${err.message.split("\n")[0]}`); process.exit(2); }
+
+/* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
+   default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
+   frames (30) is read as the page stands and with each of the theme's per-frame costs held alone: the blur
+   (`drpg-no-blur`, the Look window's switch), the pulse (`drpg-no-pulse`), the ticker (`drpg-no-ticker`), the seam glows
+   (every `drpg-sg-seam-glow` animation paused through the Web Animations API), every endless animation paused, and
+   all of them at once; then the same again with the page's `#board` redrawn on every frame, as Foundry's ticker
+   redraws its canvas (a filled rectangle that moves a pixel a frame). Every hold is put back before the next, and the
+   body's classes and the paused animations are read after each to say so. Headless Chromium rasterises in software
+   (perf-baseline.json `headless`): the numbers are a SHAPE - which hold moves the frame and by how much against the
+   others - never a table's frame time. A table's is `game.drpg.fps()`. Exit 1 when a hold did not come back.
+   `--glow <n>` (E88 C5) first plants n waiting Calls (`.drpg-pending-call`, the sheet's badge of a Call armed on its
+   character) in the page's module window, so the seam glows (`drpg-sg-seam-glow`, a box-shadow animated on every frame
+   while something waits) run and their hold reads something: as loaded the page has none of them waiting. */
+async function frameCostProbe([frames, glow]) {
+    const body = document.body;
+    const host = document.querySelector(".drpg-panel .window-content") ?? body;
+    for (let i = 0; i < glow; i++) { const b = document.createElement("span"); b.className = "drpg-pending-call drpg-pending-hope"; b.textContent = "Call"; host.append(b); }
+    if (glow) await new Promise(res => setTimeout(res, 1500));
+    const frame = () => new Promise(res => requestAnimationFrame(res));
+    const mean = async () => { await frame(); const t0 = performance.now(); for (let i = 0; i < frames; i++) await frame(); return (performance.now() - t0) / frames; };
+    const endless = () => document.getAnimations().filter(a => a.effect?.getComputedTiming?.().iterations === Infinity && a.playState === "running");
+    const pause = list => { list.forEach(a => a.pause()); return () => list.forEach(a => a.play()); };
+    const cls = name => { if (body.classList.contains(name)) return null; body.classList.add(name); return () => body.classList.remove(name); };
+    const holds = [
+        ["blur", () => cls("drpg-no-blur")],
+        ["pulse", () => cls("drpg-no-pulse")],
+        ["ticker", () => cls("drpg-no-ticker")],
+        ["seam glows", () => { const l = endless().filter(a => a.animationName === "drpg-sg-seam-glow"); return l.length ? pause(l) : null; }],
+        ["endless animations", () => { const l = endless(); return l.length ? pause(l) : null; }],
+        ["all of them", () => { const u = ["drpg-no-blur", "drpg-no-pulse", "drpg-no-ticker"].map(cls).filter(Boolean); const l = endless(); u.push(pause(l));
+            return () => u.forEach(f => f()); }]
+    ];
+    const board = document.getElementById("board"), g = board?.getContext?.("2d");
+    let ticking = false, x = 0;
+    const tick = () => { if (!ticking || !g) return; g.clearRect(0, 0, board.width, board.height); g.fillStyle = "rgba(120,90,160,0.6)"; g.fillRect(x++ % board.width, 40, 60, 60); requestAnimationFrame(tick); };
+    const out = { rows: [], restored: true, endless: endless().map(a => a.animationName) };
+    const print = () => [...body.classList].sort().join(" ") + "|" + endless().length;
+    for (const boardOn of [false, true]) {
+        ticking = boardOn; if (boardOn) requestAnimationFrame(tick);
+        const asIs = await mean();
+        out.rows.push({ board: boardOn, hold: "as it stands", ms: asIs });
+        for (const [name, start] of holds) {
+            const was = print();
+            const undo = start();
+            if (!undo) { out.rows.push({ board: boardOn, hold: name, ms: null }); continue; }
+            let ms = null;
+            try { ms = await mean(); } finally { undo(); }
+            await frame();
+            if (print() !== was) out.restored = false;
+            out.rows.push({ board: boardOn, hold: name, ms });
+        }
+        ticking = false;
+    }
+    return out;
+}
+if (args.includes("--frame-cost")) {
+    const frames = Number(opt("--frames") ?? 30);
+    let bad = 0;
+    try {
+        for (const theme of themes) for (const size of (opt("--sizes") ?? "1920x1080,1366x768").split(",")) {
+            const [W, H] = size.split("x").map(Number);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(frameCostProbe, [frames, Number(opt("--glow") ?? 0)]);
+            const asIs = b => r.rows.find(row => row.board === b && row.hold === "as it stands").ms;
+            for (const row of r.rows) {
+                const ms = row.ms == null ? "    -" : row.ms.toFixed(1).padStart(6);
+                const less = row.ms == null || row.hold === "as it stands" ? "" : `  ${(asIs(row.board) - row.ms).toFixed(1).padStart(6)} ms less`;
+                console.log(`${theme.padEnd(7)} ${size.padEnd(9)} board ${row.board ? "redrawn" : "still  "} ${row.hold.padEnd(18)} ${ms} ms/frame${less}${row.ms == null ? "  (nothing of it here)" : ""}`);
+            }
+            console.log(`${theme.padEnd(7)} ${size.padEnd(9)} endless animations at load: ${r.endless.join(", ") || "none"}${r.restored ? "" : "  - FAIL: a hold did not come back"}`);
+            if (!r.restored) bad++;
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`FRAME COST ${bad ? "RED" : "read"}: ${themes.length} theme(s), ${frames} frames a reading, headless Chromium (software): a shape, not a table's number`);
+    process.exit(bad ? 1 : 0);
+}
 
 /* Runs in the page: `ms` of nothing done, once the load is 6 s old - the passes of the glass begun (the measuring
    attribute set where it was absent), the transform transitions started and on what, and the shifts the rotation
