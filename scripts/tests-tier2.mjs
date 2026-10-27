@@ -38816,9 +38816,12 @@ const SCENARIOS = [
          * test held on `SEIZE_KEY` and the GM's +30 s pressed: the floor does not move while the step is held, and moves
          * once it opens; (4) the bridge's runner handed a "trial.gm" +30 s as this GM sends it, then an end of the floor
          * as a connected player sends it (Foundry's sender): the first moves the floor and is answered done, the second is
-         * refused (gmOnly) and the floor stays. Red at e2085d7b: (1) one field, (2) no counter (a function was spread as
-         * a patch), (3) the floor moved inside the held step, (4) no such row (judge answered nothing). The floor and the
-         * record are written back as found.
+         * refused (gmOnly) and the floor stays; (5) on an Objection set here, the GM's Now ("floor.now") as that player
+         * sends it, naming the floor exactly: refused (gmOnly), the Objection still on the floor. Red at e2085d7b: (1) one
+         * field, (2) no counter (a function was spread as a patch), (3) the floor moved inside the held step, (4) no such
+         * row (judge answered nothing). (5) was green there; it is the other road to a player's move of the floor, and
+         * held nothing until E70 C0's mutant g3 (floor.now's guard made `knownSender`) survived tiers 0-1 (27.10.2026).
+         * The floor and the record are written back as found.
          */
         const F = await import("./trial-floor.mjs");
         const T = await import("./trial.mjs");
@@ -38829,6 +38832,7 @@ const SCENARIOS = [
         must(isPrimaryGm(), "this browser is not the primary GM - the queue it reads is the primary's");
         const player = game.users.find(u => !u.isGM && u.active);
         must(player, "no player is connected - the refusal read here would be nobody's");
+        const [objector, target] = cast(2);
         const saved = {
             floor: foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {}),
             progress: foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {})
@@ -38866,6 +38870,17 @@ const SCENARIOS = [
             const moved = (F.trialFloor()?.startedAt ?? 0) > before;
             await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T1PLAYER", op: "end" }, player.id, { send });
             read.row = { moved, stays: F.trialFloor()?.mode === F.FLOOR_MODES.debate, heard };
+
+            const objectionAt = serverNow() - 5_000;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 600,
+                startedAt: objectionAt, pending: false, messageId: null
+            });
+            await settle();
+            const nowHeard = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "floor.now", requestId: "E70T1NOW", mode: F.FLOOR_MODES.objection, startedAt: objectionAt },
+                player.id, { send: (to, packet) => nowHeard.push([packet?.action ?? null, packet?.reason ?? null]) });
+            read.now = { mode: F.trialFloor()?.mode ?? null, heard: nowHeard };
         } finally {
             open();
             await serialWrite(T.SEIZE_KEY, () => null).catch(() => null);
@@ -38875,9 +38890,10 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             record: [1, 2], counter: 2, whileHeld: true, afterHeld: true,
-            row: { moved: true, stays: true, heard: [["gm", "bridge.ack", null], ["gm", "bridge.done", null], ["player", "bridge.refused", "gmOnly"]] }
+            row: { moved: true, stays: true, heard: [["gm", "bridge.ack", null], ["gm", "bridge.done", null], ["player", "bridge.refused", "gmOnly"]] },
+            now: { mode: "objection", heard: [["bridge.refused", "gmOnly"]] }
         }), "(1) the two record writes, (2) the counter two functions raised, (3) the floor while the floor's key was held and after, "
-            + "(4) the GM's +30 s by trial.gm, the floor after a player's end, and what each sender was told");
+            + "(4) the GM's +30 s by trial.gm, the floor after a player's end, and what each sender was told, (5) the floor after a player's Now and what it was told");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
