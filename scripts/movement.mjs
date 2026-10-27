@@ -246,13 +246,29 @@ const refusals = new Map();
 function readRefusal(tokenId, turn) {
     let say = null;
     const refused = new Promise(resolve => { say = resolve; });
-    refusals.set(tokenId, { turn, refused });
-    return value => say(value === true);
+    const entry = { turn, refused, verdict: null };
+    refusals.set(tokenId, entry);
+    return value => {
+        entry.verdict ??= value === true;
+        say(value === true);
+    };
 }
 
 /** This browser's reading of a token's latest move update as refused (`refusals`): a promise of a boolean, false when none. */
 export function moveRefused(tokenDoc) {
     return refusals.get(tokenDoc?.id)?.refused ?? Promise.resolve(false);
+}
+
+/**
+ * The same reading as `moveRefused`, now and without waiting (E88 fix G1, 27.10.2026; finding E88-SEC-2): true for a
+ * latest move this browser reads as refused, null while its judge has not said yet, false otherwise (no move seen, or
+ * one judged and not refused). voice.mjs `keepRoomsThroughGaps` remembers a room only from a token this answers false
+ * for: a refused entry from a doorway square, read by a pass another token's settled move asked before the put-back
+ * landed, was remembered and then kept for as long as the token stood on the square.
+ */
+export function moveVerdict(tokenDoc) {
+    const entry = refusals.get(tokenDoc?.id);
+    return entry ? entry.verdict : false;
 }
 
 /**

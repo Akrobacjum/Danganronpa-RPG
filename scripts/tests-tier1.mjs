@@ -21951,7 +21951,7 @@ const INVARIANTS = [
         equal(JSON.stringify(drawn.styles.filter(s => !/^rgba\((2,1,4|255,79,139),0\.\d{3}\)$/.test(s))), "[]",
             "fill styles other than the dark's and the accent's in thousandths");
     }],
-    ["R1015 - a token outside every room keeps the voice room it came from (E88 C6, Q3's default): a crossing from one room through a gap into the next is one assignment, a step into the gap and back none; another scene, another floor, a room deleted, no token, an Eclipse or the trial between, or nothing remembered gives the main room as before", async () => {
+    ["R1015 - a token outside every room keeps the voice room it came from (E88 C6, Q3's default): a crossing from one room through a gap into the next is one assignment, a step into the gap and back none; another scene, another floor, a room deleted, no token, an Eclipse or the trial between, or nothing remembered gives the main room as before; a Monokuma keeps nothing, and a refused or unjudged entry is not remembered (E88 fix G1)", async () => {
         /*
          * E88 C6, 27.10.2026; E88-12, triage C3 (the owner's voice cut-outs "as if it disconnected"). Every change of
          * voice room is a whole LiveKit disconnect and connect (voice-client.mjs `applyBreakout`), and until C6 a token
@@ -22026,6 +22026,31 @@ const INVARIANTS = [
         equal(JSON.stringify(Object.fromEntries(Object.entries(ends).map(([k, r]) => [k, r.placed.at(-1)]))),
             JSON.stringify({ otherScene: "main", otherFloor: "main", roomGone: "main", noToken: "main", eclipse: "main", trial: "main", fresh: "main" }),
             "where each walk ends outside every room: kept where it may not be (another scene or floor, a room deleted, a pass with no token, an Eclipse or the trial between, a memory that starts empty - a new primary GM)");
+        /* E88 fix G1, 27.10.2026. E88-END-03 and E88R-06: the spec keeps the room for "a living player"; a Monokuma's
+           token is a GM's voice, and a GM who walks it out of a room into a corridor means to leave that room - so a
+           Monokuma keeps nothing (`keeps`, by default `!isMonokuma`, read here off the flag the stand-in carries).
+           E88-SEC-2: a room is remembered only from a token whose latest move this browser has judged and not refused
+           (`settled`, by default movement.mjs `moveVerdict` false): a refused entry from a gap, read by a pass another
+           token's move asked before the put-back landed, is placed where it stands for that pass, as before E88, and
+           not remembered, so after the put-back the token is outside every room with the room it came from (here
+           nothing: the main room). Red at 001e9af5: the Monokuma kept Dorm A, the refused entry left Dorm B
+           remembered. */
+        const monokuma = { ...actor, id: "R1015MONOKUMA000", name: "R1015 Monokuma", getFlag: (scope, key) => scope === MODULE_ID && key === FLAGS.monokuma };
+        const mono = new Map();
+        const monoPlaced = [[school, "Dorm A"], [school, null]].map(([scene, room]) =>
+            V.keepRoomsThroughGaps(mono, () => ({ scene, room, level: null }), { stands: () => true }).locate(monokuma));
+        equal(JSON.stringify([monoPlaced.map(p => [p.room ?? "gap", p.kept === true]), mono.size]), JSON.stringify([[["Dorm A", false], ["gap", false]], 0]),
+            "a Monokuma's token from Dorm A into the gap: [[placed, kept] a pass], rooms remembered - outside every room it is the main room, as before E88");
+        const judged = new Map();
+        const refusedEntry = [[school, null, true], [school, "Dorm B", false], [school, null, true]].map(([scene, room, settled]) =>
+            V.keepRoomsThroughGaps(judged, () => ({ scene, room, level: null }), { stands: () => true, settled: () => settled }).locate(actor));
+        equal(JSON.stringify(refusedEntry.map(p => [p.room ?? "gap", p.kept === true])), JSON.stringify([["gap", false], ["Dorm B", false], ["gap", false]]),
+            "a refused entry from a gap with a racing pass: the gap, Dorm B unjudged (placed for that pass, not remembered), the gap after the put-back - the main room, not Dorm B kept");
+        equal(typeof (await import("./movement.mjs")).moveVerdict, "function",
+            "the default judge: movement.mjs's synchronous reading of a move's verdict (`moveVerdict`)");
+        const fresh = new Map();
+        V.keepRoomsThroughGaps(fresh, () => ({ scene: school, room: "Dorm A", level: null, tokenDoc: { id: "R1015NOMOVE00000" } }), { stands: () => true }).locate(actor);
+        equal(fresh.get(actor.id)?.room ?? null, "Dorm A", "a token this browser saw no move of is remembered by the default judge (no verdict pending)");
     }],
     ["R1016 - the books say how to read fps() and what to turn off (E88 C7, E88-13): each GM handbook's reading of fps() names every heading fps() prints, by the words it prints them in, and the Look's switches in the order to turn them off, by their names in that language, the theme last; each player handbook says the same switches in that order; each GM handbook's voice section says what a doorway keeps (LIVE-E88-03)", async () => {
         /*
