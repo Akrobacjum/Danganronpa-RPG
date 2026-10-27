@@ -1143,7 +1143,10 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
         const keyRoom = held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
         if (keyRoom) {
             const { keysHeldBy } = await import("./vault.mjs");
-            if (keysHeldBy(to).has(keyRoom)) {
+            // With the stash (H84, 27.10.2026; triage A1 (c)): the grant counts a stashed key as held (vault.mjs
+            // `grantBedroomKey`), and this rule did not, so a thief whose own key to the room was put away took a copy -
+            // tier 2 "H84-01: one key per room ...": 2 keys to the room on the taker at 774b28a9, 1 here.
+            if (keysHeldBy(to, { stashed: true }).has(keyRoom)) {
                 const taken = await takeOne({ copied: false });
                 if (taken.gone) return { missing: true };
                 if (!("left" in taken)) return { failed: true };

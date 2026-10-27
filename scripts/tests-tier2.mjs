@@ -63486,6 +63486,93 @@ const SCENARIOS = [
             "a key the taker held was copied, stayed with the giver or was told more or less than once, or a key moved lost its room, or a key handed over left its giver ([the giver's keys to the room, the taker's, the taker's lines, the result's room, its copy])");
     }],
 
+    ["H84-01: one key per room - two grants at once make one key, the sweep points the key a rename left dead at the room instead of making a second, and a key taken by a student whose own key to that room is stashed is not copied", async () => {
+        /*
+         * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A1): two rows under Room Keys for one
+         * bedroom. Three roads, each read here as the GMs hold the sheets: (b) two grants of one key at once - the
+         * primary's ready sweep is started and not awaited, and Room Setup's Apply, a GM's Give and a key's handover
+         * can each overlap it - both passed `grantBedroomKey`'s "already holds one" before either key landed;
+         * (a) a rename the carry did not reach (fog.mjs `noteRegionName` carries only on the primary, for the room's
+         * last piece, from a name it saw) leaves the owner's key naming a room that is no bedroom anywhere, and the
+         * next sweep made a key of the new name beside it - the state is set here as such a rename leaves it, the
+         * key's room written by a GM's write to a name no region holds, since a rename the harness's primary sees
+         * is carried; (c) inventory.mjs `transferItem`'s key rule asked `keysHeldBy(to)` without the stash, so a
+         * thief whose own key to the room was put away took a copy. A student of the test's own owns a bedroom
+         * drawn on the scene on screen; then two students alone together, the taker's key stashed. Read: the keys
+         * to the room after two grants at once; after the sweep, the keys to the room, to the dead name, whether
+         * the one key is the same item and its name; the taker's keys to the room and the steal's answer. Red at
+         * 774b28a9 on all three (measured on the harness, 27.10.2026): two keys at once, the sweep's second key beside
+         * the dead one, two keys on the taker and no `keyHeld`.
+         */
+        needs(world.atLeast("scenes", 1), "a bedroom is a region on a scene");
+        // Asked before anything is written (rule 2): the steal's two students, stood alone together by `aloneTogether`.
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const [giver, taker] = cast(2);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the key rule reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { initCharacter } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { ROOM_FLAG } = await import("./rooms.mjs");
+        const scene = game.scenes.viewed ?? game.scenes.contents[0];
+        const ROOM = "SUITE H84-01 a bedroom", GONE = "SUITE H84-01 the name it had", STOLEN = "SUITE H84-01 a room keyed twice";
+        const keysTo = (actor, room) => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
+        const read = {};
+        let owner = null, region = null;
+        try {
+            [owner] = await Actor.createDocuments([{ name: "SUITE H84-01 an owner", type: "character" }]);
+            await initCharacter(owner, { quiet: true });
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+                flags: { [MODULE_ID]: { [ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id } } }]);
+            await settle();
+            await Promise.all([V.grantBedroomKey(owner, ROOM, { silent: true, scene }), V.grantBedroomKey(owner, ROOM, { silent: true, scene })]);
+            await sheetAuditIdle();
+            read.atOnce = keysTo(owner, ROOM).length;
+            const [first] = keysTo(owner, ROOM);
+            must(first, "no key was made to the bedroom - this would measure nothing");
+            for (const extra of keysTo(owner, ROOM).slice(1)) await extra.delete();
+            await trustedWrite(first, { [`flags.${MODULE_ID}.${BEDROOM_KEY_FLAG}`]: GONE, name: game.i18n.format("DRPG.Vault.keyName", { room: GONE }) },
+                { reason: "setup" });
+            await sheetAuditIdle();
+            must(keysTo(owner, GONE).length === 1 && !keysTo(owner, ROOM).length && !V.bedroomOwnerAnywhere(GONE),
+                "the key was not left naming a room that is no bedroom anywhere - this would measure nothing");
+            await V.reconcileBedroomKeys({ silent: true, owners: [owner.id] });
+            await sheetAuditIdle();
+            const now = keysTo(owner, ROOM);
+            read.swept = [now.length, keysTo(owner, GONE).length, now[0]?.id === first.id, now[0]?.name ?? null];
+        } finally {
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            if (owner) await owner.delete();
+            await sheetAuditIdle();
+        }
+
+        const fixture = await aloneTogether(giver, taker, { asked: true });
+        const NAME = "SUITE H84-01 a key";
+        const key = (actor, location) => INV.grantItem(actor, { name: NAME, category: "bedroomKey", tier: null, override: true, quiet: true, location,
+            extraFlags: { [BEDROOM_KEY_FLAG]: STOLEN } });
+        try {
+            const put = await key(taker, INV.LOCATIONS.vault);
+            const stolen = await key(giver, INV.LOCATIONS.carried);
+            await sheetAuditIdle();
+            must(put && stolen && INV.isStashed(taker.items.get(put.id)) && keysTo(taker, STOLEN).length === 1,
+                "the taker's key was not made in the stash, or the giver's not made - this would measure nothing");
+            const steal = await INV.transferItem(giver, taker, stolen, { mode: "steal" });
+            await settle();
+            read.stashed = [keysTo(taker, STOLEN).length, steal?.keyHeld ?? null, keysTo(giver, STOLEN).length];
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === STOLEN)) await i.delete();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ atOnce: 1, swept: [1, 0, true, game.i18n.format("DRPG.Vault.keyName", { room: ROOM })], stashed: [1, STOLEN, 0] }),
+            "a room's key was made twice: by two grants at once, by the sweep beside a key a rename left dead, or by a steal from a student whose own key to the room is stashed "
+            + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; the taker's keys, the steal's room, the giver's keys)");
+    }],
+
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-38's second half, E35-10. The harm: the taker has the copy and the giver

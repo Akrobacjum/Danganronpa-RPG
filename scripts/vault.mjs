@@ -41,7 +41,7 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { roomStockTables } from "./tables.mjs";
-import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
+import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural, serialWrite,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
@@ -248,6 +248,22 @@ export function mayEnterBedroom(actor, room, scene = null) {
  */
 export async function grantBedroomKey(actor, room, { silent = false, scene } = {}) {
     if (!game.user.isGM || !actor || !room) return null;
+    /* ONE GRANT AT A TIME PER STUDENT (H84, 27.10.2026; the owner's session on 1.2.85, triage A1 (b)). The read below
+       and the create were two steps with an await between them, and nothing queued them: the primary's ready sweep is
+       started and not awaited, and Room Setup's Apply, a GM's Give and a key's handover can each land inside it, so two
+       grants both read "holds none" and both made a key (tier 2 "H84-01: one key per room ...": two grants at once made
+       2 at 774b28a9, 1 here). The whole grant is one step of `serialWrite` under the student's key; the step awaits
+       the audit's queue, the item's create and a whisper, none of which waits for a grant (read in the code,
+       27.10.2026). Two GMs granting at once on two browsers are not queued by this (the queue is per browser): the
+       ready sweep runs on the primary alone, the other roads are a GM's click. */
+    return serialWrite(bedroomKeyKey(actor.id), () => grantKeyNow(actor, room, { silent, scene }));
+}
+
+/** The queue key of a student's key grants (`grantBedroomKey`). */
+export const bedroomKeyKey = actorId => `bedroomKey/${actorId}`;
+
+/** `grantBedroomKey`'s step, inside its queue. */
+async function grantKeyNow(actor, room, { silent, scene }) {
     /* Every write queued on the student judged first (E11 C10), so a key this GM made a moment ago
        is in the mark and reads as held. Measured on the harness on 10.10.2026: with nothing else
        queued on the student the key was in the mark by a second grant made at once without this
@@ -272,6 +288,8 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
     // while the GM looks at another scene used to read "Owner: -" (ITEM-16).
     const owner = game.actors.get((scene ? vaultOwnerOf(room, scene) : null)
         ?? bedroomOwnerAnywhere(room) ?? "");
+    const repointed = owner?.id === actor.id ? await repointDeadKey(actor, room) : null;
+    if (repointed) return repointed;
     const item = await grantItem(actor, {
         reason: "gmRuling",
         name: game.i18n.format("DRPG.Vault.keyName", { room }),
@@ -293,6 +311,49 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
             { room: foundry.utils.escapeHTML(room) })}</p>`);
     }
     return item;
+}
+
+/**
+ * THE OWNER'S KEY A RENAME LEFT DEAD IS THE ROOM'S KEY (H84, 27.10.2026; triage A1 (a)). A key is a room's name, and a
+ * rename carries the keys only where fog.mjs `noteRegionName` carries it - on the primary, for the room's last piece of
+ * that name, from a name that GM saw, and where no other scene holds a bedroom of the old name (`carryRoomOnSheets`). In
+ * every other case the owner's key named a room that is no bedroom anywhere, and the next sweep made a key of the new
+ * name beside it: two rows under Room Keys, one of them opening nothing. Here, for the owner of `room` who holds no key
+ * to it, such a dead key is written to name `room` instead (`trustedWrite`, "setup", as the carry writes it; its name and
+ * description too while they are still `grantBedroomKey`'s), so no second key is made. Only when it cannot be another
+ * room's: exactly one dead key among the owner's (carried or stashed, read as the GMs hold them), and `room` the one
+ * bedroom of theirs they hold no key to. Otherwise the key is made as before and the dead one stays for a GM. A key
+ * opens nothing for its owner at their own door (bedroom-keys.mjs `bedroomShutTo`), so this changes no door. Answers the
+ * key, or null.
+ */
+async function repointDeadKey(actor, room) {
+    const held = itemsHeldNow(actor);
+    const dead = held.filter(item => keyRoomOf(item) && !bedroomOwnerAnywhere(keyRoomOf(item)));
+    if (dead.length !== 1) return null;
+    const keyed = keyRooms(held, { stashed: true });
+    const lacking = new Set();
+    for (const scene of game.scenes ?? []) {
+        for (const region of scene.regions ?? []) {
+            if (region.name && region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id && !keyed.has(region.name)) lacking.add(region.name);
+        }
+    }
+    if (lacking.size !== 1 || !lacking.has(room)) return null;
+    const key = actor.items.get(dead[0].id);
+    if (!key) return null;
+    const was = keyRoomOf(dead[0]);
+    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+        room: foundry.utils.escapeHTML(name), owner: foundry.utils.escapeHTML(actor.name ?? "-") })}</p>`;
+    const changes = { [`flags.${MODULE_ID}.${KEY_FLAG}`]: room };
+    if (key.name === game.i18n.format("DRPG.Vault.keyName", { room: was })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room });
+    if (key.system?.description === text(was)) changes["system.description"] = text(room);
+    try {
+        await trustedWrite(key, changes, { reason: "setup" });
+    } catch (err) {
+        error(`Could not point ${actor.name}'s key to ${was} at ${room}`, err);
+        return null;
+    }
+    log(`${actor.name}'s key named "${was}", which is no bedroom any more; it opens "${room}" now, and no second key was made.`);
+    return keyRoomOf(actor.items.get(key.id)) === room ? key : null;
 }
 
 /**
