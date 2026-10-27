@@ -21480,10 +21480,10 @@ const INVARIANTS = [
         const first = game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
         const second = await game.drpg.fps({ seconds: 0.2, frames: 3, toChat: false });
         const text = await first;
-        equal(JSON.stringify([/Watched [\d.]+ s: \d+ frames/.test(text), /Each held alone for 3 frames/.test(text), (text.match(/^ {2}the /gm) ?? []).length >= 9,
+        equal(JSON.stringify([/Watched [\d.]+ s: \d+ frames/.test(text), /Each held alone for up to 3 frames or 1 s/.test(text), (text.match(/^ {2}the /gm) ?? []).length >= 11,
             /already running/.test(second), print() === was, filtered.every((node, i) => node.filters === kept[i])]),
             JSON.stringify([true, true, true, true, true, true]),
-            `[a window read, the holds read, nine holds listed, the second call refused, the page as it was, each filter list the same object] before ${was}, after ${print()}:\n${text}`);
+            `[a window read, the holds read, eleven holds listed, the second call refused, the page as it was, each filter list the same object] before ${was}, after ${print()}:\n${text}`);
     }],
 
     ["R1010 - the seams' light is drawn once (E88 C1): at rest no ring on this screen carries a live blur, every token of one frame shape wears one texture, a recolour draws one more and frees the old with its last wearer, the blur switch off draws the passes alone, and a shape past the cap or a browser with no renderer keeps the live halo", async () => {
@@ -22051,6 +22051,78 @@ const INVARIANTS = [
         const fresh = new Map();
         V.keepRoomsThroughGaps(fresh, () => ({ scene: school, room: "Dorm A", level: null, tokenDoc: { id: "R1015NOMOVE00000" } }), { stands: () => true }).locate(actor);
         equal(fresh.get(actor.id)?.room ?? null, "Dorm A", "a token this browser saw no move of is remembered by the default judge (no verdict pending)");
+    }],
+    ["R1017 - fps() holds the module's own light and nothing else (E88 fix G2): the outline's and the rings' live halo filters by their names, their baked pictures by theirs, a filter not the module's read on a line of its own and never switched off, a hold put back only where it still stands, and each hold bounded by time as well as frames", async () => {
+        /*
+         * E88 fix G2, 27.10.2026; findings E88-END-01 (major), E88R-01 (major), E88-BEH-1, E88R-02. Until this fix the
+         * hold "the room outline's halo filters" took every filtered object under canvas.stage whose name was not a
+         * ring glow's - since C1 the outline's light is a baked picture with no filter, so at rest it caught only
+         * Foundry's filters (its vision and lighting, a token's detection filter) and other modules', switched them
+         * off for the hold, and printed their saving under the outline's name; and nothing held the baked pictures, so
+         * fps() could not price suspects 1 and 4 after C1 at all. A hold's undo wrote back the list it took over any
+         * list assigned during the hold. And a hold was `frames` frames whatever their length: 60 frames at 15 fps are
+         * 4 s a hold, about 45 s a run, where the books say about a second each.
+         * Read here on this client's canvas, nothing written to the world: five stand-ins planted on canvas.stage -
+         * a foreign filtered node (Foundry's, say), the outline's live glow (`drpgRoomOutlineGlow`) and its baked
+         * picture (`drpgRoomOutlineGlowBaked`), a ring's live glow (`drpgOwnRingGlow`) and a ring's baked picture
+         * (`drpgHaloBaked`) - and a frame watcher that records, each frame, whether each stands; mid-hold the watcher
+         * gives the outline's glow a new filter list (a re-strike), which must survive the undo. Then fps() with 120
+         * frames a hold (about 2 s each at this harness's frame) and a hold of 150 ms: it must end within 8 s, each hold
+         * bounded by time. Red at
+         * 0b1e4413: the foreign node's filters were switched off, the baked pictures never hidden, the re-strike
+         * overwritten, and no "Foundry's own filters" line.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen");
+        must(canvas.ready && canvas.stage, "the canvas is not ready - this would measure nothing");
+        const J = JSON.stringify;
+        const filter = tag => ({ tag, blur: 1, enabled: true });
+        const node = (name, filters = null) => { const c = new PIXI.Container(); c.name = name; if (filters) c.filters = filters; return c; };
+        const foreign = node("R1017ForeignFilter", [filter("foreign")]);
+        const outline = node("drpgRoomOutlineGlow", [filter("outline")]);
+        const outlineBaked = node("drpgRoomOutlineGlowBaked");
+        const ring = node("drpgOwnRingGlow", [filter("ring")]);
+        const ringBaked = node("drpgHaloBaked");
+        const planted = [foreign, outline, outlineBaked, ring, ringBaked];
+        const foreignList = foreign.filters, ringList = ring.filters;
+        const restruck = [filter("outline-restruck")];
+        const seen = { foreignOff: 0, outlineOff: 0, outlineBakedOff: 0, ringOff: 0, ringBakedOff: 0, frames: 0 };
+        let watching = true, struck = false;
+        const watch = () => {
+            if (!watching) return;
+            seen.frames++;
+            if (!foreign.filters?.length) seen.foreignOff++;
+            if (!outline.filters?.length) {
+                seen.outlineOff++;
+                if (!struck) { struck = true; outline.filters = restruck; }
+            }
+            if (outlineBaked.visible === false) seen.outlineBakedOff++;
+            if (!ring.filters?.length) seen.ringOff++;
+            if (ringBaked.visible === false) seen.ringBakedOff++;
+            requestAnimationFrame(watch);
+        };
+        for (const n of planted) canvas.stage.addChild(n);
+        let text = "", took = 0;
+        try {
+            requestAnimationFrame(watch);
+            const t0 = performance.now();
+            text = await game.drpg.fps({ seconds: 0.2, frames: 120, holdMs: 150, toChat: false });
+            took = performance.now() - t0;
+        } finally {
+            watching = false;
+            for (const n of planted) { canvas.stage.removeChild(n); n.destroy?.(); }
+        }
+        const line = label => text.split("\n").find(l => l.includes(label)) ?? "";
+        equal(J({ foreignOff: seen.foreignOff, foreignSame: foreign.filters === foreignList, outlineHeld: seen.outlineOff > 0, restruckKept: outline.filters === restruck,
+            outlineBakedHeld: seen.outlineBakedOff > 0, ringHeld: seen.ringOff > 0, ringSame: ring.filters === ringList, ringBakedHeld: seen.ringBakedOff > 0,
+            bakedBack: [outlineBaked.visible, ringBaked.visible] }),
+            J({ foreignOff: 0, foreignSame: true, outlineHeld: true, restruckKept: true, outlineBakedHeld: true, ringHeld: true, ringSame: true, ringBakedHeld: true,
+            bakedBack: [true, true] }),
+            `[a foreign filter never switched off and the same list after, the outline's live glow held and its re-strike kept, each baked picture hidden and shown again, the ring's glow held and the same list after] over ${seen.frames} frames:\n${text}`);
+        equal(J([/Foundry's own filters/.test(text) && /\b1 filter/.test(line("Foundry's own filters")), /nothing of it here/.test(line("the room outline's live halo")),
+            /nothing of it here/.test(line("the room outline's baked light")), /nothing of it here/.test(line("the ring halos' baked light"))]),
+            J([true, false, false, false]),
+            "[a line reading the filters not the module's (one planted), and each of the module's halo holds found something to hold]");
+        ok(took < 8000, `fps() with 120 frames a hold and a 150 ms hold ended in ${Math.round(took)} ms: each hold is bounded by time\n${text}`);
     }],
     ["R1016 - the books say how to read fps() and what to turn off (E88 C7, E88-13): each GM handbook's reading of fps() names every heading fps() prints, by the words it prints them in, and the Look's switches in the order to turn them off, by their names in that language, the theme last; each player handbook says the same switches in that order; each GM handbook's voice section says what a doorway keeps (LIVE-E88-03)", async () => {
         /*

@@ -1667,6 +1667,15 @@ export async function perfReport({ frames = 60 } = {}) {
  */
 let frameCostRunning = false;
 
+/**
+ * The longest one reading of `frameCostRun` lasts, besides its `frames` (E88 fix G2, 27.10.2026; finding E88R-02). A
+ * reading was `frames` frames whatever their length: 61 frames on the weakest player's browser at 15 fps are about 4 s,
+ * so a run was about 45 s where the opening line said 15 and the books "about a second" a hold - a player stopped early
+ * or copied an unfinished console. Now a reading ends at `frames` frames or this many milliseconds, whichever comes
+ * first: at 60 fps the same 60 frames, at 15 fps 15 of them.
+ */
+const HOLD_MS = 1000;
+
 const RING_HALOS = new Set(["drpgOwnRingGlow", "drpgRemnantRingGlow"]);
 
 /** Every display object the walk can start from: the stage, and each token (the harness keeps its tokens apart). */
@@ -1689,7 +1698,7 @@ export async function countersNow({ reset = false } = {}) {
     return out;
 }
 
-export async function frameCost({ seconds = 5, frames = 60, toChat = true } = {}) {
+export async function frameCost({ seconds = 5, frames = 60, holdMs = HOLD_MS, toChat = true } = {}) {
     if (frameCostRunning) {
         const message = "fps() is already running in this browser - wait for it to finish.";
         log(message);
@@ -1697,26 +1706,34 @@ export async function frameCost({ seconds = 5, frames = 60, toChat = true } = {}
     }
     frameCostRunning = true;
     try {
-        return await frameCostRun({ seconds, frames, toChat });
+        return await frameCostRun({ seconds, frames, holdMs, toChat });
     } finally {
         frameCostRunning = false;
     }
 }
 
-async function frameCostRun({ seconds, frames, toChat }) {
+async function frameCostRun({ seconds, frames, holdMs, toChat }) {
     const C = await import("./perf-counters.mjs");
     const lines = [];
     const round = n => Math.round(n * 100) / 100;
     const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    // One reading: `frames` frames or `holdMs`, whichever ends first (`HOLD_MS`).
     const mean = async () => {
         await frame();
         const t0 = performance.now();
-        for (let i = 0; i < frames; i++) await frame();
-        return (performance.now() - t0) / frames;
+        let n = 0, now = t0;
+        while (n < frames && now - t0 < holdMs) {
+            await frame();
+            now = performance.now();   // not the frame's own stamp: a page's rAF clock need not be performance.now()'s
+            n++;
+        }
+        return (performance.now() - t0) / Math.max(1, n);
     };
     const themed = document.body.classList.contains("drpg-theme-stained-glass");
     const holds = [];
-    log(`fps(): about ${Math.round(seconds + (frames * 10) / 60)} s. The module's effects switch off one at a time for a moment each, the map last; everything comes back by itself.`);
+    // The readings after the window: one as it stands and one a hold (`holds` below: eleven).
+    const readings = 12;
+    log(`fps(): about ${Math.round(seconds + (readings * Math.min(holdMs, frames * 1000 / 60)) / 1000)} s. The module's effects switch off one at a time for about a second each at most, the map last; everything comes back by itself.`);
 
     /* THE WINDOW: every frame's length while the page stands as it is, and the counters around it. */
     const before = C.snapshot();
@@ -1738,6 +1755,16 @@ async function frameCostRun({ seconds, frames, toChat }) {
     const live = C.liveCanvasFilters(canvasRoots());
     lines.push(`On the canvas now: ${live.filters} filter(s) (${live.blurs} blur) on ${live.objects} object(s), ${live.masks} mask(s)`
         + (Object.keys(live.byName).length ? ` - ${Object.entries(live.byName).map(([n, k]) => `${n} ${k}`).join(", ")}` : ""));
+    /* What of those is not the module's (E88 fix G2; findings E88-BEH-1, E88-END-01): Foundry's vision, lighting and
+       masking filters, a token's detection filter, another module's. Read, never held: switching one off would change
+       Foundry's drawing on this screen beyond what any hold below says, and price it under the module's name. */
+    let haloNames = null;
+    try { haloNames = (await import("./fog-reveal.mjs")).HALO_NAMES; } catch (err) { debug("fps(): the halos' names could not be read", err); }
+    const OUTLINE_LIVE = new Set(haloNames?.outlineLive ?? []);
+    const ours = new Set([...RING_HALOS, ...OUTLINE_LIVE]);
+    const notOurs = (() => { const found = []; C.liveCanvasFilters(canvasRoots(), { collect: found }); return found.filter(n => !ours.has(n.name)); })();
+    const foreignFilters = notOurs.reduce((sum, n) => sum + n.filters.filter(Boolean).length, 0);
+    lines.push(`Foundry's own filters (and other modules'), read and not held: ${foreignFilters} filter(s) on ${notOurs.length} object(s)`);
     try {
         const halos = (await import("./fog-reveal.mjs")).haloStats();
         lines.push(`Seams' light drawn once (E88 C1): ${halos.textures} texture(s) worn by ${halos.wearers} ring(s)`);
@@ -1749,12 +1776,31 @@ async function frameCostRun({ seconds, frames, toChat }) {
     for (const name of names) lines.push(`  ${name.padEnd(32)} ${String(moved[name]).padStart(7)}  ${String(round(moved[name] / elapsed)).padStart(8)}/s`);
 
     /* THE HOLDS. Each starts its hold and returns the undo, or null when there is nothing of it on this screen. */
+    /* Each hold takes the module's own nodes by name (fog-reveal.mjs `HALO_NAMES`, `RING_HALOS`), and its undo puts
+       back only what still stands as the hold left it: a list Foundry or the module assigned during the hold (a
+       re-strike) is kept, not overwritten with the one taken at the start (E88 fix G2, finding E88-BEH-1). */
     const filtered = () => { const found = []; C.liveCanvasFilters(canvasRoots(), { collect: found }); return found; };
     const dropFilters = nodes => {
         if (!nodes.length) return null;
         const kept = nodes.map(node => [node, node.filters]);
         for (const node of nodes) node.filters = null;
-        return () => { for (const [node, filters] of kept) if (!node.destroyed) node.filters = filters; };
+        return () => { for (const [node, filters] of kept) if (!node.destroyed && node.filters === null) node.filters = filters; };
+    };
+    const shown = names => {
+        const found = [], seen = new Set();
+        const walk = node => {
+            if (!node || typeof node !== "object" || seen.has(node) || node.destroyed || node.visible === false) return;
+            seen.add(node);
+            if (names.has(node.name)) found.push(node);
+            for (const child of node.children ?? []) walk(child);
+        };
+        for (const root of canvasRoots()) walk(root);
+        return found;
+    };
+    const hide = nodes => {
+        if (!nodes.length) return null;
+        for (const node of nodes) node.visible = false;
+        return () => { for (const node of nodes) if (!node.destroyed && node.visible === false) node.visible = true; };
     };
     const bodyClass = name => {
         if (document.body.classList.contains(name)) return null;
@@ -1763,8 +1809,12 @@ async function frameCostRun({ seconds, frames, toChat }) {
     };
     let fog = null;
     try { fog = (await import("./fog.mjs")).fogFrameParts(); } catch (err) { debug("fps(): the fog's parts could not be read", err); }
-    holds.push(["the room outline's halo filters", () => dropFilters(filtered().filter(n => !RING_HALOS.has(n.name)))]);
-    holds.push(["the ring halos' filters", () => dropFilters(filtered().filter(n => RING_HALOS.has(n.name)))]);
+    // The light of suspects 1 and 4 both ways (E88 fix G2, finding E88R-01): live where a filter still draws it, baked
+    // where C1 drew it once into a picture - so fps() prices it before and after the train alike.
+    holds.push(["the room outline's live halo filters", () => dropFilters(filtered().filter(n => OUTLINE_LIVE.has(n.name)))]);
+    holds.push(["the room outline's baked light", () => hide(shown(new Set(haloNames?.outlineBaked ?? [])))]);
+    holds.push(["the ring halos' live filters", () => dropFilters(filtered().filter(n => RING_HALOS.has(n.name)))]);
+    holds.push(["the ring halos' baked light", () => hide(shown(new Set(haloNames?.ringBaked ?? [])))]);
     holds.push(["the fog raster and the backdrop", () => {
         const parts = [fog?.raster, fog?.backdrop].filter(p => p && !p.destroyed && p.visible !== false);
         if (!parts.length) return null;
@@ -1796,7 +1846,7 @@ async function frameCostRun({ seconds, frames, toChat }) {
 
     lines.push("");
     const asIs = await mean();
-    lines.push(`Each held alone for ${frames} frames, against ${round(asIs)} ms/frame as it stands:`);
+    lines.push(`Each held alone for up to ${frames} frames or ${round(holdMs / 1000)} s, against ${round(asIs)} ms/frame as it stands:`);
     for (const [label, start] of holds) {
         let undo = null;
         try {

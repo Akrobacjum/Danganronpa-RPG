@@ -1389,8 +1389,9 @@ export const DrpgApi = {
     perf: perfReport,
     /** Where the frame goes on THIS machine (E88 C0): the frame time over `seconds` (median, p95, fps, frames over
      *  33 and 50 ms), the module's counters over the same window, the filters on the canvas, and each suspect held
-     *  alone for `frames` frames - the halos, the fog's raster and drift, the blur, the pulse, the ticker, the CSS
-     *  animations, the canvas last. `await game.drpg.fps({ toChat: false })`; every hold is put back. */
+     *  alone for `frames` frames or `holdMs` (1 s) - the halos live and baked, the fog's raster and drift, the blur,
+     *  the pulse, the ticker, the CSS animations, the canvas last; Foundry's own filters read, never held (E88 fix
+     *  G2). `await game.drpg.fps({ toChat: false })`; every hold is put back. */
     fps: frameCost,
     /** The module's counters as they stand and the filters on the canvas now (E88 C0, perf-counters.mjs);
      *  `game.drpg.counters({ reset: true })` reads them, then zeroes them. */

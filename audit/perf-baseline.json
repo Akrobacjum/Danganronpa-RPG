@@ -65,7 +65,7 @@
       "window: rAF gaps over `seconds` (5): frames, fps, median, p95, frames over 33 and over 50 ms",
       "counters: perf-counters.mjs deltas over the same window, each with its rate a second",
       "live: filters (blurs) and masks on drawn canvas objects, by object name",
-      "holds, each alone for `frames` (60) frames against the page as it stands: the room outline's halo filters, the ring halos' filters, the fog raster and the backdrop, the drift callback, drpg-no-blur, drpg-no-pulse, drpg-no-ticker, every CSS animation paused, the canvas ticker stopped (last)"
+      "holds, each alone for `frames` (60) frames or `holdMs` (1000 ms), whichever ends first (E88 fix G2), against the page as it stands: the room outline's live halo filters and its baked light, the ring halos' live filters and their baked light (each by the module's own names; Foundry's and other modules' filters read on a line of their own and never held), the fog raster and the backdrop, the drift callback, drpg-no-blur, drpg-no-pulse, drpg-no-ticker, every CSS animation paused, the canvas ticker stopped (last)"
     ],
     "sideEffects": [
       "each hold is undone in its own finally; the map stands still for the canvas hold",

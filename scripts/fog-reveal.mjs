@@ -204,6 +204,8 @@ export function findLayer() {
 export const FX_GROUP = "drpgFogFx";
 export const OUTLINE_NAME = "drpgRoomOutline";
 const SEAM_GLOW_NAME = "drpgRoomOutlineGlow";
+/** The reveal's own bloom on the border it draws (`buildRevealLayers`' lineHalo), named so fps() can hold it alone (E88 fix G2). */
+const REVEAL_LINE_HALO = "drpgRevealLineHalo";
 
 /** How long the outline and name take to land after a room is entered. */
 const BOUNCE_MS = 520;
@@ -355,6 +357,7 @@ export function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, 
             for (const points of shapes) lineMask.drawPolygon(points);
             lineMask.endFill();
             lineHalo = new PIXI.Graphics();
+            lineHalo.name = REVEAL_LINE_HALO;
             lineHalo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
             /* The room border's own bloom, to the number: a blur six times the core, in
                screen pixels, so the light weighs the same at any zoom. */
@@ -1126,6 +1129,19 @@ export function ringKept(group, key) {
 
 /** The standing outline's own sprite of its light (not shared: one room, one shape), named apart from the light itself. */
 const OUTLINE_HALO_BAKED = "drpgRoomOutlineGlowBaked";
+
+/**
+ * The names of the module's own light on the map, for fps()'s holds (diagnostics.mjs `frameCostRun`; E88 fix G2,
+ * findings E88-END-01, E88R-01, E88-BEH-1): the outline's live glow (the standing seam and the reveal's line), the
+ * outline's baked picture, and the rings' baked picture (the rings' live glows are named in own-ring.mjs and
+ * remnant-ring.mjs). A hold takes only nodes of these names, so a filter of Foundry's or another module's is never
+ * switched off nor priced under the module's name.
+ */
+export const HALO_NAMES = Object.freeze({
+    outlineLive: Object.freeze([SEAM_GLOW_NAME, REVEAL_LINE_HALO]),
+    outlineBaked: Object.freeze([OUTLINE_HALO_BAKED]),
+    ringBaked: Object.freeze([HALO_BAKED])
+});
 
 /**
  * Draw the outline's light `halo` (`seamHalo`'s, as stroked now) once into a texture its own sprite shows, just above
