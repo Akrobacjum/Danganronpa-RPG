@@ -28372,13 +28372,21 @@ const SCENARIOS = [
         needs(world.atLeast("namedRooms"), "the tray gate only bites on a project with a room");
         needs(world.atLeast("playersWithCharacter"), "discovery is recorded per character");
         const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
-        const room = scene.regions?.contents?.find(r => r.name?.trim())?.name ?? null;
 
         /* The first player who actually HOLDS somebody: discovery is recorded
            per character, so an account with no character can never discover
            anything and would make every assertion below trivially true. */
         const outsider = game.users.filter(u => !u.isGM).find(u => game.actors
             .some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+
+        /* A room the outsider's characters do not stand in now (H84-04, 27.10.2026, as the token test above): the room a
+           character stands in is known as the fog knows it, so "not found yet" needs a room none of them is in at the
+           moment. This took the scene's first named room; headless that is "Dorm A", where PlayerOne's student stands
+           (measured 27.10.2026 at 4a17f888), so the project read known with the record cleared - CI's suite 2/8 on
+           4a17f888 failed it the same way. A cleared record cannot make a room unknown that a token stands in. */
+        const standing = fog.roomsStoodInNow(scene, outsider);
+        const room = scene.regions?.contents?.find(r => r.name?.trim() && !standing.has(r.name))?.name ?? null;
+        must(room, `every named room of ${scene?.name} has a character of ${outsider?.name}'s standing in it - "not found" would measure nothing`);
 
         const mine = game.actors.filter(a => a.type === "character"
             && a.testUserPermission(outsider, "OWNER")).map(a => a.id);
