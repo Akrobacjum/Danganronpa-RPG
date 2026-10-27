@@ -573,6 +573,8 @@ Każdy projekt ma nazwę, obrazek albo ikonę w zasobniku, skalę, pokój (albo 
 
 **Propozycje.** Z arkusza gracz albo pracuje nad projektem dostępnym w jego pokoju, albo **proponuje** nowy. Propozycja przychodzi do ciebie jako karta; zatwierdzasz ją (poprawiając po drodze skalę, pokój albo brzmienie) albo odrzucasz. Nic nie istnieje, dopóki tego nie zrobisz. Postęp rośnie tylko przez *Pracuj nad projektem*: 12 daje +1, 18 daje +2, krytyk +2 i zwrot akcji; Contribution dodaje +1, Patronage +2, Game Integrity odejmuje 2, Earthquake odejmuje 1. Ukończony projekt szepcze do proponującego i GMów - nigdy do stołu, bo projekt może być tajny - a co teraz daje, mówisz ty.
 
+**Kto widzi jawny projekt.** Jawny projekt z pokojem pojawia się na tacce i mapie gracza, gdy któraś z jego postaci już stała w jego pokoju albo stoi w nim teraz, a proponującemu od chwili, gdy go zatwierdzisz, gdziekolwiek go umieścisz; reszta stołu widzi go dopiero, gdy ich własna postać tam dotrze. Tak działa zasada, to nie błąd: projekt, na który nikt nie wszedł, nie stoi na jego tacce. Lista **Wie, że tu jest** na jego karcie mówi, kto go widzi.
+
 **Projekty, które zmieniają ścianę albo przedmiot** (`passages-gm.mjs PASSAGE_PRESETS`). Okno gracza **Zaproponuj projekt** daje pięć rodzajów w polu **Rodzaj** obok własnego projektu, każdy z ustaloną statystyką i rozmiarem; reszta to to, co robi, gdy jego pasek się zapełni, w przeglądarce głównego GM-a, i nic, o czym musisz orzekać:
 
 | Rodzaj | Statystyka, rozmiar | Dostępny, gdy | Po ukończeniu |

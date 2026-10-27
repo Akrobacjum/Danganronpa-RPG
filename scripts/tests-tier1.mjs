@@ -21399,6 +21399,26 @@ const INVARIANTS = [
         }), "[the face that wins on the tray's row name and on its minus, plus, eye-slash and loop: Stained Glass; Monokuma Legacy] - null is Daggerheart's own (Font Awesome on an icon)");
     }],
 
+    ["R1008 - Observe's trace picker leads each option with the name the GM gave the trace (H84-07): observe.mjs `remnantPickLabel` puts `public.name` before the type, the tie, the subject and the DC, starts with the type for a trace with no name, and `askWhichRemnant` draws its options with it", async () => {
+        /*
+         * H84-07, 27.10.2026; the owner's live session on 1.2.85, triage B5. The picker the GMs choose an Observe's trace in
+         * ("focus your gaze", and the card's Pick a trace) labelled each option "<visibility> <type> · tied · <subject> · DC n"
+         * without the trace's GM-given name, so two subject-less traces of one type in a room read the same. Read on made-up
+         * candidates (the shape `rankForObserve` answers: `{ data, dc }`), so nothing of the world is asked. Red at 7a79b30c:
+         * `remnantPickLabel` does not exist.
+         */
+        const O = await import("./observe.mjs");
+        ok(typeof O.remnantPickLabel === "function", "observe.mjs has no `remnantPickLabel` - the picker's options still carry no trace name");
+        if (typeof O.remnantPickLabel !== "function") return;
+        const tied = game.i18n.localize("DRPG.Observe.tiedFlag");
+        const named = { dc: 12, data: { public: { name: "Torn ribbon" }, visibilityLabel: "Obvious", typeLabel: "Prep", tiedToCrime: true, subject: "" } };
+        const bare = { dc: 15, data: { public: {}, visibilityLabel: "Hidden", typeLabel: "Physical", tiedToCrime: null, subject: "Kaede" } };
+        const src = stripComments(new Map(await moduleSources()).get("observe.mjs") ?? "");
+        equal(JSON.stringify([O.remnantPickLabel(named), O.remnantPickLabel(bare), /\bremnantPickLabel\(/.test(fnSource(src, "askWhichRemnant"))]),
+            JSON.stringify([`Torn ribbon · Obvious Prep · ${tied} · DC 12`, "Hidden Physical · Kaede · DC 15", true]),
+            "[a named, tied trace with no subject; a trace with no name, untied, with a subject; askWhichRemnant draws with remnantPickLabel]");
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
@@ -23284,7 +23304,7 @@ const INVARIANTS = [
         }), "{open: [the pips' words, their aria-hidden, the pips, the project line] of a tile with 2 of 3 left and a project; sealed: the same of a "
             + "sealed room with none; second: whether roomProject and roomNoProject speak to the player, per language}");
     }],
-    ["R1000 - the Mastermind's player knows a public project in any room of its scene, as their fog knows the room (E17 C8): projects.mjs `hasStoodIn` answers every named room for the Mastermind and the discovery record for anybody else, and `knowsProject` asks it", async () => {
+    ["R1000 - the Mastermind's player knows a public project in any room of its scene, as their fog knows the room (E17 C8): projects.mjs `hasStoodIn` answers every named room for the Mastermind and the discovery record for anybody else (and, since H84-04, the rooms their characters stand in), and `knowsProject` asks it", async () => {
         /*
          * E17 C8, 26.10.2026; E17-39, audit S07-10. fog.mjs `recordDiscovery` writes no row for the Mastermind, so the
          * GM's veil does not narrate where the season's secret walks, and its comment said they lose nothing because
@@ -23307,6 +23327,11 @@ const INVARIANTS = [
         const user = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
         const record = new Set(game.actors.filter(a => a.type === "character" && a.testUserPermission(user, "OWNER"))
             .flatMap(a => F.discoveredFor(scene.id, a.id)));
+        /* H84-04 (27.10.2026; triage C4): the room one of their characters stands in now counts, as the fog clears it -
+           read here off the scene's tokens through movement.mjs, not through fog.mjs's own reader. */
+        const { roomOfToken } = await import("./movement.mjs");
+        const standing = new Set(Array.from(scene.tokens ?? []).filter(t => t.actor?.type === "character"
+            && t.actor.testUserPermission(user, "OWNER")).map(t => roomOfToken(t)));
         const got = {
             mastermind: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: true })),
             student: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: false })),
@@ -23316,10 +23341,10 @@ const INVARIANTS = [
         got.source = [/\bhasStoodIn\(user, room, sceneIds\)/.test(fnSource(src, "knowsProject")), /\bmyDiscoveredRooms\(/.test(fnSource(src, "hasStoodIn"))];
         equal(J(got), J({
             mastermind: [...F.myDiscoveredRooms(scene, { mastermind: true, gm: false })].sort(),
-            student: rooms.filter(room => record.has(room)),
+            student: rooms.filter(room => record.has(room) || standing.has(room)),
             elsewhere: [false, false],
             source: [true, true]
-        }), "{mastermind: the rooms the Mastermind's player is known to have stood in (their fog's), student: a player's (the record's), "
+        }), "{mastermind: the rooms the Mastermind's player is known to have stood in (their fog's), student: a player's (the record's and where they stand), "
             + "elsewhere: a room on no scene and no scene at all for the Mastermind, source: knowsProject asks hasStoodIn, which asks myDiscoveredRooms}");
         /* E17 fix p2-G3 (26.10.2026; the end review's E17p2-R9, goal): on a GM's browser the project card's "Known by"
            asked the GMs' store whether another user plays the Mastermind, and listed them on every public project of the

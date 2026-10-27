@@ -256,7 +256,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 
   The GM approves it like any proposal, and checks it again when it is finished: if the wall, the passage or the item is no longer what it was, nothing happens and the GM is told why. A Reroll of the roll that finished a Secret Passage, a breach or a seal takes it back.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.
-- A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once you have stood in its room; a secret one only for the people in on it. Double-click it for its card.
+- A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once your character has stood in its room, or stands in it now, and to whoever proposed it from the moment the GM approves it; the rest of the table sees it only when their own character has been there. A secret one only for the people in on it. Double-click it for its card.
 - **Sabotage** (same tile, the project's statistic): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
 
 > [!WARNING]

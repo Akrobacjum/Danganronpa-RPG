@@ -28079,7 +28079,12 @@ const SCENARIOS = [
         const players = game.users.filter(u => !u.isGM);
         const [insider, outsider] = players;
 
-        const room = scene.regions?.contents?.[0]?.name ?? null;
+        /* A room the outsider's characters do not stand in now (H84-04, 27.10.2026): the room a character stands in is
+           known as the fog knows it, so "never been in its room" needs a room none of them is in at the moment. */
+        const { roomOfToken } = await import("./movement.mjs");
+        const standing = new Set(Array.from(scene.tokens ?? []).filter(t => t.actor?.type === "character"
+            && t.actor.testUserPermission(outsider, "OWNER")).map(t => roomOfToken(t)));
+        const room = scene.regions?.contents?.find(r => !standing.has(r.name))?.name ?? null;
         const made = [];
         try {
             /* ---- the secret road ------------------------------------------- */
@@ -54615,6 +54620,65 @@ const SCENARIOS = [
         });
         equal(JSON.stringify(reading), JSON.stringify([[true, false], [true, false]]),
             `whether ${user.name} knows the project in the room ${student.name} found and the one in the room not found, viewing the projects' scene and another`);
+    }],
+
+    ["a public project is known to whoever proposed it, and to a player whose character stands in its room whatever the record says (H84-04)", async () => {
+        /*
+         * H84-04, 27.10.2026; the owner's live session on 1.2.85 ("the author did not see their own public project"),
+         * triage C4. `knowsProject` asked the discovery record alone: a proposer whose room the approval changed, or whose
+         * character the GM had placed (seeded fill-only, so an unticked cell stays unticked), or whose row had not reached
+         * their browser, did not see their own project on the tray or the map, while their fog drew the room clear. Here,
+         * in a GM-store world of the suite's own, a scene of three rooms: a student of a player's stands in the first,
+         * whose cell is unticked; a project in each - the first's and the third's made by the GM, the second's proposed
+         * by that student. Read on this GM, as the "Known by" card reads it (`knowsProject(id, user)`), for the student's
+         * player and for another player; the second project's `sealedViewers` (public meta, what the proposer's own
+         * browser reads); and the record of the first room. Red at 7a79b30c: the proposer knew none of the three, and the
+         * proposed project named nobody.
+         */
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "a GM knows every project, so the reading would be \"yes\" whatever the rule");
+        needs(world.atLeast("playerAccounts", 2), "the proposer and another player");
+        const user = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const other = game.users.find(u => !u.isGM && u.id !== user.id && !student.testUserPermission(u, "OWNER"));
+        must(other, `every other player owns ${student.name} too - the other player's reading would measure nothing`);
+        const P = await import("./projects.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const ROOMS = ["SUITE H84-04 where the student stands", "SUITE H84-04 the proposed room", "SUITE H84-04 nobody's room"];
+        let read = null;
+        await G.withGmStoreWorld(`suite-h8404-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const made = [];
+            try {
+                scene = await Scene.create({ name: "SUITE H84-04 the projects' scene", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", ROOMS.map((room, i) => ({ name: room,
+                    shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+                await settle();
+                await F.applyDiscoveryChanges(scene, [{ actorId: student.id, room: ROOMS[0], value: false }]);
+                await settle();
+                for (const [i, room] of ROOMS.entries()) {
+                    const id = (await P.createProject({ name: `SUITE H84-04 ${i}`, target: 6, room, ...(i === 1 ? { by: student.id } : {}) }))?.id ?? null;
+                    must(id, "could not create a project - this would measure nothing");
+                    made.push(id);
+                }
+                await settle();
+                read = {
+                    proposer: made.map(id => P.knowsProject(id, user)),
+                    other: made.map(id => P.knowsProject(id, other)),
+                    sealed: made.map(id => (P.metaFor(id).sealedViewers ?? []).includes(user.id)),
+                    recorded: F.discoveredFor(scene.id, student.id).includes(ROOMS[0])
+                };
+            } finally {
+                for (const id of made) await P.deleteProject(id);
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson({ proposer: [true, true, false], other: [false, false, false], sealed: [false, true, false], recorded: false }),
+            `whether ${user.name} (${student.name} stands in the first room, its cell unticked, and proposed the second) and ${other.name} know the three projects; `
+            + "whose sealedViewers name the proposer; whether the record holds the first room");
     }],
 
     ["the project manager keeps a room it did not change, whatever scene is on screen", async () => {

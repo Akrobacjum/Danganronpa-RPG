@@ -573,6 +573,8 @@ Each project has a name, a picture or a tray glyph, a scale, a room (or any room
 
 **Proposals.** From the sheet a player either works on a project available in their room or **proposes** one. A proposal reaches you as a card; you approve it (editing the scale, room or wording as you go), or refuse it. Nothing exists until you do. Progress rises only through *Work on a project*: 12 gives +1, 18 gives +2, a critical gives +2 and refunds the action; Contribution adds +1, Patronage +2, Game Integrity removes 2, an Earthquake removes 1. A finished project whispers its proposer and the GMs - never the table, because a project can be secret - and it is yours to say what it now does.
 
+**Who sees a public project.** A public project with a room shows on a player's tray and map once one of their characters has stood in its room, or stands in it now, and to its proposer from the moment you approve it, wherever you put it; the rest of the table sees it only when their own character gets there. That is the rule, not a fault: a project nobody has walked in on stays off their tray. Its card's **Knows it is there** lists who sees it.
+
 **Projects that change a wall or an item** (`passages-gm.mjs PASSAGE_PRESETS`). The player's **Propose a project** window offers five kinds under **Kind** besides a project of their own, each with its statistic and size; the rest is what it does when its bar fills, on the primary GM's browser, and nothing you have to rule:
 
 | Kind | Statistic, size | Offered when | When it is finished |

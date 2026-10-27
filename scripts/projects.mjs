@@ -32,7 +32,7 @@ import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
-import { discoveredFor, myDiscoveredRooms } from "./fog.mjs";
+import { discoveredFor, myDiscoveredRooms, roomsStoodInNow } from "./fog.mjs";
 // Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
@@ -141,6 +141,15 @@ export function knowsProject(countdownId, user = game.user) {
     const room = roomOf(countdownId);
     if (!room) return true;
 
+    /* WHO MADE IT KNOWS IT (H84-04, 27.10.2026; the owner's live session on 1.2.85, triage C4). A public project knew its
+       proposer no better than anybody else: the record alone was asked, and a proposer whose character the GM had
+       placed in the room, or moved, or whose room the approval changed, did not see their own project on the tray or
+       the map. `sealedViewers` is public meta every browser holds: who knew it before it was revealed - and, since
+       H84, the builder's owners from the moment a public project is made (`createProject`) - so this answers alike on
+       the proposer's browser and on a GM's "Known by". Who proposed it is no more out than a sealed project's
+       ownership map already shows (the builder is always among its viewers, F3), and the GMs' `by` stays theirs. */
+    if ((metaFor(countdownId).sealedViewers ?? []).includes(user?.id)) return true;
+
     /* Any character this person holds having been there is enough. A player
        running two students knows what either of them has seen - the same rule
        `incidentWitness` uses for the incident's seats. */
@@ -182,6 +191,17 @@ export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermi
         return sceneIds.some(sceneId => myDiscoveredRooms(game.scenes?.get(sceneId), { mastermind: true }).has(room));
     }
     try {
+        /* THE ROOM A CHARACTER STANDS IN IS KNOWN, AS THE FOG KNOWS IT (H84-04, 27.10.2026; triage C4). The fog clears
+           the rooms a player's tokens stand in now and the ones this browser saw them reach before the record caught up
+           (fog.mjs `myCurrentRooms`, `mirroredFor`); this asked the record alone, so a character the GM placed in a
+           room (seeded fill-only, so an unticked cell stays unticked) or whose row had not reached this browser stood in
+           a room the fog drew clear and did not see the public project in it. Both are read here: the scene's tokens
+           for anybody, the fog's own union on this player's own browser. */
+        for (const sceneId of sceneIds) {
+            const scene = game.scenes?.get(sceneId);
+            if (roomsStoodInNow(scene, user).has(room)) return true;
+            if (user === game.user && !user.isGM && myDiscoveredRooms(scene, { mastermind: false, gm: false }).has(room)) return true;
+        }
         for (const actor of game.actors ?? []) {
             if (actor.type !== "character") continue;
             if (!actor.testUserPermission(user, "OWNER")) continue;
@@ -1297,7 +1317,11 @@ export async function createProject({
             ...(saboteur ? { saboteur } : {}),
             ...(saboteur && sabotageAsk ? { sabotageAsk } : {}),
             ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
-            ...(passage ? { passage } : {})
+            ...(passage ? { passage } : {}),
+            /* A PUBLIC PROJECT IS KNOWN TO WHOEVER PROPOSED IT (H84-04, 27.10.2026; triage C4): their owners, as
+               `knowsProject` reads `sealedViewers` - who knew it besides the room's visitors, and who a seal keeps in
+               (`sealAudience`, which adds the builder anyway). A sealed one's insiders are its ownership map. */
+            ...(!hidden && by && ownerIdsOfId(by).length ? { sealedViewers: ownerIdsOfId(by) } : {})
         }
     }, { by: { kind: "gm" } });
     if (!made?.created) return null;

@@ -528,20 +528,33 @@ function mostRelevant(candidates) {
 }
 
 /**
+ * One option of the GM's trace picker (`askWhichRemnant`): the name the GM gave the trace, then its visibility and type,
+ * whether it is tied, its subject and its DC.
+ *
+ * THE NAME FIRST (H84-07, 27.10.2026; the owner's live session on 1.2.85, triage B5). The options read
+ * "<visibility> <type> · tied · <subject> · DC n" and left out `public.name`, which the GM wrote when the trace was
+ * first described and which is what the Truth Bullet will be called: two Prep traces with no subject in one room read
+ * the same, and the GM chose between them blind. The GM panel's Give a Truth Bullet (gm-items.mjs
+ * `bulletTraceOptions`) leads with the name already. A trace with no name yet starts with its type, as before - not
+ * with the neutral token name, which every trace shares. Pure, for tier 1 R1008.
+ */
+export function remnantPickLabel({ data = {}, dc = null } = {}) {
+    return [
+        data.public?.name || null,
+        `${data.visibilityLabel} ${data.typeLabel}`,
+        data.tiedToCrime ? game.i18n.localize("DRPG.Observe.tiedFlag") : null,
+        data.subject || null,
+        `DC ${dc}`
+    ].filter(Boolean).join(" · ");
+}
+
+/**
  * The GM decides which trace is closest to what the player asked for. From a card
  * (`refuse: false`) the picker has no Refuse of its own: the card has one, and closing the
  * picker leaves the card to be answered.
  */
 async function askWhichRemnant(actor, room, request, candidates, { refuse = true } = {}) {
-    const options = candidates.map((c, i) => {
-        const label = [
-            `${c.data.visibilityLabel} ${c.data.typeLabel}`,
-            c.data.tiedToCrime ? game.i18n.localize("DRPG.Observe.tiedFlag") : null,
-            c.data.subject || null,
-            `DC ${c.dc}`
-        ].filter(Boolean).join(" · ");
-        return `<option value="${i}">${foundry.utils.escapeHTML(label)}</option>`;
-    }).join("");
+    const options = candidates.map((c, i) => `<option value="${i}">${foundry.utils.escapeHTML(remnantPickLabel(c))}</option>`).join("");
 
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Observe.pickTitle") },

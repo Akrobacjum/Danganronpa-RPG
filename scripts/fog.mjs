@@ -1650,6 +1650,27 @@ export function myCurrentRooms({ tokens = canvas?.tokens?.placeables ?? [], gm =
 }
 
 /**
+ * The rooms `user`'s characters stand in now on `scene`, read off the scene's own tokens: the half of what the fog
+ * clears that the record does not hold, for projects.mjs `hasStoodIn` (H84-04).
+ *
+ * NOT `myCurrentRooms`. That one answers for this viewer, on the scene drawn, through `isMine` (the Monokuma's piece on
+ * a GM); a project's room is on its own scene, drawn or not (E12 C5), and a GM's "Known by" asks it for another user.
+ * Unlike the record, a token placed in a room by the GM, or one whose cell the GM unticked, is standing there all the
+ * same (triage C4 (b), 27.10.2026), as the fog draws its room clear under it.
+ */
+export function roomsStoodInNow(scene, user) {
+    const rooms = new Set();
+    if (!scene || !user) return rooms;
+    for (const tokenDoc of scene.tokens ?? []) {
+        const actor = tokenDoc.actor;
+        if (!actor || actor.type !== "character" || !actor.testUserPermission(user, "OWNER")) continue;
+        const room = roomOfToken(tokenDoc);
+        if (room) rooms.add(room);
+    }
+    return rooms;
+}
+
+/**
  * Whose position decides what THIS viewer sees cleared.
  *
  * A player owns their characters and that is the whole answer. A GM owns every
