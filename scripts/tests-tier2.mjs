@@ -63625,6 +63625,7 @@ const SCENARIOS = [
             const both = await Promise.all([pick(), pick()]);
             read.picks = both.map(p => Boolean(p?.ok));
             const keys = both.filter(p => p?.ok).map(p => p.key);
+            must(keys.length > 0, `neither pick of the trace at once was written - the rest would measure nothing (offered after the miss: ${read.offered[1]})`);
             hold = true;
             first = resolve(keys[0]);
             await until(() => answer);
