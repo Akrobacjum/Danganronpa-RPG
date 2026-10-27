@@ -71791,6 +71791,125 @@ const SCENARIOS = [
             + "a gone user's pool after this GM's prune and the primary's; a player's two asks: what was told, the pool, the count's rise]");
     }],
 
+    ["a GM clears the overflow from Despair Flow's Overflow tab, asked first, on the primary, and a drawn darkening stands (H84-06)", async () => {
+        /*
+         * H84-06, 27.10.2026; the owner's live session on 1.2.85 ("as GM I cannot clear the despair overflow pool"),
+         * triage C6. `resetOverflow` had two callers, the verdict and the season reset; no GM surface offered a clear, and
+         * the only road was the console. Read: (1) the Overflow tab's markup (`overflowSection`): a Clear button, and the
+         * window wiring it to gm-team-dialog.mjs `clearOverflowFromTab`; (2) the count set to 5 and a stamp in the world (a Rot
+         * of a session that never ran), Clear pressed and the question answered Cancel, then Clear: what was asked, the
+         * count after each, the stamp left as it was;
+         * (3) the count set to 5 with a second GM `A` the primary (as E17-T8 sets one): the packet sent to A, the count
+         * after A judged it; (4) a player's `overflow.clear`, judged: what was told, the count. The count and the stamp put
+         * back after. Red at the commit's parent: no button, no `clearOverflowFromTab`.
+         */
+        const O = await import("./overflow.mjs");
+        const T = await import("./gm-team-dialog.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const pane = document.createElement("div");
+        pane.innerHTML = O.overflowSection();
+        const button = pane.querySelector("[data-drpg-overflow-clear]");
+        const src = stripComments(new Map(await moduleSources()).get("gm-team-dialog.mjs") ?? "");
+        ok(button && typeof T.clearOverflowFromTab === "function",
+            "the Overflow tab has no Clear, or gm-team-dialog.mjs no `clearOverflowFromTab` - a GM still cannot clear the overflow but from the console");
+        if (!button || typeof T.clearOverflowFromTab !== "function") return;
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose ask is judged");
+        const EVENT = `module.${MODULE_ID}`;
+        const A = { id: "!H8406primaryGM", name: "H84-06 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const stamp = () => stableJson(getSetting(SETTINGS.overflow) ?? {});
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const asked = [], answers = [];
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        const read = { button: [button.textContent.trim() === game.i18n.localize("DRPG.Overflow.clear"),
+            /\bclearOverflowFromTab\(/.test(fnSource(src, "openGmTeamDialog"))] };
+        try {
+            Dialog.wait = async config => {
+                asked.push([config.window?.title ?? null, String(config.content ?? "").includes("5"), (config.buttons ?? []).map(b => [b.action, Boolean(b.default)])]);
+                return answers.shift() ?? null;
+            };
+            // A stamp that is there to be kept: a Rot of a session that never ran, an event, so nothing runs for it.
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { effect: "rot", session: -1, day: 1, timeOfDay: "morning" } });
+            const before = stamp();
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            answers.push("cancel");
+            const no = await T.clearOverflowFromTab();
+            await settle();
+            const afterNo = O.overflowCount();
+            answers.push("clear");
+            const yes = await T.clearOverflowFromTab();
+            await settle();
+            read.here = { no, afterNo, yes, afterYes: O.overflowCount(), stampKept: stamp() === before, asked: asked.splice(0) };
+
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            socket.emit = function (event, packet, options, ...rest) {
+                const to = options?.recipients ?? [];
+                if (inPlay && event === EVENT && packet?.action === "overflow.clear" && to.includes(A.id)) {
+                    sentToA.push(packet.action);
+                    queued.push(packet);
+                    return socket;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            inPlay = true;
+            arrive();
+            ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            const cleared = O.clearOverflowAsGm();
+            await settle();
+            const beforeA = O.overflowCount();
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+            read.second = { sent: sentToA.splice(0), beforeA, answered: await cleared, after: O.overflowCount() };
+            inPlay = false;
+            depart();
+
+            await overflowStore.patch("record", { count: 5 });
+            await settle();
+            const told = [];
+            const verdict = await G.judge(BRIDGE_ACTIONS, { action: "overflow.clear", requestId: "suite-h8406-player", userId: player.id }, player.id,
+                { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+            await settle();
+            read.player = [verdict === false ? "no row" : told.join(","), O.overflowCount()];
+        } finally {
+            inPlay = false;
+            depart();
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+        }
+        const title = game.i18n.localize("DRPG.Overflow.clear");
+        const buttons = [["cancel", true], ["clear", false]];
+        equal(stableJson(read), stableJson({
+            button: [true, true],
+            here: { no: false, afterNo: 5, yes: true, afterYes: 0, stampKept: true, asked: [[title, true, buttons], [title, true, buttons]] },
+            second: { sent: ["overflow.clear"], beforeA: 5, answered: true, after: 0 },
+            player: ["gmOnly", 5]
+        }), "[the tab's Clear and its wiring; on the primary: Cancel answered, the count, Clear answered, the count, the stamp kept, what was asked; "
+            + "with a second GM the primary: what was sent to it, the count before it judged, the answer, the count after; a player's ask: what was told, the count]");
+    }],
+
     ["a pip's change never spills, and a step queued on a GM that stopped being the primary goes to the new one (E17-T8): Despair asked of it, the overflow added through it, a player's spend refused and a prune left to it", async () => {
         /*
          * E17 fix e1-G4, 26.10.2026; the review's E17R-04 and E17P1-R4 (a pip's +1 on a pool the primary had raised since the

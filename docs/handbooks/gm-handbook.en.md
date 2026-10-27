@@ -346,6 +346,8 @@ Two GMs are normal. One of them is the **primary GM** (the connected full Gamema
 
 **A trial verdict empties the overflow** on both outcomes; the season reset does too. A darkening announced during the Class Trial still comes: its card says from the next time of day, the verdict keeps it waiting, and the next time of day - or the Eclipse that opens it - brings it, with nothing paid again and no second card. The season reset clears that one as well. Players see the pools' counts and the overflow's threshold, but a "?" in place of its count ("?/20") - when the hat fires stays Monokuma's to know. Since 1.2.64 the count itself is kept by the GMs (section 14), so a console reads no more of it than the screen shows; Despair Flow shows it to you.
 
+**Clearing it yourself.** Despair Flow's Overflow tab has **Clear the overflow** under the count: it asks first (Cancel is the default), then sets the spilled Despair back to 0, whichever GM presses it - the primary GM's browser does the clearing. A darkening already drawn stays until its time of day ends.
+
 ---
 
 ## 8. Monokuma, Monocubs and the Mastermind

@@ -346,6 +346,8 @@ Dwóch GMów to norma. Jeden z nich jest **głównym GMem** (połączony pełny 
 
 **Werdykt Class Trial opróżnia overflow** przy obu wynikach; reset sezonu też. Zaciemnienie ogłoszone w trakcie Class Trialu i tak przychodzi: jego karta mówi, że od następnej pory dnia, werdykt zostawia je czekające, a następna pora dnia - albo otwierający ją Eclipse - je przynosi, bez ponownej opłaty i bez drugiej karty. Reset sezonu czyści i je. Gracze widzą liczby w pulach i próg overflow, ale "?" zamiast jego licznika ("?/20") - kiedy kapelusz wystrzeli, wie tylko Monokuma. Od 1.2.64 sam licznik trzymają GMowie (sekcja 14), więc konsola nie przeczyta z niego więcej, niż pokazuje ekran; tobie pokazuje go Despair Flow.
 
+**Samodzielne czyszczenie.** Zakładka Overflow w Despair Flow ma pod licznikiem **Wyczyść overflow**: najpierw pyta (domyślnie Anuluj), potem zeruje rozlany Despair, ktokolwiek z GM-ów go naciśnie - czyści przeglądarka głównego GM-a. Zaciemnienie, które już wylosowano, trwa do końca swojej pory dnia.
+
 ---
 
 ## 8. Monokuma, Monocuby i Mastermind

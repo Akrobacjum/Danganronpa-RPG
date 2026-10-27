@@ -455,7 +455,7 @@ const VERDICT = "the verdict";
  * points it at its own target with no payment and no card. One running now, an event (it has
  * happened) and anything at the season reset are cleared as before.
  */
-export async function resetOverflow({ reason = VERDICT } = {}) {
+export async function resetOverflow({ reason = VERDICT, countOnly = false } = {}) {
     if (!game.user.isGM) return null;
     // Both halves, in their two places since E05 C12: the GMs' count and the world's stamp. The
     // zero after the other GMs' copies (fix r2-G2): the store's clock has then seen their stamps.
@@ -464,10 +464,31 @@ export async function resetOverflow({ reason = VERDICT } = {}) {
     const kept = atVerdict ? waitingDarkening() : null;
     await serialWrite(OVERFLOW_KEY, async () => {
         await overflowStore.patch(RECORD, { count: 0 });
-        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: atVerdict ? kept : null });
+        // A GM's Clear (`clearOverflowAsGm`) is the count alone: a darkening already drawn has been paid for and announced.
+        if (!countOnly) await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: atVerdict ? kept : null });
     });
-    log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}.`);
+    log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}${countOnly ? "; the drawn darkening, if any, stands" : ""}.`);
     return true;
+}
+
+/**
+ * A GM's Clear on Despair Flow's Overflow tab (gm-team-dialog.mjs `clearOverflowFromTab`, which asks first): the count
+ * back to 0 on the primary GM, the darkening already drawn left standing. Answers true when it was cleared, null when not.
+ *
+ * NO GM COULD CLEAR IT (H84-06, 27.10.2026; the owner's live session on 1.2.85, triage C6). `resetOverflow` had two
+ * callers, the verdict and the season reset; the pools' caption and the Overflow tab had no control, and the only road
+ * was the console's `game.drpg.resetOverflow()`. On the primary, as every write of the count is since E17 C5: another
+ * GM asks it (gm-bridge.mjs `overflow.clear`, a GM's alone), and with no primary connected it is cleared here, as
+ * `addOverflow` adds. Tier 2 "a GM clears the overflow ... (H84-06)".
+ */
+export async function clearOverflowAsGm() {
+    if (!game.user?.isGM) return null;
+    if (primaryElsewhere()) {
+        const { requestOverflowClear } = await import("./gm-bridge.mjs");
+        const res = await requestOverflowClear();
+        return res.ok ? true : null;
+    }
+    return resetOverflow({ reason: `a GM (${game.user.name})`, countOnly: true });
 }
 
 /** The armed darkening a verdict keeps, marked `pending`, or null: a state whose time of day has not begun. */
@@ -1006,8 +1027,10 @@ export function overflowSection() {
         `<p class="notes drpg-overflow-empty">${
             esc(game.i18n.localize("DRPG.Overflow.emptyPool"))}</p>`;
 
+    // H84-06: the GM's Clear, beside the count it clears; wired by gm-team-dialog.mjs (`clearOverflowFromTab`).
     return `<p>${esc(game.i18n.localize("DRPG.Overflow.setupIntro"))}</p>
         <p class="notes drpg-overflow-now">${esc(nowLine)}</p>
+        <p><button type="button" data-drpg-overflow-clear>${esc(game.i18n.localize("DRPG.Overflow.clear"))}</button></p>
 
         <label class="drpg-overflow-threshold">
             <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>
