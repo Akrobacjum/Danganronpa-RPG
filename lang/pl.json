@@ -2451,6 +2451,7 @@
       "critPrompt": "Krytyk - kategoria rozpoznana od razu, i należy się solidna podpowiedź.",
       "describeConfirm": "Przekaż",
       "rerollLost": "Przyszedł Reroll Observe bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego samego śladu i odbierz Truth Bullet, jeśli już nie pasuje.",
+      "alreadyHeld": "Masz już Truth Bullet tego śladu.",
       "alreadyDescribed": "Ten ślad ma już nazwę i każdy obserwator słyszy tę samą - dwie nazwy jednego przedmiotu to fałszywa sprzeczność, którą trzeba by potem rozplątywać w Class Trial. Krytyk kupuje większą podpowiedź, nie nową nazwę: dopisz ją poniżej.",
       "generalHint": "Weź to, co najłatwiej zauważyć w tym pokoju. Rozstrzygają kości.",
       "nonObviousHint": "Celuj w najtrudniejszą rzecz tutaj - i w to, czego w tym pokoju w ogóle nie powinno być. Rozstrzygają kości.",

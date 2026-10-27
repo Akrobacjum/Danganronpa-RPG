@@ -63573,6 +63573,95 @@ const SCENARIOS = [
             + "(read: the keys after two grants; after the sweep the keys to the room, to the dead name, the same item, its name; the taker's keys, the steal's room, the giver's keys)");
     }],
 
+    ["H84-02: one trace, one Truth Bullet per character - a trace a pending Observe of theirs aims at is not offered to their next one until it is resolved, two Observes aimed at it at once make one bullet, and a second resolve of one Observe while its find is described is refused", async () => {
+        /*
+         * H84 (E87), 27.10.2026; the owner's live session on 1.2.85 (triage A3): two identical Truth Bullets of one
+         * trace. A second Observe of the same character, declared before the first was resolved - the first waiting
+         * on the GM's describe window or on a named-target card - was offered the same trace, since observe.mjs
+         * `observeCandidates` left out only the traces already copied, and `createFind` made the bullet with no
+         * second look. A trace is placed where a connected player's character stands, and the GM's pick of it
+         * (`pickObserveTarget`) declares an Observe on it: read whether the character's next Observe is offered it
+         * while that one waits, and again once it is resolved as a miss. Then two picks of it at once, both resolved
+         * on a success, the first find's describe window held open while the second is scored and the first one's
+         * resolve asked twice in that time. Read: the two picks' answers, the second resolve's refusal, and the
+         * character's bullets of the trace. Any other window of the GM's is closed at once. The miss's Sanity is put
+         * back. Red at 774b28a9 (measured on the harness, 27.10.2026): offered while pending, two bullets, no refusal.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const sanity = actor.system.resources.stress.value;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        let answer = null, hold = false;
+        // While `hold`, the first window - a find's description - waits for the test; every other one is closed at once.
+        D.wait = cfg => {
+            asked.push(cfg?.window?.title ?? "");
+            if (hold && !answer) return new Promise(resolve => { answer = resolve; });
+            return Promise.resolve(null);
+        };
+        const offered = async id => (await observe.observeCandidates(actor)).candidates.some(c => c.token.id === id);
+        const resolve = key => observe.resolveObserve({ key, total: 30, isCritical: false, actorId: actor.id, senderIsGm: true });
+        const read = {};
+        let trace = null, first = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace two Observes aim at" });
+            must(trace, "the trace was not placed");
+            must(await offered(trace.id), "the placed trace is not offered to the character where it lies - this would measure nothing");
+            const pick = () => observe.pickObserveTarget({ actorId: actor.id, room: where.room, tokenId: trace.id, userId: player.id });
+            const one = await pick();
+            must(one?.ok, `the GM's pick of the trace was not written: ${stableJson(one)}`);
+            const whilePending = await offered(trace.id);
+            await observe.resolveObserve({ key: one.key, total: 1, isCritical: false, actorId: actor.id, senderIsGm: true });
+            read.offered = [whilePending, await offered(trace.id)];
+
+            const both = await Promise.all([pick(), pick()]);
+            read.picks = both.map(p => Boolean(p?.ok));
+            const keys = both.filter(p => p?.ok).map(p => p.key);
+            hold = true;
+            first = resolve(keys[0]);
+            await until(() => answer);
+            const again = await resolve(keys[0]);
+            const rest = await Promise.all(keys.slice(1).map(resolve));
+            answer(null);
+            await first;
+            first = null;
+            await settle();
+            read.again = again?.refused ?? null;
+            read.rest = rest.map(r => Boolean(r?.success));
+            read.bullets = actor.items.filter(i => !had.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id).length;
+        } finally {
+            if (answer) answer(null);
+            if (first) await first;
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (actor.system.resources.stress.value !== sanity) await trustedWrite(actor, { "system.resources.stress.value": sanity }, { reason: "gmRuling" });
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+        // The two picks at once and the other picks' results are the run's interleaving, not a verdict: said, not held.
+        equal(stableJson([read.offered, read.again, read.bullets]), stableJson([[false, true], "the GM is still describing what that Observe found", 1]),
+            "a character's second Observe was offered a trace their first one aims at, or not offered it again once that one was resolved, or a second "
+            + "resolve of one Observe was not refused while its find was described, or Observes aimed at one trace made more than one bullet (read: offered "
+            + `while pending and after the miss; the second resolve's refusal; the character's bullets of the trace) - picks at once ${stableJson(read.picks)}, `
+            + `their successes ${stableJson(read.rest)}`);
+    }],
+
     ["a transfer whose giver's piece cannot be taken off tells the GMs once, in its mode's words: a hand-over's, a body's that says nothing of a hand-over, a steal's of a stack whose count stays (E35-T5)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-38's second half, E35-10. The harm: the taker has the copy and the giver

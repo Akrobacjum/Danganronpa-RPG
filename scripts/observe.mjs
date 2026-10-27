@@ -30,7 +30,7 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
 import {
-    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug
+    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug, serialWrite
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
@@ -300,9 +300,25 @@ export async function observeCandidates(actor, { room = null, preferOwn = false 
     if (!where?.room) return { where: null, candidates: [] };
     if (room && where.room !== room) return { where, candidates: [] };
     const already = copiedRemnants(actor);
+    for (const id of pendingTracesOf(actor.id)) already.add(id);
     const candidates = rankForObserve(where.room, where.scene, { preferSource: preferOwn ? actor.id : null })
         .filter(c => !already.has(c.token.id));
     return { where, candidates };
+}
+
+/**
+ * THE TRACES THIS CHARACTER'S OWN OBSERVES ARE AIMED AT AND NOT RESOLVED YET (H84, 27.10.2026; the owner's session on
+ * 1.2.85, triage A3). `observeCandidates` left out only the traces already copied, so an Observe declared while the
+ * first still waited - on the GM's describe window, on a Focus card - was offered the same trace (the ranking is
+ * deterministic), and both made a bullet of it: tier 2 "H84-02: one trace, one Truth Bullet per character ...", offered
+ * while pending at 774b28a9, not here. Read from this GM's rows (`pending`, the hour's TTL as `sweepPending` keeps it);
+ * a row with a result lets its trace go, so a missed trace can be looked for again. A project-only row aims at no trace.
+ */
+function pendingTracesOf(actorId) {
+    readPending();
+    const cutoff = Date.now() - PENDING_TTL_MS;
+    return [...pending.values()].filter(entry => entry?.actorId === actorId && !entry.result && entry.tokenId && !entry.projectOnly
+        && entry.at >= cutoff).map(entry => entry.tokenId);
 }
 
 /** Write one Observe's pending row for the trace `chosen` (and the project `secret`, if any), and answer its key. */
@@ -686,6 +702,11 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
 
     const refused = observeResolveRefusal(entry, { actorId, senderId, senderIsGm, undo });
     if (refused) return { refused };
+    /* A SECOND RESOLVE OF ONE OBSERVE WHILE ITS FIND IS DESCRIBED (H84, 27.10.2026): the result is written once the GM
+       has described the find, so a second resolve of the key in that time passed `observeResolveRefusal` and scored it
+       again - a second bullet, or (since `createFind` re-checks the copy) a result with none written over the first's.
+       Refused as the Reroll is in that time (reason "busy", bridge-guards.mjs); tier 2 "H84-02 ...". */
+    if (!undo && describing.has(key)) return { refused: "the GM is still describing what that Observe found" };
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;
@@ -952,6 +973,9 @@ async function createFind(actor, entry, isCritical) {
         remnantPublicById, setRemnantPublicById, revealRemnantToFinderById
     } = await import("./remnants.mjs");
 
+    // A copy already held is no find (H84; `alreadyHeld` below): asked before the GM is asked to describe it.
+    if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
+
     const stored = remnantPublicById(entry.sceneId, entry.tokenId);
     const neutralName = game.i18n.localize("DRPG.Remnant.tokenName");
     // Has anybody actually described this yet, or is `stored.name` just the
@@ -980,7 +1004,12 @@ async function createFind(actor, entry, isCritical) {
         }
     }
 
-    const item = await createTruthBullet(actor, {
+    /* ONE COPY PER CHARACTER, CHECKED WHERE IT IS MADE (H84, 27.10.2026; triage A3). The check above runs before the
+       GM's describe window, which waits as long as the GM takes; two Observes aimed at one trace (two declarations in
+       one moment, before either row was written) both passed it and both made a bullet - tier 2 "H84-02 ...": 2 with this
+       check taken out (mutant h8402-noRecheck, 27.10.2026), 1 here. The copy is read again and the bullet made in one step of `serialWrite` under the character's
+       key, after the window: the step awaits the create and its secret, never a person. */
+    const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
         name: pub?.name || written?.name || fallbackName,
         realType: data.type,
         /*
@@ -1024,7 +1053,9 @@ async function createFind(actor, entry, isCritical) {
         // find shows it at once (tier 2 "a copy made between the death and the discovery holds
         // the death's tie back until the death is the table's").
         tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId })
-    });
+    }));
+    if (made === HELD) return alreadyHeld(actor, entry);
+    const item = made;
 
     if (!item) return null;
 
@@ -1048,6 +1079,19 @@ async function createFind(actor, entry, isCritical) {
 
     log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
     return item;
+}
+
+/** `createFind`'s answer inside its step when the character holds a copy of the trace already. */
+const HELD = Symbol("held");
+
+/** The queue key of a character's finds (`createFind`). */
+export const observeFindKey = actorId => `observeFind/${actorId}`;
+
+/** A find of a trace the character holds a copy of: no bullet, the character told, and null for `createFind`. */
+async function alreadyHeld(actor, entry) {
+    log(`Observe: ${actor.name} already holds a copy of the trace in ${entry.room}; no second Truth Bullet was made.`);
+    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Observe.alreadyHeld")}</p>`);
+    return null;
 }
 
 /** The GM's sentence, prefilled. Never blocks the result - see `createFind`. */
