@@ -173,27 +173,101 @@ export async function tickMotive() {
 
     const remaining = Math.max(0, (stored.remaining ?? 0) - 1);
     const due = remaining === 0;
-    const announceDue = due && !stored.dueAnnounced;
+    let announceDue = due && !stored.dueAnnounced;
+
+    /*
+     * DUE IN AN INCIDENT, TOLD TO ITS TABLE AND OWED TO THE REST (E17 C7, 26.10.2026; audit S10-07). The clock moves in
+     * private while an incident runs (clock.mjs `announceTimeOfDay`), and this card on the same move told every screen
+     * that the GM had just moved it. Now it goes where that move's card goes - veiled, to the GMs and the incident's
+     * audience (`incidentAudienceIds`) - and the motive is not marked announced, so the public card comes with the
+     * first move of the clock after the incident. Tier 2 "the Eclipse and the incident (E17-T10)".
+     *
+     * AND THE COUNTDOWN HELD FOR THE BYSTANDERS, THE TABLE TOLD ONCE, THE REST AT THE CLOSE (E17 fix p2-G3, 26.10.2026;
+     * the end review's E17p2-R3, R8 of correctness and R5 of goal). The Event panel's motive card (events.mjs
+     * `motiveCard`) reads `remaining` on every browser, so the move inside the incident turned it "Due" on every
+     * bystander's screen at once: every tick inside an incident keeps `heldRemaining`, the count as the incident's first
+     * private tick found it, under `heldIn` (the incident's `openedAt`), and a bystander's card reads that
+     * (`shownMotive`) until the incident closes; a tick with no incident lets it go. The table's whisper is marked
+     * (`dueToldIn`), so a second move inside the same incident does not whisper it again; and the public card is posted
+     * by the close (`announceOwedMotive`, murder-rules.mjs `closeIncident`), where the bystanders' clock catches up,
+     * not at the next move of the clock, which may be a whole time of day later.
+     */
+    const { murderState, incidentAudienceIds } = await import("./murder.mjs");
+    const incident = murderState();
+    const key = incident ? incidentKey(incident) : null;
+    const toldHere = Boolean(incident) && stored.dueToldIn === key;
+    if (toldHere) announceDue = false;
 
     await game.settings.set(MODULE_ID, SETTINGS.motive, {
-        ...stored, remaining, dueAnnounced: stored.dueAnnounced || due
+        ...stored, remaining, dueAnnounced: stored.dueAnnounced || (due && !incident),
+        heldIn: key,
+        heldRemaining: incident ? (stored.heldIn === key && Number.isFinite(stored.heldRemaining) ? stored.heldRemaining : (stored.remaining ?? 0)) : null,
+        dueToldIn: incident && due && !stored.dueAnnounced ? key : (incident ? (stored.dueToldIn ?? null) : null)
     });
 
     if (announceDue) {
-        await announce({
-            flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
-            content: `<div class="drpg-evidence-card">
+        const card = dueCard(stored);
+        if (incident) {
+            const { whisperToGms, gmIds } = await import("./utils.mjs");
+            await whisperToGms(card.content, {
+                whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(incident)])), veiled: true, flags: card.flags
+            });
+            log("The motive has come due, told to the incident's table; the table is told after it.");
+        } else {
+            await announce(card);
+            log("The motive has come due.");
+        }
+    }
+
+    return { ...stored, remaining, due };
+}
+
+/** The key a motive's held countdown and its private telling are kept under: the incident's `openedAt`. Pure. */
+export function incidentKey(state) {
+    return state ? String(state.openedAt ?? "open") : null;
+}
+
+/**
+ * THE MOTIVE AS A BROWSER MAY SHOW IT (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R3): `record` (`motive()`'s
+ * answer) unless `hide` - a bystander of the running incident, incident-store.mjs `clockHiddenHere` - and the record
+ * holds a countdown for that incident (`heldIn` equal to `key`); then the count and the due as the incident's first
+ * private move of the clock found them, as the bystander's HUD keeps the clock. Pure.
+ */
+export function shownMotive(record, { hide = false, key = null } = {}) {
+    if (!record || !hide || !key || record.heldIn !== key || !Number.isFinite(record.heldRemaining)) return record;
+    return { ...record, remaining: record.heldRemaining, due: record.heldRemaining <= 0 };
+}
+
+/**
+ * THE PUBLIC CARD OF A MOTIVE THAT CAME DUE INSIDE AN INCIDENT (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R5,
+ * goal): posted once by the incident's close (murder-rules.mjs `closeIncident`), where the bystanders' clock catches
+ * up, and the motive marked announced; nothing when no motive is due, when it was announced, or while an incident
+ * still runs. GM only. Answers whether it posted.
+ */
+export async function announceOwedMotive() {
+    if (!game.user.isGM) return false;
+    const stored = motive();
+    if (!stored?.due || stored.dueAnnounced) return false;
+    const { murderState } = await import("./murder.mjs");
+    if (murderState()) return false;
+    await game.settings.set(MODULE_ID, SETTINGS.motive, { ...stored, dueAnnounced: true, heldIn: null, heldRemaining: null, dueToldIn: null });
+    await announce(dueCard(stored));
+    log("The motive came due in the incident; the table is told now it is closed.");
+    return true;
+}
+
+/** The motive's "due" card, as `tickMotive` and `announceOwedMotive` post it. */
+function dueCard(stored) {
+    return {
+        flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
+        content: `<div class="drpg-evidence-card">
                 <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.dueBanner")}</div>
                 <p>${esc(stored.text)}</p>
                 ${stored.consequence
                     ? `<p class="drpg-warning">${esc(stored.consequence)}</p>`
                     : ""}
             </div>`
-        });
-        log("The motive has come due.");
-    }
-
-    return { ...stored, remaining, due };
+    };
 }
 
 /**
@@ -214,7 +288,9 @@ export async function untickMotive() {
     const remaining = Math.min(cap, (stored.remaining ?? 0) + 1);
     if (remaining === stored.remaining) return stored;
 
-    const next = { ...stored, remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced };
+    const next = { ...stored, remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced,
+        // Un-happened as well (E17 fix p2-G3): a motive that comes due again in the same incident is told to its table again.
+        dueToldIn: remaining === 0 ? (stored.dueToldIn ?? null) : null };
     await game.settings.set(MODULE_ID, SETTINGS.motive, next);
     return next;
 }

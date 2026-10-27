@@ -46,6 +46,8 @@ const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
+/** GM -> primary GM: add to the overflow's count (E17 C5) - see overflow.mjs `addOverflow`. */
+const ACTION_OVERFLOW_ADD = "overflow.add";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
@@ -103,6 +105,8 @@ const ACTION_PASSAGE_SHARE = "passage.share";
 const ACTION_PASSAGE_CROSS = "passage.cross";
 /** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
 const ACTION_PASSAGE_FIND = "passage.find";
+/** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */
+const ACTION_REFUND_CROSSING = "token.refundCrossing";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
@@ -631,6 +635,14 @@ async function handlePassageCross(payload, sender) {
     return { reply: true };
 }
 
+/** The run of `token.refundCrossing` (E17 C3): the primary's own refund (movement.mjs `refundLastCrossing`), its reply or its refusal. */
+async function handleRefundCrossing(payload) {
+    const { refundLastCrossing } = await import("./movement.mjs");
+    const out = await refundLastCrossing(payload.actorId);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
 // Find Passage (E80 C3): a `found` cell in the GMs' records, which only the primary writes. Every check past the sender's
 // ownership of the character is `resolvePassageSearch`'s - the phase, the character, its room and floor where the GMs read
 // it (movement.mjs `gmPlaceOf`), the passages it does not know - and the total is the GMs' record of the roll (`rolled`,
@@ -768,7 +780,8 @@ async function handleFriskAsk(payload, sender, ctx) {
         if (!ctx?.requestId || !ctx.asker) return;
         game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: ctx.requestId, userId: ctx.asker, value }, { recipients: [ctx.asker] });
     };
-    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply });
+    // The request id is the ask's on E18's one road: the searcher's expiry names it (`expiredOnPrimary`, E18 C7).
+    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply, requestId: ctx?.requestId ?? null });
     if (out?.refused) return { refused: out.refused };
     if (out?.later) return { later: true };
     return { reply: out?.value ?? null };
@@ -1415,6 +1428,20 @@ async function handleRemnantEdit(payload, sender, ctx) {
     debug(`Retuned a Remnant on behalf of ${sender.name}.`, narrowed);
 }
 
+/*
+ * A SABOTAGE ASKED AGAIN (E18 C7, 26.10.2026; audit S10-43 part 2, the stage's row E18-32): the repair a player's
+ * Sabotage made keeps the request it was made under beside its saboteur (projects.mjs `sabotageOfRequest`), so the same
+ * sender's resend under that id is answered the first result (bridge-guards.mjs `judge`, `again`) instead of being
+ * refused by the roll it settled. A miss made no repair and a refused one none either: their resend is judged anew, and
+ * refused, as the first answered nothing.
+ */
+async function sabotageAgain(sender, ctx) {
+    if (sender.isGM) return null;
+    const { sabotageOfRequest } = await import("./projects.mjs");
+    const first = sabotageOfRequest(sender.id, ctx.requestId);
+    return first ? { reply: first } : null;
+}
+
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
@@ -1425,8 +1452,9 @@ async function handleSabotage(payload, sender, ctx) {
        rerolled into a success froze nothing. */
     const difficulty = Math.trunc(payload.difficulty);
     // Who asked, so that only their own Reroll can take it back (E03).
+    // And under which request (E18 C7): a resend of it answers this result again (`sabotageAgain`).
     const result = difficulty > 0 ? await sabotageProject(payload.targetId, difficulty,
-        { saboteur: sender.isGM ? null : sender.id }) : null;
+        { saboteur: sender.isGM ? null : sender.id, requestId: sender.isGM ? null : ctx?.requestId ?? null }) : null;
     /* Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a), on the
        row of the roll the packet names (fix r1-G1; the review's B1). The sender's newest Sabotage
        row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
@@ -1629,13 +1657,21 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     return { reply: { ok: true, left: paid.left } };
 }
 
+/** The run of `overflow.add` (E17 C5): the primary's own `addOverflow`, its count after, or a refusal when nothing was added. */
+async function handleOverflowAdd(payload, sender, ctx) {
+    const { addOverflow } = await import("./overflow.mjs");
+    const after = await addOverflow(Math.trunc(payload.amount), { reason: payload.reason || `asked by ${sender.name}` });
+    if (after === null) return { refused: "nothing was carried out: the overflow took nothing" };
+    return { reply: { after } };
+}
+
 async function handleDespair(payload, sender, ctx) {
     // A GM's alone since E08+E28 C8, as a Reroll's point is the GM's own (reroll.mjs); the size
     // and the pool are the declaration's guards.
     const delta = Math.trunc(payload.delta);
     const target = game.users.get(payload.targetUserId);
     const { adjustDespair } = await import("./despair.mjs");
-    await adjustDespair(target.id, delta);
+    await adjustDespair(target.id, delta, { clamp: payload.clamp === true });
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
 }
 
@@ -1920,6 +1956,21 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it - of a one-way tunnel the end the GMs' row enters it by (H81-02) -, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
         }
+    },
+    /*
+     * REFUND LAST CROSSING, ON THE PRIMARY GM (E17 C3, 26.10.2026; audit S07-16, D18). The GMs' record of a character's
+     * newest crossing and its price is the primary's (gm-stores.mjs `crossingStore`), and so is the step of the
+     * character's key that gives it back (movement.mjs `refundLastCrossing`): another GM's click in the Students window
+     * asks it here. A GM's alone: a player's console that could ask would be handed back what its crossing cost. Tier 2
+     * E17-T6 judges it as the player's ask (refused) and as a GM's (given, once).
+     */
+    [ACTION_REFUND_CROSSING]: {
+        label: "DRPG.Bridge.what.token.refundCrossing",
+        guards: [gmOnly("only a GM gives a crossing back")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleRefundCrossing,
+        answer: "reply",
+        claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
     },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",
@@ -2206,7 +2257,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingExpired,
         answer: "none", quiet: true,
-        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender" }
+        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender - a card's, or an open Frisk's (frisk.mjs expireFriskAsk: an unanswered one only once the sender's wait could have run out, an answered one as its 'Leave it')" }
     },
     [ACTION_RULING_RECEIVED]: {
         label: "DRPG.Bridge.what.ruling.received",
@@ -2358,6 +2409,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ targetId: as.id, difficulty: as.num, actorId: as.id, rollId: as.id, penalty: as.num, relief: as.num }),
         run: handleSabotage,
+        again: sabotageAgain,
         answer: "reply", resend: true, queue: "project",
         // Of the project its roll was drawn for (fix r2-H2: `named`).
         rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
@@ -2468,10 +2520,25 @@ export const BRIDGE_ACTIONS = table({
         // A player's point was a Reroll's, paid for by a receipt, until E08+E28 C8: the GM settles a
         // Reroll's Despair itself (reroll.mjs), and an Assistant GM's correction comes here (DESP-12).
         guards: [gmOnly("an undo is the GM's own Reroll's"), guardDespairDelta, guardDespairPool],
-        sanitize: pick({ targetUserId: as.id, delta: as.num }),
+        // `clamp` (E17 fix e1-G4): a GM's pip, held at the maximum with nothing spilled; a GM's flag, false from a player.
+        sanitize: pick({ targetUserId: as.id, delta: as.num, clamp: as.gmFlag }),
         run: handleDespair,
         answer: "reply",
         claims: { targetUserId: guardDespairPool }
+    },
+    /*
+     * THE OVERFLOW, ON THE PRIMARY GM (E17 C5, 26.10.2026; audit S09-32). A GM that is not the primary adds to the
+     * count here (overflow.mjs `addOverflow`): Feed the Overflow paid on an Assistant's browser, a spill written there
+     * with no primary to ask. A GM's alone: a player's console that could ask would darken the world. Tier 2 E17-T8
+     * judges a player's ask (refused) and a second GM's (added on the primary, its count answered).
+     */
+    [ACTION_OVERFLOW_ADD]: {
+        label: "DRPG.Bridge.what.overflow.add",
+        guards: [gmOnly("only a GM adds to the overflow"),
+            inRange("amount", n => Number.isFinite(n) && n >= 1 && n <= STARTING.despairMax, value => `amount ${value} is out of range`)],
+        sanitize: pick({ amount: as.num, reason: as.text }),
+        run: handleOverflowAdd,
+        answer: "reply"
     },
     [ACTION_ECLIPSE_MOVE]: {
         label: "DRPG.Bridge.what.eclipse.move",
@@ -2911,6 +2978,21 @@ export async function requestPassageCross({ actorId, passageId }, { hush = [] } 
 }
 
 /**
+ * "Refund last crossing" from the Students window (E17 C3; gm-panel.mjs): the primary GM gives it back, here when this
+ * is the primary, asked of it otherwise; a refusal is said as the bridge says it. Its value is the refund's reply, or null.
+ */
+export async function requestRefundCrossing(actorId) {
+    const res = await ask(ACTION_REFUND_CROSSING, { actorId }, {
+        onPrimary: true,
+        local: () => import("./movement.mjs").then(m => m.refundLastCrossing(actorId)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_REFUND_CROSSING, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+    return res.ok ? res.value ?? null : null;
+}
+
+/**
  * Find Passage (E80 C3; action-rolls.mjs `locatePassage`): the roll `rollId` names goes to the primary GM, which reads the
  * total off its record and judges the rest from the GMs' records (passages-gm.mjs `resolvePassageSearch`); a GM's own
  * browser does it here when it is the primary, and says a refusal as the bridge would. Its value is true once judged:
@@ -3016,8 +3098,16 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
  * The caller has already checked that the primary is online and is somebody else.
  * The runner judges on the primary GM only, so there is one writer.
  */
-export function sendDespairToPrimary(targetUserId, delta) {
-    return ask(ACTION_DESPAIR, { targetUserId, delta });
+export function sendDespairToPrimary(targetUserId, delta, { clamp = false } = {}) {
+    return ask(ACTION_DESPAIR, { targetUserId, delta, ...(clamp ? { clamp: true } : {}) });
+}
+
+/**
+ * A GM that is not the primary adds to the overflow (E17 C5; overflow.mjs `addOverflow`), which asked only once it
+ * knew the primary is connected and is somebody else. Its value is `{ after }`, the count on the primary after.
+ */
+export function requestOverflowAdd(amount, reason) {
+    return ask(ACTION_OVERFLOW_ADD, { amount, reason });
 }
 
 /**
@@ -3830,7 +3920,9 @@ async function expiredOnPrimary(requestId, senderId) {
         await endSentOn(sentOn, { askerExpired: true });
         return true;
     }
-    return false;
+    // An open Frisk's ask, held by its request id and its asker in frisk.mjs's memory, not on a card (E18 C7).
+    const { expireFriskAsk } = await import("./frisk.mjs");
+    return expireFriskAsk(requestId, senderId);
 }
 
 /**
@@ -4252,6 +4344,16 @@ export function requestFriskUnseen({
 export function requestFriskAsk({ searcherId, targetId }) {
     return ask(ACTION_FRISK_ASK, { searcherId, targetId }, {
         onPrimary: true,
+        /* E18'S ONE ROAD (E18 C7, 26.10.2026; amend 5): the ask lives in the primary's memory (frisk.mjs `friskAsks`), so
+           it ends with that primary. The wait ends with it at once only when another connected GM takes over the primary
+           (bridge-guards.mjs `primaryGone`, run by registerBridgeReplies when `primaryLeft`, which needs a successor);
+           when the only GM leaves or reloads, the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and the
+           clock hands the action back (E18 fix c7-G1, the review's C7-R1; R1006 drives both). A wait that runs out tells
+           the primary, which ends the ask so a yes after it is not kept (`expired`, frisk.mjs `expireFriskAsk`, which
+           judges that claim). No receipt: the ask's end is its cards, posted before its answer goes, and with a force
+           open the follow is the searcher's next word. */
+        untilPrimaryLeaves: true,
+        expired: ACTION_RULING_EXPIRED,
         lateMs: TIMING.friskMarginMs,
         late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
         local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {

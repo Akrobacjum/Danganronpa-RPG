@@ -68,6 +68,19 @@ function stateDiff(a, b, at = "", out = []) {
    printed in its first check's detail, so the next reader compares them with 246 s rather than with the bound. */
 const READ_ONLY_MS = 370000;
 
+/*
+ * THE PRIMARY'S BEAT IS THE ONE LEAF THAT MAY TICK (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, suite
+ * 1/8). Since E17 C6 the primary GM writes `serverNow()` into the GMs' store "clockBeat" every 60 s while the world runs
+ * (hud.mjs `beatClock`) - a client setting of this browser, so this reading saw it: A1 and A2 each failed on
+ * `client.danganronpa-rpg.gmClockBeat.worlds.drpg-audit-world.e.record.at` and `...t.record`, a run of tiers 0 and 1
+ * being longer than a beat. The beat is the time passing, written whatever the suite does, as a GM at the table would
+ * have it written; the suite's own dump leaves it out with its measurement (tests-kit.mjs `DUMP_RULES`, the gmClockBeat
+ * row). Here only the record (its first beat), its `at` and its stamp, in any world's section of that one key, are let
+ * move, the record holding `at` alone and only forward; any other leaf of that store - its tombstones, its watermark,
+ * another field - or of anything else still fails the check, and what moved is named in the detail.
+ */
+const BEAT_LEAF = /^client\.danganronpa-rpg\.gmClockBeat\.worlds\.[^.]+\.(e\.record(\.at)?|t\.record)$/;
+
 async function readOnlyRun(gm, check, label, repoUrl) {
     const began = Date.now();
     const out = await gm.eval(`
@@ -85,9 +98,15 @@ async function readOnlyRun(gm, check, label, repoUrl) {
     const seconds = Math.round((Date.now() - began) / 100) / 10;
     check(`gm: ${label} - tiers 0 and 1 only, no tier 2`, out && !out.tier2 && out.tiers.every(t => t <= 1) && out.tiers.length > 0,
         JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2, seconds, boundSeconds: READ_ONLY_MS / 1000 }));
-    const moved = out ? stateDiff(out.before, out.after) : ["no answer"];
-    check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0,
-        (out?.settled === false ? "the load had not settled in 30 s; " : "") + moved.slice(0, 12).join("; "));
+    const diff = out ? stateDiff(out.before, out.after) : ["no answer"];
+    const beat = diff.filter(p => BEAT_LEAF.test(p));
+    const moved = diff.filter(p => !BEAT_LEAF.test(p));
+    const beats = state => state?.client?.["danganronpa-rpg.gmClockBeat"]?.worlds ?? {};
+    const forward = !beat.length || Object.entries(beats(out.after)).every(([world, w]) =>
+        Object.keys(w?.e?.record ?? {}).every(f => f === "at") && Number(w?.e?.record?.at ?? 0) >= Number(beats(out.before)[world]?.e?.record?.at ?? 0));
+    check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0 && forward,
+        (out?.settled === false ? "the load had not settled in 30 s; " : "") + moved.slice(0, 12).join("; ")
+        + (beat.length ? ` (the primary's beat ticked, ${forward ? "forward" : "backward, or beside another field"}: ${beat.join("; ")})` : ""));
     check(`gm: ${label} - the suite says tier 0/1 changed nothing`, out?.purity?.outcome === "pass",
         `${out?.purity?.outcome ?? "no purity result"}: ${out?.purity?.message ?? ""}`.slice(0, 600));
     check(`gm: ${label} - nothing failed`, out?.failed === 0, (out?.fails ?? []).join(" | ").slice(0, 1200));

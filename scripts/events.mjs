@@ -23,7 +23,8 @@ import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
-import { motive } from "./rules.mjs";
+import { motive, shownMotive, incidentKey } from "./rules.mjs";
+import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor, locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
@@ -85,8 +86,15 @@ export function eventsWindowActive() {
 
 /* ---- the three cards ------------------------------------------------------ */
 
-function motiveCard() {
-    const record = motive();
+/**
+ * The motive's card on the Event panel. `view` is who looks (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R3): a
+ * bystander of the running incident (incident-store.mjs `clockHiddenHere`) reads the countdown the incident's first
+ * private move of the clock found (rules.mjs `shownMotive`), as their HUD keeps the clock - the card turned "Due" on
+ * every bystander's screen at the move inside the incident. Exported for the suite (tier 2 E17-T10), which has no
+ * bystander's browser to draw it on.
+ */
+export function motiveCard(view = motiveView()) {
+    const record = shownMotive(motive(), view);
     if (!record) return null;
     const meta = record.due
         ? game.i18n.localize("DRPG.Motive.dueShort")
@@ -104,6 +112,12 @@ function motiveCard() {
             : null,
         tooltip: tooltip.join("<br>")
     };
+}
+
+/** Who looks at the motive's card on this browser: `{ hide, key }` for `shownMotive`. */
+function motiveView() {
+    const state = murderState();
+    return { hide: clockHiddenHere(state), key: incidentKey(state) };
 }
 
 function assemblyCard() {

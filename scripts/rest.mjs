@@ -102,9 +102,18 @@ export async function setRestRoom(roomName, { short = null, long = null, scene =
  * their own when the clock moves rather than needing a reset pass.
  * ========================================================================== */
 
-/** The stamp that identifies "this rest, in this window" (read by the GMs' audit too: sheet-audit.mjs `restCovers`). */
+/**
+ * The stamp that identifies "this rest, in this window" (read by the GMs' audit too: sheet-audit.mjs `restCovers`).
+ *
+ * THE CHAPTER IS IN IT (E17 C9, 26.10.2026; audit S07-23). It was `d${day}:${timeOfDay}` and `s${session}`: a
+ * chapter's end sets the day back to 1 and may keep the session (chapter.mjs, its "next session" box), so a
+ * character who rested on chapter 1's first morning was told "already taken" on chapter 2's, and a long rest
+ * carried across the chapter's end (R1002). A stamp written before this is read as the current chapter's
+ * (`legacyRestStamp`, E17 fix p2-G3), so a rest taken in the time of day the module was updated in is not taken twice.
+ */
 export function restStamp(kind, clock) {
-    return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
+    const chapter = `c${clock.chapter ?? 1}`;
+    return kind === "long" ? `${chapter}s${clock.session}` : `${chapter}d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
 function restsTaken(actor) {
@@ -122,7 +131,20 @@ export function restSpent(actor, kind, clock = null) {
     if (!rules.perSession && !rules.perTimeOfDay) return false;
 
     const now = clock ?? currentClock();
-    return restsTaken(actor)[kind] === restStamp(kind, now);
+    const taken = restsTaken(actor)[kind];
+    return taken === restStamp(kind, now) || taken === legacyRestStamp(kind, now);
+}
+
+/**
+ * THE STAMP AS IT WAS WRITTEN BEFORE E17 C9 (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R11 and R8): no
+ * chapter, `d${day}:${timeOfDay}` and `s${session}`. Read as the current chapter's, so a character who rested in the
+ * time of day (or the session) the module was updated in is not given that rest a second time. What it costs: a stamp
+ * of that shape from an earlier chapter, at the same day and time of day (or session) and never written over since,
+ * reads as spent - the S07-23 refusal, once, for a character who has not rested since the update (sheet-audit.mjs
+ * `restCovers` judges new writes by `restStamp` alone). Pure.
+ */
+export function legacyRestStamp(kind, clock) {
+    return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
 /** The "used up" stamp for this rest, as a path of the one write that also carries its benefits. */

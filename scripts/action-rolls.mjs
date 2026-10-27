@@ -1917,8 +1917,21 @@ export function situationLine(step, score) {
     return text ? `<p><em>${text}</em></p>` : "";
 }
 
-/** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
-async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid }) {
+/**
+ * What a Search whose token was refused says, whether its action comes back, and whether the room counts as
+ * searched out - from the claim's why (search-tokens.mjs `claimOf`) and the room's count as this browser reads it
+ * now. A SEALED ROOM SAYS SO (E17 C4, 26.10.2026; audit S07-20): the GM's refusal of a room it sealed after this
+ * browser's map was drawn read as "The search was not counted."; it reads the seal now, the action back, as an
+ * unanswered request's is - the player could not have known. Pure (tier 2 E17-T7).
+ */
+export function unclaimedOutcome(why, left) {
+    if (why === "sealed") return { text: "DRPG.SearchTokens.sealed", refund: true, exhausted: false };
+    const empty = why === "empty" || left <= 0;
+    return { text: empty ? "DRPG.SearchTokens.pickedClean" : "DRPG.SearchTokens.timeout", refund: !empty, exhausted: empty };
+}
+
+/** The token was refused: an empty room, a sealed one, or nobody there to answer. Which one decides what the player keeps. */
+async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why = null }) {
     // WHY the token was refused decides what the player is told and whether
     // they keep the action.
     //
@@ -1938,20 +1951,21 @@ async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKe
     // charge was introduced for - "a room they knew was empty" is the Hope
     // generator, and it still costs - while an unanswered request is the
     // module failing the player, not the player gaming it.
-    const reallyEmpty = SearchTokens.left(room, scene) <= 0;
+    //
+    // A third answer since E17 C4: the GM refused a room it has sealed, which the
+    // reply names (`why`) - said as the seal, the action back (`unclaimedOutcome`).
+    const outcome = unclaimedOutcome(why, SearchTokens.left(room, scene));
     // With the receipt the spend handed back, so a Burst returns as a Burst.
-    if (!reallyEmpty && paid) await refundAction(actor, paid.amount, paid);
+    if (outcome.refund && paid) await refundAction(actor, paid.amount, paid);
 
     // `claimed: false` is what a Reroll reads: a room that was never
     // searched is not searched by rerolling the dice (ROLL-02).
     await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null, claimed: false });
     await report(actor, def, roll, {
-        text: game.i18n.localize(reallyEmpty
-            ? "DRPG.SearchTokens.pickedClean"
-            : "DRPG.SearchTokens.timeout"),
+        text: game.i18n.localize(outcome.text),
         room, tokensLeft: SearchTokens.left(room, scene)
     });
-    return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
+    return { success: false, exhausted: outcome.exhausted, unanswered: outcome.refund && why !== "sealed", sealed: why === "sealed" };
 }
 
 // "Something specific" is the one goal no table can answer. The roll still
@@ -2427,7 +2441,7 @@ async function performSearch(actor, def, options) {
     // Spending it up front meant backing out of the trait picker or the roll
     // window burned one of the room's three searches for nothing - twice and
     // the room was closed for the rest of the time of day.
-    const claimed = await SearchTokens.spend(room, scene?.id ?? null, { actorId: actor.id });
+    const { ok: claimed, why } = await SearchTokens.claim(room, scene?.id ?? null, { actorId: actor.id });
 
     // Kept whatever the token says - it was paid before the roll. The check
     // above the picker reads this client's copy of the counter, which can be a
@@ -2439,7 +2453,7 @@ async function performSearch(actor, def, options) {
     // Paying for it is also just what happened in the fiction. They searched a
     // room somebody else had already picked clean.
 
-    if (!claimed) return searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid });
+    if (!claimed) return searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid, why });
 
     // The hidden stash's step lands here, on the total the tiers read, and the card says
     // so (`situationLine`); the roll message keeps the dice's own total. The die it sets

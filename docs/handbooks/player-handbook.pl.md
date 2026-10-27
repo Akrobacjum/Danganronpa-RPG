@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.86, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.87, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -89,7 +89,7 @@ Trzy fazy:
 Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 
 - Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
-- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**.
+- Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przeglądarka GMa liczy twoje przejścia, gdy je widzi: przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
 - Otwiera ci się karta z podsumowaniem poprzedniej pory dnia - co znalazłeś, co zostawiłeś.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
@@ -125,8 +125,10 @@ Zawraca cię:
 | **Chained** z Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
 | **cudza sypialnia** | gdy nie masz do niej klucza |
 | **śmierć** | ciało zostaje tam, gdzie upadło |
-| **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu |
+| **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu, dopóki nie pozwoli mu akcja kryzysowa: Survive, Escape together, Finishing blow albo Averted eyes, jeśli tylko na nie trafiłeś |
 | **Class Trial** w toku | nikt nie opuszcza sali rozpraw |
+
+To wszystko sprawdza twój ekran i jeszcze raz przeglądarka GMa: ruch do pokoju, który te zasady zamykają, jest cofany tam, gdzie twój token ostatnio stał, i słyszysz, która zasada cię zawróciła; token upuszczony z paska bocznego do takiego pokoju jest usuwany. GM może też oddać ci ostatnie przejście (**Zwróć ostatnie przejście**): token wraca tam, gdzie stał, a to, ile przejście kosztowało, znowu jest twoje.
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
@@ -138,7 +140,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
-- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens, **Dostępny projekt**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
+- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
@@ -155,7 +157,7 @@ Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz
 
 ### Search Tokens
 
-Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz.
+Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **3**; GM ustawia od **0 do 10**). Każde Search wydaje jeden. Przeszukany do cna pokój jest przeszukany dla wszystkich, dopóki zegar się nie przesunie. HUD mówi, ile zostało tam, gdzie stoisz. Gdy odpowiedź GMa na twoje Search przychodzi za późno, przeszukanie nie jest liczone, zachowujesz akcję, a pokój odzyskuje token; pokój zapieczętowany przez GMa mówi ci, że nie da się go przeszukać, a akcję zachowujesz.
 
 ---
 
@@ -280,7 +282,7 @@ Cokolwiek, byle opisane szczegółowo. GM ustala trudność i statystykę albo o
 |---|---|---|
 | Koszt | 1 akcja | 2 akcje |
 | Wybierz | 1 z trzech | 2 z trzech |
-| Jak często | raz na porę dnia | raz na sesję |
+| Jak często | raz na porę dnia rozdziału | raz na sesję rozdziału |
 | Gdzie | pokoje, które GM oznaczył | pokoje, które GM oznaczył |
 
 | Opcja | Long | Short |
@@ -315,7 +317,7 @@ Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki. Palm odrzucony, zanim kości zostaną odczytane - cel wyszedł, zaczął się Class Trial - oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i akcja przepada.
 
-**Zobacz, co nosi** (Frisk) niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
+**Zobacz, co nosi** (Frisk) niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca, i tak samo, gdy GM wyjdzie albo przeładuje grę, kiedy czekasz: to kończy prośbę - od razu, gdy przejmuje ją inny GM, a bez innego GM-a, gdy skończy się twoje czekanie, nieco ponad minutę po prośbie. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
 
 ### Tamper - Shadow, 1 akcja
 
@@ -421,7 +423,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Rot | każdy przedmiot z więcej niż jednym punktem wytrzymałości traci jeden (jednorazowo, nic się nie łamie) |
 | Earthquake | każdy projekt jeszcze nieukończony i niezamrożony traci 1 postępu (jednorazowo) |
 
-Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
+Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena (pokój, któremu GM nie dał żadnego, nadal nie ma żadnego). Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
 
 ---
 
@@ -786,13 +788,13 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut trwa już ta pora dnia i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
 **Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
 **Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy.
 
-**Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
+**Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
 **Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16).
 

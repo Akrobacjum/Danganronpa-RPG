@@ -381,7 +381,12 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
  * follow finds no ask this primary held or ended, which ends it `interrupted` and the searcher's browser hands the action
  * back (`followFrisk`; E80 fix r2-G1, the review's fx-2). A GM that is no longer the
  * primary while it still holds asks (another GM connected whose turn it is) drops them at its next sweep, with no card
- * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Nothing enters world data
+ * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Since E18 C7 the ask is on
+ * E18's one road for its ends: the searcher's wait running out ends it here (`expireFriskAsk`, judged since E18 fix
+ * c7-G1: an unanswered ask once that wait could have run out, an answered one as 'Leave it'), and the wait ends at once
+ * when the primary that holds it leaves for another GM who takes over (gm-bridge.mjs `requestFriskAsk`; with no GM left
+ * the wait runs its clock); a GM whose socket comes back without a reload drops what it holds (`friskSocketBack`).
+ * Nothing enters world data
  * but the veiled cards: no flag, no item, no setting, no store.
  * ========================================================================== */
 
@@ -649,7 +654,7 @@ export async function sweepFriskAsks(now = Date.now()) {
  * incident, is asked of nobody (`silent`): the GMs get a notice and the clock runs as for a living target, so the asker
  * cannot tell a body from silence. Each answerer gets `frisk.ask` addressed to them alone.
  */
-export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, reply = null } = {}) {
+export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, reply = null, requestId = null } = {}) {
     const searcher = game.actors.get(searcherId) ?? null;
     const target = game.actors.get(targetId) ?? null;
     const why = personActionRefusal(searcher, target);
@@ -672,7 +677,8 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
 
     const place = gmPlaceOf(searcher);
     const askId = foundry.utils.randomID(16);
-    const row = { askId, asker: asker?.id ?? null, searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
+    const row = { askId, asker: asker?.id ?? null, requestId: typeof requestId === "string" && requestId ? requestId : null,
+        searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
         sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, answerUserIds: [], byGms: false, silent: null,
         at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null };
     friskAsks.set(askId, row);
@@ -832,11 +838,56 @@ export async function followFrisk({ searcherId, askId, rollId = null, total = 0,
 }
 
 /**
- * Every ask this GM holds dropped with nothing posted and nobody answered, each ticket it claimed closed to a force
- * (roll-draw.mjs `endTicket`): what a GM that is no longer the primary does with its asks (`sweepFriskAsks`). Answers the
- * ask ids it dropped.
+ * THE SEARCHER STOPPED WAITING (E18 C7, 26.10.2026; amend 5, the stage's row E18-31). The searcher's browser waits on its
+ * ask for the answer's clock and a margin (gm-bridge.mjs `requestFriskAsk`), and when that wait runs out it hands the
+ * action back. Nothing told this primary, which still held the ask: the target's yes after it posted the list to a
+ * searcher whose action was back, and a refusal's force window stayed open until it ended 'lets it go' to the target and
+ * the room (tier 2 "a Frisk's ask its searcher stopped waiting for ends on the primary", red at f7ac1e9d). The wait now
+ * names E18's expiry (`ruling.expired`, bridge-guards.mjs `createWaiter`'s `expired`, with the ask's request id as `rid`),
+ * and gm-bridge.mjs `expiredOnPrimary` hands it here: the ask held under that request id for that sender - Foundry's,
+ * never the packet's - ends as `interrupted`, as a reload of this GM would have ended it: no dice thrown, the target's
+ * window withdrawn, the searcher's card 'The moment has passed', no word to the target or the room (`endAsk`). One being
+ * ended already, or another's, is left alone. Answers whether it ended one.
+ *
+ * THE EXPIRY IS A CLAIM (E18 fix c7-G1, 26.10.2026; the review's C7-SEC-1). It is the searcher's packet, and the one
+ * thing it says - 'my wait ran out' - was taken as fact: the searcher's console, sending it seconds after its ask, took
+ * the target's window away at will, and sent after a refusal it ended the ask with no word to the target or the room,
+ * where 'Leave it' and the force's clock both tell them (`letGo`). The waiter sends it only when its clock runs out on a
+ * wait nothing answered (bridge-guards.mjs `createWaiter`), so this primary reads it against what it knows. An ask whose
+ * searcher it answered (`replied`: a refusal or no answer with the force open; any other answer ended the ask) ends as
+ * the searcher's 'Leave it' would (`followFrisk` with no roll): by where the two stand, 'lets it go', 'gone' or
+ * 'interrupted', the target and the room told - the honest case is an answer that reached the searcher after its clock,
+ * whose browser handed the action back, and the force's clock would have ended it so. One it has not answered ends as
+ * interrupted only once the searcher's wait could have run out: the bridge row's clock (gm-bridge.mjs `action.friskAsk`,
+ * `timeoutMs`, friskAnswerMs + friskMarginMs) from `at`, less a trip (`FRISK_GRACE_MS`, the trip this file allows
+ * elsewhere: the wait starts a trip before `at`, and its expiry takes one back) - before that it is left held and its
+ * clocks run. `now` is the suite's.
  */
-async function dropFriskAsks() {
+export async function expireFriskAsk(requestId, senderId, now = Date.now()) {
+    if (typeof requestId !== "string" || !requestId || !senderId) return false;
+    const row = [...friskAsks.values()].find(held => held.requestId === requestId && held.asker === senderId) ?? null;
+    if (!row || row.ending) return false;
+    if (row.replied) {
+        if (!FORCEABLE.includes(row.state)) return false;
+        const moved = standing(row);
+        const outcome = moved === "gone" || moved === "interrupted" ? moved : "letGo";
+        log(`The searcher's wait on a Frisk's ask ran out after it was answered (${row.state}): the ask ends as 'Leave it' would, ${outcome}.`);
+        return endAsk(row, outcome);
+    }
+    if (now < row.at + TIMING.friskAnswerMs + TIMING.friskMarginMs - FRISK_GRACE_MS) {
+        log(`A Frisk's expiry came before the searcher's wait could have run out (${row.state}): the ask is kept.`);
+        return false;
+    }
+    log(`The searcher's wait on a Frisk's ask ran out (${row.state}): the ask ends interrupted, with no dice thrown.`);
+    return endAsk(row, "interrupted");
+}
+
+/**
+ * Every ask this GM holds dropped with nothing posted and nobody answered, each ticket it claimed closed to a force
+ * (roll-draw.mjs `endTicket`): what a GM that is no longer the primary does with its asks (`sweepFriskAsks`), and one
+ * whose socket came back (`friskSocketBack`). Answers the ask ids it dropped.
+ */
+async function dropFriskAsks(why = "This GM is no longer the primary") {
     const rows = [...friskAsks.values()];
     if (!rows.length) return [];
     for (const row of rows) {
@@ -845,8 +896,27 @@ async function dropFriskAsks() {
         friskAsks.delete(row.askId);
         await closeTicket(row);
     }
-    log(`This GM is no longer the primary: ${rows.length} Frisk ask(s) it held dropped with nothing posted.`);
+    log(`${why}: ${rows.length} Frisk ask(s) it held dropped with nothing posted.`);
     return rows.map(row => row.askId);
+}
+
+/**
+ * THIS GM'S SOCKET CAME BACK (E18 fix c7-G1, 26.10.2026; the review's C7-SEC-2). Its "connect" after a drop, with its page
+ * still loaded (`registerFrisk`). While the socket was down the other browsers saw this GM leave: a searcher waiting on an
+ * ask this GM holds, with another GM taking over the primary, ended its wait at once (bridge-guards.mjs `primaryGone`) and
+ * handed the action back, with no expiry sent - the GM it would go to had left. This GM, back with its memory, still held
+ * the ask, and the target's yes after it posted the list to a searcher whose action was back. So a GM whose socket comes
+ * back drops every ask it holds, with nothing posted, as a reload would have (A11: a reload or a new primary ends an ask
+ * with no dice thrown): the searcher's wait, where it still runs, runs out and hands the action back, and an answer is
+ * told `missing`. A drop without a reload is not measured on v14, nor whether its socket emits "connect" again
+ * (LIVE-E04-04; gm-store.mjs listens for the same). Answers the ask ids it dropped; the first connect holds none.
+ */
+export function friskSocketBack() {
+    if (!game.user?.isGM || !friskAsks.size) return Promise.resolve([]);
+    return dropFriskAsks("This GM's socket came back").catch(err => {
+        error("Could not drop a Frisk's asks", err);
+        return [];
+    });
 }
 
 /** For the suite: every ask this primary holds and every pair asked forgotten, their clocks stopped, nothing posted. */
@@ -1126,8 +1196,8 @@ export async function friskRouteSettled({ tokenDoc, provisional = false } = {}) 
 /**
  * Every browser: the `frisk.ask` and `frisk.cancel` listener; the primary: the watch on routes; a GM holding asks: when a
  * user connects or leaves and this GM is no longer the primary, it drops them at once (`dropFriskAsks`), not at the next
- * clock's sweep; every GM's browser: a GM that leaves is noted (`friskUserConnected`, E80 fix r2-G3). Called once
- * (gm-bridge.mjs).
+ * clock's sweep; every GM's browser: a GM that leaves is noted (`friskUserConnected`, E80 fix r2-G3), and a GM whose
+ * socket comes back drops its asks (`friskSocketBack`, E18 fix c7-G1). Called once (gm-bridge.mjs).
  */
 export function registerFrisk() {
     game.socket.on(SOCKET_EVENT, (payload, senderId) => {
@@ -1140,6 +1210,8 @@ export function registerFrisk() {
     Hooks.on("userConnected", (user, connected) => {
         friskUserConnected(user, connected).catch(err => error("Could not drop a Frisk's asks", err));
     });
+    // A GM's socket that comes back without a reload (E18 fix c7-G1): what it held is dropped, as a reload would.
+    game.socket.on("connect", friskSocketBack);
 }
 
 /**

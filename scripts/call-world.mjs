@@ -150,6 +150,19 @@ export async function clearSeals() {
 }
 
 /**
+ * The seals and restrictions as a boundary found them, written back (E17 C7, 26.10.2026; audit S10-42): clock.mjs
+ * `takeBackBoundary`, when "End without advancing" or a rewind takes back the time of day's end that cleared them -
+ * the Calls bought for the time of day the clock is back in stand again. GM only.
+ */
+export async function putBackSeals({ sealed = [], restrictions: held = {} } = {}) {
+    if (!game.user.isGM) return null;
+    await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...(sealed ?? [])]);
+    await game.settings.set(MODULE_ID, SETTINGS.restrictions, foundry.utils.deepClone(held ?? {}));
+    await announceRestrictions();
+    return true;
+}
+
+/**
  * Write a world setting and tell every client.
  *
  * These are always set from a Monokuma's sheet, so the writer is a GM. The

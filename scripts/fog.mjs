@@ -413,6 +413,8 @@ export function registerFog() {
     // the GPU for a scene nobody is looking at until the next repaint.
     Hooks.on("canvasTearDown", () => {
         try {
+            // A dissolve still running would put the raster back on the scene being left (E17 C9).
+            endDissolves();
             hideLayer();
             dropBackdrop();
             // Outlines and glows belong to the scene being left, and the glow
@@ -729,19 +731,22 @@ async function carryRename(scene, from, to, pieces) {
  * `sceneOfRoom`), so it stood here when no place scene before this one holds the old name.
  */
 async function carryRoomInWorld(scene, from, to) {
-    const [{ applyProjectChange }, { projectMeta, setProjectMeta, rawCountdown, COUNTDOWNS_KEY }, { carryPlant }, { carryGatherRoom, carrySealedRoom },
+    const [{ applyProjectChange }, secrecy, { carryPlant }, { carryGatherRoom, carrySealedRoom },
         { carryBodyRooms }] = await Promise.all([import("./projects.mjs"), import("./projects-secrecy.mjs"), import("./traps.mjs"),
         import("./call-world.mjs"), import("./settings.mjs")]);
     const places = placeScenes(), at = places.indexOf(scene);
     const firstHere = at >= 0 && !places.slice(0, at).some(s => roomRegions(s, from).length);
     let projects = 0;
+    const { projectMeta, rawCountdown, COUNTDOWNS_KEY } = secrecy;
     for (const [id, meta] of Object.entries(projectMeta())) {
         if (meta?.room !== from) continue;
         if (meta.tokenId && meta.tokenScene ? meta.tokenScene !== scene.id : !firstHere) continue;
         // A project's room is a change of the one entry (E36 C2; audit S17-18), queued with every other change of it.
         // A row whose countdown is gone is no project the entry knows: carried as before, in a step of the same queue.
         if (rawCountdown(id)) await applyProjectChange(id, { meta: { room: to } }, { by: { kind: "system" } });
-        else await serialWrite(COUNTDOWNS_KEY, () => setProjectMeta(id, { room: to }));
+        // `secrecy.setProjectMeta` named in the step alone: tier 0's census of the one queue (R991) reads every use of a
+        // writer's name, and a name bound outside a step is a road it cannot follow (E17 C9).
+        else await serialWrite(COUNTDOWNS_KEY, () => secrecy.setProjectMeta(id, { room: to }));
         projects++;
     }
     const lists = await carryNeighbourLists(scene, from, to);
@@ -1368,10 +1373,15 @@ async function recordDiscovery(scene, actor, room) {
        The GM's own veil is `ledgerRooms` - the union of every actor's row -
        so recording the Mastermind's walks would lift the veil on rooms only
        they have been to, and the GM's map would quietly narrate the season's
-       secret moving around the building. They lose nothing by the skip: their
-       own fog already counts every room as known (`myDiscoveredRooms`),
-       because they built the place. `isMastermind` answers on GM clients and
-       this only ever runs on the primary GM's. */
+       secret moving around the building. Their own fog counts every room as
+       known (`myDiscoveredRooms`), because they built the place, and since
+       E17 C8 (audit S07-10) so does the one other reader of this record that
+       asks for them, projects.mjs `hasStoodIn` (whether `knowsProject` shows a
+       public project's token and tray row): until then a public project in a
+       room they had stood in stayed hidden from them alone. Nothing else that
+       reads `discoveredFor` was read for the Mastermind in that commit.
+       `isMastermind` answers on GM clients and this only ever runs on the
+       primary GM's. */
     if (isMastermind(actor)) return false;
 
     /* AND NEITHER DOES A MONOKUMA (Dawid, 28.08).
@@ -1751,8 +1761,30 @@ let doorRooms = null;
  */
 let lastLedgerSeen = null;
 
-/** Bumped by every dissolve; anything from an older one stands down. */
-let dissolveGeneration = 0;
+/*
+ * THE DISSOLVE'S OWN STATE, AND WHAT IT REACHES OUTSIDE ITSELF (E17 C9, 26.10.2026; audit S07-09). `generation` is
+ * bumped by every dissolve, and anything from an older one stands down; `busy` and `queued` are the queue below;
+ * `previous` is the texture the running dissolve mixes from, which nothing else may free while it runs. They were
+ * four loose variables, and `startDissolve` and `swapInFog` reached PIXI, Foundry's animation, the renderer and the
+ * layer by name, so the order their clean-up ran in could be read and not run: `DISSOLVE_IO` is what the module hands
+ * them, and the suite hands them a fake ticker and fake textures of its own (R1003) - its own state with them, so
+ * running it touches nothing of the layer on screen.
+ */
+const DISSOLVE = { generation: 0, busy: false, queued: false, previous: null };
+const DISSOLVE_IO = {
+    state: DISSOLVE,
+    get PIXI() { return globalThis.PIXI; },
+    animate: (attributes, options) => CanvasAnimation.animate(attributes, options),
+    watchdog: (animation, ms, cleanUp) => watchdog(animation, ms, cleanUp),
+    renderer: () => canvas?.app?.renderer ?? null,
+    layer: () => findLayer(),
+    ensureRaster: (container, maskTexture) => ensureRaster(container, maskTexture),
+    dropSprite: sprite => dropSprite(sprite),
+    showing: texture => { fogTexture = texture; },
+    motionOff: () => motionOff(),
+    fadeMs: () => fadeMs(),
+    repaint: () => repaintFog()
+};
 
 /*
  * REPAINTS DO NOT INTERRUPT A DISSOLVE; THEY QUEUE BEHIND IT.
@@ -1770,14 +1802,20 @@ let dissolveGeneration = 0;
  * two pending repaints would draw the same picture. The watchdog on the
  * dissolve guarantees this flag cannot stick.
  */
-let dissolveBusy = false;
-let repaintQueued = false;
+/** True when a dissolve is running, and the repaint asked now is queued behind it (`repaintFog`'s first question). */
+export function queueBehindDissolve(io = DISSOLVE_IO) {
+    if (!io.state.busy) return false;
+    io.state.queued = true;
+    return true;
+}
 
-function releaseDissolve() {
-    dissolveBusy = false;
-    if (!repaintQueued) return;
-    repaintQueued = false;
-    repaintFog();
+function releaseDissolve(io) {
+    const state = io.state;
+    state.busy = false;
+    state.previous = null;
+    if (!state.queued) return;
+    state.queued = false;
+    io.repaint();
 }
 
 /**
@@ -1888,9 +1926,11 @@ function clearReveals() {
  * A generation counter settles it: starting a dissolve invalidates every
  * one before it, and a stale tick or clean-up does nothing at all.
  */
-function startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish }) {
-    const generation = ++dissolveGeneration;
-    dissolveBusy = true;
+function startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish }, io) {
+    const state = io.state, PIXI = io.PIXI;
+    const generation = ++state.generation;
+    state.busy = true;
+    state.previous = previousTexture;
     let mixTexture = null;
     const scratch = new PIXI.Container();
     try {
@@ -1929,57 +1969,84 @@ function startDissolve(container, { sprite, previous, previousTexture, texture, 
         // the source it is reading from and one as the sprite it replaces.
         sprite.renderable = false;
         previous.renderable = false;
-        fogTexture = mixTexture;
+        io.showing(mixTexture);
         // The silhouette does not need dissolving: it is a faint texture's
         // mask, and a fifth of a second of the incoming shape is invisible on it.
-        ensureRaster(container, maskTexture);
+        io.ensureRaster(container, maskTexture);
 
-        const state = { t: 0 };
+        const tween = { t: 0 };
+        /* ITS OWN STATE FIRST, THE QUEUED REPAINT LAST (E17 C9, 26.10.2026; audit S07-09). This let the queued
+           repaint start before anything else: that repaint's dissolve took this one's mix - still the last fog
+           sprite on the layer - as the picture it fades from, and this, going on, found itself stale and destroyed
+           the mix. The next dissolve then mixed from a freed texture, and for its 180 ms the fog fell to the new
+           state times t, the rooms nobody had found showing through (R1003 on a fake ticker: 3 of the second
+           dissolve's 4 frames mixed from a freed texture; the real canvas is LIVE-E17-06). Now the stale branch
+           does not release at all: a newer dissolve holds `busy`, and a scene left (`endDissolves`) cleared it. And
+           a layer hidden, destroyed or no longer the one on the canvas gets no raster and no texture back - the
+           scene it was on is gone. */
         const done = () => {
             scratch.destroy({ children: true });
-            releaseDissolve();
-            if (generation !== dissolveGeneration) {
-                // A newer dissolve owns the layer now. Take away only what this
-                // one put there and leave everything else alone.
-                dropSprite(mix);
+            if (generation !== state.generation) {
+                // A newer dissolve owns the layer now. Take away only what this one put there, and never the
+                // texture the running one mixes from - its own end frees that with the rest.
+                if (mix.drpgTexture !== state.previous) io.dropSprite(mix);
                 return;
             }
             if (!sprite.destroyed) {
                 sprite.renderable = true;
                 sprite.alpha = 1;
             }
-            fogTexture = texture;
-            ensureRaster(container, maskTexture);
-            for (const old of container.children.filter(c => c.name === FOG_SPRITE && c !== sprite)) {
-                dropSprite(old);
+            const gone = container.destroyed || !container.visible || container !== io.layer();
+            if (!gone) {
+                io.showing(texture);
+                io.ensureRaster(container, maskTexture);
             }
+            for (const old of (container.children ?? []).filter(c => c.name === FOG_SPRITE && c !== sprite)) {
+                io.dropSprite(old);
+            }
+            io.dropSprite(mix);
+            releaseDissolve(io);
         };
 
-        const animation = CanvasAnimation.animate([{ parent: state, attribute: "t", to: 1 }], {
-            duration: fadeMs(),
+        const animation = io.animate([{ parent: tween, attribute: "t", to: 1 }], {
+            duration: io.fadeMs(),
             ontick: () => {
-                if (generation !== dissolveGeneration) return;
+                if (generation !== state.generation) return;
                 if (mix.destroyed || !mixTexture || mixTexture.destroyed) return;
                 eraser.clear();
-                eraser.beginFill(0xffffff, state.t);
+                eraser.beginFill(0xffffff, tween.t);
                 eraser.drawRect(0, 0, width, height);
                 eraser.endFill();
-                incoming.alpha = state.t;
+                incoming.alpha = tween.t;
                 renderer.render(scratch, { renderTexture: mixTexture, clear: true });
             }
         });
-        watchdog(animation, fadeMs() + 750, done);
+        io.watchdog(animation, io.fadeMs() + 750, done);
     } catch (err) {
         debug("Fog: could not dissolve between two states; swapping outright", err);
         scratch.destroy({ children: true });
-        releaseDissolve();
         if (mixTexture && !mixTexture.destroyed) mixTexture.destroy(true);
         if (!sprite.destroyed) sprite.renderable = true;
         finish();
+        // Last, as in `done`: a repaint queued now must find the old sprites already gone.
+        releaseDissolve(io);
     }
 }
 
-function swapInFog(container, texture, maskTexture, rect) {
+/**
+ * Stand every running dissolve down: the scene is being left (`canvasTearDown`). Its end then finds itself stale
+ * and puts nothing back on the layer, and the next scene's first repaint is not queued behind it (E17 C9; R1003).
+ */
+export function endDissolves(io = DISSOLVE_IO) {
+    const state = io.state;
+    state.generation += 1;
+    state.busy = false;
+    state.queued = false;
+    state.previous = null;
+}
+
+export function swapInFog(container, texture, maskTexture, rect, io = DISSOLVE_IO) {
+    const PIXI = io.PIXI;
     const outgoing = container.children.filter(c => c.name === FOG_SPRITE);
 
     const sprite = new PIXI.Sprite(texture);
@@ -1992,29 +2059,29 @@ function swapInFog(container, texture, maskTexture, rect) {
     container.addChild(sprite);
     container.position.set(rect.x, rect.y);
     container.visible = true;
-    fogTexture = texture;
+    io.showing(texture);
 
     // The raster rides on the white silhouette, re-pointed here rather than
     // rebuilt - that is what keeps its drift from snapping back to zero every
     // time somebody walks through a door.
-    ensureRaster(container, maskTexture);
+    io.ensureRaster(container, maskTexture);
 
     const finish = () => {
         if (!sprite.destroyed) sprite.alpha = 1;
-        for (const old of outgoing) dropSprite(old);
+        for (const old of outgoing) io.dropSprite(old);
     };
 
     // Nothing to fade from, or a viewer who has asked for no motion: swap
     // outright. A first paint must never arrive as a fade-in from a clear map,
     // which would show the whole scene for a fifth of a second.
-    if (!outgoing.length || motionOff()) return finish();
+    if (!outgoing.length || io.motionOff()) return finish();
 
     const previous = outgoing[outgoing.length - 1];
     const previousTexture = previous?.drpgTexture ?? null;
-    const renderer = canvas?.app?.renderer;
+    const renderer = io.renderer();
     if (!previousTexture || previousTexture.destroyed || !renderer) return finish();
 
-    startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish });
+    startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish }, io);
 }
 
 /**
@@ -2406,7 +2473,7 @@ export function whyBlack() {
         onTheLayer: (container?.children ?? []).map(describe),
         insideFx: (named(FX_GROUP)?.children ?? []).map(describe),
         insideRaster: (named(RASTER_GROUP)?.children ?? []).map(describe),
-        dissolveGeneration,
+        dissolveGeneration: DISSOLVE.generation,
         coveragePercent: measureCoverage(fogTexture),
         lastReason: lastFogReason
     };
@@ -2646,11 +2713,8 @@ export function repaintFog() {
     // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
     scheduleFloorSwitcher();
     try {
-        if (dissolveBusy) {
-            // Redrawn the moment the transition finishes - see `dissolveBusy`.
-            repaintQueued = true;
-            return false;
-        }
+        // Redrawn the moment the transition finishes - see "REPAINTS DO NOT INTERRUPT A DISSOLVE".
+        if (queueBehindDissolve()) return false;
         lastDrawn = null;
         lastShading = null;
         doorRooms = null;

@@ -558,24 +558,27 @@ export async function undoOpensPassage(projectId, { stores = PASSAGE_STORES } = 
  */
 export async function tellPassageBuilt(made) {
     if (!made?.id || made.again) return 0;
-    const { discoveredFor } = await import("./fog.mjs");
     const sceneId = String(made.id).split(".")[0];
-    const named = actor => {
-        const known = new Set(discoveredFor(sceneId, actor.id));
+    const named = async actor => {
+        const name = await roomNamerFor(actor, sceneId);
         let unexplored = 0;
-        const [from, to] = (made.rooms ?? []).map(room => (known.has(room) ? room : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })));
+        const [from, to] = (made.rooms ?? []).map(room => {
+            const said = name(room, unexplored + 1);
+            if (said !== room) unexplored++;
+            return said;
+        });
         return { from: foundry.utils.escapeHTML(from ?? "-"), to: foundry.utils.escapeHTML(to ?? "-") };
     };
     let told = 0;
     const builder = studentOf(made.builderId);
     if (builder) {
-        await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Passage.card.passageBuilt", named(builder))}</p>`);
+        await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Passage.card.passageBuilt", await named(builder))}</p>`);
         told++;
     }
     for (const actorId of made.sharedIds ?? []) {
         const actor = studentOf(actorId);
         if (!actor) continue;
-        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Passage.card.passageBuiltShared", named(actor))}</p>`,
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Passage.card.passageBuiltShared", await named(actor))}</p>`,
             { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
         told++;
     }
@@ -790,7 +793,6 @@ export async function tellBreach(made) {
     const scene = game.scenes?.get(made?.sceneId ?? "");
     if (!made?.id || made.again || !made.forced?.room || !scene) return 0;
     const M = await import("./movement.mjs");
-    const { discoveredFor } = await import("./fog.mjs");
     const { ROOM_OWNER_FLAG } = await import("./config.mjs");
     const { room: beyond, from } = made.forced;
     const esc = foundry.utils.escapeHTML;
@@ -813,9 +815,8 @@ export async function tellBreach(made) {
             : game.i18n.localize("DRPG.Passage.card.breachDoneThere");
         else if (room && near.has(room)) {
             const side = M.neighbouringRooms(scene, room).find(r => r === from || r === beyond) ?? from;
-            const known = new Set(discoveredFor(scene.id, actor.id));
-            text = game.i18n.format("DRPG.Passage.card.breachHeard",
-                { room: esc(known.has(side) ? side : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 })) });
+            const name = await roomNamerFor(actor, scene.id);
+            text = game.i18n.format("DRPG.Passage.card.breachHeard", { room: esc(name(side, 1)) });
         }
         if (!text) continue;
         await whisperToOwner(actor, `<p>${text}</p>`, sound);
@@ -2061,6 +2062,23 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
 }
 
 /**
+ * HOW A CHARACTER'S CARD MAY NAME A ROOM (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R10, goal): a function
+ * `(room, n)` that answers the room's name when this character has stood in it on `sceneId` (fog.mjs `discoveredFor`)
+ * - every room when the owner the card goes to (`whisperToOwner`'s, `ownerOf`) acts as the Mastermind through it
+ * (`actsAsMastermind`, the one reading, R560), as their own map draws the whole building and the record keeps no track
+ * of their walks (fog.mjs `recordDiscovery`) - else "Unexplored room n" as Listen says it. The made card
+ * (`tellPassageBuilt`) and the breach heard next door (`tellBreach`) told the Mastermind's character "an unexplored
+ * room 1" for a room its map shows. Runs on a GM. `mastermind` and `users` are the suite's (R1005).
+ */
+export async function roomNamerFor(actor, sceneId, { mastermind = mastermindStore, users = game.users } = {}) {
+    const owner = actor ? ownerOf(actor, peopleOf(users)) : null;
+    const everyRoom = Boolean(owner) && actsAsMastermind(actor, owner, { mastermind, users });
+    const { discoveredFor } = await import("./fog.mjs");
+    const known = everyRoom ? null : new Set(discoveredFor(sceneId, actor?.id));
+    return (room, n = 1) => (!known || known.has(room) ? room : game.i18n.format("DRPG.Listen.unknownRoom", { n }));
+}
+
+/**
  * The two rooms a passage joins, as `actor` may name them: each room on the map (`world.sides`), else
  * the name the GM gave it, and a room this character has not found "Unexplored room n" as Listen says
  * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
@@ -2169,7 +2187,7 @@ export function crossingWhy(code) {
 
 /**
  * Carry out a 'Go through': answers `{ crossed: true }` or `{ refused }` (`crossingWhy`'s reason, or the
- * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character at a
+ * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character (`crossingKey`) at a
  * time, so two asks in one breath read the price and the count each after the other's write. The tunnel is
  * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
  * does not know (`notKnown`) otherwise; the token is the character's on that scene, standing where the GMs
@@ -2192,7 +2210,10 @@ export function crossingWhy(code) {
  */
 export async function crossTunnel({ actorId, passageId } = {}, { asker = null, stores = PASSAGE_STORES, users = game.users,
     write = (doc, data, options) => doc.update(data, options) } = {}) {
-    return serialWrite(`passage.cross/${actorId}`, async () => {
+    // The character's one key (movement.mjs `crossingKey`, E17 C0; A10), shared with its Eclipse count and with a door
+    // route the primary pays: read through `import(`, as movement.mjs imports this file (R161 holds no static cycle).
+    const { crossingKey } = await import("./movement.mjs");
+    return serialWrite(crossingKey(actorId), async () => {
         // The bridge runs it on the primary GM alone, and the local road only there.
         if (!isPrimaryGm()) return { refused: "nothing was carried out: the token is moved on the primary GM's browser" };
         const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
@@ -2247,6 +2268,10 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         // An Eclipse's veiled card, once the token stands at the far end (E80 fix r1-G2): never for a write that failed.
         if (paid.tell) await paid.tell().catch(err => error("Could not tell the owner of an Eclipse crossing", err));
         await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
+        // The GMs' record of it, for "Refund last crossing" (E17 C3, A10: "zwracał koszt tunelu i odsyłał token do wejścia"):
+        // the price this step took, and the entry the GMs read the token at.
+        await M.recordCrossingInStep(actor, token, { from: verdict.from, to: verdict.to, back: at, kind: paid.cost, via: "tunnel" })
+            .catch(err => error("Could not record a tunnel crossing for its refund", err));
         return { crossed: true };
     });
 }

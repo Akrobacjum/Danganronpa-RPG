@@ -1615,7 +1615,9 @@ async function wipeSeason(plan) {
             emptied(SETTINGS.discoveredRooms, {}),
             () => import("./fog.mjs").then(m => m.resetLedger())
         ),
-        searchTokens: emptied(SETTINGS.searchTokens, {}),
+        // In a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written here outside it, a reset landing while the
+        // primary's spend step ran could be written over by that step's copy of the old counts. The keyed refill, quiet.
+        searchTokens: () => import("./search-tokens.mjs").then(m => m.SearchTokens.reset({ notify: false })),
         // The Key Remnant plan is a GM store since E05 (a row per chapter and slot): the cut
         // written first takes every chapter's rows on every GM, one away now included, and
         // this clears what this browser holds. Kept, it is trimmed (`keeping` below).

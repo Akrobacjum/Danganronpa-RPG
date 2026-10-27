@@ -40,7 +40,8 @@
  *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
  *      the discovery counts (Q5a, C12); a step inside and the bridge's send-back to that spot, a
  *      jump back to the Hall and in again with a Monokuma flag her player wrote a moment before,
- *      and the GM's own placing of her (C12).
+ *      and the GM's own placing of her (C12). Since E17 C1 her player's jumps into the Storage are put back by the
+ *      primary, and I1-I4 read the put-back (E17 fix ci-1).
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
  *   K  two scenes made here with Foundry's vision on: p1 views the Study and draws a region marked a room on the Den,
  *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
@@ -58,7 +59,8 @@
  *   P  a returning GM whose id sorts first (gm0) places Aiko in the locked Storage as the primary and leaves, and p1 steps
  *      her inside it; then p1's console jumps her in from the Hall and gm0 arrives: where each primary reads her standing,
  *      and how gm0 judges a token of hers a player drops before it has judged any (E12 fix r2-H3: review round 2 SEC2-4
- *      and SEC2-1, early review EARLY-C12-1).
+ *      and SEC2-1, early review EARLY-C12-1). Since E17 C1 the jump is put back by the seeded GM before gm0 comes (P2,
+ *      E17 fix ci-1).
  *   Q  gm0 the primary again, the seeded GM renames a two-piece room on a scene made here to a new name piece by piece,
  *      then a bedroom onto that name: what the primary carried and what the joined piece keeps (E12 fix r2-H4: early
  *      review EARLY-C8-1 and the correctness review r2's widening of it). Then two more rooms of two pieces, each with one
@@ -145,6 +147,9 @@
  * E79 fix r4-G4 (W4 waits for each browser's announcement, p1's private cards held 300 ms; W7 added): 70 checks in
  * 150.5 s, one run alone under the harness lock on 17.10.2026 (2 min 36 s of wall time), and 155.2 s in a lane beside
  * a2.sh's three lanes the same day.
+ * E17 fix ci-1 (I1-I4 and P2 rewritten for E17 C1's put-back): 70 checks in 142.5-142.8 s, two runs alone under the
+ * harness lock on 26.10.2026, and 146.6 s in quick.sh's run; with the audit's rule put-back taken out (a mutant of
+ * movement-audit.mjs `auditMove`), 66 of 70 in 163.6 s, I1, I2, I3 and P2 failing.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -720,95 +725,154 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;
         globalThis.__s66i = { cards: cards(), log: console.log, lines: [] };
         console.log = (...args) => { globalThis.__s66i.lines.push(args.map(String).join(" ")); return globalThis.__s66i.log.apply(console, args); };
+        const at = academy.tokens.find(x => x.actorId === "${IDS.aiko}");
         return { locked: locked(storage), daichi, kept, botan, aiko, cards: cards(), neighbours: M.neighbouringRooms(academy, "Hall"),
+            aikoAt: { x: at.x, y: at.y, elevation: at.elevation ?? 0, level: at.level ?? null },
             names: { aiko: game.actors.get("${IDS.aiko}").name, botan: game.actors.get("${IDS.botan}").name } };`, { timeout: 60000 });
-    /* What the GMs were told of Aiko's arrivals (`tellUnlawful`, movement.mjs), and what the primary reads of where she
-       stands (`standingOf`) - the find is not the only answer: under a judge that counts her, the second witness. */
+    /* What the GMs were told of Aiko's arrivals (`tellUnlawful`, movement.mjs: `told`; since E17 C1 a rule's put-back is told
+       instead, movement-audit.mjs `auditMove`'s `data-drpg-rule` whisper: `ruled`), what the primary's audit kept of the
+       put-backs (`auditRows`, its "rules" rows of Aiko: put-backs judged, written, and those folded into a burst's one
+       whisper), and what the primary reads of where she stands (`standingOf`) - the find is not the only answer: under a
+       judge that counts her, the second witness. */
     const AIKO = `const M = await import("${repoUrl}/scripts/movement.mjs"), S = await import("${repoUrl}/scripts/settings.mjs"),
-            { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            { contentOf } = await import("${repoUrl}/scripts/secret.mjs"), A = await import("${repoUrl}/scripts/movement-audit.mjs");
         const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
         const told = () => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-unlawful="TOKAIKO000000000"')).length;
+        const ruled = () => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-rule="TOKAIKO000000000"')).length;
+        const putBacks = () => A.auditRows().rows.filter(r => r.token === "TOKAIKO000000000" && r.mode === "rules")
+            .reduce((n, r) => ({ times: n.times + r.times, sent: n.sent + (r.sent ?? 0), quiet: n.quiet + r.quiet,
+                codes: [...new Set([...n.codes, r.rule])] }), { times: 0, sent: 0, quiet: 0, codes: [] });
+        const at = () => ({ x: t.x, y: t.y, elevation: t.elevation ?? 0, level: t.level ?? null });
         const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length - globalThis.__s66i.cards;
         const wait = async (until, ms) => { const start = Date.now(); while (!until() && Date.now() - start < ms) await new Promise(r => setTimeout(r, 100));
             return Date.now() - start; };
         const standing = () => { const s = M.standingOf?.(t); return { lawful: s?.lawful ?? null, reason: s?.reason ?? null }; };`;
+    /* WHERE p1'S OWN WRITE LANDED, READ AS IT LANDS (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, P2 red). I1,
+       I3 and P2 read p1's jump by `roomOfToken` once its `await t.update(...)` returned - but since E17 C1 the primary puts
+       the jump back at once, and that write can reach p1 before its own update's await does: the reading is then the Hall
+       the jump was put back to, and the check fails on a jump that did land in the Storage. Measured at f7ac1e9d: I1 red
+       in 1 of 7 local runs of this file with `jump.room` "Hall" and the put-back and its notice already there when the GM
+       first looked (`readI1.ms` 0, `ruled` 1; the rest of that detail was cut in the log); P2's CI detail is cut at 300
+       characters past `hallP2`, so which of its readings failed there is not read. p1's own update is the first `updateToken` of the token p1 hears - the GM answers it only once it has
+       heard it itself, and the put-back comes after it on p1's socket (read in the cluster's relay, not measured on a
+       v14 server) - so the room read in that hook is where the write landed; the room read after the await is kept
+       beside it (`atReturn`), so a run shows when the put-back came first. */
+    const LANDED = `const landed = [], landing = Hooks.on("updateToken", doc => { if (doc.id === "TOKAIKO000000000") landed.push(M.roomOfToken(doc)); });
+        const landedRoom = () => { Hooks.off("updateToken", landing); return landed[0] ?? null; };`;
+    const baseI = await gm.eval(`${AIKO} return { told: told(), ruled: ruled(), rows: putBacks() };`, { timeout: 30000 });
     const jump = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
-        await t.update(M.positionIn("Storage", t), { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
-        return M.roomOfToken(t);`, { timeout: 30000 });
+        const spot = M.positionIn("Storage", t);
+        ${LANDED}
+        await t.update(spot, { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
+        const atReturn = M.roomOfToken(t);
+        return { room: landedRoom(), atReturn, spot: { x: spot.x, y: spot.y } };`, { timeout: 30000 });
     const readI1 = await gm.eval(`${AIKO}
-        const ms = await wait(() => told() >= 1, 6000);
+        const ms = await wait(() => ruled() > ${baseI.ruled} && putBacks().sent > ${baseI.rows.sent} && M.roomOfToken(t) === "Hall", 6000);
         await new Promise(r => setTimeout(r, 1500));
-        return { ms, told: told(), held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing(), room: M.roomOfToken(t) };`, { timeout: 30000 });
+        return { ms, told: told(), ruled: ruled(), rows: putBacks(), at: at(), held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing(),
+            room: M.roomOfToken(t), lawfulRoom: M.lawfulRoomOf(t) ?? null };`, { timeout: 30000 });
     /* At 180df61 the discovery counted every student standing in the room when a token arrived (`witnessesOf`), however
        they got there: p1's jump from the Hall into the locked Storage, the veto skipped as a revert skips it, made Aiko
        the second witness, and the body was found by Aiko and Botan (E12 C0, measured). E12 C12 (Q5a, the owner's Q3 a):
-       the primary judges the arrival again from her last lawful room, the Hall, and an unlawful one is no witness. */
-    check("I1: Aiko jumped by her player from the Hall into the locked Storage is no witness: nothing is found, the GMs are told once (E12 C12)",
+       the primary judges the arrival again from her last lawful room, the Hall, and an unlawful one is no witness - it
+       stood in the Storage, unlawful, and the GMs were told once by `tellUnlawful`. Since E17 C1 (730dffcf; the owner's
+       13.10 decision, E17-05 to E17-14) the primary's audit puts a player's arrival a doors' rule refuses back
+       to the last spot the judge read lawful - x, y, elevation and floor - and the GMs are told once a burst by the
+       put-back (`data-drpg-rule`), not as an unlawful arrival (movement.mjs `judgeArrival`: "the GMs are told by the
+       put-back"). Red on this check at 204a5d72 (CI run 40362155048): Aiko read in the Hall, lawful, `told` 0 - the jump put
+       back, not a defect. What E12 C12 promised stands: no witness, nothing found, the GMs told once. */
+    check("I1: Aiko jumped by her player from the Hall into the locked Storage is put back to her spot in the Hall and is no witness: nothing is found, the GMs are told once, by the put-back (E12 C12; E17 C1)",
         setI.locked && setI.kept && setI.daichi === "Storage" && setI.botan === "Storage" && setI.aiko === "Hall" && setI.cards === 0
-            && !setI.neighbours.includes("Storage") && jump === "Storage" && readI1.room === "Storage" && readI1.told === 1
-            && !readI1.held && readI1.cards === 0 && readI1.standing.lawful === false,
-        J({ setI, jump, readI1 }));
+            && !setI.neighbours.includes("Storage") && jump.room === "Storage" && readI1.room === "Hall" && J(readI1.at) === J(setI.aikoAt)
+            && readI1.standing.lawful === true && readI1.lawfulRoom === "Hall"
+            && readI1.ruled === baseI.ruled + 1 && readI1.told === baseI.told && readI1.rows.times === baseI.rows.times + 1
+            && readI1.rows.sent === baseI.rows.sent + 1 && readI1.rows.quiet === baseI.rows.quiet && readI1.rows.codes.includes("doorLocked")
+            && !readI1.held && readI1.cards === 0,
+        J({ setI, baseI, jump, readI1 }));
 
     /* I2: a step inside the Storage, which p1's veto lets through (one room), and then the bridge's send-back to the
-       spot she jumped to: a revert the primary wrote for p1 (`SENT_BACK`), honoured to where she stood - unlawfully. */
+       spot she jumped to: a revert the primary wrote for p1 (`SENT_BACK`), honoured to where she stood - unlawfully (E12
+       C12). Since E17 C1 (730dffcf) she stands in the Hall, put back, so the step is inside the Hall; and the bridge's
+       send-back to the spot she jumped to in the Storage is judged by bridge-guards.mjs `guardSendbackPlace` - the GMs'
+       record (`sendBackRefusal`, which the audit's put-back took that spot out of, movement.mjs `sightingsAfter`), then
+       since E17 C1 the doors' rules (`sendBackRuleOf`): refused, nothing written. What E12 C12 promised of it stands: no find and no second notice. */
     const sendI2 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
-        const spot = { x: t.x, y: t.y };
+        const end = Date.now() + 3000; while (M.roomOfToken(t) !== "Hall" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const before = { x: t.x, y: t.y, room: M.roomOfToken(t) };
         await t.update({ x: t.x + 100 }, { animate: false });
         await new Promise(r => setTimeout(r, 800));
-        const stepped = { x: t.x, room: M.roomOfToken(t) };
-        const answer = await B.requestSendBack(canvas.scene.id, t.id, spot);
-        return { spot, stepped, answer: answer ?? null };`, { timeout: 30000 });
+        const stepped = { x: t.x, y: t.y, room: M.roomOfToken(t) };
+        const answer = await B.requestSendBack(canvas.scene.id, t.id, ${J(jump.spot)});
+        return { before, stepped, answer: answer ?? null };`, { timeout: 30000 });
     const readI2 = await gm.eval(`${AIKO}
-        const ms = await wait(() => t.x === ${J(sendI2.spot.x)} && t.y === ${J(sendI2.spot.y)}, 6000);
         await new Promise(r => setTimeout(r, 1500));
-        return { ms, at: { x: t.x, y: t.y }, told: told(), held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing() };`, { timeout: 30000 });
-    check("I2: sent back by the bridge to the spot she jumped to, Aiko still stands unlawfully: no find, no second notice (E12 C12)",
-        sendI2.stepped.room === "Storage" && sendI2.stepped.x === sendI2.spot.x + 100 && readI2.at.x === sendI2.spot.x && readI2.at.y === sendI2.spot.y
-            && readI2.told === 1 && !readI2.held && readI2.cards === 0 && readI2.standing.lawful === false,
-        J({ sendI2, readI2 }));
+        return { at: { x: t.x, y: t.y }, room: M.roomOfToken(t), told: told(), ruled: ruled(), rows: putBacks(), held: Boolean(S.bodyDiscovery()),
+            cards: cards(), standing: standing() };`, { timeout: 30000 });
+    check("I2: stepped inside the Hall and sent back by the bridge to the spot she jumped to in the Storage, Aiko is refused and stays: no find, no second notice (E12 C12; E17 C1)",
+        sendI2.before.room === "Hall" && sendI2.before.x === setI.aikoAt.x && sendI2.stepped.room === "Hall" && sendI2.stepped.x === sendI2.before.x + 100
+            && sendI2.answer?.ok === false && readI2.at.x === sendI2.stepped.x && readI2.at.y === sendI2.stepped.y && readI2.room === "Hall"
+            && readI2.standing.lawful === true && readI2.ruled === readI1.ruled && readI2.told === readI1.told && readI2.rows.times === readI1.rows.times
+            && !readI2.held && readI2.cards === 0,
+        J({ jump, sendI2, readI2 }));
 
     /* I3: a revert-jump back to the Hall (lawful: the room she last stood in lawfully), then p1's console marks Aiko a
        Monokuma - whom no crossing rule binds - and, without waiting for it, jumps her into the Storage beside the spot
        of I1. The flag reaches the primary before the move, and the sheet audit puts it back after it: the judge reads
-       her as the GMs hold her, a student. */
+       her as the GMs hold her, a student (E12 C12: she stood unlawfully, the GMs told a second time). Since E17 C1
+       (730dffcf) the audit reads the flag as the GMs hold it too (`ctx.held`): a student, so the jump is put back to
+       the Hall's centre, where the revert-jump left her lawful. The GMs are told once a burst (`BURST_MS`, 30 s, of one
+       token and mover), so whether this put-back is a second whisper or folded into I1's depends on the seconds between
+       them: what is held is that both put-backs were judged and written and each is a whisper or a fold (`quiet`). */
     const jumpI3 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
         const PLACE = { drpgRevert: true, teleport: true, movementAction: "displace", animate: false };
-        const centre = M.positionIn("Storage", t);
-        await t.update(M.positionIn("Hall", t), PLACE);
+        const centre = M.positionIn("Storage", t), hallAt = M.positionIn("Hall", t);
+        await t.update(hallAt, PLACE);
         await new Promise(r => setTimeout(r, 1000));
         const hall = M.roomOfToken(t);
         const flag = aiko.setFlag("${MOD}", "monokuma", true);
+        ${LANDED}
         await t.update({ x: centre.x + 50, y: centre.y }, PLACE);
         await flag;
-        return { hall, room: M.roomOfToken(t) };`, { timeout: 30000 });
+        const atReturn = M.roomOfToken(t);
+        return { hall, hallAt: { x: hallAt.x, y: hallAt.y }, room: landedRoom(), atReturn };`, { timeout: 30000 });
     const readI3 = await gm.eval(`${AIKO}
         const aiko = game.actors.get("${IDS.aiko}");
-        const ms = await wait(() => told() >= 2 && !aiko.getFlag("${MOD}", "monokuma"), 6000);
+        const ms = await wait(() => putBacks().sent >= ${readI1.rows.sent + 1} && M.roomOfToken(t) === "Hall" && !aiko.getFlag("${MOD}", "monokuma"), 6000);
         await new Promise(r => setTimeout(r, 1000));
-        return { ms, told: told(), monokuma: aiko.getFlag("${MOD}", "monokuma") ?? null, held: Boolean(S.bodyDiscovery()), cards: cards(),
-            standing: standing() };`, { timeout: 30000 });
-    check("I3: jumped back to the Hall and in again with a Monokuma flag her player wrote a moment before, Aiko stands unlawfully and the flag is put back (E12 C12)",
-        jumpI3.hall === "Hall" && jumpI3.room === "Storage" && readI3.told === 2 && !readI3.monokuma && !readI3.held && readI3.cards === 0
-            && readI3.standing.lawful === false,
+        return { ms, told: told(), ruled: ruled(), rows: putBacks(), at: { x: t.x, y: t.y }, room: M.roomOfToken(t),
+            monokuma: aiko.getFlag("${MOD}", "monokuma") ?? null, held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing() };`, { timeout: 30000 });
+    check("I3: jumped back to the Hall and in again with a Monokuma flag her player wrote a moment before, Aiko is put back to the Hall as the student the GMs hold and the flag is put back (E12 C12; E17 C1)",
+        jumpI3.hall === "Hall" && jumpI3.room === "Storage" && readI3.room === "Hall" && readI3.at.x === jumpI3.hallAt.x && readI3.at.y === jumpI3.hallAt.y
+            && readI3.standing.lawful === true && !readI3.monokuma && !readI3.held && readI3.cards === 0 && readI3.told === baseI.told
+            && readI3.rows.times === baseI.rows.times + 2 && readI3.rows.sent === baseI.rows.sent + 2 && readI3.ruled >= readI1.ruled
+            && (readI3.ruled - baseI.ruled) + (readI3.rows.quiet - baseI.rows.quiet) === 2,
         J({ jumpI3, readI3 }));
 
     /* I4: the GM places her in the Storage: a GM's move makes the spot lawful (nothing was put back, Q3 a), and the
-       body is found by the two who stand there. */
+       body is found by the two who stand there. Since E17 C1 (730dffcf) her player's jumps were put back, and a GM's own
+       move is never put back nor told (`auditMove`: "a GM's own move makes a spot lawful, so it never comes here"): the
+       notices are those of I1 and I3, unlawful arrivals none. Where she stands is read just after the GM's write: the
+       find's gather moves her next, and headless its fallback puts the cast round the scene's centre, outside the room
+       (call-world.mjs `teleportInto`'s note, measured 10.10.2026; read on this phase at 204a5d72+edits: 2120,1500). */
     const foundI = await gm.eval(`${AIKO}
-        await t.update(M.positionIn("Storage", t), { teleport: true, movementAction: "displace", animate: false });
+        const aim = M.positionIn("Storage", t);
+        await t.update(aim, { teleport: true, movementAction: "displace", animate: false });
+        const placed = { x: t.x, y: t.y, room: M.roomOfToken(t), aimed: t.x === aim.x && t.y === aim.y };
         const end = Date.now() + 8000; while (!S.bodyDiscovery() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         await new Promise(r => setTimeout(r, 800));
         const rows = (S.bodiesFoundIn?.(S.getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
-        const out = { held: Boolean(S.bodyDiscovery()), cards: cards(), rows, standing: standing(), told: told() };
+        const out = { held: Boolean(S.bodyDiscovery()), cards: cards(), rows, standing: standing(), told: told(), ruled: ruled(), audit: putBacks(),
+            placed };
         console.log = globalThis.__s66i.log;
         out.finders = globalThis.__s66i.lines.filter(line => line.includes("Body found in Storage:"));
         delete globalThis.__s66i;
         return out;`, { timeout: 30000 });
-    check("I4: placed in the Storage by the GM, Aiko stands lawfully and the body is found by Aiko and Botan (E12 C12)",
-        foundI.standing.lawful === true && foundI.held && foundI.cards === 1 && foundI.told === 2
+    check("I4: placed in the Storage by the GM, Aiko stands lawfully and the body is found by Aiko and Botan (E12 C12; E17 C1)",
+        foundI.placed.room === "Storage" && foundI.placed.aimed && foundI.standing.lawful === true && foundI.held && foundI.cards === 1 && foundI.told === readI3.told
+            && foundI.ruled === readI3.ruled && foundI.audit.times === readI3.rows.times
             && foundI.rows.some(row => row.room === "Storage" && row.by === "witnesses")
             && foundI.finders.length === 1 && foundI.finders[0].includes(setI.names.aiko) && foundI.finders[0].includes(setI.names.botan),
         J({ setI, foundI }));
@@ -1101,7 +1165,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         await wait(() => U.isPrimaryGm(), 10000);
         await new Promise(r => setTimeout(r, 1000));
         return { primary: U.isPrimaryGm(), at: { x: t.x, y: t.y }, room: M.roomOfToken(t), standing: standing(), lawfulRoom: M.lawfulRoomOf(t) ?? null,
-            told: told() };`, { timeout: 30000 });
+            told: told(), ruled: ruled(), putBacks: putBacks() };`, { timeout: 30000 });
     const hallP = await placeP(gm, "Hall");
     const setP = await gm.eval(`${SCENES} ${LOCKED} return locked(academy.regions.find(r => r.name === "Storage"));`, { timeout: 30000 });
     const beforeP = await readP(gm);
@@ -1137,8 +1201,15 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        to a spot off the Storage's centre: P1's gm0 placed her on the centre less than a minute before, and a revert to a
        spot she stood on that recently is honoured to the lawful standing recorded there (`sendBackRefusal`; the first
        draft of this check jumped to the centre and read her lawful on the seeded GM too). P3's scene is made here, before
-       gm0 boots, so gm0 primes its token too. */
-    await placeP(gm, "Hall");
+       gm0 boots, so gm0 primes its token too.
+       Since E17 C1 (730dffcf, the owner's 13.10; and E17 fix e1-G1, 9cc97aad, by which an honoured revert asks the rules
+       too) the seeded GM, the primary, puts the jump back to the spot in the Hall the GM placed her on, the GMs told once
+       by the put-back, before gm0 comes: a console's jump past a lock no longer stands unlawful for any primary to forget.
+       Red on this check at 204a5d72 (CI run 40362155048): the seeded GM read her in the Hall, lawful - the put-back, not
+       a defect. What a GM that becomes the primary after it is promised is unchanged (`judgingHere`, `gmSeen` primed at
+       ready): it holds no standing and reads her where she stands, lawful - now the spot she was put back to - and it
+       judges, puts back and tells nothing of a move it did not see. */
+    const hallP2 = await placeP(gm, "Hall");
     const sceneP = await gm.eval(`const scene = await Scene.create({ name: "66 Drop", width: 3000, height: 1000, grid: { size: 100 }, active: false });
         const room = (name, x, next) => ({ name, shapes: ${rect(0, 200)}.map(r => ({ ...r, x })), flags: { "${MOD}": { room: true, drpgNeighbours: next } }, behaviors: [] });
         await scene.createEmbeddedDocuments("Region", [room("66 Fore", 200, "66 Mid"), room("66 Mid", 1000, "66 Fore, 66 Back"), room("66 Back", 1800, "66 Mid")]);
@@ -1149,8 +1220,12 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const jumpP = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
         const centre = M.positionIn("Storage", t);
+        ${LANDED}
         await t.update({ x: centre.x + 37, y: centre.y + 23 }, { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
-        return M.roomOfToken(t);`, { timeout: 30000 });
+        const atReturn = M.roomOfToken(t);
+        return { room: landedRoom(), atReturn };`, { timeout: 30000 });
+    // The put-back is written by the seeded GM's audit after the jump lands there; read once it is (6 s at most).
+    await gm.eval(`${AIKO} await wait(() => putBacks().sent > ${afterP.putBacks.sent} && M.roomOfToken(t) === "Hall", 6000); return true;`, { timeout: 30000 });
     const seededP = await readP(gm);
     let newP = null, backP = null, dropP = null;
     await connect("gm0");
@@ -1179,12 +1254,19 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     }
     backP = await readP(gm);
     await gm.eval(`await game.scenes.get("${sceneP.id}").delete(); return true;`, { timeout: 30000 });
-    note("P2: where each primary reads Aiko after p1's jump into the locked Storage - the seeded GM before gm0 came, gm0, the seeded GM after gm0 left",
-        J({ seededP, newP, backP }));
-    check("P2: Aiko, jumped into the locked Storage by p1's console, stands unlawfully for the seeded GM and lawfully for a GM who becomes the primary after it (E12 fix r2-H3)",
-        sceneP.room === "66 Fore" && jumpP === "Storage" && seededP.primary && seededP.standing.lawful === false && seededP.told === afterP.told + 1
-            && newP?.primary === true && newP.room === "Storage" && newP.standing.lawful === true && newP.lawfulRoom === "Storage",
+    note("P2: where p1's jump landed and where p1 read it after its write returned, then where each primary reads Aiko after it - the seeded GM before gm0 came, gm0, the seeded GM after gm0 left",
         J({ jumpP, seededP, newP, backP }));
+    const hallAt = { x: hallP2.x, y: hallP2.y };
+    check("P2: Aiko, jumped into the locked Storage by p1's console, is put back to the Hall by the seeded GM, the GMs told once, and stands there lawfully for a GM who becomes the primary after it, which tells and puts back nothing (E12 fix r2-H3; E17 C1)",
+        sceneP.room === "66 Fore" && hallP2.room === "Hall" && jumpP.room === "Storage" && seededP.primary && seededP.room === "Hall" && J(seededP.at) === J(hallAt)
+            && seededP.standing.lawful === true && seededP.lawfulRoom === "Hall" && seededP.told === afterP.told
+            && seededP.putBacks.times === afterP.putBacks.times + 1 && seededP.putBacks.sent === afterP.putBacks.sent + 1
+            && (seededP.ruled - afterP.ruled) + (seededP.putBacks.quiet - afterP.putBacks.quiet) === 1
+            && newP?.primary === true && newP.room === "Hall" && J(newP.at) === J(hallAt) && newP.standing.lawful === true && newP.lawfulRoom === "Hall"
+            && newP.told === seededP.told && newP.ruled === seededP.ruled && newP.putBacks.times === 0
+            && backP?.primary === true && backP.room === "Hall" && J(backP.at) === J(hallAt) && backP.standing.lawful === true
+            && backP.told === seededP.told && backP.ruled === seededP.ruled && backP.putBacks.times === seededP.putBacks.times,
+        J({ hallP2, jumpP, seededP, newP, backP }));
     /* Until E12 fix r2-H3 a drop was judged from nowhere: lawful in any room no lock, seal or bedroom shuts, however far
        from where the student stood (security review r2 SEC2-1). */
     check("P3: a token of Aiko a player drops in a room her other token's room does not reach, judged by a new primary that holds no standing of hers, is judged from that room: unlawful, the GMs told so and not that it came from nowhere (E12 fix r2-H3)",

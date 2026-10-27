@@ -197,6 +197,26 @@ async function restore(snap) {
      * recorded values below - which is what "put back" means.
      */
     if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
+    /*
+     * THEN THE BUS LET RUN OUT, AND THE DIGEST IT SENT LET LAND (E17 fix ci-3, 26.10.2026; CI run 40418039458 on
+     * 15f204c5, suite 2/8). Since E17 C6 a write of the clock runs `coalesceMs` after its burst's last event (sync.mjs
+     * `coalescer`), so the run of a clock a test put back in its `finally` - or put back just above - comes while this
+     * function is under way, and the trace digest its `drpgTimeOfDayChanged` sends the GMs (remnants.mjs
+     * `flushTraceDigest`) is a card posted after the chat below was cleared: "restore left: client:...secretCards.<id>
+     * (none) -> #...; ChatMessage "" (<id>) appeared", after "a Key row's Place button ..." there and after "last
+     * season's chapter is not this one" on f7ac1e9d (823174bc's fix, in that test alone). Measured here on the
+     * harness, that Key row test alone: the clock's run 109 ms after this function began, the deletion of chat
+     * at 17 ms, the digest at 178 ms - red on every run. Waited for here, before anything is put back, every run
+     * the test left lands on the world it left, and the steps below put back what it wrote; a write that lands
+     * after them is still the dump's to find. The clock's and the Eclipse's runs alone: theirs are the hooks whose
+     * listeners write the world (the digest, the owed Despair, the betrayal windows) and the assembly's teleport; the
+     * other kinds redraw. Waiting for every kind cost 222 s over a whole run of tiers 0-2 here (26.10: 1146 restores
+     * waited, median 177 ms), most of it for the `restrictions` redraw of the runner's own `endMurder`, pending in 1103
+     * of them; 296 found a run of the clock pending, and their waits came to 71 s.
+     */
+    const { syncIdle, SYNC } = await import("./sync.mjs");
+    await syncIdle({ kinds: [SYNC.clock, SYNC.eclipse] });
+    await (await import("./remnants.mjs")).traceDigestIdle();
     /* The settlement a change of the time of day asks for writes the pools' world value, the
        mark with it (E05 fix r2-G2). Asked by the hook some milliseconds after the clock's write,
        it landed on the pools put back below - measured on the harness 27.09: "restore left
@@ -32289,6 +32309,227 @@ const SCENARIOS = [
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
     }],
 
+    ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
+        /*
+         * E18 C7, 26.10.2026; amend 5 (A11's Frisk ask on E18's one road), the stage's row E18-31. An open Frisk's ask is
+         * the primary's (frisk.mjs `friskAsks`), and the searcher's browser waits on it (gm-bridge.mjs `requestFriskAsk`)
+         * for the answer's clock and a margin. Nothing told the primary when that wait ran out: the searcher's browser had
+         * handed the action back, the primary still held the ask, and the target's yes after it posted the list to the
+         * searcher, or a refusal's force window stayed open and ended 'lets it go' to the target and the room. The one
+         * road's expiry (bridge-guards.mjs `createWaiter`'s `expired`, E18 C1's `ruling.expired`) now names the ask's
+         * request id, and the primary ends the ask it holds under that id for that sender as interrupted: no dice thrown,
+         * the target's window withdrawn (`frisk.cancel`), the searcher's card 'The moment has passed' (`endAsk`). A
+         * player's character and another whose connected player answers, alone in a room, outside an Eclipse and the
+         * Class Trial (the clock written straight to its setting and put back), the force on. Phases: an ask, then the
+         * answerer's expiry naming its id, the searcher's naming another id, the searcher's naming it, then the target's
+         * yes; an ask refused with the force open, then the searcher's expiry; and the wait's own options read in
+         * `requestFriskAsk` (the expiry, and `untilPrimaryLeaves`: the ask dies with the primary that holds it, so the
+         * wait ends when it leaves, bridge-guards.mjs `primaryGone`). Read: what the primary holds, the cards, the
+         * windows withdrawn, the searcher's answers and the yes's. Red at f7ac1e9d: no expiry ends either ask, the yes is
+         * kept and the list posted, and the wait names neither option.
+         *
+         * E18 fix c7-G1, 26.10.2026 (the review's C7-SEC-1, C7-SEC-2). The expiry is the searcher's packet, a claim: the
+         * primary ends an unanswered ask by it only once the searcher's wait (the row's `timeoutMs`, friskAnswerMs +
+         * friskMarginMs) could have run out, less a trip (friskGraceMs) - the searcher's own expiry seconds after its ask
+         * leaves the ask held, and one with the ask's `at` moved back past that wait ends it; and an ask whose searcher
+         * was answered (a refusal with its force open) ends as 'Leave it' would, by where the two stand - the target and
+         * the room told - not as interrupted with no word to either. Then a third ask, and this GM's socket's "connect"
+         * as it comes back without a reload (frisk.mjs `friskSocketBack`, read off `game.socket.listeners`): the ask is
+         * dropped with nothing posted, as a reload would, so a yes after it is `missing`. Red at 29a53176: the early
+         * expiry ended the ask, the refusal's expiry ended it interrupted with no card to the target, and the socket's
+         * return kept the ask, whose yes posted the list. And the other road to an ask ended early by the searcher's own
+         * packet: its 'Leave it' (`action.friskFollow`, no roll) while the ask is still asking is refused and the ask
+         * kept (frisk.mjs `followFrisk`'s FORCEABLE check; its mutant c7m survived every test before this step).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const NAME = "Suite E18 C7 a brass button";
+        const ACT = "system.resources.actions.value";
+        const putBack = sheetAsFound(theirs, [ACT]);
+        const top = Math.max(1, actionsLeft(theirs));
+        const asPlayer = { [(await import("./roll-draw.mjs")).PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["list", "DRPG.Frisk.shownHeading", { who: other.name }], ["refused", "DRPG.Frisk.refused", { who: other.name }],
+            ["interrupted", "DRPG.Frisk.interrupted", {}], ["toTarget shown", "DRPG.Frisk.shown", { who: theirs.name }],
+            ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? "other";
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (["bridge.done", "frisk.cancel"].includes(packet?.action)) packets.push(packet);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const read = () => {
+            const fresh = packets.slice(marks.packets);
+            const out = {
+                cards: made.slice(marks.made).map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf).filter(k => k !== "other"),
+                withdrawn: fresh.filter(p => p.action === "frisk.cancel" && p.userId === answerer).length,
+                done: fresh.filter(p => p.action === "bridge.done" && p.userId === player.id).map(p => p.value?.outcome ?? null)
+            };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const judged = async (action, fields, from, requestId = `E18C7${foundry.utils.randomID(8)}`) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...F.friskAsks.values()].find(row => row.searcherId === searcherId) ?? null;
+        const ask = async rid => {
+            F.forgetFriskAsks();
+            await pay();
+            await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id, rid);
+            read();
+            return rowOf(theirs.id);
+        };
+        const holds = row => Boolean(row && F.friskAsks.has(row.askId));
+        const seen = {};
+        let stood = null;
+        marks = { packets: packets.length, made: made.length };
+        try {
+            if (clockWas.eclipse || clockWas.phase === "classTrial") {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "dailyLife" });
+                await settle();
+            }
+            stood = await aloneTogether(theirs, other);
+            await (await import("./remnants.mjs")).flushTraceDigest();
+            await settle();
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            const ridA = `E18C7a${foundry.utils.randomID(8)}`;
+            const rowA = await ask(ridA);
+            const steps = [rowA?.state ?? null];
+            await judged("ruling.expired", { rid: ridA }, answerer);
+            steps.push(holds(rowA));
+            await judged("ruling.expired", { rid: `${ridA}x` }, player.id);
+            steps.push(holds(rowA));
+            await judged("ruling.expired", { rid: ridA }, player.id);
+            steps.push(holds(rowA));
+            // The other road to the same end (fix c7-G1's mutant c7m): the searcher's 'Leave it' on an ask still asking.
+            const leave = await judged("action.friskFollow", { searcherId: theirs.id, askId: rowA?.askId ?? null }, player.id);
+            steps.push(holds(rowA));
+            // The searcher's wait as the bridge row times it, run out: the ask's start moved back past it.
+            if (rowA) rowA.at -= TIMING.friskAnswerMs + TIMING.friskMarginMs;
+            await judged("ruling.expired", { rid: ridA }, player.id);
+            steps.push(holds(rowA));
+            seen.expired = { steps, leave, ...read(), yes: await judged("action.friskAnswer", { askId: rowA?.askId ?? null, allow: true }, answerer), after: read() };
+            const ridB = `E18C7b${foundry.utils.randomID(8)}`;
+            const rowB = await ask(ridB);
+            const no = await judged("action.friskAnswer", { askId: rowB?.askId ?? null, allow: false }, answerer);
+            const open = [rowB?.state ?? null, Number.isFinite(rowB?.forceUntil)];
+            read();
+            await judged("ruling.expired", { rid: ridB }, player.id);
+            seen.refused = { no, open, held: holds(rowB), ...read() };
+            const ridC = `E18C7c${foundry.utils.randomID(8)}`;
+            const rowC = await ask(ridC);
+            const listening = (game.socket.listeners?.("connect") ?? []).includes(F.friskSocketBack);
+            if (typeof F.friskSocketBack === "function") await F.friskSocketBack();
+            seen.back = { state: rowC?.state ?? null, listening, held: holds(rowC), ...read(),
+                yes: await judged("action.friskAnswer", { askId: rowC?.askId ?? null, allow: true }, answerer), after: read() };
+            const wait = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "requestFriskAsk");
+            seen.wait = [/\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(wait), /\buntilPrimaryLeaves:\s*true\b/.test(wait)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await putBack();
+            (await import("./roll-draw.mjs")).forgetPayments?.(theirs.id);
+            if (stood) await stood.back();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            expired: { steps: ["asking", true, true, true, true, false], leave: ["cannotNow"], cards: ["interrupted"], withdrawn: 1, done: ["interrupted"], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
+            // The searcher was answered once, with the refusal and its force: its expiry ends the ask as 'Leave it', the
+            // target told (the two alone in the room: no witness), with no second answer.
+            refused: { no: ["refused"], open: ["refused", true], held: false, cards: ["toTarget letGo"], withdrawn: 0, done: [] },
+            back: { state: "asking", listening: true, held: false, cards: [], withdrawn: 0, done: [], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
+            wait: [true, true]
+        }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own at once, after its 'Leave it' while asking (refused), after it once the wait could have run out; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [an ask, then this GM's socket back: its state, the listener, held, what was posted, the yes after it], [the wait names the expiry and ends with the primary]");
+    }],
+
+    ["a Sabotage asked again under its request id answers what it answered the first time: one freeze, one repair, the same reply, while another player's packet under that id and the saboteur's under another are judged as new (E18 C7)", async () => {
+        /*
+         * E18 C7, 26.10.2026; audit S10-43 part 2, the stage's row E18-32. A player's Sabotage is asked again with its
+         * request id when a new primary can answer (gm-bridge.mjs `project.sabotage` is `resend: true`; bridge-guards.mjs
+         * `resendOnGmReady`), and a primary that had frozen the project and made its repair, and reloaded or left before
+         * its answer went, was asked again for a Sabotage it had carried out. The runner's roll check refused the resend
+         * ("that roll has already settled that action"), so the saboteur was told it was not done, with the project
+         * frozen by their roll. The repair's row in the GMs' store (E36 C3's meta, `saboteur`) keeps the request id beside
+         * the saboteur now (`sabotageAsk`), and a request asked again by its sender under its id answers the first one's
+         * result before any check (bridge-guards.mjs `judge`, the declaration's `again`). Keyed by Foundry's sender: a
+         * player who sends the same id gets nothing of it. A project in the player's character's room, a roll the GMs'
+         * record says came to 13. Read: the first answer, the resend's, another player's packet under the same id, the
+         * saboteur's under another id, the repairs made and the freeze. Red at f7ac1e9d: the resend is refused.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a second connected player sends a packet under the first one's id");
+        const { player, actor, where } = await playerInRoom();
+        const stranger = game.users.find(u => u.active && !u.isGM && u.id !== player.id) ?? null;
+        must(stranger, "no second connected player - this would measure nothing");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await projectPackets(player, actor);
+        const rid = `E18C7s${foundry.utils.randomID(8)}`;
+        const sabotage = async (fields, from, requestId) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "project.sabotage", requestId, actorId: actor.id, penalty: 0, relief: 0, ...fields }, from, {
+                send: (to, reply) => {
+                    if (reply?.action === "bridge.done") out.push(["done", reply.value?.repair?.id ?? null, reply.value?.repair?.name ?? null, reply.value?.target ?? null]);
+                    else if (reply?.action === "bridge.refused") out.push(["refused", reply.reason]);
+                }
+            });
+            await settle();
+            return out;
+        };
+        let seen = null;
+        try {
+            const target = await F.project(where.room);
+            const roll = await F.rolled(13, "sabotage");
+            const fields = { targetId: target, difficulty: 3, rollId: roll.id };
+            const repairs = () => F.P.allProjects().filter(p => F.P.repairs(p.id) === target).map(p => p.id);
+            const first = await sabotage(fields, player.id, rid);
+            const made = repairs();
+            const again = await sabotage(fields, player.id, rid);
+            const stranger_ = await sabotage(fields, stranger.id, rid);
+            const anew = await sabotage(fields, player.id, `${rid}n`);
+            seen = {
+                first: first.map(([kind, id, name, of]) => [kind, id === made[0], Boolean(name), of === F.P.allProjects().find(p => p.id === target)?.name]),
+                again: stableJson(again) === stableJson(first), stranger: stranger_.map(([kind]) => kind), anew: anew.map(([kind]) => kind),
+                repairs: repairs().length, frozen: F.P.isFrozen(target)
+            };
+        } finally {
+            await F.putBack();
+        }
+        equal(stableJson(seen), stableJson({ first: [["done", true, true, true]], again: true, stranger: ["refused"], anew: ["refused"], repairs: 1, frozen: true }),
+            "[the first answer: done, its repair, named, of the target], [the resend's answer the same], [another player's under that id], [the saboteur's under another id], [repairs made], [frozen]");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory
@@ -49263,8 +49504,9 @@ const SCENARIOS = [
             await student.update(Object.fromEntries(paths.map((path, i) => [path, was[i]])));
             await sheetAuditIdle();
         }
-        const spend = [true, { reason: "spend", ref: null }, "stands"];
-        equal(stableJson(read), stableJson([[spend, spend, spend], [0, 0, true], [], [1, 1]]),
+        // A crossing's spend is stamped as the move's since E17 fix e1-G2 (actions.mjs `MOVE_SPEND`): the price the primary reads.
+        const spend = [true, { reason: "spend", ref: null }, "stands"], move = [true, { reason: "spend", ref: "move" }, "stands"];
+        equal(stableJson(read), stableJson([[spend, move, move], [0, 0, true], [], [1, 1]]),
             "a player's Burst, free Move or Sprint spent was not the module's write named `spend`, or the GMs' audit did not let it stand as credit "
                 + "(per write: the module's, the stamp, the verdict; the Burst, Sprint and free Move after; the rows; the credit each grant gained)");
     }],
@@ -51819,6 +52061,9 @@ const SCENARIOS = [
             }
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
             await gmStoresIdle();
+            /* The trace digest the clock put back sends the GMs is waited for by the runner's restore, which deletes it
+               (`restore`, E17 fix ci-3: the bus let run out and the digest let land); the `settle()` that stood here for it
+               (823174bc, E17 fix ci-2) was the same wait in this test alone. */
         }
         equal(stableJson(read), stableJson({ final: false, motive: null, offered: [5], cleared: 1, standing: [true, false] }),
             "last season's records of this chapter read as this season's (read in the new season: the Final Truth placed, the motive "
@@ -59114,11 +59359,14 @@ const SCENARIOS = [
                 await counted("a put-back on its way");
                 await aside(async () => { release(); await until(() => token.x === 1600); });
                 delete token.update;
-                // A jump the doors refuse, no put-back (the audit on "log"): the judge's standing turns unlawful.
+                // A jump the doors refuse, no put-back (the audit on "log"): the judge's standing turns unlawful. Since E17 C1 a
+                // player's move a lock refuses is put back by the GMs' audit in either mode (E17-T2), so the jump is a GM's
+                // write marked as a send-back that names no player (`SENT_BACK: true`), which the judge reads as a revert
+                // and the audit as a GM's move - the standing the rules refuse stands, which is what this step reads.
                 await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
                 await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
                 must(unseen({ x: 230, y: 230 }), "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
-                await aside(() => token.update({ x: 230, y: 230 }, asPlayer));
+                await aside(() => token.update({ x: 230, y: 230 }, { ...PLACE, [M.REVERT]: true, [M.SENT_BACK]: true }));
                 await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: false });
                 await budget({ actions: 2 });
                 lawful.push(M.standingOf(token)?.lawful ?? null);
@@ -69939,6 +70187,2124 @@ const SCENARIOS = [
         stableJson({ before: true, exempt: ["directMurder", "move", "rest"], held: [], callGm: true, refunds: [true, true], noGm: true }),
             "an action a GM rules can be paid with no GM connected, or a Palm or a Plant the bridge could not send keeps its price "
             + "[performAction refuses before the first price, the exempt set, exempt actions that call a GM, callGm's refusal, the Palm's and the Plant's refund, the refund reads noGm]");
+    }],
+
+    ["one queue on the primary (E17-T1): ten Despair +1 together end ten up, each reading the one before; ten Searches of a room together spend exactly its tokens; two clock writes together both land; ten Eclipse crossings together count the allowance and refuse the rest; a character's count and 'Go through' wait while its crossing key is held, and another character's does not", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-01 and E17-04, audit S10-23, S07-24. Foundry changes a setting's cached value only
+         * when the server answers, so changes begun within one round trip read the same old value: two rolls' Fear
+         * points gave the Monokuma +1, two Searches of a room both spent its last token, and a write of the clock
+         * dropped another's field. Read on this primary's browser: (1) the primary's own pool set to 0 and ten
+         * `adjustDespair(+1)` started together (as many as the pool holds, if fewer): each answers one more than the
+         * one before and the pool ends there; (2) ten `SearchTokens.spend` of a room of the suite's own on a scene id
+         * no scene has (unsealed, absent from the counters, so full): exactly the room's tokens are spent and it ends
+         * at 0; (3) two `setClock` of two fields of the suite's own, together: both are in the clock after; (4) in an
+         * Eclipse leading into noon (an allowance, as "a crossing beyond the allowance is refused on the GM" reads it),
+         * a step of this test held on the first student's `crossingKey`: that student's count and 'Go through' (a
+         * passage id no row has, so refused) wait, the second student's crossing is counted meanwhile, and the held
+         * count lands once the step opens; then ten crossings of the first student together: the count ends at the
+         * allowance and the rest are refused, nothing past it. Red at 9f727e07 on (1) to (3): every Despair answer
+         * read 0 and the pool ended at 1, every Search spent a token, and the second clock write dropped the first's
+         * field; (4)'s count was already exact (the GMs' store patches in this browser before it awaits) but no key
+         * held it. The settings are written back as found.
+         */
+        const D = await import("./despair.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const E = await import("./eclipse.mjs");
+        const M = await import("./movement.mjs");
+        const PG = await import("./passages-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the queue it reads is the primary's");
+        const [first, second] = cast(2);
+        const saved = {
+            pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
+            tokens: foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {}),
+            clock: foundry.utils.deepClone(getClock())
+        };
+        const seen = {};
+        let open = () => {};
+        try {
+            const n = Math.min(10, D.despairMax());
+            await D.setDespair(game.user.id, 0);
+            const answers = await Promise.all(Array.from({ length: n }, () => D.adjustDespair(game.user.id, 1)));
+            seen.despair = { answers, end: D.getDespair(game.user.id) };
+
+            const room = "SUITE E17 T1 room", sceneId = "zE17T1noScene00", max = SearchTokens.max;
+            const spent = await Promise.all(Array.from({ length: 10 }, () => SearchTokens.spend(room, sceneId)));
+            seen.search = { spent: spent.filter(Boolean).length, left: SearchTokens.store[SearchTokens.key(room, sceneId)] ?? null };
+
+            await Promise.all([setClock({ suiteE17a: 1 }), setClock({ suiteE17b: 2 })]);
+            const clock = getClock();
+            seen.clock = [clock.suiteE17a ?? null, clock.suiteE17b ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.clock, saved.clock);
+
+            // The fixture sets what it reads (E17 fix e1-G4; the review's E17R-09): out of a Class Trial or an Eclipse first,
+            // as E17-T2, T3 and T6 do - mid-trial `startEclipse` refuses (trialFirst), and in an Eclipse it would start a second.
+            const now = getClock() ?? {};
+            if (now.phase === "classTrial" || now.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await setClock({ timeOfDay: "morning" });
+            await E.startEclipse();
+            await settle();
+            const allowance = E.eclipseAllowance();
+            ok(E.eclipseId() && Number.isInteger(allowance) && allowance >= 1, `the Eclipse has no name, or no allowance to count against (${E.eclipseId()}, ${allowance})`);
+            const keyed = typeof M.crossingKey === "function";
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = keyed ? serialWrite(M.crossingKey(first.id), () => gate) : Promise.resolve();
+            let counted = "waiting", went = "waiting";
+            const count = E.applyRecordedMove(first.id).then(out => { counted = out?.used ?? null; });
+            const go = PG.crossTunnel({ actorId: first.id, passageId: "zE17T1noPassage" }).then(out => { went = out?.refused ? "refused" : stableJson(out); });
+            const other = await E.applyRecordedMove(second.id);
+            await settle();
+            seen.held = { other: other?.used ?? null, counted, went, row: S.eclipseMoveStore.get(first.id)?.used ?? 0 };
+            open();
+            await held;
+            await Promise.all([count, go]);
+            seen.held.after = [counted, went];
+            const ten = await Promise.all(Array.from({ length: 10 }, () => E.applyRecordedMove(first.id)));
+            seen.eclipse = { counted: ten.filter(out => out && !out.refused).length, refused: ten.filter(out => out?.refused).length,
+                end: S.eclipseMoveStore.get(first.id)?.used ?? 0, allowance };
+            seen.want = { counted: allowance - 1, refused: 11 - allowance, end: allowance, allowance };
+        } finally {
+            open();
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await S.eclipseMoveStore.drop(first.id);
+            await S.eclipseMoveStore.drop(second.id);
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, saved.clock);
+            await settle();
+        }
+        const max = SearchTokens.max, n = Math.min(10, D.despairMax());
+        equal(stableJson({ ...seen, want: null }), stableJson({
+            despair: { answers: Array.from({ length: n }, (_, i) => i + 1), end: n },
+            search: { spent: Math.min(10, max), left: Math.max(0, max - 10) },
+            clock: [1, 2],
+            held: { other: 1, counted: "waiting", went: "waiting", row: 0, after: [1, "refused"] },
+            eclipse: seen.want,
+            want: null
+        }), "the primary's writes are not one queue a key each [Despair: what each +1 answered, the pool; Search: tokens spent, left; "
+            + "the clock's two fields; a held crossing key: the other student's count, the held count and 'Go through' while held, the "
+            + "first student's row, both after; ten crossings together: counted, refused, the count, the allowance]");
+    }],
+
+    ["the GM puts back what the rules refuse (E17-T2): a player's move into a locked room or another's bedroom, by a road the GM's client did not write, stands again where the GMs last read it lawful - x, y, elevation - in \"log\" and \"sendBack\" alike, its player sent the rule's code; a breach's end in that bedroom and a free room stand, and a wall in \"sendBack\" is the wall rule's", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-05, E17-10 to E17-12, E17-14, audit S07-02, the owner's 13.10 and A10. The doors' rules
+         * - a GM's lock, a seal, Chained, another's bedroom, the incident, the courtroom - were asked on the mover's browser
+         * (`onPreUpdateToken`); the primary's judge of arrivals (`judgeArrival`) held a console's arrival unlawful and told
+         * the GMs, and put nothing back (E12's Q3 a). Now the GMs' audit (movement-audit.mjs `auditMove`) asks the judge's
+         * verdict after the walls and floors (`ruleRefused`) and puts the token back to where the judge last read it
+         * lawful. A scene of the suite's own: a Hall over a locked Lab (a wall between), another student's Den, a Yard (a
+         * wall between) and a Gym; crossing rooms costs nothing, so no adjacency or price is asked, only the rules. A
+         * player's move as the primary hears it is a GM's write that names the player (`SENT_BACK`, as A10-18's), each to
+         * a spot the token never stood on; the token is stood at its start by this GM before each. Read per step: where
+         * the token stands (x, y, elevation), whether the judge reads it lawful, the `move.sentBack` codes this browser
+         * sent, and the GMs' whispers of a rule's put-back (`data-drpg-rule`, one a burst); and whether a player's browser
+         * takes each rule's code (`sentBackRefusal`). Red at 22207d2c: every rule's move stood, unlawful, and no code.
+         */
+        const M = await import("./movement.mjs");
+        const A = await import("./movement-audit.mjs");
+        const R = await import("./rooms.mjs");
+        const SEC = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const trio = cast(3);
+        const student = trio.find(a => !isMastermind(a)), other = trio.find(a => a !== student);
+        must(student && other, "no student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 Hall", LAB = "SUITE E17 T2 Lab", DEN = "SUITE E17 T2 Den", YARD = "SUITE E17 T2 Yard", GYM = "SUITE E17 T2 Gym";
+        const mark = (more = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...more } });
+        const room = (name, x, y, width, height, flags = mark()) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }], flags, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, steps = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            scene = await Scene.create({ name: "SUITE E17 T2 rules", width: 2400, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0, 2400, 400), room(LAB, 0, 400, 600, 600, mark({ [M.ROOM_FLAGS.locked]: true })),
+                room(DEN, 600, 400, 600, 600, mark({ [ROOM_OWNER_FLAG]: other.id })), room(YARD, 1200, 400, 600, 600), room(GYM, 1800, 400, 600, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [0, 400, 600, 400] }, { c: [1200, 400, 1800, 400] }]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === HALL && M.isLocked(scene, LAB), "the token is not in the Hall or the Lab is not locked - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.rule ? `${packet.code}/${packet.rule}` : packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const out = [];
+            const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
+            const step = async (what, start, spot, { audit, revert = false }) => {
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, audit);
+                await token.update({ ...start, elevation: 0 }, PLACE);
+                await settle();
+                must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
+                const sent = told.length, said = made.length;
+                await token.update(spot, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await settle();
+                await until(() => token.x === start.x && token.y === start.y, 1200);
+                await settle();
+                out.push([what, `${token.x},${token.y},${token.elevation ?? 0}`, M.standingOf(token)?.lawful ?? null, told.slice(sent),
+                    made.slice(said).filter(id => String(SEC.secretHtml(game.messages.get(id)) ?? "").includes(`data-drpg-rule="${token.id}"`)).length]);
+            };
+            const H1 = { x: 300, y: 100 }, H2 = { x: 1400, y: 100 }, H3 = { x: 2000, y: 100 };
+            await step("log: into the locked Lab across a wall, raised", H1, { x: 300, y: 700, elevation: 5 }, { audit: "log" });
+            await step("log: into another's Den", H1, { x: 800, y: 500 }, { audit: "log" });
+            await step("log: a REVERT into another's Den", H1, { x: 810, y: 520 }, { audit: "log", revert: true });
+            await M.setRoomBroken(scene, DEN, true);
+            await step("log: into that Den, its wall forced by a breach", H1, { x: 820, y: 540 }, { audit: "log" });
+            await M.setRoomBroken(scene, DEN, false);
+            await step("log: across a wall into the Yard", H2, { x: 1400, y: 600 }, { audit: "log" });
+            await step("sendBack: into the locked Lab across a wall", H1, { x: 310, y: 710 }, { audit: "sendBack" });
+            await step("sendBack: into another's Den", H1, { x: 830, y: 560 }, { audit: "sendBack" });
+            await step("sendBack: a REVERT across a wall into the Yard", H2, { x: 1410, y: 650 }, { audit: "sendBack", revert: true });
+            await step("sendBack: into the Gym", H3, { x: 2000, y: 600 }, { audit: "sendBack" });
+            const taken = ["doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "cannotNow"]
+                .map(code => A.sentBackRefusal({ action: "move.sentBack", userId: asker.id, code }, game.user.id, { me: asker, users: game.users, primary: game.user.id }));
+            steps = [out, taken];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([[
+            ["log: into the locked Lab across a wall, raised", "300,100,0", true, ["doorLocked"], 1],
+            ["log: into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
+            ["log: a REVERT into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
+            ["log: into that Den, its wall forced by a breach", "820,540,0", true, [], 0],
+            ["log: across a wall into the Yard", "1400,600,0", true, [], 0],
+            ["sendBack: into the locked Lab across a wall", "300,100,0", true, ["wall"], 0],
+            ["sendBack: into another's Den", "300,100,0", true, ["cannotNow/bedroomShut"], 0],
+            ["sendBack: a REVERT across a wall into the Yard", "1400,100,0", true, ["wall"], 0],
+            ["sendBack: into the Gym", "2000,600,0", true, [], 0]],
+            [null, null, null, null, null, null]]),
+            "[each step as [what, where the token stands as x,y,elevation, lawful, the codes its player was sent, the GMs' whispers of a rule's put-back]; "
+                + "the codes as code/mark where a mark names the rule (fix e1-G1: another's bedroom is cannotNow/bedroomShut, so the player reads the key); "
+                + "whether a player's browser takes each rule's code] - a move the rules refuse stood, a lawful one was put back, or a wall in sendBack was not the wall rule's");
+    }],
+
+    ["the incident holds its people where they fight (E17-T2): a participant a console carries out of the room is put back, the third may go after Averted eyes while the others stay, and at Stage 6 everyone may go", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-05 to E17-07, E17-13, the owner's 13.10 ("uczestnik próbuje wyjść i zostaje; po akcji
+         * kryzysowej - Survive, Escape together, Finishing blow, Averted eyes - może"; "Stage 4 i Stage 6 wolne"). The
+         * incident's lock (`lockedInIncident`) was asked on the mover's browser alone. A direct murder between two
+         * students with players, its opening through, a third walked in; their tokens stood in the Hall of a scene of the
+         * suite's own, over a Gym, no wall between, crossing rooms costing nothing. Each leave is a player's move into the
+         * Gym as the primary hears it (`SENT_BACK` naming the owner), to a spot never stood on, in "log" mode. Read per
+         * leave: whether the token stands in the Gym, and the codes its player was sent; after the incident, the third
+         * averting their eyes (`thirdLeaves`), then the GM moving the fight to Stage 6 (`beginResolution`, the state a
+         * Survive, an Escape together or a Finishing blow leaves). Restore() ends the incident. Red at 22207d2c: every
+         * leave stood. Fix e1-G1 (the review's E17P1-R6, E17P1-R1): a leave at Stage 4, while the opening roll waits, and the
+         * third, who walked in from the Gym, sent back to its Gym spot by its console's REVERT and asked of the bridge's
+         * `token.sendBack` guard; red at d21d4fce: the REVERT stood in the Gym and the guard took the spot.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        const MU = await import("./murder.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 incident Hall", GYM = "SUITE E17 T2 incident Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, y) => ({ name, shapes: [{ type: "rectangle", x: 0, y, width: 1200, height: 400 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [];
+        let scene = null, steps = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            scene = await Scene.create({ name: "SUITE E17 T2 incident", width: 1200, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(GYM, 400)]);
+            // The third starts in the Gym and walks into the Hall (fix e1-G1): the spot it left is in the GMs' record.
+            const tokens = await scene.createEmbeddedDocuments("Token", [killer, victim, third].map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name,
+                x: 100 + 300 * i, y: a === third ? 600 : 100, width: 1, height: 1 })));
+            await settle();
+            const tokenOf = a => tokens.find(t => t.actorId === a.id);
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && tokens.some(t => t.id === packet.tokenId)) told.push([packet.tokenId, packet.code ?? null]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            let n = 0;
+            const out = [];
+            const leave = async (what, actor) => {
+                const t = tokenOf(actor), start = { x: t.x, y: t.y }, sent = told.length;
+                n += 1;
+                await t.update({ x: start.x + n, y: 600 }, { ...PLACE, [M.SENT_BACK]: player(actor).id });
+                await settle();
+                await until(() => t.x === start.x && t.y === start.y, 1200);
+                await settle();
+                out.push([what, M.roomOfToken(t) === GYM, told.slice(sent).filter(([id]) => id === t.id).map(([, code]) => code)]);
+                await t.update(start, PLACE);
+                await settle();
+            };
+            const B = await import("./bridge-guards.mjs");
+            const GYM_SPOT = { x: 700, y: 600 };
+            await tokenOf(third).update({ x: 700, y: 100 }, { ...PLACE, [M.SENT_BACK]: player(third).id });
+            await settle();
+            must(M.roomOfToken(tokenOf(third)) === HALL, "the third did not walk into the Hall - this would measure nothing");
+            // Stage 4 (the opening roll) is free (the owner's 13.10): a leave and a step back while it waits.
+            await MU.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            must(MU.murderState()?.stage === "openingRoll", `the opening roll is not waiting: ${stableJson(MU.murderState())}`);
+            await leave("at Stage 4: the killer", killer);
+            await MU.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(MU.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(MU.murderState())}`);
+            if (!MU.murderState()?.thirdId) must(await MU.thirdPartyEnters(third), "the third could not walk into the incident - this would measure nothing");
+            must(M.recentPositions(tokenOf(third).id).some(h => h.x === GYM_SPOT.x && h.y === GYM_SPOT.y), "the GMs hold no record of the third in the Gym - this would measure nothing");
+            /* A RECORDED SPOT IS NO WAY OUT (fix e1-G1; the review's E17P1-R1, E17P1-SEC-2): the third's console sends its token back
+               to where it stood a moment before it walked in, as a REVERT and through the bridge's `token.sendBack`. */
+            const guarded = await B.guardSendbackPlace(player(third), { sceneId: scene.id, tokenId: tokenOf(third).id, position: GYM_SPOT }, {});
+            {
+                const t = tokenOf(third), sent = told.length;
+                await t.update(GYM_SPOT, { ...PLACE, [M.SENT_BACK]: player(third).id, [M.REVERT]: true });
+                await settle();
+                await until(() => t.x === 700 && t.y === 100, 1200);
+                await settle();
+                out.push(["in the incident: the third's REVERT to where it stood", M.roomOfToken(t) === GYM, told.slice(sent).filter(([id]) => id === t.id).map(([, code]) => code), guarded]);
+            }
+            await leave("in the incident: the killer", killer);
+            await leave("in the incident: the victim", victim);
+            await leave("in the incident: the third", third);
+            await MU.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+            must(!MU.murderState()?.thirdId, "the third did not leave the incident - this would measure nothing");
+            await leave("after Averted eyes: the third", third);
+            await leave("after Averted eyes: the killer", killer);
+            must(await MU.beginResolution("victimKilled"), "the GM could not move the incident to Stage 6");
+            await leave("at Stage 6: the killer", killer);
+            await leave("at Stage 6: the victim", victim);
+            steps = out;
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([
+            ["at Stage 4: the killer", true, []],
+            ["in the incident: the third's REVERT to where it stood", false, ["cannotLeave"], "the character is held in the incident"],
+            ["in the incident: the killer", false, ["cannotLeave"]],
+            ["in the incident: the victim", false, ["cannotLeave"]],
+            ["in the incident: the third", false, ["cannotLeave"]],
+            ["after Averted eyes: the third", true, []],
+            ["after Averted eyes: the killer", false, ["cannotLeave"]],
+            ["at Stage 6: the killer", true, []],
+            ["at Stage 6: the victim", true, []]]),
+            "each leave as [what, whether the token stands in the Gym, the codes its player was sent (and for the REVERT, the bridge's guard on that spot)] - a participant "
+                + "walked out of a running incident, by a move or by a spot the GMs saw it on, or somebody free to go (Stage 4, after Averted eyes, Stage 6) was held");
+    }],
+
+    ["a spot the GMs saw a token on is no way past a rule (E17-T2): a REVERT or a send-back into a room locked since the token left it is put back, a body its player moves stands again where it lay, and the player reads the rule - the bedroom's key, the body", async () => {
+        /*
+         * E17 fix e1-G1, 26.10.2026; the review's E17P1-R1 and E17P1-SEC-2 (a REVERT, or `token.sendBack`, onto a spot the GMs
+         * saw within the minute was taken back to that spot's old lawful standing, the doors' rules never asked), E17P1-SEC-4
+         * and E17P1-R5 (a dead student's token moved by its player was held unlawful and stood where the console put it), and
+         * E17R-06 (another's bedroom put back read "That cannot be done now."). On a scene of the suite's own - a Hall over a
+         * Lab and a Gym, no walls, crossing rooms costing nothing - in "log" mode. (a) This GM stands the token in the Lab, its
+         * player walks it into the Hall, this GM locks the Lab; then the bridge's guard on the Lab spot, and the player's
+         * REVERT to it. (b) A body: a dead student of the suite's own, owned by the player, in the Hall; its player moves it into
+         * the Gym. Read: where each token stands after, the codes (and the rule's mark) its player was sent, and the line a
+         * player's browser says for a packet (`sentBackLine`). Red at d21d4fce: the REVERT stood in the locked Lab and the guard
+         * took the spot, the body stood in the Gym, and no packet named the bedroom or the body.
+         */
+        needs(env.primaryGm(), "the judge and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const A = await import("./movement-audit.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T2 recorded Hall", LAB = "SUITE E17 T2 recorded Lab", GYM = "SUITE E17 T2 recorded Gym";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y, width, height) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, body = null, read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            scene = await Scene.create({ name: "SUITE E17 T2 recorded", width: 1200, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0, 1200, 400), room(LAB, 0, 400, 600, 600), room(GYM, 600, 400, 600, 600)]);
+            body = await Actor.create({ name: "SUITE E17 T2 body", type: "character", ownership: { default: 0, [asker.id]: 3 }, flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } });
+            const [token, corpse] = await scene.createEmbeddedDocuments("Token", [
+                { actorId: student.id, actorLink: true, name: student.name, x: 300, y: 700, width: 1, height: 1 },
+                { actorId: body.id, actorLink: true, name: body.name, x: 900, y: 100, width: 1, height: 1 }]);
+            await settle();
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && [token.id, corpse.id].includes(packet.tokenId)) told.push([packet.tokenId, packet.rule ? `${packet.code}/${packet.rule}` : packet.code ?? null]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            const codes = (t, from) => told.slice(from).filter(([id]) => id === t.id).map(([, code]) => code);
+            // (a) Out of the Lab, which is then locked, and back to the spot it left.
+            await token.update({ x: 300, y: 100 }, asPlayer);
+            await settle();
+            must(M.roomOfToken(token) === HALL && M.standingOf(token)?.lawful !== false, "the walk out of the Lab did not stand - this would measure nothing");
+            const lab = scene.regions.find(r => r.name === LAB);
+            await lab.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            await settle();
+            must(M.isLocked(scene, LAB) && M.recentPositions(token.id).some(h => h.x === 300 && h.y === 700), "the Lab is not locked or the GMs hold no record of the Lab spot - this would measure nothing");
+            const guarded = await B.guardSendbackPlace(asker, { sceneId: scene.id, tokenId: token.id, position: { x: 300, y: 700 } }, {});
+            let sent = told.length;
+            await token.update({ x: 300, y: 700 }, { ...asPlayer, [M.REVERT]: true });
+            await settle();
+            await until(() => token.x === 300 && token.y === 100, 1200);
+            await settle();
+            const reverted = [M.roomOfToken(token), codes(token, sent), guarded];
+            // (b) A body its player moves.
+            must(M.roomOfToken(corpse) === HALL, "the body is not in the Hall - this would measure nothing");
+            sent = told.length;
+            await corpse.update({ x: 900, y: 700 }, { ...PLACE, [M.SENT_BACK]: asker.id });
+            await settle();
+            await until(() => corpse.x === 900 && corpse.y === 100, 1200);
+            await settle();
+            const moved = [M.roomOfToken(corpse), codes(corpse, sent)];
+            const lines = [A.sentBackLine({ code: "cannotNow", rule: "bedroomShut", room: "Den" }), A.sentBackLine({ code: "cannotNow", rule: "corpse" }),
+                A.sentBackLine({ code: "doorLocked" })];
+            read = { reverted, moved, lines };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await body?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ reverted: [HALL, ["doorLocked"], "the room beyond is locked"], moved: [HALL, ["cannotNow/corpse"]],
+            lines: [game.i18n.format("DRPG.Vault.keyMissing", { room: "Den" }), game.i18n.localize("DRPG.Move.dead"), game.i18n.localize("DRPG.Bridge.why.doorLocked")] }),
+            "{reverted: [the room the token stands in after a REVERT to its Lab spot, the codes its player was sent, the bridge's guard on that spot], "
+                + "moved: [the room a body stands in after its player moved it, the codes], lines: what a player's browser says for a bedroom's, a body's and a lock's put-back}");
+    }],
+
+    ["a sidebar drop the rules refuse is removed and the GMs told, a send-back into another's bedroom is refused, and a jump upstairs into a locked room comes back with its floor (E17-T3)", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-08 to E17-10, the owner's 13.10 and Q2 (19.10: "a refused sidebar drop: the new token is
+         * deleted and the GMs are told"). (a) A drop (`noteGmCreated`) was judged and the GMs told, and it stood. Here on a
+         * plain scene of a Hall and a locked Lab, crossing rooms costing nothing: a student who is not the Mastermind placed
+         * in the Hall by this GM, then a player's drop of that student in the Lab and in the Hall, this GM's drop in the
+         * Lab, and a player's drops of a second student never seen on the scene in the Lab and in the Hall. Read: which
+         * drops were removed (the token's own `delete`), and the GMs' notices of a removed drop (`data-drpg-dropgone`).
+         * (b) `token.sendBack` (bridge-guards.mjs `guardSendbackPlace`) took the centre of any room the token stood in
+         * within the minute, the one it stands in now included: a console's jump into another's bedroom, its put-back held
+         * on its way, then a send-back to that bedroom's centre. Read: the guard's answer to that and to the Hall spot it
+         * stood on lawfully. (c) Levels: a jump upstairs into a locked Attic above the Dorm, raised; read where the token
+         * stands after, with its floor and elevation. Red at 22207d2c: every drop stood, the bedroom's centre was taken,
+         * and the jump stood upstairs.
+         */
+        needs(env.primaryGm(), "the judge and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const SEC = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const [actor, stranger] = cast(3).filter(a => !isMastermind(a));
+        must(actor && stranger, "no two living students who are not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(actor), "the drop, the jump and the send-back are a player's");
+        const asker = ownerOf(actor);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const said = (kind, id) => made.filter(m => String(SEC.secretHtml(game.messages.get(m)) ?? "").includes(`data-drpg-${kind}="${id}"`)).length;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        let scene = null, upstairs = null, read = null, release = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            // (a) The drops, on a plain scene.
+            const region = (name, x, flags = {}) => ({ id: name, name, levels: new Set(), behaviors: [],
+                bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+                getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+            const id = foundry.utils.randomID(6), gone = [];
+            const plain = { id: `suite-e17-t3-${id}`, name: "SUITE E17 T3", grid: { size: 100 },
+                regions: new Set([region("Hall", 0), region("Lab", 500, { [M.ROOM_FLAGS.locked]: true })]) };
+            const tok = (name, of, x) => ({ id: `suite-e17-t3-${name}-${id}`, name: of.name, x, y: 100, width: 1, height: 1, elevation: 0,
+                parent: plain, actor: of, actorId: of.id, delete: async () => { gone.push(name); } });
+            M.judgeArrival(tok("placed", actor, 100), game.user.id);
+            const drops = [["lab", actor, 600, asker.id], ["hall", actor, 150, asker.id], ["gm lab", actor, 650, game.user.id],
+                ["stranger lab", stranger, 700, asker.id], ["stranger hall", stranger, 200, asker.id]].map(([name, of, x, user]) => {
+                const t = tok(name, of, x);
+                M.noteGmCreated(t, user);
+                return t;
+            });
+            await until(() => gone.length >= 2, 1500);
+            await settle();
+            read = { drops: [[...gone].sort(), drops.map(t => said("dropgone", t.id))] };
+            // (b) A send-back into another's bedroom while the put-back is on its way.
+            const mark = (more = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...more } });
+            const room = (name, x, flags = mark()) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags, behaviors: [] });
+            scene = await Scene.create({ name: "SUITE E17 T3 bedroom", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE E17 T3 Hall", 0), room("SUITE E17 T3 Den", 600, mark({ [ROOM_OWNER_FLAG]: stranger.id }))]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 200, y: 200, width: 1, height: 1 }]);
+            await settle();
+            const tokenWrite = Object.getPrototypeOf(token).update;
+            Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release && game.user.isGM && !options?.[M.SENT_BACK]
+                ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
+            await token.update({ x: 800, y: 300 }, asPlayer);
+            await settle();
+            await until(() => release, 1500);
+            const held = Boolean(release);
+            const centre = M.positionIn("SUITE E17 T3 Den", token);
+            const ask = position => B.guardSendbackPlace(asker, { sceneId: scene.id, tokenId: token.id, position }, {});
+            read.sendBack = [held, await ask(centre), await ask({ x: 200, y: 200 })];
+            release?.();
+            delete token.update;
+            await until(() => token.x === 200 && token.y === 200, 1500);
+            await settle();
+            // (c) Upstairs into a locked Attic.
+            const [L1, L2] = ["suitee17f1", "suitee17f2"].map(k => `${k}${foundry.utils.randomID(6)}`.slice(0, 16));
+            const floor = (name, level, flags) => ({ name, shapes: [{ type: "rectangle", x: 0, y: 0, width: 600, height: 600 }], levels: [level], flags, behaviors: [] });
+            upstairs = await Scene.create({ name: "SUITE E17 T3 upstairs", width: 600, height: 600, grid: { size: 100 }, active: false, navigation: false,
+                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+            await upstairs.createEmbeddedDocuments("Region", [floor("SUITE E17 T3 Dorm", L1, mark()), floor("SUITE E17 T3 Attic", L2, mark({ [M.ROOM_FLAGS.locked]: true }))]);
+            const [climber] = await upstairs.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, level: L1, width: 1, height: 1 }]);
+            await settle();
+            must(R.levelOf(climber) === L1 && M.isLocked(upstairs, "SUITE E17 T3 Attic"), "the climber is not downstairs or the Attic is not locked - this would measure nothing");
+            await climber.update({ x: 200, y: 200, level: L2, elevation: 12 }, asPlayer);
+            await settle();
+            await until(() => climber.x === 100 && climber.y === 100, 1500);
+            await settle();
+            read.upstairs = `${climber.x},${climber.y},${R.levelOf(climber) === L1 ? "down" : R.levelOf(climber) === L2 ? "up" : R.levelOf(climber)},${climber.elevation ?? 0}`;
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            release?.();
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await upstairs?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drops: [["lab", "stranger lab"], [1, 0, 0, 1, 0]],
+            sendBack: [true, "that cannot be done now", null], upstairs: "100,100,down,0" }),
+            "{drops: [the drops removed, the GMs' notices of each removed: a player's in the Lab, in the Hall, a GM's in the Lab, a second student's in the Lab, in the Hall], "
+                + "sendBack: [the put-back held, the guard on the bedroom's centre, on the Hall spot], upstairs: x,y,floor,elevation after a jump into the locked Attic}");
+    }],
+
+    ["the Eclipse counted on the GM (E17-T4): a console's crossings no packet announced are counted where the primary sees them and the one past the allowance is put back, eclipseSpent sent; a crossing seen and asked for counts once, an honest ask before its move is never put back; a crossing no GM answered is refused; one in flight counts", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-15 to E17-17, audit S10-44 and S07-08, A10 ("S07-08 ... idą do TEGO hooka i tej drogi").
+         * The Eclipse's count was the bridge's `eclipse.move` alone, which the mover's browser sends (eclipse.mjs
+         * `recordMove`): a console that moved its token and never asked crossed the dark map with nothing counted, and
+         * no GM's answer let a crossing stand uncounted. Now the primary counts a player's crossing where its judge of
+         * arrivals sees one (movement.mjs `judgeArrival`, the store's `seen`), the larger of the two counts is the count,
+         * and a crossing it sees past the allowance is put back by the GMs' audit (`eclipseSpent`) in either mode. On a
+         * scene of the suite's own: a row of rooms that touch, no walls, in an Eclipse that is no free placement. A
+         * player's move as the primary hears it is a GM's write naming the player (`SENT_BACK`, as E17-T2's). Read: (a) a
+         * console's walk of one room more than the allowance - where the token stands after each move, the codes its
+         * player was sent and the count; (b) the console's asks for those crossings arriving late - each counted once
+         * with its sighting, one more refused; (c) an honest player's asks each before its move - every move stands; (d)
+         * the Eclipse's judge with a recorder no GM answered (null), and with recorders held in flight: what the count
+         * reads while they are held and whether one more is let through. Red at 730dffcf: every move of (a) stood with
+         * nothing counted or sent, (b) counted from 1, (d) a crossing no GM answered stood and the held ones counted
+         * nothing.
+         */
+        needs(env.primaryGm(), "the sighting, the count and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            const ROOMS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE E17 T4 R${i}`);
+            const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+            scene = await Scene.create({ name: "SUITE E17 T4 count", width: 400 * ROOMS.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", ROOMS.map((name, i) => ({ name, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === ROOMS[0] && M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const count = () => E.movesUsed(student);
+            const fresh = async () => {
+                await S.eclipseMoveStore.drop(student.id);
+                await token.update({ x: 100, y: 100 }, PLACE);
+                await settle();
+            };
+            const walk = async (i, y) => {
+                const sent = told.length, before = { x: token.x, y: token.y };
+                await token.update({ x: 400 * i + 100, y }, asPlayer);
+                await settle();
+                await until(() => token.x !== 400 * i + 100 || M.standingOf(token)?.lawful !== false, 1200);
+                await settle();
+                return [M.roomOfToken(token), token.x === before.x && token.y === before.y, told.slice(sent), count()];
+            };
+
+            // (a) a console that never asks
+            await fresh();
+            const quiet = [];
+            for (let i = 1; i <= allowance + 1; i++) quiet.push(await walk(i, 100 + 10 * i));
+            const row = S.eclipseMoveStore.get(student.id);
+            // (b) its asks, late
+            const late = [];
+            for (let i = 1; i <= allowance + 1; i++) {
+                const out = await E.applyRecordedMove(student.id, { card: false });
+                late.push(out?.refused ? G.reasonOf(out.refused) : [out?.used ?? null, count()]);
+            }
+            // (c) an honest player: each ask before its move
+            await fresh();
+            const honest = [];
+            for (let i = 1; i <= allowance; i++) {
+                const out = await E.applyRecordedMove(student.id, { card: false });
+                honest.push([out?.used ?? null, ...(await walk(i, 200 + 10 * i))]);
+            }
+            // (d) the judge: no GM's answer; held in flight
+            await S.eclipseMoveStore.drop(student.id);
+            const warned = [];
+            const unanswered = await E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: async () => null });
+            let open = null;
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = Array.from({ length: allowance }, () => E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: () => gate }));
+            await settle();
+            const whileHeld = E.movesLeft(student);
+            const extra = await E.judgeEclipseCrossing(student, ROOMS[0], ROOMS[1], scene, null, { warn: text => warned.push(text), record: async () => true });
+            open(true);
+            const heldOut = await Promise.all(held);
+            read = { quiet, seen: [row?.seen ?? null, row?.used ?? null], late, honest, judge: [unanswered, whileHeld, extra, heldOut, E.movesLeft(student), warned.length] };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const name = i => `SUITE E17 T4 R${i}`;
+        const quiet = Array.from({ length: allowance + 1 }, (_, k) => k < allowance ? [name(k + 1), false, [], k + 1] : [name(allowance), true, ["eclipseSpent"], allowance]);
+        const late = [...Array.from({ length: allowance }, () => [allowance, allowance]), "nothingLeft"];
+        const honest = Array.from({ length: allowance }, (_, k) => [k + 1, name(k + 1), false, [], k + 1]);
+        equal(stableJson(read), stableJson({ quiet, seen: [allowance, 0], late, honest, judge: [false, 0, false, Array(allowance).fill(true), allowance, 1] }),
+            "{quiet: a console's walk, each move [the room it stands in, put back, the codes its player was sent, the count]; seen: [the store's sightings, its asks]; "
+                + "late: that console's asks after [the count it answered, the count] or the refusal; honest: each ask before its move [the count, the move as in quiet]; "
+                + "judge: [a crossing no GM answered, crossings left while the allowance is held in flight, one more, the held ones' verdicts, left after, the warnings]}");
+    }],
+
+    ["an Eclipse route refused at a crossing goes back to the end of the last crossing it was allowed, that one counted, and a route counts its own crossings while the count it reads lags (E17-T4)", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-16, audit S07-08 (MAP-11's fix never reached the Eclipse's branch of the charge). A route
+         * of three crossings, in an Eclipse whose allowance is two, settled one crossing at a time (movement.mjs
+         * `chargeRoute`): the third refused put the token back where the drag began (`previous`), though the first two
+         * were counted - a student with two crossings who dragged through three rooms stood where they started with the
+         * allowance spent. And each crossing was judged by the count read again after the one before (`movesLeft`), which
+         * on the owner's browser is a copy the primary sends after it counts: a route faster than that copy saw the old
+         * count at every crossing. Here movement.mjs's charge, taken off `Hooks.events` as in E12's route test, is handed a
+         * plain token of a plain character whose id is a student's and whom no connected player owns, so the primary GM
+         * pays and counts in its store: recorded by our own revert in the first room of a row, then a drag with steps
+         * pending through the next rooms to one room past the allowance. Run twice: as it is, and with the store's write
+         * held (`eclipseMoveStore.patch` answering without writing), the lagging count's stand-in. Read: what the
+         * put-back wrote, and the count. Red at 730dffcf: put back to the drag's start; with the write held, no put-back.
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns, and counts it");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const patch = S.eclipseMoveStore.patch;
+        let read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            Hooks.on("createChatMessage", onMessage);
+            const ROOMS = Array.from({ length: allowance + 2 }, (_, i) => `SUITE E17 T4 route R${i}`);
+            const region = (name, i) => ({ id: `suite-e17-t4-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+                bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+                testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+                getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+            const scene = { id: "suite-e17-t4-route", name: "SUITE E17 T4 route", grid: { size: 100 }, regions: new Set(ROOMS.map(region)) };
+            must(M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            const plain = { id: student.id, name: student.name, type: "character", items: [], system: { resources: {} },
+                getFlag: () => undefined, testUserPermission: () => false };
+            const route = async () => {
+                const written = [];
+                const token = { id: `suite-e17-t4-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                    actor: plain, update: async data => { written.push(data); return token; } };
+                await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+                for (let i = 1; i <= allowance + 1; i++) {
+                    const last = i === allowance + 1;
+                    Object.assign(token, { x: 400 * i + 100, y: 100 + 10 * i, movement: { pending: { waypoints: last ? [] : [{ x: 400 * (i + 1) + 100, y: 100 }] } } });
+                    await charge(token, { x: token.x, y: token.y }, {}, player.id);
+                }
+                await until(() => written.length > 0, 2000);
+                return written.map(w => `${w.x},${w.y}`);
+            };
+            await S.eclipseMoveStore.drop(student.id);
+            const counted = [await route(), E.movesUsed(student)];
+            await S.eclipseMoveStore.drop(student.id);
+            S.eclipseMoveStore.patch = () => Promise.resolve();
+            const lagging = [await route(), E.movesUsed(student)];
+            S.eclipseMoveStore.patch = patch;
+            read = [counted, lagging];
+        } finally {
+            S.eclipseMoveStore.patch = patch;
+            Hooks.off("createChatMessage", onMessage);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await setClock(clock);
+            await settle();
+        }
+        const end = `${400 * allowance + 100},${100 + 10 * allowance}`;
+        equal(stableJson(read), stableJson([[[end], allowance], [[end], 0]]),
+            "[[what the put-back of the crossing past the allowance wrote, the count], the same with the store's write held]");
+    }],
+
+    ["the Eclipse counts what the primary carried out itself, a console's jump of two rooms in one write and its REVERT hops between rooms it stood in (E17-T4): one past the allowance is put back, eclipseSpent sent; only the undo of the newest crossing is free", async () => {
+        /*
+         * E17 fix e1-G2, 26.10.2026; the review's E17R-01 (a tunnel's count raised `used` alone, and the sightings were judged
+         * against `seen` alone, so after a 'Go through' two unasked door moves stood on an allowance of two), E17R-02,
+         * E17P1-R2 and E17P1-SEC-5 (a console's jump into a room that does not touch its last lawful one was refused by the
+         * connected-rooms rule alone: no sighting, nothing counted, nothing put back), and E17P1-SEC-3 (a REVERT onto a spot
+         * the GMs saw within the minute was honoured and counted nothing, so a console hopped between the rooms of the last
+         * minute for the rest of the Eclipse). On a scene of the suite's own: a row of rooms that touch, no walls, in an
+         * Eclipse that is no free placement, moveAudit "log". A player's move as the primary hears it is a GM's write naming
+         * the player (`SENT_BACK`), a REVERT that write marked so too. Read per move: the room the token stands in, whether
+         * it was put back, the codes its player was sent and the count. (e) a tunnel's price taken on the primary
+         * (movement.mjs `settleCrossingOnGm` in a step of the character's key, as passages-gm.mjs `crossTunnel` takes it),
+         * then the console's door moves; (f) a jump of two rooms in one write, and one of a room more than the allowance; (g)
+         * the allowance walked, a REVERT to the room before (the undo of the newest crossing, free) and one more REVERT to
+         * the room before that. Red at 9cc97aad: (e) one door move more stood, (f) every jump stood counted 0, (g) the
+         * second REVERT stood counted as before.
+         */
+        needs(env.primaryGm(), "the sighting, the count and the put-back are the primary GM's (`judgeArrival`, `auditMove`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { ownerOf, serialWrite } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the move is a player's, and the put-back tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, read = null, allowance = null;
+        try {
+            if (clock.phase === "classTrial") await setClock({ phase: "dailyLife" });
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            allowance = E.eclipseAllowance();
+            must(E.isEclipse() && Number.isInteger(allowance) && allowance >= 1, `no counted Eclipse runs (${allowance}) - this would measure nothing`);
+            const ROOMS = Array.from({ length: allowance + 3 }, (_, i) => `SUITE E17 T4 more R${i}`);
+            const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+            scene = await Scene.create({ name: "SUITE E17 T4 more", width: 400 * ROOMS.length, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", ROOMS.map((name, i) => ({ name, shapes: [{ type: "rectangle", x: 400 * i, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] })));
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === ROOMS[0] && M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false && typeof M.crossingRefused(scene, ROOMS[0], ROOMS[2]) === "string",
+                "the rooms of the row do not join one to the next alone - this would measure nothing");
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack" && packet.tokenId === token?.id) told.push(packet.code ?? null);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            const count = () => E.movesUsed(student);
+            let y = 100;
+            const fresh = async () => {
+                await S.eclipseMoveStore.drop(student.id);
+                await token.update({ x: 100, y: 100 }, PLACE);
+                await settle();
+            };
+            const spot = i => ({ x: 400 * i + 100, y: (y += 7) });
+            const go = async (to, { revert = false } = {}) => {
+                const sent = told.length, before = { x: token.x, y: token.y };
+                await token.update(to, revert ? { ...asPlayer, [M.REVERT]: true } : asPlayer);
+                await settle();
+                await until(() => token.x !== to.x || token.y !== to.y || M.standingOf(token)?.lawful !== false, 1200);
+                await settle();
+                return [M.roomOfToken(token), token.x === before.x && token.y === before.y, told.slice(sent), count()];
+            };
+            // (e) a tunnel's price on the primary, then the console's door moves
+            await fresh();
+            await serialWrite(M.crossingKey(student.id), () => M.settleCrossingOnGm(student, ROOMS[1]));
+            const tunnel = [count()];
+            for (let i = 1; i <= allowance; i++) tunnel.push(await go(spot(i)));
+            // (f) a jump of two rooms in one write; and of a room more than the allowance
+            await fresh();
+            const jumps = [await go(spot(2))];
+            await fresh();
+            jumps.push(await go(spot(allowance + 1)));
+            // (g) the allowance walked, a REVERT to the room before, one more to the room before that
+            await fresh();
+            const walked = [{ x: 100, y: 100 }];
+            const hops = [];
+            for (let i = 1; i <= allowance; i++) {
+                walked.push(spot(i));
+                hops.push(await go(walked[i]));
+            }
+            hops.push(await go(walked[allowance - 1], { revert: true }));
+            if (allowance >= 2) hops.push(await go(walked[allowance - 2], { revert: true }));
+            read = { tunnel, jumps, hops };
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const name = i => `SUITE E17 T4 more R${i}`, A = allowance;
+        const tunnel = [1, ...Array.from({ length: A }, (_, k) => k + 1 < A ? [name(k + 1), false, [], k + 2] : [name(k), true, ["eclipseSpent"], A])];
+        const jumps = [A >= 2 ? [name(2), false, [], 2] : [name(0), true, ["eclipseSpent"], 0], [name(0), true, ["eclipseSpent"], 0]];
+        const hops = [...Array.from({ length: A }, (_, k) => [name(k + 1), false, [], k + 1]), [name(A - 1), false, [], A],
+            ...(A >= 2 ? [[name(A - 1), true, ["eclipseSpent"], A]] : [])];
+        equal(stableJson(read), stableJson({ tunnel, jumps, hops }),
+            "{tunnel: [the count after a tunnel's price, then each door move as [the room it stands in, put back, the codes its player was sent, the count]], "
+                + "jumps: [a jump of two rooms, of a room more than the allowance], hops: [the allowance walked, a REVERT to the room before, one to the room before that]}");
+    }],
+
+    ["a route whose continuation was vetoed settles the crossing it made at rest: charged, the traps told, and in an Eclipse counted (E17-T5)", async () => {
+        /*
+         * E17 C2, 26.10.2026; E17-18, audit S07-07. A drag's steps with waypoints pending were only noted (`notePathRoom`),
+         * and the route settled on the update that named its end; a continuation the mover's own veto refused never
+         * reached the server, so the token stood one room on with nothing paid, nothing counted and the traps told
+         * nothing until its next move. E79 C14 (1.2.79) re-reads a token at rest (`recheckAtRest`): a step still noted
+         * with no last step behind it is judged where the token stands once it has been quiet for `ROUTE_QUIET_MS`.
+         * This measures what that leaves (the stage's design note 4): movement.mjs's charge, taken off `Hooks.events`, is
+         * handed a plain token of a plain character no connected player owns (the primary pays) - its place recorded by
+         * our own revert in a Kitchen, then one step of a drag into a Dining with a step to a Storage still pending, and
+         * no update after. In daily life with crossing rooms costing a Move, with only the free Move: whether it was
+         * spent, and the traps' hook (`drpgRoomCrossed`) with the time from the step; in an Eclipse that is no free
+         * placement, for a student's id: the count. Green at 730dffcf: Base's re-read settles it (the stage's "verify").
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns, and counts it");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const chargeOn = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const made = [], crossed = [];
+        const onMessage = message => { made.push(message.id); };
+        const region = (name, i) => ({ id: `suite-e17-t5-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+            bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e17-t5-route", name: "SUITE E17 T5", grid: { size: 100 }, regions: new Set(["Kitchen", "Dining", "Storage"].map(region)) };
+        const onCrossed = event => { if (event?.tokenDoc?.parent === scene) crossed.push([event.from, event.to, Date.now()]); };
+        const vetoed = async actor => {
+            const written = [];
+            const token = { id: `suite-e17-t5-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                actor, update: async data => { written.push(data); return token; } };
+            await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 500, y: 120, movement: { pending: { waypoints: [{ x: 900, y: 100 }] } } });
+            const at = Date.now();
+            await charge(token, { x: 500, y: 120 }, {}, player.id);
+            return { at, written };
+        };
+        let read = null;
+        try {
+            Hooks.on("createChatMessage", onMessage);
+            Hooks.on("drpgRoomCrossed", onCrossed);
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            if (!chargeOn) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            const flags = { [FLAGS.freeMoveUsed]: false };
+            const daily = { id: "suite-e17-t5-actor", name: "SUITE E17 T5 a diner", type: "character", items: [], system: { resources: {} },
+                getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: () => false,
+                update: async changes => {
+                    for (const [key, value] of Object.entries(changes)) if (key.startsWith(`flags.${MODULE_ID}.`)) flags[key.slice(`flags.${MODULE_ID}.`.length)] = value;
+                    return daily;
+                } };
+            const first = await vetoed(daily);
+            const settled = await until(() => flags[FLAGS.freeMoveUsed] === true && crossed.length > 0, 6000);
+            const dailyRead = [settled, flags[FLAGS.freeMoveUsed], crossed.map(([from, to]) => `${from}>${to}`), first.written.length];
+            const late = crossed.length ? crossed[0][2] - first.at : null;
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            must(E.isEclipse() && E.eclipseAllowance() !== null, "no counted Eclipse runs - this would measure nothing");
+            await S.eclipseMoveStore.drop(student.id);
+            const plain = { id: student.id, name: student.name, type: "character", items: [], system: { resources: {} }, getFlag: () => undefined, testUserPermission: () => false };
+            const second = await vetoed(plain);
+            const counted = await until(() => E.movesUsed(student) === 1, 6000);
+            read = { daily: dailyRead, eclipse: [counted, E.movesUsed(student), second.written.length] };
+            ok(late !== null && late < 6000, `the traps were told ${late} ms after the step, not on the next move's time`);
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            Hooks.off("drpgRoomCrossed", onCrossed);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== chargeOn) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeOn);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ daily: [true, true, ["Kitchen>Dining"], 0], eclipse: [true, 1, 0] }),
+            "{daily: [settled in time, the free Move spent, the traps' crossings, put-back writes], eclipse: [counted in time, the count, put-back writes]}");
+    }],
+
+    ["Refund last crossing (E17-T6): the GMs' record of a player's crossing gives back, with one click, the token to where it stood and exactly the price the primary saw paid - the free Move, a Sprint, a Burst, an action, nothing where crossing is free or nothing was spent, an Eclipse's count in its own Eclipse, a tunnel's to its entry - across a time of day too; a second click and a player's ask give nothing", async () => {
+        /*
+         * E17 C3, 26.10.2026; E17-19 to E17-21, audit S07-16, D18 ("the charge on the drop stays, the GM gets Refund last
+         * crossing"), the RISK row ("exactly the price taken - Free Move, Sprint or action - also when the time of day
+         * changed meanwhile") and A10 (a tunnel's price through `settleCrossingOnGm`, the token back to the entry). The audit's
+         * fix named a player flag `lastCrossing`, which a console would write to set what the GM gives back; the record is
+         * the GMs' store "crossings" instead, fed by the primary's own sighting (`judgeArrival`), its price read off the
+         * field the player's next write lowered (the free Move, a Sprint, a Burst, the actions), never the stamp's words.
+         * A scene of the suite's own: a Hall and a Lab side by side, no wall. A player's move as the primary hears it is a
+         * GM's write naming the player (`SENT_BACK`, as E17-T2's), to a spot the token never stood on; the player's spend is
+         * this GM's write with no hook, handed to `updateActor`'s listeners with the player's id (as `asUserOverlayWrite`).
+         * The token is stood in the Hall by this GM before each step, and the student's purse set as each step reads it
+         * (its own maximum of 2 included: a time of day refills to the rules' 2 after 01-runtests' parts A and B). Read per
+         * step: the kind the record holds, the refund's answer, where the token stands, the purse after it ([actions, the
+         * free Move left, Sprints, Bursts]) or the Eclipse's count, and a second refund's answer. A time of day is the
+         * clock moved on and the new one's refill, the purse written as `resetActionsFor` leaves it. The bridge's row is
+         * judged as this GM's ask (a second GM's arrives so) and as the player's. Red at caaa36a9: no refund.
+         */
+        needs(env.primaryGm(), "the record and the refund are the primary GM's (`judgeArrival`, `refundLastCrossing`)");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        ok(typeof M.refundLastCrossing === "function" && Boolean(S.crossingStore), "no Refund last crossing on the GM - a few pixels over a door cost an action for good");
+        if (typeof M.refundLastCrossing !== "function" || !S.crossingStore) return;
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const P = await import("./passages-gm.mjs");
+        const GS = await import("./gm-store.mjs");
+        const ACT = await import("./actions.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY } = await import("./config.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the crossing is a player's, and the refund tells that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T6 Hall", LAB = "SUITE E17 T6 Lab";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const F = key => `flags.${MODULE_ID}.${key}`, ACTIONS = "system.resources.actions.value";
+        const budget = ({ actions = 2, free = false, burst = 0, sprint = 0 } = {}) => student.update({ [ACTIONS]: actions, "system.resources.actions.max": 2,
+            [F(FLAGS.freeMoveUsed)]: !free, [F(FLAGS.freeActionGrants)]: burst, [F(FLAGS.freeMoveGrants)]: sprint });
+        const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeMovesLeft(student), ACT.freeActionsLeft(student)];
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, read = null, n = 0;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            scene = await Scene.create({ name: "SUITE E17 T6 refund", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(LAB, 1000)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            must(M.roomOfToken(token) === HALL && M.crossingRefused(scene, HALL, LAB) === false, "the Hall and the Lab do not join, or the token is not in the Hall - this would measure nothing");
+            Hooks.on("createChatMessage", onMessage);
+            await S.crossingStore.drop(student.id);
+            const start = async (x = 300, y = 300) => {
+                await token.update({ x, y, elevation: 0 }, PLACE);
+                await settle();
+            };
+            // A player's crossing into the Lab, to a spot never stood on, as the primary hears it.
+            const cross = async () => {
+                n += 1;
+                const at = Date.now();
+                await token.update({ x: 1300 + 10 * n, y: 300 + 10 * n }, asPlayer);
+                await settle();
+                await until(() => (S.crossingStore.get(student.id)?.at ?? 0) >= at, 1500);
+            };
+            // The player's own write of the price, as the primary hears it: Foundry's user id, the module's stamp.
+            // A crossing's price is stamped as the move's (actions.mjs `takeMove`, ref MOVE_SPEND; fix e1-G2), any other spend not.
+            const spend = async (write, ref = ACT.MOVE_SPEND) => {
+                await student.update(write, { noHook: true });
+                Hooks.callAll("updateActor", student, foundry.utils.expandObject(write), { drpgWrite: { reason: "spend", ref: ref ?? null } }, asker.id);
+                await settle();
+            };
+            // What the owner was told (fix e1-G2, the review's E17R-05): whether the token stands back, whether a price came back.
+            const SEC = await import("./secret.mjs");
+            const LINES = { back: "DRPG.Move.refundedBack", stays: "DRPG.Move.refundedStays", price: "DRPG.Move.refundedPrice", noPrice: "DRPG.Move.refundedNoPrice" };
+            const linesSince = from => Object.entries(LINES).filter(([, key]) => made.slice(from).some(id => {
+                const m = game.messages.get(id);
+                return String(SEC.secretHtml(m) ?? m?.content ?? "").includes(game.i18n.localize(key));
+            })).map(([k]) => k);
+            const answer = out => out?.refused ? G.reasonOf(out.refused) : out?.reply ? "given" : stableJson(out);
+            const steps = [];
+            const step = async (what, money, paid, { between = null, read: reading = purse, x = 300, y = 300, walk = cross, ref = ACT.MOVE_SPEND } = {}) => {
+                if (money) await budget(money);
+                await start(x, y);
+                await walk();
+                if (paid) await spend(paid, ref);
+                await until(() => !paid || S.crossingStore.get(student.id)?.kind, 1500);
+                const kind = S.crossingStore.get(student.id)?.kind ?? null;
+                if (between) await between();
+                const said = made.length;
+                const out = await M.refundLastCrossing(student.id);
+                await settle();
+                const lines = linesSince(said);
+                const again = await M.refundLastCrossing(student.id);
+                await settle();
+                steps.push([what, kind, answer(out), `${token.x},${token.y}`, ...reading(), answer(again), lines]);
+            };
+            const nextTime = async () => {
+                const now = getClock()?.timeOfDay;
+                await setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(now) + 1) % TIMES_OF_DAY.length] });
+                await budget({ actions: 2, free: true });
+            };
+            await step("the free Move", { free: true }, { [F(FLAGS.freeMoveUsed)]: true });
+            await step("a Sprint", { sprint: 1 }, { [F(FLAGS.freeMoveGrants)]: 0 });
+            await step("a Burst", { burst: 1 }, { [F(FLAGS.freeActionGrants)]: 0 });
+            await step("an action", { actions: 2 }, { [ACTIONS]: 1 });
+            await step("a spend stamp that spent nothing", { actions: 2 }, { [F(FLAGS.freeMoveUsed)]: true });
+            // The review's E17P1-SEC-6: a Search's action paid within the price's wait is not the crossing's price.
+            await step("another spend first, then the move's", { actions: 2 }, { [ACTIONS]: 1 }, { ref: null });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, false);
+            await step("crossing rooms costs nothing", { actions: 1 }, null);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await step("an action, then a time of day", { actions: 2 }, { [ACTIONS]: 1 }, { between: async () => { await nextTime(); } });
+            await step("a Sprint, then a time of day", { sprint: 1 }, { [F(FLAGS.freeMoveGrants)]: 0 }, { between: async () => { await nextTime(); } });
+
+            // Through the bridge's row: the player's ask refused, nothing given; this GM's (a second GM's arrives so) given.
+            const judged = async (senderId, requestId) => {
+                const sent = [];
+                await G.judge(B.BRIDGE_ACTIONS, { action: "token.refundCrossing", requestId, actorId: student.id }, senderId, { send: (to, reply) => sent.push(reply) });
+                await settle();
+                const reply = sent.find(r => r?.action === "bridge.refused" || r?.action === "bridge.done") ?? null;
+                return reply?.action === "bridge.refused" ? reply.code ?? reply.reason ?? "refused" : reply?.action ?? null;
+            };
+            await budget({ actions: 2 });
+            await start();
+            await cross();
+            await spend({ [ACTIONS]: 1 });
+            await until(() => S.crossingStore.get(student.id)?.kind, 1500);
+            const row = [await judged(asker.id, "E17T6PLAYERASK01"), M.roomOfToken(token), ...purse()];
+            row.push(await judged(game.user.id, "E17T6GMASK000001"), `${token.x},${token.y}`, ...purse(), await judged(game.user.id, "E17T6GMASK000002"));
+
+            // An Eclipse: its count given back in its own Eclipse, not in the next one.
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now(), ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+            must(E.isEclipse() && E.eclipseAllowance() !== null, "no counted Eclipse runs - this would measure nothing");
+            await S.eclipseMoveStore.drop(student.id);
+            const count = () => [E.movesUsed(student)];
+            await step("an Eclipse's crossing", null, null, { read: count });
+            await step("an Eclipse's crossing, given back in the next Eclipse", null, null, { read: count, between: async () => {
+                await setClock({ eclipse: true, eclipseStartedAt: Date.now() + 1000 });
+                await E.applyRecordedMove(student.id, { card: false });
+            } });
+            await S.eclipseMoveStore.drop(student.id);
+            await setClock({ eclipse: false });
+
+            // A tunnel's 'Go through', in a GM-store world of the suite's own: back to the entry, its action given back.
+            await GS.withGmStoreWorld(`suite-e17-t6-${foundry.utils.randomID(8)}`, async () => {
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1650, y: 650, level: null }] }, { scene });
+                must(typeof id === "string" && await P.grantPassage(id, student.id), "the tunnel was not made or given - this would measure nothing");
+                await step("a tunnel's action", { actions: 2 }, null, { x: 200, y: 200, walk: async () => {
+                    const out = await P.crossTunnel({ actorId: student.id, passageId: id }, { asker });
+                    await settle();
+                    must(out?.crossed === true, `the tunnel was not crossed (${stableJson(out)}) - this would measure nothing`);
+                } });
+            });
+            read = { steps, row };
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            await S.crossingStore.drop(student.id);
+            await S.eclipseMoveStore.drop(student.id);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ steps: [
+            ["the free Move", "free", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a Sprint", "sprint", "given", "300,300", 2, false, 1, 0, "alreadyDone", ["back", "price"]],
+            ["a Burst", "burst", "given", "300,300", 2, false, 0, 1, "alreadyDone", ["back", "price"]],
+            ["an action", "action", "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a spend stamp that spent nothing", null, "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["another spend first, then the move's", null, "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["crossing rooms costs nothing", "none", "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
+            ["an action, then a time of day", "action", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
+            ["a Sprint, then a time of day", "sprint", "given", "300,300", 2, true, 1, 0, "alreadyDone", ["back", "price"]],
+            ["an Eclipse's crossing", "eclipse", "given", "300,300", 0, "alreadyDone", ["back", "price"]],
+            ["an Eclipse's crossing, given back in the next Eclipse", "eclipse", "given", "300,300", 1, "alreadyDone", ["back", "noPrice"]],
+            ["a tunnel's action", "action", "given", "200,200", 2, false, 0, 0, "alreadyDone", ["back", "price"]]],
+            row: ["gmOnly", LAB, 1, false, 0, 0, "bridge.done", "300,300", 2, false, 0, 0, "alreadyDone"] }),
+            "{steps: [what, the kind recorded, the refund, where the token stands, the purse after it as [actions, the free Move left, Sprints, Bursts] "
+                + "or the Eclipse's count, a second refund, what the owner was told: the token back or not, a price back or none seen], row: [the player's ask, the token's room, the purse, this GM's ask, the token, the purse, a second ask]} - a price given back was not the one paid, or given twice, the token stayed, or a player's ask was carried out");
+    }],
+
+    ["Refund last crossing is one click in the Students window (E17-T6): the button stands on the student's row, its click gives the crossing back, and the row's redraw takes the button away", async () => {
+        /*
+         * E17 fix e1-G2, 26.10.2026; the review's E17R-08: E17-T6 called `refundLastCrossing` and judged the bridge's row,
+         * and no test opened the window, found the button (gm-panel.mjs `refundButton`) or clicked it (`wireAliveTable`'s
+         * `data-drpg-refund`), so a typo between the two, or a row not drawn, left the GM without the one click the promise
+         * names. A scene of the suite's own, a Hall and a Lab side by side, crossing rooms costing a Move: a player's
+         * crossing as the primary hears it (`SENT_BACK`, as E17-T6's), its action stamped as the move's, then the Students
+         * window opened as its tile opens it. Read: the button on the row before, the record given back and the token and
+         * the actions after the click, and the button after the row's redraw.
+         */
+        needs(env.primaryGm(), "the record and the refund are the primary GM's (`judgeArrival`, `refundLastCrossing`)");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        const R = await import("./rooms.mjs");
+        const ACT = await import("./actions.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        needs(world.ownedByPlayer(student), "the crossing is a player's");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const HALL = "SUITE E17 T6 button Hall", LAB = "SUITE E17 T6 button Lab";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const ACTIONS = "system.resources.actions.value";
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const button = () => drawn()?.element?.querySelector(`[data-drpg-refund="${CSS.escape(student.id)}"]`) ?? null;
+        let scene = null, token = null, read = null, answer = null;
+        const was = { actions: student.system?.resources?.actions?.value, max: student.system?.resources?.actions?.max };
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+            Hooks.on("createChatMessage", onMessage);
+            scene = await Scene.create({ name: "SUITE E17 T6 button", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0), room(LAB, 1000)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            await S.crossingStore.drop(student.id);
+            await student.update({ [ACTIONS]: 2, "system.resources.actions.max": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true,
+                [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 });
+            const at = Date.now();
+            await token.update({ x: 1310, y: 310 }, { ...PLACE, [M.SENT_BACK]: asker.id });
+            await settle();
+            await until(() => (S.crossingStore.get(student.id)?.at ?? 0) >= at, 1500);
+            await student.update({ [ACTIONS]: 1 }, { noHook: true });
+            Hooks.callAll("updateActor", student, { system: { resources: { actions: { value: 1 } } } }, { drpgWrite: { reason: "spend", ref: ACT.MOVE_SPEND } }, asker.id);
+            await until(() => S.crossingStore.get(student.id)?.kind, 1500);
+            must(S.crossingStore.get(student.id)?.kind === "action", "the crossing's price was not recorded - this would measure nothing");
+            answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000);
+            const before = Boolean(button());
+            button()?.click();
+            await until(() => S.crossingStore.get(student.id)?.refunded && !button(), 3000);
+            await settle();
+            read = [before, S.crossingStore.get(student.id)?.refunded ?? null, `${token.x},${token.y}`, ACT.actionsLeft(student), Boolean(button())];
+        } finally {
+            for (const a of [...foundry.applications.instances.values()].filter(a => a.options?.classes?.includes("drpg-window-alive"))) await a.close().catch(() => {});
+            await answer;
+            Hooks.off("createChatMessage", onMessage);
+            await S.crossingStore.drop(student.id);
+            await student.update({ [ACTIONS]: was.actions ?? 0, "system.resources.actions.max": was.max ?? 0 });
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, "300,300", 2, false]),
+            "[the button on the student's row, the record given back after its click, where the token stands, the actions, the button after the redraw]");
+    }],
+
+    ["a search token spent after the player's browser gave up comes back (E17-T7): the late answer asks it back, and the primary gives it to the spender alone, once, inside the window and not after that spend's plant check; a sealed room's refusal says why, and the player reads the seal", async () => {
+        /*
+         * E17 C4, 26.10.2026; E17-22, audit S07-20. A player's spend waits five seconds; on a slow server the answer
+         * came later, the player's browser had ended the Search unclaimed ("The search was not counted.", the action
+         * back) and the room had lost the token all the same. And a spend the GM refused because the room is sealed
+         * came back as a bare false, which the player read as an unanswered request. Read on this primary's browser,
+         * the player the world's first: (a) the spend as the bridge runs it for that player (`SEARCH_ACTIONS`, a room
+         * of the suite's own on a scene id no scene has, so unsealed and full); the player's half is the bridge's own
+         * waiter (`createWaiter`) with a clock this test fires and the options the spend waits with
+         * (`spendWaitOptions`, its ask captured): the clock ends the wait, then the late answer arrives - a done asks
+         * the token back under the spend's request id, a refused spend's late answer asks nothing; (b) the return as the
+         * bridge judges it from this GM (another account) and from the player, twice; (c) a second spend, its return
+         * judged with `Date.now` moved past `TIMING.plantWindowMs`; (d) a third, whose plant check the player asked
+         * before the return (a console's order: the browser that gave up asks none); (e) a spend in a sealed room of a
+         * scene of the suite's own and in an empty room: the reply's `why`; (f) what the player's browser reads of a
+         * bridge result (`claimOf`) and what a refused claim shows and keeps (action-rolls.mjs `unclaimedOutcome`).
+         * Red at 38b232c9: no wait options, no return row, the reply named no why, nothing read a seal.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const A = await import("./action-rolls.mjs");
+        const R = await import("./rooms.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { SearchTokens, SEARCH_ACTIONS, SEARCH_FLAGS } = ST;
+        must(isPrimaryGm(), "this browser is not the primary GM, which judges the spend and its return - this would measure nothing");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose spend and return are judged");
+        const ROOM = "SUITE E17 T7 room", SCENE = "zE17T7noScene00", SEALED = "SUITE E17 T7 sealed", RETURN = "searchTokens.returnToken";
+        const saved = foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {});
+        const full = async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved); await settle(); };
+        const spendAs = SEARCH_ACTIONS["searchTokens.spend"], take = SEARCH_ACTIONS["searchTokens.takePlant"];
+        const count = () => SearchTokens.store[SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const spend = async (rid, room = ROOM, scene = SCENE, who = player) =>
+            (await spendAs.run(spendAs.sanitize({ roomName: room, sceneId: scene }, who), who, { requestId: rid }))?.reply ?? null;
+        // The return is quiet (nobody waits on it): the runner's own answer says whether it was carried out - true, or null refused.
+        const back = async (rid, from) => {
+            const said = [];
+            const judged = await G.judge(SEARCH_ACTIONS, { action: RETURN, spendRequestId: rid, userId: from }, from,
+                { send: (to, reply) => said.push(reply?.action ?? null) });
+            await settle();
+            return [judged === true ? "taken" : judged === null ? "refused" : "no row", said.length, count()];
+        };
+        const now = Date.now;
+        const max = SearchTokens.max;
+        must(Number.isInteger(max) && max >= 1, `a room holds ${max} search tokens - a spend would measure nothing`);
+        const read = {};
+        let scene = null;
+        try {
+            await full();
+            const reply = await spend("suite-e17t7-a");
+            read.spent = [reply?.ok ?? null, reply?.left === max - 1, count() === max - 1];
+            const asked = [];
+            if (typeof ST.spendWaitOptions === "function") {
+                const timers = [], ids = ["suite-e17t7-a", "suite-e17t7-n"];
+                const clock = { set: (fn, ms) => timers.push({ fn, ms }), clear: h => { if (timers[h - 1]) timers[h - 1].fn = null; } };
+                const waiter = G.createWaiter({ emit: () => {}, gmIds: () => [game.user.id], me: () => ({ id: player.id, isGM: false, isPrimary: false }),
+                    notify: () => {}, fromGm: () => true, clock, newId: () => ids.shift() });
+                const opts = ST.spendWaitOptions((action, payload) => { asked.push([action, payload?.spendRequestId ?? null]); });
+                const ends = [];
+                for (const [rid, value] of [["suite-e17t7-a", reply], ["suite-e17t7-n", { ok: false, left: 0, why: "empty" }]]) {
+                    const wait = waiter.request("searchTokens.spend", { roomName: ROOM, sceneId: SCENE }, { settle: "reply", timeoutMs: 5000, ackMs: 5000, ...opts });
+                    for (const t of timers.filter(t => t.ms === 5000)) { const fn = t.fn; t.fn = null; fn?.(); }
+                    ends.push((await wait).reason ?? null);
+                    waiter.onReply({ action: "bridge.done", requestId: rid, userId: player.id, value }, game.user.id);
+                }
+                read.late = { ends, asked, lateMs: opts.lateMs === TIMING.plantWindowMs };
+            } else read.late = null;
+            read.other = await back("suite-e17t7-a", game.user.id);
+            read.mine = await back("suite-e17t7-a", player.id);
+            read.again = await back("suite-e17t7-a", player.id);
+
+            await full();
+            await spend("suite-e17t7-b");
+            Date.now = () => now() + TIMING.plantWindowMs + 1000;
+            try {
+                read.late2 = await back("suite-e17t7-b", player.id);
+            } finally {
+                Date.now = now;
+            }
+
+            await full();
+            await spend("suite-e17t7-c");
+            await take.run(take.sanitize({ roomName: ROOM, sceneId: SCENE }), player, { requestId: "suite-e17t7-c-take" });
+            read.looked = await back("suite-e17t7-c", player.id);
+
+            scene = await Scene.create({ name: "SUITE E17 T7", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: SEALED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [SEARCH_FLAGS.sealed]: true } }, behaviors: [] }]);
+            const sealed = await spend("suite-e17t7-s", SEALED, scene.id, game.user);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { ...saved, [SearchTokens.key(ROOM, SCENE)]: 0 });
+            await settle();
+            const empty = await spend("suite-e17t7-e");
+            read.why = [[sealed?.ok ?? null, sealed?.why ?? null], [empty?.ok ?? null, empty?.why ?? null]];
+
+            read.claim = typeof ST.claimOf === "function" ? [
+                { ok: true, value: { ok: true, left: 1, why: null } }, { ok: true, value: { ok: false, left: 2, why: "sealed" } },
+                { ok: true, value: { ok: false, left: 0, why: "empty" } }, { ok: false, reason: "noAnswer" }, { ok: false, refused: true, reason: "notYours" }
+            ].map(res => stableJson(ST.claimOf(res))) : null;
+            read.outcome = typeof A.unclaimedOutcome === "function"
+                ? [["sealed", 2], ["empty", 0], ["unanswered", 2], ["refused", 2], [null, 0]].map(([why, left]) => stableJson(A.unclaimedOutcome(why, left)))
+                : null;
+        } finally {
+            Date.now = now;
+            await scene?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved);
+            await settle();
+        }
+        const o = (key, refund, exhausted) => stableJson({ text: `DRPG.SearchTokens.${key}`, refund, exhausted });
+        equal(stableJson(read), stableJson({
+            spent: [true, true, true],
+            late: { ends: ["noAnswer", "noAnswer"], asked: [[RETURN, "suite-e17t7-a"]], lateMs: true },
+            other: ["refused", 0, max - 1], mine: ["taken", 0, max], again: ["refused", 0, max],
+            late2: ["refused", 0, max - 1],
+            looked: ["refused", 0, max - 1],
+            why: [[false, "sealed"], [false, "empty"]],
+            claim: [{ ok: true, why: null }, { ok: false, why: "sealed" }, { ok: false, why: "empty" }, { ok: false, why: "unanswered" }, { ok: false, why: "refused" }].map(stableJson),
+            outcome: [o("sealed", true, false), o("pickedClean", false, true), o("timeout", true, false), o("timeout", true, false), o("pickedClean", false, true)]
+        }), "a late search token did not come back to its spender alone, once, inside the window and before its plant check, or a refusal did not say "
+            + "why [the spend: ok, the reply's count, the room's; the player's waits: how each ended, what the late answers asked, the window; the return "
+            + "from another account, the spender's, again: carried out or refused, what was told, the room's count; past the window; after the plant check; why a sealed and an "
+            + "empty room refused; what the player reads of five results; what five refused claims show, give back and call exhausted]");
+    }],
+
+    ["a search token's return gives nothing back once a find stood on its Search, settles that Search first, and ends at a refill (E17-T7)", async () => {
+        /*
+         * E17 fix e1-G3, 26.10.2026; the review's E17P1-SEC-1 and E17R-03 (a console spent, wrote its find, skipped the plant
+         * check and asked the token back: the room never ran out) and E17P1-SEC-7 (a return asked after a refill, once
+         * another player had spent in the new time of day, put one token more in the room than the GM set). Read on this
+         * primary's browser, for the world's first player with a character: a room of the suite's own on a scene id no
+         * scene has. The GMs' record of a Search of that character drawn for that player is planted (as the draw writes
+         * it) before each spend, and the spend runs as the bridge runs it, naming the character, so it marks that record.
+         * (a) a find stood on it - the GMs' `sheetMarks` hold it, as sheet-audit.mjs `searchFind` writes it - then the
+         * return; (b) no find, the return; (c) a spend, the GMs' refill (`SearchTokens.reset`), another account's spend,
+         * then the first spender's return. Read: the return carried out or refused, the room's count, and whether the
+         * record is settled ("search" resolved). Red at 7dd30983: (a) taken with the room full again, (c) taken.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const { rollStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = ST;
+        must(isPrimaryGm(), "this browser is not the primary GM, which judges the spend and its return - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.character);
+        must(player, "the world has no player with a character, whose Search is recorded");
+        const actor = player.character;
+        const ROOM = "SUITE E17 T7 find room", SCENE = "zE17T7findScen0", RETURN = "searchTokens.returnToken";
+        const saved = foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {});
+        await sheetMarkStore.whenHydrated();
+        const finds = foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.finds ?? {});
+        const full = async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved); await settle(); };
+        const spendAs = SEARCH_ACTIONS["searchTokens.spend"];
+        const count = () => SearchTokens.store[SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const spend = async (rid, who = player, actorId = actor.id) =>
+            (await spendAs.run(spendAs.sanitize({ roomName: ROOM, sceneId: SCENE, actorId }, who), who, { requestId: rid }))?.reply ?? null;
+        const back = async rid => {
+            const judged = await G.judge(SEARCH_ACTIONS, { action: RETURN, spendRequestId: rid, userId: player.id }, player.id, { send: () => {} });
+            await settle();
+            return judged === true ? "taken" : judged === null ? "refused" : "no row";
+        };
+        const records = [];
+        const record = async () => {
+            const rollId = foundry.utils.randomID();
+            records.push(rollId);
+            await rollStore.patch(rollId, { rollId, actorId: actor.id, userId: player.id, actionKey: "search", total: 17, isCritical: false, withHope: true, at: Date.now() });
+            return rollId;
+        };
+        const settled = rollId => (rollStore.get(rollId)?.resolved ?? []).includes("search");
+        const max = SearchTokens.max;
+        must(Number.isInteger(max) && max >= 2, `a room holds ${max} search tokens - two spends would measure nothing`);
+        const read = {};
+        try {
+            // (a) a find stood on the Search, then the return
+            await full();
+            const a = await record();
+            must((await spend("suite-e17t7-find-a"))?.ok === true && rollStore.get(a)?.tokenSpentAt, "the spend did not mark the planted Search - this would measure nothing");
+            await sheetMarkStore.patch(actor.id, { finds: { ...finds, [a]: "suiteE17T7item00" } });
+            read.found = [await back("suite-e17t7-find-a"), count(), settled(a)];
+            // (b) no find, the return
+            await full();
+            const b = await record();
+            await spend("suite-e17t7-find-b");
+            read.none = [await back("suite-e17t7-find-b"), count(), settled(b)];
+            // (c) a spend, a refill, another account's spend, the first spender's return
+            await full();
+            await record();
+            await spend("suite-e17t7-find-c");
+            await SearchTokens.reset({ notify: false });
+            await settle();
+            await spend("suite-e17t7-find-c2", game.user, null);
+            read.refilled = [await back("suite-e17t7-find-c"), count()];
+        } finally {
+            // Whole: the planted find is not left beside the finds as they were.
+            await sheetMarkStore.patch(actor.id, { finds }, { whole: true });
+            for (const id of records) if (rollStore.has(id)) await rollStore.drop(id);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ found: ["refused", max - 1, true], none: ["taken", max, true], refilled: ["refused", max - 1] }),
+            "{found: [the return after a find stood on its Search, the room's count, the Search settled], none: [the same with no find], "
+                + "refilled: [the return after a refill and another account's spend, the room's count]} - a token came back for a Search that went on, or across a refill");
+    }],
+
+    ["Despair has one writer (E17-T8): a GM that is not the primary changes a pool by a pip as a change asked of the primary, adds to the overflow through it, and prunes nothing; a player's ask of either is refused", async () => {
+        /*
+         * E17 C5, 26.10.2026; E17-24, audit S09-32. The one-writer rule (DESP-12) held for `adjustDespair` alone: a pip
+         * of the Despair bar wrote the pool whole from the clicking GM's own copy (`setDespair`), Feed the Overflow added
+         * to the count on whichever GM paid the Call, and every GM pruned the pools when a user was deleted - with two
+         * GMs a change was lost, and a darkening the count armed ran on an Assistant's browser. A second GM is a user set
+         * in the users' list (`A`, a Gamemaster whose id sorts first, so the primary while it is there), as E80's frisk
+         * tests set one; the requests this GM sends it are read off the socket and judged on this browser as the primary
+         * judges them, `A` out of the list for the judgement, and the answers handed to this browser's listeners as A's.
+         * Read: (1) this GM's pool set to 2, the bar drawn with A there, its pip 4 clicked, then pip 4 again before the
+         * bar is drawn again (twice fast): the packets sent to A, the pool before the primary judged them and after;
+         * (2) `addOverflow(1)` on this GM: the packet, the answer, the count after (the overflow's record and stamp put
+         * back after); (3) a pool row for a user no world has: `prunePools` on this GM, then on the primary; (4) a
+         * player's `despair.adjust` and `overflow.add`, judged: the verdict, the pool and the count. Red at 341c595e:
+         * the pips wrote 4 here and sent nothing, the overflow was added here, the prune here dropped the row, and the
+         * player's `overflow.add` named no row.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - its pip would measure nothing");
+        must(D.despairMax() >= 4, `a pool holds ${D.despairMax()} - pip 4 would measure nothing`);
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose ask is judged");
+        const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser0";
+        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}),
+            overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ["despair.adjust", "overflow.add"].includes(packet?.action) && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.targetUserId ?? null, packet.delta ?? packet.amount ?? null]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        // The packets A was sent, judged as the primary judges them - A out of the list for the judgement only, once
+        // nothing of this GM's is in flight - and the answers handed to this browser's listeners as A's.
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const pool = () => D.getDespair(game.user.id);
+        const pip = n => document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${game.user.id}"] .drpg-despair-pip[data-value="${n}"]`);
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: 2, [GONE]: 3 });
+            await settle();
+            inPlay = true;
+            arrive();
+            ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            D.renderDespairBar();
+            const four = pip(4);
+            must(four, "the Despair bar drew no pip 4 for this GM's pool");
+            four.click();
+            four.click();
+            await settle();
+            read.pip = { sent: sentToA.splice(0), before: pool() };
+            await drain();
+            read.pip.after = pool();
+
+            const count0 = O.overflowCount();
+            const added = O.addOverflow(1, { reason: "suite E17-T8" });
+            await settle();
+            await drain();
+            const after = await added;
+            await settle();
+            read.overflow = { sent: sentToA.splice(0), answered: after === count0 + 1, count: O.overflowCount() - count0 };
+
+            await D.prunePools();
+            await settle();
+            read.prune = [Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE)];
+            depart();
+            await D.prunePools();
+            await settle();
+            read.prune.push(Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE));
+            inPlay = false;
+
+            const asks = [];
+            for (const [action, fields] of [["despair.adjust", { targetUserId: game.user.id, delta: 1 }], ["overflow.add", { amount: 1, reason: "suite" }]]) {
+                const told = [];
+                const verdict = await G.judge(BRIDGE_ACTIONS, { action, requestId: `suite-e17t8-${action}`, userId: player.id, ...fields }, player.id,
+                    { send: (who, reply) => told.push(reply?.reason ?? reply?.action ?? null) });
+                await settle();
+                asks.push([action, verdict === false ? "no row" : told.join(","), pool(), O.overflowCount() - count0]);
+            }
+            read.player = asks;
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            pip: { sent: [["despair.adjust", game.user.id, 2], ["despair.adjust", game.user.id, -1]], before: 2, after: 3 },
+            overflow: { sent: [["overflow.add", null, 1]], answered: true, count: 1 },
+            prune: [true, false],
+            player: [["despair.adjust", "undoIsTheGms", 3, 1], ["overflow.add", "gmOnly", 3, 1]]
+        }), "a GM that is not the primary wrote Despair or the overflow itself, or a player's ask moved either [the pips: what was sent to the primary, "
+            + "the pool before the primary judged it and after; the overflow: what was sent, whether the answer was the count after, the count's rise; "
+            + "a gone user's pool after this GM's prune and the primary's; a player's two asks: what was told, the pool, the count's rise]");
+    }],
+
+    ["a pip's change never spills, and a step queued on a GM that stopped being the primary goes to the new one (E17-T8): Despair asked of it, the overflow added through it, a player's spend refused and a prune left to it", async () => {
+        /*
+         * E17 fix e1-G4, 26.10.2026; the review's E17R-04 and E17P1-R4 (a pip's +1 on a pool the primary had raised since the
+         * bar was drawn ran past the maximum, and the excess spilled into the overflow, where Base's absolute write clamped)
+         * and E17P1-COR-8 and E17R-07 (a step queued on the primary ran on after a GM whose id sorts first connected, and
+         * both browsers wrote the same setting from their own copies). (1) On this GM, the primary: its pool at the maximum
+         * less one, the bar drawn, the pool raised by one as a roll's point is, then the pip of the maximum clicked as it was
+         * drawn. Read: the pool and the overflow's rise. (2) A handover mid-queue: each key held by a step of the suite's own
+         * (`DESPAIR_KEY`, `OVERFLOW_KEY`, `SEARCH_KEY`), a change queued behind it while this GM is the primary - three
+         * Despair +1, an overflow +1, a player's spend as the bridge runs it, a prune of a pool no user has - then a second
+         * GM set in the users' list (`A`, a Gamemaster whose id sorts first, E17-T8's) and the keys let go. Read: what was
+         * sent to A, the pool, the overflow's count and the room's tokens on this GM before A judged anything, the spend's
+         * answer, the gone pool, and the pool after A's judgement (this browser judging A's packets as E17-T8 does). Red at
+         * 12c2eb6d: the pip spilled 1; the queued steps wrote here (pool +3, overflow +1, a token spent, the pool pruned).
+         */
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./despair.mjs");
+        const O = await import("./overflow.mjs");
+        const ST = await import("./search-tokens.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm, serialWrite } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which the second GM is set beside - this would measure nothing");
+        must(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool - its pip would measure nothing");
+        const max = D.despairMax();
+        must(max >= 4, `a pool holds ${max} - this would measure nothing`);
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player, whose spend is run");
+        const EVENT = `module.${MODULE_ID}`, GONE = "zE17T8goneUser1", ROOM = "SUITE E17 T8 room", SCENE = "zE17T8noScene00";
+        const A = { id: "!E17T8primaryGM", name: "E17 T8 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        const saved = { pools: foundry.utils.deepClone(getSetting(SETTINGS.despairPools) ?? {}), tokens: foundry.utils.deepClone(getSetting(SETTINGS.searchTokens) ?? {}),
+            overflow: foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {}), count: O.overflowCount() };
+        const sentToA = [], queued = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        let inPlay = false;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ["despair.adjust", "overflow.add"].includes(packet?.action) && to.includes(A.id)) {
+                sentToA.push([packet.action, packet.delta ?? packet.amount ?? null]);
+                queued.push(packet);
+                return socket;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const drain = async () => {
+            for (const packet of queued.splice(0)) {
+                const replies = [];
+                depart();
+                try {
+                    await G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => replies.push(reply) });
+                } finally {
+                    if (inPlay) arrive();
+                }
+                for (const reply of replies) for (const listener of [...socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+            await settle();
+        };
+        const pool = () => D.getDespair(game.user.id);
+        const pip = n => document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${game.user.id}"] .drpg-despair-pip[data-value="${n}"]`);
+        const tokens = () => ST.SearchTokens.store[ST.SearchTokens.key(ROOM, SCENE)] ?? "full";
+        const read = {};
+        try {
+            // (1) the pip's change, clamped
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: max - 1 });
+            await settle();
+            D.renderDespairBar();
+            const top = pip(max);
+            must(top, "the Despair bar drew no pip of the maximum for this GM's pool");
+            const count0 = O.overflowCount();
+            await D.adjustDespair(game.user.id, 1);
+            await settle();
+            top.click();
+            await settle();
+            await until(() => pool() === max, 1500);
+            read.pip = [pool(), O.overflowCount() - count0];
+
+            // (2) a handover mid-queue
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, { ...saved.pools, [game.user.id]: 2, [GONE]: 3 });
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await settle();
+            const count1 = O.overflowCount();
+            let open = null;
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = [D.DESPAIR_KEY, O.OVERFLOW_KEY, ST.SEARCH_KEY].map(key => serialWrite(key, () => gate));
+            const changes = [D.adjustDespair(game.user.id, 1), D.adjustDespair(game.user.id, 1), D.adjustDespair(game.user.id, 1),
+                O.addOverflow(1, { reason: "suite E17-T8 handover" }), D.prunePools()];
+            const spendAs = ST.SEARCH_ACTIONS["searchTokens.spend"];
+            const spend = spendAs.run(spendAs.sanitize({ roomName: ROOM, sceneId: SCENE }, player), player, { requestId: "suite-e17t8-handover" });
+            inPlay = true;
+            arrive();
+            must(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
+            open();
+            await Promise.all(held);
+            const answer = await spend;
+            await settle();
+            read.handover = { sent: sentToA.splice(0).sort(), pool: pool(), overflow: O.overflowCount() - count1, tokens: tokens(),
+                spend: answer?.refused ? G.reasonOf(answer.refused) : stableJson(answer?.reply ?? null), gone: Object.hasOwn(getSetting(SETTINGS.despairPools) ?? {}, GONE) };
+            const settled = Promise.all(changes);
+            await drain();
+            await settled;
+            read.handover.after = [pool(), O.overflowCount() - count1];
+        } finally {
+            inPlay = false;
+            depart();
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await drain().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.despairPools, saved.pools);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, saved.tokens);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, saved.overflow);
+            await overflowStore.patch("record", { count: saved.count });
+            await settle();
+            D.renderDespairBar();
+        }
+        equal(stableJson(read), stableJson({
+            pip: [max, 0],
+            handover: { sent: [["despair.adjust", 1], ["despair.adjust", 1], ["despair.adjust", 1], ["overflow.add", 1]], pool: 2, overflow: 0, tokens: "full",
+                spend: "refused", gone: true, after: [5, 1] }
+        }), "{pip: [the pool after a pip's +1 over a point the primary added, the overflow's rise], handover: [what was sent to the new primary, the pool, the overflow's rise "
+            + "and the room's tokens here before it judged, the player's spend's answer, the gone pool still held, then the pool and the overflow's rise after its judgement]}");
+    }],
+
+    ["the stopwatch (E17-T9): a pause, a reload of the primary and the gap since its last beat add nothing to the time of day's minutes, unpaused they run on, and the time of day's start never moves", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-30, E17-31, E17-32, audit S10-16 (the sandbox's clock read "19900 min in" after a week
+         * away). Driven on this GM as the primary, with the game's own pause: (a) ten minutes played, then a pause of
+         * thirty, a reload in it (`settleClockAtReady`, what the primary runs at `ready`) and the unpause; (b) a world
+         * that loads paused - no `pauseGame` fires, so no stamp - with the primary's last beat an hour old, after ten
+         * minutes of the time of day: the reload and the unpause; (c) the same gap with the world running at ready. Each
+         * reads the minutes the HUD's line prints (`elapsedOf`, for the clock out of an Eclipse: the line is none in one,
+         * R996). At 3efafbd0, which has neither the reading nor the ready stamp, the old line's own arithmetic is read
+         * (the stamp less the start, frozen at `pausedAt`). The beat is the primary's `beatClock`. The clock, the pause
+         * and the beat are put back.
+         * E17 fix p2-G1 (26.10.2026; the end review's E17p2-R1, R5): (d) a pause settled and a reload before the next
+         * beat - the pause was counted twice; (e) a GM's browser with no beat - the gap between sessions was counted. The
+         * clock's planted `writtenAt` (clock.mjs `setClock` stamps every write) is the moment its last write would have had.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const beats = stores.clockBeatStore ?? null;
+        const M = 60000;
+        const was = foundry.utils.deepClone(getClock()), wasPaused = game.paused;
+        const beatWas = beats ? foundry.utils.deepClone(beats.record()) : null;
+        const reading = c => (typeof H.elapsedOf === "function"
+            ? H.elapsedOf({ ...c, eclipse: false }, { now: serverNow(), paused: game.paused })
+            : Math.max(0, (game.paused && c.pausedAt ? c.pausedAt : serverNow()) - c.timeOfDayStartedAt));
+        const minutes = () => Math.floor((reading(getClock()) ?? NaN) / M);
+        const pause = async on => {
+            await game.togglePause(on);
+            await until(() => Boolean(getClock().pausedAt) === on, 3000);
+        };
+        const read = {};
+        try {
+            if (game.paused) await pause(false);
+            // (a) a pause and a reload in it
+            const now0 = serverNow();
+            await setClock({ timeOfDayStartedAt: now0 - 40 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: now0 - 30 * M });
+            const paused = minutes();
+            await H.settleClockAtReady?.();
+            const reloaded = minutes();
+            await pause(false);
+            read.pause = [paused, reloaded, minutes(), getClock().timeOfDayStartedAt === now0 - 40 * M];
+            // (b) a world that loads paused, the last beat an hour old
+            const now1 = serverNow();
+            await setClock({ timeOfDayStartedAt: now1 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: null, writtenAt: now1 - 60 * M });
+            if (beats) await beats.patch(RECORD, { at: now1 - 60 * M });
+            await H.settleClockAtReady?.();
+            const atReady = minutes();
+            await game.togglePause(false);
+            await until(() => !getClock().pausedAt, 3000);
+            read.gap = [atReady, minutes()];
+            // (c) the same gap, the world running at ready. The beat is written last: the primary's own beat runs
+            // every 60 s while the world runs, and would write over it in between (in (b) the world is paused).
+            const now2 = serverNow();
+            await setClock({ timeOfDayStartedAt: now2 - 70 * M, pausedTotalMs: 0, pausedAt: null, writtenAt: now2 - 60 * M });
+            if (beats) await beats.patch(RECORD, { at: now2 - 60 * M });
+            await H.settleClockAtReady?.();
+            read.running = minutes();
+            // They run on: two minutes later, unpaused, the line reads two more.
+            read.runsOn = typeof H.elapsedOf === "function"
+                ? Math.floor(H.elapsedOf({ ...getClock(), eclipse: false }, { now: serverNow() + 2 * M, paused: false }) / M) : null;
+            await H.beatClock?.();
+            read.beat = beats ? Math.abs(Number(beats.record().at) - serverNow()) < 5000 : false;
+            // (d) E17 fix p2-G1: a pause of thirty settled, then a reload before the next beat - the beat from before the
+            // pause is thirty-one minutes old, and the pause is in `pausedTotalMs` already.
+            const now3 = serverNow();
+            await setClock({ timeOfDayStartedAt: now3 - 40 * M, pausedTotalMs: 0, pausedAt: null });
+            if (beats) await beats.patch(RECORD, { at: now3 - 31 * M });
+            await pause(true);
+            await setClock({ pausedAt: now3 - 30 * M });
+            await pause(false);
+            const unpaused = minutes();
+            await H.settleClockAtReady?.();
+            read.unpauseReload = [unpaused, minutes(), Math.abs(Number(getClock().writtenAt) - serverNow()) < 5000];
+            // (e) E17 fix p2-G1: the world loads paused on a GM's browser that holds no beat (another computer, a cleared
+            // profile), the clock last written an hour ago, ten minutes into the time of day.
+            const now4 = serverNow();
+            await setClock({ timeOfDayStartedAt: now4 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: null, writtenAt: now4 - 60 * M });
+            if (beats) await beats.patch(RECORD, { at: null });
+            await H.settleClockAtReady?.();
+            const noBeat = minutes();
+            await game.togglePause(false);
+            await until(() => !getClock().pausedAt, 3000);
+            read.noBeat = [noBeat, minutes()];
+        } finally {
+            if (game.paused !== wasPaused) {
+                await game.togglePause(wasPaused);
+                await until(() => Boolean(getClock().pausedAt) === wasPaused, 3000);
+            }
+            await setClock(was);
+            if (beats) await beats.patch(RECORD, { at: beatWas?.at ?? null });
+            await settle();
+        }
+        equal(J(read), J({ pause: [10, 10, 10, true], gap: [10, 10], running: 10, runsOn: 12, beat: true, unpauseReload: [10, 10, true], noBeat: [10, 10] }),
+            "{pause: [the minutes paused after ten played, after the reload, unpaused, the start where it was]; gap: [the minutes at the "
+            + "reload of a world loaded paused with the last beat an hour old, unpaused]; running: the same gap with the world running; "
+            + "runsOn: the minutes two minutes later; beat: the primary's beat written now; unpauseReload: [the minutes after a pause of thirty "
+            + "settled, after a reload at once with the beat from before the pause, the clock's write stamped now]; noBeat: [the minutes at the "
+            + "reload of a world loaded paused on a browser with no beat, the clock written an hour ago, unpaused]}");
+    }],
+
+    ["the Eclipse and the incident (E17-T10): no Eclipse starts while an incident's opening or fight runs and the HUD's chevron says why, a motive that comes due in it reaches the incident's table alone and comes due in public after it, and a bystander's reload shows the clock the incident opened at", async () => {
+        /*
+         * E17 C7, 26.10.2026; E17-34, audit S10-07, the owner's Q3 (a) of 19.10 ("najpierw zamknij incydent"). An
+         * incident is a secret of its table (announceTimeOfDay narrows the time of day's card, the HUD freezes a
+         * bystander's clock), and three roads told every screen "the GM is doing something now": the chevron's Eclipse
+         * (a public card with its sound, the dimming, a whisper to every student), the motive's "due" card on the same
+         * move of the clock, and a bystander's reload, after which the HUD's frozen copy (page memory) was gone. Driven
+         * on this GM: a motive of one time of day, a direct murder's fight between two students (`fightOpen`); read the
+         * chevron as drawn, `startEclipse`'s answer and words, the motive's tick in the fight (the cards it posted: in
+         * public, or to the incident's table; whether it is marked as announced), the clock a bystander's HUD shows
+         * after a reload with the clock moved meanwhile (hud.mjs `shownClock` with no page memory, over
+         * the clock's `clockAtOpen`), and the motive's
+         * tick after the close. The incident, the motive and the clock are put back.
+         * E17 fix p2-G3 (26.10.2026; the end review's E17p2-R3 and R8, correctness, R5, goal): the Event panel's motive
+         * card (events.mjs `motiveCard`, drawn on every browser) turned "Due" for every bystander on the move inside the
+         * incident; a second move whispered the card again; the public card waited for the next move after the close.
+         * Now read: the card for a bystander and for the GM, a second tick's cards, the close's cards.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const H = await import("./hud.mjs");
+        const R = await import("./rules.mjs");
+        const { wordsOf, isVeiled } = await import("./secret.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const [killer, victim] = cast(2);
+        must(!M.murderState(), "an incident is already running - this would measure nothing");
+        const first = game.i18n.localize("DRPG.Eclipse.incidentFirst");
+        const banner = game.i18n.localize("DRPG.Motive.dueBanner");
+        const text = "SUITE E17-T10 a motive that comes due in an incident";
+        const was = foundry.utils.deepClone(getClock());
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const warn = ui.notifications.warn, told = [];
+        const dueCards = async since => {
+            const out = { open: 0, veiled: 0 };
+            for (const m of game.messages.filter(m => !since.has(m.id))) {
+                const words = String(await wordsOf(m, 2000) ?? "");
+                if (!words.includes(text) || !words.includes(banner)) continue;
+                if (isVeiled(m) || (m.whisper ?? []).length) out.veiled++; else out.open++;
+            }
+            return out;
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            // A body's hold is refused first, with its own words (`startEclipse`): none here.
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await R.setMotive({ text, consequence: "", timesOfDay: 1 });
+            await fightOpen(M, killer, victim);
+            const atOpen = foundry.utils.deepClone(getClock());
+            read.atOpen = getClock().clockAtOpen?.timeOfDay === atOpen.timeOfDay;
+            H.renderHud();
+            const chevron = document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button");
+            must(chevron, "the HUD drew no Eclipse chevron - this would measure nothing");
+            read.chevron = chevron.getAttribute("aria-disabled") === "true" ? chevron.dataset.tooltip ?? "" : null;
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            read.refused = [await E.startEclipse(), isEclipse(), told.includes(first)];
+            ui.notifications.warn = warn;
+            const inFight = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.inIncident = [await dueCards(inFight), R.motive()?.dueAnnounced === true];
+            // E17 fix p2-G3: the Event panel's motive card as a bystander draws it (hidden clock) and as the GM does, and a
+            // second move of the clock inside the incident whispers nothing again.
+            const EV = await import("./events.mjs");
+            const key = String(M.murderState()?.openedAt ?? "open");
+            const card = view => (typeof EV.motiveCard === "function" ? EV.motiveCard(view) : null);
+            const seen = c => (c ? [c.due, c.meta] : null);
+            read.panel = [seen(card({ hide: true, key })), seen(card({ hide: false, key }))];
+            const second = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.secondTick = await dueCards(second);
+            // A bystander's reload: the clock moved in the incident, the page's memory gone.
+            await setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(atOpen.timeOfDay) + 1) % TIMES_OF_DAY.length] });
+            read.reload = typeof H.shownClock === "function"
+                ? H.shownClock(getClock(), { hide: true, last: null })?.timeOfDay === atOpen.timeOfDay : null;
+            const closing = new Set(game.messages.map(m => m.id));
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            must(!M.murderState(), "the incident is still running after the close");
+            read.atClose = [await dueCards(closing), R.motive()?.dueAnnounced === true];
+            const after = new Set(game.messages.map(m => m.id));
+            await R.tickMotive();
+            await settle();
+            read.after = [await dueCards(after), R.motive()?.dueAnnounced === true];
+        } finally {
+            ui.notifications.warn = warn;
+            if (M.murderState()) await M.endMurder({ reason: "closed", followUp: false });
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await setClock(was);
+            await settle();
+        }
+        const left = game.i18n.localize("DRPG.Motive.dueShort");
+        const oneLeft = plural("DRPG.Motive.left", { n: 1 });
+        equal(J(read), J({ atOpen: true, chevron: first, refused: [null, false, true], inIncident: [{ open: 0, veiled: 1 }, false],
+            panel: [[false, oneLeft], [true, left]], secondTick: { open: 0, veiled: 0 },
+            reload: true, atClose: [{ open: 1, veiled: 0 }, true], after: [{ open: 0, veiled: 0 }, true] }),
+            "{atOpen: the incident keeps the clock it opened at; chevron: the dimmed chevron's words; refused: [startEclipse's answer, an "
+            + "Eclipse running, the GM told to close the incident first]; inIncident: [the due motive's cards, marked announced]; reload: a "
+            + "bystander's HUD after a reload shows the time of day the incident opened at; panel: [the Event panel's motive card [due, its "
+            + "line] for a bystander, for the GM] (E17 fix p2-G3); secondTick: the cards of a second move of the clock in the incident; "
+            + "atClose: [the cards the close posted, marked announced]; after: the same at the next move after the close}");
+    }],
+
+    ["the boundary taken back (E17-T10): an Eclipse ended without advancing and a rewind within five minutes take back what the boundary gave, after five minutes nothing is taken back and the boundary refills no second time, and the chevron asks first with no as the default", async () => {
+        /*
+         * E17 C7, 26.10.2026; E17-35, audit S10-42. The chevron opened an Eclipse with no question - the refill, the
+         * Sprint and Burst grants and the seals gone, a public card - "End without advancing" gave nothing back and the
+         * next press refilled the same boundary a second time, and a rewind left what the advance gave. Driven on this
+         * GM with one student and the game's own calls: (a) the budget spent, a room sealed, an Eclipse and End without
+         * advancing at once; (b) the same boundary again, at once: it refills; (c) that Eclipse ended without advancing
+         * six minutes on (the take-back's stamp moved back), the budget spent, a third Eclipse; (d) its end with the
+         * advance, a room's search tokens spent, a rewind at once, the boundary again; (e) the advance and a rewind six
+         * minutes on, the boundary again; (f) the chevron pressed with DialogV2's confirm answered by the test. Read the
+         * student's actions after each, the seal and the room's tokens. The clock, the actions, the seals and the tokens
+         * are put back. E17 fix ci-2: and with (a)'s Eclipse open, what the world's clock setting - which every player's
+         * browser holds - names of the student or breaks the world-secrets rule with: at f7ac1e9d the boundary's
+         * snapshot stood there, keyed by actor id (72-canary, CI run 40402423765).
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const H = await import("./hud.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { actionsLeft, setActions } = await import("./actions.mjs");
+        const { rewindTimeOfDay, takeBackMemory } = await import("./clock.mjs");
+        const { sealedRooms, sealRoom } = await import("./call-world.mjs");
+        const { findWorldSecrets } = await import("./world-secrets.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one");
+        const M6 = 6 * 60000;
+        const room = "SUITE E17-T10 a sealed room";
+        const key = "SUITE::E17-T10 a searched room";
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const confirmOwn = Object.getOwnPropertyDescriptor(DialogV2, "confirm");
+        const age = async () => {
+            // The take-back's memory is the GMs' store's since E17 fix ci-2 (clock.mjs `takeBackMemory`); `setClock` writes it there.
+            const last = await takeBackMemory();
+            if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            // (a)
+            await setActions(student, 0);
+            await sealRoom(room);
+            await E.startEclipse();
+            const given = actionsLeft(student);
+            // E17 fix ci-2: what the boundary keeps to take back is the GMs', not the clock every browser holds.
+            read.inWorld = findWorldSecrets({ settings: { clock: game.settings.get(MODULE_ID, SETTINGS.clock) } }, { ids: [student.id] })
+                .map(h => `${h.path} (${h.rule})`);
+            await E.endEclipse({ advance: false });
+            read.endOnly = [given > 0, actionsLeft(student), sealedRooms().includes(room)];
+            // (b)
+            await E.startEclipse();
+            read.again = actionsLeft(student) === given;
+            // (c)
+            await age();
+            await E.endEclipse({ advance: false });
+            read.late = actionsLeft(student) === given;
+            await setActions(student, 0);
+            await E.startEclipse();
+            read.twice = actionsLeft(student);
+            // (d)
+            await E.endEclipse({ advance: true });
+            const reached = getClock().timeOfDay;
+            await setActions(student, 0);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { ...(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {}), [key]: 0 });
+            await E.startEclipse();
+            await E.endEclipse({ advance: true });
+            const tokensAfter = game.settings.get(MODULE_ID, SETTINGS.searchTokens)?.[key] ?? null;
+            await rewindTimeOfDay();
+            read.rewind = [tokensAfter, getClock().timeOfDay === reached, actionsLeft(student),
+                game.settings.get(MODULE_ID, SETTINGS.searchTokens)?.[key] ?? null];
+            await E.startEclipse();
+            read.rewound = actionsLeft(student) === given;
+            // (e)
+            await E.endEclipse({ advance: true });
+            await age();
+            await rewindTimeOfDay();
+            read.lateRewind = actionsLeft(student) === given;
+            await setActions(student, 0);
+            await E.startEclipse();
+            read.lateAgain = actionsLeft(student);
+            await E.endEclipse({ advance: false });
+            // (f)
+            await age();
+            let asked = null;
+            DialogV2.confirm = async config => {
+                asked = [config.no?.default === true, config.yes?.default === true];
+                return false;
+            };
+            H.renderHud();
+            const chevron = document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button");
+            must(chevron, "the HUD drew no Eclipse chevron - this would measure nothing");
+            chevron.click();
+            await until(() => asked || isEclipse(), 3000).catch(() => {});
+            await settle();
+            read.chevron = [asked, isEclipse()];
+        } finally {
+            if (confirmOwn) Object.defineProperty(DialogV2, "confirm", confirmOwn); else delete DialogV2.confirm;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }) });
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokensWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ inWorld: [], endOnly: [true, 0, true], again: true, late: true, twice: 0, rewind: [null, true, 0, 0], rewound: true,
+            lateRewind: true, lateAgain: 0, chevron: [[true, false], false] }),
+            "{inWorld: what the world's clock names of the student or breaks the world-secrets rule with, the Eclipse open (E17 fix ci-2); "
+            + "endOnly: [the Eclipse refilled, the actions and the seal after End without advancing at once]; again: the same boundary "
+            + "refills again after that; late: End without advancing six minutes on keeps the refill; twice: the actions after the "
+            + "boundary's third Eclipse; rewind: [the room's tokens after the advance, the clock still where the advance took it, the "
+            + "actions and the room's tokens after a rewind at once]; rewound: the boundary refills after it; lateRewind: the actions "
+            + "after a rewind six minutes on; lateAgain: the boundary's Eclipse after that; chevron: [[no the default, yes the default], "
+            + "an Eclipse running after a no]}");
+    }],
+
+    ["the boundary taken back twice (E17-T10, E17 fix p2-G2): a rewind of a boundary that did not refill leaves it refilled, two advances are taken back by two rewinds, and a boundary opened again ends the grants bought since without a second refill", async () => {
+        /*
+         * E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2, R4, R7 (correctness) and R3, R6 (goal). Three roads the
+         * first test of the take-back never drove: (a) an Eclipse ended without advancing six minutes on (the refill
+         * kept), the budget spent, the panel's Next time of day (`advanceTimeOfDay({ resetActions: true })`, which
+         * refills nobody for a boundary refilled already), a rewind at once and Next again - the take-back wrote
+         * `refilledFor: null`, so the second Next refilled the boundary a second time; (b) from a spent budget, two
+         * advances and two rewinds at once - the take-back was one level, so the second rewind put back nothing; (c) a
+         * kept boundary, a Sprint and a Burst banked, the Eclipse opened again, then the same with Next - the repeated
+         * opening skipped the whole refill and with it the end of the grants. Read the student's actions and grants
+         * after each, and the time of day after (b). The clock, the actions, the grants and the seals are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const A = await import("./actions.mjs");
+        const { advanceTimeOfDay, rewindTimeOfDay, takeBackMemory } = await import("./clock.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one");
+        const M6 = 6 * 60000;
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: A.actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const flagsWas = Object.fromEntries([FLAGS.freeMoveUsed, FLAGS.freeMoveGrants, FLAGS.freeActionGrants]
+            .map(f => [f, student.getFlag(MODULE_ID, f) ?? null]));
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const tokensWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const age = async () => {
+            // The take-back's memory is the GMs' store's since E17 fix ci-2 (clock.mjs `takeBackMemory`); `setClock` writes it there.
+            const last = await takeBackMemory();
+            if (last?.at) await setClock({ lastAdvance: { ...last, at: last.at - M6 } });
+        };
+        const kept = async () => {
+            await E.startEclipse();
+            await age();
+            await E.endEclipse({ advance: false });
+        };
+        const next = () => advanceTimeOfDay({ resetActions: true, announce: false });
+        const grants = () => [A.freeMovesLeft(student), A.freeActionsLeft(student)];
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            // (a)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            await A.setActions(student, 0);
+            await next();
+            const afterNext = A.actionsLeft(student);
+            await rewindTimeOfDay();
+            await next();
+            read.keptRewind = [afterNext, A.actionsLeft(student), getClock().refilledFor !== null];
+            // (b)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await A.setActions(student, 0);
+            const start = getClock().timeOfDay;
+            await next();
+            const refilled = A.actionsLeft(student);
+            await next();
+            await rewindTimeOfDay();
+            await rewindTimeOfDay();
+            read.twoRewinds = [refilled > 0, A.actionsLeft(student), getClock().timeOfDay === start];
+            // (c)
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            const given = A.actionsLeft(student);
+            await A.grantFreeMoves(student, 1, { reason: "refund" });
+            await A.grantFreeActions(student, 1, { reason: "refund" });
+            const bought = grants();
+            await E.startEclipse();
+            read.openedAgain = [bought, grants(), A.actionsLeft(student) === given];
+            await E.endEclipse({ advance: false });
+            await setClock({ timeOfDay: was.timeOfDay });
+            await kept();
+            await A.grantFreeMoves(student, 1, { reason: "refund" });
+            await next();
+            read.nextAgain = [grants(), A.actionsLeft(student) === given];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }),
+                ...Object.fromEntries(Object.entries(flagsWas).filter(([, v]) => v !== null).map(([f, v]) => [`flags.${MODULE_ID}.${f}`, v])) });
+            for (const [f, v] of Object.entries(flagsWas)) if (v === null && student.getFlag(MODULE_ID, f) !== undefined) await student.unsetFlag(MODULE_ID, f);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokensWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ keptRewind: [0, 0, true], twoRewinds: [true, 0, true], openedAgain: [[1, 1], [0, 0], true], nextAgain: [[0, 0], true] }),
+            "{keptRewind: [the actions after Next over a kept boundary, after a rewind and Next again, the boundary still refilled]; twoRewinds: "
+            + "[the first advance refilled, the actions after two advances and two rewinds from none, the time of day back where it began]; "
+            + "openedAgain: [the grants banked over a kept boundary, after the Eclipse opened again, the actions not refilled again]; nextAgain: "
+            + "[the grants after Next over a kept boundary, the actions not refilled again]}");
     }],
 
     ...GRID

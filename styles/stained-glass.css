@@ -4094,7 +4094,7 @@ body.drpg-reduced-motion .drpg-event-sub.drpg-event-swap { animation: none; }
 /* ...and the last four the suite's own floor test caught: the hour in the clock, the
    project line under the room, the pools' caption and their counter. Each was written
    at its design size before the floor moved under it. The test is the list. */
-body.drpg-theme-stained-glass :is(.drpg-hud-room-project, .drpg-despair-title) {
+body.drpg-theme-stained-glass :is(.drpg-hud-room-project, .drpg-despair-title, .drpg-hud-room-tokens-label) {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
 }
 /* THE ID IS THE POINT. The base sheet sizes the hour, the pool counter and the tray's

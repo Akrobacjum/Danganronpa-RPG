@@ -493,6 +493,16 @@ function buildSearchPips({ max, left, sealed }) {
         pip.className = i < left ? "drpg-hud-pip full" : "drpg-hud-pip";
         row.append(pip);
     }
+    /* WHAT THE DOTS ARE, IN WORDS (E17 C8, 26.10.2026; audit S10-29, seen on the screenshots of five runs and four
+       sizes). Under "Available project" three unlabelled squares read as "available project: 3", and "No available
+       project" over three full ones as a fault; the count was in the tooltip alone. So the row says it: "2/3
+       searches" beside the pips, from the key the screen reader has always been read (`roomTokens`), and the
+       project line speaks to the player in the second person (`roomProject`). Inside the row, so every place the
+       row is laid out - under the clock, beside the notices, the stacked row - carries the words with the dots, and
+       a sealed room's line goes through both. Hidden from a screen reader: the row's label already says it. */
+    const words = textNode("span", "drpg-hud-room-tokens-label", game.i18n.format("DRPG.Hud.roomTokens", { left, max }));
+    words.setAttribute("aria-hidden", "true");
+    row.append(words);
     return row;
 }
 

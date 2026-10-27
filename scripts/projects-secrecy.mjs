@@ -88,8 +88,12 @@ export function metaFor(countdownId) {
  * approval picked (`{ sceneId, level, wallId, seg, rooms }`) - where a secret passage will be is what the project
  * keeps secret -, and `foundBy`, `{ userId: at }`, the players who found the secret project by Observe (observe.mjs),
  * whom its completion tells it is finished and gives nothing of what it made.
+ *
+ * And `sabotageAsk` since E18 C7 (26.10.2026; audit S10-43 part 2): the request id a player's Sabotage came under, on its
+ * repair's row beside `saboteur`, so the same player's resend of it is answered the first result (projects.mjs
+ * `sabotageOfRequest`). Which request froze a project is the saboteur's secret as much as their user id.
  */
-export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"]);
+export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser

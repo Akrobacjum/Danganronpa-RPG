@@ -399,6 +399,28 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * THE LAST CROSSINGS (E17 C3, 26.10.2026; audit S07-16, D18): a GM store (gm-stores.mjs `crossingStore`), a row per
+     * character - its newest crossing the primary GM saw or made, what it cost and where the token stood before it -
+     * which the Students window's "Refund last crossing" gives back (movement.mjs `refundLastCrossing`). Synced, not
+     * backed up; no player copy.
+     */
+    gmCrossings: "gmCrossings",
+    /**
+     * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16): a GM store (gm-stores.mjs `clockBeatStore`), one record
+     * `{ at }` - `serverNow()` every 60 s while the world runs (hud.mjs `beatClock`), the last moment a primary GM is
+     * known to have been there. At the next `ready` the gap since it is no time of day's (`settleClockAtReady`). A GM
+     * store and no world setting: a world write every minute would redraw every player's HUD. Synced, not backed up;
+     * no player copy.
+     */
+    gmClockBeat: "gmClockBeat",
+    /**
+     * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 fix ci-2, 26.10.2026): a GM store (gm-stores.mjs
+     * `takeBackStore`), one record `{ lastAdvance }` - every character's budget by actor id, the search tokens and the
+     * seals before the last boundary, for "End without advancing" and the rewind (clock.mjs `takeBackFor`). On the
+     * clock until then, which every player's browser holds. Synced, not backed up; no player copy.
+     */
+    gmTakeBack: "gmTakeBack",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -928,11 +950,16 @@ export const DEFAULT_CLOCK = {
     phase: "dailyLife",
     timeOfDay: TIMES_OF_DAY[0],
     /**
-     * When the current time of day started, as `Date.now()`. Drives the HUD's
-     * elapsed timer; `null` until the clock is moved for the first time, which
+     * When the current time of day started, as `serverNow()`. The HUD's
+     * elapsed timer counts from it, and the day's summary (day-summary.mjs) is
+     * bounded by it; `null` until the clock is moved for the first time, which
      * the HUD reads as "not started yet" rather than as "zero minutes ago".
      * Written by `setClock` on any change of `timeOfDay`, whichever route moved
      * it - Eclipse, panel, or a rewind.
+     * IT NEVER MOVES IN A TIME OF DAY (E17 C6, 26.10.2026; audit S10-16). Until
+     * then an unpause pushed it forward by the pause, which kept the stopwatch
+     * right and cut the summary's window: a Search made before a pause was gone
+     * from "What you did" after it. The pauses are `pausedTotalMs` now.
      */
     timeOfDayStartedAt: null,
     /**
@@ -942,12 +969,75 @@ export const DEFAULT_CLOCK = {
      */
     trialEndedAt: null,
     /**
-     * When the game was paused, as `Date.now()`, or `null` while it runs. The
-     * elapsed timer freezes here, and `timeOfDayStartedAt` is pushed forward by
-     * the length of the break when play resumes - a pause is not time the table
-     * spent on this time of day.
+     * When the game was paused, as `serverNow()`, or `null` while it runs. The
+     * elapsed timer freezes here, and the break's length goes into
+     * `pausedTotalMs` when play resumes - a pause is not time the table spent
+     * on this time of day. Written by the primary GM on `pauseGame` and, for a
+     * world that loads paused (no `pauseGame` fires then), at `ready` (hud.mjs
+     * `settleClockAtReady`).
      */
     pausedAt: null,
+    /**
+     * THE PAUSES OF THIS TIME OF DAY, in ms (E17 C6, 26.10.2026; audit S10-16):
+     * what the stopwatch subtracts from the time since `timeOfDayStartedAt`.
+     * Added to on an unpause (hud.mjs `unpausePatch`) and at the primary's
+     * `ready`, when the gap since its last beat (the GMs' "clockBeat", every
+     * 60 s while the world runs) was nobody's play; 0 again with every new
+     * time of day (`setClock`). E37's summary at every boundary reads it by
+     * this name.
+     */
+    pausedTotalMs: 0,
+    /**
+     * WHEN A GM LAST WROTE THE CLOCK, as `serverNow()` (E17 fix p2-G1, 26.10.2026; the end
+     * review's E17p2-R1 and R5): stamped by clock.mjs `setClock` on every write it makes, unless
+     * the patch names it (a restore keeps its own). The primary's `ready` reads it beside the
+     * GMs' beat (hud.mjs `readyPatch`): the beat is one GM's browser's (a client setting), so a
+     * GM who opens the world on another computer had none and the gap between two sessions was
+     * counted, and a reload in the minute after an unpause, before the next beat, counted the
+     * pause a second time. Every unpause writes the clock, so this is at or after the end of
+     * every pause in `pausedTotalMs`. No extra write: it rides on the writes already made.
+     */
+    writtenAt: null,
+    /**
+     * THE BOUNDARY THAT REFILLED LAST (E17 C7, 26.10.2026; audit S10-42): clock.mjs
+     * `boundaryStamp` of the time of day a refill was given for (the season, the
+     * chapter, the session, the day and the time of day it leads into), or null. An
+     * Eclipse opened again for the same boundary - after "End without advancing", or
+     * a rewind more than `TAKE_BACK_MS` on - refills nobody a second time
+     * (eclipse.mjs `startEclipse`, clock.mjs `advanceTimeOfDay`). A write of the
+     * calendar by hand forgets it (`setClock`).
+     */
+    refilledFor: null,
+    /*
+     * NOT HERE: WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 C7; audit S10-42), `lastAdvance`,
+     * which stood here from E17 C7 to E17 fix ci-2 (26.10.2026) and is the GMs' store "takeBack"
+     * since (gm-stores.mjs `takeBackStore`; clock.mjs `setClock` writes it, `withTakeBack` reads
+     * it beside the clock). `{ for, at, snapshot }` - the boundary's stamp, when (`serverNow()`),
+     * and the actions, the Free Move and the grants of every character, the rooms' search tokens
+     * and the seals as they stood before it (clock.mjs `boundarySnapshot`) - or null. "End
+     * without advancing" and the rewind put the snapshot back within `TAKE_BACK_MS` of `at`, and
+     * forget it either way. Each value in it is one every browser reads elsewhere, but the
+     * snapshot is keyed by actor id, so the clock named every character, the killer among them,
+     * in a world setting every player holds: 72-canary's world scan found it (the world-secrets
+     * rule's `clock.lastAdvance` since then).
+     * AND WHAT STOOD BEFORE IT (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R2,
+     * R4): `refilledBefore`, the `refilledFor` the boundary found, which a take-back
+     * writes back (it wrote null, so a boundary refilled by an Eclipse kept past five
+     * minutes refilled again after a rewind of an advance that had not refilled it);
+     * and `previous`, the boundary before it while that one can still be taken back
+     * (clock.mjs `boundaryMemory`, at most `TAKE_BACK_DEPTH` deep), so two advances in
+     * a row are taken back by two rewinds.
+     */
+    /**
+     * THE CLOCK AS AN INCIDENT OPENED ON IT (E17 C7, 26.10.2026; audit S10-07): the
+     * calendar and the stopwatch's fields of the clock when `openMurder` opened the
+     * running incident (clock.mjs `frozenClockOf`), or null. A bystander's HUD shows
+     * it while the incident runs and the browser has no copy of its own from before
+     * (a reload; hud.mjs `shownClock`). On the clock, not in the incident's world
+     * half: it names nobody and says nothing every screen did not show at the open,
+     * and the incident's world half stays the two fields `PUBLIC_INCIDENT` lists.
+     */
+    clockAtOpen: null,
     /**
      * The season finale is running: the vote is for the Mastermind, not a
      * Blackened. Purely a flavour flag for the floor/panel text - announcing
@@ -1635,6 +1725,29 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The last crossings (E17 C3): the Students window redraws its Refund buttons on `drpgCrossingsChanged`, on every GM
+    // the store reaches.
+    game.settings.register(MODULE_ID, SETTINGS.gmCrossings, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgCrossingsChanged")
+    });
+    // The primary's beat (E17 C6): no `onChange` - read at `ready` alone, shown nowhere.
+    game.settings.register(MODULE_ID, SETTINGS.gmClockBeat, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // What the last boundary would take back (E17 fix ci-2): no `onChange` - read when a GM ends an Eclipse or rewinds.
+    game.settings.register(MODULE_ID, SETTINGS.gmTakeBack, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The Cleaning Tools a clean-up used (E32+E07 C12): no `onChange` either - read by the
     // body's discovery, on the GM that runs it, and shown nowhere.
     game.settings.register(MODULE_ID, SETTINGS.gmUsedTools, {
@@ -1749,7 +1862,9 @@ export function registerSettings() {
        on a GM's page and Foundry's two rails stay where Foundry puts them (THE WORLD SWITCH there). A reload, because
        the windows are built once at ready and hold Foundry's own nodes. A player's page is the same either way. */
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
-       "log" until a table has shown that "sendBack" puts nobody back wrongly (E17 decides the default). */
+       "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
+       for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
+       default after a table's session is E82's. */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",
@@ -2899,15 +3014,52 @@ export function eclipseId(clock = null) {
  * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
  * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
  * import eclipse.mjs (the cycle is noted at `crossingVerdict`).
+ *
+ * THE LARGER OF TWO COUNTS, AND WHAT IS IN FLIGHT (E17 C2, 26.10.2026; audit S10-44, S07-08). A row holds the crossings
+ * the owner's browser asked to have counted (`used`, the bridge's `eclipse.move`) and those the primary saw a player's
+ * move make (`seen`, movement.mjs `judgeArrival`), and a crossing is both asked and seen, so the count is the larger,
+ * never the sum (`eclipseCountOf`). A crossing this browser's judge has asked about and not yet heard back on counts
+ * too (`eclipseInFlight`): read only after the answer, a route of two crossings, or two drags faster than the round
+ * trip, each read the count from before the other (tier 2 E17-T4 at 730dffcf: the allowance held in flight, every
+ * one more let through).
  */
 export function eclipseMovesUsed(actorId, clock = null) {
     try {
         const id = eclipseId(clock);
         if (!id || !actorId) return 0;
         const row = game.user?.isGM ? gmStoreByName("eclipseMoves")?.get(actorId) : readMine("eclipseMoves")?.[actorId];
-        return row?.eclipse === id ? Math.max(0, Number(row.used) || 0) : 0;
+        const flying = inFlight.get(actorId);
+        return eclipseCountOf(row, id).count + (flying?.eclipse === id ? flying.n : 0);
     } catch {
         return 0;
+    }
+}
+
+/** A row of the Eclipse's crossings read for the Eclipse `id`: `{ used, seen, count }`, all 0 for another Eclipse's (E17 C2). */
+export function eclipseCountOf(row, id) {
+    if (!id || row?.eclipse !== id) return { used: 0, seen: 0, count: 0 };
+    const used = Math.max(0, Math.trunc(Number(row.used) || 0)), seen = Math.max(0, Math.trunc(Number(row.seen) || 0));
+    return { used, seen, count: Math.max(used, seen) };
+}
+
+/** The crossings this browser's Eclipse judge is waiting to hear counted, by actor id: `{ eclipse, n }` (E17 C2). */
+const inFlight = new Map();
+
+/**
+ * One crossing of this character in flight while `waiting` runs (eclipse.mjs `judgeEclipseCrossing`'s count): counted by
+ * `eclipseMovesUsed` from the call until `waiting` settles, whatever it answers. Answers what `waiting` answers.
+ */
+export async function eclipseInFlight(actorId, waiting, clock = null) {
+    const id = eclipseId(clock);
+    if (!id || !actorId) return waiting();
+    const held = inFlight.get(actorId);
+    inFlight.set(actorId, { eclipse: id, n: (held?.eclipse === id ? held.n : 0) + 1 });
+    try {
+        return await waiting();
+    } finally {
+        const now = inFlight.get(actorId);
+        if (now?.eclipse === id && now.n > 1) inFlight.set(actorId, { eclipse: id, n: now.n - 1 });
+        else if (now?.eclipse === id) inFlight.delete(actorId);
     }
 }
 

@@ -55,8 +55,8 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
         projectMeta: Object.freeze({
-            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"]),
-            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2)"
+            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"]),
+            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2)"
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({
@@ -81,6 +81,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
         /* The world half of an incident: incident-store.mjs's `PUBLIC_INCIDENT`, written out (this file
            imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
            the method since E05 C8, the fight since E32 C2 - is the cast's. */
+        /* The clock carries no boundary's take-back (E17 fix ci-2, 26.10.2026): its snapshot holds every
+           character's budget keyed by actor id - 72-canary found the killer's id at
+           clock.lastAdvance.snapshot.actions on p1 and p2 at f7ac1e9d. A GM store since (gm-stores.mjs
+           `takeBackStore`); a null one is found too, as a field the clock should not have. */
+        clock: Object.freeze({
+            fields: Object.freeze(["lastAdvance"]),
+            since: "E17 fix ci-2", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42)"
+        }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",

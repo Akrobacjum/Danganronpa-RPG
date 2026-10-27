@@ -648,13 +648,34 @@ function announceRemnant(tokenDoc) {
     pendingTraces.set(key, data);
 }
 
+/** The digests on their way (E17 fix ci-3): what `traceDigestIdle` waits for. */
+const digesting = new Set();
+
 /**
- * Say the traces collected since the last flush, as one whisper.
+ * Say the traces collected since the last flush, as one whisper. Answers how
+ * many traces it said.
  *
  * Cleared BEFORE the whisper is sent: an await here is a window in which
  * another trace can land, and a queue emptied afterwards would eat it.
  */
-export async function flushTraceDigest() {
+export function flushTraceDigest() {
+    const flight = sendTraceDigest();
+    digesting.add(flight);
+    flight.finally(() => digesting.delete(flight)).catch(() => {});
+    return flight;
+}
+
+/**
+ * Once every digest asked for so far has been posted, or has failed (E17 fix ci-3, 26.10.2026). The clock's run
+ * asks for one through `drpgTimeOfDayChanged` and does not wait for its whisper (a hook's listener is not awaited);
+ * whoever deletes the chat a run left - tier 2's restore, after `syncIdle` - waits for this first, or the card
+ * lands after the deletion (CI run 40418039458, suite 2/8: "restore left: ... ChatMessage appeared").
+ */
+export async function traceDigestIdle() {
+    await Promise.allSettled([...digesting]);
+}
+
+async function sendTraceDigest() {
     if (!game.user.isGM || !pendingTraces.size) return 0;
 
     const batch = [...pendingTraces.values()];

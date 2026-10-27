@@ -49,9 +49,21 @@ export function entriesSince(startedAt) {
     return secretSummaries(startedAt);
 }
 
+/**
+ * Where the summary's window opens: the time of day's start, or null with none (E17 C6, 26.10.2026; audit S10-16). A
+ * clock never moved, an older world's included, has no stamp, and `?? 0` read that as the start of time: every card the
+ * browser held went into the window. No stamp, no summary. Since C6 the stamp never moves within a time of day (the
+ * pauses are `pausedTotalMs`), so what was done before a pause stays in "What you did". Pure (R996).
+ */
+export function summarySince(clock) {
+    const started = Number(clock?.timeOfDayStartedAt);
+    return clock?.timeOfDayStartedAt && Number.isFinite(started) ? started : null;
+}
+
 export async function showDaySummary() {
     const clock = getClock();
-    const started = clock?.timeOfDayStartedAt ?? 0;
+    const started = summarySince(clock);
+    if (started === null) return;
     const entries = entriesSince(started);
 
     // Nothing happened - a time of day spent entirely in conversation is a

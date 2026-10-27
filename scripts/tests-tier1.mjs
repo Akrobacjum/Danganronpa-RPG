@@ -5859,8 +5859,9 @@ const INVARIANTS = [
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
             // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
-            // Passage's `passage` and `target` and a project's Observe finders, `foundBy`.
-            ...["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"].map(f => [`projectMeta.${f}`,
+            // Passage's `passage` and `target` and a project's Observe finders, `foundBy`; E18 C7 the request a player's
+            // Sabotage came under, `sabotageAsk`.
+            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
@@ -5957,7 +5958,11 @@ const INVARIANTS = [
             // (a trap's `false` until E32 C2, which left the stage alone there: now the fight's round at 0).
             ["murderState: only active, stage",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
-                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"]
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"],
+            // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
+            ["clock.lastAdvance",
+                s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === "lastAdvance"]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
@@ -14249,9 +14254,11 @@ const INVARIANTS = [
         ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
         // The route's caller hands the Eclipse's judge the floors of each crossing (review r2, goal O19): five arguments,
         // `floors` the crossing's own, as `crossingVerdict` is asked; and since H81 fix r1 the crossing token's height, at
-        // which a passage in a wall is read (movement.mjs `passageRooms`' note), as its sixth.
-        const settle = fnSource(src, "settleRoute");
-        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors, \{ elevation: ownElevation\(tokenDoc\) \}\);/.test(settle),
+        // which a passage in a wall is read (movement.mjs `passageRooms`' note), as its sixth. Since E17 C0 the charge is
+        // `settleRoute`'s `chargeRoute`, and the sixth carries the primary's in-step count (`record`) when it holds the key.
+        const settle = fnSource(src, "chargeRoute");
+        // Since E17 C2 the sixth also carries the route's own count (`used`, audit S07-08), and the loop reads each crossing's spot.
+        ok(/for \(const \[from, to, floors, spot\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors, \{ elevation: ownElevation\(tokenDoc\), used: used0 \+ allowedSoFar, \.\.\.\(record \? \{ record \} : \{\}\) \}\);/.test(settle),
             "the route's Eclipse judge is not handed each crossing's floors as its fifth argument");
     }],
     ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM; a route through a point on a wall's line crosses it, the spot a put-back leaves is in no GM's record of the token, and the audit keeps a counted row of every crossing with one whisper per token and mover in 30 s; a GM's send-back for a player is judged as that player's move, an exempt landing on a wall's line keeps its side, a move before the put-back lands is judged from where the token is sent, and a row says sent back only once it is written", async () => {
@@ -21279,6 +21286,65 @@ const INVARIANTS = [
         }), "a wait marked untilPrimaryLeaves does not end once when the primary leaves, its late answer is lost, or an unmarked wait ends with it");
     }],
 
+    ["R1006 - a Frisk's wait ends at once when its primary leaves for another GM, and keeps its clock when that primary was the only GM: then the clock ends it and tells the GMs it expired, and the leaving tells nobody (E18 fix c7-G1)", async () => {
+        /*
+         * E18 fix c7-G1, 26.10.2026; the review's C7-R1 (twice) and C7-SEC-2. C7 marked the searcher's wait on an open
+         * Frisk's ask (gm-bridge.mjs `requestFriskAsk`) `untilPrimaryLeaves` and said the wait ended 'at once' when the
+         * primary left; registerBridgeReplies runs `primaryGone` only when `primaryLeft` - when another GM is here to take
+         * the primary - so at a one-GM table the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and only that
+         * clock hands the action back. The tier-2 test read the option in the source and drove nothing. Driven here with
+         * fakes, as R978 drives the waiter, with the options requestFriskAsk names and the bridge row's clock, and with
+         * the hook's own test (`!connected && primaryLeft(user)`, R841 reads it in the listener) over a users list built
+         * here: the primary A leaving with a second GM B here, and A leaving alone and coming back (an F5) before the
+         * clock. Read: the wait's end right after the leaving, the packets sent then, and, for the lone GM, the end and
+         * the packets after the clock (with no GM connected at the clock, `tellGms` has nobody to tell). `primaryGone`
+         * sends no expiry: the primary that left holds the ask in its memory, and one whose socket comes back without a
+         * reload drops it (frisk.mjs `friskSocketBack`). Green at 29a53176: it measures what the code did against what C7's
+         * comment and the players' handbook said of it (corrected in this fix).
+         */
+        const G = await import("./bridge-guards.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const ROLE = CONST.USER_ROLES;
+        const user = (id, role, active = true) => ({ id, role, isGM: role >= ROLE.ASSISTANT, active });
+        // The two calls `primaryGmId` makes of `game.users`: `get` and an Array-answering `filter` (as R841).
+        const users = list => Object.assign(new Map(list.map(u => [u.id, u])), { filter: fn => list.filter(fn) });
+        const A = user("R1006A000000000A", ROLE.GAMEMASTER), B = user("R1006B000000000B", ROLE.GAMEMASTER);
+        const P = user("R1006P000000000P", ROLE.PLAYER);
+        const WAIT = TIMING.friskAnswerMs + TIMING.friskMarginMs;
+        const run = async others => {
+            // A is here when the ask is sent, and gone when the hook runs (counted both ways, as primaryLeft says).
+            let list = [A, ...others];
+            const sent = [], timers = [];
+            const clock = { set: (fn, ms) => timers.push({ fn, ms }) - 1, clear: id => { if (timers[id]) timers[id] = null; } };
+            const waiter = G.createWaiter({
+                emit: packet => sent.push(packet.action), gmIds: () => list.filter(u => u.isGM && u.active).map(u => u.id),
+                me: () => ({ id: P.id, isGM: false, isPrimary: false }), notify: () => {}, fromGm: id => id === A.id || id === B.id,
+                clock, report: () => {}
+            });
+            const asked = waiter.request("action.friskAsk", {}, { settle: "reply", patient: true, timeoutMs: WAIT,
+                untilPrimaryLeaves: true, expired: "ruling.expired", lateMs: TIMING.friskMarginMs, late: () => {} });
+            // `userConnected(A, false)`, as registerBridgeReplies reads it.
+            list = [{ ...A, active: false }, ...others];
+            if (G.primaryLeft(list[0], users(list))) {
+                waiter.primaryGone();
+                waiter.resendOnGmReady();
+            }
+            const pending = new Promise(resolve => setTimeout(() => resolve("still waiting"), 30));
+            const atOnce = await Promise.race([asked, pending]);
+            const sentAtOnce = sent.slice(1);
+            const answer = timers.find(t => t?.ms === WAIT) ?? null;
+            // The lone GM's F5: back before the clock runs out, so the expiry has a GM to go to.
+            list = [A, ...others];
+            if (atOnce === "still waiting" && answer) answer.fn();
+            return { atOnce, sentAtOnce, after: await Promise.race([asked, pending]), sentAfter: sent.slice(1 + sentAtOnce.length) };
+        };
+        const withB = await run([B, P]), alone = await run([P]);
+        equal(stableJson({ withB, alone }), stableJson({
+            withB: { atOnce: { ok: false, reason: "noAnswer" }, sentAtOnce: [], after: { ok: false, reason: "noAnswer" }, sentAfter: [] },
+            alone: { atOnce: "still waiting", sentAtOnce: [], after: { ok: false, reason: "noAnswer" }, sentAfter: ["ruling.expired"] }
+        }), "[the primary leaving with a second GM here: the wait's end at once, what it sent], [the only GM leaving: still waiting, then the clock's end and its expiry] - the wait does not end at once only when another GM takes over, the lone GM's leaving ended it, or the clock told the GMs nothing");
+    }],
+
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
         /*
          * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
@@ -22766,6 +22832,649 @@ const INVARIANTS = [
                 { at: drawings.length + 1, stored: outside, shown: outside, last: drawings.length + 1, cellShows: outside }]),
             "a preset's picture does not light its drawing's cell, or a file that is no drawing does not light Another file "
             + "and show the file there [a preset holding a drawing, a preset holding another file]");
+    }],
+    ["R992 - the one queue holds no click (E17 C0): its keys are five strings and `crossingKey`, one per character; a step held on a character's key holds that character's Eclipse count and 'Go through' and nothing else - another character's count and another key's step run meanwhile; a step of the key that throws fails only its own caller", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-03 and E17-04 (A10: a door move the primary settles and a `passage.cross` of one
+         * character share one key). The harm is the RISK row's: one queue for everything would make a Despair pip
+         * wait for a tunnel's write, and a key shared by two characters would make one's crossing wait for the
+         * other's. Read on this GM's browser with two actor ids no actor has, so each queued call finds nobody and
+         * writes nothing (`applyRecordedMove` answers null, `crossTunnel` refuses): a step of this test held shut on
+         * the first id's `crossingKey`; the first id's count and 'Go through' wait behind it, the second id's count
+         * and a step of `DESPAIR_KEY` settle meanwhile, and the two held calls settle once it opens; then a step of
+         * the first id's key that throws rejects its own caller and the count behind it answers. 1000 ms bounds each
+         * wait as R593's does: a ceiling, not a time measured. Red at 9f727e07: no key is exported and passages-gm.mjs
+         * keys `passage.cross/` apart from the Eclipse's count, which no key holds.
+         */
+        const J = stableJson;
+        const U = await import("./utils.mjs"), M = await import("./movement.mjs"), E = await import("./eclipse.mjs");
+        const PG = await import("./passages-gm.mjs"), D = await import("./despair.mjs"), ST = await import("./search-tokens.mjs");
+        const C = await import("./clock.mjs"), O = await import("./overflow.mjs"), T = await import("./trial.mjs");
+        const keys = [D.DESPAIR_KEY, ST.SEARCH_KEY, C.CLOCK_KEY, O.OVERFLOW_KEY, T.SEIZE_KEY];
+        const one = `zR992${foundry.utils.randomID(11)}`, two = `zR992${foundry.utils.randomID(11)}`;
+        const keyed = typeof M.crossingKey === "function";
+        equal(J({ keys: keys.map(k => typeof k), distinct: new Set(keys).size, crossing: keyed && M.crossingKey(one) !== M.crossingKey(two)
+            && M.crossingKey(one) === M.crossingKey(one) && !keys.includes(M.crossingKey(one)) }),
+        J({ keys: ["string", "string", "string", "string", "string"], distinct: 5, crossing: true }),
+        "the one queue's keys are not five strings apart and one crossing key per character [their types, how many differ, the crossing key]");
+        if (!keyed) return;
+        const bounded = promise => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve("still waiting"), 1000))]);
+        const seen = [];
+        let open = () => {};
+        const gate = new Promise(resolve => { open = resolve; });
+        try {
+            const held = U.serialWrite(M.crossingKey(one), () => gate);
+            const count = E.applyRecordedMove(one).then(out => { seen.push(`count ${J(out)}`); });
+            const go = PG.crossTunnel({ actorId: one, passageId: "zR992noPassage0" }).then(out => { seen.push(`go ${out?.refused ? "refused" : J(out)}`); });
+            const other = await bounded(E.applyRecordedMove(two).then(out => `other ${J(out)}`));
+            const despair = await bounded(U.serialWrite(D.DESPAIR_KEY, () => "despair ran"));
+            seen.push(other, despair, "open");
+            open();
+            await held;
+            await bounded(Promise.all([count, go]));
+            const thrown = U.serialWrite(M.crossingKey(one), () => { throw new Error("r992 a step threw"); });
+            const behind = E.applyRecordedMove(one);
+            const [threw, after] = await Promise.allSettled([thrown, bounded(behind)]);
+            seen.push(threw.status === "rejected" ? `threw: ${threw.reason?.message}` : "did not throw", `behind ${J(after.value)}`);
+        } finally {
+            open();
+        }
+        equal(J(seen), J(["other null", "despair ran", "open", "count null", "go refused", "threw: r992 a step threw", "behind null"]),
+            "[around a step held on one character's crossing key: another character's count, another key's step, the held count and 'Go through' once it opened; a step of the key that throws, and the count behind it]");
+    }],
+
+    ["R994 - a darkening's Shift takes search tokens off, never adds one (E17 C4): a room maximum of 0 stays 0, a counter saved above a lowered maximum reads the maximum, and STARTING holds no free Move nothing reads", async () => {
+        /*
+         * E17 C4, 26.10.2026; E17-23, audit S07-21. `SearchTokens.max` under a Shift answered
+         * `Math.max(overflowFloor("shift"), base - dark)`, so a GM who set 0 tokens a room (no searching at all) got 1
+         * back from the debuff that was meant to take one away; and `left()` answered the stored counter as it was, so a
+         * room saved at 3 read "3 / 2" once the maximum went down. `searchMax(base, dark, floor)` is the getter's rule,
+         * pure: no penalty or a base of 0 or less is the base, else the base less the penalty, floored at the smaller of
+         * the floor and the base. `left()` is read with the class's own `store` and `max` getters replaced for the read
+         * (a room name and a scene id no world has; put back in `finally`), so nothing is written. `STARTING.freeMoves`
+         * had no reader (git grep at 9f727e07: only config.mjs's own line; the free Move is one flag, `freeMoveUsed`).
+         * Red at 38b232c9: no `searchMax`, the stored 3 read 3 under a maximum of 2, and `STARTING.freeMoves` was 1.
+         */
+        const J = stableJson;
+        const ST = await import("./search-tokens.mjs");
+        const { STARTING } = await import("./config.mjs");
+        const { SearchTokens } = ST;
+        const pure = typeof ST.searchMax === "function"
+            ? [[3, 0, 1], [3, 1, 1], [3, 5, 1], [1, 1, 1], [0, 1, 1], [0, 0, 1], [2, 1, 2], [4, 2, 3]].map(([base, dark, floor]) => ST.searchMax(base, dark, floor))
+            : null;
+        const max = bodyOf(stripComments(new Map(await moduleSources()).get("search-tokens.mjs") ?? ""), "static get max()", { until: "static key(" });
+        const ROOM = "SUITE R994 room", SCENE = "zR994noScene000";
+        const was = { store: Object.getOwnPropertyDescriptor(SearchTokens, "store"), max: Object.getOwnPropertyDescriptor(SearchTokens, "max") };
+        const read = [];
+        try {
+            for (const [stored, cap] of [[3, 2], [1, 2], [0, 2], [undefined, 2]]) {
+                Object.defineProperty(SearchTokens, "store", { get: () => (stored === undefined ? {} : { [SearchTokens.key(ROOM, SCENE)]: stored }), configurable: true });
+                Object.defineProperty(SearchTokens, "max", { get: () => cap, configurable: true });
+                read.push(SearchTokens.left(ROOM, SCENE));
+            }
+        } finally {
+            Object.defineProperty(SearchTokens, "store", was.store);
+            Object.defineProperty(SearchTokens, "max", was.max);
+        }
+        equal(J({ pure, getter: /searchMax\(/.test(max), left: read, freeMoves: Object.hasOwn(STARTING, "freeMoves") }),
+            J({ pure: [3, 2, 1, 1, 0, 0, 2, 3], getter: true, left: [2, 1, 0, 2], freeMoves: false }),
+            "[searchMax for (base, penalty, floor) (3,0,1) (3,1,1) (3,5,1) (1,1,1) (0,1,1) (0,0,1) (2,1,2) (4,2,3); the getter asks it; left() of a "
+                + "counter stored 3, 1, 0 and none under a maximum of 2; STARTING still holds freeMoves]");
+    }],
+    ["R995 - the clock's bus (E17 C6): a setting's change and its broadcast give one run with the newest data, a stream runs by its maxWait, and only a calendar change is a drpgTimeOfDayChanged - a phase its own hook, an Eclipse's flip once", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-33, audit S01-30. sync.mjs `apply` ran the first event of a kind at once and one more
+         * after `TIMING.coalesceMs`, so the clock setting's `onChange` and the GM's `broadcast(SYNC.clock)` of the same
+         * write were two whole refreshes on every browser, and `drpgTimeOfDayChanged` went out on each of them - and on a
+         * pause, a campaign's new name, a phase - to listeners that read it as the time of day moving (the owed Despair, the
+         * betrayal windows, the trace digest). `coalescer` is `apply`'s rule, driven here with a clock and timers of the
+         * test's own: a trailing wait per kind, reset by each event, never past `maxWait` from the burst's first; the
+         * fields of the burst's events merged, the newest winning. `clockNews(heard, clock)` is the clock branch's reading
+         * against what this browser last told its listeners. Both pure; the two branches are read in the source.
+         * Red at 3efafbd0: neither exists.
+         */
+        const J = stableJson;
+        const S = await import("./sync.mjs");
+        const got = {};
+        if (typeof S.coalescer === "function") {
+            let t = 0, id = 0;
+            const timers = new Map();
+            const schedule = (fn, ms) => { timers.set(++id, { at: t + ms, fn }); return id; };
+            const cancel = i => timers.delete(i);
+            const advance = ms => {
+                const end = t + ms;
+                for (;;) {
+                    const next = [...timers.entries()].filter(([, v]) => v.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+                    if (!next) break;
+                    timers.delete(next[0]);
+                    t = next[1].at;
+                    next[1].fn();
+                }
+                t = end;
+            };
+            const runs = [];
+            const push = S.coalescer((kind, data) => runs.push([kind, t, data]), { wait: 120, maxWait: 360, now: () => t, schedule, cancel });
+            push("clock", {});
+            advance(30);
+            push("clock", { clock: { day: 2 }, summary: { rolledOver: false } });
+            push("eclipse", { active: true });
+            advance(500);
+            got.pair = runs.splice(0);
+            for (let i = 0; i < 10; i++) { push("clock", { n: i }); advance(100); }
+            advance(500);
+            got.stream = runs.splice(0).map(([, at, data]) => [at - 530, data.n]);
+        }
+        const C0 = { season: 1, chapter: 1, session: 1, day: 1, timeOfDay: "morning", phase: "dailyLife", eclipse: false, pausedAt: null, campaignName: "A" };
+        const heard = typeof S.clockNews === "function" ? S.clockNews(null, C0).heard : null;
+        const news = c => {
+            const n = S.clockNews(heard, c);
+            return [n.same, n.timeOfDay, n.phase, n.eclipse].map(Number).join("");
+        };
+        got.news = heard ? [{ ...C0 }, { ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, timeOfDay: "noon" },
+            { ...C0, chapter: 2 }, { ...C0, session: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }].map(news) : null;
+        const src = stripComments(new Map(await moduleSources()).get("sync.mjs") ?? "");
+        const clockCase = bodyOf(src, "case SYNC.clock:", { until: "case SYNC.eclipse:" });
+        const eclipseCase = bodyOf(src, "case SYNC.eclipse:", { until: "case SYNC.visibility:" });
+        got.source = [/const apply = coalescer\(/.test(src), /clockNews\(/.test(clockCase),
+            /if \(news\.timeOfDay\)[^]*?"drpgTimeOfDayChanged"/.test(clockCase), /"drpgPhaseChanged"/.test(clockCase),
+            /if \(news\.eclipse\)[^]*?"drpgEclipseChanged"/.test(clockCase), /heard\.eclipse/.test(eclipseCase),
+            typeof S.clockHeard === "function" && S.clockHeard() !== null];
+        equal(J(got), J({
+            pair: [["clock", 150, { clock: { day: 2 }, summary: { rolledOver: false } }], ["eclipse", 150, { active: true }]],
+            stream: [[360, 3], [760, 7], [1020, 9]],
+            news: ["1000", "0000", "0000", "0100", "0100", "0100", "0100", "0010", "0001"],
+            source: [true, true, true, true, true, true, true]
+        }), "{pair: the runs of an onChange and its broadcast 30 ms apart, and another kind's; stream: [ms after the first, the run's n] for ten "
+            + "events 100 ms apart; news: [same, time of day, phase, Eclipse] for the clock unchanged, paused, renamed, day, time of day, chapter, "
+            + "session, phase, Eclipse; source: apply is the coalescer, the clock branch reads clockNews and fires the time of day's, the phase's and "
+            + "the Eclipse's hooks by it, the Eclipse branch reads what was heard, this browser holds what it heard of the clock since its ready}");
+    }],
+
+    ["R996 - the stopwatch's reading (E17 C6): a pause is frozen and then subtracted, the start of the time of day never moves, a reload and the gap since the primary's last beat add nothing, an Eclipse shows none, and no summary without a stamp", async () => {
+        /*
+         * E17 C6, 26.10.2026; E17-32, audit S10-16. One field was two things: `timeOfDayStartedAt` was the stopwatch's
+         * start, pushed forward by every pause, and the day's summary's window, so a Search before a pause fell out of
+         * "What you did" after it; a world that loads paused fires no `pauseGame`, so the gap between two sessions counted
+         * ("19900 min in" on the sandbox, the issue's reading); an Eclipse kept counting the time of day it closes, in red;
+         * and a clock with no stamp summed the whole log. Read here pure: `elapsedOf(clock, { now, paused })` (what
+         * `paintElapsed` prints), `unpausePatch(clock, now)` (what `settleElapsedPause` writes), `readyPatch(clock,
+         * { paused, beat, now })` (the primary's stamp at ready, `beat` the GMs' "clockBeat" record), `showsStopwatch`
+         * (the HUD's line) and day-summary.mjs `summarySince`. Red at 3efafbd0: none of them exists.
+         * E17 fix p2-G1 (26.10.2026; the end review's E17p2-R1 and R5 of both lenses): the beat lives in one GM's browser,
+         * so it is read with the clock's own last write (`writtenAt`, stamped by clock.mjs `setClock`) - the moment of the
+         * last unpause at least, so a gap is never counted over a pause already in `pausedTotalMs`, and a GM's browser with
+         * no beat still knows when a GM was last here. Red at 91819dc1 on the five new cases and the beat before the start.
+         */
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const DS = await import("./day-summary.mjs");
+        const M = 60000, T = 1_000_000_000;
+        const c = extra => ({ timeOfDayStartedAt: T, pausedTotalMs: 0, pausedAt: null, eclipse: false, phase: "dailyLife", ...extra });
+        const min = ms => (ms === null || ms === undefined ? null : Math.floor(ms / M));
+        const has = name => typeof H[name] === "function";
+        const got = {
+            elapsed: has("elapsedOf") ? [
+                H.elapsedOf(c(), { now: T + 10 * M, paused: false }),
+                H.elapsedOf(c({ pausedAt: T + 10 * M }), { now: T + 70 * M, paused: true }),
+                H.elapsedOf(c({ pausedTotalMs: 30 * M }), { now: T + 40 * M, paused: false }),
+                H.elapsedOf(c({ pausedAt: T - 5 * M }), { now: T + 20 * M, paused: true }),
+                H.elapsedOf(c({ pausedAt: T + 3 * M }), { now: T + 5 * M, paused: false }),
+                H.elapsedOf(c({ eclipse: true }), { now: T + 10 * M, paused: false }),
+                H.elapsedOf(c({ timeOfDayStartedAt: null }), { now: T + 10 * M, paused: false })
+            ].map(min) : null,
+            unpause: has("unpausePatch") ? [
+                H.unpausePatch(c({ pausedAt: T + 10 * M, pausedTotalMs: M }), T + 40 * M),
+                H.unpausePatch(c(), T + 40 * M),
+                H.unpausePatch(c({ pausedAt: T - 5 * M }), T + 10 * M),
+                H.unpausePatch(c({ timeOfDayStartedAt: null, pausedAt: T }), T + 10 * M)
+            ] : null,
+            ready: has("readyPatch") ? [
+                H.readyPatch(c(), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: true, beat: null, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: true, beat: T - 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ pausedAt: T + 20 * M }), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c(), { paused: false, beat: T + 70 * M - 30000, now: T + 70 * M }),
+                H.readyPatch(c({ pausedAt: T + 20 * M, pausedTotalMs: M }), { paused: false, beat: null, now: T + 70 * M }),
+                H.readyPatch(c({ timeOfDayStartedAt: null }), { paused: true, beat: null, now: T }),
+                // E17 fix p2-G1: the clock's own last write (`writtenAt`) is a moment a GM was here too
+                H.readyPatch(c({ writtenAt: T + 30 * M }), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ writtenAt: T + 30 * M }), { paused: true, beat: null, now: T + 70 * M }),
+                H.readyPatch(c({ pausedTotalMs: 10 * M, writtenAt: T + 70 * M - 30000 }), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ writtenAt: T + 20 * M }), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ pausedTotalMs: 5 * M, writtenAt: T + 15 * M }), { paused: true, beat: T - 10 * M, now: T + 70 * M })
+            ] : null,
+            shows: has("showsStopwatch") ? [c(), c({ eclipse: true }), c({ phase: "classTrial" })].map(x => H.showsStopwatch(x)) : null,
+            since: typeof DS.summarySince === "function" ? [DS.summarySince(c()), DS.summarySince(c({ timeOfDayStartedAt: null })), DS.summarySince(null)] : null
+        };
+        const sources = new Map(await moduleSources());
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), summary = stripComments(sources.get("day-summary.mjs") ?? "");
+        got.source = [/elapsedOf\(/.test(fnSource(hud, "paintElapsed")), /unpausePatch\(/.test(fnSource(hud, "settleElapsedPause")),
+            /timeOfDayStartedAt\s*:/.test(fnSource(hud, "settleElapsedPause")), /showsStopwatch\(/.test(fnSource(hud, "renderHud")),
+            /summarySince\(/.test(fnSource(summary, "showDaySummary"))];
+        equal(J(got), J({
+            elapsed: [10, 10, 10, 0, 5, null, null],
+            unpause: [{ pausedTotalMs: 31 * M, pausedAt: null }, null, { pausedTotalMs: 10 * M, pausedAt: null }, null],
+            ready: [{ pausedAt: T + 10 * M }, { pausedAt: T + 70 * M }, { pausedAt: T + 70 * M }, null, { pausedTotalMs: 60 * M }, null,
+                { pausedTotalMs: 51 * M, pausedAt: null }, null,
+                { pausedAt: T + 30 * M }, { pausedAt: T + 30 * M }, null, { pausedTotalMs: 50 * M }, { pausedAt: T + 15 * M }],
+            shows: [true, false, false],
+            since: [T, null, null],
+            source: [true, true, false, true, true]
+        }), "{elapsed: minutes running 10, paused at 10 an hour later, after 30 paused, paused since before the stamp, a stale stamp while "
+            + "running, an Eclipse, no stamp; unpause: the patch after 30 minutes paused, with no stamp, from before the start, no start; ready: "
+            + "the patch of a world loaded paused with a beat, with none, with a beat before the start, paused with its stamp, running with a beat "
+            + "an hour old, half a minute old, running with a stale pause, no start (E17 fix p2-G1: a beat from before the start is none, so the stamp is now - "
+            + "never the start, which would take the pauses already counted off again); with the clock last written after the beat, written with no beat "
+            + "in this browser, running just after an unpause with an old beat, running with the clock written after the beat, paused with a stale beat and "
+            + "a pause counted; shows: the line in Daily Life, an Eclipse, a trial; since: "
+            + "the summary's start with a stamp, without, no clock; source: paintElapsed reads elapsedOf, settleElapsedPause writes unpausePatch and "
+            + "writes no start, renderHud asks showsStopwatch, showDaySummary asks summarySince}");
+    }],
+    ["R1004 - the chevron's question says what the Eclipse will do (E17 fix p2-G2): a boundary refilled already is told it refills nobody again, any other that everyone's actions refill", async () => {
+        /*
+         * E17 fix p2-G2, 26.10.2026; the end review's E17p2-R4 (goal). An Eclipse ended without advancing more than five
+         * minutes ago keeps its refill (`refilledFor`), and the next one for the same boundary refills nobody - but the
+         * chevron's question still said "Everyone's actions refill", and the GM was told what the module then did not do.
+         * Read pure: hud.mjs `eclipseQuestion(clock, name)`, the key and the words the question prints, for a clock whose
+         * boundary refilled already and for one whose did not; and askEclipse's source asks it. Red at 3fa1f5b4: no
+         * `eclipseQuestion`.
+         */
+        const J = stableJson;
+        const H = await import("./hud.mjs");
+        const { boundaryStamp } = await import("./clock.mjs");
+        const base = { season: 1, chapter: 1, session: 2, day: 2, timeOfDay: "noon", eclipse: false, refilledFor: null };
+        const refilled = { ...base, refilledFor: boundaryStamp(base) };
+        const other = { ...base, refilledFor: boundaryStamp({ ...base, timeOfDay: "morning" }) };
+        const has = typeof H.eclipseQuestion === "function";
+        const got = has ? [base, refilled, other].map(c => H.eclipseQuestion(c, "Afternoon Eclipse").key) : null;
+        const words = has ? H.eclipseQuestion(refilled, "Afternoon Eclipse").text : null;
+        const sources = new Map(await moduleSources());
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        equal(J({ got, named: typeof words === "string" && words.includes("Afternoon Eclipse"), asks: /eclipseQuestion\(/.test(fnSource(hud, "askEclipse")) }),
+            J({ got: ["DRPG.Hud.eclipseAsk", "DRPG.Hud.eclipseAskRefilled", "DRPG.Hud.eclipseAsk"], named: true, asks: true }),
+            "{got: [the question's key for a boundary not refilled, refilled already, another boundary refilled]; named: the words name the "
+            + "Eclipse; asks: askEclipse prints eclipseQuestion's}");
+    }],
+    ["R997 - the player's strip in an Eclipse (E17 C8): free placement draws one full foot, available, its tooltip 'place anywhere'; a count draws a foot a crossing and names them; a Monocub is told the placement alone; the actions' tooltip carries its numbers; the GM's Still placing counts who has not moved in free placement", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-36, audit S10-19. eclipse.mjs `movesLeft` answers `null` in a placement that allows
+         * any room, and the strip read it as a number: `null > 0` false, so the Move row was "spent" with one outlined
+         * foot in the one window where a player may go anywhere, and the GM read "Still placing 0 / N" before anybody
+         * had moved. The row's tooltip was the actions' sentence; a Monocub's actions tooltip named a Direct Murder it
+         * cannot commit; and `pipReadOnly` was localized without its numbers ("{left} of {max} actions", read in the
+         * code at eb703938). Read pure - player-status.mjs `eclipseMoveRow`, `actionsTooltip`, `stillPlacing` - and
+         * drawn: `buildPlayerView(student, { eclipse, moves, remember: false })` for a living student of this world, no
+         * Eclipse opened (tier 1 changes nothing) and the page's flash memory untouched. Red at eb703938: none of the
+         * four is exported.
+         */
+        const J = stableJson;
+        const PS = await import("./player-status.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { plural } = await import("./utils.mjs");
+        const L = key => game.i18n.localize(key);
+        const has = name => typeof PS[name] === "function";
+        ok(["eclipseMoveRow", "actionsTooltip", "stillPlacing", "buildPlayerView"].every(has),
+            "player-status.mjs exports no reading of the strip's Eclipse rows - the strip still reads a free placement as no moves");
+        if (!["eclipseMoveRow", "actionsTooltip", "stillPlacing", "buildPlayerView"].every(has)) return;
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the strip's character");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const drawn = moves => {
+            const el = PS.buildPlayerView(student, { eclipse: true, moves, dead: false, remember: false });
+            const row = el?.querySelector(".drpg-status-field.is-move");
+            const foot = row?.querySelector(".drpg-free-move");
+            return row && [foot.classList.contains("available"), row.classList.contains("spent"),
+                foot.querySelectorAll("i.fa-solid").length, foot.querySelectorAll("i.fa-regular").length, row.dataset.tooltip];
+        };
+        const fake = id => ({ id });
+        const left = { a: null, b: null, c: null }, used = { a: 0, b: 2, c: 0 }, counted = { a: 2, b: 0, c: 1 };
+        const students = ["a", "b", "c"].map(fake);
+        const got = {
+            rows: [null, 0, 2].map(n => PS.eclipseMoveRow(n)),
+            drawn: [drawn(null), drawn(0), drawn(2)],
+            tips: [PS.actionsTooltip({ eclipse: true, monocub: false, left: 1, max: 2 }), PS.actionsTooltip({ eclipse: true, monocub: true, left: 1, max: 2 }),
+                PS.actionsTooltip({ eclipse: false, monocub: false, left: 1, max: 2 }), PS.actionsTooltip({ eclipse: false, monocub: false, left: 0, max: 2 })],
+            placing: [PS.stillPlacing(students, { left: a => left[a.id], used: a => used[a.id] }),
+                PS.stillPlacing(students, { left: a => counted[a.id], used: () => 0 })]
+        };
+        const sources = new Map(await moduleSources());
+        const ps = stripComments(sources.get("player-status.mjs") ?? "");
+        got.source = [/\bstillPlacing\(students\)/.test(fnSource(ps, "buildTableView")), /\beclipseMoveRow\(/.test(fnSource(ps, "buildPlayerView")),
+            /\bactionsTooltip\(/.test(fnSource(ps, "buildPlayerView"))];
+        const free = L("DRPG.Actions.eclipseFreePlacement"), n = k => plural("DRPG.Actions.eclipseMovesLeft", { n: k });
+        equal(J(got), J({
+            rows: [{ available: true, feet: 1, solid: true, tooltip: free }, { available: false, feet: 1, solid: false, tooltip: n(0) },
+                { available: true, feet: 2, solid: true, tooltip: n(2) }],
+            drawn: [[true, false, 1, 0, free], [false, true, 0, 1, n(0)], [true, false, 2, 0, n(2)]],
+            tips: [L("DRPG.Eclipse.actionsMurderOnly"), L("DRPG.Eclipse.placementOnly"),
+                game.i18n.format("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }), L("DRPG.Actions.allSpent")],
+            placing: [2, 2],
+            source: [true, true, true]
+        }), "{rows: the Move row's reading in free placement, with no crossing left, with two; drawn: [available, spent, solid feet, outlined "
+            + "feet, tooltip] of the strip for each; tips: the actions' tooltip in an Eclipse, a Monocub's there, out of one with an action "
+            + "left and with none; placing: Still placing in free placement (one of three moved) and with crossings counted (two of three "
+            + "left); source: buildTableView asks stillPlacing, buildPlayerView eclipseMoveRow and actionsTooltip}");
+        ok(!/\{(left|max)\}/.test(got.tips[2]) && !L("DRPG.Eclipse.placementOnly").includes("Direct Murder"),
+            `the actions' tooltip still prints its placeholders (${got.tips[2]}) or a Monocub's names a Direct Murder`);
+    }],
+    ["R998 - a dead student who is no Monocub sees one row of state, Dead, and nothing to spend (E17 C8): `showsDeathOnly` by the flag, a Monocub keeps its rows", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-38, audit S10-30. Death empties no action pool and the refill passes a body by, so a
+         * student who died with an action and the free Move kept "1/2" and a full foot on the strip for the rest of the
+         * season, and two crossings in each Eclipse, all of which the module refuses. `buildPlayerView(actor, { dead:
+         * true })` is that strip drawn for a living student of this world (no death written: tier 1), and
+         * `showsDeathOnly` is read on stand-ins carrying the flags: dead, dead and a Monocub, alive. Red at eb703938:
+         * neither is exported, and the strip's only death rule was the Hope row's.
+         */
+        const J = stableJson;
+        const PS = await import("./player-status.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const L = key => game.i18n.localize(key);
+        ok(typeof PS.buildPlayerView === "function" && typeof PS.showsDeathOnly === "function",
+            "player-status.mjs exports no strip a death decides - a dead student's strip still offers what the module refuses");
+        if (typeof PS.buildPlayerView !== "function" || typeof PS.showsDeathOnly !== "function") return;
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the strip's character");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const read = el => el && [el.children.length, [...el.children].map(row => [row.className,
+            row.querySelector(".drpg-status-label")?.textContent ?? null, row.querySelector(".drpg-status-value")?.textContent ?? null])];
+        const standIn = (id, flags) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const got = {
+            dead: read(PS.buildPlayerView(student, { dead: true, remember: false })),
+            alive: PS.buildPlayerView(student, { dead: false, eclipse: false, remember: false })?.querySelectorAll(".drpg-status-field.is-move").length ?? null,
+            rule: [standIn("suite-r998-a", { [FLAGS.deceased]: true }), standIn("suite-r998-b", { [FLAGS.deceased]: true, [FLAGS.monocub]: true }),
+                standIn("suite-r998-c", {})].map(a => PS.showsDeathOnly(a))
+        };
+        equal(J(got), J({
+            dead: [1, [["drpg-status-field is-state spent", L("DRPG.Panel.stateColumn"), L("DRPG.Panel.state.dead")]]],
+            alive: 1,
+            rule: [true, false, false]
+        }), "{dead: the strip of a dead student as [rows, [class, label, value]]; alive: its Move rows alive; rule: showsDeathOnly for a dead "
+            + "student, a dead Monocub, a living one}");
+    }],
+    ["R999 - the room tile's search pips say what they are, '2/3 searches', and the project line speaks to the player (E17 C8): the words inside the pips' row, hidden from a screen reader that reads the row's label, a sealed room's too; `roomProject` and `roomNoProject` in the second person, EN and PL", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-37, audit S10-29 (seen on the screenshots of five runs at four sizes). Under
+         * "Available project" three unlabelled squares read as "available project: 3", and "No available project" over
+         * three full ones as a fault: the count was in the tooltip alone. room-tile.mjs `paintRoomTile` on loose tiles
+         * (R504's way), read for the row's words; the two lang files read for the project lines. Red at eb703938: the
+         * row holds pips only, and the lines say "Available project" / "Dostępny projekt".
+         */
+        const J = stableJson;
+        const R = await import("./room-tile.mjs");
+        const paint = view => {
+            const box = document.createElement("section");
+            R.paintRoomTile(box, { state: "roomBare", room: "Suite R999", sceneId: null, description: "", image: null, project: true, ...view });
+            return box;
+        };
+        const words = box => {
+            const row = box.querySelector(".drpg-hud-room-tokens"), label = row?.querySelector(".drpg-hud-room-tokens-label");
+            return [label?.textContent ?? null, label?.getAttribute("aria-hidden") ?? null, row?.querySelectorAll(".drpg-hud-pip").length ?? null,
+                box.querySelector(".drpg-hud-room-project")?.textContent ?? null];
+        };
+        const lines = {};
+        for (const lang of ["en", "pl"]) {
+            const D = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Hud ?? {});
+            lines[lang] = [D.roomProject, D.roomNoProject];
+        }
+        ok(lines.en.concat(lines.pl).every(w => typeof w === "string" && w.length > 3), `a project line is missing from a lang file (${J(lines)}) - this measured nothing`);
+        const you = { en: /\byou\b/i, pl: /\bmożesz\b/i };
+        const got = {
+            open: words(paint({ tokens: { max: 3, left: 2, sealed: false } })),
+            sealed: words(paint({ tokens: { max: 3, left: 3, sealed: true }, project: false })),
+            second: Object.fromEntries(Object.entries(lines).map(([lang, pair]) => [lang, pair.map(w => you[lang].test(w))]))
+        };
+        equal(J(got), J({
+            open: [game.i18n.format("DRPG.Hud.roomTokens", { left: 2, max: 3 }), "true", 3, game.i18n.localize("DRPG.Hud.roomProject")],
+            sealed: [game.i18n.format("DRPG.Hud.roomTokens", { left: 3, max: 3 }), "true", 3, null],
+            second: { en: [true, true], pl: [true, true] }
+        }), "{open: [the pips' words, their aria-hidden, the pips, the project line] of a tile with 2 of 3 left and a project; sealed: the same of a "
+            + "sealed room with none; second: whether roomProject and roomNoProject speak to the player, per language}");
+    }],
+    ["R1000 - the Mastermind's player knows a public project in any room of its scene, as their fog knows the room (E17 C8): projects.mjs `hasStoodIn` answers every named room for the Mastermind and the discovery record for anybody else, and `knowsProject` asks it", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-39, audit S07-10. fog.mjs `recordDiscovery` writes no row for the Mastermind, so the
+         * GM's veil does not narrate where the season's secret walks, and its comment said they lose nothing because
+         * their fog counts every room as known. `knowsProject` asked the record alone, so the Mastermind's player never
+         * saw the token or tray row of a public project in a room they stood in. Read on the scene on screen for a player
+         * account that owns a character: `hasStoodIn(user, room, [scene], { mastermind })` with the Mastermind's answer
+         * forced each way (no Mastermind is chosen: tier 1), against the rooms `myDiscoveredRooms` gives the Mastermind
+         * and the rooms the record holds for that player's characters. Red at eb703938: `hasStoodIn` does not exist.
+         */
+        const J = stableJson;
+        const P = await import("./projects.mjs");
+        ok(typeof P.hasStoodIn === "function", "projects.mjs has no `hasStoodIn` - knowsProject still asks the discovery record alone, which never holds the Mastermind");
+        if (typeof P.hasStoodIn !== "function") return;
+        needs(world.atLeast("namedRooms", 1), "a named room on the scene on screen is the project's room");
+        needs(world.atLeast("playersWithCharacter", 1), "a player account that owns a character is the one who knows");
+        const F = await import("./fog.mjs");
+        const { roomNames } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const rooms = [...new Set(roomNames(scene))].sort();
+        const user = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const record = new Set(game.actors.filter(a => a.type === "character" && a.testUserPermission(user, "OWNER"))
+            .flatMap(a => F.discoveredFor(scene.id, a.id)));
+        const got = {
+            mastermind: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: true })),
+            student: rooms.filter(room => P.hasStoodIn(user, room, [scene.id], { mastermind: false })),
+            elsewhere: [P.hasStoodIn(user, "Suite R1000 no such room", [scene.id], { mastermind: true }), P.hasStoodIn(user, rooms[0], [], { mastermind: true })]
+        };
+        const src = stripComments(new Map(await moduleSources()).get("projects.mjs") ?? "");
+        got.source = [/\bhasStoodIn\(user, room, sceneIds\)/.test(fnSource(src, "knowsProject")), /\bmyDiscoveredRooms\(/.test(fnSource(src, "hasStoodIn"))];
+        equal(J(got), J({
+            mastermind: [...F.myDiscoveredRooms(scene, { mastermind: true, gm: false })].sort(),
+            student: rooms.filter(room => record.has(room)),
+            elsewhere: [false, false],
+            source: [true, true]
+        }), "{mastermind: the rooms the Mastermind's player is known to have stood in (their fog's), student: a player's (the record's), "
+            + "elsewhere: a room on no scene and no scene at all for the Mastermind, source: knowsProject asks hasStoodIn, which asks myDiscoveredRooms}");
+        /* E17 fix p2-G3 (26.10.2026; the end review's E17p2-R9, goal): on a GM's browser the project card's "Known by"
+           asked the GMs' store whether another user plays the Mastermind, and listed them on every public project of the
+           scene - a tell on a shared screen. The Mastermind's exception is their own browser's alone: the GM's answer for
+           another user is the record's. Red at 5088794a: playsTheMastermind read isMastermind. */
+        ok(!/\bisMastermind\(/.test(fnSource(src, "playsTheMastermind")),
+            "projects.mjs `playsTheMastermind` asks the GMs' store about another user - the GM's \"Known by\" names the Mastermind's player");
+        ok(got.mastermind.length === rooms.length && rooms.length > 0, `the Mastermind's answer covered ${got.mastermind.length} of ${rooms.length} rooms`);
+    }],
+    ["R1005 - a passage's cards name the rooms to the Mastermind's character as its map draws them (E17 fix p2-G3): passages-gm.mjs `roomNamerFor` names every room for the Mastermind and a room not found as \"Unexplored room n\" for anybody else, and the made card and the breach heard next door ask it", async () => {
+        /*
+         * E17 fix p2-G3, 26.10.2026; the end review's E17p2-R10 (goal). fog.mjs `recordDiscovery` keeps no track of the
+         * Mastermind's walks, and their own map draws every room; the passage's made card (`tellPassageBuilt`) and the
+         * breach heard next door (`tellBreach`) named a room by the record alone, so the Mastermind's character was told
+         * "an unexplored room 1" for a room its map shows. Read on the scene on screen for a character a player owns: the
+         * namer with the GMs' record of the Mastermind faked to name it (the card's owner then acts as the Mastermind,
+         * `actsAsMastermind`), and with a record naming nobody; and both cards' source asks the namer. No Mastermind is chosen (tier 1). Red at 5088794a: no `roomNamerFor`.
+         */
+        const J = stableJson;
+        const PG = await import("./passages-gm.mjs");
+        ok(typeof PG.roomNamerFor === "function", "passages-gm.mjs has no `roomNamerFor` - the cards ask the discovery record alone");
+        if (typeof PG.roomNamerFor !== "function") return;
+        needs(world.atLeast("namedRooms", 1), "a named room on the scene on screen is the one named");
+        const F = await import("./fog.mjs");
+        const { roomNames } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        needs(world.atLeast("playersWithCharacter", 1), "a player account that owns a character is the one the card goes to");
+        const actor = game.actors.find(a => a.type === "character" && game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        must(actor, "no character a player owns - this would measure nothing");
+        const known = new Set(F.discoveredFor(scene.id, actor.id));
+        const room = [...new Set(roomNames(scene))].sort().find(r => !known.has(r)) ?? null;
+        must(room, "every room of the scene is on the first character's record - this would measure nothing");
+        const fake = id => ({ get: () => ({ actorId: id }) });
+        const asMastermind = await PG.roomNamerFor(actor, scene.id, { mastermind: fake(actor.id) });
+        const asStudent = await PG.roomNamerFor(actor, scene.id, { mastermind: fake("nobody") });
+        const src = stripComments(new Map(await moduleSources()).get("passages-gm.mjs") ?? "");
+        equal(J({ mastermind: asMastermind(room, 1), student: asStudent(room, 1),
+            source: [/\broomNamerFor\(/.test(fnSource(src, "tellPassageBuilt")), /\broomNamerFor\(/.test(fnSource(src, "tellBreach"))] }),
+            J({ mastermind: room, student: game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 }), source: [true, true] }),
+            "{mastermind: a room the record does not hold, named to the Mastermind's character; student: the same to a character that is not; "
+            + "source: [the made card asks the namer, the breach heard asks it]}");
+    }],
+    ["R1001 - the Event panel names the room (E17 C8, pinning E12 C3): the opening, incident and body cards read the room as the name `locateActor` and `roomOfActor` answer, never its `.name`, and a student standing in a room reads its name there", async () => {
+        /*
+         * E17 C8, 26.10.2026; E17-40, audit S10-15. `roomOfActor` answers a string, and events.mjs read `?.name` off it
+         * in three places, so the opening card and "A murder is under way" always took the variant without a room
+         * (`incidentSub`, not `incidentSubRoom`). E12 C3 (11.10.2026) already reads `locateActor(victim)?.room` in the
+         * first two and `roomOfActor(victims[0])` in the body card: this pins it, as the spec's row asks (no red at
+         * eb703938, where the fix stands). The source of the three builders, and on the world a student standing in a
+         * named room: what both readers answer is the room's own name, and the incident's line with it names it.
+         */
+        const src = stripComments(new Map(await moduleSources()).get("events.mjs") ?? "");
+        const builders = ["openingCard", "incidentCard", "bodyCard"].map(name => [name, fnSource(src, name)]);
+        ok(builders.every(([, body]) => body.length > 100), "events.mjs lost a card builder this reads - it measured nothing");
+        const reads = builders.map(([name, body]) => [name, /room\s*=\s*(?:victim\s*\?\s*)?\(?\s*(?:locateActor\([^)]*\)\?\.room|roomOfActor\([^)]*\))/.test(body),
+            /(?:locateActor\([^)]*\)|roomOfActor\([^)]*\))\??\.(?:room\??\.)?name\b/.test(body)]);
+        equal(JSON.stringify(reads), JSON.stringify([["openingCard", true, false], ["incidentCard", true, false], ["bodyCard", true, false]]),
+            "[each card builder, whether it takes the room from locateActor's room or roomOfActor, whether it reads a .name off them]");
+        ok(/incidentSubRoom/.test(fnSource(src, "incidentCard")), "the incident card no longer has a line that names the room");
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a named room of the scene on screen");
+        const { locateActor, roomOfActor, roomOfToken } = await import("./movement.mjs");
+        const token = [...canvas.scene.tokens].find(t => studentActors().some(a => a.id === t.actorId && !a.getFlag(MODULE_ID, FLAGS.deceased)) && roomOfToken(t));
+        const actor = game.actors.get(token.actorId);
+        const room = locateActor(actor, { sceneId: canvas.scene.id })?.room ?? null;
+        const line = game.i18n.format("DRPG.Events.incidentSubRoom", { killer: "Suite K", victim: actor.name, room });
+        const other = roomOfActor(actor);   // without the hint it may pick the student's token on another place scene
+        equal(JSON.stringify([typeof room, room === roomOfToken(token), other === null || typeof other === "string", line.includes(room ?? "\u0000")]),
+            JSON.stringify(["string", true, true, true]),
+            "[what locateActor answers for the room, whether it is the token's room, whether roomOfActor answers a name or none, whether the incident's line names it]");
+    }],
+    ["R1002 - a rest is spent in its own chapter (E17 C9): rest.mjs `restStamp` carries the chapter for both kinds, so a new chapter at the same day and time of day, or the same session, finds no rest taken; config.mjs `REST`'s frequencies are flags", async () => {
+        /*
+         * E17 C9, 26.10.2026; E17-41, audit S07-23. A short rest was stamped `d${day}:${timeOfDay}` and a long one
+         * `s${session}`, with no chapter: a chapter's end sets the day back to 1 (chapter.mjs), and can keep the session
+         * (its "next session" box unticked), so a character who rested on day 1's morning of chapter 1 was told "already
+         * taken" on day 1's morning of chapter 2, and a long rest of a session carried across the chapter's end. And
+         * `REST.long.perSession` and `REST.short.perTimeOfDay` were 1, read only as "is there a limit": a GM who set 2
+         * changed nothing. Read on plain clocks and a plain actor, so the answer is `restStamp`'s and `restSpent`'s and
+         * not a world's; sheet-audit.mjs `restCovers` asks the same `restStamp`, so the GMs' audit moves with it. Red at
+         * d2397718 (E17 C8) on the first assertion: both kinds' stamps equal across the two chapters, the chapter-1 rest
+         * spent in chapter 2 ([[true,true,true],[true,true,true]]); the frequencies were the number 1 there (read).
+         */
+        const { restStamp, restSpent } = await import("./rest.mjs");
+        const { REST } = await import("./config.mjs");
+        const first = { chapter: 1, session: 3, day: 1, timeOfDay: "morning" }, next = { ...first, chapter: 2 };
+        const actorWith = stamps => ({ getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.restsTaken ? stamps : undefined) });
+        const rested = actorWith({ short: restStamp("short", first), long: restStamp("long", first) });
+        equal(JSON.stringify(["short", "long"].map(kind => [restStamp(kind, first) === restStamp(kind, next), restSpent(rested, kind, first),
+            restSpent(rested, kind, next)])), JSON.stringify([[false, true, false], [false, true, false]]),
+            "[for a short and a long rest: whether chapter 1 and chapter 2 at the same day, time of day and session share a stamp, "
+            + "whether the rest taken in chapter 1 is spent there, and whether it is spent in chapter 2]");
+        equal(JSON.stringify([restStamp("short", { ...first, day: 2 }) === restStamp("short", first),
+            restStamp("short", { ...first, timeOfDay: "evening" }) === restStamp("short", first),
+            restStamp("long", { ...first, session: 4 }) === restStamp("long", first), restStamp("long", { ...first, day: 2 }) === restStamp("long", first)]),
+            JSON.stringify([false, false, false, true]),
+            "[whether a short rest's stamp is shared by another day, by another time of day; a long rest's by another session, by another day of the session]");
+        equal(JSON.stringify([typeof REST.long.perSession, typeof REST.short.perTimeOfDay, REST.long.perSession, REST.short.perTimeOfDay]),
+            JSON.stringify(["boolean", "boolean", true, true]), "[the long rest's and the short rest's frequency: their types and values]");
+        /* E17 fix p2-G3 (26.10.2026; the end review's E17p2-R11, correctness, R8, goal): a stamp written before C9 has no
+           chapter ("d1:morning", "s3"), and read as another window, so a character who rested in the time of day of the
+           update could rest once more in it. Read as the current chapter's. Red at 5088794a: [[false, false], [false, false]]. */
+        const legacy = actorWith({ short: "d1:morning", long: "s3" });
+        equal(JSON.stringify(["short", "long"].map(kind => [restSpent(legacy, kind, first),
+            restSpent(legacy, kind, kind === "long" ? { ...first, session: 4 } : { ...first, day: 2 })])),
+            JSON.stringify([[true, false], [true, false]]),
+            "[for a short and a long rest stamped before the chapter was in the stamp: spent in the window it names, spent in the next one]");
+    }],
+
+    ["R1003 - the fog's dissolve never frees what the next one mixes from, and a scene left mid-dissolve gets nothing back (E17 C9): fog.mjs `swapInFog` on a fake ticker settles a dissolve's own sprites before it lets the queued repaint start, and `endDissolves` stands a running one down", async () => {
+        /*
+         * E17 C9, 26.10.2026; E17-42, audit S07-09. Repaints come in pairs (a move settles, then the GM's write comes
+         * back), and the second queues behind the running dissolve. The dissolve's `done` let the queued repaint start
+         * FIRST: that repaint's dissolve took the finished one's mix as the picture it fades from - the mix was still the
+         * last fog sprite on the layer - and `done`, going on, found itself stale and destroyed that mix. The next
+         * dissolve then mixed from a freed texture (PIXI draws `Texture.WHITE`, or nothing), so the fog fell to the new
+         * state times t: for its 180 ms the map showed through the rooms nobody had found. And a scene left mid-dissolve
+         * (`canvasTearDown`, the trial's scene among them) had the dissolve's end put the raster back on a hidden layer.
+         * Run here on a fake ticker with fake textures, through the `io` fog.mjs hands its dissolve (`DISSOLVE_IO`): the
+         * module's own code, with nothing of the layer on screen touched. The real canvas is not measured headless:
+         * LIVE-E17-06. Red at d2397718 (E17 C8) with `io` already threaded through and nothing else changed: 3 of the second
+         * dissolve's 4 frames mixed from a freed texture, mix0 (the first is drawn before `done` frees it); and, run on its
+         * own, the torn-down dissolve's end started the queued repaint, showed its texture and put the raster back on the
+         * hidden layer (there was no `endDissolves`).
+         */
+        const F = await import("./fog.mjs");
+        must(typeof F.swapInFog === "function" && typeof F.queueBehindDissolve === "function", "fog.mjs hands out no swapInFog or queueBehindDissolve to run");
+        class Node {
+            constructor(texture = null) { this.children = []; this.destroyed = false; this.visible = true; this.renderable = true; this.alpha = 1; this.texture = texture;
+                this.position = { set: () => {} }; }
+            addChild(...nodes) { for (const n of nodes) { n.parent = this; this.children.push(n); } return nodes[0]; }
+            removeChild(n) { this.children = this.children.filter(c => c !== n); n.parent = null; return n; }
+            destroy() { this.destroyed = true; this.parent?.removeChild(this); for (const c of [...this.children]) c.destroy(); this.children = []; }
+        }
+        class Graphics extends Node { clear() { return this; } beginFill() { return this; } drawRect() { return this; } endFill() { return this; } }
+        const textures = [];
+        const texture = label => { const t = { label, destroyed: false, destroy() { this.destroyed = true; } }; textures.push(t); return t; };
+        const run = () => {
+            const state = { generation: 0, busy: false, queued: false, previous: null };
+            const anims = [], frames = [], log = [];
+            let mixes = 0, layer = null;
+            const io = {
+                state,
+                PIXI: { Container: Node, Sprite: Node, Graphics, BLEND_MODES: { ERASE: 9, ADD: 1 }, RenderTexture: { create: () => texture(`mix${mixes++}`) } },
+                animate: (attributes, options) => {
+                    let resolve;
+                    const anim = new Promise(r => { resolve = r; });
+                    anim.tick = t => { attributes[0].parent.t = t; options.ontick(); };
+                    anim.finish = () => { anim.tick(1); resolve(true); anim.done?.(); };
+                    anims.push(anim);
+                    return anim;
+                },
+                watchdog: (anim, ms, cleanUp) => { let once = false; anim.done = () => { if (!once) { once = true; cleanUp(); } }; },
+                renderer: () => ({ render: scratch => frames.push({ generation: state.generation, from: scratch.children[0]?.texture?.label,
+                    freed: Boolean(scratch.children[0]?.texture?.destroyed) }) }),
+                layer: () => layer,
+                ensureRaster: (container, mask) => log.push(`raster ${mask?.label} ${container.visible ? "shown" : "hidden"}`),
+                dropSprite: sprite => {
+                    if (!sprite || sprite.destroyed) return;
+                    const t = sprite.drpgTexture, m = sprite.drpgMaskTexture;
+                    sprite.destroy();
+                    for (const x of [t, m]) if (x && !x.destroyed) x.destroy();
+                },
+                showing: t => log.push(`showing ${t?.label}`),
+                motionOff: () => false,
+                fadeMs: () => 180,
+                repaint: null
+            };
+            const container = layer = new Node();
+            const rect = { x: 0, y: 0, width: 400, height: 300 };
+            const swap = name => F.swapInFog(container, texture(name), texture(`${name}-mask`), rect, io);
+            const fog = () => container.children.filter(c => c.drpgTexture).map(c => c.drpgTexture.label);
+            return { state, anims, frames, log, io, container, swap, fog };
+        };
+
+        // A: a dissolve A -> B, a repaint queued behind it (C), B's end, then C's frames and C's end.
+        const a = run();
+        a.swap("A");
+        a.swap("B");
+        a.io.repaint = () => a.swap("C");
+        const queued = F.queueBehindDissolve(a.io);
+        a.anims[0].tick(0.5);
+        a.anims[0].finish();
+        const second = a.anims.length === 2 ? a.anims[1] : null;
+        second?.tick(0.25);
+        second?.tick(0.75);
+        second?.finish();
+        const theirs = a.frames.filter(f => f.generation === 2);
+        equal(JSON.stringify([queued, a.anims.length, theirs.length, theirs.filter(f => f.freed).length, [...new Set(theirs.map(f => f.from))]]),
+            JSON.stringify([true, 2, 4, 0, ["B"]]),
+            "[whether the repaint was queued behind the dissolve, the dissolves run, the second's frames, its frames mixed from a freed texture, what it mixed from]");
+        equal(JSON.stringify([a.fog(), textures.filter(t => /^(?:A|B|mix\d)$/.test(t.label) && !t.destroyed).map(t => t.label), a.state.busy, a.state.queued]),
+            JSON.stringify([["C"], [], false, false]),
+            "[the fog sprites left on the layer, the textures of A, B and the mixes not freed, whether a dissolve is still busy, still queued]");
+
+        // B: a dissolve D -> E, the scene left mid-way (`canvasTearDown`: the layer emptied and hidden), then its end.
+        const b = run();
+        b.swap("D");
+        b.swap("E");
+        b.io.repaint = () => b.log.push("repainted");
+        F.queueBehindDissolve(b.io);
+        const stood = typeof F.endDissolves === "function" ? (F.endDissolves(b.io), true) : false;
+        for (const child of [...b.container.children]) b.io.dropSprite(child);
+        b.container.visible = false;
+        const mark = b.log.length;
+        b.anims[0].tick(0.5);
+        b.anims[0].finish();
+        equal(JSON.stringify([stood, b.log.slice(mark), b.state.busy, b.state.queued, b.frames.filter(f => f.generation === 1).length]),
+            JSON.stringify([true, [], false, false, 1]),
+            "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
     }],
 ];
 

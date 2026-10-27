@@ -72,7 +72,7 @@ import { isDeadForGm } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
-import { getClock } from "./clock.mjs";
+import { getClock, setClock, frozenClockOf } from "./clock.mjs";
 import { resourceValue, resourceMax, reserveOf, reserveChange, reserveNote } from "./character.mjs";
 import { youOrThem } from "./secret.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
@@ -491,6 +491,16 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     if (!opened) {
         refuseSecondIncident(murderState());
         return null;
+    }
+    /* THE CLOCK A BYSTANDER KEEPS (E17 C7, 26.10.2026; audit S10-07). A bystander's HUD freezes the clock at the open
+       (hud.mjs `clockForDisplay`) from the page's own copy, which a reload loses: the HUD showed the hour the incident
+       had moved to. The clock as it stands now is written on the clock (`clockAtOpen`, clock.mjs `frozenClockOf`) -
+       the calendar and the stopwatch, which every screen showed a moment ago and which name nobody - and the HUD
+       reads it when it has no copy. Tier 2 "the Eclipse and the incident (E17-T10)". */
+    try {
+        await setClock({ clockAtOpen: frozenClockOf(getClock()) });
+    } catch (err) {
+        error("Could not keep the clock the incident opened on", err);
     }
 
     await whisperToGms(`
@@ -3356,6 +3366,18 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
        is wiped; a call with nothing running fires nothing. Local only - nothing listens to
        it at the table. */
     if (state?.active) Hooks.callAll("drpgIncidentClosed", { reason });
+
+    /* A MOTIVE THAT CAME DUE INSIDE IT IS ANNOUNCED NOW (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R5): its
+       table was told in private, and the rest learn it here, where their clock catches up, once (rules.mjs
+       `announceOwedMotive`). Not for a reset (`conclude`). */
+    if (state?.active && conclude) {
+        try {
+            const { announceOwedMotive } = await import("./rules.mjs");
+            await announceOwedMotive();
+        } catch (err) {
+            error("Could not announce the motive that came due in the incident", err);
+        }
+    }
 
     // Before the checklist below, which waits on the GM's answer. Not for a reset (`conclude`).
     if (state?.active && conclude) {

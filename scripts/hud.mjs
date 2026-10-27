@@ -22,7 +22,7 @@
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
-import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
+import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, boundaryStamp } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, debug, serverNow, tickerRuns } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
@@ -30,7 +30,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery, isDeadForGm } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery, isDeadForGm } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
@@ -39,7 +39,7 @@ import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
 import { isMonocub } from "./monocub.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
-import { murderState } from "./murder.mjs";
+import { murderState, clockHiddenHere } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
@@ -157,6 +157,17 @@ export function registerHud() {
         centrePauseRaster();
     });
 
+    /* THE PRIMARY'S STAMP AT READY AND ITS BEAT (E17 C6, 26.10.2026; audit S10-16). A world loads paused without a
+       `pauseGame`, so nothing stamped the pause and the stopwatch counted the days between two sessions; the beat is the
+       last moment a primary was here, and the gap since it is counted as a pause. Every GM keeps the interval: the beat
+       asks who is primary at each tick, so a GM who becomes the primary beats from then on. */
+    Hooks.once("ready", () => {
+        settleClockAtReady().catch(err => error("Could not settle the stopwatch at ready", err));
+        setInterval(() => {
+            beatClock().catch(err => debug("Could not write the primary's beat", err));
+        }, CLOCK_BEAT_MS);
+    });
+
     // The word does not move, but the window it is centred in does: a resize,
     // a sidebar collapsing, a second monitor.
     Hooks.once("ready", () => {
@@ -225,12 +236,19 @@ export function stillTokenBars(app, element) {
  * Keep the elapsed timer honest across a pause.
  *
  * On pause: stamp when it happened, and `paintElapsed` freezes there.
- * On unpause: push `timeOfDayStartedAt` forward by however long the break ran,
+ * On unpause: add however long the break ran to `pausedTotalMs` (`unpausePatch`),
  * so the timer carries on from the same number instead of having counted the
  * break. The stamp is cleared in the same write.
  *
+ * THE START OF THE TIME OF DAY STAYS WHERE IT IS (E17 C6, 26.10.2026; audit S10-16).
+ * This pushed `timeOfDayStartedAt` forward by the break until then, and that stamp
+ * is also the day's summary's window: a Search made at 18:05 was gone from "What you
+ * did" after a pause from 18:10 to 18:25. Tier 2 E17-T9 at 3efafbd0: the start had
+ * moved after a pause.
+ *
  * GM-only, and primary-GM-only, because it writes the clock - two GMs both
- * adding the pause duration would double it.
+ * adding the pause duration would double it. A second GM's pause fires
+ * `pauseGame` on the primary's browser as well, which writes it.
  */
 async function settleElapsedPause(paused) {
     try {
@@ -244,17 +262,102 @@ async function settleElapsedPause(paused) {
             return;
         }
 
-        if (!clock.pausedAt) return;
-        const paused_ms = Math.max(0, serverNow() - clock.pausedAt);
-        await setClock({
-            timeOfDayStartedAt: clock.timeOfDayStartedAt + paused_ms,
-            pausedAt: null
-        });
+        const patch = unpausePatch(clock, serverNow());
+        if (patch) await setClock(patch);
     } catch (err) {
         // A drifting timer is a cosmetic problem; never let it throw into the
         // pause handler, which everything else on screen also listens to.
         error("Could not settle the paused time-of-day timer", err);
     }
+}
+
+/**
+ * The clock's patch for the end of a pause at `now`, or null when nothing was paused:
+ * the break added to `pausedTotalMs`, the stamp cleared. A break counts from the later
+ * of its stamp and the time of day's start - a time of day begun in the middle of a
+ * pause owes it only what came after it began. Pure (R996).
+ */
+export function unpausePatch(clock, now) {
+    if (!clock?.timeOfDayStartedAt || !clock.pausedAt) return null;
+    const from = Math.max(Number(clock.pausedAt), Number(clock.timeOfDayStartedAt));
+    return { pausedTotalMs: (Number(clock.pausedTotalMs) || 0) + Math.max(0, now - from), pausedAt: null };
+}
+
+/**
+ * HOW OFTEN THE PRIMARY BEATS, in ms (E17 C6): a design number, not a measured one - the
+ * stopwatch's error bound across two sessions (the minute at most between the last beat
+ * and the browser going away is counted as play), against one GM store write a minute.
+ */
+export const CLOCK_BEAT_MS = 60_000;
+
+/**
+ * The clock's patch for the primary's `ready`, or null (E17 C6, 26.10.2026; audit S10-16).
+ * The last moment a GM is known to have been here is the later of the GMs' last beat
+ * (`beat`, `clockBeatStore`, or null) and the clock's own last write (`writtenAt`, clock.mjs
+ * `setClock`), each read only at or after the time of day's start. A world that loads paused
+ * with no stamp is stamped at that moment, so the unpause takes the gap off with the pause;
+ * with neither known, at `now` (as before E17: nothing says when the last session ended). A
+ * world running at ready whose last known moment is older than two beats was left by its
+ * primary: the gap is added to the pauses. A stamp standing while the world runs is a pause
+ * whose end nobody settled: settled now, the whole of it a pause. Pure (R996).
+ *
+ * THE CLOCK'S WRITE BESIDE THE BEAT (E17 fix p2-G1, 26.10.2026; the end review's E17p2-R1,
+ * R5). The beat is a client setting, in the browser of the GM who wrote it, and reaches only
+ * the GMs online then. (1) A reload within the minute after an unpause read the beat from
+ * before the pause, and the pause already in `pausedTotalMs` was added again (the HUD went
+ * from 20 to about 10 minutes). (2) A GM opening the world on another computer had no beat,
+ * and the week between sessions was counted; one with a beat from before this time of day
+ * read the start, and took the pauses already counted off again. Every unpause and every
+ * stamp of this function writes the clock, so `writtenAt` is at or after the end of every
+ * counted pause, and every GM's browser reads it. What it leaves: on a browser with no beat,
+ * the minutes played after the clock's last write are not counted (an undercount, at most
+ * that stretch of the last session's play), never the days between sessions (LIVE-E17-01 (4)).
+ * A beat from before the start is none: the start alone says nothing of the pauses after it.
+ */
+export function readyPatch(clock, { paused, beat, now }) {
+    if (!clock?.timeOfDayStartedAt) return null;
+    const start = Number(clock.timeOfDayStartedAt);
+    const seen = [beat, clock.writtenAt]
+        .filter(at => at !== null && at !== undefined && Number.isFinite(Number(at)) && Number(at) >= start)
+        .map(Number);
+    const last = seen.length ? Math.min(now, Math.max(...seen)) : null;
+    if (paused) return clock.pausedAt ? null : { pausedAt: last ?? now };
+    if (clock.pausedAt) return unpausePatch(clock, now);
+    if (last === null || now - last <= 2 * CLOCK_BEAT_MS) return null;
+    return { pausedTotalMs: (Number(clock.pausedTotalMs) || 0) + (now - last) };
+}
+
+/**
+ * The primary's stamp at `ready` (`readyPatch`), from the GMs' beat once their copies
+ * are here. Exported for the suite (tier 2 E17-T9), which runs it as a reload would.
+ */
+export async function settleClockAtReady() {
+    if (!game.user.isGM || !isPrimaryGm()) return null;
+    if (!getClock().timeOfDayStartedAt) return null;
+    const { clockBeatStore } = await import("./gm-stores.mjs");
+    await clockBeatStore.whenHydrated();
+    const patch = readyPatch(getClock(), { paused: game.paused, beat: clockBeatStore.record()?.at ?? null, now: serverNow() });
+    if (patch) await setClock(patch);
+    return patch;
+}
+
+/** The primary's beat: `serverNow()` in the GMs' store while the world runs (`CLOCK_BEAT_MS`). */
+export async function beatClock() {
+    if (!game.user?.isGM || !isPrimaryGm() || game.paused) return;
+    const [{ clockBeatStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+    await clockBeatStore.patch(RECORD, { at: serverNow() });
+}
+
+/**
+ * WHAT A BYSTANDER'S HUD SHOWS (E17 C7, 26.10.2026; audit S10-07): the clock itself unless `hide`; hidden, this page's
+ * copy from before the incident (`last`), or - after a reload, with no copy - the clock as the incident opened on it
+ * (`clockAtOpen`, written by murder-rules.mjs `openMurder`) over the live one; with neither, the live clock, as
+ * before. Exported for the suite (tier 2 E17-T10), which has no bystander's page to reload. Pure.
+ */
+export function shownClock(clock, { hide = false, last = null } = {}) {
+    if (!hide) return clock;
+    if (last) return last;
+    return clock?.clockAtOpen ? { ...clock, ...clock.clockAtOpen } : clock;
 }
 
 /**
@@ -292,17 +395,13 @@ export function clockForDisplay(clock) {
            are told nothing else of it until the killer's roll succeeds. Not `incidentWitness`,
            which reads the opening and the fight alone: at Stage 6 a trap's builder is seated
            again, and sees the live clock as every other participant does. */
-        const state = murderState();
-        const hide = state
-            && !game.user.isGM
-            && !incidentSeats(incidentCast(), state).some(id =>
-                game.actors.get(id)?.testUserPermission(game.user, "OWNER"));
+        const hide = clockHiddenHere(murderState());
 
         if (!hide) {
             lastPublicClock = foundry.utils.duplicate(clock);
             return clock;
         }
-        return lastPublicClock ?? clock;
+        return shownClock(clock, { hide: true, last: lastPublicClock });
     } catch {
         // A HUD that cannot decide shows the truth - a wrong clock for one
         // render beats no clock at all.
@@ -553,9 +652,11 @@ export function renderHud() {
            The debate's countdown moved to the trial's own card on the Event panel, where the
            mode and the speaker already are - three facts about one debate were split across
            two widgets. And the minutes line is pacing advice for a time of day's two
-           actions, which is not what anybody in a trial is counting. */
-        if (clock.phase === "classTrial") stopElapsed();
-        else hud.append(buildElapsed());
+           actions, which is not what anybody in a trial is counting.
+           NOR IN AN ECLIPSE (E17 C6, 26.10.2026; audit S10-16): the clock has not moved yet, so the line went on
+           counting the time of day the Eclipse closes, in red, over a placement nobody is timing. */
+        if (showsStopwatch(clock)) hud.append(buildElapsed());
+        else stopElapsed();
 
         // And under that, what you are hearing (N-1). Rebuilt here because the whole
         // clock has just been replaced; it keeps itself up to date after that.
@@ -1185,10 +1286,15 @@ function buildTimeRow(clock, isGM) {
         // (E11 C3, audit S06-05) - and, as there, not in the Investigation (E11 fix r1-G3). Still
         // pressable, so the press says it too - a disabled button would also be re-enabled by
         // `releaseControls` after the next press.
-        const held = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
+        // And over a running incident's opening or fight (E17 C7; the owner's Q3 (a)), with `startEclipse`'s words,
+        // after the hold, as there; not at Stage 6, whose betrayal is declared in an Eclipse.
+        const body = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
+        const incident = !eclipseRunning && Boolean(murderState()) && murderState().stage !== "resolution";
+        const held = body || incident;
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
-            : held ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
+            : body ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
+            : incident ? game.i18n.localize("DRPG.Eclipse.incidentFirst")
             : game.i18n.format(
                 index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession"
                     : free ? "DRPG.Hud.startEclipseFree"
@@ -1201,13 +1307,46 @@ function buildTimeRow(clock, isGM) {
             async () => {
                 const { isEclipse, startEclipse, endEclipse } = await import("./eclipse.mjs");
                 if (isEclipse()) await endEclipse({ advance: true });
-                else await startEclipse();
+                else if (held || await askEclipse(incoming)) await startEclipse();
             },
             { literal: true, held }
         ));
     }
 
     return row;
+}
+
+/**
+ * THE CHEVRON ASKS FIRST, AND "NO" IS THE DEFAULT (E17 C7, 26.10.2026; audit S10-42). One press opened the Eclipse: the
+ * refill, the grants and the seals gone and a card on every screen, from a control beside the rewind. The press now
+ * asks, the Eclipse it opens named, and Enter or a closed window answers no. A held chevron (the body's hold, an
+ * incident) does not ask: `startEclipse` refuses it with the words. The GM panel's "Do it" (gm-panel.mjs
+ * `toggleEclipse`) starts the Eclipse without asking, as it did before this stage - the spec named the chevron, and
+ * the five-minute take-back (End without advancing) is what a misclick there costs; whether the panel asks too is the
+ * owner's (E17 fix p2-G2: this said the panel's press was a question already, which it is not).
+ */
+async function askEclipse(incoming) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const name = game.i18n.format("DRPG.Eclipse.named", { time: timeOfDayLabel(incoming) });
+    return Boolean(await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: name },
+        content: `<p>${eclipseQuestion(getClock(), name).text}</p>`,
+        yes: { label: game.i18n.localize("DRPG.Hud.eclipseAskYes") },
+        no: { label: game.i18n.localize("DRPG.Hud.eclipseAskNo"), default: true },
+        rejectClose: false
+    }));
+}
+
+/**
+ * WHAT THE CHEVRON'S QUESTION SAYS (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R4): `{ key, text }` for the
+ * Eclipse `name` over `clock`. A boundary refilled already (`refilledFor`, an Eclipse for it ended without advancing
+ * more than five minutes ago) refills nobody again (eclipse.mjs `startEclipse`), and the question said everyone's
+ * actions refill: it says so now. Pure but for the words (R1004).
+ */
+export function eclipseQuestion(clock, name) {
+    const key = clock?.refilledFor && clock.refilledFor === boundaryStamp(clock) ? "DRPG.Hud.eclipseAskRefilled" : "DRPG.Hud.eclipseAsk";
+    return { key, text: game.i18n.format(key, { name: foundry.utils.escapeHTML(String(name ?? "")) }) };
 }
 
 /* ==========================================================================
@@ -1454,6 +1593,25 @@ function setText(el, text) {
     if (el.textContent !== text) el.textContent = text;
 }
 
+/**
+ * The minutes line's reading, in ms, or null where there is no line to print (E17 C6, 26.10.2026; audit S10-16): the
+ * time since `timeOfDayStartedAt` less `pausedTotalMs`, frozen while paused at the later of `pausedAt` and the start.
+ * Null with no stamp (a clock never moved) and in an Eclipse, whose clock still names the time of day it closes. Paused
+ * with no stamp yet (the primary's write on its way, or a world loaded paused before the primary's ready) it counts on.
+ * Pure (R996).
+ */
+export function elapsedOf(clock, { now, paused }) {
+    const start = Number(clock?.timeOfDayStartedAt);
+    if (!clock?.timeOfDayStartedAt || !Number.isFinite(start) || clock.eclipse === true) return null;
+    const end = paused && clock.pausedAt ? Math.max(Number(clock.pausedAt), start) : now;
+    return Math.max(0, end - start - (Number(clock.pausedTotalMs) || 0));
+}
+
+/** Whether the HUD prints the minutes line for this clock: not in a Class Trial, not in an Eclipse (R996). */
+export function showsStopwatch(clock) {
+    return clock?.phase !== "classTrial" && clock?.eclipse !== true;
+}
+
 function paintElapsed(el) {
 
     // The DISPLAY clock (CORE-06): during an incident an outsider's label
@@ -1461,22 +1619,19 @@ function paintElapsed(el) {
     // snapped to "0 min in" the moment the GM moved it - the very tell the
     // freeze exists to hide.
     const clock = clockForDisplay(getClock());
-    const startedAt = clock.timeOfDayStartedAt;
     el.classList.remove("past-first", "past-second", "paused");
-
-    if (!startedAt) {
-        setText(el, game.i18n.localize("DRPG.Hud.elapsedUnknown"));
-        el.classList.add("empty");
-        return;
-    }
 
     // A paused game is a stopped clock. The whole point of this readout is "how
     // much of the time of day have you used", and a break, a rules argument or a
     // safeword is not time anybody used. While paused it freezes at the moment
-    // the pause began; `settleElapsedPause` then pushes the start forward by the
-    // length of the break, so it resumes where it stopped rather than jumping.
-    const now = game.paused && clock.pausedAt ? clock.pausedAt : serverNow();
-    const ms = Math.max(0, now - startedAt);
+    // the pause began; `settleElapsedPause` then adds the break to the pauses
+    // (`pausedTotalMs`), so it resumes where it stopped rather than jumping.
+    const ms = elapsedOf(clock, { now: serverNow(), paused: game.paused });
+    if (ms === null) {
+        setText(el, game.i18n.localize("DRPG.Hud.elapsedUnknown"));
+        el.classList.add("empty");
+        return;
+    }
 
     el.classList.remove("empty");
     el.classList.toggle("paused", Boolean(game.paused && clock.pausedAt));
@@ -1487,7 +1642,6 @@ function paintElapsed(el) {
     if (ms >= MARK_SECOND_ACTION) el.classList.add("past-second");
     else if (ms >= MARK_FIRST_ACTION) el.classList.add("past-first");
 }
-
 
 /* ==========================================================================
  * ONE PRESS AT A TIME, AND THE LATCH CANNOT LIVE ON THE BUTTON

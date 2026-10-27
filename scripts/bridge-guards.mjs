@@ -190,6 +190,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no such Observe$/],
     ["missing", /^no character left it$/],
     ["missing", /^no plant was handed out under that request$/],
+    // E17 C4: a search token's return after a late answer (search-tokens.mjs `guardTokenReturn`), quiet as a plant's.
+    ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
@@ -206,6 +208,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that roll does not list several statistics$/],
     ["badRequest", /^that is not the table the character rolls$/],
     ["badRequest", /^that plant was handed to somebody else$/],
+    ["badRequest", /^that token was spent by somebody else$/],
     // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
     // E08+E28 fix r2-H5: a card a player asks the GM to post (gm-bridge.mjs `card.post`).
@@ -305,6 +308,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Frisk ask has been answered already$/],
     // E14 part 1 C4: a stash's free reach, once a time of day per thief (vault.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
+    // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
+    ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
+    ["alreadyDone", /^that crossing was given back already$/],
     // E14 fix e1-G1: the stash's own refusals (vault.mjs `stealFromVault`); a hidden stash not found reads as none here.
     ["missing", /^no such stash where the character stands$/],
     ["missing", /^no such thing in that stash$/],
@@ -809,20 +815,32 @@ export function removalRefusal(token, { gmEdited = false, copied = false, placed
  * client saw it (here). The move and the request are two messages; the first
  * is given a moment - the one retry is this guard's own, so it stays in here.
  * Asked after the handler's ownership check, which the token read relies on.
+ *
+ * AND ONLY WHERE THE RULES LET IT STAND (E17 C1, 26.10.2026; the stage's design note 22, E17-10). The place was
+ * held to the record and the rooms visited, never to the doors' rules: the centre of a room the token stands in
+ * while the GMs' put-back of it is on its way is one of those, so a send-back could stand it in a bedroom shut to
+ * its mover. Now a place in a room the judge did not read the token standing in lawfully is asked of the rules
+ * as a crossing from its last lawful room (movement.mjs `sendBackRuleOf`), the sender the mover, and
+ * refused in the rule's words (passages-gm.mjs `crossingWhy`). A tunnel's or a breach's end in that bedroom,
+ * where the token stood lawfully, stays a way back.
  */
 export async function guardSendbackPlace(sender, payload, ctx) {
     const scene = game.scenes.get(payload.sceneId);
     const token = scene?.tokens?.get(payload.tokenId);
-    const { recentPositions, roomsVisited, positionIn, sendBackRefusal } = await import("./movement.mjs");
+    const { recentPositions, roomsVisited, positionIn, sendBackRefusal, sendBackRuleOf } = await import("./movement.mjs");
+    const { crossingWhy } = await import("./passages-gm.mjs");
     const asked = payload.position ?? {};
     // The token's floor now, for a packet that names none; a room's centre on the floor asked (E12 fix r2-H1).
     const judge = () => {
         const level = token.level ?? undefined;
         const floor = asked.level !== undefined ? asked.level : level;
-        return sendBackRefusal(asked, {
+        const placed = sendBackRefusal(asked, {
             scene, history: recentPositions(token.id), level,
             centres: [...roomsVisited(token)].map(room => positionIn(room, token, floor ?? null))
         });
+        if (placed) return placed;
+        const rule = sendBackRuleOf(token, asked, sender);
+        return rule ? crossingWhy(rule) : null;
     };
     let why = judge();
     if (why) {
@@ -1656,6 +1674,19 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
         try {
             const prepared = decl.prepare ? await decl.prepare(payload) : null;
             const sender = senderOf(senderId);
+            /* ASKED AGAIN, ANSWERED AS BEFORE (E18 C7, 26.10.2026; audit S10-43 part 2). A request the waiter asks again
+               with its id (`resendOnGmReady`) reaches a primary that may have carried it out before it reloaded or took
+               over: its guards and its roll then judge the world its first run wrote - a project frozen, a roll settled -
+               and refused it, so the asker was told not done of a write that stood. A declaration's `again(sender, ctx)`
+               answers `{ reply }`, what the first run answered that sender under that id, read from what that run wrote
+               and keyed by Foundry's sender, never by the packet; null for a request it has not seen, judged as any other.
+               Before the guards, as it judges nothing new. */
+            const before = decl.again && sender && typeof ctx.requestId === "string" && ctx.requestId ? await decl.again(sender, ctx) : null;
+            if (before) {
+                if (!early && decl.answer !== "none") acknowledge();
+                if (decl.answer === "reply") answer(decl, ctx, before.reply ?? null, send);
+                return true;
+            }
             const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
             if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
             /* A result is the record's, not the packet's (E08+E28 C14, above). The roll is

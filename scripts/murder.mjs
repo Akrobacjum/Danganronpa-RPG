@@ -21,7 +21,7 @@
  */
 
 export {
-    PUBLIC_INCIDENT, splitIncident, murderState, castFieldsToWrite, incidentAudienceIds, castFor, castPacket,
+    PUBLIC_INCIDENT, splitIncident, murderState, clockHiddenHere, castFieldsToWrite, incidentAudienceIds, castFor, castPacket,
     retellCast, clearBetrayalOffer, swungWeaponOf, sideOf, killerIds, participantIds, incidentKnowers, knowsOfDeath,
     deathsFor, sendDeathsTo, tellDeaths, retellDeaths, receiveDeaths, tellFinder, enterCast, liftIncidentSecrets,
     liftIncidentMethod, liftIncidentFight, blackenedIds, trialBlackenedIds, countsAtTrial, whenTrialReadable,

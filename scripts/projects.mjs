@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
@@ -32,7 +32,8 @@ import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
    actually stood in - the public half of `knowsProject` below. Imported at the
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
-import { discoveredFor } from "./fog.mjs";
+import { discoveredFor, myDiscoveredRooms } from "./fog.mjs";
+// Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
@@ -153,6 +154,33 @@ export function knowsProject(countdownId, user = game.user) {
     const ref = tokenRefOf(countdownId);
     const sceneIds = ref ? [ref.sceneId] : placeScenes().filter(s => roomRegions(s, room).length).map(s => s.id);
     if (!sceneIds.length) return false;
+    return hasStoodIn(user, room, sceneIds);
+}
+
+/**
+ * Whether `user` knows `room` on one of `sceneIds`: one of their characters stood in it, as the discovery record
+ * keeps it - or they play the Mastermind.
+ *
+ * THE MASTERMIND KNOWS THE BUILDING (E17 C8, 26.10.2026; audit S07-10). fog.mjs `recordDiscovery` leaves no track of
+ * the Mastermind's walks in the record, so that the GM's veil (the union of the rows) does not narrate the season's
+ * secret moving around the school, and says they lose nothing by it, because their own fog counts every room as
+ * known (`myDiscoveredRooms`). That was true of the fog alone: this asked the record, so the Mastermind's player
+ * never saw the token or the tray's row of a public project in a room they had stood in, which every other student
+ * who stood there sees. They are answered here as their fog answers them, every room of the scene: on their own
+ * browser by `iAmTheMastermind` (the door's copy only they hold); a GM's browser answers the record for them, as for
+ * anybody (`playsTheMastermind`, E17 fix p2-G3). A public project's countdown is held by every browser
+ * already (`canSee`), so nobody learns a project's existence from this they could not read before; it is about
+ * whether the map and the tray show it.
+ *
+ * @param {User} user
+ * @param {string} room
+ * @param {string[]} sceneIds
+ * @param {{mastermind?: boolean}} [options]  the suite's (R999); read off this browser otherwise
+ */
+export function hasStoodIn(user, room, sceneIds, { mastermind = playsTheMastermind(user) } = {}) {
+    if (mastermind) {
+        return sceneIds.some(sceneId => myDiscoveredRooms(game.scenes?.get(sceneId), { mastermind: true }).has(room));
+    }
     try {
         for (const actor of game.actors ?? []) {
             if (actor.type !== "character") continue;
@@ -164,6 +192,21 @@ export function knowsProject(countdownId, user = game.user) {
         // Answering "no" hides the token, which is the safe direction to fail.
     }
     return false;
+}
+
+/**
+ * Does `user` play the Mastermind, as this browser answers for `knowsProject`: its own copy (`iAmTheMastermind`) for
+ * itself, and no for anybody else.
+ * NOT ON A GM'S SCREEN FOR ANOTHER USER (E17 fix p2-G3, 26.10.2026; the end review's E17p2-R9, goal). This asked the
+ * GMs' store on a GM, so the project card's "Known by" (projects-map.mjs) named the Mastermind's player on every public
+ * project of the scene, rooms their character never entered among them, while every other player was listed for the
+ * rooms they stood in: a GM's shared or streamed screen picked out the Mastermind. The GM's card reads the record
+ * for everybody now, so it lists the Mastermind's player only where the record has them; their own map and tray keep
+ * the exception, answered on their own browser.
+ */
+function playsTheMastermind(user) {
+    if (!user || user.isGM) return false;
+    return user === game.user && iAmTheMastermind();
 }
 
 /* ==========================================================================
@@ -1169,6 +1212,8 @@ export async function createProject({
      * asked, the GMs'. Not named `repairs`: that is this file's function (R21 reads a shadowed name as a value).
      */
     repairFor = null, saboteur = null,
+    // The request a player's Sabotage came under (E18 C7): its resend is answered this repair (`sabotageOfRequest`).
+    sabotageAsk = null,
     /*
      * A PROJECT THAT MAKES A PASSAGE (E15 part 2 C2): `presetTarget` is `{ preset, room }` - a key of passages-gm.mjs
      * `PASSAGE_PRESETS` and the neighbour the proposal named - and `passage` the stretch the approval picked. Both are
@@ -1250,6 +1295,7 @@ export async function createProject({
             trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
             ...(repairFor ? { repairs: repairFor } : {}),
             ...(saboteur ? { saboteur } : {}),
+            ...(saboteur && sabotageAsk ? { sabotageAsk } : {}),
             ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
             ...(passage ? { passage } : {})
         }
@@ -1316,7 +1362,7 @@ export function repairs(countdownId) {
  * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
-export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
+export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, requestId = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
         // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (gm-bridge.mjs `handleSabotage`),
@@ -1373,7 +1419,8 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
         // The pair, written by the step that makes the repair (`createInStep`), and who asked, when it was a
         // player (the bridge passes Foundry's sender): a Reroll may take back its own sabotage and nobody else's.
         repairFor: targetId,
-        saboteur
+        saboteur,
+        sabotageAsk: saboteur && typeof requestId === "string" && requestId ? requestId : null
     });
     if (!repair) {
         // Frozen by another Sabotage that reached the step first (E36 C3): told as the check above tells it.
@@ -1383,6 +1430,20 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
 
     log(`Project "${target.name}" frozen; repair "${repair.name}" created (${difficulty} progress).`);
     return { repair, target: target.name };
+}
+
+/**
+ * What a player's Sabotage under `requestId` answered (E18 C7, 26.10.2026; audit S10-43 part 2): `{ repair, target }`, as
+ * `sabotageProject` answered it, for the repair whose GMs' row names that saboteur and that request, while it still
+ * repairs its target; null otherwise. GM only (`secretsOf`): gm-bridge.mjs `sabotageAgain` reads it on the primary.
+ */
+export function sabotageOfRequest(saboteur, requestId) {
+    if (!game.user?.isGM || typeof saboteur !== "string" || !saboteur || typeof requestId !== "string" || !requestId) return null;
+    const projects = allProjects();
+    const repair = projects.find(p => secretsOf(p.id).saboteur === saboteur && secretsOf(p.id).sabotageAsk === requestId) ?? null;
+    const target = repair ? projects.find(p => p.id === repairs(repair.id)) ?? null : null;
+    if (!repair || !target) return null;
+    return { repair: { id: repair.id, name: repair.name, target: repair.start, trait: repair.trait ?? null }, target: target.name };
 }
 
 /**
@@ -1709,6 +1770,23 @@ export function projectEditChange(patch = {}) {
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
     if (Object.keys(meta).length) change.meta = meta;
     return Object.keys(change).length ? change : null;
+}
+
+/**
+ * A GM's patch of a project's row from the console or a macro (`game.drpg.setProjectMeta`): one change of the
+ * entry, `{ meta }`, made on the primary in the one queue as every other road of a project's row since E36 (E17
+ * C9, 26.10.2026; audit S09-31). The API handed out projects-secrecy.mjs `setProjectMeta` itself, which writes
+ * projectMeta whole, outside the queue, on whichever GM's browser runs it - two GMs' macros, or a macro and the
+ * primary's step, landing together lost one. Tier 0's census of the one queue (R991, its project row) does not see
+ * this road: api.mjs takes the name through projects.mjs's re-export, which the census does not follow; it was
+ * found reading the API while the row was added. The secret fields still go to the GMs' store, as `changeStep`
+ * hands `meta` to `setProjectMeta`. GM only; answers the project's row, both halves, as this browser
+ * reads it once the change has run (another GM's copy of the setting may arrive a moment after the reply).
+ */
+export async function patchProjectMeta(countdownId, data) {
+    if (!game.user?.isGM) return null;
+    await applyProjectChange(countdownId, { meta: data ?? {} }, { by: { kind: "gm" } });
+    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
 }
 
 /**

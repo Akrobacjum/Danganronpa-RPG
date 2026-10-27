@@ -25,7 +25,7 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm } from "./utils.mjs";
+import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -270,6 +270,15 @@ export function overflowThreshold() {
 }
 
 /**
+ * THE ONE QUEUE'S KEY FOR THE OVERFLOW (E17 C0, 26.10.2026; audit S10-23, session 0's list). The count is a GM store
+ * row patched in this browser before its write awaits, and the stamp a world setting read and written whole; every
+ * write of either - a spill, a Reroll's point given back, the verdict's reset, a boundary's payment, the count lifted
+ * out of world data - is a step of utils.mjs `serialWrite` under this key, reading inside its step (tier 0 R991).
+ * What a payment sets off (the event, the card) and the arming a spill asks for run after the step.
+ */
+export const OVERFLOW_KEY = "overflow";
+
+/**
  * Feed the counter. GM only.
  *
  * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
@@ -278,10 +287,34 @@ export function overflowThreshold() {
  * not distinguish them, and should not: what darkens the world is the quantity
  * of Despair loose in it, not the mood in which it got there.
  */
+/** Whether this GM is not the primary while another GM, connected, is (`addOverflow`). */
+function primaryElsewhere() {
+    if (isPrimaryGm()) return false;
+    const primary = game.users.get(primaryGmId() ?? "");
+    return Boolean(primary?.active && primary.id !== game.user.id);
+}
+
+/** `addOverflow` asked of the primary from another GM: its count after, null when not added, undefined when it is this GM's to add. */
+async function askPrimaryToAdd(n, reason) {
+    // Only a GM that is not the primary asks, while another connected GM is (R6: a GM never asks itself down the socket).
+    if (!game.user?.isGM || isPrimaryGm() || !primaryElsewhere()) return undefined;
+    const { requestOverflowAdd } = await import("./gm-bridge.mjs");
+    const res = await requestOverflowAdd(n, reason);
+    return res.ok ? (res.value?.after ?? null) : null;
+}
+
 export async function addOverflow(amount, { reason = "spill" } = {}) {
     if (!game.user.isGM) return null;
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return null;
+
+    /* ON THE PRIMARY GM ALONE (E17 C5, 26.10.2026; audit S09-32). Feed the Overflow paid on an Assistant's browser
+       added to that browser's copy of the count, beside the primary's own spills, and a darkening the count armed
+       (Rot, Earthquake) ran there. Another GM asks the primary (gm-bridge.mjs `overflow.add`, a GM's alone) and
+       answers its count after, or null when it was not added; with no primary connected it adds here, as
+       `adjustDespair` writes. Tier 2 E17-T8. */
+    const asked = await askPrimaryToAdd(n, reason);
+    if (asked !== undefined) return asked;
 
     /* The count is read once the store holds the other GMs' copies (E05 fix r2-G2; review
        S2-m7), as the Eclipse's is (eclipse.mjs `applyRecordedMove`): read before, a GM back
@@ -289,9 +322,16 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
        measured on the harness 27.09 by holding the store: 1 added to a peer's 2 read 2. The
        same wait stands in `checkOverflow` and `resetOverflow`. */
     await overflowStore.whenHydrated();
-    const before = state();
-    const after = before.count + n;
-    await overflowStore.patch(RECORD, { count: after });
+    // Read in the step that writes (E17 C0; audit S10-23), as every write of the count and the stamp is.
+    // The primary asked again in the step (E17 fix e1-G4; the review's E17P1-COR-8, E17R-07): a handover while it waited sends it on.
+    const added = await serialWrite(OVERFLOW_KEY, async () => {
+        if (primaryElsewhere()) return null;
+        const was = state();
+        await overflowStore.patch(RECORD, { count: was.count + n });
+        return { before: was, after: was.count + n };
+    });
+    if (!added) return (await askPrimaryToAdd(n, reason)) ?? null;
+    const { before, after } = added;
     log(`Despair overflow +${n} (${reason}) -> ${after}/${overflowThreshold()}.`);
 
     /*
@@ -360,10 +400,13 @@ export async function takeOverflow(amount, { reason = "given back" } = {}) {
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return 0;
     await overflowStore.whenHydrated();
-    const before = state().count;
-    const taken = Math.min(before, n);
+    const { before, taken } = await serialWrite(OVERFLOW_KEY, async () => {
+        const was = state().count;
+        const take = Math.min(was, n);
+        if (take) await overflowStore.patch(RECORD, { count: was - take });
+        return { before: was, taken: take };
+    });
     if (!taken) return 0;
-    await overflowStore.patch(RECORD, { count: before - taken });
     log(`Despair overflow -${taken} (${reason}) -> ${before - taken}/${overflowThreshold()}.`);
     return taken;
 }
@@ -419,8 +462,10 @@ export async function resetOverflow({ reason = VERDICT } = {}) {
     await overflowStore.whenHydrated();
     const atVerdict = reason === VERDICT;
     const kept = atVerdict ? waitingDarkening() : null;
-    await overflowStore.patch(RECORD, { count: 0 });
-    await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: atVerdict ? kept : null });
+    await serialWrite(OVERFLOW_KEY, async () => {
+        await overflowStore.patch(RECORD, { count: 0 });
+        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: atVerdict ? kept : null });
+    });
     log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}.`);
     return true;
 }
@@ -460,13 +505,15 @@ export async function liftOverflowCount() {
     const count = Math.round(Number(stored.count));
     const lifting = Number.isFinite(count) && count > 0;
     if (lifting) {
-        await overflowStore.patch(RECORD, { count }, { weak: true, fillOnly: true });
+        await serialWrite(OVERFLOW_KEY, () => overflowStore.patch(RECORD, { count }, { weak: true, fillOnly: true }));
         await overflowStore.idle();
     }
     const held = overflowStore.persisted(RECORD)?.count;
     if (!lifting || (held !== null && held !== undefined)) {
-        const now = game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {};
-        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: now.active ?? null });
+        await serialWrite(OVERFLOW_KEY, async () => {
+            const now = game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {};
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: now.active ?? null });
+        });
     }
     if (Object.hasOwn(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}, "count")) {
         throw new Error("the overflow's count did not read back from the GM store and is still in world data; the next load tries again");
@@ -605,54 +652,62 @@ export async function checkOverflow({ ahead = false } = {}) {
         if (!target) return null;
 
         await overflowStore.whenHydrated();
-        const now = state();
+        // The count read and paid, and the stamp armed, in one step of `OVERFLOW_KEY` (E17 C0): a spill queued
+        // beside the payment lands on the count it leaves, not on the one it read.
+        const plan = await serialWrite(OVERFLOW_KEY, async () => {
+            const now = state();
 
-        // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
-        // this Eclipse ahead opens it. Paid for and announced in the trial: no count, no card.
-        if (now.active?.pending) {
-            const armed = { ...target, effect: now.active.effect };
-            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: armed });
-            log(`Despair overflow: the ${armed.effect} announced in the trial now covers ${target.timeOfDay}.`);
-            return armed;
-        }
+            // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
+            // this Eclipse ahead opens it. Paid for and announced in the trial: no count, no card.
+            if (now.active?.pending) {
+                const armed = { ...target, effect: now.active.effect };
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: armed });
+                log(`Despair overflow: the ${armed.effect} announced in the trial now covers ${target.timeOfDay}.`);
+                return { armed };
+            }
 
-        // Already armed for exactly this time of day: the Eclipse got there
-        // first. Not a failure and not worth a log line - it is the normal path
-        // whenever a table uses Eclipses at all.
-        if (same(now.active, target)) return null;
+            // Already armed for exactly this time of day: the Eclipse got there
+            // first. Not a failure and not worth a log line - it is the normal path
+            // whenever a table uses Eclipses at all.
+            if (same(now.active, target)) return null;
 
-        const threshold = overflowThreshold();
-        if (now.count < threshold) return null;
+            const threshold = overflowThreshold();
+            if (now.count < threshold) return null;
 
-        /*
-         * NOTHING IN THE HAT, NOTHING HAPPENS - AND NOTHING IS PAID.
-         *
-         * A GM who has unticked all eight has turned the mechanic off; charging
-         * the threshold for a debuff that cannot be drawn would quietly empty a
-         * counter they are watching climb, which is the opposite of off.
-         */
-        const pool = overflowPool();
-        if (!pool.length) {
-            log("Despair overflow reached its threshold with an empty pool: nothing drawn, "
-                + "nothing paid.");
-            return null;
-        }
+            /*
+             * NOTHING IN THE HAT, NOTHING HAPPENS - AND NOTHING IS PAID.
+             *
+             * A GM who has unticked all eight has turned the mechanic off; charging
+             * the threshold for a debuff that cannot be drawn would quietly empty a
+             * counter they are watching climb, which is the opposite of off.
+             */
+            const pool = overflowPool();
+            if (!pool.length) {
+                log("Despair overflow reached its threshold with an empty pool: nothing drawn, "
+                    + "nothing paid.");
+                return null;
+            }
 
-        // One of them, evenly. A weighted draw was tempting and is a second
-        // dial nobody asked for; eight equal chances is a rule a table can hold
-        // in its head.
-        const drawn = pool[Math.floor(Math.random() * pool.length)];
+            // One of them, evenly. A weighted draw was tempting and is a second
+            // dial nobody asked for; eight equal chances is a rule a table can hold
+            // in its head.
+            const drawn = pool[Math.floor(Math.random() * pool.length)];
 
-        // PAYS X, KEEPS THE REST. A counter that zeroed itself would punish a
-        // Monokuma for the timing of a boundary they do not control.
-        //
-        // Two writes since E05 C12 - the GMs' count, the world's stamp - and the
-        // count first: a failure between them leaves the counter paid and nothing
-        // armed, the side `runOverflowEvent` below also falls on, rather than a
-        // darkening armed on a count that would pay for it again next boundary.
-        const left = now.count - threshold;
-        await overflowStore.patch(RECORD, { count: left });
-        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
+            // PAYS X, KEEPS THE REST. A counter that zeroed itself would punish a
+            // Monokuma for the timing of a boundary they do not control.
+            //
+            // Two writes since E05 C12 - the GMs' count, the world's stamp - and the
+            // count first: a failure between them leaves the counter paid and nothing
+            // armed, the side `runOverflowEvent` below also falls on, rather than a
+            // darkening armed on a count that would pay for it again next boundary.
+            const left = now.count - threshold;
+            await overflowStore.patch(RECORD, { count: left });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
+            return { drawn, left, threshold };
+        });
+        if (!plan) return null;
+        if (plan.armed) return plan.armed;
+        const { drawn, left, threshold } = plan;
 
         // The two that are events happen HERE and never again. Before the card,
         // so a GM reading "every project lost a point" can look at the projects

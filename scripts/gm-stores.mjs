@@ -626,7 +626,8 @@ export const trapPlantStore = defineGmStore({
  * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05 C1; audit S09-05, D3). A row per
  * countdown id: `killerId`, `by`, `condition`, `trigger` - projectMeta's four fields until 1.2.64,
  * which every browser held - and, on a repair's row, `saboteur`, the user who asked for the sabotage
- * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
+ * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`), and beside it `sabotageAsk`, the request a
+ * player's Sabotage came under (E18 C7; projects.mjs `sabotageOfRequest`: its resend is answered this repair). `trigger` is split, a stamp per part, so the primary stamping a trap fired
  * and another GM re-arming it keep theirs (projects-secrecy.mjs `patchTrigger`). No old key: the first rows
  * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
  * project - its row in projectMeta, or its countdown. Since E36 C1 also `keptFor`, `{ actorId, messageId }`:
@@ -847,6 +848,58 @@ export const rifleStore = defineGmStore({
     name: "rifles", key: SETTINGS.gmRifles,
     kind: "ledger", resetGroup: "stashesFound", backup: false, sync: true,
     exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
+ * THE LAST CROSSING OF EACH CHARACTER (E17 C3, 26.10.2026; audit S07-16, D18: "the charge on the drop stays, and the GM
+ * gets Refund last crossing"). A row per character, its newest crossing from one room to another: `{ id, tokenId, sceneId,
+ * from, to, back, kind, eclipse, via, mark, at, refunded }` - `back` the spot the token stood on before it (x, y,
+ * elevation and level; a tunnel's entry), `kind` what it cost ("free", "sprint", "burst", "action", "eclipse", "none",
+ * or null while nothing was seen spent), `eclipse` the Eclipse it was counted in, `via` "tunnel" for a 'Go through',
+ * `mark` the time of day it was made in. Written by the primary alone, from what it saw (movement.mjs `noteCrossing`,
+ * `noteCrossingPrice`) or did (passages-gm.mjs `crossTunnel`), in a step of the character's `crossingKey`; given back
+ * once (`refundLastCrossing`). The audit's fix named a player flag `lastCrossing`, which the player's own console could
+ * write to set the price a GM gives back: the GMs' memory instead (the stage's design note 8). Synced, so that a second
+ * GM's window shows the button; not backed up: a row is worth one crossing, and a restore that lost one loses a refund,
+ * never gives one. Cut by the reset's "actions" group with the budgets its prices come out of. No player copy and no old
+ * key.
+ */
+export const crossingStore = defineGmStore({
+    name: "crossings", key: SETTINGS.gmCrossings,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16). A record, `{ at }`: `serverNow()` written by the primary GM
+ * every `CLOCK_BEAT_MS` (60 s, a design number: the stopwatch's error bound across two sessions) while the world runs
+ * (hud.mjs `beatClock`) - the last moment a primary is known to have been at the table. A world that loads paused fires
+ * no `pauseGame`, so the week between two sessions was time of day; at `ready` the primary reads this and counts the gap
+ * since it as a pause (`settleClockAtReady`). Synced to the GMs online at the time it is written, so a GM who was not
+ * online, or who opens the world on another computer, holds none or an older one: `readyPatch` reads it beside the
+ * clock's own last write (`writtenAt`, E17 fix p2-G1), which every GM's browser holds. Not
+ * backed up (a restore's old beat would only shorten what is subtracted, and a beat from before the time of day began
+ * is not read); no reset group: a beat older than the clock's `timeOfDayStartedAt` reads as none. No player copy.
+ */
+export const clockBeatStore = defineGmStore({
+    name: "clockBeat", key: SETTINGS.gmClockBeat,
+    kind: "record", fields: ["at"], backup: false, sync: true
+});
+
+/**
+ * WHAT THE LAST BOUNDARY CHANGED, TO TAKE BACK (E17 fix ci-2, 26.10.2026; E17 C7's `lastAdvance`, audit S10-42). A
+ * record, `{ lastAdvance }`: clock.mjs `boundaryMemory`'s `{ for, at, snapshot, refilledBefore, previous }`, or null -
+ * the boundary's stamp, when, and every character's budget keyed by actor id, the rooms' search tokens and the seals
+ * as they stood before it. On the clock until this commit, where every player's browser held every character's id
+ * under it, the killer's among them (72-canary's world scan, CI run 40402423765). Written by clock.mjs `setClock` alone,
+ * in the clock's step: a patch's `lastAdvance`, and null with a write that moves the calendar or ends an Eclipse by
+ * hand; read beside the clock by `withTakeBack`. Synced, so another GM takes back what this one advanced; not backed
+ * up: it is worth five minutes (`TAKE_BACK_MS`), and a restore that lost it loses a take-back, never gives one. Cut by
+ * the reset's "clock" group with the clock it belongs to. No player copy and no old key.
+ */
+export const takeBackStore = defineGmStore({
+    name: "takeBack", key: SETTINGS.gmTakeBack,
+    kind: "record", fields: ["lastAdvance"], resetGroup: "clock", backup: false, sync: true
 });
 
 /**

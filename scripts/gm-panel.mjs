@@ -21,7 +21,7 @@ import { roomOfToken } from "./movement.mjs";
 import { trialScene } from "./rooms.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
-import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore, crossingStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -771,7 +771,7 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
                     : state === "dead"
                         ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${
                             game.i18n.localize("DRPG.Monocub.invite")}</button>`
-                        : ""}</td>
+                        : ""}${refundButton(a)}</td>
         </tr>`;
     }).join("");
 
@@ -788,6 +788,21 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
             <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
         </tr></thead><tbody>${buildRows()}</tbody></table>
     </div>`;
+}
+
+/*
+ * REFUND LAST CROSSING (E17 C3, 26.10.2026; audit S07-16, D18). On the row of a character whose newest crossing the GMs
+ * hold and have not given back (gm-stores.mjs `crossingStore`); its tooltip names the two rooms. One click gives it back
+ * on the primary GM (gm-bridge.mjs `requestRefundCrossing`, movement.mjs `refundLastCrossing`); the store's change
+ * redraws the row on every GM (`drpgCrossingsChanged`), so the button goes once it is used, wherever it was pressed.
+ */
+function refundButton(actor) {
+    const row = crossingStore.get(actor.id);
+    if (!row || row.refunded) return "";
+    const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
+    const note = game.i18n.format("DRPG.Panel.refundCrossingNote", { from: row.from ?? outside, to: row.to ?? outside });
+    return ` <button type="button" class="drpg-mini-button" data-drpg-refund="${esc(actor.id)}" data-tooltip="${esc(note)}">${
+        game.i18n.localize("DRPG.Panel.refundCrossing")}</button>`;
 }
 
 // The per-row buttons act at once rather than waiting for Apply: each one
@@ -868,6 +883,9 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
     // No window of its own, so the table stays where it is (E6).
     wireAliveRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
         { keepOpen: true });
+    // Nothing of its own to open either (E17 C3): the store's change redraws the row.
+    wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
+        { keepOpen: true });
 
     for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
         button.addEventListener("click", async ev => {
@@ -893,7 +911,8 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
     }
 }
 
-async function openWhoIsAliveDialog() {
+/** The Students window (the panel's tile); exported for tier 2's click of its Refund last crossing (E17 fix e1-G2). */
+export async function openWhoIsAliveDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -993,7 +1012,7 @@ async function openWhoIsAliveDialog() {
                 region: ".drpg-alive-live",
                 build: table,
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign.
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged"] },
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged"] },
                 after: wireAll
             });
         },

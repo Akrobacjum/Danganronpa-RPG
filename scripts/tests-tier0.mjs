@@ -2317,10 +2317,11 @@ const REGRESSIONS = [
         const seize = bodyOf(src, "async function seizeFloor");
         ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
 
-        ok(/let seizing = Promise\.resolve\(\);/.test(src),
+        // One key of the one queue since E17 C0 (`SEIZE_KEY`; the hand-made `seizing` chain before it); R991 reads the rest.
+        ok(/export const SEIZE_KEY = "trial\.seize";/.test(src),
             "the seizures are no longer serialised, so two cards can both buy the same minute");
-        ok(/seizing = seizing\s*\n?\s*\.then\(/.test(src),
-            "the hook no longer chains onto the serialising promise");
+        ok(/serialWrite\(SEIZE_KEY, \(\) => seizeFloor\(/.test(src),
+            "the hook no longer queues its seizure on the seizures' key");
 
         ok(seize.includes("payPrice(") && seize.includes("refundPrice("),
             "the seizure stopped paying, or stopped handing it back when the floor did not move");
@@ -4775,7 +4776,8 @@ const REGRESSIONS = [
         const despair = stripComments(sources.get("despair.mjs") ?? "");
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         const adjust = bodyOf(despair, "export async function adjustDespair(", { until: "\nexport " });
-        ok(/sendDespairToPrimary\(userId, delta\)/.test(adjust),
+        // The pip's `clamp` rides along since E17 fix e1-G4 (`routeToPrimary`, below `adjustDespair` and read with it).
+        ok(/sendDespairToPrimary\(userId, delta(?:, \{ clamp \})?\)/.test(adjust),
             "an assistant GM's Despair is not sent to the primary");
         ok(!/requestDespairAdjust|hasGm/.test(adjust),
             "adjustDespair reaches for a road that loops or a name that is not exported");
@@ -5686,6 +5688,8 @@ const REGRESSIONS = [
             withdrawOnPrimary: "refused",
             // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
             crossTunnel: "refused", crossingWhy: "returns",
+            // E17 C3: "Refund last crossing", given back on the primary (movement.mjs), whose run passes its `{ refused }` on.
+            refundLastCrossing: "refused",
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
@@ -5960,10 +5964,13 @@ const REGRESSIONS = [
            is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). E80 fix
            r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. The
            GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
-           with its actor, dropped as the actor is deleted. */
+           with its actor, dropped as the actor is deleted. The primary's beat (E17 C6, 26.10.2026) is the last moment a
+           primary was at the table, which a season does not change: a beat older than the clock's time of day reads as
+           none (hud.mjs `readyPatch`). */
         const UNCUT = {
             "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
-            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor"
+            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor",
+            "the store clockBeat": "the primary's last beat is no season's; one older than the time of day's start reads as none"
         };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
@@ -8268,7 +8275,10 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
             ["SHEET movement.mjs#bedroomShut", "held on the primary: the bedroom rule of the student `restrictedFrom` is handed - the document on the mover's browser, the GMs' mark from `judgeArrival` (`itemsHeldNow`) on the primary - read through bedroom-keys.mjs, the one rule `mayEnterBedroom` and `keysHeldBy` read too: a key in hand only, never a stashed one (S08-31), and in the Investigation the room of an owner whose death is published (`isDeceased`, the table's flag) open (S08-55, D15) [1b.2] (E14 part 1 C2)"],
             ["SHEET movement.mjs#passageOpenFor", "out of scope as a judgement: on the viewer's own browser, whether its outline draws a secret passage as a gap (fog-doorways.mjs `doorwayEdges`, never on a GM's) - the passages its own copy names and `restrictedFrom` with `via: \"passage\"` on the document; it moves nothing, and the step itself is the veto's and the primary's (E79 C3, R557)"],
-            ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
+            ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a) until E17 C1, since which a player's arrival a doors' rule refuses (`ruleOf`) keeps the rule and the last lawful spot on its standing, which the GMs' audit puts the token back to (`ruleRefused`, `auditMove`) and a refused drop is removed for (`noteGmCreated`); scenario 66 I and two tier-2 tests, E17-T2 and E17-T3 [1b.2] MARKED"],
+            ["SHEET movement.mjs#sendBackRuleOf", "judged on the primary (E17 C1): the rule a `token.sendBack`'s place meets, for `guardSendbackPlace` - a room the judge read the token standing in lawfully is its way back, any other a crossing from the last lawful room by `crossingVerdict` with no price, the student read held (`flagsHeldNow`, `itemsHeldNow`) as `judgeArrival` reads it, the sender the mover; E17-T3 [1b.2] MARKED"],
+            ["SHEET movement.mjs#eclipseSighting", "judged on the primary (E17 C2): the Monokuma flag of the student `judgeArrival` hands it, as the GMs hold it (`flagsHeldNow`), the clock and the Eclipse's count in the GMs' store (`eclipseMoveStore`); a Monokuma's move is no sighting, and nothing of the mover's browser is read"],
+            ["SHEET movement.mjs#noteCrossing", "judged on the primary (E17 C3): the Monokuma flag of the student `judgeArrival` hands it, as the GMs hold it (`flagsHeldNow`), and the purse of the document as the move reaches the primary - the free Move, the Sprints, the Bursts and the actions a crossing's price comes out of - kept to read the price off the player's next write of it (`noteCrossingPrice`); a lawful crossing only, recorded in the GMs' store (`crossingStore`), nothing written to the student"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
             ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step; since E14 part 1 C2 the keys in hand only (bedroom-keys.mjs `keyRooms`: a stashed key opens nothing, its place judged as its room is, `placeStands`), the stash's too only with `stashed: true` (`grantBedroomKey`, the GMs' list of keys to give) [1b.2]"],
@@ -8767,6 +8777,7 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestRefundCrossing", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; another GM's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E17 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -9594,6 +9605,7 @@ const REGRESSIONS = [
             ["OPT movement-audit.mjs#auditMove#REVERT -> exempt", "a claim, judged: exempt only where `sendBackRefusal` accepts the spot against the GMs' record of the token, which holds no spot the audit put it back from (E79 fix r1-G1); a GM's move is exempt by the hook's user, and Foundry's teleport and displace are never read (R559; 76 D)"],
             ["OPT movement-audit.mjs#auditMove#SENT_BACK -> exempt", "a claim, judged as REVERT is; on a GM's write it names the player who asked the bridge's send-back (`askerOf`, E79 fix r2-G1), judged then as the mover: exempt only to a spot of the GMs' record, a centre across a wall a crossing (R559; 76 D)"],
             ["IGN movement.mjs#sendBack -> write", "the one road of a refusal's put-back, the audit's included: back to where the token stood, so a wall between the two does not stop it (R559)"],
+            ["IGN movement.mjs#refundLastCrossing -> write", "a GM's 'Refund last crossing' (E17 C3), on the primary in a step of the character's key: the token stood again on the spot the GMs' record holds from before the crossing (`crossingStore`'s `back`, the primary's own sighting or a tunnel's entry), so a wall between the two does not stop it, as `sendBack`'s"],
             ["IGN gm-bridge.mjs#handleSendback -> write", "the lawful send-back, written on the GM after `guardSendbackPlace` (R559; 76 D)"],
             ["ACT movement-audit.mjs#auditMove#move.sentBack -> screen", "the primary GM's word to the mover alone (`recipients`), a code and the token's ids, no geometry; sent once the put-back has landed (R559, R560; 76 D)"],
             ["ACT movement-audit.mjs#onSentBack#move.sentBack -> screen", "CLAIM: refused unless addressed to this user by the primary GM with a known code (`sentBackRefusal`); plays the refusal's sound and shows the veto's line (R559; 76 D)"],
@@ -14974,6 +14986,360 @@ const REGRESSIONS = [
         log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
         equal(JSON.stringify(broken), "[]",
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
+    }],
+
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
+        /*
+         * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
+         * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
+         * when the server answers, so two read-modify-write steps of one setting begun within a round trip both read
+         * the old value and the second overwrites the first: a Despair point lost, a room searched twice on one token,
+         * a clock field dropped. E36 queued the projects (R977 holds their roads, field by field); this is the census of
+         * the rest of session 0's list, and since E17 C9 (E17-43, audit S09-31; session 0: "R-test 'jedna kolejka'
+         * obejmuje ruch, Eclipse, Despair, zmiany projektu (E36)") of the projects too, as one row: a write of
+         * projectMeta or of Daggerheart's Countdowns (`COUNTDOWNS`, "Countdowns", relay-guard.mjs `countdownsKey()`)
+         * stands in a step of `COUNTDOWNS_KEY`, read as every other row. The row read the module clean at d2397718 but
+         * for one use: fog.mjs `carryRoomInWorld` bound `setProjectMeta` out of its `import(` outside the step it calls it
+         * in, a name the reader cannot follow; it is named in the step now. Its planted twin writes both, in a step; its
+         * fault writes both outside one. Read in the module's files without the suite's own
+         * (tests.mjs, tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const) on its own:
+         *   (a) a write - `game.settings.set(` whose key is one of the row's settings, an `overflowStore.patch(` or
+         *       `eclipseMoveStore.patch(`, a call of movement.mjs `settleCrossingOnGm`/`refundCrossingOnGm` (a tunnel's
+         *       price, A10), of trial.mjs `seizeFloor`/`refusePlayersCard` (a seizure) - stands in a step of its
+         *       row's key: inside the arguments of a `serialWrite(` whose first argument is that key (`KEY`,
+         *       `x.KEY`, or for the crossings `crossingKey(...)`), or in a top-level statement every use of whose name -
+         *       in its own file and in the files that import it, statically or through `import(` - lies in such a step
+         *       or in another statement read so (R977's reading); the table it prints is (row, file#statement, key);
+         *   (b) movement.mjs `settleRoute` and trial.mjs `objectOnPrimary` each hold a step of their key (the primary's
+         *       charge of a door move when no owner is connected, and the Objection held across its whole judgement);
+         *   (c) trial.mjs names no `seizing` (the chain E79 left, which ordered the hook's seizures and not the bridge's);
+         *   (d) since E17 fix e1-G3 (the review's E17P1-R3: season-setup.mjs's reset wrote the search tokens through
+         *       `emptied(SETTINGS.searchTokens, {})`, a writer of a key held in a variable, outside `SEARCH_KEY`): a row's
+         *       setting is handed to no call but `game.settings.get`/`set`/`register`, `getSetting` and `onWorldChange` -
+         *       a key passed into any other call is a write (or a read) this census cannot follow, so it is refused.
+         * What it does not read: a setting key built in a variable, a name imported under another
+         * name, and a crossing the owner's browser pays (`shouldCharge`: the owner's spend stays the owner's stamped
+         * write, as at Base; design note 20). The Eclipse's `patchMany` (an owner's copy merged) and `clear` (the
+         * Eclipse's end) are not rows. The reader is shown planted source first: a clean twin that must read clean,
+         * then one fault of each rule alone. Red at 9f727e07 (1.2.86): no key of the six exists, so every write of
+         * every row stands outside a step, settleRoute and objectOnPrimary hold none, and trial.mjs keeps `seizing`.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const KEYS = {
+            despair: /^(?:[\w$]+\s*\.\s*)?DESPAIR_KEY$/, searchTokens: /^(?:[\w$]+\s*\.\s*)?SEARCH_KEY$/,
+            clock: /^(?:[\w$]+\s*\.\s*)?CLOCK_KEY$/, overflow: /^(?:[\w$]+\s*\.\s*)?OVERFLOW_KEY$/,
+            seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/,
+            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/
+        };
+        const SETS = [["despair", /^SETTINGS\s*\.\s*(?:despairPools|poolNames|extraPoolUsers)$/], ["searchTokens", /^SETTINGS\s*\.\s*searchTokens$/],
+            ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/],
+            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/]];
+        const CALLS = [["overflow", /(?<![\w$])overflowStore\s*\.\s*patch\s*\(/g], ["crossing", /(?<![\w$])eclipseMoveStore\s*\.\s*patch\s*\(/g],
+            ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
+            ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
+        const HOLDS = [["movement.mjs", "settleRoute", "crossing"], ["trial.mjs", "objectOnPrimary", "seize"]];
+        const READERS = /^(?:game\.settings\.(?:get|set|register)|getSetting|onWorldChange)$/;
+        const KEYWORDS = new Set(["if", "while", "for", "switch", "return", "catch", "function", "typeof", "await", "new"]);
+        // The call a match at `at` is a direct argument of: its callee as written (spaces dropped), or null in a bracket or a brace.
+        const calleeAround = (blank, at) => {
+            for (let i = at - 1, depth = 0; i >= 0; i--) {
+                const c = blank[i];
+                if (c === ")" || c === "]" || c === "}") depth++;
+                else if (c === "(" || c === "[" || c === "{") {
+                    if (depth > 0) { depth--; continue; }
+                    if (c !== "(") return null;
+                    const name = (blank.slice(Math.max(0, i - 120), i).match(/([\w$]+(?:\s*\.\s*[\w$]+)*)\s*$/)?.[1] ?? "").replace(/\s+/g, "");
+                    return name && !KEYWORDS.has(name) ? name : null;
+                } else if (c === ";" && depth === 0) return null;
+            }
+            return null;
+        };
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const blankOut = s => s.replace(/[^\n]/g, " ");
+
+        const censusOf = sources => {
+            const read = Object.fromEntries(Object.keys(KEYS).map(k => [k, 0]));
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => {
+                    d.end = decls[i + 1]?.start ?? blank.length;
+                    d.id = `${file}#${d.name ?? `L${lineAt(code, d.start)}`}`;
+                });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                const uses = blank.replace(/^import\s[^;]*;|^export\s*\{[^}]*\}[^;\n]*;?/gm, blankOut);
+                const names = new Map();
+                for (const m of uses.matchAll(/[A-Za-z_$][\w$]*/g)) {
+                    if (!names.has(m[0])) names.set(m[0], []);
+                    names.get(m[0]).push(m.index);
+                }
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    const key = args[0] ? Object.keys(KEYS).find(k => KEYS[k].test(code.slice(args[0].start, args[0].end).trim())) : null;
+                    if (key) steps.push([m.index, close, key]);
+                }
+                return { file, code, blank, decls, declAt, names, imports, steps };
+            });
+            const named = files.flatMap(f => f.decls.filter(d => d.name).map(d => ({ f, d })));
+            const usesOf = ({ f: home, d }) => files.flatMap(f => f === home || f.imports.has(home.file)
+                ? (f.names.get(d.name) ?? []).filter(i => f !== home || i < d.start || i >= d.end).map(i => ({ f, i, at: f.declAt(i)?.id })) : []);
+            const usesBy = new Map(named.map(n => [n.d.id, usesOf(n)]));
+            const inStepOf = key => {
+                const rootAt = (f, i) => f.steps.some(([a, b, k]) => k === key && i > a && i < b);
+                const held = new Set();
+                const marked = [...usesBy].map(([id, list]) => [id, list.map(u => [rootAt(u.f, u.i), u.at])]);
+                for (let grew = true; grew;) {
+                    grew = false;
+                    for (const [id, list] of marked) {
+                        if (held.has(id) || !list.length || !list.every(([root, at]) => root || held.has(at))) continue;
+                        held.add(id);
+                        grew = true;
+                    }
+                }
+                return (f, i) => rootAt(f, i) || held.has(f.declAt(i)?.id);
+            };
+            const inStep = Object.fromEntries(Object.keys(KEYS).map(k => [k, inStepOf(k)]));
+
+            const table = [], broken = new Set();
+            const note = (key, f, i) => {
+                const where = f.declAt(i)?.id ?? `${f.file}#L${lineAt(f.code, i)}`;
+                read[key]++;
+                const queued = inStep[key](f, i);
+                table.push(`${key} ${where} ${queued ? key : "outside"}`);
+                if (!queued) broken.add(`${key} outside ${where}`);
+            };
+            for (const f of files) {
+                for (const m of f.blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    const text = args[1] ? f.code.slice(args[1].start, args[1].end).trim() : "";
+                    const row = SETS.find(([, setting]) => setting.test(text));
+                    if (row) note(row[0], f, m.index);
+                }
+                for (const [key, re] of CALLS) for (const m of f.blank.matchAll(re)) note(key, f, m.index);
+                if (f.file === "trial.mjs" && f.names.has("seizing")) broken.add("chain trial.mjs seizing");
+                // (d) a row's setting handed to a call the census cannot follow.
+                for (const m of f.blank.matchAll(/(?<![\w$])SETTINGS\s*\.\s*([\w$]+)/g)) {
+                    if (!SETS.some(([, setting]) => setting.test(`SETTINGS.${m[1]}`))) continue;
+                    const callee = calleeAround(f.blank, m.index);
+                    if (callee && !READERS.test(callee)) broken.add(`through ${callee} ${f.declAt(m.index)?.id ?? f.file}`);
+                }
+            }
+            for (const [file, name, key] of HOLDS) {
+                const f = files.find(g => g.file === file), d = f?.decls.find(e => e.name === name);
+                if (!d || !f.steps.some(([a, , k]) => k === key && a > d.start && a < d.end)) broken.add(`holds ${file}#${name} ${key}`);
+            }
+            return { broken: [...broken].sort(), read, table: table.sort() };
+        };
+
+        const clean = {
+            "despair.mjs": [
+                "import { serialWrite } from \"./utils.mjs\";",
+                "export const DESPAIR_KEY = \"despair\";",
+                "async function writePools(store) { await game.settings.set(MODULE_ID, SETTINGS.despairPools, store); }",
+                "export function setDespair(id, n) { return serialWrite(DESPAIR_KEY, () => writePools({ [id]: n })); }",
+                "export async function prunePools() { await serialWrite(DESPAIR_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.poolNames, {}); }); }",
+                "export function shown() {",
+                "    // await game.settings.set(MODULE_ID, SETTINGS.despairPools, {});",
+                "    return \"game.settings.set(MODULE_ID, SETTINGS.despairPools, {})\";",
+                "}",
+                "export async function setShown() { await game.settings.set(MODULE_ID, SETTINGS.despairShown, {}); }"
+            ],
+            "search-tokens.mjs": [
+                "export const SEARCH_KEY = \"searchTokens\";",
+                "export class SearchTokens {",
+                "    static async reset() { return serialWrite(SEARCH_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, {}); return true; }); }",
+                "}"
+            ],
+            "clock.mjs": [
+                "export const CLOCK_KEY = \"clock\";",
+                "export async function setClock(patch) {",
+                "    const next = await serialWrite(CLOCK_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.clock, patch); return patch; });",
+                "    return next;",
+                "}"
+            ],
+            "overflow.mjs": [
+                "export const OVERFLOW_KEY = \"overflow\";",
+                "export async function addOverflow(n) { await serialWrite(OVERFLOW_KEY, () => overflowStore.patch(RECORD, { count: n })); }",
+                "export async function resetOverflow() {",
+                "    await serialWrite(OVERFLOW_KEY, async () => { await overflowStore.patch(RECORD, { count: 0 }); await game.settings.set(MODULE_ID, SETTINGS.overflow, {}); });",
+                "}"
+            ],
+            "eclipse.mjs": [
+                "import { crossingKey } from \"./movement.mjs\";",
+                "export async function countInStep(id) { await eclipseMoveStore.patch(id, { used: 1 }); }",
+                "export function applyRecordedMove(id) { return serialWrite(crossingKey(id), () => countInStep(id)); }"
+            ],
+            "movement.mjs": [
+                "export function crossingKey(id) { return `crossing/${id}`; }",
+                "export async function settleCrossingOnGm(actor) { const E = await import(\"./eclipse.mjs\"); return E.countInStep(actor.id); }",
+                "export async function refundCrossingOnGm(actor) { return actor; }",
+                "async function settleRoute(tokenDoc, actor) { return serialWrite(crossingKey(actor.id), () => actor); }"
+            ],
+            "passages-gm.mjs": [
+                "export async function crossTunnel({ actorId }) {",
+                "    const { crossingKey } = await import(\"./movement.mjs\");",
+                "    return serialWrite(crossingKey(actorId), async () => {",
+                "        const M = await import(\"./movement.mjs\");",
+                "        const paid = await M.settleCrossingOnGm(actorId);",
+                "        await M.refundCrossingOnGm(actorId, paid);",
+                "    });",
+                "}"
+            ],
+            "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "async function seizeFloor(message) { return message; }",
+                "async function refusePlayersCard(message) { return message; }",
+                "export function registerTrial() {",
+                "    Hooks.on(\"createChatMessage\", message => {",
+                "        if (message.player) { serialWrite(SEIZE_KEY, () => refusePlayersCard(message)).catch(() => {}); return; }",
+                "        serialWrite(SEIZE_KEY, () => seizeFloor(message)).catch(() => {});",
+                "    });",
+                "}",
+                "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
+            ],
+            "projects-secrecy.mjs": [
+                "export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;",
+                "export async function writeAllCountdowns(data) { await game.settings.set(DH, COUNTDOWNS, data); }",
+                "export async function setProjectMeta(id, data) { await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { [id]: data }); }",
+                "export async function liftAll(data) { await serialWrite(COUNTDOWNS_KEY, async () => { await writeAllCountdowns(data); await setProjectMeta(\"a\", {}); }); }"
+            ],
+            "tests-tier2.mjs": [
+                "export const T = async () => { await game.settings.set(MODULE_ID, SETTINGS.despairPools, {}); };"
+            ]
+        };
+        const faults = {
+            "a Despair write outside a step": [{ "despair.mjs": [...clean["despair.mjs"],
+                "export async function fillAllDespair() { await game.settings.set(MODULE_ID, SETTINGS.despairPools, {}); }"
+            ] }, ["despair outside despair.mjs#fillAllDespair"]],
+            "a step of another key": [{ "search-tokens.mjs": [...clean["search-tokens.mjs"].slice(0, -1),
+                "    static async exhaust(room) { return serialWrite(DESPAIR_KEY, async () => { await game.settings.set(MODULE_ID, SETTINGS.searchTokens, { [room]: 0 }); }); }",
+                "}"
+            ] }, ["searchTokens outside search-tokens.mjs#SearchTokens"]],
+            "a writer reached outside a step": [{ "despair.mjs": [...clean["despair.mjs"],
+                "export async function zeroAllDespair() { await writePools({}); }"
+            ] }, ["despair outside despair.mjs#writePools"]],
+            "the clock written outside": [{ "clock.mjs": [
+                "export async function setClock(patch) { await game.settings.set(MODULE_ID, SETTINGS.clock, patch); return patch; }"
+            ] }, ["clock outside clock.mjs#setClock"]],
+            "the overflow's count outside": [{ "overflow.mjs": [...clean["overflow.mjs"],
+                "export async function takeOverflow(n) { await overflowStore.patch(RECORD, { count: n }); }"
+            ] }, ["overflow outside overflow.mjs#takeOverflow"]],
+            "the Eclipse's count on another key": [{ "eclipse.mjs": [...clean["eclipse.mjs"].slice(0, -1),
+                "export function applyRecordedMove(id) { return serialWrite(`passage.cross/${id}`, () => countInStep(id)); }"
+            ] }, ["crossing outside eclipse.mjs#countInStep"]],
+            "a tunnel's price outside the queue": [{ "passages-gm.mjs": [
+                "export async function crossTunnel({ actorId }) {",
+                "    const M = await import(\"./movement.mjs\");",
+                "    return M.settleCrossingOnGm(actorId);",
+                "}"
+            ] }, ["crossing outside eclipse.mjs#countInStep", "crossing outside passages-gm.mjs#crossTunnel"]],
+            "the primary's door charge outside the queue": [{ "movement.mjs": [...clean["movement.mjs"].slice(0, -1),
+                "async function settleRoute(tokenDoc, actor) { return actor; }"
+            ] }, ["holds movement.mjs#settleRoute crossing"]],
+            "a hand-made seizure chain": [{ "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "let seizing = Promise.resolve();",
+                "async function seizeFloor(message) { return message; }",
+                "export function registerTrial() { Hooks.on(\"createChatMessage\", message => { seizing = seizing.then(() => seizeFloor(message)); }); }",
+                "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
+            ] }, ["chain trial.mjs seizing", "seize outside trial.mjs#registerTrial"]],
+            "a project's row and the Countdowns written outside the queue": [{ "projects.mjs": [
+                "import { setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "export async function moveProject(id, room) { await setProjectMeta(id, { room }); }",
+                "export async function wipeCountdowns() { await game.settings.set(DH, \"Countdowns\", {}); }"
+            ] }, ["projects outside projects-secrecy.mjs#setProjectMeta", "projects outside projects.mjs#wipeCountdowns"]],
+            "a setting handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
+                "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
+                "export const RESETS = { searchTokens: wipe(SETTINGS.searchTokens, {}) };"
+            ] }, ["through wipe season-setup.mjs#RESETS"]]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const twin = censusOf(planted(clean));
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3, projects: 2 }]),
+            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings', 2 projects') - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs"].every(file => sources.has(file)),
+            "a file of the census is not served - this test reads nothing until it is");
+        const { broken, read, table } = censusOf(sources);
+        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4
+            && read.projects >= 6,
+            `${JSON.stringify(read)} writes read in the module - this would measure nothing`);
+        log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
+        equal(JSON.stringify(broken), "[]",
+            "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
+    }],
+
+    ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {
+        /*
+         * E17 C1, 26.10.2026; E17-11, A10 ("po regule ścian, bez drugiego listenera i bez zwolnień z opcji pakietu;
+         * REVERT zostaje z `constrainOptions: { ignoreWalls: true }`"). The rules were put back nowhere on the GM; now
+         * the audit's one road (R560: one call site, the primary's sighting) asks them. Read in the module's files,
+         * comments blanked: (a) `auditMove`'s body calls `ctx.ruleRefused(` exactly once, and returns a clear move and a
+         * noted one through it after `ctx.floorRefused(`;
+         * (b) that call stands in the closure `const rules = ...`, which names no `options`; (c) no `return` in
+         * `auditMove` hands back a clear move (`verdict: "clear"`) or a noted one (`mode: "log"`) but through that
+         * closure; (d) movement.mjs `noteGmPosition` hands `ruleRefused` in, and no file but these two names it (no
+         * second reader or listener); (e) movement.mjs `sendBack` writes with `constrainOptions: { ignoreWalls: true }`.
+         * Shown planted source first: a clean twin, then one fault of each rule alone. Red at 22207d2c: (a) to (d).
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const readOf = files => {
+            const broken = [];
+            const audit = topLevelFunction(stripComments(files.get("movement-audit.mjs") ?? ""), "auditMove");
+            const move = stripComments(files.get("movement.mjs") ?? "");
+            if (!audit) return ["no auditMove"];
+            const asks = [...audit.matchAll(/ctx\.ruleRefused\(/g)].length, floor = audit.search(/ctx\.floorRefused\(/);
+            const clear = audit.search(/return rules\(\{\s*verdict:\s*"clear"/), noted = audit.search(/return rules\(\{[^}]*mode:\s*"log"/);
+            if (asks !== 1) broken.push(`asks ${asks}`);
+            if (floor < 0 || [clear, noted].some(at => at >= 0 && at < floor)) broken.push("before the floors");
+            const closure = audit.match(/const rules = [^]*?\n {8}\};/)?.[0] ?? null;
+            if (!closure || !closure.includes("ctx.ruleRefused(")) broken.push("no closure");
+            else if (/\boptions\b/.test(closure)) broken.push("an option");
+            if (/return\s*\{\s*verdict:\s*"clear"/.test(audit) || /return\s*\{[^}]*mode:\s*"log"\s*\}/.test(audit)) broken.push("unasked");
+            const seen = topLevelFunction(move, "noteGmPosition");
+            if (!seen || !/\bruleRefused\b/.test(seen)) broken.push("not handed");
+            const readers = [...files].filter(([file, text]) => file.endsWith(".mjs") && !SUITE.test(file) && /\bruleRefused\b/.test(stripComments(text)))
+                .map(([file]) => file).sort();
+            if (JSON.stringify(readers) !== JSON.stringify(["movement-audit.mjs", "movement.mjs"])) broken.push(`named in ${readers.join(",")}`);
+            const back = topLevelFunction(move, "sendBack");
+            if (!back || !/constrainOptions:\s*\{\s*ignoreWalls:\s*true\s*\}/.test(back)) broken.push("walls");
+            return broken;
+        };
+        const audit = (body = "") => ["export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {", "    try {",
+            "        let mover = userId;", "        const rules = judged => {", "            const refused = mover ? ctx.ruleRefused(tokenDoc) : null;",
+            "            return refused ? { verdict: \"refused\" } : judged;", "        };", body,
+            "        const floor = ctx.floorRefused(tokenDoc);", "        if (!floor) return rules({ verdict: \"clear\" });",
+            "        return rules({ verdict: \"crossed\", mode: \"log\" });", "    } catch (err) {", "        return null;", "    }", "}"].join("\n");
+        const move = (ctx = "ruleRefused, ", walls = "constrainOptions: { ignoreWalls: true }") => [
+            "function ruleRefused(t) { return null; }",
+            `function noteGmPosition(t) { return auditMove(t, {}, {}, null, null, { ${ctx}floorRefused }); }`,
+            `async function sendBack(t, p) { await t.update(p, { ${walls} }); }`].join("\n");
+        const clean = { "movement-audit.mjs": audit(), "movement.mjs": move(), "rooms.mjs": "export const ROOM_FLAG = \"room\";" };
+        const faults = {
+            early: [{ "movement-audit.mjs": audit("        if (!was) return rules({ verdict: \"clear\" });") }, ["before the floors"]],
+            twice: [{ "movement-audit.mjs": audit("        ctx.ruleRefused(tokenDoc);") }, ["asks 2"]],
+            option: [{ "movement-audit.mjs": audit().replace("const refused = mover ?", "const refused = mover && !options?.drpgRevert ?") }, ["an option"]],
+            unasked: [{ "movement-audit.mjs": audit().replace("if (!floor) return rules({ verdict: \"clear\" });", "if (!floor) return { verdict: \"clear\" };") }, ["unasked"]],
+            noted: [{ "movement-audit.mjs": audit().replace("return rules({ verdict: \"crossed\", mode: \"log\" });", "return { verdict: \"crossed\", mode: \"log\" };") }, ["unasked"]],
+            handed: [{ "movement.mjs": move("").replace("function ruleRefused(t) { return null; }", "function ruleRefused(t) { return null; }\nexport { ruleRefused };") }, ["not handed"]],
+            other: [{ "rooms.mjs": "export function ruleRefused() { return null; }" }, ["named in movement-audit.mjs,movement.mjs,rooms.mjs"]],
+            walls: [{ "movement.mjs": move("ruleRefused, ", "animate: false") }, ["walls"]]
+        };
+        const planted = files => new Map(Object.entries(files));
+        equal(JSON.stringify(readOf(planted(clean))), "[]", "the reader does not read the clean twin clean - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, readOf(planted({ ...clean, ...files })), want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(sources.has("movement-audit.mjs") && sources.has("movement.mjs"), "the audit's files are not served - this test reads nothing until they are");
+        equal(JSON.stringify(readOf(sources)), "[]",
+            "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
     }]
 ];
 

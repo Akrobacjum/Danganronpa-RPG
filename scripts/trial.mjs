@@ -49,7 +49,7 @@ import { getClock } from "./clock.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner } from "./utils.mjs";
+    whisperToOwner, serialWrite } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -457,8 +457,7 @@ export function registerTrial() {
         if (!objection || !isPrimaryGm()) return;
 
         if (playerObjection) {
-            seizing = seizing
-                .then(() => refusePlayersCard(message))
+            serialWrite(SEIZE_KEY, () => refusePlayersCard(message))
                 .catch(err => error("Could not mark a player's objection card as refused", err));
             return;
         }
@@ -477,8 +476,7 @@ export function registerTrial() {
         // Serialised rather than fired and forgotten, and paid for inside - see
         // `seizeFloor` below, which is where every rule about an interruption that
         // costs something lives.
-        seizing = seizing
-            .then(() => seizeFloor(message, objectorId, targetId))
+        serialWrite(SEIZE_KEY, () => seizeFloor(message, objectorId, targetId))
             .catch(err => error("Could not open the objection", err));
     });
 
@@ -531,8 +529,13 @@ async function refusePlayersCard(message) {
  * one is holding. Chained, the second runs after the first `writeFloor`, and
  * `floorRefusal` then turns it down on `mode === objection` before anything is
  * charged.
+ *
+ * ONE KEY OF THE ONE QUEUE SINCE E17 C0 (26.10.2026; session 0's list: "the seizing chain from trial.mjs"). The chain
+ * was this file's own promise, and the bridge's Objection (`objectOnPrimary`) held it by hand with a release in a
+ * `finally`; both are steps of utils.mjs `serialWrite` under this key now, in the order they were asked, and a step
+ * that throws fails only its own caller (tier 0 R991, R45).
  */
-let seizing = Promise.resolve();
+export const SEIZE_KEY = "trial.seize";
 
 /**
  * Take the floor for an objection card, and charge for it.
@@ -705,13 +708,9 @@ async function seizeFloor(message, objectorId, targetId) {
  * @param {{actorId: string, targetId?: string|null}} request  `targetId` is read only with no voice Room here
  */
 export async function objectOnPrimary({ actorId, targetId = null }) {
-    // One at a time with every other seizure of the floor (`seizing`, above): two presses in one tick must not both
+    // One at a time with every other seizure of the floor (`SEIZE_KEY`, above): two presses in one tick must not both
     // read a debate and both pay. Held across the whole judgement, so the second reads the floor the first wrote.
-    const before = seizing;
-    let release = null;
-    seizing = new Promise(resolve => { release = resolve; });
-    await before;
-    try {
+    return serialWrite(SEIZE_KEY, async () => {
         const actor = game.actors.get(actorId ?? "");
         if (!actor) return { refused: "no such character" };
         if (!inClassTrial()) return { refused: "no Class Trial is in session" };
@@ -801,9 +800,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
             receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
         return { reply: { messageId: message.id, target: target.name, how,
             deadline: floor.startedAt + TRIAL.objectionPickSeconds * 1000 } };
-    } finally {
-        release();
-    }
+    });
 }
 
 /**
