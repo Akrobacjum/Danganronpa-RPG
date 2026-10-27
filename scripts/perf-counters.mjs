@@ -27,6 +27,9 @@
  *   clock.refreshSheets, clock.refreshSheets.rendered                   a sheet pass, and the sheets it rendered
  *   hud.renderHud, playerStatus.render                                  the HUD and the status strip drawn
  *   glass.pulseFrame, glass.paintBand                                   the curtain's pulse frame, a window band painted
+ *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that
+ *                                                                       wore one already drawn, a light left on its live
+ *                                                                       filter, a texture freed (fog-reveal.mjs, E88 C1)
  */
 
 const counts = new Map();

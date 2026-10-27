@@ -14,7 +14,11 @@
  * only here: `roomOutline`, the outline standing now (set by `flashOutline`,
  * cleared by `fadeRoomOutline` and `clearTransient`, read by fog.mjs's
  * `repaintFog` and fog-diagnostics.mjs's `whatIsHere`), `outlineZoom` and
- * `pixelFontReady`. What it does not hold: when a reveal plays (fog.mjs's
+ * `pixelFontReady`. And the seams' light drawn once (E88 C1): `wearHalo`,
+ * `releaseHalo`, `sweepHalos`, `restrikeHalos`, `haloStats`, `ringHalo`,
+ * `haloBlurOn`, `HALO_IO`, `HALO_BAKED`, with `bakeTexture` and
+ * `bakeOutlineHalo` - the rings' textures (own-ring.mjs, remnant-ring.mjs) and
+ * the standing outline's, in memory only (`haloCache`, `haloStruck`). What it does not hold: when a reveal plays (fog.mjs's
  * `playDiscoveryAnimation`, which reads the animations switch) or for which room
  * (`announceRoom`), the layer, the dissolve, the raster, the ledger and the
  * reports (fog.mjs), the map's checks (fog-diagnostics.mjs), the doorways and
@@ -31,8 +35,8 @@
  * fog.mjs) and `rezoomRoomOutline`; and fog-diagnostics.mjs, which reads one of
  * the twenty-one (`roomOutline`). The module's API is the one it was. Nothing
  * here imports either back (R161 would see the cycle). Below it are movement.mjs
- * (`boundsOf`), utils.mjs, motion.mjs, fog-geometry.mjs and fog-doorways.mjs (the
- * glow and the seam colour the outline is drawn with).
+ * (`boundsOf`), utils.mjs, motion.mjs, fog-geometry.mjs, fog-doorways.mjs (the
+ * glow and the seam colour the outline is drawn with) and perf-counters.mjs.
  */
 
 import { boundsOf } from "./movement.mjs";
@@ -41,8 +45,10 @@ import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
-    gmPassageGaps, withPassageGhosts, traceGhostStretches, passageCutKey, floorWalls
+    gmPassageGaps, withPassageGhosts, traceGhostStretches, passageCutKey, floorWalls, MAX_FOG_TEXTURE
 } from "./fog-doorways.mjs";
+// E88 C1: the halos drawn once count what they bake, share, leave live and free (perf-counters.mjs, a leaf).
+import { count } from "./perf-counters.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -844,6 +850,297 @@ function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
     return halo;
 }
 
+/* ==========================================================================
+ * THE SEAMS' LIGHT DRAWN ONCE (E88 C1, 27.10.2026)
+ * ========================================================================== */
+
+/**
+ * A seam's light, rendered once into a texture and shown by a sprite, instead of a `BlurFilter` run on every frame.
+ *
+ * WHY. PIXI renders the stage on every tick of `canvas.app.ticker`, so a filter on a display object that is drawn
+ * costs its passes on every frame, whatever moved. C0 counted them (scenario 86, STATUS.md "C0 numbers"): the GM's
+ * canvas with 30 Remnants and 4 students carried 34 quality-3 blurs at rest under Stained Glass, one per ring, and a
+ * player one or two; the standing room outline carries one more on any screen with a renderer (`seamHalo`). The
+ * light changes only when the seam is struck again - a size, a colour, the zoom guard, the theme, the blur switch -
+ * so it is drawn here, once, through the canvas's renderer into a RenderTexture: the same three passes, the same
+ * blur and padding, rendered through the linear part of the transform the halo is seen through (the zoom, and any
+ * turn of the map), so that the blur's screen pixels are the live filter's; and a Sprite maps the texture back.
+ *
+ * ONE TEXTURE PER FRAME SHAPE (`wearHalo`). A ring keys on what its light is made of - the token's size, the colour,
+ * the seam's weight, the transform struck, the blur on or off - and every token of one key wears the same texture:
+ * 30 Remnants of one type are one render. A texture is freed when its last wearer leaves its key or is destroyed
+ * (`releaseHalo`, `sweepHalos`). The standing outline's is its own (`bakeOutlineHalo`, `drpgOwnedTexture`).
+ *
+ * WHAT IS NOT THE SAME, said rather than rounded away. Between two re-strikes (the 0.18 log-zoom guard) the live
+ * light kept its blur in screen pixels while its strokes scaled with the map; the sprite scales whole, blur included,
+ * as the seam's core does (STAGE.md C1). A ring painted between two re-strikes is drawn at the zoom last struck, not
+ * at the zoom of that moment (`haloStruck`), which is what lets it share. The texture stops at the live filter's own
+ * padding, as the filter's output did. A shape whose texture would pass MAX_FOG_TEXTURE on a side keeps the live
+ * filter, counted `halo.live`, as does a browser with no renderer. The composite: under a blur the live light reached
+ * the map through the filter's own blend mode (PIXI 7 composites a filtered object with its filter's state), so the
+ * sprite takes the filter's; with the blur off (Look: "Szkło rozmywa mapę", the owner's Q2 on its default) the light is
+ * the three passes alone, additive as the Graphics was. Not measured here: the harness has no renderer, so the pixels
+ * are a table's (LIVE-E88-02: screenshots before and after, both themes).
+ */
+export const HALO_BAKED = "drpgHaloBaked";
+
+/* What draws the textures, as an object the suite can point at a stand-in renderer and back (R1010, scenario 86): the
+   harness's canvas has no renderer, and with none every halo stays live, as before. */
+export const HALO_IO = { renderer: () => globalThis.canvas?.app?.renderer ?? null };
+
+/** key -> { texture, place, blend, users }: one texture per frame shape, and the sprites wearing it. */
+const haloCache = new Map();
+/** The parent a ring is seen through -> the linear transform its light was last struck at (see `restrikeHalos`). */
+let haloStruck = new WeakMap();
+
+/** The zoom guards' re-strike: the next light of every ring is struck at the transform of that moment. */
+export function restrikeHalos() {
+    haloStruck = new WeakMap();
+}
+
+/** False while this browser has the glass's blur off (Look: "Szkło rozmywa mapę"; settings.mjs `applyTheme`). */
+export function haloBlurOn() {
+    return !document.body.classList.contains("drpg-no-blur");
+}
+
+/** How many textures stand and how many sprites wear them: for `game.drpg.counters()` and the suite. */
+export function haloStats() {
+    let wearers = 0;
+    for (const entry of haloCache.values()) wearers += entry.users.size;
+    return { textures: haloCache.size, wearers };
+}
+
+/**
+ * A ring's light: the three passes of `SEAM_GLOW` round the token's square, inset by half the core, and the box they
+ * stay inside (the widest pass reaches 0.8 of a seam past the square's edge with its round caps; a whole seam is kept).
+ * One drawing for own-ring.mjs and remnant-ring.mjs, the baked and the live halo alike.
+ */
+export function ringHalo(w, h, colour) {
+    return {
+        bounds: seam => ({ x: -seam, y: -seam, width: w + 2 * seam, height: h + 2 * seam }),
+        draw: (g, seam) => {
+            const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
+            for (const [k, alpha] of SEAM_GLOW) {
+                g.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
+                g.drawRect(...rect);
+            }
+        }
+    };
+}
+
+/** The live halo's blur, as the rings and `seamHalo` make it: six times the seam, never under 6, padding 14 seams. */
+function haloBlur(seam) {
+    const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+    if (!Blur) return null;
+    const filter = new Blur(Math.max(6, seam * 6), 3);
+    filter.padding = seam * 14;
+    return filter;
+}
+
+function stageZoom() {
+    const zoom = globalThis.canvas?.stage?.scale?.x;
+    return Number.isFinite(zoom) && zoom > 0.05 ? zoom : 1;
+}
+
+/**
+ * The linear part of the transform `seen` is drawn through, and the zoom (`seamWidth`'s) beside it. Its own world
+ * transform where it has one that a render has written; the stage's zoom when it has none (the harness) or when it
+ * still reads the identity at another zoom (an object no frame has drawn yet).
+ */
+function linearFor(seen) {
+    const zoom = stageZoom();
+    const m = seen?.worldTransform;
+    if (m && [m.a, m.b, m.c, m.d].every(Number.isFinite) && Math.abs(m.a * m.d - m.b * m.c) > 1e-9) {
+        const identity = m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1;
+        if (!identity || Math.abs(zoom - 1) < 1e-3) return { a: m.a, b: m.b, c: m.c, d: m.d, zoom };
+    }
+    return { a: zoom, b: 0, c: 0, d: zoom, zoom };
+}
+
+function struckFor(seen) {
+    const key = seen && typeof seen === "object" ? seen : HALO_IO;
+    let struck = haloStruck.get(key);
+    if (!struck) haloStruck.set(key, struck = linearFor(seen));
+    return struck;
+}
+
+/** Put a display object where the texture's pixels belong: the inverse of the bake's transform, or its diagonal. */
+function applyPlace(node, p) {
+    if (PIXI.Matrix && typeof node.transform?.setFromMatrix === "function") {
+        node.transform.setFromMatrix(new PIXI.Matrix(p.a, p.b, p.c, p.d, p.tx, p.ty));
+    } else {
+        node.scale.set(p.a, p.d);
+        node.position.set(p.tx, p.ty);
+    }
+}
+
+/**
+ * Render `g` (its blend mode and filters as they stand) through the linear transform `m` into a texture that holds
+ * `bounds` (in `g`'s units) and `pad` screen pixels round them. Returns { texture, place } - `place` the transform that
+ * puts the texture's pixels back in `g`'s units - or null with no renderer, past MAX_FOG_TEXTURE, or on a throw.
+ * `g` is lent to a wrapper for the render and handed back to its parent where it stood, as visible as it was.
+ */
+export function bakeTexture(g, m, bounds, pad, renderer = HALO_IO.renderer()) {
+    if (typeof renderer?.render !== "function" || typeof PIXI.RenderTexture?.create !== "function") return null;
+    if (!bounds || !(bounds.width > 0) || !(bounds.height > 0)) return null;
+    const turned = m.b !== 0 || m.c !== 0;
+    const wrap = new PIXI.Container();
+    if (turned && !(PIXI.Matrix && typeof wrap.transform?.setFromMatrix === "function")) { wrap.destroy(); return null; }
+    const corners = [[bounds.x, bounds.y], [bounds.x + bounds.width, bounds.y], [bounds.x, bounds.y + bounds.height],
+        [bounds.x + bounds.width, bounds.y + bounds.height]].map(([x, y]) => [m.a * x + m.c * y, m.b * x + m.d * y]);
+    const xs = corners.map(p => p[0]), ys = corners.map(p => p[1]);
+    const minX = Math.floor(Math.min(...xs) - pad), minY = Math.floor(Math.min(...ys) - pad);
+    const width = Math.ceil(Math.max(...xs) + pad) - minX, height = Math.ceil(Math.max(...ys) + pad) - minY;
+    const resolution = renderer.resolution || 1;
+    if (!(width > 0 && height > 0) || Math.max(width, height) * resolution > MAX_FOG_TEXTURE) { wrap.destroy(); return null; }
+    let texture = null;
+    const parent = g.parent ?? null, at = parent ? parent.children.indexOf(g) : -1, wasVisible = g.visible;
+    try {
+        texture = PIXI.RenderTexture.create({ width, height, resolution });
+        applyPlace(wrap, { a: m.a, b: m.b, c: m.c, d: m.d, tx: -minX, ty: -minY });
+        if (parent) parent.removeChild(g);
+        g.visible = true;
+        wrap.addChild(g);
+        renderer.render(wrap, { renderTexture: texture, clear: true });
+    } catch (err) {
+        debug("Could not draw a seam's light into a texture", err);
+        if (texture && !texture.destroyed) texture.destroy(true);
+        texture = null;
+    } finally {
+        if (g.parent === wrap) wrap.removeChild(g);
+        g.visible = wasVisible;
+        if (parent && !parent.destroyed && at >= 0) parent.addChildAt(g, Math.min(at, parent.children.length));
+        wrap.destroy();
+    }
+    if (!texture) return null;
+    const det = m.a * m.d - m.b * m.c;
+    const a = m.d / det, b = -m.b / det, c = -m.c / det, d = m.a / det;
+    return { texture, place: { a, b, c, d, tx: a * minX + c * minY, ty: b * minX + d * minY } };
+}
+
+function freeEntry(key, entry) {
+    haloCache.delete(key);
+    if (entry.texture && !entry.texture.destroyed) entry.texture.destroy(true);
+    count("halo.freed");
+}
+
+/** A sprite stands down from its texture; the texture goes with its last wearer. */
+export function releaseHalo(sprite) {
+    const key = sprite?.drpgHaloKey;
+    if (!key) return;
+    sprite.drpgHaloKey = null;
+    if (!sprite.destroyed) {
+        sprite.visible = false;
+        sprite.texture = PIXI.Texture.EMPTY;
+    }
+    const entry = haloCache.get(key);
+    if (!entry) return;
+    entry.users.delete(sprite);
+    if (!entry.users.size) freeEntry(key, entry);
+}
+
+/** Every texture whose wearers are all gone - destroyed with their token, or moved to another key - is freed. */
+export function sweepHalos() {
+    const gone = sprite => {
+        for (let node = sprite; node; node = node.parent) if (node.destroyed) return true;
+        return !sprite.parent;
+    };
+    for (const [key, entry] of haloCache) {
+        for (const sprite of entry.users) if (gone(sprite) || sprite.drpgHaloKey !== key) entry.users.delete(sprite);
+        if (!entry.users.size) freeEntry(key, entry);
+    }
+}
+
+/**
+ * Show a ring's light on `sprite`, from the texture of its frame shape, baking that texture on the first wearer.
+ * `seen` is what the ring is seen through (its token's parent); `key` names the shape without the seam, which is
+ * `seamFactor` seams of the zoom struck; `shape` is `ringHalo`'s. True when the sprite shows it; false when it could
+ * not (no renderer, a texture past the cap), and the caller draws the live halo as before.
+ */
+export function wearHalo(sprite, { seen, key, seamFactor = 1, shape, blur = haloBlurOn(), renderer = HALO_IO.renderer() }) {
+    if (!sprite || sprite.destroyed) return false;
+    if (typeof renderer?.render !== "function") { count("halo.live"); releaseHalo(sprite); return false; }
+    const struck = struckFor(seen);
+    const seam = seamFactor / struck.zoom;
+    const full = [key, seam.toFixed(5), [struck.a, struck.b, struck.c, struck.d].map(v => v.toFixed(5)).join(","), blur ? "blur" : "sharp"].join("|");
+    let entry = haloCache.get(full);
+    if (entry && sprite.drpgHaloKey === full && sprite.texture === entry.texture) { sprite.visible = true; return true; }
+    if (entry) count("halo.shared");
+    else {
+        sweepHalos();
+        const g = new PIXI.Graphics();
+        g.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
+        shape.draw(g, seam);
+        const filter = blur ? haloBlur(seam) : null;
+        if (filter) g.filters = [filter];
+        const baked = bakeTexture(g, struck, shape.bounds(seam), (filter ? filter.padding : 0) + 2, renderer);
+        g.destroy();
+        if (!baked) { count("halo.live"); releaseHalo(sprite); return false; }
+        count("halo.baked");
+        entry = { ...baked, blend: filter ? (filter.blendMode ?? PIXI.BLEND_MODES?.NORMAL ?? 0) : (PIXI.BLEND_MODES?.ADD ?? 1), users: new Set() };
+        haloCache.set(full, entry);
+    }
+    if (sprite.drpgHaloKey !== full) releaseHalo(sprite);
+    entry.users.add(sprite);
+    sprite.drpgHaloKey = full;
+    sprite.texture = entry.texture;
+    sprite.blendMode = entry.blend;
+    applyPlace(sprite, entry.place);
+    sprite.visible = true;
+    return true;
+}
+
+/** The standing outline's own sprite of its light (not shared: one room, one shape), named apart from the light itself. */
+const OUTLINE_HALO_BAKED = "drpgRoomOutlineGlowBaked";
+
+/**
+ * Draw the outline's light `halo` (`seamHalo`'s, as stroked now) once into a texture its own sprite shows, just above
+ * it in `group`, and stand the Graphics down - kept, stroked and named, so `rewidth` strokes it again and a reader of
+ * its passes (scenario 76) reads what the light is made of. `seen` is the layer the outline is seen through. The live
+ * filter it was made with is kept on it (`drpgHaloFilter`) and is the bake's; with the blur off the passes go alone.
+ * False when it could not bake (no renderer, no bounds, past the cap): the Graphics draws live as before.
+ */
+function bakeOutlineHalo(group, halo, seen) {
+    if (!halo || halo.destroyed || !group || group.destroyed) return false;
+    let sprite = group.children.find(c => c?.name === OUTLINE_HALO_BAKED) ?? null;
+    if (sprite?.drpgOwnedTexture) {
+        if (!sprite.drpgOwnedTexture.destroyed) sprite.drpgOwnedTexture.destroy(true);
+        sprite.drpgOwnedTexture = null;
+        count("halo.freed");
+    }
+    const filter = halo.drpgHaloFilter ?? halo.filters?.[0] ?? null;
+    halo.drpgHaloFilter = filter;
+    const live = () => {
+        count("halo.live");
+        halo.filters = filter ? [filter] : null;
+        halo.visible = true;
+        if (sprite) { sprite.visible = false; sprite.texture = PIXI.Texture.EMPTY; }
+        return false;
+    };
+    let bounds = null;
+    try { bounds = typeof halo.getLocalBounds === "function" ? halo.getLocalBounds() : null; } catch { bounds = null; }
+    if (!bounds || !(bounds.width > 0) || !(bounds.height > 0)) return live();
+    const blur = haloBlurOn() && Boolean(filter);
+    halo.filters = blur ? [filter] : null;
+    const baked = bakeTexture(halo, linearFor(seen), bounds, (blur ? filter.padding : 0) + 2);
+    if (!baked) return live();
+    count("halo.baked");
+    if (!sprite) {
+        sprite = new PIXI.Sprite(baked.texture);
+        sprite.name = OUTLINE_HALO_BAKED;
+        sprite.eventMode = "none";
+        group.addChildAt(sprite, group.children.indexOf(halo) + 1);
+    }
+    sprite.texture = baked.texture;
+    sprite.drpgOwnedTexture = baked.texture;
+    sprite.blendMode = blur ? (filter.blendMode ?? PIXI.BLEND_MODES?.NORMAL ?? 0) : (PIXI.BLEND_MODES?.ADD ?? 1);
+    applyPlace(sprite, baked.place);
+    sprite.visible = true;
+    halo.visible = false;
+    halo.filters = null;
+    return true;
+}
+
 /*
  * THE LANDING. Two decreasing hops rather than one, because a single arc
  * reads as a slide and the point is that the room arrives - it drops in,
@@ -992,7 +1289,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     const label = roomLabel(region, { glass, grid, bone, rect });
 
 
-    if (glass) group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }));
+    const light = glass ? group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region })) : null;
 
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
@@ -1002,6 +1299,8 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     group.setChildIndex(outline, group.children.length - 1);
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
+    // E88 C1: the light drawn once into a texture, the Graphics kept and stood down; live as before where it cannot be.
+    if (light) bakeOutlineHalo(group, light, fx);
 
     roomOutline = {
         group, outline, room: region.name, colour: bone, cut: passageCutKey(gaps),
@@ -1013,6 +1312,9 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
            exactly what Dawid described on 07.09. The three arguments are kept so the outline
            can simply be drawn again. */
         glass, fx, region, rect, level, actor, elevation,
+        /* Whether its light was drawn with the blur (E88 C1): `recolourRoomOutline` strikes it again when the Look's
+           "Szkło rozmywa mapę" moves, as the rings' body observers repaint them. */
+        blur: haloBlurOn(),
         /*
          * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
          *
@@ -1048,6 +1350,9 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
                     if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
                     else traceRegionPathsAt(halo, region, rect);
                 }
+                // E88 C1: the texture of the old weight freed, the new one drawn once.
+                bakeOutlineHalo(group, halo, fx);
+                if (roomOutline?.group === group) roomOutline.blur = haloBlurOn();
             }
         } : null
     };
@@ -1189,6 +1494,11 @@ export function recolourRoomOutline({ standing = roomOutline, colourNow = outlin
         flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
         return;
     }
+
+    /* THE BLUR SWITCH IS NOT A COLOUR CHANGE EITHER (E88 C1). The light is a texture drawn with or without the blur
+       (Look: "Szkło rozmywa mapę"), so a turn of the switch strikes it again; `blur` is a boolean only on an outline
+       `flashOutline` drew, never on a stand-in the suite hands in. */
+    if (typeof standing.blur === "boolean" && standing.blur !== haloBlurOn()) standing.rewidth?.();
 
     const colour = colourNow();
     // By far the commonest case: the body's class list changed for some other reason

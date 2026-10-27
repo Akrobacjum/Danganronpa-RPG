@@ -1683,6 +1683,8 @@ function canvasRoots() {
 export async function countersNow({ reset = false } = {}) {
     const C = await import("./perf-counters.mjs");
     const out = { counts: C.snapshot(), live: C.liveCanvasFilters(canvasRoots()) };
+    // The seams' light drawn once (E88 C1): the textures standing and the rings wearing them.
+    try { out.halos = (await import("./fog-reveal.mjs")).haloStats(); } catch { out.halos = null; }
     if (reset) C.reset();
     return out;
 }
@@ -1736,6 +1738,10 @@ async function frameCostRun({ seconds, frames, toChat }) {
     const live = C.liveCanvasFilters(canvasRoots());
     lines.push(`On the canvas now: ${live.filters} filter(s) (${live.blurs} blur) on ${live.objects} object(s), ${live.masks} mask(s)`
         + (Object.keys(live.byName).length ? ` - ${Object.entries(live.byName).map(([n, k]) => `${n} ${k}`).join(", ")}` : ""));
+    try {
+        const halos = (await import("./fog-reveal.mjs")).haloStats();
+        lines.push(`Seams' light drawn once (E88 C1): ${halos.textures} texture(s) worn by ${halos.wearers} ring(s)`);
+    } catch (err) { debug("fps(): the halos could not be read", err); }
     lines.push("");
     lines.push("The module's work in that window (count, per second):");
     const names = Object.keys(moved);

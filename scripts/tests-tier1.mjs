@@ -21460,9 +21460,11 @@ const INVARIANTS = [
         const direct = ["drpgOwnRing", "drpgRemnantRing"].map(ring => tokens.reduce((sum, t) => sum + halo(t, ring), 0));
         const live = (await D.countersNow()).live;
         const framed = tokens.filter(t => t.drpgOwnRing && !t.drpgOwnRing.destroyed).length;
-        equal(JSON.stringify([live.byName.drpgOwnRingGlow ?? 0, live.byName.drpgRemnantRingGlow ?? 0, glass ? framed === 0 || direct[0] + direct[1] > 0 : direct[0] + direct[1] === 0]),
+        // Since E88 C1 a framed token's light is a drawn texture where a renderer can make one (fog-reveal.mjs `wearHalo`; R1010).
+        const drawn = tokens.filter(t => ["drpgOwnRing", "drpgRemnantRing"].some(ring => t[ring]?.children?.find(c => c?.name === "drpgHaloBaked")?.visible)).length;
+        equal(JSON.stringify([live.byName.drpgOwnRingGlow ?? 0, live.byName.drpgRemnantRingGlow ?? 0, glass ? framed === 0 || direct[0] + direct[1] + drawn > 0 : direct[0] + direct[1] + drawn === 0]),
             JSON.stringify([...direct, true]),
-            `[own-ring halo filters on screen, Remnant-ring halo filters, a framed token's halo blurred under Stained Glass and none under Monokuma Legacy] (${glass ? "Stained Glass" : "Legacy"}, ${framed} token(s) framed): ${JSON.stringify(live)}`);
+            `[own-ring halo filters on screen, Remnant-ring halo filters, a framed token's halo blurred or drawn under Stained Glass and neither under Monokuma Legacy] (${glass ? "Stained Glass" : "Legacy"}, ${framed} token(s) framed, ${drawn} drawn): ${JSON.stringify(live)}`);
         ok(framed > 0, `no token on this scene wears a frame after the pass (${n} tokens): the ring paints never reached a token`);
 
         // fps(): a short window, a second call refused while it runs, and every hold back where it was.
@@ -21481,6 +21483,108 @@ const INVARIANTS = [
             /already running/.test(second), print() === was, filtered.every((node, i) => node.filters === kept[i])]),
             JSON.stringify([true, true, true, true, true, true]),
             `[a window read, the holds read, nine holds listed, the second call refused, the page as it was, each filter list the same object] before ${was}, after ${print()}:\n${text}`);
+    }],
+
+    ["R1010 - the seams' light is drawn once (E88 C1): at rest no ring on this screen carries a live blur, every token of one frame shape wears one texture, a recolour draws one more and frees the old with its last wearer, the blur switch off draws the passes alone, and a shape past the cap or a browser with no renderer keeps the live halo", async () => {
+        /*
+         * E88 C1, 27.10.2026; E88-05. C0 counted 34 quality-3 blurs at rest on the GM's canvas with 30 Remnants and 4
+         * students (scenario 86), one per ring, each paid on every frame the canvas renders. fog-reveal.mjs `wearHalo`
+         * renders a ring's three passes and their blur once into a texture keyed by its frame shape and shows it by a
+         * sprite; the live halo stays for a browser that cannot. Read first on this client's scene on screen: a pass
+         * repaints every ring, then the filters on the canvas are walked. The harness has no renderer, so there a
+         * stand-in renderer that records each render is handed to the baker for the pass and taken back after (its
+         * textures hold no pixels: what is measured is that the module chose the texture and how many it made); with a
+         * real renderer the textures are real. Then the baker alone on thirty sprites of its own with the stand-in.
+         * The pixels themselves are a table's (LIVE-E88-02). Red at 395c8fce (C0): every framed token's halo carried its
+         * live blur under Stained Glass, and fog-reveal.mjs had no `wearHalo`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const R = await import("./fog-reveal.mjs");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const D = await import("./diagnostics.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        must(canvas.ready && tokens.length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const n = tokens.length;
+        const LISTENERS = ["refreshToken.ownRing", "refreshToken.remnantRing"];
+        const repaint = async () => {
+            const before = C.snapshot();
+            V.applyAll();
+            await until(() => LISTENERS.every(k => (C.delta(before, C.snapshot())[k] ?? 0) >= n), 2000);
+        };
+        const rendered = [];
+        const stand = { resolution: 1, render: (node, { renderTexture }) => {
+            const light = node?.children?.[0];
+            rendered.push({ texture: renderTexture, blend: light?.blendMode,
+                blurs: (light?.filters ?? []).filter(f => typeof f?.blur === "number").map(f => [f.blur, f.padding]),
+                filterBlend: light?.filters?.[0]?.blendMode ?? null });
+        } };
+        const glass = document.body.classList.contains("drpg-theme-stained-glass");
+        const swap = typeof canvas.app?.renderer?.render !== "function" && R.HALO_IO && typeof R.HALO_IO.renderer === "function";
+        const io = swap ? R.HALO_IO.renderer : null;
+        let scene = null;
+        try {
+            if (swap) R.HALO_IO.renderer = () => stand;
+            await repaint();
+            const live = (await D.countersNow()).live;
+            const worn = [];
+            for (const token of tokens) {
+                for (const ring of ["drpgOwnRing", "drpgRemnantRing"]) {
+                    const group = token[ring];
+                    if (!token.visible || !group || group.destroyed || group.visible === false) continue;
+                    const sprite = group.children?.find(c => c?.name === "drpgHaloBaked");
+                    if (sprite?.visible) worn.push(sprite);
+                }
+            }
+            const byKey = new Map();
+            for (const sprite of worn) (byKey.get(sprite.drpgHaloKey) ?? byKey.set(sprite.drpgHaloKey, new Set()).get(sprite.drpgHaloKey)).add(sprite.texture);
+            scene = { ownLive: live.byName.drpgOwnRingGlow ?? 0, remnantLive: live.byName.drpgRemnantRingGlow ?? 0, worn: worn.length,
+                shapes: byKey.size, oneTextureEach: [...byKey.values()].every(set => set.size === 1), framed: tokens.filter(t => t.drpgOwnRing && !t.drpgOwnRing.destroyed && t.visible).length };
+        } finally {
+            if (swap) { R.HALO_IO.renderer = io; await repaint(); }
+        }
+        equal(JSON.stringify([scene.ownLive, scene.remnantLive, glass ? scene.framed === 0 || scene.worn > 0 : scene.worn === 0, scene.oneTextureEach, scene.shapes <= scene.worn]),
+            JSON.stringify([0, 0, true, true, true]),
+            `[own-ring halo blurs on screen, Remnant-ring halo blurs, a framed token wears a drawn light under Stained Glass and none under Monokuma Legacy, one texture a shape, no more shapes than wearers] (${glass ? "Stained Glass" : "Legacy"}${swap ? ", the stand-in renderer" : ""}): ${JSON.stringify(scene)}`);
+
+        // The baker alone: thirty sprites of one shape, a recolour, the blur off, a shape past the cap, no renderer.
+        must(typeof R.wearHalo === "function", "fog-reveal.mjs has no wearHalo - the rest reads nothing");
+        rendered.length = 0;
+        const layer = new PIXI.Container();
+        const sprites = Array.from({ length: 30 }, () => layer.addChild(new PIXI.Container()).addChild(new PIXI.Sprite()));
+        const zoom = Number.isFinite(canvas.stage?.scale?.x) && canvas.stage.scale.x > 0.05 ? canvas.stage.scale.x : 1;
+        const seam = 1 / zoom;
+        const wear = (sprite, colour, opts = {}) => R.wearHalo(sprite, { seen: layer, key: `R1010|${colour}`, shape: R.ringHalo(100, 100, colour), renderer: stand, blur: true, ...opts });
+        const before = C.snapshot();
+        const first = sprites.map(s => wear(s, 0x123456));
+        const one = C.delta(before, C.snapshot());
+        const firstTexture = rendered[0]?.texture ?? null;
+        const shared = sprites.every(s => s.texture === firstTexture) && sprites[0].blendMode === (rendered[0]?.filterBlend ?? PIXI.BLEND_MODES?.NORMAL ?? 0);
+        const recolouredOne = wear(sprites[0], 0x654321);
+        const afterOne = rendered.length;
+        sprites.slice(1).forEach(s => wear(s, 0x654321));
+        const all = C.delta(before, C.snapshot());
+        const sharp = new PIXI.Sprite();
+        layer.addChild(sharp);
+        const sharpWorn = wear(sharp, 0x0f0f0f, { blur: false });
+        const big = layer.addChild(new PIXI.Sprite());
+        const side = Math.ceil(2100 / zoom);   // past MAX_FOG_TEXTURE (2048) on the screen at this zoom
+        const tooBig = R.wearHalo(big, { seen: layer, key: "R1010|big", shape: R.ringHalo(side, side, 0x123456), renderer: stand, blur: true });
+        const none = R.wearHalo(layer.addChild(new PIXI.Sprite()), { seen: layer, key: "R1010|none", shape: R.ringHalo(100, 100, 0x123456), renderer: null });
+        const edges = C.delta(before, C.snapshot());
+        layer.destroy({ children: true });
+        R.sweepHalos();
+        const gone = C.delta(before, C.snapshot());
+        const BLEND = PIXI.BLEND_MODES ?? {};
+        equal(JSON.stringify([first.every(Boolean), one["halo.baked"] ?? 0, one["halo.shared"] ?? 0, rendered[0]?.blurs, rendered[0]?.blend === (BLEND.ADD ?? 1), shared,
+            recolouredOne && afterOne === 2, rendered.length >= 2 && sprites.every(s => s.texture === rendered[1].texture), (all["halo.freed"] ?? 0) >= 1,
+            sharpWorn && rendered[2]?.blurs.length === 0 && sharp.blendMode === (BLEND.ADD ?? 1), tooBig, none, (edges["halo.live"] ?? 0) >= 2, rendered.length,
+            (gone["halo.freed"] ?? 0) >= 3]),
+            JSON.stringify([true, 1, 29, [[Math.max(6, seam * 6), seam * 14]], true, true, true, true, true, true, false, false, true, 3, true]),
+            `[30 sprites worn, textures drawn, sprites that wore one already drawn, the drawing's blur [strength, padding] as the live halo's at seam ${seam}, its passes additive, `
+            + `the thirty on one texture composited as the live filter was, a recolour draws one more, the thirty wear the new one, the old one freed with its last wearer, `
+            + `the blur off draws the passes alone and adds them, a ${side} x ${side} shape worn, a browser with no renderer worn, both counted live, renders in all, `
+            + `every texture freed with its wearers] ${JSON.stringify({ one, all, edges, gone, renders: rendered.length })}`);
     }],
 
     ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {

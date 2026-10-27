@@ -36,13 +36,17 @@ import { myBulletForRemnant } from "./visibility.mjs";
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour } from "./utils.mjs";
-import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
+import { glassOn as motionGlassOn } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
    rather than a second copy of the formula that could drift from it. */
 import { seamWidth } from "./fog.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+/* E88 C1: the frame's light drawn once into a texture its frame shape shares, instead of a blur on every frame
+   (fog-reveal.mjs "THE SEAMS' LIGHT DRAWN ONCE"). Imported from its family file, as fog.mjs re-exports only
+   `seamWidth`; fog-reveal.mjs imports neither ring file back. */
+import { wearHalo, releaseHalo, sweepHalos, restrikeHalos, ringHalo, HALO_BAKED } from "./fog-reveal.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 /* The seam's light, told apart from the seam - the same reason
@@ -80,7 +84,7 @@ const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint c
 
 export function registerRemnantRings() {
     Hooks.on("refreshToken", token => { count("refreshToken.remnantRing"); paint(token); });
-    Hooks.on("canvasReady", () => { ringZoom = 0; repaintAll(); });
+    Hooks.on("canvasReady", () => { ringZoom = 0; restrikeHalos(); sweepHalos(); repaintAll(); });
 
     /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
        redraw it: `refreshToken` fires when a token moves or changes, never when the
@@ -95,6 +99,7 @@ export function registerRemnantRings() {
         if (!Number.isFinite(zoom) || zoom <= 0.05) return;
         if (ringZoom && Math.abs(Math.log(zoom / ringZoom)) < 0.18) return;
         ringZoom = zoom;
+        restrikeHalos();
         repaintAll();
     });
 
@@ -432,10 +437,17 @@ function ringParts(token) {
         const halo = new PIXI.Graphics();
         halo.name = RING_GLOW_NAME;
         halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
-        group.addChild(halo, new PIXI.Graphics());
+        /* The light drawn once (E88 C1): a sprite over the texture its frame shape shares, between the live halo it
+           stands in for - kept, empty and hidden while the sprite shows - and the core. */
+        const baked = new PIXI.Sprite();
+        baked.name = HALO_BAKED;
+        baked.eventMode = "none";
+        baked.visible = false;
+        group.addChild(halo, baked, new PIXI.Graphics());
         token[RING_NAME] = group;
     }
-    return { group, halo: group.children[0], core: group.children[1] };
+    const [halo, baked, core] = group.children;
+    return { group, halo, baked, core };
 }
 
 /**
@@ -456,6 +468,7 @@ function paint(token) {
         if (!isRemnant && !project) {
             count("remnantRing.skipped");
             if (existing) {
+                releaseHalo(existing.children?.find(c => c?.name === HALO_BAKED));
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
             }
@@ -480,7 +493,7 @@ function paint(token) {
             return;
         }
 
-        const { group, halo, core } = ringParts(token);
+        const { group, halo, baked, core } = ringParts(token);
         count("remnantRing.rebuilt");
         group.visible = true;
         core.clear();
@@ -491,6 +504,7 @@ function paint(token) {
 
         if (!glassOn()) {
             halo.visible = false;
+            releaseHalo(baked);
             // A square pixel frame: four filled bars on integer coordinates, one
             // cell of the sprite's own 12-cell grid thick - hard edges, no
             // antialiased stroke. A reinforced trace cannot be cleaned up, so it
@@ -532,15 +546,21 @@ function paint(token) {
          * the CORE width, so the light straddles the line instead of sitting beside it. Inset by
          * its own half-width each pass would have drawn four rectangles of four different sizes.
          */
-        halo.visible = true;
         const seam = seamWidth() * (reinforced ? 2 : 1);
         const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
         core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
         core.drawRect(...rect);
-        for (const [k, alpha] of SEAM_GLOW) {
-            halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
-            halo.drawRect(...rect);
+        /* THE LIGHT, DRAWN ONCE (E88 C1): every trace of one type, size and weight wears one texture of these passes
+           and this blur (fog-reveal.mjs `wearHalo`) - 30 Remnants of one type on a GM's screen are one render, not 30
+           blurs a frame. The live halo below stays for a browser that cannot make the texture. */
+        const shape = ringHalo(w, h, colour);
+        if (wearHalo(baked, { seen: token.parent ?? token, key: `remnant|${w}x${h}|${colour}`, seamFactor: reinforced ? 2 : 1, shape })) {
+            halo.visible = false;
+            halo.filters = null;
+            return;
         }
+        halo.visible = true;
+        shape.draw(halo, seam);
         const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
         if (Blur) {
             /* The filter is kept and retuned rather than rebuilt: `refreshToken` fires on every

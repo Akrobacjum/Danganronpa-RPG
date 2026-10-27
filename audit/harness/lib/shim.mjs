@@ -1269,6 +1269,20 @@ export function buildPIXI() {
         roundRect(...a) { this._calls.push(["roundRect", a]); return this; }
         ellipse(...a) { return this; }
         setStrokeStyle() { return this; } setFillStyle() { return this; }
+        /* PIXI's own box of what was drawn, from the calls recorded above, each point widened by half the line
+           style's width (E88 C1: fog-reveal.mjs `bakeOutlineHalo` sizes the outline's light from it). Lines, rects
+           and polygons only; an arc or a curve adds nothing, so a shape of those reads smaller than PIXI's. */
+        getLocalBounds() {
+            let half = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const add = (x, y) => { minX = Math.min(minX, x - half); minY = Math.min(minY, y - half); maxX = Math.max(maxX, x + half); maxY = Math.max(maxY, y + half); };
+            for (const [k, a] of this._calls) {
+                if (k === "lineStyle") half = (typeof a[0] === "object" ? a[0]?.width : a[0]) / 2 || 0;
+                else if (k === "moveTo" || k === "lineTo") add(a[0], a[1]);
+                else if (k === "drawRect" || k === "rect") { add(a[0], a[1]); add(a[0] + a[2], a[1] + a[3]); }
+                else if (k === "drawPolygon" || k === "poly") { const pts = a[0]?.points ?? (Array.isArray(a[0]) ? a[0] : a); for (let i = 0; i + 1 < pts.length; i += 2) add(pts[i], pts[i + 1]); }
+            }
+            return Number.isFinite(minX) ? new Rectangle(minX, minY, maxX - minX, maxY - minY) : new Rectangle(0, 0, 0, 0);
+        }
     }
     class Sprite extends Container {
         constructor(texture) { super(); this.texture = texture ?? Texture.EMPTY; this.anchor = { x: 0, y: 0, set: () => {} }; }

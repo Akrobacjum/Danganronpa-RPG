@@ -30,6 +30,12 @@
  * state their before and after from it. The canvas here is the harness's (client-entry.mjs: a refresh a token a
  * frame, one refresh for a move where v14 slides it; LIVE-E88-05), so a count is the module's work on that model,
  * never a frame time: a table measures that (`game.drpg.fps()`, LIVE-E88-01).
+ *
+ * E88 C1 (27.10.2026; E88-05): the seams' light drawn once. With no renderer here every halo in the rows above stays
+ * on its live filter, as at C0. A last part hands the GM's and p1's browsers a stand-in renderer that counts renders
+ * and draws nothing, and checks that at rest no ring carries a live blur, that the 30 Remnants wear one texture and
+ * the students one, that a clock move draws only the students' light again, and that the outline of the room Aiko
+ * stands in shows its light from a texture of its own, drawn once more when it is struck again.
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -146,6 +152,76 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: ${J(ledger)}, value: ${ledger.length > 0} }); return true;`);
         await settle(800);
     }
+
+    /* ------------------------------ the seams' light drawn once (E88 C1) ------------------------------ */
+    /* E88-05. The harness's canvas has no renderer, so every halo above stayed on its live filter (the rows keep C0's
+       shape for C2-C5 to compare). Here the GM's and Aiko's player's browsers hand fog-reveal.mjs's baker a stand-in
+       renderer that counts its renders (`HALO_IO`; it draws no pixels - those are LIVE-E88-02's), under Stained Glass:
+       every ring repainted, the filters on the canvas walked, the textures the rings wear counted; then the clock moved
+       (the hour's colour: the students' frames are drawn again, the Remnants' are not); then on p1 the outline of Dorm A
+       drawn (fog-reveal.mjs `flashOutline`, into a container of the scenario's own) and struck again (`rewidth`). */
+    phase("the seams' light drawn once (E88 C1)");
+    const FR = `const FR = await import("${repoUrl}/scripts/fog-reveal.mjs");`;
+    const STAND = `${FR} const H = globalThis.__s86halo = { renders: 0, io: FR.HALO_IO.renderer };
+        FR.HALO_IO.renderer = () => ({ resolution: 1, render: () => { H.renders++; } });`;
+    const WORN = `${FR} const c = await game.drpg.counters();
+        const worn = { own: [], remnant: [] };
+        for (const t of canvas.tokens.placeables) for (const [kind, ring] of [["own", "drpgOwnRing"], ["remnant", "drpgRemnantRing"]]) {
+            const s = t.visible && t[ring] && !t[ring].destroyed && t[ring].visible !== false ? t[ring].children.find(k => k?.name === FR.HALO_BAKED) : null;
+            if (s?.visible) worn[kind].push(s);
+        }
+        const textures = list => new Set(list.map(s => s.texture));
+        const H = globalThis.__s86halo;
+        H.remnantTexture ??= worn.remnant[0]?.texture ?? null;
+        return { ringBlurs: (c.live.byName.drpgOwnRingGlow ?? 0) + (c.live.byName.drpgRemnantRingGlow ?? 0), renders: H.renders, halos: c.halos,
+            own: worn.own.length, ownTextures: textures(worn.own).size, ownKeys: new Set(worn.own.map(s => s.drpgHaloKey)).size,
+            remnant: worn.remnant.length, remnantTextures: textures(worn.remnant).size, remnantKept: worn.remnant.every(s => s.texture === H.remnantTexture),
+            ownKey: worn.own[0]?.drpgHaloKey?.split("|").slice(0, 3).join("|") ?? null };`;
+    await Promise.all([gm, p1].map(c => c.eval(`await game.settings.set("${MOD}", "theme", "stainedGlass"); return true;`)));
+    await settle(1500);
+    await gm.eval(`${STAND} const V = await import("${repoUrl}/scripts/visibility.mjs"); V.applyAll(); return true;`);
+    await settle(1500);
+    const baked = await gm.eval(WORN);
+    note("C1 rest, GM", J(baked));
+    check("C1: at rest on the GM's browser no ring carries a live blur; the 30 Remnants wear one texture and the students one, each drawn once",
+        baked?.ringBlurs === 0 && baked.remnant === 30 && baked.remnantTextures === 1 && baked.own >= 1 && baked.ownTextures === baked.ownKeys
+            && baked.renders === 1 + baked.ownKeys, J(baked));
+    await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
+        const before = C.getClock();
+        globalThis.__s86clock = { timeOfDay: before.timeOfDay, timeOfDayStartedAt: before.timeOfDayStartedAt ?? null };
+        await C.setTimeOfDay(TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(before.timeOfDay) + 1) % TIMES_OF_DAY.length], { resetSearchTokens: false });
+        return true;`, { timeout: 60000 });
+    await settle(1500);
+    const hour = await gm.eval(WORN);
+    note("C1 clock, GM", J(hour));
+    check("C1: the clock moved on the GM's browser draws the students' light again in the hour's colour and not the Remnants'; still no live blur",
+        hour?.ringBlurs === 0 && hour.remnantKept && hour.remnantTextures === 1 && hour.renders - baked.renders === (hour.ownKey !== baked.ownKey ? hour.ownKeys : 0),
+        J({ baked, hour }));
+    await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); await C.setClock(globalThis.__s86clock); delete globalThis.__s86clock; return true;`, { timeout: 60000 });
+    await settle(1200);
+    const outline = await p1.eval(`${STAND} ${ACADEMY}
+        const F = await import("${repoUrl}/scripts/fog.mjs");
+        const fx = new PIXI.Container();
+        FR.flashOutline(fx, F.roomShapeOn(academy, "Dorm A", null), { x: 0, y: 0 }, null, { actor: game.actors.get("${IDS.aiko}") });
+        const read = () => { const kids = FR.roomOutline?.group?.children ?? [];
+            const halo = kids.find(k => k?.name === "drpgRoomOutlineGlow"), sprite = kids.find(k => k?.name === "drpgRoomOutlineGlowBaked");
+            return { halo: Boolean(halo), haloShown: halo?.visible ?? null, haloFilters: halo?.filters?.length ?? 0, sprite: sprite?.visible ?? null,
+                owned: Boolean(sprite?.drpgOwnedTexture && sprite.drpgOwnedTexture === sprite.texture), texture: sprite?.texture ?? null, renders: H.renders }; };
+        const first = read();
+        FR.roomOutline?.rewidth?.();
+        const again = read();
+        FR.fadeRoomOutline();
+        FR.HALO_IO.renderer = H.io;
+        return { first: { ...first, texture: undefined }, again: { ...again, texture: undefined }, newTexture: Boolean(again.texture && again.texture !== first.texture) };`);
+    note("C1 outline, p1", J(outline));
+    check("C1: the outline of the room Aiko stands in shows its light drawn once (its live halo stood down, no filter), and a re-strike draws it once more into a new texture",
+        outline?.first?.halo && outline.first.haloShown === false && outline.first.haloFilters === 0 && outline.first.sprite === true && outline.first.owned
+            && outline.first.renders === 1 && outline.again.renders === 2 && outline.again.owned && outline.newTexture, J(outline));
+    await gm.eval(`${FR} const H = globalThis.__s86halo; FR.HALO_IO.renderer = H.io; delete globalThis.__s86halo;
+        const V = await import("${repoUrl}/scripts/visibility.mjs"); V.applyAll(); return true;`);
+    await p1.eval(`delete globalThis.__s86halo; return true;`);
+    await settle(1000);
 
     /* ------------------------------ restore ------------------------------ */
     await Promise.all(Object.entries(clients).map(([who, c]) => c.eval(`await game.settings.set("${MOD}", "theme", ${J(themes[who])}); return true;`)));
