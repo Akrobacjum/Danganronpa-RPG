@@ -5969,7 +5969,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        the GM is counted, and none may happen. (2) p2's console posts a Present card as Botan: marked refused on the
        primary and raised on no screen. Red at 95bf1ffc (measured, 28.10.2026): with the put-back held past the settle's
        quarter second, p2's microphone given back; and the card raised on gm and p3, not refused. Without the hold the
-       put-back landed first there and the first check passed at 95bf1ffc. */
+       put-back landed first there and the first check passed at 95bf1ffc; with a hold that lands, the fix's wait for the
+       judgement alone kept the list (mutant gA survived), so the put-back fails here, and only the held flags list Botan. */
     const VO = `const C = await import("${repoUrl}/scripts/chapter.mjs"); const Vo = await import("${repoUrl}/scripts/voice.mjs");`;
     const deadRead = `const p2user = game.users.get("${p2.userId}"); const rec = game.settings.get("${MOD}", "trialProgress") ?? {};
         return { listed: (rec.mutedDead ?? []).includes("${ids.botan}"), blocked: ((p2user._source ?? p2user).permissions ?? {}).BROADCAST_AUDIO === false,
@@ -5977,14 +5978,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const deadSetup = await gm.eval(`${F30} ${VO} if (F.trialFloor()) await F.endFloor();
         globalThis.__s30dead = { changes: [] };
         await C.killCharacter(game.actors.get("${ids.botan}"), { secret: false, keepBullets: true });
+        globalThis.__s30dead.flag = foundry.utils.deepClone(game.actors.get("${ids.botan}").getFlag("${MOD}", "deceased") ?? null);
         await Vo.settleTrialVoices();
         globalThis.__s30deadHook = Hooks.on("updateUser", (u, change) => { if (u.id === "${p2.userId}" && change?.permissions) globalThis.__s30dead.changes.push(JSON.stringify(change.permissions)); });
-        /* The audit's put-back of the flag held for 1.5 s on this GM, as a slow server round trip holds it: the settle the
-           forged write schedules runs a quarter second after it, so it reads the student before the put-back lands. */
+        /* The audit's put-back of the flag held for 1.5 s on this GM, as a slow server round trip holds it, and then
+           failed, as a refused write fails it: the settle the forged write schedules runs a quarter second after it, so it
+           reads the student before the put-back would land, and the document keeps the forged flag after. Only the GMs'
+           held flags (sheet-audit.mjs flagsHeldNow) still say Botan is dead. */
         const botan = game.actors.get("${ids.botan}"), realUpdate = botan.update;
         botan.update = async function (data, ...rest) {
-            if (JSON.stringify(data ?? {}).includes("deceased")) await new Promise(r => setTimeout(r, 1500));
-            return realUpdate.call(this, data, ...rest);
+            if (!JSON.stringify(data ?? {}).includes("deceased")) return realUpdate.call(this, data, ...rest);
+            await new Promise(r => setTimeout(r, 1500));
+            throw new Error("SEC a put-back that fails");
         };
         ${deadRead}`, { timeout: 60000 });
     await settle(800);
@@ -5995,8 +6000,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(2500);
     const deadAfter = await gm.eval(`const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs"); await sheetAuditIdle();
         await new Promise(r => setTimeout(r, 1000)); delete game.actors.get("${ids.botan}").update; ${deadRead}`, { timeout: 30000 });
-    check("SECURITY: p2's console unsetting dead Botan's death mid-trial takes nothing back - Botan still listed and p2's microphone never given back, the flag put back",
-        deadSetup.listed && deadSetup.blocked && deadForged === true && deadAfter.listed && deadAfter.blocked && deadAfter.dead && deadAfter.changes.length === 0,
+    check("SECURITY: p2's console unsetting dead Botan's death mid-trial takes nothing back, the audit's put-back failing - Botan still listed and p2's microphone never given back",
+        deadSetup.listed && deadSetup.blocked && deadForged === true && deadAfter.listed && deadAfter.blocked && !deadAfter.dead && deadAfter.changes.length === 0,
         JSON.stringify({ deadSetup, deadForged, deadAfter }), { flow: "class-trial" });
     const deadCard = await p2.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.botan}");
         const doc = await ChatMessage.create({ content: "<p>SEC a dead student's evidence</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
@@ -6011,7 +6016,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(deadCard) && deadCardRead.refused && !deadCardRead.onGm && !deadCardRead.onP3, JSON.stringify(deadCardRead), { flow: "class-trial" });
     await gm.eval(`${VO} Hooks.off("updateUser", globalThis.__s30deadHook);
         const m = game.messages.get(${JSON.stringify(deadCard)}); if (m) await m.delete();
-        const botan = game.actors.get("${ids.botan}"); if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        const botan = game.actors.get("${ids.botan}");
+        // The put-back that failed above, made by the GM, so the revival finds the death it undoes.
+        if (!botan.getFlag("${MOD}", "deceased") && globalThis.__s30dead?.flag) await botan.setFlag("${MOD}", "deceased", globalThis.__s30dead.flag);
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
         return true;`, { timeout: 60000 });
     await gm.eval(`${F30} const was = globalThis.__s30obj;
         for (const m of game.messages.filter(x => x.getFlag("${MOD}", T.TRIAL_FLAGS.objection))) await m.delete();
