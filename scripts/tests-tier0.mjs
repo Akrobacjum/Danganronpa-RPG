@@ -11796,6 +11796,9 @@ const REGRESSIONS = [
          * asking GM's browsers - and "busy" on any other GM's (the bridge's refusal; tier 2 "a second take-back of
          * one character while the first is written is told as a take-back" reads that code). At c51d2bd the four
          * sentences said less, and the second said its words held on every browser.
+         * E70 C6 (28.10.2026): the button Now ran under is Skip on the GM's bar (E70 C1), so nowOnPrimary's sentence names
+         * it, and the sentence goes on with the bar's other buttons (no full stop after it); an execution happens when the
+         * trial ends (E70 C4), so unfoundExecuted's sentence says the table learns it then. R1036 reads the rest of part 1.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -11875,10 +11878,10 @@ const REGRESSIONS = [
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
                     enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
-                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/],
+                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it when the trial ends/],
                     eclipseDoors: [/no other door opens a trial in the dark: Edit campaign keeps the phase, applies the rest of its window and says so, and `game\.drpg\.setPhase` and `game\.drpg\.setClock` refuse the whole move/],
                     editAsksChapter: [/Edit campaign asks the same question when it moves the phase to Class Trial, about the chapter the window moves to/],
-                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so\./],
+                    nowOnPrimary: [/\*\*Skip\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so/],
                     runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
                     takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words on the primary GM's browser and on the browser of the GM who asked for the first \(that one read in the code\), and as busy on any other GM's\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
@@ -11912,10 +11915,10 @@ const REGRESSIONS = [
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
                     enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
-                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/],
+                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy/],
                     eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
                     editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
-                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym\./],
+                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
                     takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
@@ -15865,6 +15868,121 @@ const REGRESSIONS = [
             restore: [true, false], muted: [true, true], participants: [true, true, true, false], entry: [true], exit: [true],
             row: [true, true, true], store: [true, true, true]
         }), "the trial's voices are not held to their rules (read: the restore's deletion and no -=; isMutedDead's phase and list; trialParticipants cut, asks the list and the Monocub flag, eligibleVoters left anywhere; reconcilePhase's entry after the reset, exit before the sentence; trial.enter's guard, payload and answer; the store's sync, reset and kind)");
+    }],
+    ["R1036 - the handbooks say what the trial's bar, Overrule, the debate's question, the execution at the trial's end and the dead's microphones do (E70 C6), in English and in Polish", async () => {
+        /*
+         * E70 C6, 28.10.2026; E70-26. E70 part 1 gave the GM a bar in every mode (C1), Overrule (C2), the debate's
+         * question and the debate again (C3), a verdict that kills nobody and an execution when the trial ends (C4),
+         * and the dead's microphones blocked for the trial (C5) - and the books said "the module mutes nobody", named
+         * a button the console no longer draws (End this mode now) and said the table learns an execution "with the
+         * verdict". As R321 does for the vote: each claim is a pair, what the code does, read from its function
+         * (`BAR_OPS`, `barRefusal`, floor-machine.mjs `nextFloor` and `debateAgain`, `overruleTarget`, vote.mjs
+         * `VERDICT_STEPS`, `trialParticipants`, clock.mjs `reconcilePhase`, trial-floor-ui.mjs `closeTrial`,
+         * `trialTime`), and the sentences that say it, one per handbook that says it; a code fact that changes fails
+         * here with its sentences, and a sentence rewritten without the code fails too. The stale sentences must be
+         * gone from both books. Each book and each file is asserted to have been read, so nothing passes on an empty
+         * read. Red at a40405b7 (the books before C6): every code fact true, every English sentence missing and all six
+         * English stale ones found (the test stops at the first language that fails). What a table makes of these words - the bar at 1366x768, Overrule with real people, a microphone going silent - is
+         * LIVE-E70-01 to LIVE-E70-06 (audit 9.2), not measured here.
+         */
+        const sources = new Map(await otherSources());
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const floorCode = code("trial-floor.mjs"), machine = code("floor-machine.mjs"), vote = code("vote.mjs");
+        const clock = code("clock.mjs"), floorUi = code("trial-floor-ui.mjs"), config = code("config.mjs"), voice = code("voice.mjs");
+        const next = fnSource(machine, "nextFloor"), reconcile = fnSource(clock, "reconcilePhase");
+        const facts = {
+            barOrder: /export const BAR_OPS = Object\.freeze\(\["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"\]\);/.test(floorCode)
+                && /if \(!running\) return "DRPG\.Floor\.bar\.notTrial";/.test(fnSource(floorCode, "barRefusal")),
+            skipNoTurn: /case "skip":\s*if \(floor\.mode === MODES\.debate\) return \{ refused: "DRPG\.Floor\.bar\.noTurn" \};/.test(next),
+            minusSkips: /if \(seconds < 0 && floor\.mode === MODES\.debate && left <= 0\) return \{ refused: "DRPG\.Floor\.bar\.noTime" \};/.test(next)
+                && /if \(seconds < 0 && floor\.mode !== MODES\.debate && Math\.max\(left, 0\) \+ seconds <= 0\) \{\s*return stepOn\(/.test(next),
+            plusFromNow: /const want = Math\.max\(Math\.max\(left, 0\) \+ seconds, 0\);/.test(next),
+            backRest: /seconds: seconds \?\? restOf\(floor\) \?\? floor\.seconds \?\? TRIAL\.speakSeconds,/.test(fnSource(machine, "debateAgain")),
+            overrule: /back\.startedAt = now - \(modeSecondsOf\(back\) - \(Number\(entry\.leftAtObjection\) \|\| 0\)\) \* 1000;/.test(next)
+                && /"DRPG\.Floor\.overrule\.onlyNewest"/.test(fnSource(machine, "overruleTarget")),
+            reopen: /return again \? \{ floor: null, cards, again: true \} : \{ floor: null, cards \};/.test(fnSource(machine, "ended"))
+                && typeof game.drpg?.reopenDebate === "function",
+            topic: /"DRPG\.Floor\.topic"/.test(fnSource(floorUi, "openDebate")),
+            budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
+            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*wrong: \["sentence", "card", "offers", "despair", "rule", "overflow"\]\s*\};/.test(vote),
+            atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
+            mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
+            api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
+                .every(name => typeof game.drpg?.[name] === "function")
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    barOrder: [/\*\*Skip\*\*, \*\*-30 s\*\*, \*\*\+30 s\*\*, \*\*Overrule\*\*, \*\*End this mode\*\*, \*\*Back to the debate\*\* and \*\*Re-point\*\*/, /outside a Class Trial every one refuses/],
+                    skipNoTurn: [/a debate has no turn to skip/],
+                    minusSkips: [/under 30 seconds left in an Objection or a rebuttal it is Skip, and a debate goes down to zero at most and is not closed/],
+                    plusFromNow: [/counted from now when the clock has already run out, and may take a mode past its usual length/],
+                    backRest: [/\*\*Back to the debate\*\* gives the debate the time it had left when the Objection cut in, not its whole budget/],
+                    overrule: [/\*\*Overrule\*\* takes back the newest Objection of this trial and no other/, /the floor goes back to whom or what it interrupted, with the time it had then/, /The price is never given back\./],
+                    reopen: [/the console's next step is \*\*Open the debate again\*\*: the same question and budget, no window \(`game\.drpg\.reopenDebate\(\)`\)/],
+                    topic: [/an optional \*Debate question\*, which the trial's card in the Event panel, the console and the debate's Objection and Present cards show/],
+                    budget: [/against 270 minutes for sixteen players/],
+                    noKill: [/The verdict kills nobody and ends nothing/],
+                    atExit: [/the sentence is carried out once, when the trial ends by any road/, /every road but the season reset carries out a sentence the verdict left waiting/],
+                    mutedDead: [/lists every dead student - a death nobody has found too, never a Monocub - and turns each one's player's microphone off for the trial/, /blocks the microphone of every dead student's player - a death nobody has found too/],
+                    api: [/`skipStep\(\)`, `adjustTime\(seconds\)`, `overruleObjection\(\)`, `endMode\(\)`, `returnToDebate\(\)` - and the older `advanceFloorNow\(\)`, `extendFloor\(\)` and `endFloor\(\)` stay/]
+                },
+                player: {
+                    overrule: [/The GM can also \*\*Overrule\*\* the newest Objection/, /what you paid stays paid, and the trial goes back to where it was, with the time it had then/],
+                    noKill: [/The verdict kills nobody: the sentence is carried out when the trial ends/],
+                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
+                },
+                stale: [/mutes nobody/, /does not mute anyone/, /\*\*End this mode now\*\*/, /the table learns it with the verdict/, /Silence is kept by the table, not by the software/, /the trial counts you among the living: you are sent a ballot/]
+            },
+            pl: {
+                gm: {
+                    barOrder: [/\*\*Pomiń\*\*, \*\*-30 s\*\*, \*\*\+30 s\*\*, \*\*Oddalenie\*\*, \*\*Zakończ ten tryb\*\*, \*\*Z powrotem do debaty\*\* i \*\*Przekieruj\*\*/, /poza Class Trial każdy odmawia/],
+                    skipNoTurn: [/debata nie ma tury do pominięcia/],
+                    minusSkips: [/gdy w Objection albo rebuttalu zostało mniej niż 30 sekund, działa jak Pomiń, a debatę zdejmuje najwyżej do zera i jej nie zamyka/],
+                    plusFromNow: [/liczone od teraz, gdy zegar już się skończył, i może przedłużyć tryb ponad jego zwykłą długość/],
+                    backRest: [/\*\*Z powrotem do debaty\*\* daje debacie czas, który jej został, gdy wcięło się Objection, a nie cały budżet/],
+                    overrule: [/\*\*Oddalenie\*\* cofa najnowsze Objection tej rozprawy i żadne inne/, /głos wraca do tego, komu albo czemu przerwało, z czasem, jaki wtedy miał/, /Koszt nigdy nie wraca\./],
+                    reopen: [/następnym krokiem konsoli jest \*\*Otwórz debatę ponownie\*\*: to samo pytanie i budżet, bez okna \(`game\.drpg\.reopenDebate\(\)`\)/],
+                    topic: [/z opcjonalnym \*Pytaniem debaty\*, które pokazują karta Class Trial w panelu zdarzeń, konsola oraz karty Objection i Przedstaw tej debaty/],
+                    budget: [/wobec 270 minut na szesnastu graczy/],
+                    noKill: [/Werdykt nikogo nie zabija i niczego nie kończy/],
+                    atExit: [/wyrok jest wykonywany raz, gdy rozprawa kończy się którąkolwiek drogą/, /każda droga oprócz resetu sezonu wykonuje wyrok, który zostawił werdykt/],
+                    mutedDead: [/wypisuje każdego zmarłego ucznia - także śmierć, której nikt nie znalazł, nigdy Monocuba - i na czas rozprawy wyłącza mikrofon jego gracza/, /blokuje mikrofon gracza każdego zmarłego ucznia - także śmierci, której nikt nie znalazł/],
+                    api: [/`skipStep\(\)`, `adjustTime\(seconds\)`, `overruleObjection\(\)`, `endMode\(\)`, `returnToDebate\(\)` - a starsze `advanceFloorNow\(\)`, `extendFloor\(\)` i `endFloor\(\)` zostają/]
+                },
+                player: {
+                    overrule: [/GM może też użyć przycisku \*\*Oddalenie\*\* wobec najnowszego Objection/, /to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała/],
+                    noKill: [/Werdykt nikogo nie zabija: wyrok jest wykonywany, gdy rozprawa się kończy/],
+                    mutedDead: [/moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł/, /w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania/]
+                },
+                stale: [/nikogo nie wycisza/, /\*\*Zakończ ten tryb teraz\*\*/, /stół dowiaduje się o niej z werdyktem/, /Ciszy pilnuje stół, nie oprogramowanie/, /rozprawa liczy cię wśród żywych: dostajesz kartę do głosowania/]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await lfText(res)).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks' Class Trial says what E70 part 1's code does not do, or an old sentence is back (each claim: [the code, ...its sentences]; stale: each old sentence found)`);
+        }
     }],
 ];
 
