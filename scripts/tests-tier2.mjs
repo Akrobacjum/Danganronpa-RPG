@@ -40136,7 +40136,7 @@ const SCENARIOS = [
          * participant, typed Key, its text the players', not read, the trace's token shown, A no longer missing and found
          * on the plan, one left to reveal, each participant told; (4) A again, by the API and by the GMs' row: nothing, still one copy each; (5) C by the
          * API with no text of its own given and the GM's: copies with the GM's words, none left; (6) a fourth Key D,
-         * written now: refused past the count, revealed when asked to go past it; (7) the copy of A on a participant is
+         * written now: refused past the count by the API and by the GMs' row, revealed when asked to go past it; (7) the copy of A on a participant is
          * offered to Analyze in the trial (`analysableBullets`, `analyzeRowShut`) and the filter holds the Reveal's row.
          * Red at 713fe35b: no `missingKeys`, no `revealMissingKey`. Everything is put back.
          */
@@ -40245,12 +40245,16 @@ const SCENARIOS = [
                 /* (6) D, past the count. */
                 await S.keyPlanStore.patch(keys.D, { scale: "standard", name: "E70T11 D", text: words.D });
                 const past = await api.revealMissingKey(20);
+                // And by the GMs' row, past the asking GM's own check (E70 C9 fix-mutant: with the primary's recheck taken out,
+                // mutant r5, only a refusal the step itself crashed on was measured): the primary refuses it past the count.
+                const pastRow = await judged({ action: "trial.gm", requestId: "E70T11G3", op: "reveal", slot: "20" }, game.user.id);
+                await sheetAuditIdle();
                 await settle();
                 const pastHeld = parts.map(p => copiesOf(p.actor, saying(words.D)).length);
                 const asked = await api.revealMissingKey(20, { beyondPaid: true });
                 await sheetAuditIdle();
                 await settle();
-                read.beyond = [past ?? null, pastHeld, Boolean(asked), parts.map(p => copiesOf(p.actor, saying(words.D)).length)];
+                read.beyond = [past ?? null, pastRow, pastHeld, Boolean(asked), parts.map(p => copiesOf(p.actor, saying(words.D)).length)];
 
                 /* (7) Analyze on the copy, in the trial. */
                 const holder = parts[0].actor;
@@ -40290,10 +40294,10 @@ const SCENARIOS = [
             revealA: [["bridge.refused"], ["bridge.done"], Array(n).fill(1), Array(n).fill(["key", "key", true, false]), false, false, true, 1, true],
             again: [null, ["bridge.refused"], Array(n).fill(1)],
             revealC: [true, Array(n).fill(1), Array(n).fill("key"), true, 0],
-            beyond: [null, Array(n).fill(0), true, Array(n).fill(1)],
+            beyond: [null, ["bridge.refused"], Array(n).fill(0), true, Array(n).fill(1)],
             analyze: [true, false, true]
         }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM: the copies each, typed and read, "
-            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; (6) D past the count, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
+            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; (6) D past the count by the API and by the GMs' row, the copies, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
