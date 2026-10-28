@@ -42,7 +42,7 @@
     {"id": "E17", "planned": "1.2.87", "version": "1.2.87", "shipped": "2026-10-27", "touches": null, "drills": []},
     {"id": "E87", "planned": "1.2.88", "version": "1.2.88", "shipped": "2026-10-27", "touches": ["sockets"], "drills": []},
     {"id": "E88", "planned": "1.2.89", "version": "1.2.89", "shipped": "2026-10-27", "touches": ["sockets", "scenes"], "drills": []},
-    {"id": "E70", "planned": "1.2.90", "version": null, "shipped": null, "touches": ["sockets"], "drills": []},
+    {"id": "E70", "planned": "1.2.90", "version": "1.2.90", "shipped": "2026-10-28", "touches": ["sockets"], "drills": []},
     {"id": "E67", "planned": "1.2.92", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E37", "planned": "1.2.96", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E38", "planned": "1.2.97", "version": null, "shipped": null, "touches": null, "drills": []},
