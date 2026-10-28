@@ -1268,6 +1268,7 @@
       "startTrialHall": "Każda przeglądarka przechodzi do {hall}; uczniowie zaznaczeni niżej dostają tam token, a koniec rozprawy go zabiera.",
       "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
       "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
+      "tableRuleVoices": "Mikrofony zmarłych są wyłączone do końca rozprawy, także tych, których ciał nikt nie znalazł. Monocub mówi tylko wtedy, gdy nie trwa żaden tryb, a od głosowania słucha. Skazani umierają, gdy rozprawa się kończy.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
       "trialBudget": {
         "one": "{n} uczeń ma na Class Trial akcje tej pory dnia.",
@@ -3300,6 +3301,7 @@
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
         "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
+        "trial.enter": "Głosy Class Trial ustawiane przy jej otwarciu lub końcu",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
@@ -4100,6 +4102,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "kanał zmarłych",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -4152,7 +4155,12 @@
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
         "connecting": "Trwa dołączanie do kanału głosowego.",
-        "connected": "Połączono z kanałem głosowym."
+        "connected": "Połączono z kanałem głosowym.",
+        "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
+        "cubSpeak": "Dyskusja: możesz mówić.",
+        "cubListen": "Tryb: {mode}. Słuchasz.",
+        "cubVote": "Głosowanie: słuchasz.",
+        "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -6072,6 +6080,7 @@
         "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
+        "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
       },
       "row": {

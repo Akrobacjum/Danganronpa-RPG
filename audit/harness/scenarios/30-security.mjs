@@ -5909,6 +5909,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objTrialGm, "gmOnly") && objTrialGm.logged.some(r => /only a GM changes the trial's floor/.test(r))
             && objTrialGm.after.mode === "objection" && objTrialGm.after.target === ids.chie && objTrialGm.after.cards === objTrialGm.before.cards,
         JSON.stringify(objTrialGm), { flow: "class-trial" });
+    /* E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's voices settled on the primary (`trial.enter`, a GM's only),
+       forged from p1's console during Aiko's running Objection. Refused gmOnly and told with its code, logged on the GM;
+       the floor as it was. The legal road is the entry and the exit from a GM that is not the primary. */
+    const objTrialEnter = await objSend(p1, "trial.enter", {}, "SECOBJTRIALENTER");
+    check("SECURITY: p1's settle of the trial's voices through the GMs' row (trial.enter) is refused (gmOnly) and told - the floor as it was",
+        refusedAs(objTrialEnter, "gmOnly") && objTrialEnter.logged.some(r => /only a GM opens or ends a Class Trial/.test(r))
+            && objTrialEnter.after.mode === "objection" && objTrialEnter.after.target === ids.chie && objTrialEnter.after.cards === objTrialEnter.before.cards,
+        JSON.stringify(objTrialEnter), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

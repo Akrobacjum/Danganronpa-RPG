@@ -766,6 +766,20 @@ export const verdictStore = defineGmStore({
 });
 
 /**
+ * WHAT THE TRIAL'S MUTE FOUND (E70 C5, 28.10.2026; amend 6, answer 3 (b)). A row per user whose microphone the trial
+ * blocked: `had` (the user held a BROADCAST_AUDIO grant of its own), `value` (which), `wrote` (the block is the trial's).
+ * Written by the primary as it blocks (voice.mjs `blockForTrial`) and dropped as it puts the grant back
+ * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
+ * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
+ * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ */
+export const trialMuteStore = defineGmStore({
+    name: "trialMute", key: SETTINGS.gmTrialMute,
+    kind: "ledger", resetGroup: "trialProgress", backup: true, sync: true,
+    exists: userId => Boolean(game.users?.has(userId))
+});
+
+/**
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's

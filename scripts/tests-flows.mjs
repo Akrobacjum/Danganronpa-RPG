@@ -94,9 +94,11 @@ export const FLOWS = Object.freeze([
     // from p1, 30 a forged one from p2.
     // E70 C0 (1.2.90): every GM's change of the floor on a GM that is not the primary is asked of it through `trial.gm`
     // (trial-floor.mjs `floorStep`); 30 sends a forged one from p1. No scenario sends it from a second GM until E70 C1.
+    // E70 C5 (1.2.90): the trial's voices - its dead listed and muted at the entry, given back at the exit - are settled on
+    // the primary, asked of it through `trial.enter` by a GM that is not (voice.mjs `askTrialVoices`); 30 sends a forged one.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
-            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm"],
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",

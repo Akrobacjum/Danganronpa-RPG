@@ -31,8 +31,8 @@
  * next one since E05 (level-up.mjs `deferAdvancement`): applied at once, it named them.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
-import { SETTINGS, isEclipse } from "./settings.mjs";
+import { MODULE_ID, TRIAL, FLAGS } from "./config.mjs";
+import { SETTINGS, isEclipse, isMutedDead } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
@@ -186,14 +186,15 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  * nothing is written). A caller that builds its patch from a record it read earlier - a list it adds to, a vote it
  * closes - passes the function, or a write that landed between its read and its step is written over.
  *
- * A step never calls this (it would wait for its own key): the step's work is `writeTrialProgressInStep`.
+ * A step never calls this (it would wait for its own key): the step's work is `writeTrialProgressInStep`, which a step of
+ * this key in another file calls (voice.mjs `settleTrialVoices`, E70 C5).
  */
 export function setTrialProgress(patch = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
 
-async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
+export async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
     /* THE RECORD OF ITS OWN CHAPTER (E70 C4): the execution at the trial's end writes the record of the trial it ends,
        which the chapter's end has already moved the clock past (chapter.mjs `CHAPTER_END_STEPS`: "clock" before
        "trial") and Edit campaign moves in the same write as the phase. With `chapter`, the step writes only a record
@@ -203,6 +204,9 @@ async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
     const change = typeof patch === "function" ? patch(before) : patch;
     if (!change) return null;
     const next = { ...before, ...change, chapter: chapter ?? getClock().chapter };
+    // A field patched to `undefined` leaves the record (E70 C5: the trial's list of the dead at the exit, which world data
+    // may hold only in a Class Trial - world-secrets.mjs).
+    for (const [key, value] of Object.entries(change)) if (value === undefined) delete next[key];
     try {
         await game.settings.set(MODULE_ID, SETTINGS.trialProgress, next);
     } catch (err) {
@@ -227,13 +231,13 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
     // `reconcilePhase`). The Objections' receipts are the chapter's and stay; an Overrule reads only this trial's.
     // THE TRIAL'S OWN FIELDS (E70 C3; amend (i)): the question, the debate again, the vote's opening, and the size
     // the guide's budget scales by - the players with a living student at the table as the trial starts (the
-    // ballot's count, `eligibleVoters`), read in the step. A second trial in the chapter (D17) starts without the
+    // ballot's count, `trialParticipants`), read in the step. A second trial in the chapter (D17) starts without the
     // first one's; tier 0 R1032 holds the list.
     return setTrialProgress(now => ({
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
         vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
         trialStartedAt: serverNow(), againAfterOverrule: null,
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: eligibleVoters().length,
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: trialParticipants().length,
         executedAt: null, execution: null
     }));
 }
@@ -302,7 +306,7 @@ function onBallotOpened(payload, senderId) {
  * else's vote, since a repeat arrival overwrites rather than adds.
  *
  * JUDGED ON WHAT THE PRIMARY HOLDS, NEVER ON THE PACKET (`ballotRefusal`): the round is the world's
- * open round; the sender holds a ballot in it, by `eligibleVoters` read as the GMs hold the
+ * open round; the sender holds a ballot in it, by `trialParticipants` read as the GMs hold the
  * students; and the names are as many as the vote asks for, none twice, each on the list this side
  * computes for that voter - which is also what holds a ballot to the guide's rules on whom one may
  * name, rather than trusting a client to have offered honest options. Until C2 the names were only
@@ -360,7 +364,7 @@ function ballotRefusal(progress, actor, round, choice) {
 /**
  * A PLAYER'S OWN BALLOT, ASKED FOR (E10 C2, 1.2.71; the plan's section 3, "A late joiner"): the run of the
  * bridge's `vote.ask` (gm-bridge.mjs `handleBallotAsk`), on the primary, about the sender alone. Null when no
- * vote is open or the sender holds no ballot in it (`eligibleVoters`, as the GMs hold the students); `{ cast:
+ * vote is open or the sender holds no ballot in it (`trialParticipants`, as the GMs hold the students); `{ cast:
  * true, round }` when the sender's ballot of this round is in; otherwise the ballot, `{ round, picks,
  * candidates }` - and a sender the vote had not handed one yet, a player who joined after the ballots went out,
  * is added to the record's `issued` first, as a remind adds one: the world's record says who was handed a
@@ -567,7 +571,7 @@ function picksFor(asked, recorded) {
  * was counted again.
  */
 async function openRound(progress, op, picks) {
-    const voters = eligibleVoters();
+    const voters = trialParticipants();
     if (!voters.length) {
         log(`The vote was not ${op === "restart" ? "started over" : "opened"}: `
             + "no player is connected with a student to vote with.");
@@ -622,7 +626,7 @@ async function openRound(progress, op, picks) {
 async function sendAgain(progress, op) {
     const back = new Set(roundBallots(progress).map(([userId]) => userId));
     const handed = new Set(progress.vote.issued);
-    const voters = eligibleVoters()
+    const voters = trialParticipants()
         .filter(({ user }) => !back.has(user.id) && (op === "remind" || handed.has(user.id)));
     const joined = voters.map(({ user }) => user.id).filter(userId => !handed.has(userId));
     if (joined.length) {
@@ -683,11 +687,15 @@ function sendBallots(voters, picks, round) {
  * a cast and an ask) - on another GM's browser, which holds no mark of its own, the document's,
  * as before.
  */
-function eligibleVoters() {
+export function trialParticipants() {
     const out = [];
     const seated = new Set();
     for (const actor of studentActors()) {
-        if (!TRIAL.deadCastBallots && isDeceased(flagsHeldNow(actor))) continue;
+        // WHO TAKES PART (E70 C5, S18-79's list; TR33 = 1): no Monocub (DC4: it speaks only in the discussion and holds no
+        // ballot), and nobody on the trial's list of the dead (settings.mjs `isMutedDead`) - a death nobody has found
+        // among them, which the flag does not show and the primary lists after its deaths store has hydrated (TR30).
+        if (actor.getFlag(MODULE_ID, FLAGS.monocub)) continue;
+        if (!TRIAL.deadCastBallots && (isDeceased(flagsHeldNow(actor)) || isMutedDead(actor))) continue;
         const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
         if (!user || seated.has(user.id)) continue;
         seated.add(user.id);
@@ -698,7 +706,7 @@ function eligibleVoters() {
 
 /**
  * Every write queued on a student judged (sheet-audit.mjs `judgedFor`; E10 C2): waited for once, outside
- * the vote's turn, by every road that decides who holds a ballot, so `eligibleVoters` then reads each
+ * the vote's turn, by every road that decides who holds a ballot, so `trialParticipants` then reads each
  * student as the GMs hold it in one synchronous pass.
  */
 function studentsJudged() {
@@ -708,12 +716,12 @@ function studentsJudged() {
 /**
  * Which of a person's students is the one holding their ballot.
  *
- * Read from `eligibleVoters` rather than worked out again, so the step that hands the
+ * Read from `trialParticipants` rather than worked out again, so the step that hands the
  * ballots out and the cast that records one cannot disagree about who it belongs to -
  * which is what decides whose candidate list the answer is checked against.
  */
 function voterActorFor(user) {
-    return eligibleVoters().find(v => v.user.id === user.id)?.actor ?? null;
+    return trialParticipants().find(v => v.user.id === user.id)?.actor ?? null;
 }
 
 /** How many ballots of the open vote this browser holds, or null when no vote is open. GM only. */
@@ -742,7 +750,7 @@ export function pendingVoters() {
     const progress = trialProgress();
     if (!progress.vote.open) return null;
     const back = new Set(roundBallots(progress).map(([userId]) => userId));
-    return eligibleVoters()
+    return trialParticipants()
         .filter(({ user }) => !back.has(user.id))
         .map(({ user, actor }) => ({ user, actor, name: actor.name }));
 }
@@ -750,12 +758,12 @@ export function pendingVoters() {
 /**
  * Who Send the ballots would hand one to now, by name (E10 C14, 1.2.71; audit S06-26): the vote window
  * lists them before the button is pressed, and says that nobody is connected when nobody is. The same
- * reading as the step's own (`eligibleVoters`), as this GM holds it at the moment - a display: the step
+ * reading as the step's own (`trialParticipants`), as this GM holds it at the moment - a display: the step
  * reads it again on the primary, after every write queued on a student is judged. GM only.
  */
 export function ballotRecipients() {
     if (!game.user.isGM) return [];
-    return eligibleVoters().map(({ user, actor }) => ({ user, actor, name: actor.name }));
+    return trialParticipants().map(({ user, actor }) => ({ user, actor, name: actor.name }));
 }
 
 /**
@@ -783,7 +791,7 @@ export function voteBar() {
  * agreement (D6): a base of the ballots returned would call four of five a landslide in a room of sixteen.
  */
 function ballotBase(vote, cast) {
-    return new Set([...vote.issued, ...eligibleVoters().map(({ user }) => user.id),
+    return new Set([...vote.issued, ...trialParticipants().map(({ user }) => user.id),
         ...cast.map(([userId]) => userId)]).size;
 }
 

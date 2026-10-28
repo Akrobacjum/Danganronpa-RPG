@@ -5950,6 +5950,10 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
+            // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).
+            ["trialProgress.mutedDead",
+                s => { s.settings.trialProgress = { chapter: 2, mutedDead: [] }; s.settings.clock.phase = "dailyLife"; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialProgress" && h.path === "mutedDead"],
             // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
@@ -5968,6 +5972,11 @@ const INVARIANTS = [
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
            beside it is found - an exemption is one setting's, not the field's. */
         const EXEMPT = [
+            /* E70 C5, both ways: the trial's list of the dead stands while the clock's phase is the trial (TR30), and
+               the same list with the phase written otherwise is found (the fixture above). */
+            ["trialProgress may hold mutedDead in a Class Trial",
+                s => { s.settings.trialProgress = { chapter: 2, mutedDead: ["R190BYSTANDER001"] }; s.settings.clock.phase = "classTrial"; },
+                hits => !hits.some(h => h.id === "trialProgress")],
             ["projectMeta may hold tokenId",
                 s => {
                     Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
@@ -24820,6 +24829,99 @@ const INVARIANTS = [
             "the trial clock's or the question's line is missing its words or its numbers, or does not say it is an estimate (EN, PL, then the estimate in each)");
         ok(!lines("en").some(w => /discussion/i.test(w ?? "")) && !lines("pl").some(w => /dyskusj/i.test(w ?? "")),
             "the question's or the clock's line names discussion, which is only the trial with no debate (S06-10)");
+    }],
+    ["R1034 - who takes part and who may speak (E70 C5, S18-78, S18-79's list; DC4, DC19, DC29, TR30, TR33): settings.mjs `isMutedDead` answers only in a Class Trial, from the trial's list; trial-floor.mjs `trialVoice` says speak, listen or muted for a living participant, a convict, a listed death the table has not been told of, a known dead, a Monocub and a Monocub whose own case is being tried, in every mode, the vote, the verdict and outside the trial; `micHold` holds a listed dead student's microphone and gives a Monocub its line", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-19, E70-22. The owner: the dead do not speak in the trial, the undiscovered
+         * dead too (TR30 = 2: "Tak, ona też wyciszona"); a Monocub speaks only "wtedy gdy nie ma żadnego trybu gry"
+         * and listens from the vote's opening on (DC4, DC28); a Monocub whose death the trial is about listens, as
+         * information only ("Słuchasz: to rozprawa w twojej sprawie", DC29, DC41). Read without a world: the facts
+         * handed in (the clock, the floor, the trial's record, the season), on stand-in actors that carry only the two
+         * flags the rule reads. The convict is alive until the trial ends (DC36), so a living participant. Red at
+         * 9f40de9a: no `isMutedDead`, no `trialVoice`, and `micHold` held nobody in the trial.
+         */
+        const voice = await import("./voice.mjs");
+        const { isMutedDead } = await import("./settings.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof isMutedDead === "function", "settings.mjs has no isMutedDead - nobody's microphone is the trial's");
+        ok(typeof F.trialVoice === "function", "trial-floor.mjs has no trialVoice - nothing says who may speak in the trial");
+        if (typeof isMutedDead !== "function" || typeof F.trialVoice !== "function") return;
+        const EPOCH = 4, CH = 3;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const people = {
+            alive: stand("aliveAAAAAAAAAAA"), convict: stand("convictCCCCCCCCC"), other: stand("otherOOOOOOOOOOO"),
+            unfound: stand("unfoundUUUUUUUUU"), known: stand("knownKKKKKKKKKKK", { [FLAGS.deceased]: { chapter: 2, epoch: EPOCH } }),
+            cub: stand("cubMMMMMMMMMMMMM", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH }, [FLAGS.monocub]: true }),
+            own: stand("ownOOOOOOOOOOOOO", { [FLAGS.deceased]: { chapter: CH, epoch: EPOCH }, [FLAGS.monocub]: true })
+        };
+        const trial = { phase: "classTrial", chapter: CH }, life = { phase: "dailyLife", chapter: CH };
+        const record = (more = {}) => ({ chapter: CH, mutedDead: [people.unfound.id, people.known.id].sort(), lastVerdictAt: null, voteOpenedAt: null,
+            vote: { open: false }, verdict: { sentenced: [people.convict.id] }, ...more });
+        const floors = {
+            debate: { active: true, mode: "debate" },
+            objection: { active: true, mode: "objection", holderId: people.alive.id, targetId: people.other.id },
+            rebuttal: { active: true, mode: "rebuttal", holderId: people.other.id, targetId: people.alive.id }
+        };
+        const states = {
+            outside: { clock: life, floor: null, record: record() },
+            discussion: { clock: trial, floor: null, record: record() },
+            debate: { clock: trial, floor: floors.debate, record: record() },
+            objection: { clock: trial, floor: floors.objection, record: record() },
+            rebuttal: { clock: trial, floor: floors.rebuttal, record: record() },
+            vote: { clock: trial, floor: null, record: record({ vote: { open: true }, voteOpenedAt: 1000 }) },
+            verdict: { clock: trial, floor: null, record: record({ voteOpenedAt: 1000, voteClosed: true, verdictApplied: true, lastVerdictAt: 2000 }) },
+            noList: { clock: trial, floor: null, record: { ...record(), mutedDead: undefined } }
+        };
+        const read = {};
+        for (const [name, s] of Object.entries(states)) {
+            read[name] = Object.fromEntries(Object.entries(people).map(([who, actor]) =>
+                [who, F.trialVoice(actor.id, { ...s, actor, epoch: EPOCH })]));
+        }
+        const S = "speak", L = "listen", M = "muted";
+        const want = {
+            outside: { alive: S, convict: S, other: S, unfound: S, known: S, cub: S, own: S },
+            discussion: { alive: S, convict: S, other: S, unfound: M, known: M, cub: S, own: L },
+            debate: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            objection: { alive: S, convict: L, other: L, unfound: M, known: M, cub: L, own: L },
+            rebuttal: { alive: S, convict: L, other: S, unfound: M, known: M, cub: L, own: L },
+            vote: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            verdict: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            noList: { alive: S, convict: S, other: S, unfound: S, known: M, cub: S, own: L }
+        };
+        equal(stableJson(read), stableJson(want),
+            "who may speak in the trial is not the owner's rule (per state: the living, a convict, a bystander, a death nobody found, a known dead, a Monocub, a Monocub whose own case is tried)");
+
+        const muted = Object.fromEntries(Object.entries(states).map(([name, s]) =>
+            [name, [isMutedDead(people.unfound, s), isMutedDead(people.known, s), isMutedDead(people.alive, s)]]));
+        equal(stableJson(muted), stableJson({ outside: [false, false, false], discussion: [true, true, false], debate: [true, true, false],
+            objection: [true, true, false], rebuttal: [true, true, false], vote: [true, true, false], verdict: [true, true, false], noList: [false, false, false] }),
+            "isMutedDead answers outside a Class Trial, or not from the trial's list (per state: the death nobody found, the known dead, the living)");
+
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const hold = (actor, s, extra = {}) => {
+            const out = voice.micHold({ user, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [actor],
+                trial: { ...s, epoch: EPOCH }, ...extra });
+            return out ? [out.reason, out.held, out.data?.mode ? "mode" : null] : null;
+        };
+        equal(stableJson({
+            unfound: hold(people.unfound, states.debate), blockedToo: hold(people.unfound, states.debate, { canBroadcastAudio: false }),
+            cubTalks: hold(people.cub, states.discussion), cubHears: hold(people.cub, states.debate), cubVote: hold(people.cub, states.vote),
+            own: hold(people.own, states.discussion), alive: hold(people.alive, states.objection), gm: hold(people.alive, states.debate, { canBroadcastAudio: false }),
+            after: hold(people.unfound, states.outside)
+        }), stableJson({
+            unfound: ["deadMuted", true, null], blockedToo: ["deadMuted", true, null],
+            cubTalks: ["cubSpeak", false, null], cubHears: ["cubListen", false, "mode"], cubVote: ["cubVote", false, null],
+            own: ["ownCase", false, null], alive: null, gm: ["gmBlock", false, null], after: null
+        }), "micHold does not hold a listed dead student's microphone in the trial (named before a GM's block), or does not give a Monocub its line (per case: reason, held, a mode named)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Voice?.held ?? {});
+        const lines = code => ["deadMuted", "cubSpeak", "cubListen", "cubVote", "ownCase"].map(k => typeof lang[code][k] === "string" && lang[code][k].length > 10);
+        equal(stableJson([lines("en"), lines("pl"), String(lang.en.cubListen ?? "").includes("{mode}"), String(lang.pl.cubListen ?? "").includes("{mode}")]),
+            stableJson([[true, true, true, true, true], [true, true, true, true, true], true, true]),
+            "the tile's trial lines are missing in English or Polish, or the Monocub's listening line names no mode (EN keys, PL keys, EN {mode}, PL {mode})");
     }],
 ];
 

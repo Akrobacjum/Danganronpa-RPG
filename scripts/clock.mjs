@@ -838,6 +838,15 @@ async function reconcilePhase(from, to) {
            (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
            road out reach it here - in the trial's own chapter, which Edit campaign may move in this same write
            (vote.mjs `executeAtExit` reads the record by its own chapter). */
+        /* THE DEAD'S MICROPHONES GIVEN BACK (E70 C5), before the sentence: the trial's list taken out of the record and
+           every block it wrote put back on the primary, so the convicted, who spoke until now, are not listed as they
+           die, and nobody leaves the trial muted (voice.mjs `settleTrialVoices`, asked of the primary by "trial.enter"). */
+        try {
+            const { askTrialVoices } = await import("./voice.mjs");
+            await askTrialVoices();
+        } catch (err) {
+            error("Could not give the dead's microphones back after the trial", err);
+        }
         try {
             const { executeAtExit } = await import("./vote.mjs");
             await executeAtExit();
@@ -871,6 +880,14 @@ async function reconcilePhase(from, to) {
             await resetTrialProgress();
         } catch (err) {
             error("Could not reset the trial's progress after the phase changed", err);
+        }
+        /* THE TRIAL'S DEAD MUTED (E70 C5; TR30, DC19), after the reset - the list is a field of the record it blanks - and
+           on the primary, whose deaths store holds the deaths nobody has found (voice.mjs `settleTrialVoices`). */
+        try {
+            const { askTrialVoices } = await import("./voice.mjs");
+            await askTrialVoices();
+        } catch (err) {
+            error("Could not mute the dead for the trial after the phase changed", err);
         }
         try {
             /* AFTER the reset, never before: the reset blanks this chapter's trial

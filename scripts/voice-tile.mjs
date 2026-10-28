@@ -890,8 +890,10 @@ export function micState({ hold, settings = game.webrtc?.settings } = {}) {
     if (answer?.reason === "external" || answer?.reason === "offline") return { state: "offline", reason: answer.reason, info: null };
     if (answer?.reason === "gmBlock") return { state: "gmBlock", reason: answer.reason, info: null };
     const info = answer?.reason ?? null;
-    if (settings?.get?.("client", `users.${game.user?.id}.muted`) === true) return { state: "muted", reason: null, info };
-    return { state: settings?.client?.voice?.mode === "ptt" ? "ptt" : "on", reason: null, info };
+    // A line's words (E70 C5): the mode a Monocub listens in, `cubListen`'s {mode}.
+    const data = answer?.data ? { data: answer.data } : {};
+    if (settings?.get?.("client", `users.${game.user?.id}.muted`) === true) return { state: "muted", reason: null, info, ...data };
+    return { state: settings?.client?.voice?.mode === "ptt" ? "ptt" : "on", reason: null, info, ...data };
 }
 
 /**
@@ -947,8 +949,8 @@ const paintedMic = new WeakMap();
 export function paintMic(tile, mic, { key = pushToTalkKey() } = {}) {
     const button = tile?.querySelector(".drpg-voice-mic"), note = tile?.querySelector(".drpg-voice-tile-note");
     if (!button || !note) return false;
-    const reasonLine = mic.reason ? game.i18n.localize(`DRPG.Voice.held.${mic.reason}`) : "";
-    const infoLine = mic.info ? game.i18n.localize(`DRPG.Voice.held.${mic.info}`) : "";
+    const reasonLine = mic.reason ? game.i18n.format(`DRPG.Voice.held.${mic.reason}`, mic.data ?? {}) : "";
+    const infoLine = mic.info ? game.i18n.format(`DRPG.Voice.held.${mic.info}`, mic.data ?? {}) : "";
     const pttLine = mic.state === "ptt"
         ? (key ? game.i18n.format("DRPG.Voice.mic.ptt", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey")) : "";
     const tip = { muted: game.i18n.localize("DRPG.Voice.mic.unmute"), ptt: pttLine, on: game.i18n.localize("DRPG.Voice.mic.mute") };

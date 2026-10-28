@@ -73,6 +73,8 @@ const ACTION_TRIAL_WITHDRAW = "trial.withdraw";
 const ACTION_FLOOR_REPOINT = "floor.repoint";
 /** GM -> primary GM: a GM's change of the trial's floor, run in the floor's step there (E70 C0; trial-floor.mjs `floorStep`). */
 const ACTION_TRIAL_GM = "trial.gm";
+/** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
+const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1752,6 +1754,12 @@ async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `trial.enter` (E70 C5): the primary's own settle of the trial's voices (voice.mjs `settleTrialVoices`), its answer or null. */
+async function handleTrialEnter() {
+    const { settleTrialVoices } = await import("./voice.mjs");
+    return { reply: await settleTrialVoices() };
+}
+
 /** The run of `vote.run` (E10 C1): the primary's own step of the vote (vote.mjs `runVoteOp`), its reply or status. */
 async function handleVoteRun(payload) {
     const { runVoteOp } = await import("./vote.mjs");
@@ -2673,6 +2681,20 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM opens a Class Trial, and the Key fee is charged as one opens")],
         sanitize: pick({}),
         run: handleKeysCharge,
+        answer: "reply"
+    },
+    /*
+     * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
+     * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths
+     * store after it has hydrated, and the blocks are written by one GM in one step of the record's key, so another GM
+     * asks the primary here (voice.mjs `askTrialVoices`), as the Key fee is asked above. Carries nothing: the settle
+     * reads the clock, the deaths and the users on this side.
+     */
+    [ACTION_TRIAL_ENTER]: {
+        label: "DRPG.Bridge.what.trial.enter",
+        guards: [gmOnly("only a GM opens or ends a Class Trial, and the trial's voices are settled as it does")],
+        sanitize: pick({}),
+        run: handleTrialEnter,
         answer: "reply"
     },
     /*

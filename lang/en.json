@@ -1280,6 +1280,7 @@
       "startTrialHall": "Every browser goes to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
+      "tableRuleVoices": "The dead's microphones are off until the trial ends, a death nobody has found too. A Monocub speaks only while no mode runs and listens from the vote on. The convicted die when the trial ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Events": {
@@ -3175,6 +3176,7 @@
         "roll.grant": "A grant of rolls thrown with no GM connected",
         "audit.decide": "A GM's decision on a sheet change flagged to the GMs",
         "keys.charge": "The Key fee charged as a Class Trial opens",
+        "trial.enter": "The Class Trial's voices settled as it opens or ends",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "card.claim": "A GM's ruling on a card sent to the GMs",
@@ -3946,6 +3948,7 @@
       "mainRoom": "the main room",
       "deadRoom": "the dead channel",
       "claimTrial": "the Class Trial - everybody in one room",
+      "trialMuteLeft": "{name}'s microphone is still blocked after the trial: lift the block from the voice tile's list.",
       "needsAvclient": "Regional voice is on, but LiveKit AVClient is not active.",
       "avDisabled": "Regional voice is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
@@ -3994,7 +3997,12 @@
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",
         "connecting": "Joining your voice channel.",
-        "connected": "Connected to your voice channel."
+        "connected": "Connected to your voice channel.",
+        "deadMuted": "Your character is dead: you listen to the trial, and your microphone stays off until it ends.",
+        "cubSpeak": "Discussion: you may speak.",
+        "cubListen": "Mode: {mode}. You listen.",
+        "cubVote": "The vote: you listen.",
+        "ownCase": "You listen: this trial is about your death."
       },
       "list": {
         "open": "Who you hear",
@@ -4725,6 +4733,7 @@
         "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
+        "trialMute": "The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
       },
       "row": {

@@ -39509,6 +39509,106 @@ const SCENARIOS = [
             + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
             + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
     }],
+    ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-20, E70-21, E70-23 (the owner's TR30 = 2, DC19; amend 6, answer 3 (b)). Read on
+         * this primary, the clock written raw (no phase write runs its roads) and the trial's voices settled by hand as
+         * the entry, a death, a new Monocub and the exit settle them (voice.mjs `settleTrialVoices`, which clock.mjs
+         * `reconcilePhase` and the primary's hooks ask), so the test holds in a trial and out of one. Three students
+         * whose players are here: U dies and nobody finds the body, K dies in public and its player's microphone is
+         * blocked by a GM before the trial, A lives. (1) The entry lists U and K, blocks U's player and records what it
+         * found, leaves K's player's block alone and records nothing for it, hands neither a ballot and tells who may
+         * speak. (2) K made a Monocub leaves the list; its player's GM block stays. (3) A dies in the trial and joins.
+         * (4) The exit takes the list out of the record, removes the key U's player did not have, puts A's player's own
+         * grant back, leaves K's player blocked and the store empty. Red at 9f40de9a: no settle, and U was handed a ballot.
+         * The clock, the floor, the record, the three students, their players' permissions and the store are put back.
+         */
+        needs(env.primaryGm(), "the trial's dead are listed on the primary GM, after its deaths store has hydrated");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three students whose players are here");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { setMonocub, isMonocub } = await import("./monocub.mjs");
+        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
+            .sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && voiceOf(u)?.id === a.id && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students who are their players' only voice, found ${picked.length} - the probe above counts them`);
+        const [A, U, K] = picked.slice(0, 3);
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries([A, U, K].map(p => [p.user.id, perm(p.user)]));
+        const resources = foundry.utils.deepClone(K.actor.system.resources);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = stores.trialMuteStore ?? null;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const settleNow = async () => { if (typeof voice.settleTrialVoices === "function") await voice.settleTrialVoices(); await settle(); };
+        const listNow = () => { const r = getSetting(SETTINGS.trialProgress) ?? {}; return Object.hasOwn(r, "mutedDead") ? [...(r.mutedDead ?? [])].sort() : "absent"; };
+        const rows = () => (store ? Object.keys(store.entries()).sort() : null);
+        const voices = () => [A, U, K].map(p => (typeof F.trialVoice === "function" ? F.trialVoice(p.actor.id) : null));
+        const ballot = () => V.ballotRecipients().map(r => r.actor.id);
+        const read = {};
+        try {
+            ok(typeof voice.settleTrialVoices === "function", "voice.mjs has no settleTrialVoices - nobody's microphone is the trial's");
+            ok(Boolean(store), "gm-stores.mjs has no trialMuteStore - nothing remembers what a block found");
+            await K.user.update({ "permissions.BROADCAST_AUDIO": false });
+            await A.user.update({ "permissions.BROADCAST_AUDIO": true });
+            if (perm(U.user)[0]) await U.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            must(!perm(U.user)[0], "U's player still has a block of its own after the fixture took it off - the removal would measure nothing");
+            await killCharacter(U.actor, { secret: true, keepBullets: true });
+            await killCharacter(K.actor, { secret: false, keepBullets: true });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await settleNow();
+            read.entry = { list: listNow(), u: perm(U.user), k: perm(K.user), a: perm(A.user), rows: rows(), voices: voices(),
+                ballot: [ballot().includes(A.actor.id), ballot().includes(U.actor.id), ballot().includes(K.actor.id)] };
+
+            await setMonocub(K.actor, true);
+            await settleNow();
+            read.monocub = { list: listNow(), k: perm(K.user), rows: rows(), cub: isMonocub(K.actor), voice: voices()[2] };
+
+            await killCharacter(A.actor, { secret: true, keepBullets: true });
+            await settleNow();
+            read.death = { list: listNow(), a: perm(A.user), rows: rows(), voice: voices()[0], ballot: ballot().includes(A.actor.id) };
+
+            await rawClock({ phase: "dailyLife" });
+            await settleNow();
+            read.exit = { list: listNow(), u: perm(U.user), k: perm(K.user), a: perm(A.user), rows: rows(), voices: voices() };
+        } finally {
+            if (isMonocub(K.actor)) await setMonocub(K.actor, false);
+            for (const p of [A, U, K]) if (isDeadForGm(p.actor)) await reviveCharacter(p.actor, { quiet: true });
+            await K.actor.update({ "system.resources": resources });
+            for (const p of [A, U, K]) {
+                const [had, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": had ? value : forcedDeletion() });
+            }
+            if (store) for (const key of Object.keys(store.entries())) await store.drop(key);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        const ids = (...p) => p.map(x => x.actor.id).sort();
+        equal(stableJson(read), stableJson({
+            entry: { list: ids(U, K), u: [true, false], k: [true, false], a: [true, true], rows: [U.user.id], voices: ["speak", "muted", "muted"],
+                ballot: [true, false, false] },
+            monocub: { list: ids(U), k: [true, false], rows: [U.user.id], cub: true, voice: "listen" },
+            death: { list: ids(A, U), a: [true, false], rows: [A.user.id, U.user.id].sort(), voice: "muted", ballot: false },
+            exit: { list: "absent", u: [false, null], k: [true, false], a: [true, true], rows: [], voices: ["speak", "speak", "speak"] }
+        }), "the trial's dead are not muted as the owner asked (entry: list, U's, K's and A's players' block [had, value], the store's rows, who may speak, who holds a ballot; then a new Monocub, a death in the trial, the exit)");
+    }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*

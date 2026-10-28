@@ -50,7 +50,9 @@
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
-import { SETTINGS, getClock } from "./settings.mjs";
+import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
+import { isMonocub } from "./monocub.mjs";
+import { cubVoice } from "./voice.mjs";
 import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
@@ -322,6 +324,28 @@ export function floorTarget(floor = trialFloor()) {
 export function maySpeak(actorId, floor = trialFloor()) {
     // The mode's row (`MODE_RULES`, E70 C1): the objector alone in an Objection, the two in a rebuttal, else anybody.
     return modeAllows(floor, "speak", actorId);
+}
+
+/**
+ * WHO MAY SPEAK IN THE TRIAL, AND WHO ONLY LISTENS (E70 C5, 28.10.2026; S18-78; E70-19): "speak", "listen" or "muted"
+ * for this character now. Outside a Class Trial "speak" - this is the trial's rule and says nothing of ordinary play.
+ * On the trial's list of the dead (settings.mjs `isMutedDead`: every ordinary dead, a death nobody has found too; TR30)
+ * "muted", and so is a known dead not listed (a trial whose list a road in has not written yet). A Monocub speaks in the
+ * discussion and listens in a mode and from the vote's opening on, and listens through a trial about its own death
+ * (voice.mjs `cubVoice`; DC4, DC28, DC29). The living - a convict among them until the trial ends (DC36) - speak as the
+ * mode's row says (`modeAllows`: the objector alone, the two in a rebuttal), and listen otherwise. A display and the
+ * tile's line read it (voice.mjs `micHold`); the module silences only the listed (the block, `settleTrialVoices`).
+ * The facts can be handed in, so tier 1 R1034 asks it a table without a world; `drpgTrialStep` follows each step.
+ */
+export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, actor = game.actors?.get(actorId ?? "") ?? null } = {}) {
+    if (clock?.phase !== "classTrial" || !actor) return "speak";
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    const on = floor === undefined ? trialFloor() : floor;
+    const facts = { clock, floor: on, record: stored, epoch: epoch ?? seasonEpoch() };
+    if (isMutedDead(actor, facts)) return "muted";
+    if (isMonocub(actor)) return cubVoice(actor, facts) === "speak" ? "speak" : "listen";
+    if (isDeceased(actor)) return "muted";
+    return modeAllows(on, "speak", actor.id) ? "speak" : "listen";
 }
 
 /* ==========================================================================

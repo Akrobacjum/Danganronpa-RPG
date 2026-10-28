@@ -70,11 +70,14 @@ function studentActor(id, name, ownerUserId, experience = null) {
 
 export const world = {
     collections: {
+        /* `permissions: {}` (E70 C5, 28.10.2026): Foundry's User holds an empty grant set by its schema, and the trial's block
+           of a dead player's microphone gives a grant back by removing its key (voice.mjs `restoreTrialBlock`) - a seed
+           without the field read as "(none) -> {}" in the suite's world diff after a trial with a dead student. */
         User: [
-            { _id: IDS.gm, name: "GM", role: 4, active: true, character: null, color: "#ff0000", flags: {} },
-            { _id: IDS.p1, name: "PlayerOne", role: 1, active: true, character: IDS.aiko, color: "#00ff00", flags: {} },
-            { _id: IDS.p2, name: "PlayerTwo", role: 1, active: true, character: IDS.botan, color: "#0000ff", flags: {} },
-            { _id: IDS.p3, name: "PlayerThree", role: 1, active: true, character: IDS.chie, color: "#ffaa00", flags: {} }
+            { _id: IDS.gm, name: "GM", role: 4, active: true, character: null, color: "#ff0000", flags: {}, permissions: {} },
+            { _id: IDS.p1, name: "PlayerOne", role: 1, active: true, character: IDS.aiko, color: "#00ff00", flags: {}, permissions: {} },
+            { _id: IDS.p2, name: "PlayerTwo", role: 1, active: true, character: IDS.botan, color: "#0000ff", flags: {}, permissions: {} },
+            { _id: IDS.p3, name: "PlayerThree", role: 1, active: true, character: IDS.chie, color: "#ffaa00", flags: {}, permissions: {} }
         ],
         Actor: [
             studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1, "Star Pupil"),

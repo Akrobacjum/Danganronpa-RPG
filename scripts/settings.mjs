@@ -376,6 +376,12 @@ export const SETTINGS = {
      */
     gmVerdict: "gmVerdict",
     /**
+     * WHAT THE TRIAL'S MUTE FOUND (E70 C5, 28.10.2026; amend 6, answer 3 (b)): a GM store, a row per user whose
+     * microphone the trial blocked, `{ had, value, wrote }` - whether the user had a BROADCAST_AUDIO grant of its own
+     * and which, so the exit puts back exactly that (gm-stores.mjs `trialMuteStore`, voice.mjs `settleTrialVoices`).
+     */
+    gmTrialMute: "gmTrialMute",
+    /**
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
@@ -1685,6 +1691,13 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // What the trial's mute found (E70 C5): no `onChange`, as nothing on any screen shows it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTrialMute, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
        redraws what the world setting's change redrew (the caption, the HUD row, the sheets;
        the pools' bar and sheets), and tells the windows that show a count or what a pool
@@ -2938,6 +2951,29 @@ export function pendingDeath(actor) {
 /** Dead as this browser may know it: the flag, or a death this browser holds (see above). */
 export function isDeadForGm(actor) {
     return deadIn(actor, () => pendingDeath(actor));
+}
+
+/*
+ * THE TRIAL'S DEAD, WHOSE MICROPHONES ARE OFF (E70 C5, 28.10.2026; S18-78, S18-87; the owner's DC19 and TR30 = 2: "Tak,
+ * ona też wyciszona"). The primary GM writes the list into the trial's record when the trial opens, after its deaths
+ * store has hydrated (voice.mjs `settleTrialVoices`): every ordinary dead student - a death nobody has found too, which
+ * no player's copy of the GMs' records would show - and never a Monocub. Public on purpose (TR30: the silence tells the
+ * table of a body nobody found; LIVE-E70 and the books say so), and answered only in a Class Trial: outside one the
+ * list means nothing, and the exit takes it out of the record. Here, beside `isDeadForGm`, because movement.mjs,
+ * vote.mjs, trial.mjs, trial-floor.mjs and voice.mjs all ask it and this file imports none of them. `clock` and
+ * `record` (the stored trial record) can be handed in, so tier 1 R1034 asks it a table without a world.
+ */
+export function mutedDeadIds({ clock = getClock(), record } = {}) {
+    if (clock?.phase !== "classTrial") return null;
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    if (stored.chapter !== clock.chapter || !Array.isArray(stored.mutedDead)) return null;
+    return stored.mutedDead;
+}
+
+/** Whether the module mutes this student for the trial (`mutedDeadIds`): never outside a Class Trial. */
+export function isMutedDead(actor, facts = {}) {
+    const id = actor?.id;
+    return Boolean(id && mutedDeadIds(facts)?.includes(id));
 }
 
 /**

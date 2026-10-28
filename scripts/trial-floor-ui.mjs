@@ -99,7 +99,7 @@ export async function startClassTrial() {
        flag written from a console is put back by the GMs' audit (GM_FLAGS) a server round trip
        later, and a click inside that window read it. Every write queued on a student is judged
        first (`judgedFor`), then each is read as the primary holds it (`flagsHeldNow`) in one
-       synchronous pass, as the vote's `eligibleVoters` reads them; on another GM's browser,
+       synchronous pass, as the vote's `trialParticipants` reads them; on another GM's browser,
        which keeps no mark, the document's. */
     const { studentActors } = await import("./monokuma.mjs");
     const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
@@ -145,6 +145,7 @@ export async function startClassTrial() {
             </ul>
             <p class="notes">${game.i18n.localize("DRPG.Floor.startTrialNote")}</p>
             <p>${lines.rule}</p>
+            <p class="notes">${lines.voices}</p>
             ${castPicker}
         </form>`),
         buttons: [

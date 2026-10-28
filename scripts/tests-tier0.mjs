@@ -7675,6 +7675,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
             ["PACKET gm-bridge.mjs#trial.gm#targetId", "judged (E70 C0): gmOnly; held by `targetRefusal` to a student the floor lets the objector aim at (an Objection, a re-point)"],
             ["PACKET gm-bridge.mjs#trial.gm#messageId", "judged (E70 C0): gmOnly; held by `pendingFor` to the pending Objection's card on the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.enter#-", "judged (E70 C5): gmOnly; carries nothing (`pick({})`) - the primary's settle reads the clock, its deaths store after it has hydrated and the users on its side (voice.mjs `settleTrialVoices`)"],
+            ["SHEET trial-floor.mjs#trialVoice", "out of scope as a judgement (E70 C5): who may speak in the trial, a display and the tile's line - the trial's public list (`isMutedDead`), the Monocub flag and `isDeceased` from the document; the module's one hold, the block, is the primary's (`settleTrialVoices`, on `isDeadForGm`) [E70-19]"],
             ["PACKET gm-bridge.mjs#trial.gm#text", "judged (E70 C3): gmOnly; the debate's question, read by the start alone and cut by floor-machine.mjs `topicOf` to a trimmed string of `TRIAL.modes.topicLength`; shown escaped"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
@@ -7682,7 +7684,7 @@ const REGRESSIONS = [
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
-            ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
+            ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
             ["SHEET vote.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
@@ -8471,6 +8473,8 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
+            ["SHEET voice.mjs#trialVoiceActorOf", "out of scope as a judgement (E70 C5): `isMonokuma` from the document, to rank an account's characters as `voiceRowFor` does in the trial (the lowest id), for the primary's block of the trial's dead"],
+            ["SHEET voice.mjs#deadForTrial", "held (E70 C5): on the primary in the record's step, after its deaths store has hydrated - `isDeadForGm` (the flag or the GMs' row, a death nobody found among them) and the Monocub flag, and the open incident's victim from the GMs' cast (amend 2)"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -9357,6 +9361,10 @@ const REGRESSIONS = [
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
+            // E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's own block of the dead's microphones, on the primary (R1035).
+            ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],
+            ["BLOCK voice.mjs#blockForTrial -> block", "the trial's block (E70 C5), on the primary in a step of the record's key (`settleTrialVoices`): only a player whose voice character is on the trial's list, never a GM, and never over a GM's explicit false, which it leaves and records nowhere; what it found kept in the GMs' `trialMuteStore` before the write (E70-T8, R1035)"],
+            ["BLOCK voice.mjs#restoreTrialBlock -> block", "the trial's block given back (E70 C5), on the primary: only a block the trial wrote and finds standing, back to the grant it found or the key removed with `forcedDeletion()` (never `-=`), a block a GM changed meanwhile left as it is (E70-T8, R1035)"],
             ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player, and whether the block holds against the blocked player's own browser (their own User document, or a microphone that publishes anyway), which decides the list's 'for everyone', are not measured here (LIVE-E78-06; R539)"],
             // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
@@ -11758,7 +11766,7 @@ const REGRESSIONS = [
          * executed", put one card in front of every player, gathered the class's Level Ups into one window,
          * and made a reset count the season on - and the handbooks said "tallied in memory" and "one per
          * character" for as long as the code said otherwise. Each claim here is a pair: what the code does,
-         * read from its function (`eligibleVoters`, `ballotFor`, `majorityOf`, `openVerdictDialog`,
+         * read from its function (`trialParticipants` - `eligibleVoters` until E70 C5 - `ballotFor`, `majorityOf`, `openVerdictDialog`,
          * `postVerdictCard`, `askWhoPicks` and `runAdvancementBatch`, `wipeSeason`, `confirmNewTrial`, the
          * console's verdict action, `seizeFloor`), and the sentences that say it, one per handbook that
          * says it. A code fact that changes fails here with its sentences, which then have to be rewritten
@@ -11803,7 +11811,7 @@ const REGRESSIONS = [
         const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
-                .every(re => re.test(fnSource(vote, "eligibleVoters"))),
+                .every(re => re.test(fnSource(vote, "trialParticipants"))),
             inWorld: /setTrialProgress\(now => \(\{ vote:/.test(fnSource(vote, "ballotFor")),
             // The record's step's own list since E70 C0 (`setTrialProgress` with a function).
             lateBallot: /issued: \[\.\.\.now\.vote\.issued\.filter\(id => id !== sender\.id\), sender\.id\]/.test(fnSource(vote, "ballotFor")),
@@ -15795,6 +15803,68 @@ const REGRESSIONS = [
             ui: await read("trial-floor-ui.mjs"), season: await read("season-setup.mjs") };
         equal(JSON.stringify(readOf(real)), JSON.stringify(all),
             "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
+    }],
+    ["R1035 - the dead's microphones are the trial's alone (E70 C5, S18-78, S18-87; amend 6, answer 3 (b)): `permissions.BROADCAST_AUDIO` is written only by voice-tile.mjs `toggleBlock` (a GM's hand) and voice.mjs `blockForTrial` and `restoreTrialBlock`, the restore removes a key that was absent with `forcedDeletion()` and never `-=`; settings.mjs `isMutedDead` reads the trial's list and the phase; vote.mjs `trialParticipants` replaces `eligibleVoters` and asks `isMutedDead` and the Monocub flag; clock.mjs `reconcilePhase` settles the voices after the trial's record is blanked at the entry and before the sentence at the exit; gm-bridge.mjs \"trial.enter\" is a GM's request that carries nothing; gm-stores.mjs `trialMuteStore` is synced between the GMs and emptied by a reset", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-20, E70-21. The harm: the module turning somebody's microphone off where the
+         * owner did not ask for it, keeping it off after the trial, or putting back over a GM's own block; and a list
+         * of the trial's dead that reaches the voice outside the trial. Read in the module's files, comments blanked; the
+         * writers' reader is shown a clean twin first, then a planted writer and a restore spelt with `-=`. Red at
+         * 9f40de9a: no `blockForTrial`, no `isMutedDead`, no `trialParticipants`, no "trial.enter".
+         */
+        const DECL = /^(?:export )?(?:async )?function ([\w$]+)\(/gm;
+        const writersIn = files => {
+            const found = new Set();
+            for (const [file, src] of Object.entries(files)) {
+                const decls = [...src.matchAll(DECL)].map(m => ({ name: m[1], at: m.index }));
+                // A write names the field as a key of the change, `"permissions.BROADCAST_AUDIO":`; a read does not.
+                for (const m of src.matchAll(/["'`]permissions\.BROADCAST_AUDIO["'`]\s*:/g)) {
+                    found.add(`${file}#${decls.findLast(d => d.at <= m.index)?.name ?? "top level"}`);
+                }
+            }
+            return [...found].sort();
+        };
+        const WRITERS = ["voice-tile.mjs#toggleBlock", "voice.mjs#blockForTrial", "voice.mjs#restoreTrialBlock"];
+        const twin = {
+            "voice-tile.mjs": `export async function toggleBlock(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": !allowed });\n}\n`,
+            "voice.mjs": `async function blockForTrial(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": false });\n}\nfunction grantOf(user) {\n    return user.permissions.BROADCAST_AUDIO;\n}\n`
+                + `async function restoreTrialBlock(user, row) {\n    const gone = forcedDeletion();\n    await user.update({ "permissions.BROADCAST_AUDIO": gone });\n}\n`
+        };
+        equal(JSON.stringify(writersIn(twin)), JSON.stringify(WRITERS), "the writers' reader does not read its clean twin as the three writers");
+        const planted = { ...twin, "hud.mjs": `export async function muteDead(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": false });\n}\n` };
+        equal(JSON.stringify(writersIn(planted)), JSON.stringify([...WRITERS, "hud.mjs#muteDead"].sort()), "the writers' reader misses a planted writer");
+
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", "gm-bridge.mjs", "gm-stores.mjs", "hud.mjs", "trial-floor.mjs", "trial.mjs",
+            "monocub.mjs", "chapter.mjs", "movement.mjs", "season-setup.mjs", "api.mjs", "settings.mjs"];
+        const real = Object.fromEntries(await Promise.all(names.map(async f => [f, await read(f)])));
+        must(Object.values(real).every(src => src.length > 1000), "a file of the census was not served - this test reads nothing until it is");
+        const writers = writersIn(real);
+        log(`R1035: BROADCAST_AUDIO written in ${writers.join("; ")}`);
+        equal(JSON.stringify(writers), JSON.stringify(WRITERS), "a microphone's block for everybody is written by a function this census does not name");
+
+        const restore = topLevelFunction(real["voice.mjs"], "restoreTrialBlock") ?? "";
+        const muted = topLevelFunction(real["settings.mjs"], "mutedDeadIds") ?? "";
+        const participants = topLevelFunction(real["vote.mjs"], "trialParticipants") ?? "";
+        const reconcile = topLevelFunction(real["clock.mjs"], "reconcilePhase") ?? "";
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const entry = reconcile.slice(Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+        const exit = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+        const row = bodyOf(real["gm-bridge.mjs"], "[ACTION_TRIAL_ENTER]: {", { until: "\n    },\n" });
+        const store = bodyOf(real["gm-stores.mjs"], "export const trialMuteStore = defineGmStore({", { until: "});" });
+        equal(JSON.stringify({
+            restore: [/\bforcedDeletion\(\)/.test(restore), /-=/.test(restore)],
+            muted: [/"classTrial"/.test(muted), /\bmutedDead\b/.test(muted)],
+            participants: [participants.length > 100, /\bisMutedDead\(/.test(participants), /\bFLAGS\.monocub\b|\bisMonocub\(/.test(participants),
+                Object.values(real).some(src => /\beligibleVoters\b/.test(src))],
+            entry: [at(entry, /\bresetTrialProgress\(/) >= 0 && at(entry, /\baskTrialVoices\(/) > at(entry, /\bresetTrialProgress\(/)],
+            exit: [at(exit, /\baskTrialVoices\(/) >= 0 && at(exit, /\bexecuteAtExit\(/) > at(exit, /\baskTrialVoices\(/)],
+            row: [/gmOnly\(/.test(row), /pick\(\{\s*\}\)/.test(row), /answer: "reply"/.test(row)],
+            store: [/\bsync: true\b/.test(store), /\bresetGroup: "trialProgress"/.test(store), /\bkind: "ledger"/.test(store)]
+        }), JSON.stringify({
+            restore: [true, false], muted: [true, true], participants: [true, true, true, false], entry: [true], exit: [true],
+            row: [true, true, true], store: [true, true, true]
+        }), "the trial's voices are not held to their rules (read: the restore's deletion and no -=; isMutedDead's phase and list; trialParticipants cut, asks the list and the Monocub flag, eligibleVoters left anywhere; reconcilePhase's entry after the reset, exit before the sentence; trial.enter's guard, payload and answer; the store's sync, reset and kind)");
     }],
 ];
 

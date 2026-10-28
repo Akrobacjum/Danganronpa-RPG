@@ -89,6 +89,15 @@ export const WORLD_SECRET_RULES = Object.freeze({
             fields: Object.freeze(["lastAdvance"]),
             since: "E17 fix ci-2", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42)"
         }),
+        /* The trial's list of the dead (E70 C5; settings.mjs `isMutedDead`) names a death nobody has found: public on purpose
+           while the Class Trial runs (the owner's TR30 = 2, "Tak, ona też wyciszona" - the silence tells the table), and
+           taken out of the record at the trial's end (voice.mjs `settleTrialVoices`). `exceptWhile` lets the setting hold
+           its fields while another setting's top-level field says so - here, while the clock's phase is the trial. */
+        trialProgress: Object.freeze({
+            fields: Object.freeze(["mutedDead"]),
+            exceptWhile: Object.freeze({ setting: "clock", field: "phase", value: "classTrial" }),
+            since: "E70 C5", why: "the Class Trial's list of the dead, a death nobody has found among them, outside the trial (TR30)"
+        }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",
@@ -262,10 +271,12 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         const own = rules.settings?.[key] ?? null;
         const exempt = rules.everySetting?.except?.[key] ?? [];
         const everywhere = (rules.everySetting?.fields ?? []).filter(f => !exempt.includes(f));
-        const fields = new Set([...everywhere, ...(own?.fields ?? [])]);
+        const lifted = Boolean(own?.exceptWhile) && settings[own.exceptWhile.setting]?.[own.exceptWhile.field] === own.exceptWhile.value;
+        const ownFields = lifted ? [] : (own?.fields ?? []);
+        const fields = new Set([...everywhere, ...ownFields]);
         walk(value, "", (k, v, p) => {
             if (!fields.has(k)) return;
-            const rule = (own?.fields ?? []).includes(k) ? own : rules.everySetting;
+            const rule = ownFields.includes(k) ? own : rules.everySetting;
             out.push({ kind: "field", doc: "setting", id: key, path: p, rule: `${rule.why} (${rule.since})` });
         });
         if (own?.empty && isObject(value) && Object.keys(value).length) {

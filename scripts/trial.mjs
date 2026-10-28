@@ -46,7 +46,7 @@
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
@@ -649,7 +649,7 @@ async function seizeFloor(message, objectorId, targetId) {
      */
     const { itemAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(await flagsAsHeld(actor))) {
+    if (isDeceased(await flagsAsHeld(actor)) || isMutedDead(actor)) {
         return refuse(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
     }
 
@@ -870,6 +870,8 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         const { itemsAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
         const { isDeceased, livingStudents } = await import("./chapter.mjs");
         if (isDeceased(await flagsAsHeld(actor))) return { refused: "a dead student does not object" };
+        // E70 C5: nor one on the trial's list of the dead - a death nobody has found, which the flag does not show (TR30).
+        if (isMutedDead(actor)) return { refused: "a dead student does not object" };
         if (!(await itemsAsHeld(actor)).some(item => isTruthBullet(item))) return { refused: "that character holds no Truth Bullet" };
 
         const speakers = await import("./trial-speakers.mjs");

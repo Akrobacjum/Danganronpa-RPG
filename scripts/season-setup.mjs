@@ -1464,6 +1464,14 @@ async function wipeSeason(plan) {
      * and when it cannot be written nothing is wiped, or a GM who was away would open
      * the world alone holding last season, and act on it.
      */
+    /* THE TRIAL'S MICROPHONES GIVEN BACK FIRST (E70 C5): the cut empties the store of what the trial's mute found
+       (gm-stores.mjs `trialMuteStore`, the trial's group), and a block nobody remembers is never put back. */
+    try {
+        const { settleTrialVoices } = await import("./voice.mjs");
+        await settleTrialVoices({ release: true });
+    } catch (err) {
+        error("Season reset: could not give the trial's muted microphones back", err);
+    }
     try {
         await setClock(resetCutPatch(plan, getClock(), gmStoreStamp()));
     } catch (err) {

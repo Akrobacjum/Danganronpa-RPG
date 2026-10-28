@@ -839,6 +839,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        open, reads null; gm3 then loads again into that open vote and reads "none". Each read waits for the GM
        stores' hydration and states the ballots gm2 counts, so a ballot in is not read as the mark. */
     begin("W", "a GM there at the vote's open and one loaded into it read their copy of the ballots apart");
+    /* E70 C5 (1.2.90; TR30, E70-18): a death nobody has found holds no ballot any more - the trial's list of the dead
+       names Aiko (U) and Daichi (V), and at 9f40de9a+C5 gm2's openVote found nobody to hand one to (W1's `reopened`
+       null). Both are revived first, quietly, so the vote W reads has its ballots out; Y revives Aiko again as before. */
+    await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        for (const id of ["${IDS.aiko}", "${IDS.daichi}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        return true;`, { timeout: 60000 });
+    await settle(1000);
     await connect("gm3");
     await settle(1000);
     const copyOn = async () => ({ ...(await gm3.eval(`${until} ${V} const E = await import("${repoUrl}/scripts/gm-store.mjs");
