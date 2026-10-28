@@ -1073,11 +1073,15 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     /* Fix r4-G3 (17.10.2026; review round 4's goal C16-11 = Q2): p1 presses OBJECTION! on its own trial row as a
        player does - focus for the preview hud.mjs draws from trial.mjs `objectionButtonState`, then a click - where
        until then this part called those two functions and the row's button was read by no scenario. `raised` is the
-       floor's Objection held by Aiko and filled, as p1 holds the floor. */
+       floor's Objection held by Aiko and filled, as p1 holds the floor.
+       E70 C11 (28.10.2026; the owner's B3 and Q-p2-4 of 27.10): OBJECTION! moved to the voice tile, and the trial row keeps
+       its own only where no tile is drawn - p1 holds a LiveKit Room here, so the tile stands and the press is the tile's;
+       `hud` reads that the row has none beside it. Before C11 the tile drew no OBJECTION! (E70-T13, red at b2dd974c). */
     const yPressed = await p1.eval(`${until} ${Fy}
         __liveKit.speak(["${IDS.p2}"]);
         await new Promise(r => setTimeout(r, 1200));
-        const button = await until(() => document.querySelector("#drpg-hud .drpg-hud-objection:not([aria-disabled='true'])"), 4000);
+        const button = await until(() => document.querySelector("#drpg-voice-tile .drpg-voice-objection:not([aria-disabled='true'])"), 4000);
+        const hud = Boolean(document.querySelector("#drpg-hud .drpg-hud-objection"));
         const named = button?.getAttribute("aria-label") ?? null;
         button?.dispatchEvent(new FocusEvent("focus"));
         const preview = button ? await until(() => button.getAttribute("aria-label") !== named && button.getAttribute("aria-label"), 4000) : null;
@@ -1085,7 +1089,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         button?.click();
         const raised = Boolean(button) && Boolean(await until(() => { const f = F.trialFloor();
             return f?.mode === "objection" && f.holderId === "${IDS.aiko}" && f.pending === false; }, 15000));
-        return { button: Boolean(button), preview: preview || "", raised };`, { timeout: 60000 });
+        return { button: Boolean(button), hud, preview: preview || "", raised };`, { timeout: 60000 });
     await settle(800);
     const yCard = await gm2.eval(`${Fy} const floor = F.trialFloor(); const m = floor?.messageId ? game.messages.get(floor.messageId) : null;
         return { mode: floor?.mode, holder: floor?.holderId, target: floor?.targetId, pending: floor?.pending, how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null,
@@ -1093,8 +1097,8 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const yOnP3 = id => p3.eval(`const cards = [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].filter(c => c.dataset.drpgMessage === "${id}");
         return { cards: cards.length, body: cards[0]?.querySelector(".drpg-popup-body")?.textContent.replace(/\\s+/g, " ").trim() ?? "" };`);
     const yFilledOnP3 = await yOnP3(yCard.id);
-    verdict("p1's button on its trial row names Botan, its press is aimed at Botan as now speaking (not chosen by p1), the bullet fills the card and p3 holds one card with it",
-        yPressed.raised === true && yPressed.preview.includes("Botan Kage") && yCard.mode === "objection" && yCard.holder === IDS.aiko && yCard.target === IDS.botan
+    verdict("p1's OBJECTION! on its voice tile (none on its trial row beside it) names Botan, its press is aimed at Botan as now speaking (not chosen by p1), the bullet fills the card and p3 holds one card with it",
+        yPressed.raised === true && yPressed.hud === false && yPressed.preview.includes("Botan Kage") && yCard.mode === "objection" && yCard.holder === IDS.aiko && yCard.target === IDS.botan
             && yCard.pending === false && yCard.how === "now" && yCard.item === ySetup.item && yCard.actions === 2
             && yFilledOnP3.cards === 1 && yFilledOnP3.body.includes("S63 Y the evidence"), J({ yPressed, yCard, yFilledOnP3 }));
     const yRepointed = await gm2.eval(`${Fy} globalThis.__dialogAnswers.push(async () => "${IDS.chie}");

@@ -124,15 +124,17 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { micHold, moduleHoldsMic } from "./voice.mjs";
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
 import { avclientActive, voiceApplying } from "./voice-client.mjs";
-import { voiceIdentity, measureCameraDock } from "./camera-view.mjs";
+import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
 import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
+import { objectionControl, renderHud } from "./hud.mjs";
+import { trialFloor } from "./trial-floor.mjs";
 
 const TILE_ID = "drpg-voice-tile";
 
@@ -283,8 +285,19 @@ export function ensureVoiceTile() {
            seats it. A new block of the curtain's: one cut for it, and none after (scenario 75 phase D). */
         (tileRow() ?? document.body).append(tile);
         recutForTile();
+        trialRowAgain();
     }
     return tile;
+}
+
+/* The trial row draws OBJECTION! only where no tile stands (hud.mjs `objectionOnHud`, E70 C11), so a tile that comes or
+   goes in a trial has the row drawn again; outside a trial the row has no such button, and nothing is drawn for it. */
+function trialRowAgain() {
+    try {
+        if (getClock()?.phase === "classTrial") renderHud();
+    } catch (err) {
+        error("Could not draw the trial row after the voice tile", err);
+    }
 }
 
 /* The curtain's pane for the tile (glass.mjs `voice-block`) is cut when the tile comes or goes, and only while a
@@ -321,8 +334,11 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
     const plate = textNode("div", "drpg-voice-tile-plate", "");
     const more = textNode("span", "drpg-voice-tile-more", "");
     more.hidden = true;
+    // "has the floor" (E70 C11; amend 3): shown while the speaker drawn is the one the trial's floor names (`paintFloorMark`).
+    const holds = textNode("span", "drpg-voice-tile-floor", game.i18n.localize("DRPG.Voice.tile.hasFloor"));
+    holds.hidden = true;
     plate.append(textNode("span", "drpg-voice-tile-speaking", game.i18n.localize("DRPG.Voice.tile.speaking")),
-        textNode("span", "drpg-voice-tile-name", ""), more);
+        textNode("span", "drpg-voice-tile-name", ""), more, holds);
     face.append(art, plate);
     arts.set(tile, art);
 
@@ -731,7 +747,8 @@ function paintSpeaker(watch, more = 0, gone = null) {
     const last = painted.get(tile) ?? {};
     const changed = Object.keys(next).filter(key => last[key] !== next[key]);
     const worded = paintWord(watch, next.face);
-    if (!changed.length) return worded;
+    const marked = paintFloorMark(tile, user);
+    if (!changed.length) return worded || marked;
     painted.set(tile, next);
 
     const art = arts.get(tile) ?? null;
@@ -1019,10 +1036,66 @@ export function paintControls(watch = live, gone = null) {
         paintMic(watch.tile, micState());
         paintWord(watch, painted.get(watch.tile)?.face === true);
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
+        paintObjection(watch.tile);
+        paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
         error("Could not draw the voice tile's buttons", err);
     }
+}
+
+/**
+ * OBJECTION! ON THE TILE (E70 C11, 28.10.2026; the owner's B3 of 27.10: "przycisk na kaflu głosu (E78), wyszarzony poza
+ * rozprawą (w Daily Life i w śledztwie), a sterowanie w HUD-zie zostaje jako zapas"; Q-p2-4 answered the same day: it
+ * MOVES here, and the trial row keeps its own only where no tile is drawn). A third mini button after the microphone and
+ * the speaker, for the student this screen is about and nobody else - none for a GM's Monokuma, a Monocub or the dead
+ * (hud.mjs `objectionControl`, one rule for the tile and the row) - held with "Objection only in a Class Trial."
+ * outside a trial, and in one the row's preview, press and latch: whom it would be aimed at on the pointer's arrival
+ * or the focus (trial.mjs `objectionButtonState`), and a press that the primary GM judges as every Objection
+ * (`raiseObjection`, the "trial.object" row). The tile sends nothing itself.
+ *
+ * Drawn again on every `paintControls` (the clock, the floor and the trial's record repaint them, `registerVoiceTile`),
+ * and kept while what it was drawn from is the same (`dataset.objectionKey`, `objectionControl`'s `unless`), so a
+ * repaint swaps no button under the pointer or the focus. `given` is the suite's (E70-T13): the actor, the phase, the floor, the preview and the press.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  handed to `objectionControl`; left out, each is read there
+ * @returns {HTMLElement|null} the button the tile shows, or `null`
+ */
+export function paintObjection(tile, given = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    const was = controls.querySelector(".drpg-voice-objection");
+    const next = objectionControl(given.actor, { ...given, host: "tile", unless: was?.dataset.objectionKey });
+    if (next === false) return was;
+    if (!next) {
+        was?.remove();
+        return null;
+    }
+    if (was) was.replaceWith(next);
+    else controls.append(next);
+    return next;
+}
+
+/**
+ * The plate's "has the floor" (E70 C11; the stage's amend 3): shown while the speaker the tile draws is the student the
+ * trial's floor names as its holder (`trialQueue.holderId`: the objector, a round's speaker, the Closing's), in a trial
+ * only. The plate's own words already say who speaks; this says that they speak with the floor. Writes only a change.
+ *
+ * @param {HTMLElement} tile
+ * @param {User|null} user  the speaker drawn, or `null`
+ * @param {object|null} [floor]  `trialFloor()`
+ * @param {string} [phase]  the clock's
+ * @returns {boolean} whether it wrote
+ */
+export function paintFloorMark(tile, user, floor = trialFloor(), phase = getClock()?.phase) {
+    const mark = tile?.querySelector(".drpg-voice-tile-floor");
+    if (!mark) return false;
+    const holder = phase === "classTrial" ? floor?.holderId ?? null : null;
+    const holds = Boolean(user && holder && voiceActorFor(user)?.id === holder);
+    if (mark.hidden === !holds) return false;
+    mark.hidden = !holds;
+    return true;
 }
 
 /** A volume of 0..1, or `null` for anything that is not a number (a console writes these settings raw). */
@@ -1531,6 +1604,7 @@ function dropVoiceTile() {
     tile.remove();
     seatVoiceArt();
     recutForTile();
+    trialRowAgain();
 }
 
 /**

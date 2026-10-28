@@ -6719,6 +6719,12 @@ body.drpg-dock-hidden {
     text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
 }
 .drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
+/* "has the floor" (E70 C11; amend 3) under the name, in the small letters 'Speaking' wears above it. */
+.drpg-voice-tile-floor {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
 
 /* Read by a screen reader while nobody speaks, never seen: the sentence of the state word (E79 C15), and the
    microphone's line, which the note under the buttons showed until C15 and the word says now. */
@@ -6786,6 +6792,16 @@ body.drpg-dock-hidden {
     pointer-events: none;
 }
 .drpg-voice-mic.is-held {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* OBJECTION! on the tile (E70 C11; the owner's B3): grey while held - outside a trial, with no debate, while an
+   Objection runs - as the held microphone is, but not struck (nothing of the viewer's is switched off); still pressed,
+   and a press says why (hud.mjs `objectionControl`). */
+.drpg-voice-objection[aria-disabled="true"] {
     border-color: var(--drpg-line-strong);
     color: var(--drpg-line-strong);
     filter: grayscale(1);

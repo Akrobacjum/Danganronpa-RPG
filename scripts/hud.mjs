@@ -1218,8 +1218,10 @@ function buildTimeRow(clock, isGM) {
         slot.className = "drpg-hud-time-slot";
         slot.append(label);
         row.append(slot);
-        // The one control the trial puts back, and only on a player's row (E79 C16, `objectionControl`).
-        const objection = isGM ? null : objectionControl();
+        /* The one control the trial puts back, and only on a player's row (E79 C16, `objectionControl`) - and since E70 C11
+           only where no voice tile is drawn (`objectionOnHud`): the owner's answer to Q-p2-4 of 27.10.2026 moved it to the
+           tile, and the row keeps it as the fallback. */
+        const objection = isGM || !objectionOnHud() ? null : objectionControl();
         if (objection) row.append(objection);
         /* WHO MAY SPEAK, WHERE NO TILE SAYS IT (E70 fix p1-G3; E70-22): the dead's "you listen" and a Monocub's line, under
            the mode, on a player's row when the voice tile is not drawn (voice.mjs `trialVoiceLine`). */
@@ -1486,8 +1488,25 @@ export function viewerActor() {
     return ownStudent();
 }
 
-/** Whether an OBJECTION! press is between its first click and its last window, on this browser. */
+/** Whether an OBJECTION! press is between its first click and its last window, on this browser - one latch for the
+    tile's button and the row's, so a press on either keeps the other out until it is over. */
 let objectionRaising = false;
+
+/** Every OBJECTION! button this file draws: the trial row's and the voice tile's (E70 C11). */
+const OBJECTION_BUTTONS = ".drpg-hud-objection, .drpg-voice-objection";
+
+/**
+ * Whether the trial row draws OBJECTION! (E70 C11; Q-p2-4 as the owner answered it on 27.10.2026): only where no voice
+ * tile stands in the document - no LiveKit, the `voiceTile` setting off, or a page that never built one - because the
+ * tile carries its own (voice-tile.mjs `paintObjection`). The voice tile asks the row to be drawn again when it comes or
+ * goes in a trial (voice-tile.mjs `ensureVoiceTile`, `dropVoiceTile`).
+ *
+ * @param {Document} [root]  the suite's own document (E70-T13); the page's by default
+ * @returns {boolean}
+ */
+export function objectionOnHud(root = document) {
+    return !root.getElementById?.("drpg-voice-tile")?.isConnected;
+}
 
 /**
  * OBJECTION! (E79 C16, 1.2.79; the owner, 17.10.2026): the trial bar's one control, on a player's row only, for
@@ -1509,8 +1528,14 @@ let objectionRaising = false;
  * The row passes none of them: the viewer, the floor as this browser holds it, trial.mjs `objectionButtonState` (this
  * browser's own Room) and `raiseObjection`.
  *
+ * THE HOST (E70 C11, 28.10.2026; B3, Q-p2-4): `given.host` "tile" draws the voice tile's hexagon (voice-tile.mjs
+ * `paintObjection`), held with "Objection only in a Class Trial." outside a trial (`given.phase`, the clock's by
+ * default) - a press there says so and asks nothing - and the same preview, press and latch in a trial; left out, the
+ * trial row's button as before. Whom it is drawn for is one rule for both.
+ *
  * @param {Actor|null} [actor]  the student this screen is about (`viewerActor`)
- * @param {{floor?: object|null, state?: Function, raise?: Function}} [given]
+ * @param {{floor?: object|null, state?: Function, raise?: Function, host?: string, phase?: string, unless?: string}} [given]
+ * @returns {HTMLButtonElement|null|false}  `false` only when `given.unless` is the key of what would be drawn
  */
 export function objectionControl(actor = viewerActor(), given = {}) {
     if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor) || isDeadForGm(actor)) return null;
@@ -1519,19 +1544,43 @@ export function objectionControl(actor = viewerActor(), given = {}) {
     const floor = "floor" in given ? given.floor : trialFloor();
     const stateOf = given.state ?? (async who => (await import("./trial.mjs")).objectionButtonState(who));
     const raise = given.raise ?? (async who => (await import("./trial.mjs")).raiseObjection(who));
+    const tile = given.host === "tile";
+    /* HELD OUTSIDE A TRIAL, ON THE TILE (E70 C11; the owner's B3 of 27.10.2026: "wyszarzony poza rozprawą (w Daily Life
+       i w śledztwie)"). The tile stands in every phase, so its button does too, greyed with the reason; the row draws
+       its own only in a trial (`buildTimeRow`), where this never holds. */
+    const phase = given.phase ?? getClock().phase;
+    const outside = tile && phase !== "classTrial" ? game.i18n.localize("DRPG.Trial.objectionOutside") : null;
+    const held = Boolean(outside) || !floor || floor.mode === FLOOR_MODES.objection;
+    /* What the button is drawn from, for the tile's repaint (voice-tile.mjs `paintObjection`): a caller that hands in
+       the key of the button it shows (`given.unless`) gets `false` when nothing changed, and keeps its button - none is
+       swapped under the pointer or the focus, and none is built on each step of the Room's speakers. */
+    const key = [actor.id, outside ? "outside" : "trial", held, objectionRaising].join("|");
+    if (given.unless && given.unless === key) return false;
     const name = game.i18n.localize("DRPG.Trial.objection");
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "drpg-hud-button drpg-hud-objection";
-    button.dataset.tooltip = name;
-    button.setAttribute("aria-label", name);
-    button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
-    if (!floor || floor.mode === FLOOR_MODES.objection) button.setAttribute("aria-disabled", "true");
+    /* THE TILE'S HEXAGON (E70 C11): the voice tile's controls are the corner's 30 px mini buttons with a pixel glyph
+       (voice-tile.mjs `miniButton`; 'hand' is 'palm' in pixel-icons.py's map), and Foundry's tooltip there is
+       `data-tooltip-text`, as the tile's other two set it. The row keeps the Font Awesome hand it has had since E79. */
+    button.className = tile ? "drpg-launch-mini drpg-voice-objection" : "drpg-hud-button drpg-hud-objection";
+    const tipKey = tile ? "tooltipText" : "tooltip";
+    if (tile) {
+        const glyph = document.createElement("i");
+        glyph.className = "drpg-pxi";
+        glyph.style.setProperty("--drpg-px-mask", "var(--drpg-px-palm)");
+        glyph.setAttribute("aria-hidden", "true");
+        glyph.inert = true;
+        button.append(glyph);
+    } else button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
+    button.dataset[tipKey] = outside ?? name;
+    button.setAttribute("aria-label", outside ? `${name} ${outside}` : name);
+    if (held) button.setAttribute("aria-disabled", "true");
     if (objectionRaising) button.disabled = true;
+    button.dataset.objectionKey = key;
 
     const preview = async () => {
-        const state = await stateOf(actor);
-        button.dataset.tooltip = state.text;
+        const state = outside ? { text: outside, held: true } : await stateOf(actor);
+        button.dataset[tipKey] = state.text;
         button.setAttribute("aria-label", `${name} ${state.text}`);
         if (state.held) button.setAttribute("aria-disabled", "true");
         else button.removeAttribute("aria-disabled");
@@ -1544,6 +1593,8 @@ export function objectionControl(actor = viewerActor(), given = {}) {
         event.preventDefault();
         event.stopPropagation();
         if (objectionRaising) return void debug("hud: an Objection is already being raised");
+        // Outside a trial the press says why and asks nothing (E70 C11): the tile's button stands in every phase.
+        if (outside) return void ui.notifications.warn(outside);
         objectionRaising = true;
         button.disabled = true;
         try {
@@ -1555,7 +1606,8 @@ export function objectionControl(actor = viewerActor(), given = {}) {
             ui.notifications.error(game.i18n.localize("DRPG.Trial.objectionFailed"));
         } finally {
             objectionRaising = false;
-            for (const other of document.querySelectorAll(`#${HUD_ID} .drpg-hud-objection`)) other.disabled = false;
+            button.disabled = false;
+            for (const other of document.querySelectorAll(OBJECTION_BUTTONS)) other.disabled = false;
         }
     });
     return button;

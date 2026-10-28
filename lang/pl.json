@@ -2510,6 +2510,7 @@
       "objectionSelf": "Nie możesz wnieść objection wobec siebie.",
       "objectionRebuttalOutsider": "Rebuttal można wymierzyć tylko w dwójkę, która już ma głos.",
       "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole.",
+      "objectionOutside": "Objection tylko w trakcie Class Trial.",
       "objectionNoneInMode": "Bez Objection w trybie {mode}.",
       "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
       "turn": {
@@ -4239,6 +4240,7 @@
         "label": "Głos",
         "speaking": "Mówi",
         "nobody": "Nikt nie mówi",
+        "hasFloor": "ma głos",
         "state": {
           "connecting": "Łączenie",
           "disconnected": "Rozłączono",

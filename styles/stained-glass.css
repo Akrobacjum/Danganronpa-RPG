@@ -559,6 +559,12 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
     filter: grayscale(1);
 }
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
+/* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
+body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"] {
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+}
+body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"]::before { border-color: var(--drpg-line-strong); }
 /* YOUR VOICE IS CARRYING (E78 fix r2-H3, 14.10.2026; review round 2's cor F5): Foundry's dock lit the player's own
    view while they spoke, and with the dock hidden nothing did. The rim takes the game state's colour whole and the
    glow doubles while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). Nothing
@@ -1351,8 +1357,16 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     align-items: flex-start;
     padding: 22px 82px 2px 6px;
 }
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note, .drpg-voice-tile-floor) {
     display: none;
+}
+/* A player's tile holds a third button, OBJECTION! (E70 C11): the clear space at the right grows by the button and the
+   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-face {
+    padding-right: 118px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-state {
+    right: 118px;
 }
 /* The state word at the top, the name plate at the foot (H81-10; the owner's answer B, 20.10.2026: the word at the
    top of the tile, over the picture, kept while somebody speaks). Until then the word took the plate's place, in

@@ -40443,6 +40443,115 @@ const SCENARIOS = [
             + "(5) the row in the trial: drawn, Present, held, its reason, Share; outside the trial: drawn, Present, Share");
     }],
 
+    ["OBJECTION! on the voice tile: held with its reason in Daily Life and the Investigation, where a press says why and raises nothing; live in a trial, where two presses raise one Objection; none for a Monocub or the dead; the HUD's only where no tile is drawn; and the plate's \"has the floor\" (E70-T13)", async () => {
+        /*
+         * E70 C11, 28.10.2026; E70-75, E70-76 (B3, amend 3, Q-p2-4 as the owner answered it on 27.10: OBJECTION! MOVES to
+         * the voice tile, and the HUD keeps it only where no tile is drawn). The harm, the owner's session notes of 27.10:
+         * the one OBJECTION! stood on the clock's trial row, far from the voice a player watches while someone speaks, and
+         * nothing said outside a trial that there is such a button at all. The suite runs on a GM's browser, whose tile
+         * draws no OBJECTION! (a Monokuma objects to nobody), so the tile is built here loose (`buildVoiceTile`, as R535
+         * builds its own) and painted for a living student with the phase, the floor, the preview's reader and the press
+         * handed in (`paintObjection`; the tile hands in none at a table: the viewer, the clock, the floor this browser
+         * holds, trial.mjs `objectionButtonState` and `raiseObjection`). Read: (1) in Daily Life and in the Investigation
+         * the button stands in the tile's controls, held (aria-disabled) with "Objection only in a Class Trial." as its
+         * tooltip, and a press says that sentence and asks and raises nothing; (2) in a trial on a debate it is live and the
+         * preview's words are what the reader answers, two presses at once raise one Objection, and a paint with nothing
+         * changed keeps the same button (no mutation); (3) a Monocub's and a dead student's tile carry none; (4) the HUD's
+         * rule (`objectionOnHud`) on a document with and without `#drpg-voice-tile`; (5) the plate's "has the floor" for the
+         * speaker the floor's holder names, in a trial only. A player's real tile and trial row in a real trial is
+         * scenario 63 Y; where the third button stands at 1366x768, in the stacked row and under Legacy is LIVE-E70-12.
+         * Red at b2dd974c: voice-tile.mjs exported no `paintObjection` (the first assertion). Nothing is written.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's student to draw the tile's button for and to name on the plate");
+        const V = await import("./voice-tile.mjs");
+        const H = await import("./hud.mjs");
+        const there = [typeof V.paintObjection, typeof V.paintFloorMark, typeof H.objectionOnHud];
+        ok(there.every(type => type === "function"), `voice-tile.mjs paintObjection, paintFloorMark and hud.mjs objectionOnHud are ${there.join(", ")} - OBJECTION! is not on the voice tile`);
+        if (!there.every(type => type === "function")) return;
+        const { livingStudents } = await import("./chapter.mjs");
+        const { isMutedDead } = await import("./settings.mjs");
+        const { voiceActorFor } = await import("./camera-view.mjs");
+        const student = livingStudents().find(actor => actor.type === "character" && !isMutedDead(actor));
+        must(student, "no living student who may object - this would measure nothing");
+        const speaker = game.users.find(user => !user.isGM && voiceActorFor(user)?.type === "character");
+        must(speaker, "no player named by a student on the plate - this would measure nothing");
+        const outsideWords = game.i18n.localize("DRPG.Trial.objectionOutside");
+        must(outsideWords !== "DRPG.Trial.objectionOutside", "the outside sentence has no words - this would measure nothing");
+        const asked = [], raised = [], warned = [];
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const state = async actor => { asked.push(actor.id); return { text: "E70-T13 at B", held: false }; };
+        const raise = async actor => { raised.push(actor.id); await gate; return true; };
+        const tile = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+        const debate = { mode: "debate", holderId: null };
+        const paint = (phase, actor = student) => V.paintObjection(tile, { actor, phase, floor: debate, state, raise });
+        const look = button => button && [button.parentElement?.classList.contains("drpg-voice-tile-controls") ?? false,
+            button.getAttribute("aria-disabled"), button.dataset.tooltipText ?? null];
+        const read = {};
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        try {
+            read.outside = ["dailyLife", "investigation"].map(phase => look(paint(phase)));
+            const held = tile.querySelector(".drpg-voice-objection");
+            held?.click();
+            await until(() => warned.length > 0, 2000);
+            await wait(100);
+            read.heldPress = [warned.filter(line => line === outsideWords).length, asked.length, raised.length];
+            const live = paint("classTrial");
+            const again = paint("classTrial");
+            read.live = [look(live)?.slice(0, 2), live === again, tile.querySelectorAll(".drpg-voice-objection").length];
+            live?.dispatchEvent(new FocusEvent("focus"));
+            await until(() => asked.length === 1, 2000);
+            read.preview = live?.dataset.tooltipText ?? null;
+            live?.click();
+            // A second press dispatched, not clicked (R592's reading: a disabled button takes no click()), so the latch holds it.
+            live?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await until(() => raised.length > 0, 2000);
+            await wait(100);
+            read.presses = [raised.length, raised[0] === student.id];
+            const standIn = (key, flag) => ({ id: `E70T13${key}`.padEnd(16, "0"), name: `E70-T13 ${key}`, type: "character",
+                getFlag: (scope, k) => (scope === MODULE_ID && k === flag ? true : undefined) });
+            read.none = [standIn("MONOCUB", FLAGS.monocub), standIn("DEAD", FLAGS.deceased)]
+                .map(actor => [paint("classTrial", actor), tile.querySelectorAll(".drpg-voice-objection").length]);
+            const doc = document.implementation.createHTMLDocument("E70-T13");
+            const bare = H.objectionOnHud(doc);
+            const planted = doc.createElement("section");
+            planted.id = "drpg-voice-tile";
+            doc.body.append(planted);
+            read.hud = [bare, H.objectionOnHud(doc)];
+            const plate = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+            const mark = () => {
+                const el = plate.querySelector(".drpg-voice-tile-floor");
+                return el ? [el.hidden, el.textContent] : null;
+            };
+            const holder = voiceActorFor(speaker).id;
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: holder }, "classTrial");
+            const holds = mark();
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: `${holder}x` }, "classTrial");
+            const other = mark();
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: holder }, "dailyLife");
+            read.floor = [holds, other, mark()];
+        } finally {
+            release();
+            await wait(50);
+            ui.notifications.warn = warn;
+        }
+        const hasFloor = game.i18n.localize("DRPG.Voice.tile.hasFloor");
+        equal(stableJson(read), stableJson({
+            outside: [[true, "true", outsideWords], [true, "true", outsideWords]],
+            heldPress: [1, 0, 0],
+            live: [[true, null], true, 1],
+            preview: "E70-T13 at B",
+            presses: [1, true],
+            none: [[null, 0], [null, 0]],
+            hud: [true, false],
+            floor: [[false, hasFloor], [true, hasFloor], [true, hasFloor]]
+        }), "(1) Daily Life, the Investigation: in the controls, held, the outside sentence; a held press: told, asked, raised; "
+            + "(2) in a trial: in the controls and live, the same button on a second paint, one button; the preview's words; two presses: raised, the student's own; "
+            + "(3) a Monocub's and a dead student's: the button, the tile's count; (4) the HUD's: no tile, a tile; "
+            + "(5) the plate's mark: the holder speaking in a trial (hidden, words), another holder, outside a trial");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
