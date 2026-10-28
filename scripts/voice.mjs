@@ -1245,6 +1245,21 @@ export function cubVoice(actor, { clock, floor = null, record = {}, epoch } = {}
     return !floor && !begun ? "speak" : "listen";
 }
 
+/**
+ * THE TRIAL'S LINE OF WHO MAY SPEAK, WITHOUT THE TILE (E70 fix p1-G3, 28.10.2026; the review's E70P1-R08 = E70P1-R05
+ * goal; E70-22 "HUD and tile"). The tile says it (`micHold`), and only where a tile is drawn - and `micHold` answers the
+ * connection first, so a browser with no LiveKit never reached the trial's line at all. The HUD asks this where no
+ * tile is drawn (hud.mjs `buildTimeRow`), as Q-p2-4 keeps the HUD's OBJECTION! only there: the voice character as the
+ * trial ranks it, "deadMuted" for a student on the trial's list, a Monocub's line, else null. Never for a GM.
+ */
+export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() } = {}) {
+    if (!user || user.isGM || trial?.clock?.phase !== "classTrial") return null;
+    const speaker = accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null;
+    if (!speaker) return null;
+    if (isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    return isMonocub(speaker) ? cubLine(speaker, trial) : null;
+}
+
 /** `micHold`'s line for a Monocub in the trial: information only, never held. */
 function cubLine(actor, trial) {
     const voice = cubVoice(actor, trial);

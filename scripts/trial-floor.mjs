@@ -188,7 +188,9 @@ const FLOOR_OPS = {
     repoint: ({ targetId }) => repointObjectionInStep(targetId),
     // The GM's Back to the debate (the bar's, the API's): told in the Event panel ("GM: back to the debate").
     back: ({ seconds }) => returnToDebateInStep({ seconds: Number(seconds) > 0 ? seconds : null, note: true }),
-    extend: ({ seconds }) => extendFloorInStep(Number(seconds) > 0 ? seconds : 30),
+    // Signed, as at 1.2.89 (E70 fix p1-G3; the review's E70P1-R11): `extendFloor(-30)` takes half a minute off, and only
+    // a 0 or a value that is no number reads as the old default, +30 s.
+    extend: ({ seconds }) => extendFloorInStep(Number(seconds) || 30),
     end: () => endFloorInStep(),
     // The bar's two new ops (E70 C1), each only in a Class Trial (DX2 = 2): -30 s / +30 s, and End this mode.
     adjust: ({ seconds }) => (inClassTrial() && modeAllows(trialFloor(), "adjust") ? extendFloorInStep(Number(seconds) || 0) : null),
@@ -927,6 +929,11 @@ export async function adjustTime(seconds = TRIAL.modes.gm.adjustSeconds) {
 /** The record's receipts, stamp and offer (trial.mjs `objectionRecord`), or the suite's `given`. */
 function overruleRecord(given = null) {
     return objectionRecord({ given });
+}
+
+/** The card of the Objection an Overrule would take now, or null (the bar names it on its button, trial-floor-ui.mjs). */
+export function overruleTargetId(floor = trialFloor()) {
+    return overruleTarget({ floor, ...overruleRecord(), running: inClassTrial() }).messageId ?? null;
 }
 
 /** Overrule the Objection on the card `messageId`, or the newest (the bar's, the log's, `game.drpg.overruleObjection`). */

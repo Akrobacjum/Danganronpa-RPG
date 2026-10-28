@@ -67,9 +67,9 @@ export function isMonocub(actor) {
  * WHETHER THE TRIAL IS ABOUT THIS MONOCUB'S OWN DEATH (E70 C5, 28.10.2026; the owner's DC29 = DC41 = 1: "Słuchasz: to
  * rozprawa w twojej sprawie"). A student who died in this chapter of this season, not by an execution, and whose chapter
  * has no verdict yet (the record's `lastVerdictAt`, E70 C4): the trial running is theirs, so as a Monocub they listen -
- * information only, the module mutes no Monocub. The death's record carries no time, so a second murder in a chapter
- * whose first trial gave its verdict reads as closed (D17's second trial; the review). `clock`, `record` (the stored
- * trial record) and `epoch` can be handed in (tier 1 R1034).
+ * information only, the module mutes no Monocub. A second murder in a chapter whose first trial gave its verdict (D17)
+ * is told by the verdict its death names (`sinceVerdict`, chapter.mjs `verdictBefore`, E70 fix p1-G3): its case is open
+ * while no later verdict came. `clock`, `record` (the stored trial record) and `epoch` can be handed in (tier 1 R1034).
  */
 export function ownCaseOpen(actor, { clock = getClock(), record, epoch = seasonEpoch() } = {}) {
     if (!isMonocub(actor)) return false;
@@ -77,7 +77,11 @@ export function ownCaseOpen(actor, { clock = getClock(), record, epoch = seasonE
     if (!death || death.cause === "executed" || death.chapter !== clock?.chapter) return false;
     if (death.epoch !== undefined && death.epoch !== null && death.epoch !== epoch) return false;
     const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
-    return !(stored.chapter === clock.chapter && stored.lastVerdictAt);
+    const verdict = stored.chapter === clock.chapter ? (stored.lastVerdictAt ?? null) : null;
+    // A death that names the verdict before it (E70 fix p1-G3, chapter.mjs `verdictBefore`): open while no later verdict
+    // came; an older record, written before the field, as before - open only in a chapter with no verdict yet.
+    if (Object.hasOwn(death, "sinceVerdict")) return !verdict || verdict === death.sinceVerdict;
+    return !verdict;
 }
 
 /** Every Monocub in the world. */

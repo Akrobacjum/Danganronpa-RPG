@@ -8690,7 +8690,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const sources = await moduleSources();
-        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection) showPopup(", { length: 500 });
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection && !mutedPresenter) showPopup(", { length: 500 });
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
         direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
         const t = key => game.i18n.localize(key);
@@ -24974,6 +24974,42 @@ const INVARIANTS = [
             kept: { topic: "Q", seconds: 300, verdict: { stage: "done" }, lastVerdictAt: 5 },
             none: [null, null, null, null], fields: true, kept2: false
         }), "another GM's record patch is not held to the record's own fields (kept; patches that name none; the fields a patch may write; the primary's own)");
+    }],
+    ["R1040 - who may speak where no tile says it, and a second trial's own case (E70 fix p1-G3; the review's E70P1-R08 = E70P1-R05, E70P1-R14 = E70P1-R11): voice.mjs `trialVoiceLine` gives a listed student \"deadMuted\" and a Monocub its line whatever the connection, and nobody else and no GM; monocub.mjs `ownCaseOpen` reads the verdict a death names (`sinceVerdict`), so a Monocub killed after the chapter's first verdict listens through the second trial and not after its verdict", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026. `micHold` answered the connection first, so a player with no LiveKit, or with the
+         * tile off, was never told that the trial holds their microphone or that their Monocub listens; the HUD asks
+         * `trialVoiceLine` where no tile is drawn. And `ownCaseOpen` read the chapter's `lastVerdictAt` alone: a second
+         * murder after the chapter's first verdict (D17) read as closed. Read without a world, on stand-in actors as
+         * R1034. Red at d1f01644: no `trialVoiceLine`, and the second trial's Monocub read "cubSpeak".
+         */
+        const voice = await import("./voice.mjs");
+        const { ownCaseOpen } = await import("./monocub.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof voice.trialVoiceLine === "function", "voice.mjs has no trialVoiceLine - nothing says who may speak without the tile");
+        if (typeof voice.trialVoiceLine !== "function") return;
+        const CH = 3, EPOCH = 4;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const dead = stand("deadDDDDDDDDDDDD", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH } });
+        const cub = stand("cubCCCCCCCCCCCCC", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH }, [FLAGS.monocub]: true });
+        const second = stand("secondSSSSSSSSSS", { [FLAGS.deceased]: { chapter: CH, epoch: EPOCH, sinceVerdict: 1000 }, [FLAGS.monocub]: true });
+        const alive = stand("aliveAAAAAAAAAAA");
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const facts = (floor, more = {}) => ({ clock: { phase: "classTrial", chapter: CH }, floor, epoch: EPOCH,
+            record: { chapter: CH, mutedDead: [dead.id], vote: { open: false }, lastVerdictAt: 1000, ...more } });
+        const line = (actor, f, u = user) => { const out = voice.trialVoiceLine({ user: u, actors: [actor], trial: f }); return out ? out.reason : null; };
+        const debate = { active: true, mode: "debate" };
+        equal(stableJson({
+            lines: [line(dead, facts(null)), line(cub, facts(null)), line(cub, facts(debate)), line(alive, facts(null)), line(dead, facts(null), { ...user, isGM: true }),
+                line(dead, { ...facts(null), clock: { phase: "dailyLife", chapter: CH } })],
+            own: [ownCaseOpen(second, { clock: { phase: "classTrial", chapter: CH }, record: { chapter: CH, lastVerdictAt: 1000 }, epoch: EPOCH }),
+                ownCaseOpen(second, { clock: { phase: "classTrial", chapter: CH }, record: { chapter: CH, lastVerdictAt: 2000 }, epoch: EPOCH }),
+                line(second, facts(null))]
+        }), stableJson({
+            lines: ["deadMuted", "cubSpeak", "cubListen", null, null, null],
+            own: [true, false, "ownCase"]
+        }), "who may speak without the tile, or a second trial's own case, is not the owner's rule (lines: a listed dead, a Monocub in the discussion and in a debate, the living, a GM, outside the trial; own: the case open before its verdict, closed after, the line)");
     }],
 ];
 

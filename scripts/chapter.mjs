@@ -33,7 +33,7 @@ import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.m
 import { getClock, phaseLabel } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
-    deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound
+    deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound, SETTINGS
 } from "./settings.mjs";
 import {
     TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
@@ -116,6 +116,23 @@ export function livingStudentsForGm() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
+/*
+ * THE CHAPTER'S NEWEST VERDICT AS A DEATH HAPPENS (E70 fix p1-G3; the review's E70P1-R14 = E70P1-R11 goal; DC29, DC41,
+ * D17). A Monocub whose own trial runs listens ("You listen: this trial is about your death", monocub.mjs `ownCaseOpen`),
+ * and that read the chapter's `lastVerdictAt` alone: a second murder after the chapter's first verdict read as closed.
+ * The death keeps the stamp of the newest verdict before it (the trial record's `lastVerdictAt`, public on the verdict's
+ * card), so its case is open while no verdict came after it. Not the death's time: a death the GMs keep would tell every
+ * console when it happened once published (the `deathId` note below).
+ */
+function verdictBefore(chapter) {
+    try {
+        const record = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        return record.chapter === chapter ? (record.lastVerdictAt ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
 export async function markDeceased(actor, { record: when = null, phase = null, cause = null, chapter = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
@@ -133,7 +150,7 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
     // (vote.mjs `executeAtExit`). A death with no cause writes none, as before.
     const clock = getClock();
     const record = when ?? { chapter: chapter ?? clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
-        deathId: foundry.utils.randomID(), ...(cause ? { cause } : {}) };
+        deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(chapter ?? clock.chapter), ...(cause ? { cause } : {}) };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -437,7 +454,7 @@ async function destroyBullets(actor) {
 async function recordSecretDeath(actor, { keepBullets = false, phase = null } = {}) {
     const clock = getClock();
     const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
-        deathId: foundry.utils.randomID() };
+        deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(clock.chapter) };
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -509,7 +526,8 @@ export async function publishDeath(actor, { phase = null, cause = null } = {}) {
        chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
     const record = await markDeceased(actor, {
         record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null, ...(cause ? { cause } : {}) }
+            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null, sinceVerdict: row.sinceVerdict ?? null,
+            ...(cause ? { cause } : {}) }
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).

@@ -1223,6 +1223,14 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     margin-top: 2px;
 }
 
+/* Who may speak in the trial, under the mode, where no voice tile says it (E70 fix p1-G3; voice.mjs `trialVoiceLine`). */
+#drpg-hud .drpg-hud-trial-voice {
+    font-size: var(--font-size-11, 0.7rem);
+    opacity: 0.85;
+    text-align: center;
+    max-width: 18rem;
+}
+
 #drpg-hud .drpg-hud-time {
     font-size: var(--font-size-13, 0.82rem);
     text-transform: uppercase;

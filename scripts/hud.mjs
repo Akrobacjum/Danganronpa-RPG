@@ -49,6 +49,7 @@ import { renderEvents } from "./events.mjs";
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialVoiceLine } from "./voice.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 
 const HUD_ID = "drpg-hud";
@@ -1214,6 +1215,15 @@ function buildTimeRow(clock, isGM) {
         // The one control the trial puts back, and only on a player's row (E79 C16, `objectionControl`).
         const objection = isGM ? null : objectionControl();
         if (objection) row.append(objection);
+        /* WHO MAY SPEAK, WHERE NO TILE SAYS IT (E70 fix p1-G3; E70-22): the dead's "you listen" and a Monocub's line, under
+           the mode, on a player's row when the voice tile is not drawn (voice.mjs `trialVoiceLine`). */
+        const voice = isGM || document.getElementById("drpg-voice-tile")?.isConnected ? null : trialVoiceLine();
+        if (voice) {
+            const line = document.createElement("div");
+            line.className = "drpg-hud-trial-voice";
+            line.textContent = game.i18n.format(`DRPG.Voice.held.${voice.reason}`, voice.data ?? {});
+            slot.append(line);
+        }
         return row;
     }
 

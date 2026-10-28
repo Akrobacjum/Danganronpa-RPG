@@ -9,7 +9,7 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
-    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection
+    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId
 } from "./trial-floor.mjs";
 import { topicOf } from "./floor-machine.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
@@ -746,12 +746,17 @@ const BAR_LABELS = {
     repoint: "DRPG.Floor.repoint"
 };
 
+/** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
+export function exchangeRuns(floor = trialFloor()) {
+    return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
+}
+
 const BAR_ACTIONS = {
     skip: () => skipStep(),
     minus: () => adjustTime(-TRIAL.modes.gm.adjustSeconds),
     plus: () => adjustTime(TRIAL.modes.gm.adjustSeconds),
     // E70 C2: the newest Objection overruled - during its exchange the floor goes back with its time.
-    overrule: () => overruleObjection(),
+    overrule: ({ messageId = null } = {}) => overruleObjection(messageId),
     endMode: () => endMode(),
     back: () => returnToDebate(),
     // E79 C16: the running Objection aimed at somebody else, picked in a window of its own - this console's body is
@@ -762,8 +767,8 @@ const BAR_ACTIONS = {
     }
 };
 
-/** A bar button pressed: its op, or the reason it is greyed, said to this GM. */
-function runBarOp(op) {
+/** A bar button pressed: its op, or the reason it is greyed, said to this GM; `args` the button's own (Overrule's card). */
+function runBarOp(op, args = {}) {
     const run = BAR_ACTIONS[op];
     if (!run) return;
     const refused = barRefusal(op);
@@ -771,7 +776,7 @@ function runBarOp(op) {
         ui.notifications.warn(game.i18n.localize(refused));
         return;
     }
-    Promise.resolve().then(run).catch(err => error(`The trial bar's ${op} failed`, err));
+    Promise.resolve().then(() => run(args)).catch(err => error(`The trial bar's ${op} failed`, err));
 }
 
 /** The bar's markup, by the console's reading (`readTrial`): nothing outside a running trial. */
@@ -782,7 +787,8 @@ function trialBar({ floor, running, barNext }) {
         const refused = barRefusal(op, floor, { running, now });
         const label = game.i18n.localize(BAR_LABELS[op]);
         const next = op === barNext ? " drpg-bar-next" : "";
-        return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${refused
+        const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
+        return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
             ? ` aria-disabled="true" title="${esc(game.i18n.localize(refused))}"` : ""}>${esc(label)}</button>`;
     });
     return `<div class="drpg-trial-bar" role="toolbar" aria-label="${esc(game.i18n.localize("DRPG.Floor.bar.label"))}">
@@ -1109,8 +1115,11 @@ export async function manageClassTrial() {
     const view = read();
     const { floor, running, finalNow, progress, afterwards, stopped, table } = view;
 
-    // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`).
-    const isDefault = action => view.next === action;
+    // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`) - and none while an Objection or
+    // its rebuttal runs (E70 fix p1-G3; the review's BEH-3 = E70P1-R02): the footer's step is Close Debate for the whole
+    // debate (E70-06), and Enter there ended the exchange and the debate under it, where at 1.2.89 it pressed Now. The
+    // lead says "Skip on the bar cuts it short"; Enter presses nothing (`exchangeRuns`, below, for a console opened before).
+    const isDefault = action => !(view.running && view.restrictive) && view.next === action;
 
     const openedWith = signature();
     let reopening = false;
@@ -1205,25 +1214,43 @@ export async function manageClassTrial() {
              * measured headless: the harness draws no pointer; LIVE-E70-01). The window stays open: a bar op changes
              * the floor, and the console follows it by its live region and its signature.
              */
-            let pressing = false;
+            /* RELEASED ANYWHERE (E70 fix p1-G3; the review's E70P1-R12): a pointer pressed on the bar and let go outside the
+               window, or cancelled, never reached this window's pointerup, and the console's clock stood still until the
+               next click. The release is heard on the whole page, and a press is forgotten after a few seconds whatever. */
+            let pressing = false, pressedAt = 0;
+            const release = () => { pressing = false; };
             dialog.element?.addEventListener("pointerdown", event => {
-                if (event.target?.closest?.("[data-drpg-bar]")) pressing = true;
+                if (event.target?.closest?.("[data-drpg-bar]")) { pressing = true; pressedAt = Date.now(); }
             });
-            dialog.element?.addEventListener("pointerup", () => { pressing = false; });
+            window.addEventListener("pointerup", release, true);
+            window.addEventListener("pointercancel", release, true);
             dialog.element?.addEventListener("click", event => {
                 const button = event.target?.closest?.("[data-drpg-bar]");
                 if (!button) return;
                 event.preventDefault();
                 pressing = false;
-                runBarOp(button.dataset.drpgBar);
+                // The Objection the bar named as it was drawn (E70 fix p1-G3; E70P1-R04): the primary refuses it once a
+                // newer one holds the floor, rather than overrule one this GM never saw.
+                runBarOp(button.dataset.drpgBar, { messageId: button.dataset.drpgTarget || null });
             });
+            /* NO ENTER IN AN EXCHANGE (E70 fix p1-G3; BEH-3): a console opened in the debate keeps Close Debate as its
+               default when an Objection cuts in (its footer is not drawn again, E70-06), so Enter is held here while an
+               Objection or its rebuttal runs. */
+            dialog.element?.addEventListener("keydown", event => {
+                if (event.key !== "Enter" || !exchangeRuns()) return;
+                event.preventDefault();
+                event.stopPropagation();
+            }, true);
 
             const ticker = setInterval(() => {
                 // Closed, or replaced by a newer console: so is the interval.
                 if (!dialog.element?.isConnected) {
                     clearInterval(ticker);
+                    window.removeEventListener("pointerup", release, true);
+                    window.removeEventListener("pointercancel", release, true);
                     return;
                 }
+                if (pressing && Date.now() - pressedAt > 5000) pressing = false;
                 if (!trialFloor() || pressing) return;
                 live.refresh();
             }, 1000);

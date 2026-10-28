@@ -415,10 +415,13 @@ export function trialCard(clock) {
             };
         }
 
-        const after = afterVerdictCard(clock);
+        /* THE FLOOR BEFORE THE VERDICT'S CARD (E70 fix p1-G3; the review's BEH-5 = E70P1-R13 = E70P1-R09 goal). Since E70
+           C4 a verdict ends nothing, and the GM can open a debate after it: the card after the verdict stood instead, so
+           the debate's question and "GM: +30 s" were shown nowhere for the rest of the trial. A running floor is the card. */
+        const floor = trialFloor();
+        const after = floor ? null : afterVerdictCard(clock);
         if (after) return after;
 
-        const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
         /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a

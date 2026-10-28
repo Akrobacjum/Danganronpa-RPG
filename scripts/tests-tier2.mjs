@@ -39009,6 +39009,97 @@ const SCENARIOS = [
             + "(3) Skip pressed, the floor, the same console, the cards naming the turn skipped; (4) End this mode pressed, the floor, its cards");
     }],
 
+    ["the console holds Enter while an Objection runs, its Overrule names the Objection it drew, a press let go outside the window lets the clock run, extendFloor is signed, the Event panel shows a floor after the verdict, and the Overrule's card carries its sound (E70 fix p1-G3)", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026; the review's BEH-3 = E70P1-R02, E70P1-R04, E70P1-R12, E70P1-R11, BEH-5 = E70P1-R13,
+         * E70P1-R15. Read on this primary in a Class Trial with the console drawn, as E70-T2. (1) A debate, then an
+         * Objection on a card: Enter in the console is held (the footer's Close Debate would end the exchange and the
+         * debate), and the floor is still the Objection; the bar's Overrule names that card. (2) A pointer pressed on the
+         * bar and let go outside the window: the console's live region is drawn again within three seconds. (3)
+         * `extendFloor(-30)` on a debate with 100 s left leaves about 70. (4) A verdict in the record and a debate with its
+         * question open after it: the Event panel's card is the debate's, the question its subtitle. (5) The Overrule's
+         * card rings "overrule". Red at d1f01644: Enter not held, no card on the button, the console frozen, 130 s left,
+         * the card after the verdict.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const T = await import("./trial.mjs");
+        const V = await import("./vote.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const CARD = "SUITEE70G3CARD01";
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const app = consoles()[0] ?? null;
+            ok(app?.element, "the trial console did not open");
+            if (!app?.element) return;
+            await F.openObjection(objector.id, target.id, { cardId: CARD });
+            await settle();
+            await wait(1500);
+            const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+            (app.element.querySelector("button, input") ?? app.element).dispatchEvent(enter);
+            await wait(800);
+            read.enter = [enter.defaultPrevented, F.trialFloor()?.mode ?? null,
+                app.element.querySelector('[data-drpg-bar="overrule"]')?.dataset.drpgTarget ?? null];
+
+            const region = () => app.element.querySelector(".drpg-trial-console")?.innerHTML ?? "";
+            app.element.querySelector('[data-drpg-bar="minus"]')?.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            window.dispatchEvent(new Event("pointerup", { bubbles: true }));
+            const before = region();
+            read.released = Boolean(await until(() => region() !== before || null, 3500));
+
+            await F.endFloor();
+            await F.startFloor({ seconds: 100 });
+            await settle();
+            await F.extendFloor(-30);
+            await settle();
+            const left = F.secondsLeft();
+            read.minus = left > 55 && left < 85;
+
+            await F.endFloor();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [], sentenced: [], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] } });
+            await F.startFloor({ seconds: 300, topic: "SUITE fix p1-G3: after the verdict" });
+            await settle();
+            read.panel = E.trialCard(getClock())?.sub ?? null;
+
+            await T.markOverruled(null, { objectorId: objector.id, state: null });
+            await settle();
+            const card = game.messages.filter(m => !seen.has(m.id)).find(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over")));
+            read.sound = card ? soundFromMessage(card)?.key ?? null : "no card";
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            enter: [true, "objection", CARD], released: true, minus: true, panel: "SUITE fix p1-G3: after the verdict", sound: "overrule"
+        }), "(1) Enter held, the floor, the Overrule's card on the bar; (2) the console drawn again after a press let go outside it; (3) -30 s by extendFloor; (4) the Event panel's subtitle after the verdict; (5) the Overrule card's sound");
+    }],
+
     ["Back to the debate gives the debate the time it had when the Objection cut in (E70-T3)", async () => {
         /*
          * E70 C1, 27.10.2026; E70-05 (TR31 = 1: "Back to the debate gives the rest"). A debate of 600 s with 500 s left

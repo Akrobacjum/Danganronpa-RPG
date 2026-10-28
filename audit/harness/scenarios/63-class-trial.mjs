@@ -1326,6 +1326,47 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         await game.settings.set("${MOD}", "trialProgress", globalThis.__s63rProgress); return true;`, { timeout: 60000 });
     await settle(500);
 
+    /* E70 fix p1-G3 (1.2.90; the review's E70P1-R09 = E70P1-R12 goal, E70-21 "a new primary survives"): the primary
+       (gm2) mutes p1 for the trial - Aiko dead and listed - and leaves mid-trial; gm3 becomes the primary and the trial's
+       end is written raw on it, as a console or Edit campaign writes it: gm3's own hook settles the voices from the GMs'
+       synced store, and p1's microphone is given back, the store empty. */
+    const permOf = `const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {};
+        return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null];`;
+    await gm3.eval(`globalThis.__s63r3 = { clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")),
+        progress: foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {}), perm: (() => { ${permOf} })() }; return true;`);
+    const r3Before = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const Vo = await import("${repoUrl}/scripts/voice.mjs");
+        const clock = game.settings.get("${MOD}", "clock");
+        await C.killCharacter(game.actors.get("${IDS.aiko}"), { secret: false, keepBullets: true });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: clock.chapter });
+        await game.settings.set("${MOD}", "clock", { ...clock, phase: "classTrial" });
+        const out = await Vo.settleTrialVoices();
+        return { blocked: out?.blocked ?? null };`, { timeout: 60000 });
+    await settle(1000);
+    const r3Held = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return { rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })() };`);
+    await disconnect("gm2");
+    await settle(1500);
+    const r3After = await gm3.eval(`${until} const U = await import("${repoUrl}/scripts/utils.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const primary = U.isPrimaryGm();
+        await game.settings.set("${MOD}", "clock", { ...game.settings.get("${MOD}", "clock"), phase: "dailyLife" });
+        const back = await until(() => { const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {}; return own.BROADCAST_AUDIO !== false || null; }, 8000);
+        return { primary, back: Boolean(back), rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })(),
+            list: Object.hasOwn(game.settings.get("${MOD}", "trialProgress") ?? {}, "mutedDead") };`, { timeout: 30000 });
+    verdict("the primary mutes p1 for the trial and leaves; gm3, the new primary, ends the trial and gives p1's microphone back from the GMs' store",
+        (r3Before.blocked ?? []).includes(p1.userId) && r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
+            && r3After.rows.length === 0 && r3After.list === false, J({ r3Before, r3Held, r3After }));
+    await gm3.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const aiko = game.actors.get("${IDS.aiko}"); if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
+        const was = globalThis.__s63r3;
+        const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {};
+        if (JSON.stringify([Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]) !== JSON.stringify(was.perm)) {
+            const U = await import("${repoUrl}/scripts/utils.mjs");
+            await game.users.get("${p1.userId}").update({ "permissions.BROADCAST_AUDIO": was.perm[0] ? was.perm[1] : U.forcedDeletion() });
+        }
+        await game.settings.set("${MOD}", "clock", was.clock);
+        await game.settings.set("${MOD}", "trialProgress", was.progress); return true;`, { timeout: 60000 });
+    await connect("gm2");
+    await settle(1000);
+
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

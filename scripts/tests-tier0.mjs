@@ -8480,6 +8480,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
             ["SHEET voice.mjs#trialVoiceActorOf", "out of scope as a judgement (E70 C5): `isMonokuma` from the document, to rank an account's characters in the trial - one not on the trial's list before one on it (E70 fix p1-G1), then the lowest id, as `voiceRowFor` does - for the primary's block of the trial's dead; the list is the primary's own, read from held flags (`deadForTrial`)"],
             ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
+            ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -16019,6 +16020,31 @@ const REGRESSIONS = [
             settle: [true, false], dead: [true, false, false], participants: [true, false], present: [true, true], row: true,
             card: [true, true, true], tile: [true, true, true]
         }), "the trial's dead are not read as the GMs hold them, a living victim is listed, a listed student presents, or the tile does not follow the trial (settle: judged before the held list, an incident read; deadForTrial: cut, an incident, the document's flags; trialParticipants: the held Monocub, the document's; Present: window, card; the sheet's row; the card hook: list, refusal, no popup; the tile: a setting hook, its three keys, a repaint)");
+    }],
+    ["R1041 - the sounds of E70 part 1, the HUD's line without the tile, the bar's Overrule and the Skip's words (E70 fix p1-G3; the review's E70P1-R15 = E70P1-R10, E70P1-R08, E70P1-R04, TXT-1): the trial's close card rings \"trialClose\" and a Final Trial's execution plays \"execution\" for every user; a rebuttal an Overrule brings back rings nothing of its own; hud.mjs asks `trialVoiceLine` only where no voice tile is drawn; the bar's Overrule button carries the card it names and its press hands it on; and \"nowMovedOn\" names no routing", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026. E70-25 asked for each sound by test, and only the execution's card was read (E70-T7);
+         * the Overrule's card is tier 2's (the test "the console holds Enter ..."). Read in the module's files, comments
+         * blanked, and the language files. Red at d1f01644 on the HUD's line, the bar's card and the words.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "vote.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
+        must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
+        const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
+        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("vote.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
+        const time = fn("hud.mjs", "buildTimeRow"), bar = fn("trial-floor-ui.mjs", "trialBar"), console_ = fn("trial-floor-ui.mjs", "manageClassTrial");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const moved = [en.DRPG?.Floor?.nowMovedOn ?? "", pl.DRPG?.Floor?.nowMovedOn ?? ""];
+        equal(JSON.stringify({
+            close: /sfx: \{ key: "trialClose", gm: true \}/.test(close),
+            final: /playSfxForUsers\(game\.users\.map\(u => u\.id\), "execution"\)/.test(card),
+            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
+            hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
+            bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
+            words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))
+        }), JSON.stringify({ close: true, final: true, rebuttal: true, hud: true, bar: true, words: [true, true] }),
+            "a sound of the trial, the HUD's line, the bar's Overrule or the Skip's words is not as E70 asks (the close's sound; the Final's; no rebuttal sound after an Overrule; the HUD's line where no tile is; the bar's card; the words EN, PL)");
     }],
 ];
 
