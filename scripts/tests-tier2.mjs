@@ -38320,7 +38320,11 @@ const SCENARIOS = [
             await UI.manageClassTrial();
             const buttons = opened?.buttons ?? [];
             const content = opened?.content;
-            const sections = [...(content?.querySelectorAll?.("h4") ?? [])];
+            /* Not Monokuma's Reveal (E70 C9): its section is drawn while the world holds a Key nobody found, which this
+               test does not set and does not read (R1048 reads it); CI at fffe49e6 (run 40728132248) counted it as a
+               fourth section in a world 01's parts had left a Key plan in. */
+            const revealHeading = game.i18n.localize("DRPG.Reveal.section");
+            const sections = [...(content?.querySelectorAll?.("h4") ?? [])].filter(h => h.textContent.trim() !== revealHeading);
             const voteButton = buttons.find(b => b.action === "vote");
             let lines = null;
             if (sections.length) {
