@@ -102,6 +102,30 @@ async function asOurs(fn) {
     }
 }
 
+/*
+ * THE FLOOR'S MODES AND THEIR MUSIC, ONE ROW A MODE (E70 C13, 28.10.2026; E70-82). Part 2 of E70 put three modes on the
+ * floor - Testimony, Panic Round, the Closing Argument - and none of them has a playlist: they are the trial talking,
+ * one speaker at a time, and play the trial's discussion. An Objection cut into any of them, its rebuttal, and the
+ * Closing's exchange (whose modes are the Objection's and the rebuttal's, floor-machine.mjs `closing`) play the
+ * Objection's. Written as a table over floor-machine.mjs MODES so a mode added later without a row here is a red R1046,
+ * not a mode that falls through to whatever state comes next and plays it unheard of.
+ */
+export const TRIAL_MODE_MUSIC = Object.freeze({
+    [FLOOR_MODES.objection]: "trial.objection",
+    [FLOOR_MODES.rebuttal]: "trial.objection",
+    [FLOOR_MODES.debate]: "trial.debate",
+    [FLOOR_MODES.testimony]: "trial.discussion",
+    [FLOOR_MODES.panic]: "trial.discussion",
+    [FLOOR_MODES.closing]: "trial.discussion"
+});
+
+/** The trial's music state for `floor` in `phase` (a clock's phase), or null outside a Class Trial with no floor. */
+export function trialMusicState(floor, phase) {
+    const mode = floor?.mode ?? null;
+    if (mode && TRIAL_MODE_MUSIC[mode]) return TRIAL_MODE_MUSIC[mode];
+    return phase === "classTrial" ? "trial.discussion" : null;
+}
+
 /**
  * Every state that can own the music, most important first.
  *
@@ -177,15 +201,12 @@ export const MUSIC_STATES = [
         randomTrack: true,
         // Sixty seconds, all of them audible. See `schedule`.
         immediate: true,
-        test: () => {
-            const mode = trialFloor()?.mode;
-            return mode === FLOOR_MODES.objection || mode === FLOOR_MODES.rebuttal;
-        }
+        test: () => trialMusicState(trialFloor(), getClock().phase) === "trial.objection"
     },
     {
         key: "trial.debate", labelKey: "DRPG.Music.state.trialDebate",
         randomTrack: true,
-        test: () => trialFloor()?.mode === FLOOR_MODES.debate
+        test: () => trialMusicState(trialFloor(), getClock().phase) === "trial.debate"
     },
     {
         key: "trial.discussion", labelKey: "DRPG.Music.state.trialDiscussion",

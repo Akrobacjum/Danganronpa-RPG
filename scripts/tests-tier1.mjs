@@ -25397,6 +25397,41 @@ const INVARIANTS = [
         }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
             + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
     }],
+    ["R1046 - the floor's modes and their music, one row a mode (E70 C13, E70-82): Testimony, Panic Round and the Closing Argument play the trial's discussion, an Objection and its rebuttal the Objection's in every mode, the Closing's exchange too", async () => {
+        /*
+         * E70 C13, 28.10.2026. Part 2 put three modes on the floor with no playlist of their own, and the trial's three
+         * music states each tested one mode by name, so a new mode played whatever state came next and nothing said so.
+         * music.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
+         * here: every mode has its row and the row is the spec's; a floor with no mode in the trial is the discussion,
+         * none outside it; and the Closing's exchange, built by `nextFloor` itself from a speaker objected at, is the
+         * Objection's. Red at 4c58d5a7: music.mjs had neither export - the behaviour was the same for today's six modes
+         * (the three states fell through to the discussion), the table that holds a seventh did not exist.
+         */
+        const Mu = await import("./music.mjs");
+        const M = await import("./floor-machine.mjs");
+        ok(Mu.TRIAL_MODE_MUSIC && typeof Mu.trialMusicState === "function", "music.mjs has no table of the floor's modes (TRIAL_MODE_MUSIC, trialMusicState)");
+        if (!Mu.TRIAL_MODE_MUSIC || typeof Mu.trialMusicState !== "function") return;
+        const want = { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.objection", testimony: "trial.discussion",
+            panic: "trial.discussion", closing: "trial.discussion" };
+        const NOW = 40_000_000, A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD";
+        const speaking = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null,
+            mode: "closing", holderId: A, seconds: 300, startedAt: NOW - 100_000,
+            closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 1, choice: null, speakerId: A, via: "drawn", resignUntil: null, chain: [] } };
+        const exchange = M.nextFloor(speaking, { type: "objection", holderId: D, targetId: A, cardId: "cardR1046AAAAAAA" }, { now: NOW });
+        const keys = new Set(Mu.MUSIC_STATES.map(s => s.key));
+        equal(JSON.stringify({
+            modes: Object.values(M.MODES).map(mode => [mode, Mu.TRIAL_MODE_MUSIC[mode] ?? null, Mu.trialMusicState({ mode }, "classTrial")]),
+            states: Object.values(Mu.TRIAL_MODE_MUSIC).every(key => keys.has(key)),
+            noFloor: [Mu.trialMusicState(null, "classTrial"), Mu.trialMusicState(null, "investigation")],
+            exchange: [exchange?.floor?.mode ?? exchange?.refused ?? null, exchange?.floor?.closing?.phase ?? null, Mu.trialMusicState(exchange?.floor, "classTrial")]
+        }), JSON.stringify({
+            modes: Object.values(M.MODES).map(mode => [mode, want[mode] ?? "no row in the spec", want[mode] ?? "no row in the spec"]),
+            states: true,
+            noFloor: ["trial.discussion", null],
+            exchange: ["objection", "speak", "trial.objection"]
+        }), "the floor's modes and their music are not the spec's [each mode of floor-machine.mjs MODES with its row and the state it plays; every row a "
+            + "music state; no floor in the trial and outside it; the Closing's exchange - its mode, the Closing's phase kept under it, its music]");
+    }],
 ];
 
 /**

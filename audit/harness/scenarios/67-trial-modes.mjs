@@ -21,7 +21,9 @@
  *     (no window to resign in: Done) - "The Closing Argument is over." on every player, the record done with two
  *     stretches (picked, objection). Then an Overrule in a Testimony's exchange gives the speaker back the turn.
  *   D (E70 C7, the undiscovered dead): Botan killed with nobody told, the trial's voices settled on the primary (the
- *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn.
+ *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn. D2 reads Botan on the
+ *     trial's list of the dead in p1's world data while nothing else there says he is dead: known-leaks.json TR30,
+ *     red on purpose until E67 (E70 C13).
  *   R (E70 C9, Monokuma's Reveal; E70-60 to E70-64): a Key Remnant the GM wrote into this chapter's plan and never
  *     placed, with the fee's count set to one; no player holds or reads its words; the GM reveals it from the API (the
  *     console's row and its confirmation are tier 1 R1044's): Aiko's and Chie's players each hold one copy - typed Key,
@@ -31,11 +33,19 @@
  *     ("trial.present") without the Analyze result: one card, a GM's, without the reading, and Chie's player one copy
  *     as shown (Neutral, not read; the reading on no other student's sheet), Botan - dead with nobody told since D -
  *     none; then with the result: the second card reads it, and still one copy.
+ *   M (E70 C13, what a turn's change costs; E70-83): a Testimony's turn passes from Aiko to Chie by p1's Done with the
+ *     GM's console and Aiko's sheet open on p1: each browser draws its HUD once (`hud.renderHud`) and renders no sheet
+ *     through the clock (`clock.refreshSheets.rendered`), the console stays one window whose live region is rebuilt by
+ *     its one-second tick and the change (live.mjs `diagnoseLive`), and on p1 Aiko's sheet is not rendered while its
+ *     row's Present is painted in place - held, "Only Chie Mori can present right now.". Measured 28.10.2026 at
+ *     4c58d5a7+edits: hud 1 on each of the four, sheets 0, the console's region 2 in 1.5 s, the sheet's renders 0.
  * The canary's player scan runs after every phase (`canary.scan`) on a GM's Key Remnant plan planted at the start.
  *
  * What it cannot see: a round at a table of 14-15 people (LIVE-E70-07), a step over on a real server's latency
  * (LIVE-E70-08), the sound of a turn, a Panic Round's or a Closing's start (the harness plays no audio), the Closing's
- * draw, confirmation and decision with real people (LIVE-E70-09), Enter in the Reveal's window on v14 (LIVE-E70-10).
+ * draw, confirmation and decision with real people (LIVE-E70-09), Enter in the Reveal's window on v14 (LIVE-E70-10),
+ * and what a turn's change costs on a real sheet and a real canvas (81-render-budget's case, E37): M counts the
+ * module's own work on jsdom.
  */
 export const layers = ["ci"];
 
@@ -254,6 +264,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return out;`, { timeout: 60000 });
     verdict("Botan, killed with nobody told, is not a participant and gets no turn: the Testimony's order is Aiko, Chie",
         dead.killed && dead.published === false && !dead.participants.includes(IDS.botan) && J(dead.order) === J([IDS.aiko, IDS.chie]), J(dead));
+    /* THE TRIAL'S LIST OF THE DEAD, A DEATH NOBODY HAS FOUND ON IT (E70-24; the owner's TR30 = 2, "Tak, ona tez wyciszona").
+       The list (trialProgress.mutedDead, voice.mjs `settleTrialVoices`) is world data every browser holds, so in the trial
+       p1's browser reads Botan on it while nothing else of p1's world says he is dead: public on purpose while the trial
+       runs (world-secrets.mjs lifts its rule only then; 72-canary reads it gone after the trial), and a known leak until
+       E67 keeps the list in the GMs' store (known-leaks.json TR30). Red on purpose: it passes the day the list stops
+       naming him on a player's browser, and then the entry goes. */
+    const listOnP1 = await p1.eval(`const r = game.settings.get("danganronpa-rpg", "trialProgress") ?? {}, c = game.settings.get("danganronpa-rpg", "clock") ?? {};
+        const b = game.actors.get("${IDS.botan}");
+        return { phase: c.phase ?? null, listed: (r.mutedDead ?? []).includes("${IDS.botan}"), flag: b?.getFlag("danganronpa-rpg", "deceased") ?? null };`);
+    counts.D++;
+    check("D2: no death nobody has found reaches a player's browser on the trial's list of the dead (TR30, E70-24)",
+        !(listOnP1.listed && listOnP1.flag === null), J(listOnP1),
+        { knownLeak: "TR30", measured: dead.killed && dead.published === false && listOnP1.phase === "classTrial" });
     await canary.scan({ phase: "D" });
 
     /* ------------------------------ R. Monokuma's Reveal ------------------------------ */
@@ -332,6 +355,83 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const cards = game.messages.filter(m => m.content.includes(${J(shown.text)}) || m.content.includes("S67 S evidence")).map(m => m.id);
         if (cards.length) await ChatMessage.deleteDocuments(cards);
         return true;`, { timeout: 60000 });
+
+    /* ------------------------------ M. what a turn's change costs ------------------------------ */
+    /* E70-83 (81-render-budget's case until E37, on E88's counters): a Testimony's turn passing from Aiko to Chie, with
+       the GM's console open and Aiko's sheet open on p1, is read on every browser - the HUD drawn (`hud.renderHud`), the
+       console's live region rebuilt and whether its window was opened again (live.mjs `diagnoseLive`, the window's
+       element), and on p1 how often Aiko's sheet was rendered and whether its row's Present was painted in place. */
+    begin("M", "a turn's change: one console region, one HUD a browser, no sheet rendered beyond its Present button");
+    const mItem = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = await T.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "S67 M evidence", realType: "incident", shownType: "incident",
+            playerText: "S67 M the words" });
+        await game.drpg.startTestimony({ seconds: 60, order: ${J(order)} });
+        return item?.id ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const consoleOpen = await gm.eval(`${until} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
+        globalThis.__s67mWas = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        globalThis.__s67mPending = UI.manageClassTrial();
+        const title = game.i18n.localize("DRPG.Floor.manageTrial");
+        const el = await until(() => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title)?.element, 8000);
+        globalThis.__s67mConsole = el ?? null;
+        return Boolean(el);`, { timeout: 30000 });
+    /* Aiko's sheet as Daggerheart's would hand it to the module's render hook (tier 2's `drawnSheet`: the harness's
+       actor sheet draws no inventory), its row's Present drawn by sheet.mjs `addPresentButton`; a sheet rendered again
+       in the window below is either the hook heard again or the actor sheet's own render asked. */
+    const sheetOpen = await p1.eval(`${until} const a = game.actors.get("${IDS.aiko}");
+        const element = document.createElement("div"); element.className = "drpg-s67m-sheet";
+        element.innerHTML = '<section data-application-part="inventory"></section>'; document.body.append(element);
+        Hooks.callAll("renderCharacterSheet", { document: a, isEditable: true, element, rendered: true }, element, {}, { isFirstRender: true });
+        const button = await until(() => element.querySelector('.drpg-row-present[data-drpg-actor-id="${IDS.aiko}"]'), 8000);
+        globalThis.__s67mRenders = 0;
+        globalThis.__s67mHook = Hooks.on("renderCharacterSheet", () => { globalThis.__s67mRenders++; });
+        const sheet = a.sheet, render = sheet.render.bind(sheet);
+        sheet.render = (...args) => { globalThis.__s67mRenders++; return render(...args); };
+        globalThis.__s67mSheet = sheet; globalThis.__s67mElement = element; globalThis.__s67mButton = button ?? null;
+        return { button: Boolean(button), held: button?.getAttribute("aria-disabled") === "true" };`, { timeout: 30000 });
+    await settle(1200);
+    const SNAP = `const c = await game.drpg.counters(); globalThis.__s67mBefore = c.counts; globalThis.__s67mAt = Date.now();
+        globalThis.__s67mLive = (game.drpg.diagnoseLive?.() ?? []).filter(r => r.region === ".drpg-trial-console").reduce((n, r) => n + r.refreshes, 0);
+        return true;`;
+    const READ = `const c = await game.drpg.counters(); const before = globalThis.__s67mBefore ?? {}; const d = k => (c.counts[k] ?? 0) - (before[k] ?? 0);
+        const live = (game.drpg.diagnoseLive?.() ?? []).filter(r => r.region === ".drpg-trial-console");
+        const title = game.i18n.localize("DRPG.Floor.manageTrial");
+        const el = [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title)?.element ?? null;
+        return { hud: d("hud.renderHud"), sheets: d("clock.refreshSheets.rendered"), seconds: (Date.now() - globalThis.__s67mAt) / 1000,
+            consoleRefreshes: live.length ? live.reduce((n, r) => n + r.refreshes, 0) - (globalThis.__s67mLive ?? 0) : null,
+            sameConsole: globalThis.__s67mConsole ? el === globalThis.__s67mConsole : null,
+            renders: globalThis.__s67mRenders ?? null,
+            button: globalThis.__s67mButton ? { connected: globalThis.__s67mButton.isConnected, held: globalThis.__s67mButton.getAttribute("aria-disabled") === "true",
+                tip: globalThis.__s67mButton.dataset.tooltip ?? null } : null };`;
+    for (const client of [gm, p1, p2, p3]) await client.eval(SNAP);
+    const turned = await turnFrom(p1, IDS.aiko, "done");
+    await settle(1500);
+    const cost = { gm: await gm.eval(READ), p1: await p1.eval(READ), p2: await p2.eval(READ), p3: await p3.eval(READ) };
+    const mFloor = await floorOn(p1);
+    const onlyChie = await p1.eval(`return game.i18n.format("DRPG.Trial.presentOnly", { name: game.actors.get("${IDS.chie}").name });`);
+    console.log(`[67 M] ${J({ consoleOpen, sheetOpen, turned, mFloor, cost })}`);
+    verdict("p1 calls Aiko's turn done with the GM's console and Aiko's sheet open: the floor is Chie's",
+        consoleOpen && sheetOpen.button && !sheetOpen.held && turned.ok && mFloor?.holder === IDS.chie, J({ consoleOpen, sheetOpen, turned, mFloor }));
+    verdict("the turn's change draws the HUD once on each browser, and no sheet through the clock's pass",
+        ["gm", "p1", "p2", "p3"].every(w => cost[w].hud === 1 && cost[w].sheets === 0), J(cost));
+    verdict("the GM's console stays the same window and rebuilds its live region no more than its one-second tick and the change itself",
+        cost.gm.sameConsole === true && cost.gm.consoleRefreshes !== null && cost.gm.consoleRefreshes >= 1
+            && cost.gm.consoleRefreshes <= Math.ceil(cost.gm.seconds) + 1, J(cost.gm));
+    verdict("on p1 Aiko's sheet is not rendered, and its row's Present is painted in place: held, \"Only Chie Mori can present right now.\"",
+        cost.p1.renders === 0 && cost.p1.button?.connected === true && cost.p1.button.held && cost.p1.button.tip === onlyChie, J({ p1: cost.p1, onlyChie }));
+    await p1.eval(`const s = globalThis.__s67mSheet; if (s) delete s.render; Hooks.off("renderCharacterSheet", globalThis.__s67mHook);
+        globalThis.__s67mElement?.remove(); return true;`, { timeout: 30000 });
+    await gm.eval(`${F} const el = globalThis.__s67mConsole; el?.querySelector('footer button[data-action="close"]')?.click();
+        await Promise.race([globalThis.__s67mPending, new Promise(r => setTimeout(r, 5000))]);
+        globalThis.__dialogWindows = globalThis.__s67mWas;
+        if (F.trialFloor()) await game.drpg.endMode();
+        const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        for (const a of game.actors) for (const i of a.items.filter(i => T.isTruthBullet(i) && i.name === "S67 M evidence")) {
+            const uuid = i.uuid; await i.delete(); await T.dropSecret(uuid);
+        }
+        return ${J(mItem)} !== null;`, { timeout: 60000 });
+    await settle(600);
+    await canary.scan({ phase: "M" });
 
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });

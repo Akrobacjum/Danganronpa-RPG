@@ -3634,9 +3634,15 @@ export const TRIAL = {
     objectionPickSeconds: 30,
     /**
      * The GM's bar on the trial console (E70 C1, 27.10.2026; TR21, TR26, DX2): -30 s and +30 s move the running mode's
-     * clock by `adjustSeconds`; `panicAdjustSeconds` is the step a Panic Round's bar will use (E70 part 2 reads it); a
-     * GM's change of the clock is told in the Event panel as "GM: +30 s" for `noteSeconds`, counted on each browser's
-     * own clock from the moment it saw it. The owner's TR17: these are estimates, not measured at a table (LIVE-E70-01).
+     * clock by `adjustSeconds`; `panicAdjustSeconds` is a Panic Round's step (trial-floor.mjs `adjustStep`, since E70
+     * C7); a GM's change of the clock is told in the Event panel as "GM: +30 s" for `noteSeconds`, counted on each
+     * browser's own clock from the moment it saw it. The owner's TR17: these are estimates, not measured at a table
+     * (LIVE-E70-01).
+     *
+     * THE WHOLE TABLE (E70 C13, 28.10.2026; E70-82): `gm` (the bar), `topicLength`, `budget`, `round` (Testimony, Panic
+     * Round) and `closing` (the Closing Argument), each read where its comment says; the floor's modes have no music of
+     * their own (music.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
+     * skips first is the GM handbook's advice (section 15), never a rule here, and nothing the module skips by itself.
      *
      * E70 C3 (27.10.2026; S18-70, S18-80): `topicLength` is the longest debate question kept (floor-machine.mjs
      * `topicOf` cuts there), room for a sentence on the Event panel's card, chosen, not measured at a table; `budget`
