@@ -1552,5 +1552,13 @@ export function registerVoiceTile() {
         else if (live?.list && !live.list.hidden) paintList(live);
     });
     Hooks.on("drpgVoiceApplying", () => onVoiceApplying());
+    /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
+       dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,
+       the floor and the trial's record, and nothing here repainted on those: a debate opened, or the vote, and the
+       Monocub still read "Discussion: you may speak." Every browser hears a world setting's change. */
+    const TRIAL_KEYS = [SETTINGS.clock, SETTINGS.trialQueue, SETTINGS.trialProgress].map(key => `${MODULE_ID}.${key}`);
+    Hooks.on("updateSetting", setting => {
+        if (TRIAL_KEYS.includes(setting?.key)) paintControls();
+    });
     refreshVoiceTile();
 }

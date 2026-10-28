@@ -50,7 +50,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serialWrite, serverNow } from "./utils.mjs";
+    whisperToOwner, serialWrite, serverNow, esc } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -163,8 +163,11 @@ export async function presentDialog(actor, item) {
      * `objectOnPrimary` judges a dead objector on the primary GM. The document's
      * death on this browser is a courtesy, as everything in this window is.
      */
+    /* AND THE TRIAL'S LIST OF THE DEAD (E70 fix p1-G1, 28.10.2026; the review's BEH-1): a death nobody has found is
+       on it (TR30) and not on the document, so its player's window opened and put evidence on every screen all
+       trial. A courtesy here too; the card a console posts anyway is refused on the primary (`registerTrial`). */
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
+    if (isDeceased(actor) || isMutedDead(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
         return false;
     }
@@ -230,9 +233,9 @@ export async function presentBullet(actor, item, {
     if (!data) return false;
 
     // The API's road to the card a dead student's window no longer opens (see
-    // `presentDialog`; E10 C16).
+    // `presentDialog`; E10 C16), the trial's list of the dead too (E70 fix p1-G1).
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
+    if (isDeceased(actor) || isMutedDead(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
         return false;
     }
@@ -461,8 +464,16 @@ export function registerTrial() {
          * owner, as it marked a forged one. A player's Present - no objection flag - is today's, and free.
          */
         const playerObjection = objection && !author?.isGM;
+        /*
+         * A PRESENT BY THE TRIAL'S DEAD (E70 fix p1-G1, 28.10.2026; the review's BEH-1). The list (settings.mjs
+         * `isMutedDead`) names a death nobody has found, which the sheet does not show, so a muted student's player
+         * still put evidence on every screen through Present, a card their own browser posts. Every browser reads
+         * the list, so none raises the card; the primary marks it refused and tells its owner, as for a player's
+         * Objection card. A GM's card is a GM's to post.
+         */
+        const mutedPresenter = !author?.isGM && isMutedDead(game.actors.get(message.speaker?.actor ?? ""));
 
-        if (authorised && !playerObjection) showPopup(contentOf(message), {
+        if (authorised && !playerObjection && !mutedPresenter) showPopup(contentOf(message), {
             title: game.i18n.localize(objection ? "DRPG.Trial.objection" : "DRPG.Trial.evidence"),
             kind: objection ? "objection" : "evidence",
             // Evidence stays up until somebody closes it. A trial argues with a
@@ -481,6 +492,11 @@ export function registerTrial() {
         // so they are one act here. Exactly one client writes it: this hook
         // fires on every GM, and two of them racing on the same setting is how
         // the floor ends up pointing at the wrong person.
+        if (mutedPresenter && isPrimaryGm()) {
+            serialWrite(SEIZE_KEY, () => refusePlayersCard(message, "dead"))
+                .catch(err => error("Could not mark a dead student's Present card as refused", err));
+            return;
+        }
         if (!objection || !isPrimaryGm()) return;
 
         if (playerObjection) {
@@ -538,14 +554,19 @@ export function registerTrial() {
 /**
  * A card a player's browser posted with the objection flag, on the primary GM (E79 C16): marked refused - the log
  * shows it for what it was - and its character's owner told where an Objection is raised now, or, for a card in
- * somebody else's name, that it was not theirs. Nothing is paid and the floor does not move.
+ * somebody else's name, that it was not theirs. Nothing is paid and the floor does not move. `kind` "dead": a Present
+ * card of a student on the trial's list of the dead (E70 fix p1-G1), its owner told the dead do not present.
  */
-async function refusePlayersCard(message) {
+async function refusePlayersCard(message, kind = "objection") {
     if (!isPrimaryGm()) return;
     try {
         await message.setFlag(MODULE_ID, TRIAL_FLAGS.refused, true);
         const actor = game.actors.get(message.speaker?.actor ?? "");
         if (!actor) return;
+        if (kind === "dead") {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }))}</p>`);
+            return;
+        }
         const why = message.author && actor.testUserPermission(message.author, "OWNER")
             ? game.i18n.localize("DRPG.Trial.objectionByButton")
             : game.i18n.format("DRPG.Trial.objectionNotYours", { name: actor.name });

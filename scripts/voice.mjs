@@ -41,7 +41,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, deathRecordFor, seasonEpoch, isMutedDead } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, deathRecordFor, seasonEpoch, isMutedDead, mutedDeadIds } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
@@ -1140,7 +1140,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (eclipse && !monocub) return { reason: "eclipse", held: true };
     // THE TRIAL (E70 C5): the voice character as the trial ranks it, nobody located (`accountRow`, as `voiceTargets`).
     const inTrial = !user.isGM && trial?.clock?.phase === "classTrial";
-    const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false })?.actor ?? null : null;
+    // An account with a living participant and a dead student speaks as the living one (E70 fix p1-G1; `accountRow`'s
+    // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
+    const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
     if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
@@ -1167,7 +1169,7 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
     dead = isDeadForGm } = {}) {
     if (!game.user?.isGM || !user) return null;
-    const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead) });
+    const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
@@ -1178,9 +1180,19 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
  * One account's voice row, as `voiceTargets` builds and ranks it, from the characters whose voice is this account's
  * (`voiceUserOf`) - or the `actors` handed in - with nobody located (`micHold`, `moduleHoldsMic` say why that is the
  * same answer for their questions).
+ *
+ * In the trial, `listed` is the trial's list of the dead (settings.mjs `mutedDeadIds`): a character of the account not
+ * on it is asked before one on it (E70 fix p1-G1, 28.10.2026; the review's BEH-4 = E70P1-R01). Every row is the trial's
+ * claim there, so `voiceRowFor` took the lowest id, and a player who holds a dead student with the lower id and plays
+ * a living one now was muted as dead while `trialParticipants` handed them a ballot. Only an account whose every
+ * character is listed is the trial's to hold (`trialVoiceActorOf` asks the same).
  */
-function accountRow(user, { actors, eclipse = false, trial = false, silenced }) {
-    const mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+function accountRow(user, { actors, eclipse = false, trial = false, silenced, listed = null }) {
+    let mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+    if (trial && listed?.length) {
+        const free = mine.filter(actor => !listed.includes(actor.id));
+        if (free.length) mine = free;
+    }
     const rows = mine.map(actor => {
         const monokuma = isMonokuma(actor);
         return { actor, monokuma, user, ...voiceClaim({ user, monokuma, eclipse, trial,
@@ -1198,9 +1210,9 @@ function accountRow(user, { actors, eclipse = false, trial = false, silenced }) 
  * też wyciszona", TR33 = 1; amend 6, answer 3 = (b), the minimal block). D8 put the dead in the trial's one room and left
  * "the dead listen but do not speak" to the table. The owner wants it held, so the primary GM, after its deaths store
  * has hydrated, writes the trial's list into the record (`mutedDead`, settings.mjs `isMutedDead`) - every ordinary dead
- * student, a death nobody has found and the victim of an incident still open among them (amend 2), never a Monocub, a
- * Monokuma or a convict (alive until the trial ends, DC36) - and turns Foundry's BROADCAST_AUDIO off for every player
- * whose voice character is listed. What the block found is a row of the GMs' `trialMuteStore`; a player a GM blocked by
+ * student as the GMs hold it, a death nobody has found among them (and an open incident's victim once dead, amend 2;
+ * a living one never, E70 fix p1-G1), never a Monocub, a Monokuma or a convict (alive until the trial ends, DC36) - and
+ * turns Foundry's BROADCAST_AUDIO off for every player whose every character is listed. What the block found is a row of the GMs' `trialMuteStore`; a player a GM blocked by
  * hand before (an explicit false) is left alone and recorded nowhere, so the exit can never put back over a GM's block.
  * The exit puts back only a block the trial wrote and finds still standing: a grant the player had, or no grant at all
  * (the key removed with `forcedDeletion()`, never `-=`; a Foundry with neither leaves the block and tells the GMs).
@@ -1243,23 +1255,47 @@ function cubLine(actor, trial) {
     return { reason: "cubListen", held: false, data: { mode: game.i18n.localize(`DRPG.Hud.trial.${mode}`) } };
 }
 
-/** An account's voice character in the trial: its lowest actor id (`voiceRowFor`'s order when every claim is the trial's and nobody is located), whether or not it is connected. */
-export function trialVoiceActorOf(user, actors = game.actors) {
+/**
+ * An account's voice character in the trial, whether or not it is connected: a character not on the trial's list
+ * (`listed`) before one on it, then the lowest actor id (`voiceRowFor`'s order when every claim is the trial's and
+ * nobody is located). So the trial holds an account only when every character it owns is listed (E70 fix p1-G1; the
+ * review's BEH-4 = E70P1-R01: a dead student with the lower id muted the living one its player plays now).
+ */
+export function trialVoiceActorOf(user, actors = game.actors, listed = []) {
     if (!user || user.isGM) return null;
+    const off = new Set(listed ?? []);
     let held = null;
     for (const actor of actors ?? []) {
         if (actor?.type !== "character" || isMonokuma(actor) || !actor.testUserPermission?.(user, "OWNER")) continue;
-        if (!held || actor.id < held.id) held = actor;
+        const free = !off.has(actor.id);
+        if (!held || (free && off.has(held.id)) || (free === !off.has(held.id) && actor.id < held.id)) held = actor;
     }
     return held;
 }
 
-/** The trial's dead as this primary holds them, sorted: every ordinary dead student and an open incident's victim, no Monocub. */
-function deadForTrial(incident = null) {
+/**
+ * The trial's dead as this primary holds them, sorted: every ordinary dead student, no Monocub - each read through
+ * `held`, the GMs' flags (sheet-audit.mjs `flagsHeldNow`, after `judgedFor`), and the GMs' deaths (`isDeadForGm`, a
+ * death nobody has found among them).
+ *
+ * AS THE GMS HOLD THEM (E70 fix p1-G1, 28.10.2026; the review's SEC-2). The list read the documents, which the
+ * student's owner can write: a dead, listed player who unset `deceased` (or set `monocub`) from the console was taken
+ * off the list by the settle that write scheduled, and given their microphone back, before the audit's put-back of the
+ * GM-only flag landed - or for good where it failed. vote.mjs `trialParticipants` closed the same hole for the ballot
+ * in E10 C2.
+ *
+ * NO LIVING VICTIM (E70 fix p1-G1; the review's SEC-1). An open incident's victim was listed by the incident's cast
+ * (amend 2). While the crisis runs that victim is alive (a Survive is one of its ends), and the list is world data
+ * every console reads in the trial (world-secrets.mjs): it named the incident's victim to every player, muted a living
+ * student and took away their OBJECTION!. A victim who has died is dead in the GMs' records (`isDeadForGm` reads the
+ * held death, `pendingDeath`), so amend 2's victim is listed by the rule every death is; a living one is not.
+ */
+function deadForTrial(held = actor => actor) {
     const ids = new Set();
     for (const actor of studentActors()) {
-        if (actor.getFlag(MODULE_ID, FLAGS.monocub)) continue;
-        if (isDeadForGm(actor) || (incident?.victimId && actor.id === incident.victimId)) ids.add(actor.id);
+        const flags = held(actor);
+        if (flags.getFlag(MODULE_ID, FLAGS.monocub)) continue;
+        if (isDeadForGm(flags)) ids.add(actor.id);
     }
     return [...ids].sort();
 }
@@ -1327,15 +1363,25 @@ export async function settleTrialVoices({ release = false } = {}) {
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
-    const { murderState } = await import("./incident-store.mjs");
+    const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
     return serialWrite(vote.TRIAL_PROGRESS_KEY, async () => {
+        // Every write queued on a student judged, then each read as the GMs hold it in one synchronous pass (SEC-2,
+        // `deadForTrial`). The wait holds up nothing that holds it up: no judgement waits for the record's key.
+        if (game.user?.isGM) await judgedFor(...studentActors().map(actor => actor.id));
         const clock = getClock();
         const inTrial = clock.phase === "classTrial" && !release;
         const stored = getSetting(SETTINGS.trialProgress) ?? {};
-        const list = inTrial ? deadForTrial(murderState()) : null;
+        const list = inTrial ? deadForTrial(flagsHeldNow) : null;
         if (inTrial) {
-            const now = stored.chapter === clock.chapter && Array.isArray(stored.mutedDead) ? stored.mutedDead : null;
-            if (JSON.stringify(now) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list });
+            /* THE STORED RECORD'S OWN CHAPTER (E70 fix p1-G1; the review's E70P1-R06). A clock moved to another chapter
+               inside the trial (Edit campaign, or the chapter's end, whose "clock" step runs before its "trial") left a
+               record of the old chapter, and the list written with no chapter started from that chapter's blank and
+               replaced the whole record - vote, verdict, sentence, receipts. Written into the record that stands. */
+            const own = stored.chapter ?? null;
+            const now = own === clock.chapter && Array.isArray(stored.mutedDead) ? stored.mutedDead : null;
+            if (own !== null && own !== clock.chapter) {
+                if (JSON.stringify(stored.mutedDead ?? null) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list }, { chapter: own });
+            } else if (JSON.stringify(now) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list });
         } else if (Object.hasOwn(stored, "mutedDead")) {
             await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
         }
@@ -1343,7 +1389,7 @@ export async function settleTrialVoices({ release = false } = {}) {
         const out = { list, blocked: [], restored: [] };
         for (const user of game.users) {
             if (user.isGM) continue;
-            const voice = listed.size ? trialVoiceActorOf(user) : null;
+            const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
             const row = trialMuteStore.get(user.id);
             if (voice && listed.has(voice.id)) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);

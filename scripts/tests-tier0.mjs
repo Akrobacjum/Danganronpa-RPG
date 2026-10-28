@@ -8473,8 +8473,8 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
-            ["SHEET voice.mjs#trialVoiceActorOf", "out of scope as a judgement (E70 C5): `isMonokuma` from the document, to rank an account's characters as `voiceRowFor` does in the trial (the lowest id), for the primary's block of the trial's dead"],
-            ["SHEET voice.mjs#deadForTrial", "held (E70 C5): on the primary in the record's step, after its deaths store has hydrated - `isDeadForGm` (the flag or the GMs' row, a death nobody found among them) and the Monocub flag, and the open incident's victim from the GMs' cast (amend 2)"],
+            ["SHEET voice.mjs#trialVoiceActorOf", "out of scope as a judgement (E70 C5): `isMonokuma` from the document, to rank an account's characters in the trial - one not on the trial's list before one on it (E70 fix p1-G1), then the lowest id, as `voiceRowFor` does - for the primary's block of the trial's dead; the list is the primary's own, read from held flags (`deadForTrial`)"],
+            ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -15983,6 +15983,36 @@ const REGRESSIONS = [
             equal(JSON.stringify(measured), JSON.stringify(expected),
                 `the ${lang} handbooks' Class Trial says what E70 part 1's code does not do, or an old sentence is back (each claim: [the code, ...its sentences]; stale: each old sentence found)`);
         }
+    }],
+    ["R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026. Read in the module's files, comments blanked. The harms: a dead player's console
+         * that unset its own `deceased` taking itself off the list and its microphone back before the audit's put-back
+         * landed (SEC-2); an open incident's living victim named in world data and muted (SEC-1); a death nobody found
+         * presenting evidence to every screen (BEH-1); a Monocub's tile still saying "you may speak" through a debate
+         * (E70P1-R03). Red at 95bf1ffc: the document's flags, the incident's victim, `isDeceased` alone on Present, and
+         * no repaint on the trial's settings.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["voice.mjs", "vote.mjs", "trial.mjs", "sheet.mjs", "voice-tile.mjs"].map(async f => [f, await read(f)])));
+        must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
+        const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
+        const settle = fn("voice.mjs", "settleTrialVoices"), dead = fn("voice.mjs", "deadForTrial");
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const participants = fn("vote.mjs", "trialParticipants");
+        const register = fn("trial.mjs", "registerTrial"), tile = fn("voice-tile.mjs", "registerVoiceTile");
+        equal(JSON.stringify({
+            settle: [at(settle, /\bjudgedFor\(/) >= 0 && at(settle, /\bdeadForTrial\(flagsHeldNow\)/) > at(settle, /\bjudgedFor\(/), /\bmurderState\b/.test(settle)],
+            dead: [dead.length > 50, /\bincident\b|\bvictimId\b/.test(dead), /\bactor\.getFlag\(/.test(dead)],
+            participants: [/\bheld\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants), /\bactor\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants)],
+            present: ["presentDialog", "presentBullet"].map(name => /\bisMutedDead\(actor\)/.test(fn("trial.mjs", name))),
+            row: /\bisMutedDead\(app\.document\)/.test(fn("sheet.mjs", "addPresentButton")),
+            card: [/\bisMutedDead\(/.test(register), /refusePlayersCard\(message, "dead"\)/.test(register), /!mutedPresenter\)\s*showPopup\(/.test(register)],
+            tile: [/"updateSetting"/.test(tile), ["clock", "trialQueue", "trialProgress"].every(k => new RegExp(`SETTINGS\\.${k}\\b`).test(tile)), /\bpaintControls\(\)/.test(tile)]
+        }), JSON.stringify({
+            settle: [true, false], dead: [true, false, false], participants: [true, false], present: [true, true], row: true,
+            card: [true, true, true], tile: [true, true, true]
+        }), "the trial's dead are not read as the GMs hold them, a living victim is listed, a listed student presents, or the tile does not follow the trial (settle: judged before the held list, an incident read; deadForTrial: cut, an incident, the document's flags; trialParticipants: the held Monocub, the document's; Present: window, card; the sheet's row; the card hook: list, refusal, no popup; the tile: a setting hook, its three keys, a repaint)");
     }],
 ];
 

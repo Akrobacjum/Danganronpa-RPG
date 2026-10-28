@@ -821,4 +821,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p1: the notice history window the canary scanned was open, with entries and their snapshots (E81 C7)",
         shown.open && shown.entries > 0 && shown.snapshots > 0, JSON.stringify(shown));
     await p1.eval(`await foundry.applications.instances?.get("drpg-notices")?.close(); return true;`);
+    /* THE TRIAL'S LIST OF THE DEAD ON A PLAYER'S BROWSER (E70 fix p1-G1, 28.10.2026; the review's TST-1 = E70P1-R07, E70-24).
+       The list (trialProgress.mutedDead, voice.mjs `settleTrialVoices`) names a death nobody has found: world data every
+       browser holds, public on purpose while the Class Trial runs (TR30) and nowhere else - world-secrets.mjs lifts its
+       rule only while the clock's phase is the trial, so every world scan above, run in the trial, passed it, and one
+       after the trial would not. Read here: on p1 in the trial the list is there and names only students the GMs hold
+       dead (an open incident's living victim was listed until the fix, SEC-1); the GM ends the trial; on p1 the list is
+       gone, and the world scan after it finds nothing outside known-leaks.json. Not a known-leaks entry: the owner's
+       disclosure is the rule's exception, and an entry would need a closing stage of tools/stages.json (E67 is none) or a
+       paragraph of the root README (a release file). */
+    phase("after the trial");
+    const listOnP1 = () => p1.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}, c = game.settings.get("${MOD}", "clock") ?? {};
+        return { phase: c.phase ?? null, has: Object.hasOwn(r, "mutedDead"), list: [...(r.mutedDead ?? [])].sort() };`);
+    const listIn = await listOnP1();
+    const listDead = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        return ${JSON.stringify(listIn.list)}.map(id => Boolean(game.actors.get(id)) && C.isDeadForGm(game.actors.get(id)));`);
+    check("p1: in the Class Trial the trial's list of the dead is in p1's world data and names only students the GMs hold dead (E70-24, TR30; fix p1-G1)",
+        listIn.phase === "classTrial" && listIn.has && listIn.list.length > 0 && listDead.every(Boolean), JSON.stringify({ listIn, listDead }));
+    await gm.eval(`await game.drpg.setClock({ phase: "dailyLife" }); return true;`, { timeout: 90000 });
+    const listOut = await settled("after the trial", () => listOnP1().then(v => (v.phase !== "classTrial" && !v.has ? v : null)), 20000) ?? await listOnP1();
+    check("p1: once the trial has ended the trial's list of the dead is gone from p1's world data (E70-24; fix p1-G1)",
+        listOut.phase !== "classTrial" && !listOut.has, JSON.stringify(listOut));
+    await scanned("after the trial");
 }

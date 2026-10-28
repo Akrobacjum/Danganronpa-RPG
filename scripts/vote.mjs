@@ -694,8 +694,11 @@ export function trialParticipants() {
         // WHO TAKES PART (E70 C5, S18-79's list; TR33 = 1): no Monocub (DC4: it speaks only in the discussion and holds no
         // ballot), and nobody on the trial's list of the dead (settings.mjs `isMutedDead`) - a death nobody has found
         // among them, which the flag does not show and the primary lists after its deaths store has hydrated (TR30).
-        if (actor.getFlag(MODULE_ID, FLAGS.monocub)) continue;
-        if (!TRIAL.deadCastBallots && (isDeceased(flagsHeldNow(actor)) || isMutedDead(actor))) continue;
+        // The Monocub's flag as the GMs hold it too (E70 fix p1-G1; the review's SEC-2): a dead player's console that set
+        // it on a living student of theirs took that student's ballot away until the audit's put-back landed.
+        const held = flagsHeldNow(actor);
+        if (held.getFlag(MODULE_ID, FLAGS.monocub)) continue;
+        if (!TRIAL.deadCastBallots && (isDeceased(held) || isMutedDead(actor))) continue;
         const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
         if (!user || seated.has(user.id)) continue;
         seated.add(user.id);

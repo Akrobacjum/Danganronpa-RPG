@@ -24923,6 +24923,38 @@ const INVARIANTS = [
             stableJson([[true, true, true, true, true], [true, true, true, true, true], true, true]),
             "the tile's trial lines are missing in English or Polish, or the Monocub's listening line names no mode (EN keys, PL keys, EN {mode}, PL {mode})");
     }],
+    ["R1037 - an account with a dead student and a living one speaks in the trial as the living one (E70 fix p1-G1; the review's BEH-4 = E70P1-R01): voice.mjs `trialVoiceActorOf` takes a character not on the trial's list before one on it, then the lowest id, and `micHold` asks the same, so only an account whose every character is listed is muted", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026. A player whose first student died is given a new one: the dead one has the lower
+         * actor id about half the time (Foundry's ids are random). In the trial every row of an account is the trial's
+         * claim, so `voiceRowFor` and `trialVoiceActorOf` took the lowest id - the dead one, listed - and the primary
+         * blocked the player while `trialParticipants` handed them a ballot through the living one; the tile said "Your
+         * character is dead". Read without a world, on stand-in actors as R1034's. Red at 95bf1ffc: the living account
+         * read the dead one and `micHold` held it as "deadMuted".
+         */
+        const voice = await import("./voice.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const CH = 3;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const dead = stand("aaDeadDDDDDDDDDD", { [FLAGS.deceased]: { chapter: 1, epoch: 4 } });
+        const alive = stand("zzAliveAAAAAAAAA");
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const facts = list => ({ clock: { phase: "classTrial", chapter: CH }, floor: { active: true, mode: "debate" },
+            record: { chapter: CH, mutedDead: list, vote: { open: false } }, epoch: 4 });
+        const voiceOf = list => voice.trialVoiceActorOf(user, [dead, alive], list)?.id ?? null;
+        const hold = list => {
+            const out = voice.micHold({ user, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [dead, alive], trial: facts(list) });
+            return out ? [out.reason, out.held] : null;
+        };
+        equal(stableJson({
+            voice: [voiceOf([dead.id]), voiceOf([dead.id, alive.id]), voiceOf([]), voice.trialVoiceActorOf({ ...user, isGM: true }, [dead, alive], [dead.id]) ?? null],
+            hold: [hold([dead.id]), hold([dead.id, alive.id]), hold([])]
+        }), stableJson({
+            voice: [alive.id, dead.id, dead.id, null],
+            hold: [null, ["deadMuted", true], null]
+        }), "an account's voice character in the trial is not its living one (voice: one listed, both listed, none listed, a GM; micHold the same three)");
+    }],
 ];
 
 /**

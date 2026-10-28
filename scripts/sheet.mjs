@@ -16,7 +16,7 @@ import {
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
@@ -3495,7 +3495,8 @@ function buildBulletRow(li, item, app) {
  * free, the floor untouched, in a debate as outside one.
  */
 function addPresentButton(li, item, app) {
-    if (!inClassTrial() || isDeceased(app.document)) return;
+    // Nor for a student on the trial's list of the dead (E70 fix p1-G1): a death nobody has found too (TR30).
+    if (!inClassTrial() || isDeceased(app.document) || isMutedDead(app.document)) return;
 
     const button = document.createElement("button");
     button.type = "button";

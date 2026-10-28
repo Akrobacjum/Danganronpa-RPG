@@ -39621,6 +39621,90 @@ const SCENARIOS = [
         }), "the trial's dead are not muted as the owner asked (entry: list, U's, K's and A's players' block [had, value], the store's rows, who may speak, who holds a ballot; then a new Monocub, a death in the trial, the exit)");
     }],
 
+    ["the trial lists no living victim of an open incident, a listed death presents nothing, and a list written after the clock moved chapters keeps the trial's record (E70 fix p1-G1)", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026; the review's SEC-1, BEH-1, E70P1-R06. Read on this primary, the clock written raw
+         * and the trial's voices settled by hand, as E70-T8. (1) An incident is open and its victim V alive (the crisis
+         * runs; a Survive is one of its ends): the list names nobody living, and V's player keeps the microphone; U dies
+         * and nobody finds the body: U is listed. (2) U, listed, presents nothing by the API's road. (3) The clock moves to
+         * the next chapter inside the trial (Edit campaign): the next settle writes the list into the record that
+         * stands, which keeps its question and its vote's round. Red at 95bf1ffc: V listed and blocked, U's card posted,
+         * and the record replaced by the next chapter's blank. The incident is put back by tier 2's restore, as every
+         * murder test's state is; the clock, the floor, the record, the students, the permissions and the store here.
+         */
+        needs(env.primaryGm(), "the trial's dead are listed on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a death nobody found, each with a player");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const M = await import("./murder.mjs");
+        const T = await import("./trial.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students of three players, found ${picked.length} - the probe above counts them`);
+        must(!M.murderState(), "an incident is already running - this test opens its own");
+        const [K, Vi, U] = picked.slice(0, 3);
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries([K, Vi, U].map(p => [p.user.id, perm(p.user)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const listNow = () => [...((getSetting(SETTINGS.trialProgress) ?? {}).mutedDead ?? [])].sort();
+        const read = {};
+        let item = null;
+        try {
+            await M.openMurder({ killerId: K.actor.id, victimId: Vi.actor.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.victimId === Vi.actor.id && !isDeadForGm(Vi.actor), `the fixture's incident is not open with a living victim: ${stableJson(M.murderState())}`);
+            await killCharacter(U.actor, { secret: true, keepBullets: true });
+            item = await bullets.createTruthBullet(U.actor, { name: "SUITE E70 fix p1-G1 bullet", realType: "neutral", visibility: "obvious" });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, topic: "SUITE fix p1-G1 question", vote: { ...V.trialProgress(chapter).vote, round: 7 } });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await voice.settleTrialVoices();
+            await settle();
+            read.entry = { list: listNow(), victim: perm(Vi.user), unfound: perm(U.user)[1] };
+            const cards = game.messages.size;
+            read.present = [await T.presentBullet(U.actor, item, {}), game.messages.size - cards];
+
+            await rawClock({ chapter: chapter + 1 });
+            await killCharacter(K.actor, { secret: true, keepBullets: true });
+            await voice.settleTrialVoices();
+            await settle();
+            const stored = getSetting(SETTINGS.trialProgress) ?? {};
+            read.moved = { chapter: stored.chapter === chapter, topic: stored.topic ?? null, round: stored.vote?.round ?? null, list: listNow().length };
+        } finally {
+            for (const p of [K, Vi, U]) if (isDeadForGm(p.actor)) await reviveCharacter(p.actor, { quiet: true });
+            if (item) await U.actor.items.get(item.id)?.delete();
+            for (const p of [K, Vi, U]) {
+                const [had, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": had ? value : forcedDeletion() });
+            }
+            for (const key of Object.keys(stores.trialMuteStore.entries())) await stores.trialMuteStore.drop(key);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            entry: { list: [U.actor.id], victim: before[Vi.user.id], unfound: false },
+            present: [false, 0],
+            moved: { chapter: true, topic: "SUITE fix p1-G1 question", round: 7, list: 2 }
+        }), "the trial's list names an open incident's living victim, a listed death posts a Present card, or a settle after the clock moved chapters replaced the trial's record (entry: the list, the victim's player's [had, value], the unfound's grant; present: the answer, cards posted; moved: the record's chapter kept, its question, its round, the list's length)");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
