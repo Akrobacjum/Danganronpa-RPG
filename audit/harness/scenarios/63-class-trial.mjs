@@ -95,6 +95,8 @@
  *      p1 for a name and lands, filled, at the student named.
  *   Z  (run after Y; E70 C1, 27.10.2026) gm3, not the primary, presses the GM's bar by its game.drpg functions on an
  *      Objection gm2 holds: gm2 and gm3 read one floor after each press, moved as the bar promises.
+ *   Q  (run after O; E70 C3, 27.10.2026) gm3 opens a debate with its question by game.drpg: gm2's floor holds it, and
+ *      p1 reads it on its Event card and on the debate's opening card.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -1210,6 +1212,38 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             && oAfter.gm2.mode === "debate" && Math.abs(oAfter.gm2.left - (oReceipt?.leftAtObjection ?? -999)) <= 4 && oAfter.gm2.actions === 2
             && oAfter.gm2.receipt?.overruled === true && oAfter.gm2.flag === true && oAfter.p3 === 0 && oAfter.gm3 === 0
             && oAfter.kept === true && oAfter.told === 1, J({ oSetup, oCard, oBefore, oAfter }));
+
+    /* ------------------------------ Q. the debate's question from another GM ------------------------------ */
+
+    /* E70 C3 (27.10.2026; E70-13, S18-70). gm3, not the primary, opens a debate of 300 s with a question by
+       game.drpg.openDebate({ seconds, topic }): by "trial.gm" (its `text`) gm2, the primary, writes the floor with the
+       question, and p1 reads it as the Event panel's trial card's subtitle (events.mjs `trialCard`, the card p1's panel
+       draws) and on the card that opens the debate. The trial record is a fresh one of the chapter for the part, and put
+       back after it: the verdict applied in H shows the verdict's card on the Event panel instead of the floor's
+       (events.mjs `afterVerdictCard`, the C1 gap). Red at bf1a076b: the floor held no question. */
+    begin("Q", "the debate's question from a GM that is not the primary: on the primary's floor, on p1's Event card and its opening card");
+    const Fq = `const F = await import("${repoUrl}/scripts/trial-floor.mjs");`;
+    const qText = "S63 Q: who left the gym unlocked?";
+    await gm2.eval(`${Fq} globalThis.__s63qClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        globalThis.__s63qProgress = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63qClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: globalThis.__s63qClock.chapter });
+        if (F.trialFloor()) await F.endFloor(); return true;`);
+    await settle(800);
+    await gm3.eval(`await game.drpg.openDebate({ seconds: 300, topic: ${JSON.stringify(qText)} }); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const qRead = {
+        gm3Primary: await gm3.eval(`const U = await import("${repoUrl}/scripts/utils.mjs"); return U.isPrimaryGm();`),
+        gm2: await gm2.eval(`${Fq} const f = F.trialFloor(); return f ? [f.mode, f.topic ?? null] : null;`),
+        p1: await p1.eval(`const ev = await import("${repoUrl}/scripts/events.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+            const card = ev.trialCard(getClock()); const line = game.i18n.format("DRPG.Floor.topicLine", { topic: ${JSON.stringify(qText)} });
+            return [card?.sub ?? null, game.messages.contents.filter(m => String(m.content ?? "").includes(line)).length];`)
+    };
+    await gm2.eval(`${Fq} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63qClock);
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s63qProgress); return true;`);
+    await settle(500);
+    verdict("gm3 opens a debate with its question by game.drpg: gm2's floor holds it, p1's Event card has it as its subtitle and p1 has the card that opens the debate with it",
+        qRead.gm3Primary === false && J(qRead.gm2) === J(["debate", qText]) && J(qRead.p1) === J([qText, 1]), J(qRead));
 
     await disconnect("gm3");
     await disconnect("p4");

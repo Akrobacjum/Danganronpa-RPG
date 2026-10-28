@@ -24679,6 +24679,146 @@ const INVARIANTS = [
             unchanged: true
         }), "an Overrule moves the floor elsewhere than back to what the Objection interrupted, with the time it had then (per row: mode, holder and target, seconds left, budget, pending, stack, note)");
     }],
+    ["R1029 - the debate's question (E70 C3, S18-70): floor-machine.mjs `nextFloor`'s `start` writes the GM's optional question on the floor (`topic`, trimmed and cut to `TRIAL.modes.topicLength`, null when none was asked), and every row that keeps the debate's floor - an Objection, its fill, a re-point, the rebuttal, +30 s, Back to the debate, an Overrule, a lapse - keeps it; a floor that ends holds none", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13. In the games every Nonstop Debate has its question at the top of the screen; the
+         * module's debate had none, so it drifted, and the end of a debate cleared the only public state there was. The
+         * question is the floor's for the debate's life (the Event panel and the cards read it there) and the trial
+         * record's for the trial (vote.mjs, read by the debate again). Read without a world, at a fixed `now`, on frozen
+         * inputs. Red at bf1a076b: the floor held no `topic`.
+         */
+        const M = await import("./floor-machine.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", X = "thirdAAAAAAAAAAA";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const step = (floor, event) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW });
+        const Q = "Who left the gym unlocked?";
+        const limit = Number(TRIAL.modes?.topicLength) || 0;
+        const start = step(null, { type: "start", seconds: 300, topic: `  ${Q}  ` }).floor;
+        const objection = step(start, { type: "objection", holderId: H, targetId: T, cardId: "cardAAAAAAAAAAAA" }).floor;
+        const pending = step(start, { type: "objection", holderId: H, targetId: T, pending: true, messageId: "cardBBBBBBBBBBBB" }).floor;
+        const rebuttal = objection ? step(objection, { type: "rebuttal" }).floor : null;
+        const topics = {
+            start: start?.topic ?? null,
+            none: step(null, { type: "start", seconds: 300 }).floor?.topic ?? null,
+            blank: step(null, { type: "start", seconds: 300, topic: "   " }).floor?.topic ?? null,
+            notText: step(null, { type: "start", seconds: 300, topic: { q: Q } }).floor?.topic ?? null,
+            long: limit > 0 ? (step(null, { type: "start", seconds: 300, topic: "x".repeat(limit + 50) }).floor?.topic ?? "").length : null,
+            objection: objection?.topic ?? null,
+            fill: pending ? (step(pending, { type: "fill" }).floor?.topic ?? null) : null,
+            lapse: pending ? (step(pending, { type: "lapse" }).floor?.topic ?? null) : null,
+            repoint: objection ? (step(objection, { type: "repoint", targetId: X }).floor?.topic ?? null) : null,
+            rebuttal: rebuttal?.topic ?? null,
+            plus: objection ? (step(objection, { type: "adjust", seconds: 30 }).floor?.topic ?? null) : null,
+            back: objection ? (step(objection, { type: "back" }).floor?.topic ?? null) : null,
+            overrule: rebuttal ? (step(rebuttal, { type: "overrule" }).floor?.topic ?? null) : null,
+            ended: rebuttal ? step(rebuttal, { type: "due" }).floor : "no rebuttal",
+            restarted: start ? (step(start, { type: "start", seconds: 120 }).floor?.topic ?? null) : null
+        };
+        equal(stableJson(topics), stableJson({
+            start: Q, none: null, blank: null, notText: null, long: limit > 0 ? limit : null, objection: Q, fill: Q, lapse: Q, repoint: Q,
+            rebuttal: Q, plus: Q, back: Q, overrule: Q, ended: null, restarted: null
+        }), "the debate's question is not on the floor as asked, or a row of the floor drops it or keeps it where it ends (per row: the question, the length cut to, null)");
+        ok(limit >= 80, `TRIAL.modes.topicLength is ${limit} - a question needs room for a sentence`);
+    }],
+
+    ["R1030 - the debate again after its exchange (E70 C3, S18-70; TR11): floor-machine.mjs `nextFloor` marks the floor's end by an exchange (`again`: a rebuttal run out or skipped, End this mode in an Objection or a rebuttal), not a debate the GM closed or ended; trial-floor-ui.mjs `trialNextStep` makes \"Open the debate again\" the step then (`reopen`), after the Overrule's offer and before the vote", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13 (TR11 = 1: a Rebuttal ends the debate; then "Open the debate again", the same
+         * question and budget, no window). Before, the GM opened the debate again through its window and typed the
+         * budget again. Read without a world. (1) The machine's answers at a fixed `now`: which ends say the exchange
+         * ended it. (2) The console's next step on six readings (`trialNextStep`, exported for this): a running floor,
+         * the record's mark, the Overrule's offer with it, an open vote with it, neither, no trial. (3) The words, EN
+         * and PL. Red at bf1a076b: no `again`, no exported `trialNextStep`, no `reopen`.
+         */
+        const M = await import("./floor-machine.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA";
+        const floorOf = (mode, extra = {}) => Object.freeze({ active: true, mode, holderId: mode === "debate" ? null : H, targetId: mode === "debate" ? null : T,
+            seconds: 300, startedAt: NOW - 200_000, pending: false, messageId: null, before: [], topic: "Q", ...extra });
+        const again = (floor, event) => {
+            const r = M.nextFloor(floor, event, { now: NOW });
+            return r.refused ? r.refused : [r.floor === null, r.again === true];
+        };
+        const ends = {
+            rebuttalDue: again(floorOf("rebuttal"), { type: "due" }),
+            rebuttalSkip: again(floorOf("rebuttal"), { type: "skip" }),
+            rebuttalMinus: again(floorOf("rebuttal", { startedAt: NOW - 110_000 }), { type: "adjust", seconds: -30 }),
+            objectionEndMode: again(floorOf("objection"), { type: "endMode" }),
+            rebuttalEndMode: again(floorOf("rebuttal"), { type: "endMode" }),
+            objectionSkip: again(floorOf("objection"), { type: "skip" }),
+            debateEndMode: again(floorOf("debate"), { type: "endMode" }),
+            end: again(floorOf("rebuttal"), { type: "end" })
+        };
+        equal(stableJson(ends), stableJson({
+            rebuttalDue: [true, true], rebuttalSkip: [true, true], rebuttalMinus: [true, true], objectionEndMode: [true, true],
+            rebuttalEndMode: [true, true], objectionSkip: [false, false], debateEndMode: [true, false], end: [true, false]
+        }), "an end of the floor is marked as the exchange's when it is not, or not when it is (per end: the floor closed, marked)");
+
+        ok(typeof UI.trialNextStep === "function", "trial-floor-ui.mjs exports no trialNextStep - the console's next step cannot be read");
+        if (typeof UI.trialNextStep !== "function") return;
+        const vote = open => ({ open, round: 1 });
+        const view = (progress, extra = {}) => ({ afterwards: true, running: true, floor: null, stopped: null, runner: null,
+            progress: { voteClosed: false, verdictApplied: false, vote: vote(false), againAfterOverrule: null, debateAgain: false, ...progress }, ...extra });
+        const steps = {
+            floor: UI.trialNextStep(view({ debateAgain: true }, { floor: floorOf("debate") })),
+            marked: UI.trialNextStep(view({ debateAgain: true })),
+            overruled: UI.trialNextStep(view({ debateAgain: true, againAfterOverrule: { messageId: "cardAAAAAAAAAAAA", seconds: 90 } })),
+            voting: UI.trialNextStep(view({ debateAgain: true, vote: vote(true) })),
+            plain: UI.trialNextStep(view({})),
+            noTrial: UI.trialNextStep(view({ debateAgain: true }, { afterwards: false, running: false }))
+        };
+        equal(stableJson(steps), stableJson({ floor: "closeDebate", marked: "reopen", overruled: "openAgain", voting: "vote", plain: "openDebate", noTrial: "start" }),
+            "the console's next step after a debate its exchange ended is not the debate again where it should be (per reading: the step)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const words = code => [lang[code].againSame, lang[code].lead?.reopen].map(w => typeof w === "string" && w.length > 0);
+        equal(stableJson([words("en"), words("pl")]), stableJson([[true, true], [true, true]]), "\"Open the debate again\" or its lead line has no words in English or Polish (per language: the button, the lead)");
+    }],
+
+    ["R1031 - the trial's clock (E70 C3, S18-80; TR17): trial-floor-ui.mjs `trialTime(record, now)` reads the trial's start on the server's clock and its size at the start, and answers the minutes used and the guide's budget, `TRIAL.modes.budget.minutesAt16` x N/16; the console's line says it is an estimate, and neither it nor the question's line names discussion", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-14. The guide: a Class Trial should take about 4.5 hours at 16 players, scaled by
+         * N/16; the module kept no start of the trial, so the GM counted in their head. The owner, TR17 = 1: a line, "but
+         * these are estimates only". Read without a world: the arithmetic on six records at a fixed `now`, the setting,
+         * and the words. And S06-10's rule (E10 C15), held here for the lines C3 adds: discussion is only the state
+         * with no debate, so the question's line and the clock's never say it. Red at bf1a076b: no `trialTime`.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        equal(TRIAL.modes?.budget?.minutesAt16 ?? null, 270, "the guide's 4.5 hours at 16 is not the budget's setting");
+        ok(typeof UI.trialTime === "function", "trial-floor-ui.mjs has no trialTime - the GM has no trial clock");
+        if (typeof UI.trialTime !== "function") return;
+        const NOW = 100_000_000, min = m => NOW - m * 60_000;
+        const read = {
+            sixteen: UI.trialTime({ trialStartedAt: min(90), trialSize: 16 }, NOW),
+            eight: UI.trialTime({ trialStartedAt: min(30.5), trialSize: 8 }, NOW),
+            twelve: UI.trialTime({ trialStartedAt: NOW, trialSize: 12 }, NOW),
+            ten: UI.trialTime({ trialStartedAt: min(200), trialSize: 10 }, NOW),
+            nobody: UI.trialTime({ trialStartedAt: min(5), trialSize: 0 }, NOW),
+            unstamped: UI.trialTime({ trialStartedAt: null, trialSize: 16 }, NOW),
+            ahead: UI.trialTime({ trialStartedAt: NOW + 5000, trialSize: 16 }, NOW)
+        };
+        equal(stableJson(read), stableJson({
+            sixteen: { used: 90, budget: 270 }, eight: { used: 30, budget: 135 }, twelve: { used: 0, budget: 203 }, ten: { used: 200, budget: 169 },
+            nobody: { used: 5, budget: null }, unstamped: null, ahead: { used: 0, budget: 270 }
+        }), "the trial's clock is not the minutes since the start against 270 x N/16 (per record: used, budget)");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const lines = code => [lang[code].trialTime, lang[code].trialTimeNoBudget, lang[code].topicLine];
+        const shape = code => {
+            const [time, noBudget, topic] = lines(code);
+            return [typeof time === "string" && time.includes("{used}") && time.includes("{budget}"),
+                typeof noBudget === "string" && noBudget.includes("{used}") && !noBudget.includes("{budget}"),
+                typeof topic === "string" && topic.includes("{topic}")];
+        };
+        equal(stableJson([shape("en"), shape("pl"), /estimate/i.test(lang.en.trialTime ?? ""), /szacun/i.test(lang.pl.trialTime ?? "")]),
+            stableJson([[true, true, true], [true, true, true], true, true]),
+            "the trial clock's or the question's line is missing its words or its numbers, or does not say it is an estimate (EN, PL, then the estimate in each)");
+        ok(!lines("en").some(w => /discussion/i.test(w ?? "")) && !lines("pl").some(w => /dyskusj/i.test(w ?? "")),
+            "the question's or the clock's line names discussion, which is only the trial with no debate (S06-10)");
+    }],
 ];
 
 /**

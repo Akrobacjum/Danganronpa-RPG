@@ -112,6 +112,12 @@ export const TRIAL_FLAGS = {
      * trial record (`keepReceipt`), which is what the log, the judgement and the console read.
      */
     overruled: OVERRULED_FLAG,
+    /**
+     * The question of the debate the card was put on the table in (E70 C3; S18-70), as the floor held it when the card
+     * was built - DISPLAY ONLY, as `presenter` is: the GM's log groups its rows by it, and an Objection's own question is
+     * read off its receipt where it has one (`keepReceipt`), which the primary writes.
+     */
+    topic: "debateTopic",
     chapter: "chapter"
 };
 
@@ -270,9 +276,12 @@ export async function presentBullet(actor, item, {
         }
     }
 
+    // The debate's question, as the floor holds it now (E70 C3): the card's marker and its flag for the log.
+    const { trialFloor } = await import("./trial-floor.mjs");
+    const topic = trialFloor()?.topic ?? null;
     try {
         await announce({
-            content: buildCard(actor, data, { objection, comment, target }),
+            content: buildCard(actor, data, { objection, comment, target, topic }),
             speaker: ChatMessage.getSpeaker({ actor }),
             flags: {
                 [MODULE_ID]: {
@@ -284,6 +293,7 @@ export async function presentBullet(actor, item, {
                     [TRIAL_FLAGS.item]: item.id,
                     [TRIAL_FLAGS.target]: target?.id ?? null,
                     [TRIAL_FLAGS.targetName]: target?.name ?? null,
+                    [TRIAL_FLAGS.topic]: topic,
                     [TRIAL_FLAGS.chapter]: getClock().chapter,
                     // This file raises its own sticky card from the
                     // `createChatMessage` hook below; the generic popup layer
@@ -303,7 +313,7 @@ export async function presentBullet(actor, item, {
 }
 
 /** The card itself. What the PRESENTER knows - see the note at the top. */
-function buildCard(actor, data, { objection, comment, target = null }) {
+function buildCard(actor, data, { objection, comment, target = null, topic = null }) {
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
     const badges = [
@@ -340,6 +350,7 @@ function buildCard(actor, data, { objection, comment, target = null }) {
             ? `<div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>`
             : ""}
         <div class="drpg-evidence-who">${whoLine(actor.name, objection && target ? target.name : null)}</div>
+        ${topicMarker(topic)}
         <h3 class="drpg-evidence-name">${foundry.utils.escapeHTML(data.name)}</h3>
         <div class="drpg-tb-badges">${badges.join("")}</div>
         ${data.playerText
@@ -349,6 +360,11 @@ function buildCard(actor, data, { objection, comment, target = null }) {
         ${comment
             ? `<p class="drpg-evidence-comment">"${foundry.utils.escapeHTML(comment)}"</p>` : ""}
     </div>`;
+}
+
+/** The debate's question on a card (E70 C3; S18-70): the question the card was put on the table under, or nothing. */
+function topicMarker(topic) {
+    return topic ? `<p class="drpg-evidence-topic">${game.i18n.format("DRPG.Floor.topicLine", { topic: foundry.utils.escapeHTML(String(topic)) })}</p>` : "";
 }
 
 /** The card's first line: who presents, or who objects to whom. Its own function, because a re-point rewrites it alone. */
@@ -383,12 +399,13 @@ export function holderView(data) {
  *
  * @param {"pending"|"withdrawn"|"overruled"} state  "overruled" for a pending card the GM overruled (E70 C2)
  */
-function objectionStateCard(name, targetName, state) {
+function objectionStateCard(name, targetName, state, topic = null) {
     const line = game.i18n.localize(state === "withdrawn" ? "DRPG.Trial.objectionWithdrawn"
         : state === "overruled" ? "DRPG.Trial.overruledStamp" : "DRPG.Trial.objectionPending");
     return `<div class="drpg-evidence-card objection ${state}">
         <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>
         <div class="drpg-evidence-who">${whoLine(name, targetName)}</div>
+        ${topicMarker(topic)}
         ${state === "overruled"
             ? `<div class="drpg-overruled-stamp">${foundry.utils.escapeHTML(line)}</div>`
             : `<p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(line)}</em></p>`}
@@ -714,7 +731,9 @@ async function keepReceipt(messageId, floor, { objectorId, aimedAt, paid }) {
                     objectorId, targetId: aimedAt ?? null,
                     paid: paid ? { key: paid.key ?? null, pay: paid.pay ?? null, amount: Number(paid.amount) || 0, grant: Boolean(paid.grant) } : null,
                     mode: entry?.before?.mode ?? null, leftAtObjection: entry ? Number(entry.leftAtObjection) || 0 : null,
-                    debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false
+                    debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false,
+                    // The debate's question it was raised in (E70 C3), as the floor the primary wrote holds it.
+                    topic: floor.topic ?? null
                 }
             }
         }));
@@ -770,7 +789,8 @@ export async function markOverruled(messageId, { objectorId = null, state = null
         try {
             const pending = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.pending));
             await message.update({
-                ...(pending ? { content: objectionStateCard(name, message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "overruled") } : {}),
+                ...(pending ? { content: objectionStateCard(name, message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "overruled",
+                    message.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null) } : {}),
                 flags: { [MODULE_ID]: { [TRIAL_FLAGS.overruled]: true, ...(pending ? { [TRIAL_FLAGS.pending]: false } : {}) } }
             });
         } catch (err) {
@@ -880,7 +900,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         let message = null;
         try {
             message = await announce({
-                content: objectionStateCard(actor.name, target.name, "pending"),
+                content: objectionStateCard(actor.name, target.name, "pending", trialFloor()?.topic ?? null),
                 speaker: ChatMessage.getSpeaker({ actor }),
                 flags: {
                     [MODULE_ID]: {
@@ -892,6 +912,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
                         [TRIAL_FLAGS.target]: target.id,
                         [TRIAL_FLAGS.targetName]: target.name,
                         [TRIAL_FLAGS.how]: how,
+                        [TRIAL_FLAGS.topic]: trialFloor()?.topic ?? null,
                         [TRIAL_FLAGS.chapter]: getClock().chapter,
                         popupKind: "none"
                     }
@@ -977,7 +998,8 @@ export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
         try {
             await message.update({
                 content: buildCard(actor, holderView(data), {
-                    objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null
+                    objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null,
+                    topic: floor.topic ?? null
                 }),
                 flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
             });
@@ -1072,7 +1094,7 @@ export async function withdrawObjectionCard(messageId) {
     if (!message?.getFlag(MODULE_ID, TRIAL_FLAGS.pending)) return false;
     await message.update({
         content: objectionStateCard(message.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?",
-            message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "withdrawn"),
+            message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "withdrawn", message.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null),
         flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.withdrawn]: true } }
     });
     await dropReceipt(messageId);
@@ -1304,6 +1326,8 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             // Overruled by the GM (E70 C2): read off the receipt the primary keeps, as is whether it has one.
             overruled: Boolean(objections[m.id]?.overruled),
             receipt: Boolean(objections[m.id]),
+            // The debate's question (E70 C3): the receipt's where the primary kept one, else the card's own marker.
+            topic: objections[m.id]?.topic ?? m.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null,
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
             timestamp: m.timestamp
         }))
@@ -1351,7 +1375,14 @@ export async function openObjectionLog() {
     const logBody = () => {
         const entries = presentedThisChapter();
         const named = overruleTarget({ floor: floorMod.trialFloor(), ...objectionRecord(), running: floorMod.inClassTrial() });
-        const rows = entries.map(e => `<tr>
+        /* THE LOG BY QUESTION (E70 C3; S18-70): once any row of the chapter has a debate's question, a heading row goes
+           above each run of rows under one question, newest first as the rows are, and the rows put on the table with
+           no question are headed so. A chapter whose debates had no question reads as it did. */
+        const grouped = entries.some(e => e.topic);
+        let heading;
+        const rows = entries.map(e => `${grouped && e.topic !== heading ? `<tr class="drpg-objection-log-topic"><th colspan="4">${(heading = e.topic)
+            ? game.i18n.format("DRPG.Floor.topicLine", { topic: foundry.utils.escapeHTML(e.topic) })
+            : game.i18n.localize("DRPG.Trial.logNoTopic")}</th></tr>` : ""}<tr>
             <td>${e.objection
                 ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>${
                     e.refused

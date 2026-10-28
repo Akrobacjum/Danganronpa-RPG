@@ -1823,7 +1823,7 @@ async function handleFloorRepoint(payload) {
 async function handleTrialGm(payload) {
     const { floorOnPrimary } = await import("./trial-floor.mjs");
     const out = await floorOnPrimary(payload.op, {
-        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId
+        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text
     });
     if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
     return { reply: out };
@@ -2836,14 +2836,15 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
                 "adjust", "endMode", "overrule"),
-            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id
+            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text
         }),
         run: handleTrialGm,
         answer: "reply",
         claims: {
             actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
             targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
-            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing"
+            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing",
+            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; a GM's request only"
         }
     },
     /*
@@ -3126,10 +3127,10 @@ export function requestRepoint(targetId) {
  * A GM's change of the trial's floor, asked of the primary GM (E70 C0; trial-floor.mjs `floorStep`). Its value is the
  * floor written, `{}` for an end; the primary itself runs it in place.
  */
-export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null } = {}) {
-    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId }, {
+export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null } = {}) {
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text }, {
         onPrimary: true,
-        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId }))
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text }))
     });
 }
 

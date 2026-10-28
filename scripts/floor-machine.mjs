@@ -13,8 +13,8 @@
  * arithmetic. Part 2 of E70 adds its modes as rows here, never as another writer.
  *
  * THE ANSWER: `{ floor, cards }`, where `floor` is the whole floor to write or null for an empty one (the floor
- * closed), and `cards` the chat cards the step posts, each `{ key, actorId?, mode? }`, worded on the poster's side;
- * or `{ refused: <a DRPG key> }`, the reason a GM's greyed button shows (trial-floor-ui.mjs `trialBar` asks the same
+ * closed), and `cards` the chat cards the step posts, each `{ key, actorId?, mode? }`, worded on the poster's side,
+ * and `again: true` on a floor its exchange closed (E70 C3, `ended`); or `{ refused: <a DRPG key> }`, the reason a GM's greyed button shows (trial-floor-ui.mjs `trialBar` asks the same
  * rows, so a dead button says its own op's reason).
  *
  * THE STACK (`before`): every Objection pushes `{ messageId, before, leftAtObjection }` - the floor it interrupted
@@ -76,9 +76,26 @@ function debateAgain(floor, seconds, now, gmNote = null) {
     };
 }
 
-/** The floor closed: an empty floor, and the cards that say so. */
-function ended(cards = []) {
-    return { floor: null, cards };
+/**
+ * The floor closed: an empty floor, and the cards that say so. `again` marks an end by the exchange (E70 C3; TR11 = 1):
+ * a rebuttal over, or an Objection or a rebuttal the GM ended - the debate it cut into is over with it, and the
+ * console's next step is "Open the debate again" with its question and budget (trial-floor.mjs `commitFloor` writes
+ * the record's `debateAgain` from it). A debate the GM closes or ends is not marked: the GM meant it.
+ */
+function ended(cards = [], again = false) {
+    return again ? { floor: null, cards, again: true } : { floor: null, cards };
+}
+
+/**
+ * THE DEBATE'S QUESTION (E70 C3, 27.10.2026; S18-70). Optional, the GM's own words: a string trimmed and cut to
+ * `TRIAL.modes.topicLength`, else null - nothing else is a question. On the floor from the debate's `start`, and kept by
+ * every row that spreads the floor (an Objection, its rebuttal, Back to the debate, an Overrule), so the cards of the
+ * exchange read the question of the debate they cut into; gone with the floor, kept in the trial record (vote.mjs).
+ */
+export function topicOf(value) {
+    if (typeof value !== "string") return null;
+    const text = value.trim().slice(0, Number(TRIAL.modes?.topicLength) || 200).trim();
+    return text || null;
 }
 
 /**
@@ -90,7 +107,7 @@ function ended(cards = []) {
 function stepOn(floor, now, cards) {
     if (floor.mode === MODES.objection && floor.pending) return { floor: debateAgain(floor, null, now), cards };
     if (floor.mode === MODES.objection) return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards };
-    if (floor.mode === MODES.rebuttal) return ended(cards);
+    if (floor.mode === MODES.rebuttal) return ended(cards, true);
     return { refused: "DRPG.Floor.bar.noTurn" };
 }
 
@@ -135,7 +152,7 @@ export function overruleTarget({ floor = null, objections = {}, trialStartedAt =
 }
 
 /**
- * What `floor` becomes after `event`, at `ctx.now`. Events: `start` { seconds }, `objection` { holderId, targetId,
+ * What `floor` becomes after `event`, at `ctx.now`. Events: `start` { seconds, topic }, `objection` { holderId, targetId,
  * pending, messageId, cardId }, `fill`, `repoint` { targetId }, `rebuttal`, `due`, `skip`, `lapse`, `withdraw`,
  * `adjust` { seconds, signed }, `back` { seconds, note }, `overrule`, `end`, `endMode`. Never mutates `floor`.
  */
@@ -146,7 +163,7 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         return { floor: {
             active: true, mode: MODES.debate, holderId: null, targetId: null,
             seconds: Number(event.seconds) > 0 ? Number(event.seconds) : TRIAL.speakSeconds,
-            startedAt: now, pending: false, messageId: null, before: [], gmNote: null,
+            startedAt: now, pending: false, messageId: null, before: [], gmNote: null, topic: topicOf(event.topic),
             // Left over from the queue the floor used to be: cleared rather than ignored.
             order: null, current: null
         }, cards: [] };
@@ -248,7 +265,7 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         case "endMode":
             /* END THIS MODE (TR21; TR11 = 1): a debate's end closes it, and an Objection or a rebuttal ended by the
                GM ends the floor as a rebuttal's own end does - the exchange is over, the trial is in discussion. */
-            return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }]);
+            return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], floor.mode !== MODES.debate);
         default:
             return { refused: "DRPG.Floor.bar.noMode" };
     }

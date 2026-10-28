@@ -7674,6 +7674,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
             ["PACKET gm-bridge.mjs#trial.gm#targetId", "judged (E70 C0): gmOnly; held by `targetRefusal` to a student the floor lets the objector aim at (an Objection, a re-point)"],
             ["PACKET gm-bridge.mjs#trial.gm#messageId", "judged (E70 C0): gmOnly; held by `pendingFor` to the pending Objection's card on the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.gm#text", "judged (E70 C3): gmOnly; the debate's question, read by the start alone and cut by floor-machine.mjs `topicOf` to a trimmed string of `TRIAL.modes.topicLength`; shown escaped"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
@@ -15685,7 +15686,46 @@ const REGRESSIONS = [
         must(sources.has("movement-audit.mjs") && sources.has("movement.mjs"), "the audit's files are not served - this test reads nothing until they are");
         equal(JSON.stringify(readOf(sources)), "[]",
             "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
-    }]
+    }],
+    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): vote.mjs `resetTrialProgress` blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13, E70-14. The plan's amend (i): `topic`, `trialStartedAt`, `voteOpenedAt` are the
+         * trial's (a second trial in the chapter, D17, starts without the first one's), `objections` and `keysCharged`
+         * the chapter's. The vote's opening on the server's clock, as the trial's start (S18-80): `Date.now()` is each
+         * browser's own. And the question is written after `startFloor`, which enters the trial and blanks the record
+         * there (E10 C12's order: a length written first was eaten a moment later). Read in the module's files,
+         * comments blanked; the reader is shown a clean twin first, then one fault of each rule. Red at bf1a076b: no
+         * `topic`, `voteOpenedAt`, `debateAgain` or `trialSize` anywhere.
+         */
+        const readOf = (vote, ui) => {
+            const reset = topLevelFunction(vote, "resetTrialProgress") ?? "";
+            const round = topLevelFunction(vote, "openRound") ?? "";
+            const open = topLevelFunction(ui, "openDebate") ?? "";
+            const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+            return {
+                cut: [reset, round, open].every(body => body.length > 60),
+                trial: /\btopic: null\b/.test(reset) && /\bvoteOpenedAt: null\b/.test(reset) && /\bdebateAgain: false\b/.test(reset)
+                    && /\btrialSize: /.test(reset) && /\btrialStartedAt: serverNow\(\)/.test(reset),
+                chapter: !/\bobjections\b|\bkeysCharged\b/.test(reset),
+                vote: /\bvoteOpenedAt: [^,\n]*\bserverNow\(\)/.test(round) && !/voteOpenedAt: [^,\n]*Date\.now\(\)/.test(round),
+                order: at(open, /\bstartFloor\(/) >= 0 && at(open, /setTrialProgress\(\{[^}]*\btopic\b/) > at(open, /\bstartFloor\(/)
+            };
+        };
+        const pad = "// " + "x".repeat(80) + "\n";
+        const twinVote = `export async function resetTrialProgress() {\n${pad}    return setTrialProgress(now => ({ seconds, topic: null, voteOpenedAt: null, debateAgain: false, trialSize: 4, trialStartedAt: serverNow() }));\n}\n`
+            + `async function openRound(progress) {\n${pad}    await setTrialProgress(now => ({ vote: {}, voteOpenedAt: now.voteOpenedAt ?? serverNow() }));\n}\n`;
+        const twinUi = `export async function openDebate(options = {}) {\n${pad}    if (!(await startFloor({ seconds: budget }))) return null;\n    await setTrialProgress({ topic });\n}\n`;
+        const all = { cut: true, trial: true, chapter: true, vote: true, order: true };
+        equal(JSON.stringify(readOf(twinVote, twinUi)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = twinVote.replace("topic: null, ", "").replace("trialSize: 4,", "trialSize: 4, objections: {},")
+            .replace("now.voteOpenedAt ?? serverNow()", "Date.now()");
+        const early = `export async function openDebate(options = {}) {\n${pad}    await setTrialProgress({ topic });\n    if (!(await startFloor({ seconds: budget }))) return null;\n}\n`;
+        equal(JSON.stringify(readOf(planted, early)), JSON.stringify({ ...all, trial: false, chapter: false, vote: false, order: false }),
+            "the reader misses a planted lifetime, a chapter's field blanked, the vote on the browser's clock or the question written before the floor");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        equal(JSON.stringify(readOf(await read("vote.mjs"), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
+            "a trial's field outlives its trial, a chapter's dies with it, the vote opens on a browser's clock, or the question is written before the floor opens (read: cut, trial, chapter, vote, order)");
+    }],
 ];
 
 

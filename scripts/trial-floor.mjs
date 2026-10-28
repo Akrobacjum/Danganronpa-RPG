@@ -174,7 +174,8 @@ export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "
  * stands for the default it stood for before the request existed.
  */
 const FLOOR_OPS = {
-    start: ({ seconds }) => startFloorInStep(Number(seconds) > 0 ? seconds : TRIAL.speakSeconds),
+    // The debate's question (E70 C3) travels as the request's `text`: the GM's own words, cut by the machine (`topicOf`).
+    start: ({ seconds, text = null }) => startFloorInStep(Number(seconds) > 0 ? seconds : TRIAL.speakSeconds, { topic: text }),
     // A pending Objection's `messageId` is the card it waits on; an Objection with its evidence names its card the
     // same way (`openObjection`'s `cardId`), which goes on the floor's stack (E70 C1).
     objection: ({ actorId, targetId, pending = false, messageId = null }) =>
@@ -215,6 +216,13 @@ async function commitFloor(prev, result, op, { replaced = true } = {}) {
     } else {
         written = await writeFloor(result.floor);
         if (!written) return null;
+    }
+    /* THE DEBATE AGAIN (E70 C3; TR11 = 1): a floor its exchange closed - a rebuttal over, an Objection or a rebuttal
+       the GM ended - marks the trial record, and the console's next step is "Open the debate again" (trial-floor-ui.mjs
+       `reopenDebate`); a debate opened takes the mark away (`startFloorInStep`). The record's own key, not this one. */
+    if (result.again) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress({ debateAgain: true });
     }
     // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
     const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
@@ -327,7 +335,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * from the first second. All the GM chooses is how long they expect it to run,
  * and even that is a budget rather than a limit.
  */
-export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false } = {}) {
+export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false, topic = null } = {}) {
     if (!game.user.isGM) return null;
 
     // THE PHASE FOLLOWS THE FLOOR, and it is set here rather than at the call
@@ -368,19 +376,20 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
     }
 
     // The phase above on this GM, as before (its own key, CLOCK_KEY); the floor in the floor's step on the primary.
-    return floorStep("start", { seconds });
+    return floorStep("start", { seconds, text: typeof topic === "string" ? topic : null });
 }
 
-/** `startFloor`'s write, in a step of `SEIZE_KEY` on the primary. */
-export async function startFloorInStep(seconds = TRIAL.speakSeconds) {
+/** `startFloor`'s write, in a step of `SEIZE_KEY` on the primary; `topic` the debate's question, or none (E70 C3). */
+export async function startFloorInStep(seconds = TRIAL.speakSeconds, { topic = null } = {}) {
     // The machine's `start` row (E70 C1): a debate of `seconds`, its stack empty, and the old queue's rota cleared
     // rather than ignored, so a world that has been through this update keeps no stale rota for somebody to find.
     const replaced = trialFloor();
-    const written = await commitFloor(replaced, nextFloor(replaced, { type: "start", seconds }, { now: serverNow() }), "start");
-    // A debate opened by any road takes up the console's offer to open it again after an Overrule (E70 C2).
-    if (written && overruleRecord().again) {
+    const written = await commitFloor(replaced, nextFloor(replaced, { type: "start", seconds, topic }, { now: serverNow() }), "start");
+    // A debate opened by any road takes up the console's offer to open it again after an Overrule (E70 C2), or after
+    // its exchange (E70 C3): read in the record's own step, so a mark written just before is read too.
+    if (written) {
         const { setTrialProgress } = await import("./vote.mjs");
-        await setTrialProgress(record => (record.againAfterOverrule ? { againAfterOverrule: null } : null));
+        await setTrialProgress(record => (record.againAfterOverrule || record.debateAgain ? { againAfterOverrule: null, debateAgain: false } : null));
     }
     return written;
 }

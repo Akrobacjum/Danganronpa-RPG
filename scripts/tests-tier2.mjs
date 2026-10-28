@@ -39250,6 +39250,114 @@ const SCENARIOS = [
             + "(6) the older one; (7) the offer after a debate was opened; (8) a third run to its end and the trial ended: what trial.gm's Overrule was told, the receipt; "
             + "(9) the trial entered again: the Overrule of the earlier trial's Objection, its receipt");
     }],
+    ["the debate's question on the floor, the Event panel, the cards and the log, and the debate again after its exchange with the same question and budget, no window (E70-T6)", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13 (S18-70; TR11 = 1). Read on this primary in a Class Trial. The GM opens a debate of
+         * 240 s with a question (`openDebate({ seconds, topic })`, the API's road; the window's field is the same
+         * option): the floor and the trial record hold it, the Event panel's trial card has it as its subtitle (the
+         * card every browser builds from the floor), and the card that opens the debate says it. O raises an
+         * Objection at B on the fallback road (no Room) and fills it: its card carries the question, and so do its
+         * receipt and the log's row. The exchange runs to its end (Skip, Skip): no floor, the record marks the debate
+         * again and still holds the question, and the console's footer offers "Open the debate again" as its next
+         * step. `game.drpg.reopenDebate()` opens it with the same question and the same 240 s, asks nothing (no
+         * length field drawn) and takes the mark away. Red at bf1a076b: the floor held no question. The clock, the
+         * floor, the record, the cards and O's sheet are put back.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection raised on the primary GM to carry the question");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the record it reads are the primary's to write");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const posted = words => game.messages.filter(m => !seen.has(m.id) && String(m.content ?? "").includes(words)).length;
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const Q = "SUITE E70-T6: who left the gym unlocked?";
+        let item = null, room = null;
+        const read = { api: typeof UI.reopenDebate === "function" && typeof game.drpg?.reopenDebate === "function" };
+        try {
+            ok(typeof UI.reopenDebate === "function", "trial-floor-ui.mjs has no reopenDebate - the debate cannot be opened again as it was");
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await settle();
+            await UI.openDebate({ seconds: 240, topic: Q });
+            await settle();
+            read.open = [F.trialFloor()?.mode ?? null, F.trialFloor()?.topic ?? null, trialProgress().topic ?? null, trialProgress().seconds,
+                E.trialCard(getClock())?.sub ?? null, posted(Q)];
+
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE E70-T6 bullet", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            room = standInRoom(speakers, { connected: false });
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const id = raised.reply.messageId;
+            const pendingHas = String(game.messages.get(id)?.content ?? "").includes(Q);
+            const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+            must(!filled.refused, `the Objection was not filled (${filled.refused})`);
+            await settle();
+            read.card = [pendingHas, String(game.messages.get(id)?.content ?? "").includes(Q), trialProgress().objections?.[id]?.topic ?? null,
+                trial.presentedThisChapter().find(e => e.id === id)?.topic ?? null];
+
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            await until(() => trialProgress().debateAgain === true, 3000);
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const footer = consoles()[0]?.element?.querySelector('[data-action="reopen"]') ?? null;
+            read.ended = [F.trialFloor(), trialProgress().debateAgain ?? null, trialProgress().topic ?? null,
+                footer?.textContent?.trim() === game.i18n.localize("DRPG.Floor.againSame")];
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+
+            if (typeof UI.reopenDebate === "function") await game.drpg.reopenDebate();
+            await settle();
+            const asked = Boolean(document.querySelector('form input[name="seconds"]'));
+            read.again = [F.trialFloor()?.mode ?? null, F.trialFloor()?.topic ?? null, F.trialFloor()?.seconds ?? null,
+                Math.abs(F.secondsLeft() - 240) <= 3, asked, trialProgress().debateAgain ?? null];
+        } finally {
+            room?.restore();
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            await clearObjections(F, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: true,
+            open: ["debate", Q, Q, 240, Q, 1],
+            card: [true, true, Q, Q],
+            ended: [null, true, Q, true],
+            again: ["debate", Q, 240, true, false, false]
+        }), "(0) game.drpg.reopenDebate; (1) the debate opened with its question: the floor, its question, the record's, the budget, the Event card's subtitle, the opening card; "
+            + "(2) the Objection's card waiting and filled, its receipt's question, the log's; (3) the exchange run out: the floor, the record's mark, its question, the console's Open the debate again; "
+            + "(4) the debate again: the floor, its question, its budget and seconds, a length asked, the mark");
+    }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*

@@ -134,7 +134,11 @@ export function trialProgress(chapter = getClock().chapter) {
         // E70 C2: the Objections' receipts, by card, kept for the chapter (trial.mjs `keepReceipt`); the trial's own
         // stamp, which tells this trial's receipts from an earlier one's in the chapter (D17); the console's offer of
         // the debate again after an Overrule (trial-floor.mjs `overruleInStep`).
-        objections: {}, trialStartedAt: null, againAfterOverrule: null
+        objections: {}, trialStartedAt: null, againAfterOverrule: null,
+        // E70 C3: the debate's question (the last one asked in this trial), the console's offer of the debate again
+        // after its exchange ended it, the vote's first opening on the server's clock, and how many took part at the
+        // trial's start (the clock's N/16) - each the trial's, blanked at its entry (`resetTrialProgress`).
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: 0
     };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -213,10 +217,15 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
     // The round as the record's step finds it (E70 C0).
     // THE TRIAL'S STAMP (E70 C2): on the server's clock, at the trial's entry - the only road here (clock.mjs
     // `reconcilePhase`). The Objections' receipts are the chapter's and stay; an Overrule reads only this trial's.
+    // THE TRIAL'S OWN FIELDS (E70 C3; amend (i)): the question, the debate again, the vote's opening, and the size
+    // the guide's budget scales by - the players with a living student at the table as the trial starts (the
+    // ballot's count, `eligibleVoters`), read in the step. A second trial in the chapter (D17) starts without the
+    // first one's; tier 0 R1032 holds the list.
     return setTrialProgress(now => ({
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
         vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
-        trialStartedAt: serverNow(), againAfterOverrule: null
+        trialStartedAt: serverNow(), againAfterOverrule: null,
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: eligibleVoters().length
     }));
 }
 
@@ -560,11 +569,14 @@ async function openRound(progress, op, picks) {
     // ballots are issued is no longer "eligible", and the count then read
     // "3 of 3" for a room that was told four ballots were out. A remind adds
     // anyone who joins mid-vote; the close counts the union.
-    await setTrialProgress({
+    // The vote's FIRST opening in this trial on the server's clock (E70 C3; E70-14): a restart keeps it. The
+    // vote's own `openedAt` stays as it was, on the browser's clock: no file of the module reads it (git grep, 27.10).
+    await setTrialProgress(now => ({
         vote: { open: true, round, picks, issued: voters.map(({ user }) => user.id),
             openedAt: Date.now(), closedAt: null },
-        voteClosed: false, tied: false, majority: 0, noMajority: false, accused: [], total: 0, accusedIds: []
-    });
+        voteClosed: false, tied: false, majority: 0, noMajority: false, accused: [], total: 0, accusedIds: [],
+        voteOpenedAt: now.voteOpenedAt ?? serverNow()
+    }));
     const older = Object.entries(ballotStore.entries())
         .filter(([, row]) => row?.chapter !== progress.chapter || row?.round !== round)
         .map(([userId]) => userId);

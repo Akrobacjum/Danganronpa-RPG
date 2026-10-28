@@ -425,7 +425,10 @@ export function trialCard(clock) {
            (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
            Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
            row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
-        let speaker = null;
+        /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
+           as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
+           drawn as text. An Objection and its rebuttal keep the speaker's name there. */
+        let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
         let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
             ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
         if (floor?.mode === FLOOR_MODES.objection) {

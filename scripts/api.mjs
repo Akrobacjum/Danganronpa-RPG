@@ -783,6 +783,9 @@ export const DrpgApi = {
     manageClassTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial(...a)),
     closeTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeTrial(...a)),
     openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
+    // E70 C3 (S18-70; TR11): `openDebate({ seconds, topic })` asks no window and opens the debate with its question;
+    // `reopenDebate()` opens it again after its exchange with the question and budget the trial record holds.
+    reopenDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.reopenDebate(...a)),
     closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
     /** The trial hall and the school (E13 C6). Inside a running trial the table taken to the hall (its cast
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's

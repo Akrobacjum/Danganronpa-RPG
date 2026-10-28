@@ -3637,9 +3637,16 @@ export const TRIAL = {
      * clock by `adjustSeconds`; `panicAdjustSeconds` is the step a Panic Round's bar will use (E70 part 2 reads it); a
      * GM's change of the clock is told in the Event panel as "GM: +30 s" for `noteSeconds`, counted on each browser's
      * own clock from the moment it saw it. The owner's TR17: these are estimates, not measured at a table (LIVE-E70-01).
+     *
+     * E70 C3 (27.10.2026; S18-70, S18-80): `topicLength` is the longest debate question kept (floor-machine.mjs
+     * `topicOf` cuts there), room for a sentence on the Event panel's card, chosen, not measured at a table; `budget`
+     * is the guide's whole trial, "Class Trial lacznie powinien trwac 4.5 godziny" at 16 players, scaled by N/16 at the
+     * trial's start (trial-floor-ui.mjs `trialTime`) - an estimate on the GM's console that blocks nothing (TR17 = 1).
      */
     modes: {
-        gm: { adjustSeconds: 30, panicAdjustSeconds: 5, noteSeconds: 10 }
+        gm: { adjustSeconds: 30, panicAdjustSeconds: 5, noteSeconds: 10 },
+        topicLength: 200,
+        budget: { minutesAt16: 270 }
     },
     /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for

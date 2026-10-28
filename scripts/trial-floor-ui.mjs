@@ -11,6 +11,7 @@ import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection
 } from "./trial-floor.mjs";
+import { topicOf } from "./floor-machine.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
@@ -272,7 +273,12 @@ export async function incidentClosedFirst() {
  * because a table settles into a rhythm and re-typing it every time is a tax on
  * the rhythm rather than a decision.
  *
- * @param {number|{seconds?: number}} [options]  Skip the question and use this
+ * THE DEBATE'S QUESTION (E70 C3, 27.10.2026; S18-70): in the games each Nonstop Debate has its question at the top
+ * of the screen, and a debate without one drifts. The window asks for it beside the length, optional; `topic` gives
+ * it without the window. It is on the floor for the debate's life (the Event panel's card, the cards of its
+ * Objections) and in the trial record for the trial ("Open the debate again", `reopenDebate`).
+ *
+ * @param {number|{seconds?: number, topic?: string}} [options]  Skip the question and use this
  *   many seconds. A bare number is accepted as well as `{ seconds }`, because
  *   the console form a macro reaches for is `game.drpg.openDebate(180)` and
  *   being right about the shape is not a thing to make somebody guess.
@@ -295,6 +301,7 @@ export async function openDebate(options = {}) {
 
     const given = typeof options === "number" ? options : options?.seconds;
     let budget = Number(given) || null;
+    let topic = topicOf(typeof options === "object" ? options?.topic : null);
     if (!budget) {
         const asked = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Floor.openDebate") },
@@ -304,13 +311,17 @@ export async function openDebate(options = {}) {
                 <label>${game.i18n.localize("DRPG.Floor.seconds")}
                     <input type="number" name="seconds" min="30" step="10"
                            value="${remembered}" /></label>
+                <label>${game.i18n.localize("DRPG.Floor.topic")}
+                    <input type="text" name="topic" maxlength="${Number(TRIAL.modes.topicLength) || 200}"
+                           placeholder="${esc(game.i18n.localize("DRPG.Floor.topicHint"))}" /></label>
                 <p class="notes">${game.i18n.localize("DRPG.Floor.discussionNote")}</p>
             </form>`),
             buttons: [
                 {
                     action: "ok", label: game.i18n.localize("DRPG.Floor.openDebate"), default: true,
                     callback: (e, b, d) => ({
-                        seconds: Number(d.element.querySelector("form").seconds.value) || remembered
+                        seconds: Number(d.element.querySelector("form").seconds.value) || remembered,
+                        topic: d.element.querySelector("form").topic?.value ?? ""
                     })
                 },
                 { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -319,6 +330,7 @@ export async function openDebate(options = {}) {
         });
         if (!asked || asked === "cancel") return null;
         budget = asked.seconds;
+        topic = topicOf(asked.topic);
     }
 
     /* Remembered for the next one in this trial, which is what makes the default above worth
@@ -328,15 +340,52 @@ export async function openDebate(options = {}) {
        was eaten a moment later, so `game.drpg.openDebate(300)` outside a trial remembered 180 s.
        And a floor that did not open (`startFloor` answered null: a refused phase) is no debate to
        remember or to announce. */
-    if (!(await startFloor({ seconds: budget, confirmNewTrial: confirmed }))) return null;
-    // The debate again after an Overrule (E70 C2) runs on the time that was left, which is no budget to remember.
-    if (options?.remember !== false) await setTrialProgress({ seconds: budget });
+    if (!(await startFloor({ seconds: budget, confirmNewTrial: confirmed, topic }))) return null;
+    // The debate again after an Overrule (E70 C2) runs on the time that was left, which is no budget to remember. The
+    // question is the trial's (E70 C3), written by the same rule: after the floor, so a debate that entered the trial
+    // is not blanked by its entry; none asked is none, so the debate again does not bring back an older one.
+    await setTrialProgress({ topic, ...(options?.remember !== false ? { seconds: budget } : {}) });
 
     const { announce } = await import("./utils.mjs");
     await announce({
-        content: trialEventCard("DRPG.Floor.debateOpenedTitle", game.i18n.localize("DRPG.Floor.debateOpened"))
+        content: trialEventCard("DRPG.Floor.debateOpenedTitle", game.i18n.localize("DRPG.Floor.debateOpened"),
+            ...(topic ? [game.i18n.format("DRPG.Floor.topicLine", { topic: esc(topic) })] : []))
     });
     return true;
+}
+
+/**
+ * OPEN THE DEBATE AGAIN (E70 C3, 27.10.2026; S18-70; TR11 = 1). A Rebuttal ends the debate it cut into (Dawid, 28.08),
+ * and opening it again took the window and the budget typed again. This is the console's step after an exchange ended
+ * the debate (the record's `debateAgain`, trial-floor.mjs `commitFloor`), and `game.drpg.reopenDebate()`: the same
+ * question and the same budget as the trial record holds them, no window. Only while a Class Trial runs and no floor
+ * is open.
+ */
+export async function reopenDebate() {
+    if (!game.user.isGM) return null;
+    if (trialFloor()) return null;
+    if (getClock().phase !== "classTrial") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.bar.notTrial"));
+        return null;
+    }
+    const { trialProgress } = await import("./vote.mjs");
+    const record = trialProgress();
+    return openDebate({ seconds: Number(record.seconds) > 0 ? Number(record.seconds) : TRIAL.speakSeconds, topic: record.topic ?? "" });
+}
+
+/**
+ * THE TRIAL'S CLOCK (E70 C3, 27.10.2026; S18-80; TR17 = 1). The guide: "Class Trial lacznie powinien trwac 4.5
+ * godziny" at 16 players, shortened by N/16. `record` is the trial record (`trialStartedAt` on the server's clock,
+ * `trialSize` the players at its start), `now` the server's clock; the answer is the whole minutes since the start and
+ * the budget in minutes, null for a trial of nobody, or null for a record with no start (a world from before 1.2.90).
+ * An estimate for the GM's console only, which blocks nothing ("to tylko liczby szacunkowe").
+ */
+export function trialTime(record, now) {
+    const start = Number(record?.trialStartedAt);
+    if (!Number.isFinite(start) || start <= 0) return null;
+    const size = Math.max(Number(record?.trialSize) || 0, 0);
+    const used = Math.max(Math.floor((Number(now) - start) / 60_000), 0);
+    return { used, budget: size > 0 ? Math.round((Number(TRIAL.modes.budget.minutesAt16) || 270) * size / 16) : null };
 }
 
 /** Close it again. The trial carries on; the room goes back to talking. */
@@ -612,7 +661,7 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
  * not the verdict's runner (`verdictRunner`) the lead names the runner and no button is the next step, so
  * Enter presses nothing - the one state in which the next step is not a button.
  */
-function trialNextStep({ floor, running, progress, afterwards, stopped, runner }) {
+export function trialNextStep({ floor, running, progress, afterwards, stopped, runner }) {
     if (!afterwards) return "start";
     /* THE WHOLE DEBATE IS ONE STEP OF THE FOOTER (E70 C1, 27.10.2026; E70-06). An Objection or a rebuttal made
        Now the footer's step, and the step is in the console's signature, so the console closed and opened again at
@@ -627,7 +676,10 @@ function trialNextStep({ floor, running, progress, afterwards, stopped, runner }
     if (progress.vote.open) return "vote";
     /* THE DEBATE AGAIN AFTER AN OVERRULE (E70 C2; E70-11): an Objection overruled once its exchange was over leaves the
        trial in discussion, and the step is the debate again with the time it had when the Objection cut in. */
-    return progress.againAfterOverrule ? "openAgain" : "openDebate";
+    /* AND AFTER ITS EXCHANGE (E70 C3; TR11 = 1): a rebuttal over, or an Objection or a rebuttal the GM ended, closed the
+       debate it cut into, and the step is the same debate again - its question and its budget, no window. */
+    if (progress.againAfterOverrule) return "openAgain";
+    return progress.debateAgain ? "reopen" : "openDebate";
 }
 
 /** The console's first line, by the next step: what the trial is waiting for, said once. */
@@ -635,6 +687,7 @@ const TRIAL_LEADS = {
     start: "DRPG.Floor.lead.start",
     openDebate: "DRPG.Floor.lead.openDebate",
     openAgain: "DRPG.Floor.lead.openAgain",
+    reopen: "DRPG.Floor.lead.reopen",
     closeDebate: "DRPG.Floor.lead.closeDebate",
     now: "DRPG.Floor.lead.now",
     vote: "DRPG.Floor.lead.vote",
@@ -794,6 +847,17 @@ function trialConsoleHtml(view) {
             ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : "";
         const tableLine = table
             ? `<p>${game.i18n.format("DRPG.TrialScene.tableOn", { scene: esc(table.scene ?? "-") })}</p>` : "";
+        /* THE TRIAL'S CLOCK AND THE DEBATE'S QUESTION (E70 C3; S18-80, S18-70). The minutes since the trial's start
+           against the guide's budget for the players it started with (`trialTime`), an estimate that blocks nothing
+           (TR17), redrawn with the console every second; and the question of the debate on the floor, under the
+           debate's line, which never says discussion (S06-10, tier 1 R1031). */
+        const time = running ? trialTime(progress, serverNow()) : null;
+        const timeLine = time
+            ? `<p class="drpg-trial-time">${time.budget === null
+                ? game.i18n.format("DRPG.Floor.trialTimeNoBudget", { used: time.used })
+                : game.i18n.format("DRPG.Floor.trialTime", { used: time.used, budget: time.budget })}</p>` : "";
+        const topicLine = floor?.topic
+            ? `<p class="drpg-trial-topic">${game.i18n.format("DRPG.Floor.topicLine", { topic: esc(floor.topic) })}</p>` : "";
 
         /* NO TRIAL RUNNING IS ONE LINE (E10 C14, 1.2.71; audit S06-27). The three sections stood under "No
            Class Trial is running" saying there was no debate and no vote - and, after End the trial, "The
@@ -816,12 +880,14 @@ function trialConsoleHtml(view) {
         return `<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             ${lead}
+            ${timeLine}
             ${tableLine}
             ${registerLine}
             ${finalLine}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
+            ${topicLine}
             ${floor ? `<p class="notes">${game.i18n.localize(restrictive
                 ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
             ${trialBar(view)}
@@ -876,8 +942,11 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
                         ? { action: "openAgain", default: isDefault("openAgain"),
                             label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Math.max(Number(progress.againAfterOverrule.seconds) || 0, 0) }) }
-                        : { action: "openDebate", default: isDefault("openDebate"),
-                            label: game.i18n.localize("DRPG.Floor.openDebate") },
+                        : progress.debateAgain
+                            // After its exchange closed it (E70 C3): the same question and budget, no window.
+                            ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }
+                            : { action: "openDebate", default: isDefault("openDebate"),
+                                label: game.i18n.localize("DRPG.Floor.openDebate") },
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
               ]
@@ -942,8 +1011,10 @@ const TRIAL_ACTIONS = {
     openAgain: async () => {
         const { trialProgress } = await import("./vote.mjs");
         const seconds = Number(trialProgress().againAfterOverrule?.seconds) || 0;
-        return openDebate(seconds > 0 ? { seconds, remember: false } : {});
+        // The same debate, so its question too (E70 C3).
+        return openDebate(seconds > 0 ? { seconds, remember: false, topic: trialProgress().topic ?? "" } : {});
     },
+    reopen: () => reopenDebate(),
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
