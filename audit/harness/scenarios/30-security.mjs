@@ -5999,6 +5999,25 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
             && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
         JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
+    /* E70 fix p2-G2 (1.2.90; the review's SEC-1, E70P2-R08): every Present card is the primary's since C10 ("trial.present"),
+       so a Present card p1's console posts in Aiko's name, with a bullet she holds and words of its own (an "analysis"
+       nobody made), is a console's card: shown on no screen, marked refused on the primary. Red at 2fc865ac: raised on
+       every screen (the hook asked only that the author own the speaker and the speaker hold the item), not refused. */
+    const presCard = await p1.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.aiko}");
+        const doc = await ChatMessage.create({ content: "<h3>SEC Bloody knife</h3><p>Analysis: SEC a forged reading</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: false, [T.TRIAL_FLAGS.presenter]: a.name,
+                [T.TRIAL_FLAGS.item]: ${JSON.stringify(objSetup?.items?.[0] ?? null)}, popupKind: "none" } } });
+        return doc?.id ?? null;`);
+    await settle(1500);
+    const presShown = c => c.eval(`return [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].some(el => el.dataset.drpgMessage === ${JSON.stringify(presCard)});`);
+    const presCardRead = { id: presCard, held: Boolean(await gm.eval(`return game.actors.get("${ids.aiko}")?.items?.has(${JSON.stringify(objSetup?.items?.[0] ?? null)}) ?? false;`)),
+        refused: await gm.eval(`const T = await import("${repoUrl}/scripts/trial.mjs");
+            return Boolean(game.messages.get(${JSON.stringify(presCard)})?.getFlag("${MOD}", T.TRIAL_FLAGS.refused));`),
+        onGm: await presShown(gm), onP2: await presShown(p2), onP3: await presShown(p3) };
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(presCard)}); if (m) await m.delete(); return true;`);
+    check("SECURITY: a Present card p1's console posts as Aiko, with a bullet she holds and words of its own, is marked refused on the primary and raised on no screen",
+        Boolean(presCard) && presCardRead.held && presCardRead.refused && !presCardRead.onGm && !presCardRead.onP2 && !presCardRead.onP3,
+        JSON.stringify(presCardRead), { flow: "class-trial" });
     /* E70 fix p1-G1 (1.2.90; the review's SEC-2 and BEH-1): the trial's dead as the GMs hold them. Botan dies in public
        and the primary lists him and blocks p2's microphone (voice.mjs `settleTrialVoices`). (1) p2's console unsets his
        `deceased` flag: the settle the write schedules read the document until the fix, took him off the list and gave

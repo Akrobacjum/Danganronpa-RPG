@@ -37376,7 +37376,7 @@ const SCENARIOS = [
             + "[at B on the filled card: answer, writes, filled], [the same at B]");
     }],
 
-    ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present is free", async () => {
+    ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present card the same", async () => {
         /*
          * E79 C16 (1.2.79; the prep's (f)). An Objection is raised on the primary GM now, which posts its card as a GM
          * (`objectOnPrimary`), so a card a player's browser posts with the objection flag is a console's or an old
@@ -37385,8 +37385,10 @@ const SCENARIOS = [
          * GM may) with the owner's own bullet, in a debate - every question `seizeFloor` used to ask answers yes.
          * Read: refused, the floor's holder, whether it stood on this screen, the objector's actions, and whether a
          * whisper said OBJECTION! is on the HUD; then a Present card of the same owner's, with no objection flag:
-         * shown, not refused, the actions the same. Red at C16's parent (e79run, 17.10.2026, by reading
-         * `seizeFloor`): the card took the floor and was paid for.
+         * since E70 C10 a Present is the primary's card too ("trial.present"), so since E70 fix p2-G2 (the review's
+         * SEC-1) it is refused the same way - shown on no screen, refused, the actions the same, its owner told where a
+         * Present is made. Red at C16's parent (e79run, 17.10.2026, by reading `seizeFloor`): the card took the floor
+         * and was paid for; the Present's half red at 2fc865ac (shown, not refused).
          */
         const [O, B] = cast(2);
         const owner = game.users.find(user => !user.isGM && O.testUserPermission(user, "OWNER"));
@@ -37402,6 +37404,7 @@ const SCENARIOS = [
         const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
         const seen = new Set(game.messages.map(m => m.id));
         const told = game.i18n.localize("DRPG.Trial.objectionByButton");
+        const toldPresent = game.i18n.localize("DRPG.Trial.presentByButton");
         let item = null;
         const read = [];
         const card = objection => ChatMessage.create({
@@ -37433,9 +37436,11 @@ const SCENARIOS = [
                 O.system.resources.actions.value, whispers.some(w => String(w ?? "").includes(told)));
             if (floorMod.trialFloor()?.holderId) await floorMod.returnToDebate({});
             const present = await card(false);
-            await until(() => shown(present));
+            await until(() => present.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || shown(present));
             await settle();
-            read.push(shown(present), Boolean(present.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, O.system.resources.actions.value);
+            const whispered = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
+            read.push(shown(present), Boolean(present.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, O.system.resources.actions.value,
+                whispered.some(w => String(w ?? "").includes(toldPresent)));
         } finally {
             await clearObjections(floorMod, seen);
             try { await item?.delete(); } catch { /* already gone */ }
@@ -37447,8 +37452,8 @@ const SCENARIOS = [
             await sheetAuditIdle();
             await settle();
         }
-        equal(stableJson(read), stableJson([true, null, false, 3, true, true, false, null, 3]),
-            "[the player's Objection card: refused; the floor's holder; on this screen; the objector's actions; its owner told of OBJECTION!], [their Present: on this screen; refused; the floor's holder; the actions]");
+        equal(stableJson(read), stableJson([true, null, false, 3, true, false, true, null, 3, true]),
+            "[the player's Objection card: refused; the floor's holder; on this screen; the objector's actions; its owner told of OBJECTION!], [their Present card: on this screen; refused; the floor's holder; the actions; its owner told of Present]");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {
@@ -40138,12 +40143,12 @@ const SCENARIOS = [
             open: ["closing", "volunteer"],
             claims: [["bridge.done"], ["bridge.refused"], ["bridge.refused"], ["bridge.done"], 2, true, true],
             draw: ["choice", "confirm", true, true],
-            confirm: ["speak", true, "drawn"],
+            confirm: ["speak", true, "chosen"],
             exchange: [null, true, "decide", true],
             speakerOn: [true, true],
             objectorOn: [true, true, "objection"],
             overrule: ["closing", true, true],
-            over: [null, true, ["drawn", "speaker", "objection"], true],
+            over: [null, true, ["chosen", "speaker", "objection"], true],
             second: [null, null]
         }), "(1) the window; (2) the claims - the first, again, another's student, the second's own - the floor's count, the world settings and the GMs' store; (3) the draw and Confirm; "
             + "(4) an Objection at somebody not speaking, at the speaker, the decision and the seconds kept, the speaker on with them; (5) the objector on with 300 s; (6) the Overrule; (7) the end, the record, a second Closing");
@@ -40389,6 +40394,18 @@ const SCENARIOS = [
             const cardOf = list => list.map(m => [Boolean(m.author?.isGM), m.content.includes(words.text), m.content.includes(words.reading),
                 /drpg-tb-badge type incident/.test(m.content), /drpg-tb-badge faint/.test(m.content)]);
 
+            /* (0) Share by the bridge in the trial (E70 fix p2-G2; the review's E70P2-R09): the sheet's row draws no Share
+               there (5), and the row a console sends is refused on the primary with a closed reason - no copy for O. NOT red
+               at 2fc865ac (measured): handover.mjs `verify` asks inventory.mjs `transferRefusal` mode "give", which refuses
+               in a Class Trial ("that waits until the Class Trial is over", cannotNow) - the review's road was closed
+               already; this holds it closed. */
+            const shareSent = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
+            await sheetAuditIdle();
+            await settle();
+            read.share = [shareSent, O.actor.items.filter(ofTrace).length];
+
             /* (1) Without the analysis. */
             const without = await judged(packet(false, "E70T12a"), P.user.id);
             const first = copies();
@@ -40450,13 +40467,14 @@ const SCENARIOS = [
         }
         const n = read.without ? read.without[2].length : 0;
         equal(stableJson(read), stableJson({
+            share: [[["bridge.refused", "cannotNow"]], 0],
             without: [["bridge.done"], [[true, true, false, false, false]], Array(n).fill(1), 1, Array(n).fill(["neutral", false, "", true, "incident"]), true],
             withIt: [["bridge.done"], [[true, true, true, true, true]], Array(n).fill(1)],
             forged: [["bridge.refused"], 0],
             mode: [["bridge.refused"], 0, Array(n).fill(1)],
             row: [true, true, "true", true, false],
             outside: [true, false, true]
-        }), "(1) without the analysis: the answer, the card (a GM's, the words, the reading, the type, Faint), the copies each, the presenter's own, each copy's type, reading and words and its answer key, each told; "
+        }), "(0) Share by the bridge in the trial: the answers [action, reason], O's copies; (1) without the analysis: the answer, the card (a GM's, the words, the reading, the type, Faint), the copies each, the presenter's own, each copy's type, reading and words and its answer key, each told; "
             + "(2) with it: the answer, the card, still one copy each; (3) from another's owner: the answer, cards posted; (4) in Testimony with O speaking: the answer, cards posted, copies; "
             + "(5) the row in the trial: drawn, Present, held, its reason, Share; outside the trial: drawn, Present, Share");
     }],

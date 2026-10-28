@@ -240,7 +240,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const record = await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); const c = V.trialProgress().closing; return { done: c?.done ?? null, via: (c?.speakers ?? []).map(s => s.via) };`);
     verdict("Botan's Objection at Aiko overruled: Aiko again with her seconds; p1's Pass ends the Closing - every player told, the record done",
         overruled.mode === "closing" && overruled.holder === IDS.aiko && overruled.close && resigned.ok
-            && ended.every(e => J(e) === J([true, null])) && record.done === true && J(record.via) === J(["picked", "objection"]), J({ overruled, resigned, ended, record }));
+            && ended.every(e => J(e) === J([true, null])) && record.done === true && J(record.via) === J(["chosen", "objection"]), J({ overruled, resigned, ended, record }));
 
     const testimonyOverrule = await gmClosing(`await api.startTestimony({ seconds: 60, order: ${J(order)} });
         await F.openObjection("${IDS.chie}", "${IDS.aiko}", {}); await F.openRebuttal(); await api.overruleObjection();

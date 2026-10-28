@@ -588,38 +588,29 @@ export function registerTrial() {
          * author owns the character the card speaks as, and that character holds
          * the evidence. A GM's card is a GM's to post.
          *
-         * Only the POPUP waits on the answer. The card still goes on to
-         * `seizeFloor` below, which refuses it and marks it refused - that mark is
-         * how the table's log shows a forged objection for what it was, and the
-         * suite holds it ("a card posted in somebody else's name").
+         * Only the POPUP waited on the answer; the card went on to be refused and
+         * marked refused - that mark is how the table's log shows a forged card for
+         * what it was. Since E70 fix p2-G2 (below) no player's card is raised at
+         * all, and the primary marks every one refused.
          */
         const author = message.author;
-        let authorised = Boolean(author?.isGM);
-        if (!authorised) {
-            const speaker = game.actors.get(message.speaker?.actor ?? "");
-            const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
-            authorised = Boolean(author && speaker?.testUserPermission(author, "OWNER")
-                && (!itemId || speaker.items.has(itemId)));
-        }
-
         const objection = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.objection));
         /*
-         * A PLAYER'S OBJECTION CARD IS NOT A ROAD ANY MORE (E79 C16, 1.2.79). The Objection is raised on the
-         * primary GM (`objectOnPrimary`), which posts its card as a GM, so a card a player's browser posts with the
-         * flag is a console's or an old client's: no popup, and the primary marks it refused below and tells its
-         * owner, as it marked a forged one. A player's Present - no objection flag - is today's, and free.
+         * A PLAYER'S CARD IS NOT A ROAD ANY MORE, OBJECTION OR PRESENT (E79 C16, 1.2.79, for the Objection; E70 fix
+         * p2-G2, 28.10.2026, for the Present - the review's SEC-1 and E70P2-R08). The Objection is raised on the primary
+         * GM (`objectOnPrimary`) and since E70 C10 a Present is too ("trial.present", `presentOnPrimary`): both cards are
+         * posted by a GM. So a card a player's browser posts with the flag is a console's or an old client's, and none
+         * raises it - before this fix a console's Present card went up on every screen whenever its author owned the
+         * speaker and the speaker held the item (E02's check), with words of its own, an "analysis" nobody made among
+         * them, out of the mode's turn (measured in 30-security at 2fc865ac: raised on gm, p2 and p3, not refused). The
+         * primary marks it refused below and tells its owner, as it marked a forged one; a card of the trial's dead
+         * (settings.mjs `isMutedDead`, E70 fix p1-G1) is told that the dead do not present. A GM's card is a GM's to
+         * post, and E02's question - does the author own the speaker - is answered for it by being a GM.
          */
-        const playerObjection = objection && !author?.isGM;
-        /*
-         * A PRESENT BY THE TRIAL'S DEAD (E70 fix p1-G1, 28.10.2026; the review's BEH-1). The list (settings.mjs
-         * `isMutedDead`) names a death nobody has found, which the sheet does not show, so a muted student's player
-         * still put evidence on every screen through Present, a card their own browser posts. Every browser reads
-         * the list, so none raises the card; the primary marks it refused and tells its owner, as for a player's
-         * Objection card. A GM's card is a GM's to post.
-         */
-        const mutedPresenter = !author?.isGM && isMutedDead(game.actors.get(message.speaker?.actor ?? ""));
+        const playersCard = !author?.isGM;
+        const mutedPresenter = playersCard && isMutedDead(game.actors.get(message.speaker?.actor ?? ""));
 
-        if (authorised && !playerObjection && !mutedPresenter) showPopup(contentOf(message), {
+        if (!playersCard) showPopup(contentOf(message), {
             title: game.i18n.localize(objection ? "DRPG.Trial.objection" : "DRPG.Trial.evidence"),
             kind: objection ? "objection" : "evidence",
             // Evidence stays up until somebody closes it. A trial argues with a
@@ -634,22 +625,20 @@ export function registerTrial() {
             messageId: message.id
         });
 
+        if (playersCard) {
+            if (isPrimaryGm()) {
+                serialWrite(SEIZE_KEY, () => (mutedPresenter ? refusePlayersCard(message, "dead")
+                    : refusePlayersCard(message, objection ? "objection" : "present")))
+                    .catch(err => error("Could not mark a player's card as refused", err));
+            }
+            return;
+        }
+
         // Showing the evidence and taking the floor are one act in the guide,
         // so they are one act here. Exactly one client writes it: this hook
         // fires on every GM, and two of them racing on the same setting is how
         // the floor ends up pointing at the wrong person.
-        if (mutedPresenter && isPrimaryGm()) {
-            serialWrite(SEIZE_KEY, () => refusePlayersCard(message, "dead"))
-                .catch(err => error("Could not mark a dead student's Present card as refused", err));
-            return;
-        }
         if (!objection || !isPrimaryGm()) return;
-
-        if (playerObjection) {
-            serialWrite(SEIZE_KEY, () => refusePlayersCard(message))
-                .catch(err => error("Could not mark a player's objection card as refused", err));
-            return;
-        }
         // The primary's own card of a player's Objection: its floor is `objectOnPrimary`'s, opened after the post.
         if (message.getFlag(MODULE_ID, TRIAL_FLAGS.pending)) return;
 
@@ -701,7 +690,8 @@ export function registerTrial() {
  * A card a player's browser posted with the objection flag, on the primary GM (E79 C16): marked refused - the log
  * shows it for what it was - and its character's owner told where an Objection is raised now, or, for a card in
  * somebody else's name, that it was not theirs. Nothing is paid and the floor does not move. `kind` "dead": a Present
- * card of a student on the trial's list of the dead (E70 fix p1-G1), its owner told the dead do not present.
+ * card of a student on the trial's list of the dead (E70 fix p1-G1), its owner told the dead do not present;
+ * "present": any other player's Present card (E70 fix p2-G2), its owner told where a Present is made now.
  */
 async function refusePlayersCard(message, kind = "objection") {
     if (!isPrimaryGm()) return;
@@ -711,6 +701,10 @@ async function refusePlayersCard(message, kind = "objection") {
         if (!actor) return;
         if (kind === "dead") {
             await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }))}</p>`);
+            return;
+        }
+        if (kind === "present") {
+            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Trial.presentByButton")}</p>`);
             return;
         }
         const why = message.author && actor.testUserPermission(message.author, "OWNER")

@@ -8698,7 +8698,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const sources = await moduleSources();
-        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection && !mutedPresenter) showPopup(", { length: 500 });
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (!playersCard) showPopup(", { length: 500 });
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
         direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
         const t = key => game.i18n.localize(key);
@@ -25158,7 +25158,7 @@ const INVARIANTS = [
             closing: { phase: "volunteer", step: 1, openedAt: NOW - 30_000, count } });
         const choice = pick => ({ ...base, mode: "closing", holderId: null, seconds: 0, startedAt: NOW - 5000,
             closing: { phase: "choice", step: 2, openedAt: NOW - 60_000, count: 2, choice: pick } });
-        const speaking = (left, { holder = A, via = "drawn", resign = null } = {}) => ({ ...base, mode: "closing", holderId: holder, seconds: 300,
+        const speaking = (left, { holder = A, via = "chosen", resign = null } = {}) => ({ ...base, mode: "closing", holderId: holder, seconds: 300,
             startedAt: NOW - (300 - left) * 1000, closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 2, choice: null,
                 speakerId: holder, via, resignUntil: resign, chain: [] } });
         const exch = (mode, left, extra = {}) => ({ ...speaking(200), mode, holderId: D, targetId: A,
@@ -25181,7 +25181,7 @@ const INVARIANTS = [
         const cutRebuttal = M.nextFloor(cut.floor, { type: "due" }, { now: NOW + 60_000 });
         const cutDecide = cutRebuttal.floor ? M.nextFloor(cutRebuttal.floor, { type: "due" }, { now: NOW + 180_000 }) : { refused: "none" };
         const r0 = M.closingRecordAfter(null, { start: true });
-        const r1 = M.closingRecordAfter(r0, { push: { actorId: A, via: "drawn", messageId: null } });
+        const r1 = M.closingRecordAfter(r0, { push: { actorId: A, via: "chosen", messageId: null } });
         const r2 = M.closingRecordAfter(r1, { leftAtEnd: 200 });
         const r3 = M.closingRecordAfter(r2, { push: { actorId: D, via: "objection", messageId: CARD } });
         const r4 = M.closingRecordAfter(r3, { leftAtEnd: 10, done: true });
@@ -25234,13 +25234,13 @@ const INVARIANTS = [
         };
         const none = { mode: null, holder: null, phase: null, choice: null, left: null, kept: null, via: null, chain: null, count: null, stack: [] };
         const over = (leftAtEnd = null) => ({ ...none, cards: [["DRPG.Floor.closing.over", null]], record: leftAtEnd === null ? { done: true } : { leftAtEnd, done: true } });
-        const choiceOf = (pick, cards = [], record = null, via = "drawn") => ({ mode: "closing", holder: null, phase: "choice", choice: pick, left: null, kept: null,
+        const choiceOf = (pick, cards = [], record = null, via = "chosen") => ({ mode: "closing", holder: null, phase: "choice", choice: pick, left: null, kept: null,
             via, chain: [], count: 2, stack: [], cards, record });
         const speech = (holder, left, via, cards, record, count = 2) => ({ mode: "closing", holder, phase: "speak", choice: null, left, kept: null, via,
             chain: [], count, stack: [], cards, record });
-        const decided = (cards, chain = [D]) => ({ mode: "closing", holder: null, phase: "decide", choice: null, left: null, kept: 200, via: "drawn",
+        const decided = (cards, chain = [D]) => ({ mode: "closing", holder: null, phase: "decide", choice: null, left: null, kept: 200, via: "chosen",
             chain, count: 2, stack: [], cards, record: null });
-        const again = (left = 200) => ({ mode: "closing", holder: A, phase: "speak", choice: null, left, kept: null, via: "drawn", chain: [], count: 2,
+        const again = (left = 200) => ({ mode: "closing", holder: A, phase: "speak", choice: null, left, kept: null, via: "chosen", chain: [], count: 2,
             stack: [], cards: [], record: null });
         equal(stableJson(read), stableJson({
             start: { mode: "closing", holder: null, phase: "volunteer", choice: null, left: 30, kept: null, via: null, chain: null, count: 0, stack: [],
@@ -25251,16 +25251,16 @@ const INVARIANTS = [
             claimLate: { refused: "DRPG.Floor.closing.notVolunteering" },
             drawDue: { ...choiceOf("confirm"), via: null, chain: null }, drawNone: { ...choiceOf("none"), via: null, chain: null, count: 0 },
             drawSkip: { ...choiceOf("confirm"), via: null, chain: null }, choiceSkip: { refused: "DRPG.Floor.closing.waitsForGm" },
-            confirm: speech(B, 300, "drawn", [["DRPG.Floor.closing.speaks", B]], { push: { actorId: B, via: "drawn", messageId: null } }),
+            confirm: speech(B, 300, "chosen", [["DRPG.Floor.closing.speaks", B]], { push: { actorId: B, via: "chosen", messageId: null } }),
             confirmNone: { refused: "DRPG.Floor.closing.noDrawn" }, confirmGone: { refused: "DRPG.Floor.closing.absent" },
-            pickOther: speech(Cc, 300, "picked", [["DRPG.Floor.closing.speaks", Cc]], { push: { actorId: Cc, via: "picked", messageId: null } }),
-            pickSpoke: speech(A, 300, "picked", [["DRPG.Floor.closing.speaks", A]], { push: { actorId: A, via: "picked", messageId: null } }),
+            pickOther: speech(Cc, 300, "chosen", [["DRPG.Floor.closing.speaks", Cc]], { push: { actorId: Cc, via: "chosen", messageId: null } }),
+            pickSpoke: speech(A, 300, "chosen", [["DRPG.Floor.closing.speaks", A]], { push: { actorId: A, via: "chosen", messageId: null } }),
             pickStranger: { refused: "DRPG.Floor.closing.notParticipant" }, pickEarly: { refused: "DRPG.Floor.closing.noChoice" },
-            objectAt5: { mode: "objection", holder: D, phase: "speak", choice: null, left: 60, kept: null, via: "drawn", chain: [D], count: 2,
+            objectAt5: { mode: "objection", holder: D, phase: "speak", choice: null, left: 60, kept: null, via: "chosen", chain: [D], count: 2,
                 stack: [[CARD, "closing", 295]], cards: [], record: { leftAtEnd: 295 } },
             rows: [true, true, false, true, false, true, false, false, false, true, false, false],
             decideDue: decided([]), decideSkip: decided([["DRPG.Floor.turnSkipped", A]]),
-            cut: { mode: "objection", holder: E, phase: "speak", choice: null, left: 60, kept: null, via: "drawn", chain: [D, E], count: 2,
+            cut: { mode: "objection", holder: E, phase: "speak", choice: null, left: 60, kept: null, via: "chosen", chain: [D, E], count: 2,
                 stack: [[CARD, "closing", 200], [CARD2, "rebuttal", 60]], cards: [], record: null },
             cutDecide: { ...decided([], [D, E]), left: null },
             continueSpeaker: speech(A, 200, "speaker", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "speaker", messageId: null } }),
@@ -25274,11 +25274,11 @@ const INVARIANTS = [
             overEarly: { refused: "DRPG.Floor.round.notDue" },
             skipSpeaker: choiceOf("pick", [["DRPG.Floor.turnSkipped", A]], { leftAtEnd: 100 }),
             gone: choiceOf("pick", [["DRPG.Floor.round.passes", A]], { leftAtEnd: 100 }), endSpeaking: over(100), endChoice: over(),
-            minusToZero: { refused: "DRPG.Floor.closing.noTime" }, plus: { ...again(50), via: "drawn" },
+            minusToZero: { refused: "DRPG.Floor.closing.noTime" }, plus: { ...again(50), via: "chosen" },
             adjustChoice: { refused: "DRPG.Floor.bar.noAdjust" },
             resume: speech(A, 100, "resumed", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "resumed", messageId: null } }, 0),
             resumeNone: { refused: "DRPG.Floor.closing.nothingToResume" }, resumeVote: { refused: "DRPG.Floor.closing.voteOpen" },
-            record: [{ done: false, speakers: [] }, { done: true, speakers: [{ actorId: A, via: "drawn", messageId: null, leftAtEnd: 200 },
+            record: [{ done: false, speakers: [] }, { done: true, speakers: [{ actorId: A, via: "chosen", messageId: null, leftAtEnd: 200 },
                 { actorId: D, via: "objection", messageId: CARD, leftAtEnd: 10 }] }],
             config: [30, 300, 1, 30, true, "exchange"],
             refusal: [true, null, null, true]
@@ -25416,7 +25416,7 @@ const INVARIANTS = [
         const NOW = 40_000_000, A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD";
         const speaking = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null,
             mode: "closing", holderId: A, seconds: 300, startedAt: NOW - 100_000,
-            closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 1, choice: null, speakerId: A, via: "drawn", resignUntil: null, chain: [] } };
+            closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 1, choice: null, speakerId: A, via: "chosen", resignUntil: null, chain: [] } };
         const exchange = M.nextFloor(speaking, { type: "objection", holderId: D, targetId: A, cardId: "cardR1046AAAAAAA" }, { now: NOW });
         const keys = new Set(Mu.MUSIC_STATES.map(s => s.key));
         equal(JSON.stringify({

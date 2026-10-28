@@ -2392,6 +2392,7 @@
       "objectionNotYours": "That Objection was posted by somebody who does not own {name}, so the floor did not move.",
       "objectionNoItem": "That Objection named no evidence, so the floor did not move.",
       "deadCannotPresent": "{name} is dead, and the dead neither present evidence nor object.",
+      "presentByButton": "Evidence is presented with Present on your sheet, and the GM's browser posts its card. That card was not posted that way, so nobody was shown it.",
       "presented": "{name} went on the table.",
       "presentOnly": "Only {name} can present right now.",
       "presentNobody": "Nobody presents evidence right now.",

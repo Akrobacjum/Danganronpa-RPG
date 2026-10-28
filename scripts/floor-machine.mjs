@@ -118,7 +118,7 @@ function speakerAgain(floor, now, gmNote = null) {
  *   choice     no clock: the GM confirms the drawn speaker or picks anyone of the trial (DA18), a volunteer or not -
  *              `choice` "confirm" after a draw that named somebody, "none" when nobody volunteered, "pick" when a
  *              speaker resigned, left or was skipped;
- *   speak      the speaker's 300 s (`via` drawn, picked, speaker, objection, resumed); an Objection at the speaker at
+ *   speak      the speaker's 300 s (`via` chosen, speaker, objection, resumed); an Objection at the speaker at
  *              any second (TR29 = 4: nobody protects them but the GM), its exchange the debate's (60 + 120 s, cut-ins
  *              allowed), the speaker's clock standing at `leftAtObjection` meanwhile (the stack's entry); a drawn or
  *              picked speaker's Pass inside `resignUntil` gives the choice back, any later Pass is Done;
@@ -160,7 +160,10 @@ function closingFloor(floor, phase, now, patch = {}, over = {}) {
 function closingSpeech(floor, actorId, via, now, { left = null, messageId = null, card = "DRPG.Floor.closing.speaks", note = null } = {}) {
     const full = Number(TRIAL.modes?.closing?.seconds) || 300;
     const rest = left === null ? full : Math.max(Number(left) || 0, 0);
-    const resign = via === "drawn" || via === "picked" ? now + (Number(TRIAL.modes?.closing?.passWindowSeconds) || 0) * 1000 : null;
+    /* "chosen" whether the GM confirmed the draw or changed it (E70 fix p2-G2; the review's SEC-2): `via` is world data
+       (the floor in trialQueue, the record in trialProgress), and "drawn" right after a choice of "confirm" against
+       "picked" told every console the draw had named somebody else - E70-52's "the card never tells a change". */
+    const resign = via === "chosen" ? now + (Number(TRIAL.modes?.closing?.passWindowSeconds) || 0) * 1000 : null;
     const next = closingFloor(floor, "speak", now, { speakerId: actorId, via, resignUntil: resign, choice: null, left: null, chain: [],
         messageId: null }, { holderId: actorId, seconds: full, startedAt: now - (full - rest) * 1000, gmNote: note });
     return { floor: next, cards: card ? [{ key: card, actorId, seconds: rest, title: "DRPG.Floor.mode.closing" }] : [],
@@ -243,12 +246,12 @@ function closingStep(floor, event, ctx, now) {
             if (phase !== "choice") return { refused: "DRPG.Floor.closing.noChoice" };
             if (closing.choice !== "confirm" || !ctx?.drawn) return { refused: "DRPG.Floor.closing.noDrawn" };
             if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: "DRPG.Floor.closing.absent" };
-            return closingSpeech(floor, ctx.drawn, "drawn", now);
+            return closingSpeech(floor, ctx.drawn, "chosen", now);
         case "pick":
             if (phase !== "choice") return { refused: "DRPG.Floor.closing.noChoice" };
             if (!among(event.actorId)) return { refused: "DRPG.Floor.closing.notParticipant" };
             if (absent.has(event.actorId)) return { refused: "DRPG.Floor.closing.absent" };
-            return closingSpeech(floor, event.actorId, "picked", now);
+            return closingSpeech(floor, event.actorId, "chosen", now);
         case "continue": {
             if (phase !== "decide") return { refused: "DRPG.Floor.closing.noDecision" };
             const id = event.actorId;

@@ -2499,6 +2499,7 @@
       "objectionNotYours": "To Objection wysłał ktoś, kto nie jest właścicielem postaci {name}, więc nikt nie przejął głosu.",
       "objectionNoItem": "To Objection nie wskazywało żadnego dowodu, więc nikt nie przejął głosu.",
       "deadCannotPresent": "{name} nie żyje, a zmarli nie przedstawiają dowodów i nie wnoszą Objection.",
+      "presentByButton": "Dowody przedstawia się przyciskiem Present na karcie postaci, a kartę publikuje przeglądarka MG. Ta karta nie powstała w ten sposób, więc nikomu jej nie pokazano.",
       "presented": "{name} trafia na stół.",
       "presentOnly": "Teraz dowody może przedstawiać tylko {name}.",
       "presentNobody": "Teraz nikt nie przedstawia dowodów.",
