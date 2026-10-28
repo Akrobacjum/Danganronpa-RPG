@@ -39870,6 +39870,131 @@ const SCENARIOS = [
         }), "the trial's list names an open incident's living victim, a listed death posts a Present card, or a settle after the clock moved chapters replaced the trial's record (entry: the list, the victim's player's [had, value], the unfound's grant; present: the answer, cards posted; moved: the record's chapter kept, its question, its round, the list's length)");
     }],
 
+    ["Testimony and Panic Round: the start's guard on the API and the GMs' row, Done by the speaker alone, a participant's step over while the primary's heartbeat is held, no Objection in Panic, and an Objection's exchange resuming the queue (E70-T9)", async () => {
+        /*
+         * E70 C7, 28.10.2026; E70-41, E70-42, E70-44, E70-46. Read on this primary in a Class Trial, with the floor's
+         * participants as vote.mjs `trialParticipants` gives them (connected players' living students, one each):
+         * (1) a turn of 121 s refused by `startTestimony` and by "trial.gm" op testimony, and the floor stays shut; (2) a
+         * Testimony in the order given, its first speaker the first named; Done from the second speaker's owner refused
+         * (not their turn), the speaker's Done sent by the second speaker's owner refused (not their character), from the
+         * speaker's owner taken - the second speaker's turn; (3) the primary's heartbeat held as
+         * a background tab holds it, the turn run out: the participants' browsers' step overs ("trial.turn" kind "over",
+         * trial-prompt.mjs) move the round within four seconds, the same step over again is refused (the round moved on),
+         * and so is one of the new turn before it is due; (4) a Panic Round: an Objection refused
+         * (`objectOnPrimary`, "floorClosed"), End this mode; (5) a Testimony again, an Objection at the speaker
+         * (`openObjection`), its rebuttal, Skip: the round resumes at the next speaker. Red at 182cdd57: no
+         * `startTestimony`, no "trial.turn" (the step stood with the heartbeat held). The clock, the floor, the record and
+         * the cards are put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a round needs two speakers, and only a connected player's student takes part");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const realInterval = globalThis.setInterval;
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const read = { api: [typeof api.startTestimony, typeof api.startPanicRound] };
+        let parts = [];
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - a round of one measures no order`);
+            const [one, two] = parts;
+            const order = [one.actor.id, two.actor.id];
+            if (typeof api.startTestimony === "function") {
+                const long = await api.startTestimony({ seconds: 121, order });
+                const bridged = await judged({ action: "trial.gm", requestId: "E70T9LONG", op: "testimony", seconds: 121, order: order.join(",") }, game.user.id);
+                read.guard = [long ?? null, F.trialFloor(), bridged];
+                await api.startTestimony({ seconds: 60, order });
+                await settle();
+                const started = F.trialFloor();
+                read.start = [started?.mode ?? null, started?.holderId === one.actor.id, started?.round?.order?.slice(0, 2)?.join() === order.join()];
+                const step = started?.round?.step ?? 0;
+                const notTheirs = await judged({ action: "trial.turn", requestId: "E70T9DONE2", actorId: two.actor.id, kind: "done", step }, two.user.id);
+                const forged = await judged({ action: "trial.turn", requestId: "E70T9FORGED", actorId: one.actor.id, kind: "done", step }, two.user.id);
+                const theirs = await judged({ action: "trial.turn", requestId: "E70T9DONE1", actorId: one.actor.id, kind: "done", step }, one.user.id);
+                read.done = [notTheirs, forged, theirs, F.trialFloor()?.holderId === two.actor.id];
+                // The heartbeat held (a background tab's) from before the write that runs the second speaker's turn out
+                // on the primary's clock - the write's own hook starts the heartbeat again (`renderTrialFloor`) - until
+                // the step over is judged.
+                const due = F.trialFloor();
+                const overStep = due?.round?.step ?? 0;
+                globalThis.setInterval = () => 0;
+                let over = null, after = null, again = null;
+                try {
+                    F.renderTrialFloor();
+                    await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), startedAt: serverNow() - 61_000 });
+                    await settle();
+                    // The participants' own browsers call the turn over (trial-prompt.mjs) within their second's tick.
+                    read.moved = Boolean(await until(() => F.trialFloor()?.round?.step !== overStep || null, 4000));
+                    after = F.trialFloor();
+                    over = await judged({ action: "trial.turn", requestId: "E70T9OVER1", actorId: one.actor.id, kind: "over", step: overStep }, one.user.id);
+                    again = after ? await judged({ action: "trial.turn", requestId: "E70T9OVER2", actorId: one.actor.id, kind: "over", step: after.round.step }, one.user.id) : ["none"];
+                } finally {
+                    globalThis.setInterval = realInterval;
+                }
+                read.over = [over, after?.holderId ?? null, (after?.round?.step ?? null) === (after ? overStep + 1 : null), again];
+                read.overWant = parts[2]?.actor.id ?? null;
+                F.renderTrialFloor();
+                if (F.trialFloor()) await api.endMode();
+                await settle();
+                await api.startPanicRound({ seconds: 15, order });
+                await settle();
+                const { objectOnPrimary } = await import("./trial.mjs");
+                const objected = await objectOnPrimary({ actorId: two.actor.id, targetId: one.actor.id });
+                read.panic = [F.trialFloor()?.mode ?? null, objected?.refused ?? null];
+                await api.endMode();
+                await settle();
+                await api.startTestimony({ seconds: 60, order });
+                await settle();
+                const opened = await F.openObjection(two.actor.id, one.actor.id, {});
+                await F.openRebuttal();
+                await settle();
+                const inRebuttal = F.trialFloor()?.mode ?? null;
+                await api.skipStep();
+                await settle();
+                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === two.actor.id];
+            }
+        } finally {
+            globalThis.setInterval = realInterval;
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const overWant = read.overWant;
+        delete read.overWant;
+        equal(stableJson(read), stableJson({
+            api: ["function", "function"],
+            guard: [null, null, ["bridge.refused"]],
+            start: ["testimony", true, true],
+            done: [["bridge.refused"], ["bridge.refused"], ["bridge.done"], true],
+            moved: true,
+            over: [["bridge.refused"], overWant, true, overWant ? ["bridge.refused"] : ["none"]],
+            panic: ["panic", "the trial's floor is not open to an objection now"],
+            resume: [true, "rebuttal", "testimony", true]
+        }), "(1) the 121 s turn on the API and trial.gm, and the floor; (2) the start; Done from the second speaker, the speaker's Done sent by the second speaker's owner, the speaker's own, and whose turn; (3) the run-out turn moved on by the participants' browsers with the heartbeat held; the same step over again, the next speaker, the step, a step over of the new turn before it is due; "
+            + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary

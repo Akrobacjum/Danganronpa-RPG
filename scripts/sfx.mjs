@@ -850,7 +850,7 @@ function onDocumentClick(event) {
  * What the last look at the world said, so only changes speak. `known` is false until
  * `snapshotWorld` has read the world at ready: before it, a change has nothing to be a change from.
  */
-const worldWas = { known: false, floorOpen: false, floorMode: null, myTurn: false };
+const worldWas = { known: false, floorOpen: false, floorMode: null, myTurn: false, turnStep: null };
 
 /**
  * The baseline, read at ready (E19 C6, audit S11-31). It was read from `registerSfx` at init, where
@@ -907,6 +907,14 @@ async function onFloorChanged() {
     // A rebuttal an Overrule brings back is no rebuttal starting: the Overrule's card carries its own sound (E70 C2).
     const overruled = floor?.gmNote?.key === "DRPG.Floor.gmNoteOverrule";
     if (worldWas.known && into(FLOOR_MODES.rebuttal) && !overruled) playSfx("rebuttal");
+    /* A ROUND (E70 C7; E70-45, amend 0): a Panic Round's start for the whole table, and `yourTurn` for the speaker's
+       player alone, once a turn - a GM owns every student, so the question is whose character it is (`ownerOf`). */
+    if (worldWas.known && into(FLOOR_MODES.panic)) playSfx("panicStart");
+    const roundTurn = (mode === FLOOR_MODES.testimony || mode === FLOOR_MODES.panic) && floor?.holderId
+        ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : null;
+    const mineNow = Boolean(roundTurn) && ownerOf(game.actors.get(floor.holderId))?.id === game.user.id;
+    if (worldWas.known && mineNow && worldWas.turnStep !== roundTurn) playSfx("yourTurn");
+    worldWas.turnStep = roundTurn;
 
     worldWas.floorOpen = open;
     worldWas.floorMode = mode;

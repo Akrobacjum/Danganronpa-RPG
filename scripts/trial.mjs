@@ -1165,7 +1165,9 @@ async function nameObjectionTarget(actor) {
     const { livingStudents } = await import("./chapter.mjs");
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
-    const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId] : null;
+    // In a round only its speaker may be named (E70 C7; the primary holds the same row, `targetRefusal`).
+    const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId]
+        : floor?.mode === FLOOR_MODES.testimony ? [floor.holderId] : null;
     const choices = livingStudents()
         .filter(student => student.id !== actor.id && (!pair || pair.includes(student.id)))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -1180,7 +1182,9 @@ async function nameObjectionTarget(actor) {
             <label>${game.i18n.localize("DRPG.Trial.objectionTarget")}
                 <select name="target">${choices.map(student =>
                     `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
-            ${pair ? `<p class="notes">${game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
+            ${pair ? `<p class="notes">${floor.mode === FLOOR_MODES.testimony
+                ? game.i18n.format("DRPG.Trial.objectionSpeakerOnly", { mode: game.i18n.localize("DRPG.Floor.mode.testimony") })
+                : game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Trial.objectionNoRoom")}</p>
         </form>`),
         buttons: [

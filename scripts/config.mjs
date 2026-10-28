@@ -3646,7 +3646,21 @@ export const TRIAL = {
     modes: {
         gm: { adjustSeconds: 30, panicAdjustSeconds: 5, noteSeconds: 10 },
         topicLength: 200,
-        budget: { minutesAt16: 270 }
+        budget: { minutesAt16: 270 },
+        /*
+         * THE ROUNDS (E70 C7, 28.10.2026; S18-72). Testimony: each participant in turn, the turn typed by the GM at every
+         * start between `min` and `max` (TR6 "maks 2 minuty na osobe", TR14 = 3, TR26 = 1: the start alone is held, +30 s
+         * during a turn may pass it), `offered` the window's value (the owner, 27.10: "Skrocmy proponowane testimony do 1
+         * minuty"). Panic Round: 15 s a turn, 10 s offered from `smallFrom` participants on ("10-15 sekund maks"), no
+         * Objection (its `MODE_RULES` row), the bar's step `gm.panicAdjustSeconds`. `graceSeconds`: how early a
+         * participant's browser may call a turn over and be believed (floor-machine.mjs `over`), for a clock rounded on
+         * another browser - chosen, not measured at a table (LIVE-E70-08).
+         */
+        round: {
+            testimony: { offered: 60, min: 30, max: 120 },
+            panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
+            graceSeconds: 1
+        }
     },
     /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
@@ -4575,6 +4589,11 @@ export const SFX_EVENTS = {
     objection: {
         label: "Objection",
         hint: "Somebody takes the trial floor. Heard by the whole table.",
+        category: "incident"
+    },
+    panicStart: {
+        label: "Panic Round",
+        hint: "A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.",
         category: "incident"
     },
     rebuttal: {

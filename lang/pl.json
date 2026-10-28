@@ -552,7 +552,9 @@
         "discussion": "Dyskusja",
         "debate": "Debata",
         "objection": "Objection",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Zeznanie",
+        "panic": "Panic Round"
       },
       "trialTooltip": "Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
@@ -560,7 +562,8 @@
       "trialVersus": "kontra {who}",
       "controlFailed": "Ta operacja na zegarze nie doszła do końca. Powód podaje Dziennik debugowania w panelu GM-a.",
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
-      "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
+      "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a.",
+      "trialSpeaks": "Mówi {name}"
     },
     "Passage": {
       "why": {
@@ -1196,14 +1199,17 @@
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
-        "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy."
+        "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy.",
+        "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
         "objection": "OBJECTION",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Zeznanie",
+        "panic": "Panic Round"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
       "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; OBJECTION! gracza przejmuje głos.",
@@ -1224,7 +1230,10 @@
         "inDebate": "Debata już trwa.",
         "noObjection": "Tylko w trakcie Objection.",
         "noAdjust": "Zegara tego trybu nie da się przesunąć.",
-        "noOverrule": "Nie ma Objection do oddalenia."
+        "noOverrule": "Nie ma Objection do oddalenia.",
+        "inRound": "Runda nie ma debaty, do której można wrócić: Zakończ ten tryb ją kończy.",
+        "minusSeconds": "-{seconds} s",
+        "plusSeconds": "+{seconds} s"
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "Tura pominięta: {name}.",
@@ -1276,7 +1285,38 @@
         "many": "{n} uczniów ma na Class Trial akcje tej pory dnia.",
         "other": "{n} uczniów ma na Class Trial akcje tej pory dnia."
       },
-      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
+      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty.",
+      "round": {
+        "passes": "{name} pasuje.",
+        "over": "Koniec: {mode}.",
+        "busy": "Runda nie może się zacząć, gdy głos ma Objection albo inna runda.",
+        "tooShort": "Tura nie może być krótsza, niż pozwala ta runda.",
+        "tooLong": "Tura nie może być dłuższa, niż pozwala ta runda.",
+        "tooShortSeconds": "Tura nie może być krótsza niż {min} s.",
+        "tooLongSeconds": "Tura nie może być dłuższa niż {max} s.",
+        "nobody": "Nikt nie może zabrać głosu: żaden gracz uczestnika nie jest połączony.",
+        "noTurn": "Teraz nie trwa żadna runda.",
+        "stale": "Runda poszła już dalej.",
+        "notSpeaker": "To nie jest tura tej postaci.",
+        "notDue": "Ta tura jeszcze się nie skończyła.",
+        "notStarted": "Runda się nie zaczęła.",
+        "startedLine": "Po {seconds} s, w tej kolejności: {names}."
+      },
+      "roundWindow": {
+        "intro": "Każdy uczestnik mówi po kolei. Zmień kolejność przed startem: pierwszy na liście mówi pierwszy.",
+        "seconds": "Sekundy na turę",
+        "range": "Od {min} do {max} s na turę.",
+        "length": "Runda: {length}, mówców: {n}.",
+        "draw": "Losuj ponownie",
+        "up": "W górę",
+        "start": "Zacznij",
+        "nobody": "Nikt teraz nie bierze udziału w rozprawie: runda potrzebuje żywego ucznia połączonego gracza."
+      },
+      "holdingRound": "{mode}: mówi {who} - {seconds} s. Następny: {next}.",
+      "holdingRoundLast": "{mode}: mówi {who} - {seconds} s, ostatnia tura.",
+      "startTestimony": "Zeznanie",
+      "startPanic": "Panic Round",
+      "endRound": "Zakończ rundę"
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -1312,7 +1352,9 @@
       "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
       "trialDiscussionMeta": "Omówcie to - GM otworzy debatę",
       "trialObjectionFloor": "{who} ma głos",
-      "afterVerdict": "Werdykt zapadł"
+      "afterVerdict": "Werdykt zapadł",
+      "trialNext": "Następny: {name}",
+      "trialLastTurn": "Ostatnia tura"
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -2418,7 +2460,15 @@
       "callsLocked": "Class Trial trwa. Despair Calls czekają na jego koniec.",
       "objectionSelf": "Nie możesz wnieść objection wobec siebie.",
       "objectionRebuttalOutsider": "Rebuttal można wymierzyć tylko w dwójkę, która już ma głos.",
-      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole."
+      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole.",
+      "objectionNoneInMode": "Bez Objection w trybie {mode}.",
+      "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "turn": {
+        "title": "Twoja tura - {seconds} s",
+        "body": "{mode}: masz głos. Gotowe kończy twoją turę; Pasuję oddaje ją następnemu mówcy.",
+        "done": "Gotowe",
+        "pass": "Pasuję"
+      }
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -3326,7 +3376,8 @@
         "bridge.gmReady": "Powrót GM-a do stołu",
         "gm.call": "Pytanie do GM-a",
         "bridge.refused": "Odmowa GM-a na twoją prośbę",
-        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła"
+        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
+        "trial.turn": "Twoja tura w rundzie"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -5877,6 +5928,10 @@
         "levelUp": {
           "label": "Level Up",
           "hint": "Słyszy ocalały, któremu się przytrafił. Jedyna nagroda w całej grze."
+        },
+        "panicStart": {
+          "label": "Panic Round",
+          "hint": "Zaczyna się Panic Round: wszyscy po kolei, po kilka sekund. Słyszy cały stół."
         }
       }
     },

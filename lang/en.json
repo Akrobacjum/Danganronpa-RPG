@@ -574,12 +574,15 @@
         "discussion": "Discussion",
         "debate": "Debate",
         "objection": "Objection",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Testimony",
+        "panic": "Panic Round"
       },
       "trialTooltip": "The Class Trial. The debate runs from the GM's console, not here.",
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
-      "trialVersus": "vs {who}"
+      "trialVersus": "vs {who}",
+      "trialSpeaks": "{name} speaks"
     },
     "Passage": {
       "why": {
@@ -1207,14 +1210,17 @@
         "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it, so that each of its steps is done once: ask {name}, then end the chapter.",
         "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
-        "sentenceWaits": "The trial goes on: the sentence is carried out when it ends."
+        "sentenceWaits": "The trial goes on: the sentence is carried out when it ends.",
+        "round": "A round holds the floor: each speaker in turn. Skip moves to the next speaker; End this mode ends the round."
       },
       "objectionNote": "You never move the debate for an objection: a player's OBJECTION! takes it, and the minute starts when their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
         "objection": "OBJECTION",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Testimony",
+        "panic": "Panic Round"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
       "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
@@ -1236,7 +1242,10 @@
         "inDebate": "The debate is already running.",
         "noObjection": "Only while an Objection runs.",
         "noAdjust": "This mode's clock cannot be moved.",
-        "noOverrule": "There is no Objection to overrule."
+        "noOverrule": "There is no Objection to overrule.",
+        "inRound": "A round has no debate to go back to: End this mode ends it.",
+        "minusSeconds": "-{seconds} s",
+        "plusSeconds": "+{seconds} s"
       },
       "gmStepTitle": "The GM steps in",
       "turnSkipped": "Turn skipped: {name}.",
@@ -1281,7 +1290,38 @@
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "tableRuleVoices": "The dead's microphones are off until the trial ends, a death nobody has found too. A Monocub speaks only while no mode runs and listens from the vote on. The convicted die when the trial ends.",
-      "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
+      "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered.",
+      "round": {
+        "passes": "{name} passes.",
+        "over": "The {mode} is over.",
+        "busy": "A round cannot start while an Objection or another round holds the floor.",
+        "tooShort": "A turn cannot be set shorter than this round allows.",
+        "tooLong": "A turn cannot be set longer than this round allows.",
+        "tooShortSeconds": "A turn cannot be set shorter than {min} s.",
+        "tooLongSeconds": "A turn cannot be set longer than {max} s.",
+        "nobody": "Nobody can take a turn: no participant's player is connected.",
+        "noTurn": "No round holds the floor now.",
+        "stale": "The round has moved on.",
+        "notSpeaker": "It is not that character's turn.",
+        "notDue": "That turn has not run out yet.",
+        "notStarted": "The round did not start.",
+        "startedLine": "{seconds} s each, in this order: {names}."
+      },
+      "roundWindow": {
+        "intro": "Each participant speaks in turn. Change the order before the start: the first in the list speaks first.",
+        "seconds": "Seconds a turn",
+        "range": "From {min} to {max} s a turn.",
+        "length": "The round: {length}, speakers: {n}.",
+        "draw": "Draw again",
+        "up": "Up",
+        "start": "Start",
+        "nobody": "Nobody takes part in the trial now: a round needs a connected player's living student."
+      },
+      "holdingRound": "{mode}: {who} speaks - {seconds} s. Next: {next}.",
+      "holdingRoundLast": "{mode}: {who} speaks - {seconds} s, the last turn.",
+      "startTestimony": "Testimony",
+      "startPanic": "Panic Round",
+      "endRound": "End the round"
     },
     "Events": {
       "overflowMetaGm": "{count} of {max} in the hat",
@@ -1317,7 +1357,9 @@
       "trialDebateMeta": "Present a Truth Bullet from your Inventory",
       "trialDiscussionMeta": "Talk it through - the GM opens the debate",
       "trialObjectionFloor": "{who} has the floor",
-      "afterVerdict": "The verdict is in"
+      "afterVerdict": "The verdict is in",
+      "trialNext": "Next: {name}",
+      "trialLastTurn": "The last turn"
     },
     "Handbooks": {
       "title": "Handbooks",
@@ -2336,7 +2378,15 @@
       "objectionAtNobody": "Nobody has spoken in this trial yet, so there is nobody to object to.",
       "objectionAtNamed": "OBJECTION! - at whoever is speaking now, or at the one you name.",
       "objectionNoRoom": "The GM is not connected to a voice channel, so name whom you contradict.",
-      "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM."
+      "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM.",
+      "objectionNoneInMode": "No Objections during {mode}.",
+      "objectionSpeakerOnly": "In {mode}, an Objection can only be aimed at whoever is speaking.",
+      "turn": {
+        "title": "Your turn - {seconds} s",
+        "body": "{mode}: you have the floor. Done ends your turn; Pass gives it to the next speaker.",
+        "done": "Done",
+        "pass": "Pass"
+      }
     },
     "Handover": {
       "alreadyHasKey": "{who} already has a key to that room.",
@@ -3202,7 +3252,8 @@
         "bridge.gmReady": "A GM back at the table",
         "gm.call": "A question to the GM",
         "bridge.refused": "A GM's refusal of your request",
-        "bridge.ack": "A GM's word that your request arrived"
+        "bridge.ack": "A GM's word that your request arrived",
+        "trial.turn": "Your turn in the round"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",

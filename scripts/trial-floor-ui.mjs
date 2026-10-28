@@ -9,9 +9,10 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
-    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId
+    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
+    adjustStep, drawOrder
 } from "./trial-floor.mjs";
-import { topicOf } from "./floor-machine.mjs";
+import { topicOf, turnRange, isRoundMode } from "./floor-machine.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
@@ -356,6 +357,79 @@ export async function openDebate(options = {}) {
 }
 
 /**
+ * THE ROUND'S START WINDOW (E70 C7, 28.10.2026; E70-40, E70-41, E70-43): Testimony or Panic Round. The turn offered
+ * (Testimony 60 s, Panic Round 15 s or 10 s from 12 participants) and held to its range, typed by the GM at every start
+ * (TR14 = 3); the participants as the primary will freeze them (vote.mjs `trialParticipants`) in an order drawn at
+ * random, which the GM may move up or draw again before the start - never after it; and the round's whole length,
+ * m:ss, redrawn as the turn or the list changes. A DialogV2 like every window of the console; Start is the default.
+ */
+export async function openRoundWindow(mode) {
+    if (!game.user.isGM || !isRoundMode(mode)) return null;
+    const { trialParticipants } = await import("./vote.mjs");
+    const T = await import("./trial-modes.mjs");
+    const actors = trialParticipants().map(p => p.actor);
+    if (!actors.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.roundWindow.nobody"));
+        return null;
+    }
+    const range = turnRange(mode);
+    const offered = mode === FLOOR_MODES.panic ? T.panicSuggest(actors.length) : T.testimonyOffer();
+    const row = actor => `<li data-drpg-round-id="${esc(actor.id)}"><span>${esc(actor.name)}</span>
+                    <button type="button" data-drpg-round-up>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
+    const byId = new Map(actors.map(a => [a.id, a]));
+    const drawn = drawOrder(actors.map(a => a.id)).map(id => byId.get(id));
+    const asked = await DialogV2.wait({
+        window: { title: game.i18n.localize(`DRPG.Floor.mode.${mode}`) },
+        classes: ["drpg-panel", "drpg-narrow", "drpg-round-window"],
+        content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Floor.roundWindow.intro")}</p>
+                <label>${game.i18n.localize("DRPG.Floor.roundWindow.seconds")}
+                    <input type="number" name="seconds" min="${range.min}" max="${range.max}" step="1" value="${offered}" /></label>
+                <p class="notes">${game.i18n.format("DRPG.Floor.roundWindow.range", range)}</p>
+                <ol class="drpg-round-order">${drawn.map(row).join("")}</ol>
+                <button type="button" data-drpg-round-draw>${esc(game.i18n.localize("DRPG.Floor.roundWindow.draw"))}</button>
+                <p class="drpg-round-length" aria-live="polite"></p>
+            </form>`),
+        render: (event, dialog) => {
+            const root = dialog?.element;
+            const list = root?.querySelector(".drpg-round-order");
+            const field = root?.querySelector("[name=seconds]");
+            const length = root?.querySelector(".drpg-round-length");
+            if (!list || !field || !length) return;
+            const paint = () => {
+                length.textContent = game.i18n.format("DRPG.Floor.roundWindow.length",
+                    { length: T.roundLength(field.value, list.children.length), n: list.children.length });
+            };
+            field.addEventListener("input", paint);
+            list.addEventListener("click", e => {
+                const item = e.target?.closest?.("[data-drpg-round-up]")?.closest("li");
+                if (item?.previousElementSibling) list.insertBefore(item, item.previousElementSibling);
+            });
+            root.querySelector("[data-drpg-round-draw]")?.addEventListener("click", () => {
+                for (const id of drawOrder([...list.children].map(li => li.dataset.drpgRoundId))) {
+                    const item = [...list.children].find(li => li.dataset.drpgRoundId === id);
+                    if (item) list.append(item);
+                }
+            });
+            paint();
+        },
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Floor.roundWindow.start"), default: true,
+                callback: (e, b, d) => ({
+                    seconds: Number(d.element.querySelector("[name=seconds]")?.value) || offered,
+                    order: [...d.element.querySelectorAll(".drpg-round-order [data-drpg-round-id]")].map(li => li.dataset.drpgRoundId)
+                })
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+    if (!asked || asked === "cancel") return null;
+    return mode === FLOOR_MODES.panic ? T.startPanicRound(asked) : T.startTestimony(asked);
+}
+
+/**
  * OPEN THE DEBATE AGAIN (E70 C3, 27.10.2026; S18-70; TR11 = 1). A Rebuttal ends the debate it cut into (Dawid, 28.08),
  * and opening it again took the window and the budget typed again. This is the console's step after an exchange ended
  * the debate (the record's `debateAgain`, trial-floor.mjs `commitFloor`), and `game.drpg.reopenDebate()`: the same
@@ -653,7 +727,7 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
            before the bar, which is no footer button now (the footer's step stays one for the whole debate, so the
            console does not reopen at every Objection, E70-06); the lead says what the floor waits for. */
         view.barNext = running && view.restrictive ? "skip" : null;
-        view.lead = view.barNext ? "now" : view.next;
+        view.lead = view.barNext && view.next !== "endRound" ? "now" : view.next;
         return view;
 }
 
@@ -688,7 +762,8 @@ export function trialNextStep({ floor, running, progress, afterwards, stopped, r
        every Objection and at its rebuttal's end - under the GM's pointer, at the tensest moment of the trial. The
        footer's step is Close Debate for every mode of the debate now, and the bar's first button is Skip while an
        Objection or a rebuttal runs (`readTrial`'s `barNext`). Enter presses the footer's step only. */
-    if (running && floor) return "closeDebate";
+    // A round's footer step is its end (E70 C7): the bar's Skip moves the speakers on.
+    if (running && floor) return floorFamily(floor) === "round" ? "endRound" : "closeDebate";
     if (progress.verdictApplied && runner && runner !== game.user.id) return stopped ? "finishElsewhere" : "verdictElsewhere";
     if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
     if (progress.voteClosed) return "verdict";
@@ -720,6 +795,7 @@ const TRIAL_LEADS = {
     openAgain: "DRPG.Floor.lead.openAgain",
     reopen: "DRPG.Floor.lead.reopen",
     closeDebate: "DRPG.Floor.lead.closeDebate",
+    endRound: "DRPG.Floor.lead.round",
     now: "DRPG.Floor.lead.now",
     vote: "DRPG.Floor.lead.vote",
     verdict: "DRPG.Floor.lead.verdict",
@@ -753,8 +829,9 @@ export function exchangeRuns(floor = trialFloor()) {
 
 const BAR_ACTIONS = {
     skip: () => skipStep(),
-    minus: () => adjustTime(-TRIAL.modes.gm.adjustSeconds),
-    plus: () => adjustTime(TRIAL.modes.gm.adjustSeconds),
+    // A Panic Round's step is 5 s (E70 C7; `adjustStep`), every other mode's 30 s.
+    minus: () => adjustTime(-adjustStep()),
+    plus: () => adjustTime(adjustStep()),
     // E70 C2: the newest Objection overruled - during its exchange the floor goes back with its time.
     overrule: ({ messageId = null } = {}) => overruleObjection(messageId),
     endMode: () => endMode(),
@@ -785,7 +862,10 @@ function trialBar({ floor, running, barNext }) {
     const now = serverNow();
     const buttons = BAR_OPS.map(op => {
         const refused = barRefusal(op, floor, { running, now });
-        const label = game.i18n.localize(BAR_LABELS[op]);
+        const step = adjustStep(floor);
+        const label = (op === "minus" || op === "plus") && step !== TRIAL.modes.gm.adjustSeconds
+            ? game.i18n.format(op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds", { seconds: step })
+            : game.i18n.localize(BAR_LABELS[op]);
         const next = op === barNext ? " drpg-bar-next" : "";
         const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
         return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
@@ -833,6 +913,14 @@ function trialConsoleHtml(view) {
                     ? `<p class="drpg-warning">${game.i18n.format(
                         "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left) })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
+                : isRoundMode(floor.mode)
+                    // A round (E70 C7): its speaker, the turn's seconds and who is next in the frozen order.
+                    ? (() => {
+                        const next = floor.round?.order?.[(Number(floor.round?.index) || 0) + 1] ?? null;
+                        const words = { mode: esc(game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`)), who: esc(holder?.name ?? "-"),
+                            seconds: Math.max(left, 0), next: esc(game.actors.get(next ?? "")?.name ?? "-") };
+                        return `<p>${game.i18n.format(next ? "DRPG.Floor.holdingRound" : "DRPG.Floor.holdingRoundLast", words)}</p>`;
+                    })()
                 : floor.mode === FLOOR_MODES.objection
                     // E79 C16: an Objection raised and still waiting for its Truth Bullet runs the seconds to pick.
                     ? `<p>${game.i18n.format(floor.pending ? "DRPG.Floor.holdingObjectionPending" : "DRPG.Floor.holdingObjection", {
@@ -926,7 +1014,7 @@ function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
-            ${floor ? `<p class="notes">${game.i18n.localize(restrictive
+            ${floor && !isRoundMode(floor.mode) ? `<p class="notes">${game.i18n.localize(restrictive
                 ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
             ${trialBar(view)}
 
@@ -974,8 +1062,11 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // The debate toggle first: it is the button pressed most
                 // often in a trial, several times in each one.
                 floor
-                    ? { action: "closeDebate", default: isDefault("closeDebate"),
-                        label: game.i18n.localize("DRPG.Floor.closeDebate") }
+                    ? (floorFamily(floor) === "round"
+                        // A round's end (E70 C7): the bar's End this mode, here as the footer's step.
+                        ? { action: "endRound", default: isDefault("endRound"), label: game.i18n.localize("DRPG.Floor.endRound") }
+                        : { action: "closeDebate", default: isDefault("closeDebate"),
+                            label: game.i18n.localize("DRPG.Floor.closeDebate") })
                     : progress.againAfterOverrule
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
                         ? { action: "openAgain", default: isDefault("openAgain"),
@@ -985,6 +1076,11 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                             ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }
                             : { action: "openDebate", default: isDefault("openDebate"),
                                 label: game.i18n.localize("DRPG.Floor.openDebate") },
+                // The rounds (E70 C7), each its start window, beside the debate while no floor is open.
+                ...(floor ? [] : [
+                    { action: "startTestimony", label: game.i18n.localize("DRPG.Floor.startTestimony") },
+                    { action: "startPanic", label: game.i18n.localize("DRPG.Floor.startPanic") }
+                ]),
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
               ]
@@ -1053,6 +1149,9 @@ const TRIAL_ACTIONS = {
         return openDebate(seconds > 0 ? { seconds, remember: false, topic: trialProgress().topic ?? "" } : {});
     },
     reopen: () => reopenDebate(),
+    startTestimony: () => openRoundWindow(FLOOR_MODES.testimony),
+    startPanic: () => openRoundWindow(FLOOR_MODES.panic),
+    endRound: () => endMode(),
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This

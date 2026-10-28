@@ -13720,6 +13720,30 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     border-color: var(--drpg-crimson);
 }
 
+/* A round's start window (E70 C7): the order as a numbered list, each name with its Up button on one row, the
+   round's length under it. Theme tokens only, so both themes draw it. Not measured at a table: LIVE-E70-07. */
+.drpg-round-window .drpg-round-order {
+    margin: 6px 0;
+    padding-left: 1.6em;
+}
+
+.drpg-round-window .drpg-round-order li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.drpg-round-window .drpg-round-order button {
+    flex: 0 0 auto;
+    width: auto;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-round-window .drpg-round-length {
+    color: var(--drpg-dim);
+}
+
 /* ---- season setup: the row that is allowed to stay unticked ------------- */
 
 /* An optional step is not an outstanding one. It gets the dimmer mark and no

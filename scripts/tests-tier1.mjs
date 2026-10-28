@@ -25011,6 +25011,106 @@ const INVARIANTS = [
             own: [true, false, "ownCase"]
         }), "who may speak without the tile, or a second trial's own case, is not the owner's rule (lines: a listed dead, a Monocub in the discussion and in a debate, the living, a GM, outside the trial; own: the case open before its verdict, closed after, the line)");
     }],
+    ["R1042 - Testimony and Panic Round on the floor's one engine (E70 C7, S18-72; TR6, TR14, TR26): floor-machine.mjs `nextFloor`'s round rows - the order frozen at the start, a speaker with no owner connected passing at once, Done and Pass by the speaker of this step alone, a step over only when due (a second's grace) and seven of them moving once, the clock and Skip, an Objection at the speaker whose exchange resumes the queue on both roads that end it, an Overrule giving the speaker the turn's rest - and the start's guards (30-120 s, Panic 10-15 s, 10 offered from 12)", async () => {
+        /*
+         * E70 C7, 28.10.2026; E70-40 to E70-46. A round is a mode of the floor like the debate (`MODES.testimony`,
+         * `MODES.panic`), so every road that moves it - the heartbeat, the GM's bar, a participant's "trial.turn", the API -
+         * asks these rows in the primary's step. Read without a world at a fixed `now`, on floors frozen to the bottom:
+         * (1) the start: the order as given, its first speaker with a connected owner, the absent told as passing, the
+         * turn's length held to its mode's range (TR26: the start alone - +30 s may pass it), nobody to speak, and a start
+         * in an exchange refused; (2) Done and Pass: the speaker's alone, this step's alone, the next speaker's full turn,
+         * the last one's ending the round with its card; (3) a step over: refused two seconds early, taken at one, and seven
+         * of them on one step move it once (the first; the rest find the next step); (4) the clock run out and Skip move
+         * on; a speaker gone passes; (5) an Objection at the speaker keeps the round under the exchange, and a rebuttal
+         * run out or skipped resumes the queue at the next speaker, an Overrule and a lapse give the speaker the seconds
+         * left at the Objection, End this mode in the exchange resumes it and on the round ends it; (6) the mode's row:
+         * in Testimony only the speaker speaks, presents and is aimed at, in Panic nobody objects; (7) trial-modes.mjs's
+         * guards and the offer. Red at 182cdd57: no round rows (no trial-modes.mjs).
+         */
+        let M = null, F = null, T = null;
+        try {
+            M = await import("./floor-machine.mjs");
+            F = await import("./trial-floor.mjs");
+            T = await import("./trial-modes.mjs");
+        } catch {
+            T = null;
+        }
+        ok(Boolean(T) && M?.MODES?.testimony === "testimony" && M?.MODES?.panic === "panic",
+            "no Testimony or Panic Round on the floor's engine (floor-machine.mjs MODES, trial-modes.mjs)");
+        if (!T || M?.MODES?.testimony !== "testimony") return;
+        const NOW = 20_000_000, A = "speakerAAAAAAAAA", B = "speakerBBBBBBBBB", C = "speakerCCCCCCCCC", D = "objectorDDDDDDDD", CARD = "cardRRRRRRRRRRRR";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const round = (left, { holder = A, index = 0, step = 1, mode = "testimony", seconds = 60 } = {}) => ({
+            active: true, mode, holderId: holder, targetId: null, seconds, startedAt: NOW - (seconds - left) * 1000, pending: false,
+            messageId: null, before: [], gmNote: null, topic: null, round: { mode, order: [A, B, C], index, step, seconds } });
+        const exchange = (mode, left, extra = {}) => ({ ...round(40), mode, holderId: D, targetId: A, seconds: 60,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000,
+            before: [{ messageId: CARD, before: { mode: "testimony", holderId: A, targetId: null, seconds: 60 }, leftAtObjection: 40 }], ...extra });
+        const go = (floor, event, ctx = {}) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW, ...ctx });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, holder: r.floor?.holderId ?? null, left: r.floor ? M.leftAt(r.floor, NOW) : null,
+                step: r.floor?.round?.step ?? null, stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? c.mode ?? null]) };
+        const start = (mode, seconds, absent = [], floor = null) => shape(go(floor, { type: "round", mode, seconds, order: [A, B, C] }, { absent }));
+        // Seven browsers' step overs of one due step, each handed the floor the ones before it left.
+        let floor = round(0), moved = 0;
+        for (let i = 0; i < 7; i++) {
+            const r = go(floor, { type: "over", step: 1 });
+            if (!r.refused) { moved++; floor = r.floor; }
+        }
+        const live = round(40);
+        const read = {
+            start: start("testimony", 60), absent: start("testimony", 60, [A]), long: start("testimony", 121), short: start("testimony", 29),
+            panic: start("panic", 10), panicLong: start("panic", 16), nobody: shape(go(null, { type: "round", mode: "testimony", seconds: 60, order: [A] }, { absent: [A] })),
+            busy: start("testimony", 60, [], exchange("objection", 30)),
+            done: shape(go(live, { type: "done", actorId: A, step: 1 })), doneOther: shape(go(live, { type: "done", actorId: B, step: 1 })),
+            doneStale: shape(go(live, { type: "done", actorId: A, step: 0 })), doneInExchange: shape(go(exchange("objection", 30), { type: "done", actorId: D, step: 1 })),
+            pass: shape(go(live, { type: "pass", actorId: A, step: 1 }, { absent: [B] })),
+            last: shape(go(round(10, { holder: C, index: 2, step: 3 }), { type: "done", actorId: C, step: 3 })),
+            overEarly: shape(go(round(2), { type: "over", step: 1 })), overGrace: shape(go(round(1), { type: "over", step: 1 })),
+            seven: [moved, floor?.holderId ?? null, floor?.round?.step ?? null],
+            due: shape(go(round(0), { type: "due" })), skip: shape(go(live, { type: "skip" })),
+            gone: shape(go(live, { type: "gone", actorId: A })), goneOther: shape(go(live, { type: "gone", actorId: B })),
+            objection: shape(go(live, { type: "objection", holderId: D, targetId: A, cardId: CARD })),
+            rebuttalDue: shape(go(exchange("rebuttal", 0), { type: "due" })), rebuttalSkip: shape(go(exchange("rebuttal", 60), { type: "skip" })),
+            overrule: shape(go(exchange("rebuttal", 60), { type: "overrule" })),
+            lapse: shape(go(exchange("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            endExchange: shape(go(exchange("objection", 30), { type: "endMode" })), endRound: shape(go(live, { type: "endMode" })),
+            back: shape(go(live, { type: "back" })),
+            rows: [F.modeAllows(live, "object"), F.modeAllows(live, "target", A), F.modeAllows(live, "target", D), F.modeAllows(live, "speak", A),
+                F.modeAllows(live, "speak", D), F.modeAllows(live, "present", A), F.modeAllows(live, "present", D), F.modeAllows(round(10, { mode: "panic", seconds: 15 }), "object"),
+                F.modeAllows(live, "adjust")],
+            offers: [T.testimonyOffer(), T.panicSuggest(11), T.panicSuggest(12)],
+            guards: [T.testimonyRefusal(121)?.includes("120") === true, T.testimonyRefusal(120), T.testimonyRefusal(30), typeof T.testimonyRefusal(29) === "string",
+                typeof T.panicRefusal(16) === "string", T.panicRefusal(10)]
+        };
+        const step2 = (holder, cards = [], left = 60) => ({ mode: "testimony", holder, left, step: 2, stack: [], cards });
+        const passes = id => ["DRPG.Floor.round.passes", id];
+        equal(stableJson(read), stableJson({
+            start: { mode: "testimony", holder: A, left: 60, step: 1, stack: [], cards: [] },
+            absent: { mode: "testimony", holder: B, left: 60, step: 1, stack: [], cards: [passes(A)] },
+            long: { refused: "DRPG.Floor.round.tooLong" }, short: { refused: "DRPG.Floor.round.tooShort" },
+            panic: { mode: "panic", holder: A, left: 10, step: 1, stack: [], cards: [] }, panicLong: { refused: "DRPG.Floor.round.tooLong" },
+            nobody: { refused: "DRPG.Floor.round.nobody" }, busy: { refused: "DRPG.Floor.round.busy" },
+            done: step2(B), doneOther: { refused: "DRPG.Floor.round.notSpeaker" }, doneStale: { refused: "DRPG.Floor.round.stale" },
+            doneInExchange: { refused: "DRPG.Floor.round.noTurn" },
+            pass: { mode: "testimony", holder: C, left: 60, step: 2, stack: [], cards: [passes(A), passes(B)] },
+            last: { mode: null, holder: null, left: null, step: null, stack: [], cards: [["DRPG.Floor.round.over", "testimony"]] },
+            overEarly: { refused: "DRPG.Floor.round.notDue" }, overGrace: step2(B),
+            seven: [1, B, 2],
+            due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
+            gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
+            objection: { mode: "objection", holder: D, left: 60, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
+            rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
+            overrule: step2(A, [], 40), lapse: step2(A, [], 40),
+            endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
+            endRound: { mode: null, holder: null, left: null, step: null, stack: [], cards: [["DRPG.Floor.modeEnded", "testimony"]] },
+            back: { refused: "DRPG.Floor.bar.inRound" },
+            rows: [true, true, false, true, false, true, false, false, true],
+            offers: [60, 15, 10],
+            guards: [true, null, null, true, true, null]
+        }), "a round's row is not the owner's rule (start, Done, Pass, a step over, the clock, Skip, a speaker gone, the exchange and its resume, the mode's row, the guards and the offer)");
+    }],
 ];
 
 /**

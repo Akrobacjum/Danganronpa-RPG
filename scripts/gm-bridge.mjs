@@ -73,6 +73,8 @@ const ACTION_TRIAL_WITHDRAW = "trial.withdraw";
 const ACTION_FLOOR_REPOINT = "floor.repoint";
 /** GM -> primary GM: a GM's change of the trial's floor, run in the floor's step there (E70 C0; trial-floor.mjs `floorStep`). */
 const ACTION_TRIAL_GM = "trial.gm";
+// A round's step from a participant's browser (E70 C7): the speaker's Done or Pass, anyone's step over once it is due.
+const ACTION_TRIAL_TURN = "trial.turn";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
@@ -1839,10 +1841,19 @@ async function handleFloorRepoint(payload) {
 async function handleTrialGm(payload) {
     const { floorOnPrimary } = await import("./trial-floor.mjs");
     const out = await floorOnPrimary(payload.op, {
-        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text
+        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text,
+        order: payload.order
     });
     if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
     return { reply: out };
+}
+
+/** The run of `trial.turn` (E70 C7): a round's step, judged on this primary (trial-modes.mjs `turnOnPrimary`). */
+async function handleTrialTurn(payload, sender) {
+    const { turnOnPrimary } = await import("./trial-modes.mjs");
+    const out = await turnOnPrimary({ actorId: payload.actorId, kind: payload.kind, step: payload.step }, sender.id);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
 }
 
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
@@ -2793,7 +2804,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_FLOOR_NOW]: {
         label: "DRPG.Bridge.what.floor.now",
         guards: [gmOnly("only a GM moves the trial's floor on")],
-        sanitize: pick({ mode: as.oneOf("objection", "rebuttal"), startedAt: as.num }),
+        // E70 C7: a round's turn skipped by a GM that is not the primary rides the same Now.
+        sanitize: pick({ mode: as.oneOf("objection", "rebuttal", "testimony", "panic"), startedAt: as.num }),
         run: handleFloorNow,
         answer: "reply",
         claims: {
@@ -2884,8 +2896,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM changes the trial's floor")],
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-                "adjust", "endMode", "overrule"),
-            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text
+                "adjust", "endMode", "overrule", "testimony", "panic"),
+            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text
         }),
         run: handleTrialGm,
         answer: "reply",
@@ -2893,7 +2905,28 @@ export const BRIDGE_ACTIONS = table({
             actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
             targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
             messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing",
-            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; a GM's request only"
+            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; a GM's request only",
+            order: "a round's order a GM gives (E70 C7), ids joined by commas: trial-floor.mjs startRoundInStep keeps only the trial's participants as the primary holds them (vote.mjs trialParticipants), once each, and draws the rest; a GM's request only"
+        }
+    },
+    /*
+     * A ROUND'S STEP FROM A PARTICIPANT'S BROWSER (E70 C7, 28.10.2026; E70-44, E70-45; S06-38: the GM's tab in the
+     * background held a turn past its end). The speaker's owner ends the turn (Done) or passes it (Pass); any
+     * participant's owner calls it over once it has run out on the primary's clock (a second's grace). Judged on the
+     * primary (trial-modes.mjs `turnOnPrimary`): a Class Trial, a round on the floor, the character a participant of it,
+     * the step the floor is at, Done and Pass the speaker's alone (floor-machine.mjs `done`, `pass`, `over`), one step
+     * over per sender and step; the first that matches moves the round, every later one finds the next step. "reply":
+     * the speaker's window closes on it; a step over is asked quietly (nobody waits on it).
+     */
+    [ACTION_TRIAL_TURN]: {
+        label: "DRPG.Bridge.what.trial.turn",
+        guards: [knownSender, owns("actorId", "sender does not own the character speaking")],
+        sanitize: pick({ actorId: as.id, kind: as.oneOf("done", "pass", "over"), step: as.num }),
+        run: handleTrialTurn,
+        answer: "reply",
+        claims: {
+            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds",
+            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds; any other is refused and moves nothing"
         }
     },
     /*
@@ -3176,10 +3209,27 @@ export function requestRepoint(targetId) {
  * A GM's change of the trial's floor, asked of the primary GM (E70 C0; trial-floor.mjs `floorStep`). Its value is the
  * floor written, `{}` for an end; the primary itself runs it in place.
  */
-export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null } = {}) {
-    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text }, {
+export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null, order = null } = {}) {
+    // A round's order travels as one string of ids (E70 C7; the row's `as.text`).
+    const joined = Array.isArray(order) ? order.join(",") : order;
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined }, {
         onPrimary: true,
-        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text }))
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined }))
+    });
+}
+
+/**
+ * A round's step from this browser (E70 C7; trial-prompt.mjs): `kind` done or pass for the speaker's own turn, over for
+ * a turn run out. Its value is `{ step }`, the step written. A step over is quiet: the floor says what came of it.
+ */
+export function requestTurn({ actorId, kind, step }) {
+    return ask(ACTION_TRIAL_TURN, { actorId, kind, step }, {
+        onPrimary: true,
+        ...(kind === "over" ? { quiet: true } : {}),
+        local: () => import("./trial-modes.mjs").then(m => m.turnOnPrimary({ actorId, kind, step }, game.user.id)).then(out => {
+            if (out?.refused && kind !== "over") sayNotDone(ACTION_TRIAL_TURN, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
     });
 }
 

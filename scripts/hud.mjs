@@ -1178,6 +1178,9 @@ export function trialSlot() {
             versus = game.i18n.format("DRPG.Hud.trialVersus", {
                 who: floorHolder(floor)?.name ?? unknown
             });
+        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
+            // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}".
+            speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
         }
 
         return { key, label: game.i18n.localize(`DRPG.Hud.trial.${key}`), speaker, versus };

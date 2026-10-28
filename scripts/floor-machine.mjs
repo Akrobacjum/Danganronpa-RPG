@@ -26,8 +26,87 @@
 
 import { TRIAL } from "./config.mjs";
 
-/** The three modes of today's floor, spelled once (trial-floor.mjs `FLOOR_MODES` is this object). */
-export const MODES = Object.freeze({ debate: "debate", objection: "objection", rebuttal: "rebuttal" });
+/**
+ * The floor's modes, spelled once (trial-floor.mjs `FLOOR_MODES` is this object): the debate and its exchange, and since
+ * E70 C7 the two rounds, Testimony and Panic Round (S18-72), whose speaker is the round's, one after another.
+ */
+export const MODES = Object.freeze({ debate: "debate", objection: "objection", rebuttal: "rebuttal", testimony: "testimony", panic: "panic" });
+
+/*
+ * THE ROUNDS (E70 C7, 28.10.2026; S18-72; the owner's TR6 "Zeznanie - maks 2 minuty na osobe. Nie 3.", TR14 = 3, of
+ * 27.10 "Skrocmy proponowane testimony do 1 minuty", and Panic Round "10-15 sekund maks"). A round is a floor whose
+ * speaker is one participant at a time, in an order frozen at its start: `round` `{ mode, order, index, step, seconds,
+ * openedAt }`
+ * - the mode the round is, the actors in order, whose turn it is, the step (every move of the round counts one, so a
+ * participant's Done, Pass or step over names the step it was meant for and a late one changes nothing - "trial.turn",
+ * trial-modes.mjs `turnOnPrimary`) and the turn's length. The round stays on the floor through an Objection's
+ * exchange (every row spreads the floor), so the exchange's end can resume it.
+ */
+export const ROUND_MODES = Object.freeze([MODES.testimony, MODES.panic]);
+
+/** Whether `mode` is a round's: Testimony or Panic Round. */
+export function isRoundMode(mode) {
+    return ROUND_MODES.includes(mode);
+}
+
+/**
+ * A round mode's turn range, `{ min, max }` in seconds (config.mjs `TRIAL.modes.round`), or null for any other mode: the
+ * start is held to it (TR26 = 1: a start limit guards the start and the API only - +30 s during a turn may pass it).
+ */
+export function turnRange(mode) {
+    const row = TRIAL.modes?.round?.[mode];
+    return row ? { min: Number(row.min) || 0, max: Number(row.max) || 0 } : null;
+}
+
+/** The floor's round, or null: on a round's own mode, and under its exchange. */
+function roundOf(floor) {
+    const round = floor?.round;
+    return round && isRoundMode(round.mode) && Array.isArray(round.order) ? round : null;
+}
+
+/**
+ * The round's turn at `from` or after: the first speaker whose owner is connected (`absent` lists the actors with none -
+ * the step's caller reads the users), each passed over told as passing ("{name} passes.", E70-45); none left ends the
+ * round with its card. `step` is the step the new turn is.
+ */
+function turnAt(floor, round, from, now, cards, absent, step) {
+    const out = [...cards];
+    const away = new Set(Array.isArray(absent) ? absent : []);
+    for (let i = from; i < round.order.length; i++) {
+        const id = round.order[i];
+        if (away.has(id)) {
+            out.push({ key: "DRPG.Floor.round.passes", actorId: id, title: `DRPG.Floor.mode.${round.mode}` });
+            continue;
+        }
+        return { floor: {
+            ...floor, mode: round.mode, holderId: id, targetId: null, seconds: round.seconds ?? floor.seconds, startedAt: now,
+            pending: false, messageId: null, before: [], gmNote: null, round: { ...round, index: i, step }
+        }, cards: out };
+    }
+    return { floor: null, cards: [...out, { key: "DRPG.Floor.round.over", mode: round.mode, title: `DRPG.Floor.mode.${round.mode}` }] };
+}
+
+/** The next speaker's turn: the queue goes on (a turn done, passed, run out or skipped; an exchange in it over). */
+function nextTurn(floor, now, cards, ctx) {
+    const round = roundOf(floor);
+    return turnAt(floor, round, (Number(round.index) || 0) + 1, now, cards, ctx?.absent, (Number(round.step) || 0) + 1);
+}
+
+/**
+ * The interrupted speaker again, with the seconds the turn had when the Objection cut in (the stack's round entry,
+ * `leftAtObjection`): an Objection that lapsed or was withdrawn, Back to the round, as an Overrule gives it (TR25).
+ */
+function speakerAgain(floor, now, gmNote = null) {
+    const round = roundOf(floor);
+    const entry = stackOf(floor).find(e => isRoundMode(e?.before?.mode)) ?? null;
+    const was = entry?.before ?? { mode: round.mode, holderId: round.order[round.index] ?? null, seconds: round.seconds };
+    const back = {
+        ...floor, mode: was.mode, holderId: was.holderId ?? null, targetId: null, seconds: was.seconds ?? round.seconds,
+        pending: false, messageId: null, before: [], gmNote, round: { ...round, step: (Number(round.step) || 0) + 1 }
+    };
+    back.startedAt = now - (modeSecondsOf(back) - Math.max(Number(entry?.leftAtObjection) || 0, 0)) * 1000;
+    return { floor: back, cards: [] };
+}
 
 /** How long each timed mode runs; a debate's length is the GM's budget, the floor's `seconds`. */
 const TIMED = { [MODES.objection]: TRIAL.objectionSeconds, [MODES.rebuttal]: TRIAL.rebuttalSeconds };
@@ -72,7 +151,8 @@ function debateAgain(floor, seconds, now, gmNote = null) {
         pending: false,
         messageId: null,
         before: [],
-        gmNote
+        gmNote,
+        round: null
     };
 }
 
@@ -104,10 +184,13 @@ export function topicOf(value) {
  * ends the floor (Dawid, 28.08: the exchange is over and the trial is back in discussion, not in a debate nobody
  * opened). A debate has no next step: it never runs out by itself, and nobody's turn is in it to skip.
  */
-function stepOn(floor, now, cards) {
-    if (floor.mode === MODES.objection && floor.pending) return { floor: debateAgain(floor, null, now), cards };
+function stepOn(floor, now, cards, ctx = {}) {
+    const inRound = Boolean(roundOf(floor));
+    if (floor.mode === MODES.objection && floor.pending) return inRound ? { ...speakerAgain(floor, now), cards } : { floor: debateAgain(floor, null, now), cards };
     if (floor.mode === MODES.objection) return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards };
-    if (floor.mode === MODES.rebuttal) return ended(cards, true);
+    // A rebuttal in a round resumes the queue at the next speaker (E70-42), the due tick's road and Skip's alike.
+    if (floor.mode === MODES.rebuttal) return inRound ? nextTurn(floor, now, cards, ctx) : ended(cards, true);
+    if (isRoundMode(floor.mode) && inRound) return nextTurn(floor, now, cards, ctx);
     return { refused: "DRPG.Floor.bar.noTurn" };
 }
 
@@ -152,9 +235,11 @@ export function overruleTarget({ floor = null, objections = {}, trialStartedAt =
 }
 
 /**
- * What `floor` becomes after `event`, at `ctx.now`. Events: `start` { seconds, topic }, `objection` { holderId, targetId,
- * pending, messageId, cardId }, `fill`, `repoint` { targetId }, `rebuttal`, `due`, `skip`, `lapse`, `withdraw`,
- * `adjust` { seconds, signed }, `back` { seconds, note }, `overrule`, `end`, `endMode`. Never mutates `floor`.
+ * What `floor` becomes after `event`, at `ctx.now`. Events: `start` { seconds, topic }, `round` { mode, seconds, order },
+ * `objection` { holderId, targetId, pending, messageId, cardId }, `fill`, `repoint` { targetId }, `rebuttal`, `due`,
+ * `skip`, `lapse`, `withdraw`, `adjust` { seconds, signed }, `back` { seconds, note }, `overrule`, `end`, `endMode`, and a
+ * round's `done` / `pass` { actorId, step }, `over` { step } and `gone` { actorId }. `ctx.absent`: the actors whose owner
+ * is not connected (a round passes them, E70-45). Never mutates `floor`.
  */
 export function nextFloor(floor, event = {}, ctx = {}) {
     const now = Number(ctx.now) || 0;
@@ -165,8 +250,27 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             seconds: Number(event.seconds) > 0 ? Number(event.seconds) : TRIAL.speakSeconds,
             startedAt: now, pending: false, messageId: null, before: [], gmNote: null, topic: topicOf(event.topic),
             // Left over from the queue the floor used to be: cleared rather than ignored.
-            order: null, current: null
+            order: null, current: null, round: null
         }, cards: [] };
+    }
+    if (type === "round") {
+        /*
+         * A ROUND OPENS (E70 C7; E70-40, E70-41, E70-43): on no floor or on a debate, never inside an exchange or another
+         * round; its turn held to the mode's range (`turnRange`: Testimony 30-120 s, Panic Round 10-15 s), here and so on
+         * every road - the start window, the API, a GM's packet; the order as the caller froze it (trial-modes.mjs
+         * `roundOrder`: the trial's participants), once each; the first speaker with an owner connected.
+         */
+        if (!isRoundMode(event.mode)) return { refused: "DRPG.Floor.bar.noMode" };
+        if (floor && floor.mode !== MODES.debate) return { refused: "DRPG.Floor.round.busy" };
+        const range = turnRange(event.mode);
+        const seconds = Math.round(Number(event.seconds) || 0);
+        if (seconds < range.min) return { refused: "DRPG.Floor.round.tooShort" };
+        if (seconds > range.max) return { refused: "DRPG.Floor.round.tooLong" };
+        const order = [...new Set((Array.isArray(event.order) ? event.order : []).filter(id => typeof id === "string" && id))];
+        const base = { active: true, pending: false, messageId: null, before: [], gmNote: null, topic: null, order: null, current: null };
+        // `openedAt` names this round (trial-modes.mjs `turnOnPrimary` keys a sender's step over by it).
+        const opened = turnAt(base, { mode: event.mode, order, index: -1, step: 0, seconds, openedAt: now }, 0, now, [], ctx.absent, 1);
+        return opened.floor ? opened : { refused: "DRPG.Floor.round.nobody" };
     }
     if (!floor) return { refused: "DRPG.Floor.bar.noMode" };
 
@@ -191,13 +295,35 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         case "rebuttal":
             return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards: [] };
         case "due":
-            return stepOn(floor, now, []);
+            return stepOn(floor, now, [], ctx);
         case "skip":
             if (floor.mode === MODES.debate) return { refused: "DRPG.Floor.bar.noTurn" };
-            return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }]);
+            return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }], ctx);
         case "lapse":
         case "withdraw":
-            return { floor: debateAgain(floor, null, now), cards: [] };
+            // In a round's exchange the speaker gets the turn's rest back, as the debate gets its rest (E79 C16).
+            return roundOf(floor) ? speakerAgain(floor, now) : { floor: debateAgain(floor, null, now), cards: [] };
+        case "done":
+        case "pass":
+        case "over":
+        case "gone": {
+            /*
+             * A STEP OF THE ROUND FROM A PARTICIPANT'S BROWSER (E70 C7; E70-44, E70-45; S06-38). Done and Pass are the
+             * speaker's alone; a step over is anybody's, once the turn has run out on this clock but for a second's grace
+             * (`TRIAL.modes.round.graceSeconds`: a browser counting from the same stamp may round a second early); each
+             * names the step it is for, so the first that matches moves the round and every later one finds the next
+             * step - seven browsers' step overs move it once. A speaker gone (no owner connected) passes. The GM's clock
+             * is the backstop: the heartbeat's `due` above.
+             */
+            const round = roundOf(floor);
+            if (!round || !isRoundMode(floor.mode)) return { refused: "DRPG.Floor.round.noTurn" };
+            if (type !== "gone" && Number(event.step) !== Number(round.step)) return { refused: "DRPG.Floor.round.stale" };
+            if (type !== "over" && event.actorId !== floor.holderId) return { refused: "DRPG.Floor.round.notSpeaker" };
+            const grace = (Number(TRIAL.modes?.round?.graceSeconds) || 0) * 1000;
+            if (type === "over" && modeSecondsOf(floor) * 1000 - (now - (Number(floor.startedAt) || 0)) > grace) return { refused: "DRPG.Floor.round.notDue" };
+            const told = type === "pass" || type === "gone" ? [{ key: "DRPG.Floor.round.passes", actorId: floor.holderId, title: `DRPG.Floor.mode.${round.mode}` }] : [];
+            return nextTurn(floor, now, told, ctx);
+        }
         case "adjust": {
             const seconds = Number(event.seconds) || 0;
             if (!seconds) return { refused: "DRPG.Floor.bar.noMode" };
@@ -209,7 +335,7 @@ export function nextFloor(floor, event = {}, ctx = {}) {
              */
             if (seconds < 0 && floor.mode === MODES.debate && left <= 0) return { refused: "DRPG.Floor.bar.noTime" };
             if (seconds < 0 && floor.mode !== MODES.debate && Math.max(left, 0) + seconds <= 0) {
-                return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }]);
+                return stepOn(floor, now, [{ key: "DRPG.Floor.turnSkipped", actorId: turnOf(floor) }], ctx);
             }
             /*
              * FROM NOW, NOT FROM A CLOCK THAT HAS ALREADY RUN OUT (F9), and past a mode's own length when the GM
@@ -227,6 +353,9 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             // A debate restarted with a length the caller named is the API's, as before; without one there is
             // nothing to go back to.
             if (floor.mode === MODES.debate && given === null) return { refused: "DRPG.Floor.bar.inDebate" };
+            // A round has no debate to go back to; in its exchange, Back gives the speaker the turn's rest (E70 C7).
+            if (isRoundMode(floor.mode)) return { refused: "DRPG.Floor.bar.inRound" };
+            if (roundOf(floor)) return speakerAgain(floor, now);
             return { floor: debateAgain(floor, given, now, event.note ? { key: "DRPG.Floor.gmNoteBack", at: now } : null), cards: [] };
         }
         case "overrule": {
@@ -245,6 +374,8 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             const entry = stack.at(-1);
             if (!entry?.before) return { floor: debateAgain(floor, null, now, note), cards: [] };
             const was = entry.before;
+            // A round's speaker brought back (E70 C7; E70-46): the turn's rest, nothing under it, and the next step.
+            if (isRoundMode(was.mode) && roundOf(floor)) return speakerAgain(floor, now, note);
             const back = {
                 ...floor,
                 mode: was.mode ?? MODES.debate,
@@ -264,7 +395,10 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             return ended();
         case "endMode":
             /* END THIS MODE (TR21; TR11 = 1): a debate's end closes it, and an Objection or a rebuttal ended by the
-               GM ends the floor as a rebuttal's own end does - the exchange is over, the trial is in discussion. */
+               GM ends the floor as a rebuttal's own end does - the exchange is over, the trial is in discussion. A round
+               ended ends it (E70 C7); an exchange in a round ended resumes the queue, as its rebuttal's end would. */
+            if (isRoundMode(floor.mode)) return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }]);
+            if (roundOf(floor)) return nextTurn(floor, now, [{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], ctx);
             return ended([{ key: "DRPG.Floor.modeEnded", mode: floor.mode }], floor.mode !== MODES.debate);
         default:
             return { refused: "DRPG.Floor.bar.noMode" };

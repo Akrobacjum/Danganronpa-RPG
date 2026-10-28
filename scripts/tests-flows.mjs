@@ -99,11 +99,13 @@ export const FLOWS = Object.freeze([
     // E70 fix p1-G2 (1.2.90): every write of the trial's record by a GM that is not the primary - a patch, the reset, the
     // execution, the sentence taken back - is asked of it through `trial.record` (vote.mjs `recordOnPrimary`); 63 R sends it
     // from gm3, 30 a forged one from p1.
-    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
+    // E70 C7 (1.2.90): a round's step from a participant's browser - the speaker's Done or Pass, anyone's step over once
+    // the turn has run out - is asked of the primary through `trial.turn` (trial-prompt.mjs); 67 drives it from the players.
+    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
-            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record"],
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },

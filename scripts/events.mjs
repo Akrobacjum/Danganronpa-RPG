@@ -443,6 +443,14 @@ export function trialCard(clock) {
         } else if (floor?.mode === FLOOR_MODES.rebuttal) {
             speaker = floorTarget(floor)?.name ?? unknown;
             meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
+            /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
+               is the last turn, from the order frozen at the round's start. */
+            speaker = floorHolder(floor)?.name ?? unknown;
+            const order = floor.round?.order ?? [];
+            const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
+            meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
+                : game.i18n.localize("DRPG.Events.trialLastTurn");
         }
         return {
             kind: "trial",

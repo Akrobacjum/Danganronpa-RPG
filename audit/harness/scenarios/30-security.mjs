@@ -5926,6 +5926,15 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objTrialRecord, "gmOnly") && objTrialRecord.logged.some(r => /only a GM writes the trial's record/.test(r))
             && objRecordAfter[0] !== "SEC forged question" && objRecordAfter[1] !== true && objTrialRecord.after.mode === objTrialRecord.before.mode,
         JSON.stringify({ objTrialRecord, objRecordAfter }), { flow: "class-trial" });
+    /* E70 C7 (1.2.90): a round's step (`trial.turn`) forged from p1's console during Aiko's running Objection - Botan's Done
+       (not p1's character) and Aiko's own step over (no round holds the floor). Each refused and told with its code; the
+       floor still the Objection aimed at Chie. The legal road is the players' own (67 T, P). */
+    const objTurnBotan = await objSend(p1, "trial.turn", { actorId: ids.botan, kind: "done", step: 1 }, "SECOBJTURNBOTAN");
+    const objTurnOver = await objSend(p1, "trial.turn", { actorId: ids.aiko, kind: "over", step: 1 }, "SECOBJTURNOVER");
+    check("SECURITY: p1's round steps during Aiko's running Objection are refused - Botan's Done (ownership) and Aiko's step over (no round) - the floor as it was",
+        refusedAs(objTurnBotan, null) && objTurnBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objTurnOver, "floorClosed")
+            && objTurnOver.after.mode === "objection" && objTurnOver.after.target === ids.chie && objTurnOver.after.cards === objTurnOver.before.cards,
+        JSON.stringify({ objTurnBotan, objTurnOver }), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

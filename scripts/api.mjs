@@ -1070,6 +1070,11 @@ export const DrpgApi = {
     /* Overrule (E70 C2; S18-77): `overruleObjection()` the newest Objection, `overruleObjection(messageId)` the one on
        that card - refused, and said why, for any but the newest of this trial. The price stays. */
     overruleObjection,
+    /* The rounds (E70 C7; E70-46): `startTestimony({ seconds, order })` - 60 s offered, 30-120 s - and
+       `startPanicRound({ seconds, order })` - 15 s, 10 s from 12 participants, 10-15 s; `order` actor ids, the rest of the
+       trial's participants drawn after them. Only in a Class Trial; refused, and said why, past the range. */
+    startTestimony: (...a) => import("./trial-modes.mjs").then(m => m.startTestimony(...a)),
+    startPanicRound: (...a) => import("./trial-modes.mjs").then(m => m.startPanicRound(...a)),
 
     openVote,
     closeVote,
