@@ -4939,6 +4939,23 @@
       "restoredClamped": {"one": "{n} row was stamped later than the clock allows and was taken at this moment.", "other": "{n} rows were stamped later than the clock allows and were taken at this moment."},
       "moveTraces": "Move them into the ledger",
       "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
+    },
+    "Reveal": {
+      "section": "Missing Key Remnants",
+      "left": "Left to reveal: {n}",
+      "button": "Reveal",
+      "noTrace": "not on the map",
+      "title": "Monokuma's Reveal",
+      "intro": "Everyone taking part in the trial receives {name} as a Key Remnant they found. Analyzing it costs what Analyze always costs.",
+      "textLabel": "What the players read",
+      "beyondPaid": "No Despair was charged for this Key Remnant. Reveal it anyway?",
+      "told": "Monokuma reveals a Key Remnant you never found.",
+      "defaultName": "Key Remnant",
+      "notHydrated": "The Key Remnant plan is still loading. Try again in a moment.",
+      "notMissing": "That Key Remnant is not missing: somebody found it, or Monokuma has revealed it.",
+      "pastPaid": "Every Key Remnant the Despair was charged for has been revealed. Confirm to reveal another.",
+      "noText": "Write what the players read on this Key Remnant first.",
+      "notDone": "The Key Remnant was not revealed."
     }
   }
 }

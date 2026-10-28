@@ -5992,6 +5992,10 @@
         "closingStart": {
           "label": "Closing Argument",
           "hint": "Zaczyna się Closing Argument: kto podsumuje sprawę? Słyszy cały stół."
+        },
+        "keyReveal": {
+          "label": "Ujawnienie Monokumy",
+          "hint": "Monokuma ujawnia Key Remnant, którego nikt nie znalazł. Słyszy każdy uczestnik rozprawy."
         }
       }
     },
@@ -6316,6 +6320,23 @@
       "restoredClamped": {"one": "{n} wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.", "few": "{n} wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "many": "{n} wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "other": "{n} wiersza miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą."},
       "moveTraces": "Przenieś je do rejestru",
       "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego śladu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
+    },
+    "Reveal": {
+      "section": "Brakujące Key Remnanty",
+      "left": "Do ujawnienia: {n}",
+      "button": "Ujawnij",
+      "noTrace": "nie ma go na mapie",
+      "title": "Ujawnienie Monokumy",
+      "intro": "Każdy uczestnik rozprawy dostaje {name} jako znaleziony Key Remnant. Analyze kosztuje tyle co zawsze.",
+      "textLabel": "Co czytają gracze",
+      "beyondPaid": "Za ten Key Remnant nie pobrano Despair. Ujawnić mimo to?",
+      "told": "Monokuma ujawnia Key Remnant, którego nie udało ci się znaleźć.",
+      "defaultName": "Key Remnant",
+      "notHydrated": "Plan Key Remnantów jeszcze się wczytuje. Spróbuj za chwilę.",
+      "notMissing": "Ten Key Remnant nie jest brakujący: ktoś go znalazł albo Monokuma już go ujawnił.",
+      "pastPaid": "Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.",
+      "noText": "Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.",
+      "notDone": "Key Remnant nie został ujawniony."
     }
   }
 }

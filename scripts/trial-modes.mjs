@@ -1,6 +1,6 @@
 /**
- * Danganronpa RPG - the Class Trial's tools beside the debate: the rounds (E70 C7, 28.10.2026) and the Closing Argument
- * (E70 C8, 28.10.2026).
+ * Danganronpa RPG - the Class Trial's tools beside the debate: the rounds (E70 C7, 28.10.2026), the Closing Argument
+ * (E70 C8, 28.10.2026) and Monokuma's Reveal (E70 C9, 28.10.2026).
  * ---------------------------------------------------------------------------
  * The guide's trial is more than a debate and its Objections. TESTIMONY: every participant in turn, a minute each (the
  * owner, TR6: "Zeznanie - maks 2 minuty na osobe. Nie 3."; 27.10: "Skrocmy proponowane testimony do 1 minuty"), the GM
@@ -23,10 +23,12 @@
  * measured headless: LIVE-E70-07, LIVE-E70-08.
  */
 
-import { TRIAL } from "./config.mjs";
-import { error, isPrimaryGm, serialWrite } from "./utils.mjs";
+import { TRIAL, MODULE_ID } from "./config.mjs";
+import { error, isPrimaryGm, serialWrite, log, esc, whisperToOwner } from "./utils.mjs";
+import { getClock } from "./clock.mjs";
+import { missingKeyRows, keyRevealRecord, recordKeyRevealed } from "./investigation.mjs";
 import { MODES, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
-import { closingClaimStore } from "./gm-stores.mjs";
+import { closingClaimStore, keyPlanStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 
 /** The turn the Testimony window offers (60 s since the owner's 27.10 answer; the range stays 30-120 s). */
@@ -317,4 +319,115 @@ export async function endClosingForVote() {
         error("Could not end the Closing Argument as the vote opened", err);
         return null;
     }
+}
+
+/* ==========================================================================
+ * MONOKUMA'S REVEAL (E70 C9, 28.10.2026; S18-71; TR5 = 1, TR28 = 1; amend 4 (f), (h), 5 (c); Q-p2-2)
+ *
+ * A Key Remnant nobody found was lost to the trial for good, and the table paid 3 Despair a Monokuma for it at the
+ * trial's opening (investigation.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: "trafia do kazdego
+ * uczestnika jak znaleziony, ze znanym typem i tekstem dla gracza, a odczyt dalej przez Analyze" (TR5 = 1). So each
+ * participant (vote.mjs `trialParticipants`: no Monocub, nobody dead) is handed a copy as a find would hand it - typed
+ * Key, the players' text, not read (the owner's Q-p2-2 of 27.10: Analyze at its usual cost, and E16's one filter keeps
+ * it open, action-rolls.mjs `ANALYZE_TRIAL_FILTER`) - with no fee, and its trace is revealed on a find's road
+ * (remnants.mjs `markKeyFound`, source "reveal"). As many as the fee charged for (`paid`, written with the fee and never
+ * counted again: a Key placed or found after the charge changes nothing of it); past that only when the GM confirms
+ * "No Despair was charged for this Key Remnant. Reveal it anyway?" (TR28 = 1). Once per row. The copies are minted on
+ * the primary, in a step of the floor's key (trial-floor.mjs `FLOOR_OPS.reveal`, the GMs' row "trial.gm" op "reveal"),
+ * so two GMs' Reveals of one row are one after the other and the second finds it revealed.
+ * ========================================================================== */
+
+/** How many Key Remnants are left to reveal within the fee: `paid` less the rows revealed, never below 0. */
+export function revealLeft(record) {
+    const paid = Math.max(Number(record?.paid) || 0, 0);
+    const revealed = Array.isArray(record?.revealed) ? record.revealed.length : 0;
+    return Math.max(paid - revealed, 0);
+}
+
+/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (investigation.mjs `missingKeyRows`), on a GM. */
+export function missingKeys() {
+    return missingKeyRows();
+}
+
+/**
+ * Why `id` cannot be revealed now, in the GM's words, or null: no Class Trial; the GMs' plan not in on this browser yet;
+ * no such missing row (found, revealed, or never written); past the fee without `beyondPaid`; no words for the players.
+ * Asked on the GM who presses and again in the primary's step.
+ */
+export function revealRefusal(id, { text = "", beyondPaid = false } = {}) {
+    if (getClock()?.phase !== "classTrial") return game.i18n.localize("DRPG.Floor.bar.notTrial");
+    if (!keyPlanStore.isHydrated?.()) return game.i18n.localize("DRPG.Reveal.notHydrated");
+    const row = missingKeyRows().find(r => r.id === String(id ?? ""));
+    if (!row) return game.i18n.localize("DRPG.Reveal.notMissing");
+    if (!beyondPaid && revealLeft(keyRevealRecord()) <= 0) return game.i18n.localize("DRPG.Reveal.pastPaid");
+    if (!row.text && !String(text ?? "").trim()) return game.i18n.localize("DRPG.Reveal.noText");
+    return null;
+}
+
+/**
+ * `game.drpg.revealMissingKey(slot, { text, beyondPaid })` (E70-64), on any GM: `slot` a row's `id` of `missingKeys()`
+ * (a slot's number, or a trace's `sceneId.tokenId` off the plan); `text` the players' words where the row has none;
+ * `beyondPaid` past the fee's count. Said why here when refused, judged again on the primary.
+ */
+export async function revealMissingKey(slot, { text = "", beyondPaid = false } = {}) {
+    if (!game.user.isGM) return null;
+    const id = String(slot ?? "");
+    const refused = revealRefusal(id, { text, beyondPaid });
+    if (refused) {
+        ui.notifications.warn(refused);
+        return null;
+    }
+    const { floorStep } = await import("./trial-floor.mjs");
+    const out = await floorStep("reveal", { slot: id, text: String(text ?? ""), beyondPaid: Boolean(beyondPaid) });
+    if (out === null) ui.notifications.warn(game.i18n.localize("DRPG.Reveal.notDone"));
+    return out;
+}
+
+/**
+ * THE REVEAL, in a step of the floor's key on the primary (trial-floor.mjs `FLOOR_OPS.reveal`): judged again
+ * (`revealRefusal`), then one copy to each participant who holds none of the trace, the trace shown, the row kept as
+ * revealed and each participant told ("Monokuma reveals a Key Remnant you never found.", the Reveal's sound).
+ * `{ id, copies }`, or null when refused (the reason in the log).
+ */
+export async function revealInStep({ slot = null, text = "", beyondPaid = false } = {}) {
+    if (!isPrimaryGm()) return null;
+    const id = String(slot ?? "");
+    const refused = revealRefusal(id, { text, beyondPaid });
+    if (refused) {
+        log(`Monokuma's Reveal of ${id || "nothing"} refused: ${refused}`);
+        return null;
+    }
+    const row = missingKeyRows().find(r => r.id === id);
+    const words = row.text || String(text ?? "").trim();
+    const { trialParticipants } = await import("./vote.mjs");
+    const { createTruthBullet, copiedRemnants } = await import("./truth-bullets.mjs");
+    const { remnantData, tieForCopy, markKeyFound } = await import("./remnants.mjs");
+    const { observeFindKey } = await import("./observe.mjs");
+    const tokenDoc = row.hasTrace ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+    const data = tokenDoc ? remnantData(tokenDoc) : null;
+    const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
+    let copies = 0;
+    for (const { actor } of trialParticipants()) {
+        // None twice (E70-63): a participant already holding a copy of the trace keeps theirs. In the character's
+        // finds' queue (observe.mjs `observeFindKey`), so an Observe's find landing now is one copy with this.
+        const made = await serialWrite(observeFindKey(actor.id), () => (row.tokenId && copiedRemnants(actor).has(row.tokenId)) ? null : createTruthBullet(actor, {
+            name, realType: "key", shownType: null, analyzed: null,
+            visibility: data?.visibility ?? "evident", faint: false,
+            playerText: words, analyzedText: row.analysis ?? "", img: data?.public?.img ?? null, gmNote: data?.note ?? "",
+            remnantId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: data?.room ?? null,
+            sourceAction: data?.action ?? null,
+            tiedToCrime: data ? tieForCopy(data, { sceneId: row.sceneId, tokenId: row.tokenId }) : null
+        }));
+        if (!made) continue;
+        copies++;
+        await whisperToOwner(actor, `<h3>${game.i18n.localize("DRPG.Reveal.told")}</h3>
+            <p><strong>${esc(name)}</strong></p>
+            <p>${esc(words)}</p>
+            <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`,
+            { flags: { [MODULE_ID]: { sfx: "keyReveal" } } });
+    }
+    if (tokenDoc) await markKeyFound({ sceneId: row.sceneId, tokenId: row.tokenId }, { source: "reveal" });
+    await recordKeyRevealed(getClock().chapter, id);
+    log(`Monokuma's Reveal: ${name} (${id}) to ${copies} participant(s).`);
+    return { id, copies };
 }

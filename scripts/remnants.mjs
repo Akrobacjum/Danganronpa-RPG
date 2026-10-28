@@ -1329,7 +1329,7 @@ export async function neutralTraceNames({ tokens = null } = {}) {
  * `visible = false` back down on `refreshToken` for anyone who does not
  * qualify, not by keeping the token `hidden` for everyone.
  */
-export async function revealRemnantToFinder(tokenDoc) {
+export async function revealRemnantToFinder(tokenDoc, { tell = true } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
     if (!tokenDoc.hidden) return tokenDoc;
 
@@ -1357,7 +1357,7 @@ export async function revealRemnantToFinder(tokenDoc) {
      */
     try {
         const entry = readRemnantLedger()[keyOf(tokenDoc)];
-        if (!entry?.gmEdited) {
+        if (tell && !entry?.gmEdited) {
             await whisperTraceNow(tokenDoc, "DRPG.Remnant.foundTitle");
         }
     } catch (err) {
@@ -1391,6 +1391,23 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
 export async function revealRemnantToFinderById(sceneId, tokenId) {
     const tokenDoc = tokenById(sceneId, tokenId);
     return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
+}
+
+/**
+ * A KEY REMNANT'S FIRST FIND BY ANOTHER ROAD THAN A ROLL (E70 C9, 28.10.2026; amend 4 (h), TR5 = 1): Monokuma's Reveal
+ * (trial-modes.mjs `revealMissingKey`, source "reveal") hands every participant a copy as a find would, and the trace
+ * is revealed on the road a find takes (`revealRemnantToFinder`) - its token un-hidden, and from then on each holder
+ * sees it by visibility.mjs's rule. Once: a trace already revealed is left as it is. Without the GMs' "a trace was
+ * found, say what it is" whisper for a reveal - the GM chose this Key and its words a moment ago. Answers
+ * `{ first, source }` (whether this un-hid the token), or null for no trace.
+ */
+export async function markKeyFound({ sceneId = null, tokenId = null } = {}, { source = "find" } = {}) {
+    if (!game.user.isGM) return null;
+    const tokenDoc = tokenById(sceneId, tokenId);
+    if (!tokenDoc) return null;
+    const first = Boolean(tokenDoc.hidden);
+    await revealRemnantToFinder(tokenDoc, { tell: source !== "reveal" });
+    return { first, source };
 }
 
 /**

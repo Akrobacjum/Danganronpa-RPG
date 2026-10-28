@@ -181,7 +181,7 @@ async function writeFloor(patch) {
 
 /** The ops a GM's change of the floor names, here and in gm-bridge.mjs "trial.gm" (its `as.oneOf`): `FLOOR_OPS`' keys. */
 export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-    "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue", "closingResume"]);
+    "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue", "closingResume", "reveal"]);
 
 /*
  * Each op's in-step twin, handed what the op reads. A count the bridge did not carry reads 0 there (`as.num`), and
@@ -221,7 +221,11 @@ const FLOOR_OPS = {
     closingConfirm: () => closingStepInStep({ type: "confirm" }),
     closingPick: ({ actorId }) => closingStepInStep({ type: "pick", actorId: actorId || null }),
     closingContinue: ({ actorId }) => closingStepInStep({ type: "continue", actorId: actorId || null }),
-    closingResume: () => closingStepInStep({ type: "resume" })
+    closingResume: () => closingStepInStep({ type: "resume" }),
+    // Monokuma's Reveal (E70 C9): a missing Key Remnant to every participant, minted here on the primary and judged in
+    // the step (trial-modes.mjs `revealInStep`); `slot` the row's id, `text` the players' words where the row has none.
+    // It writes no floor: in the floor's key so that two GMs' Reveals of one row are one after the other.
+    reveal: ({ slot = null, text = "", beyondPaid = false }) => import("./trial-modes.mjs").then(m => m.revealInStep({ slot, text, beyondPaid }))
 };
 
 /** Whether the campaign is in its Class Trial phase: the GM's bar moves nothing outside it (DX2 = 2). */

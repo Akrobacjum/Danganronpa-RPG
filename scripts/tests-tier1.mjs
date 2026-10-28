@@ -25283,6 +25283,62 @@ const INVARIANTS = [
             refusal: [true, null, null, true]
         }), "a Closing row is not the owner's rule (the start, the volunteers and the draw, Confirm and the pick, an Objection at the speaker, the mode's row, the decision, an Overrule and a lapse, Pass in and after its window, Done, the time, Skip, End this mode, the clock, Resume, the record, the config and the refusal)");
     }],
+
+    ["R1044 - Monokuma's Reveal, its count and its confirmation (E70 C9, S18-71; TR28 = 1, amend 4 (f)): trial-modes.mjs `revealLeft` - the Key Remnants the fee charged for (a critical opening's three) less those revealed, never below 0 - and trial-floor-ui.mjs `confirmReveal`'s window: Cancel first, the default, with autofocus; Reveal `drpg-destructive`, not the default; Enter (the default's answer) reveals nothing; the GM's text asked for a slot with no trace; past the count \"No Despair was charged for this Key Remnant. Reveal it anyway?\"", async () => {
+        /*
+         * E70 C9, 28.10.2026; E70-61, E70-62. The harm: a GM's Enter in the Reveal's window hands every participant a Key
+         * Remnant the table never found - something no button undoes - and a count recomputed at the Reveal would let a
+         * Key found or placed after the fee change what Monokuma may show. `revealLeft` reads the fee's own count
+         * (`paid`, investigation.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through
+         * DialogV2.wait answered as Enter answers it, with the default button's action, then put back. Nothing is
+         * written: the window answers before any reveal is asked. Whether Enter in Foundry's own DialogV2 on v14 presses
+         * the default the window names is LIVE-E70-10. Red at 713fe35b: no `revealLeft`, no `confirmReveal`.
+         */
+        const M = await import("./trial-modes.mjs");
+        const U = await import("./trial-floor-ui.mjs");
+        const read = { fns: [typeof M.revealLeft, typeof U.confirmReveal] };
+        if (typeof M.revealLeft === "function") {
+            read.left = [M.revealLeft({ paid: 3, revealed: [] }), M.revealLeft({ paid: 3, revealed: ["0", "2"] }),
+                M.revealLeft({ paid: 3, revealed: ["0", "1", "2"] }), M.revealLeft({ paid: 3, revealed: ["0", "1", "2", "4"] }),
+                M.revealLeft({}), M.revealLeft(null)];
+        }
+        if (typeof U.confirmReveal === "function") {
+            const api = foundry.applications.api.DialogV2;
+            const realWait = api.wait;
+            const seen = [];
+            api.wait = async config => {
+                seen.push(config);
+                return (config.buttons ?? []).find(button => button.default)?.action ?? null;
+            };
+            try {
+                read.enter = [
+                    await U.confirmReveal({ id: "0", name: "R1044 Key", text: "R1044 the words", hasTrace: true }, { left: 2 }),
+                    await U.confirmReveal({ id: "1", name: "R1044 Key", text: "", hasTrace: false }, { left: 0 })
+                ];
+            } finally {
+                api.wait = realWait;
+            }
+            const beyond = game.i18n.localize("DRPG.Reveal.beyondPaid");
+            read.windows = seen.map(config => {
+                // `dialogContent` answers markup or an element, as the window takes either.
+                const html = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? String(config.content ?? ""));
+                return {
+                    buttons: (config.buttons ?? []).map(b => [b.action, Boolean(b.default), Boolean(b.autofocus), /\bdrpg-destructive\b/.test(String(b.class ?? ""))]),
+                    beyond: html.includes(beyond), textBox: /<textarea[^>]*name="text"/.test(html)
+                };
+            });
+        }
+        equal(stableJson(read), stableJson({
+            fns: ["function", "function"],
+            left: [3, 1, 0, 0, 0, 0],
+            enter: [null, null],
+            windows: [
+                { buttons: [["cancel", true, true, false], ["reveal", false, false, true]], beyond: false, textBox: false },
+                { buttons: [["cancel", true, true, false], ["reveal", false, false, true]], beyond: true, textBox: true }
+            ]
+        }), "the Reveal's count or its window is not the owner's rule [the two functions; what is left to reveal of three paid, as rows are revealed, past them, and of nothing; Enter's answer in a window within the count and past it; each window's buttons as [action, default, autofocus, destructive], the beyond-the-fee question, the GM's text box]");
+
+    }],
 ];
 
 /**

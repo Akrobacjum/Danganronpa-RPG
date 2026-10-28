@@ -1844,7 +1844,7 @@ async function handleTrialGm(payload) {
     const { floorOnPrimary } = await import("./trial-floor.mjs");
     const out = await floorOnPrimary(payload.op, {
         seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text,
-        order: payload.order
+        order: payload.order, slot: payload.slot, beyondPaid: payload.beyondPaid
     });
     if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
     return { reply: out };
@@ -2908,8 +2908,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
                 "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue",
-                "closingResume"),
-            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text
+                "closingResume", "reveal"),
+            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text,
+            // Monokuma's Reveal (E70 C9): the row of missingKeys() a GM reveals, and past the fee's count when confirmed.
+            slot: as.text, beyondPaid: as.bool
         }),
         run: handleTrialGm,
         answer: "reply",
@@ -2917,7 +2919,7 @@ export const BRIDGE_ACTIONS = table({
             actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
             targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
             messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing",
-            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; a GM's request only",
+            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; or the players' words for a Key Remnant of Monokuma's Reveal whose row has none (E70 C9), read by trial-modes.mjs revealInStep only then and escaped on the copies' card; a GM's request only",
             order: "a round's order a GM gives (E70 C7), ids joined by commas: trial-floor.mjs startRoundInStep keeps only the trial's participants as the primary holds them (vote.mjs trialParticipants), once each, and draws the rest; a GM's request only"
         }
     },
@@ -3235,12 +3237,13 @@ export function requestRepoint(targetId) {
  * A GM's change of the trial's floor, asked of the primary GM (E70 C0; trial-floor.mjs `floorStep`). Its value is the
  * floor written, `{}` for an end; the primary itself runs it in place.
  */
-export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null, order = null } = {}) {
+export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null, order = null,
+    slot = null, beyondPaid = false } = {}) {
     // A round's order travels as one string of ids (E70 C7; the row's `as.text`).
     const joined = Array.isArray(order) ? order.join(",") : order;
-    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined }, {
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }, {
         onPrimary: true,
-        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined }))
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }))
     });
 }
 

@@ -81,7 +81,7 @@ The three phases:
 | Phase | What it is |
 |---|---|
 | **Daily Life** | You live inside a closed area. Two actions per time of day. Nobody has died yet this chapter - this is the part where you decide who you trust. |
-| **Investigation** | A body was found. Observe and Analyze to build Truth Bullets. What you fail to find, you will not have. |
+| **Investigation** | A body was found. Observe and Analyze to build Truth Bullets. What nobody finds costs Despair; at the trial Monokuma may reveal it. |
 | **Class Trial** | Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. |
 
 ### The Eclipse
@@ -661,7 +661,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
 - The **body** can be searched: open the dead student's sheet and press *Take* on what they carried. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets a trace that somebody has been through the pockets (one per body, however many things leave it).
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
-- What you fail to find, you will not have at the trial.
+- A Key Remnant nobody finds costs Despair (below), and at the trial Monokuma may reveal it to everyone taking part as a Key Remnant found - its kind and its text, to Analyze as usual.
 
 > [!WARNING]
 > Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma - below the case's own count when it has fewer than four, so a case of three found whole owes nothing. Only what a living student holds counts as found.

@@ -40123,6 +40123,179 @@ const SCENARIOS = [
             + "(4) an Objection at somebody not speaking, at the speaker, the decision and the seconds kept, the speaker on with them; (5) the objector on with 300 s; (6) the Overrule; (7) the end, the record, a second Closing");
     }],
 
+    ["Monokuma's Reveal: the Key Remnants nobody found listed, a copy to each participant as a find - typed Key with the players' text, not analysed - the fee's own count, once, past the count only when asked, the GMs' row \"trial.gm\", and Analyze still open on the copy in the trial (E70-T11)", async () => {
+        /*
+         * E70 C9, 28.10.2026; E70-60 to E70-64 (TR5 = 1, TR28 = 1, Q-p2-2). The harm: a Key Remnant the investigation never
+         * turned up was lost to the trial for good - "what you fail to find, you will not have" - and the guide's Monokuma
+         * reveals it. Read on this primary in a Class Trial, with the participants as vote.mjs `trialParticipants` gives
+         * them: (1) the fee for a critical opening's three Keys charged from empty pools, and charged again (nothing more:
+         * the pools and the count stand); the count then set to two as a fixture; (2) three slots of this chapter's plan -
+         * A with a hidden Key trace the GM described, B with nothing written and no trace (not listed), C with a
+         * name the GM wrote, no text and no trace - and `missingKeys()` lists A and C, no participant holding their words; (3) the GMs'
+         * row "trial.gm" op "reveal" for A from a player (refused) and from this GM (done): one copy of A to each
+         * participant, typed Key, its text the players', not read, the trace's token shown, A no longer missing and found
+         * on the plan, one left to reveal, each participant told; (4) A again, by the API and by the GMs' row: nothing, still one copy each; (5) C by the
+         * API with no text of its own given and the GM's: copies with the GM's words, none left; (6) a fourth Key D,
+         * written now: refused past the count, revealed when asked to go past it; (7) the copy of A on a participant is
+         * offered to Analyze in the trial (`analysableBullets`, `analyzeRowShut`) and the filter holds the Reveal's row.
+         * Red at 713fe35b: no `missingKeys`, no `revealMissingKey`. Everything is put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "the Reveal's copies go to the participants, two connected players' students");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which mints the Reveal's copies - this would measure nothing");
+        const M = await import("./trial-modes.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const V = await import("./vote.mjs");
+        const S = await import("./gm-stores.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const A = await import("./action-rolls.mjs");
+        const D = await import("./despair.mjs");
+        const SEC = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const api = game.drpg ?? {};
+        const scene = canvas?.scene;
+        must(scene, "no scene is on screen to place the hidden Key trace on");
+        const clock = foundry.utils.deepClone(getClock());
+        const chapter = Number(clock.chapter);
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const keys = { A: `${chapter}:17`, B: `${chapter}:18`, C: `${chapter}:19`, D: `${chapter}:20`, caseRow: `${chapter}:case`, reveal: `${chapter}:reveal` };
+        const kept = Object.fromEntries(Object.entries(keys).map(([k, key]) => [k, foundry.utils.deepClone(S.keyPlanStore.get(key) ?? null)]));
+        const users = D.monokumas();
+        must(users.length > 0, "no Monokuma has a pool to charge - the fee would measure nothing");
+        const pools = users.map(user => D.getDespair(user.id));
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const words = { A: "E70T11 the words of A", C: "E70T11 the words of C", gm: "E70T11 the GM's words for C", D: "E70T11 the words of D" };
+        let token = null;
+        const read = { api: ["missingKeys", "revealMissingKey"].map(k => typeof api[k]) };
+        const copiesOf = (actor, match) => actor.items.filter(item => T.isTruthBullet(item) && match(item));
+        const ofA = item => T.secretOf(item.uuid).remnantId === token?.id;
+        const saying = text => item => (T.truthBulletData(item)?.playerText ?? "") === text;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - the copies need two`);
+            if (typeof api.missingKeys === "function" && typeof M.revealLeft === "function") {
+                /* (1) The fee: a critical opening's three, from empty pools, then asked again. */
+                for (const user of users) if (D.getDespair(user.id) !== 0) await D.setDespair(user.id, 0);
+                await I.recordCaseKeys(chapter, 3);
+                await V.setTrialProgress({ keysCharged: false });
+                const fee = await I.keyFeeOf(chapter);
+                must(fee && fee.short > 0 && !fee.held, `the fee owes nothing here (${stableJson(fee)}) - its count would measure nothing`);
+                await I.chargeForUnfoundKeys();
+                const first = [users.map(u => D.getDespair(u.id)), I.keyRevealRecord(chapter).paid];
+                await I.chargeForUnfoundKeys();
+                const second = [users.map(u => D.getDespair(u.id)), I.keyRevealRecord(chapter).paid];
+                read.fee = [first[1] === fee.short, first[0].every(n => n === Math.min(fee.short * 3, 12)), stableJson(second) === stableJson(first)];
+                await S.keyPlanStore.patch(keys.reveal, { paid: 2, revealed: [] });
+
+                /* (2) The plan's three slots and A's hidden trace. */
+                token = await R.placeRemnant({ type: "key", visibility: "evident", x: 300, y: 300, scene, chapter, note: "E70T11 A" });
+                must(token?.id, "the Key trace of slot A was not placed");
+                if (!token.hidden) await token.update({ hidden: true });
+                await R.setRemnantPublic(token, { name: "E70T11 A", playerText: words.A, analyzedText: "E70T11 the reading of A" });
+                await S.keyPlanStore.patch(keys.A, { scale: "standard", name: "E70T11 slot A", tokenId: token.id, sceneId: scene.id });
+                await S.keyPlanStore.patch(keys.B, { scale: "standard" });
+                await S.keyPlanStore.patch(keys.C, { scale: "standard", name: "E70T11 C" });
+                await settle();
+                const listed = (await api.missingKeys()).map(row => row.id);
+                const anyHolds = text => parts.some(p => copiesOf(p.actor, saying(text)).length);
+                read.listed = [listed.includes("17"), listed.includes("18"), listed.includes("19"), anyHolds(words.A), M.revealLeft(I.keyRevealRecord(chapter))];
+
+                /* (3) A by the GMs' row, from a player and from this GM. */
+                const forged = await judged({ action: "trial.gm", requestId: "E70T11P", op: "reveal", slot: "17" }, parts[0].user.id);
+                const done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
+                await sheetAuditIdle();
+                await settle();
+                const copyA = parts.map(p => copiesOf(p.actor, ofA));
+                const one = copyA.map(list => list[0] ?? null);
+                const status = I.keyPlanStatus().entries[17] ?? {};
+                read.revealA = [forged, done, copyA.map(list => list.length),
+                    one.map(item => item ? [T.secretOf(item.uuid).realType, T.truthBulletData(item).shownType, T.truthBulletData(item).playerText === words.A, T.hasReading(item)] : null),
+                    token.hidden, (await api.missingKeys()).some(row => row.id === "17"), status.found ?? null, M.revealLeft(I.keyRevealRecord(chapter)),
+                    // Told by a whisper to the participant's owner that carries the Reveal's sound (a private card's flags ride
+                    // with its words, secret.mjs `cardFlag`).
+                    parts.every(p => game.messages.some(m => !seen.has(m.id) && SEC.cardFlag(m, "sfx") === "keyReveal"
+                        && (m.whisper ?? []).includes(p.user.id)))];
+
+                /* (4) A again. */
+                const again = await api.revealMissingKey(17);
+                // And by the GMs' row, past the asking GM's own check: the primary judges it again.
+                const againRow = await judged({ action: "trial.gm", requestId: "E70T11G2", op: "reveal", slot: "17" }, game.user.id);
+                await settle();
+                read.again = [again ?? null, againRow, parts.map(p => copiesOf(p.actor, ofA).length)];
+
+                /* (5) C by the API, the GM's words. */
+                const c = await api.revealMissingKey(19, { text: words.gm });
+                await sheetAuditIdle();
+                await settle();
+                read.revealC = [Boolean(c), parts.map(p => copiesOf(p.actor, saying(words.gm)).length),
+                    parts.map(p => copiesOf(p.actor, saying(words.gm)).map(item => T.secretOf(item.uuid).realType)).flat(),
+                    I.keyPlanStatus().entries[19]?.found ?? null, M.revealLeft(I.keyRevealRecord(chapter))];
+
+                /* (6) D, past the count. */
+                await S.keyPlanStore.patch(keys.D, { scale: "standard", name: "E70T11 D", text: words.D });
+                const past = await api.revealMissingKey(20);
+                await settle();
+                const pastHeld = parts.map(p => copiesOf(p.actor, saying(words.D)).length);
+                const asked = await api.revealMissingKey(20, { beyondPaid: true });
+                await sheetAuditIdle();
+                await settle();
+                read.beyond = [past ?? null, pastHeld, Boolean(asked), parts.map(p => copiesOf(p.actor, saying(words.D)).length)];
+
+                /* (7) Analyze on the copy, in the trial. */
+                const holder = parts[0].actor;
+                const copy = copiesOf(holder, ofA)[0] ?? null;
+                read.analyze = [Boolean(copy) && T.analysableBullets(holder).some(item => item.id === copy.id),
+                    A.analyzeRowShut("bullet", { phase: "classTrial", bullet: copy }),
+                    A.ANALYZE_TRIAL_FILTER.some(entry => entry.row === "bullet" && entry.reveal === true)];
+            }
+        } finally {
+            for (const actor of game.actors) {
+                for (const item of actor.items.filter(i => T.isTruthBullet(i) && (ofA(i) || Object.values(words).some(w => saying(w)(i))))) {
+                    const uuid = item.uuid;
+                    await item.delete();
+                    await T.dropSecret(uuid);
+                }
+            }
+            if (token && scene.tokens.has(token.id)) {
+                await R.dropRemnantSecret(token);
+                await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            const drop = Object.entries(keys).filter(([k]) => kept[k] === null).map(([, key]) => key).filter(key => S.keyPlanStore.get(key));
+            if (drop.length) await S.keyPlanStore.dropMany(drop);
+            for (const [k, key] of Object.entries(keys)) if (kept[k] !== null) await S.keyPlanStore.patch(key, kept[k]);
+            for (const [i, user] of users.entries()) if (D.getDespair(user.id) !== pools[i]) await D.setDespair(user.id, pools[i]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await sheetAuditIdle();
+            await settle();
+        }
+        const n = read.revealA ? read.revealA[2].length : 0;
+        equal(stableJson(read), stableJson({
+            api: ["function", "function"],
+            fee: [true, true, true],
+            listed: [true, false, true, false, 2],
+            revealA: [["bridge.refused"], ["bridge.done"], Array(n).fill(1), Array(n).fill(["key", "key", true, false]), false, false, true, 1, true],
+            again: [null, ["bridge.refused"], Array(n).fill(1)],
+            revealC: [true, Array(n).fill(1), Array(n).fill("key"), true, 0],
+            beyond: [null, Array(n).fill(0), true, Array(n).fill(1)],
+            analyze: [true, false, true]
+        }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM: the copies each, typed and read, "
+            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; (6) D past the count, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
@@ -71145,7 +71318,8 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({
             classTrial: [[["bullet", false]]],
             investigation: [all],
-            list: [["hint", "function"], ["stash", "function"], ["passage", "function"]],
+            // E70 C9 (amend 5 (c)): the Reveal's row, which shuts no bullet (E70-T11 holds a revealed copy open).
+            list: [["hint", "function"], ["stash", "function"], ["passage", "function"], ["bullet", "function"]],
             shut: [["hint", "stash", "passage"], [], []]
         }), "in a Class Trial Analyze offered a row that identifies no Truth Bullet, outside one a row was missing or greyed, or the filter is not one "
             + "list of conditions [the picker's rows in a trial and in an investigation as [value, greyed]; the exported filter's rows and their "

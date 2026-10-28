@@ -4612,6 +4612,11 @@ export const SFX_EVENTS = {
         hint: "A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.",
         category: "incident"
     },
+    keyReveal: {
+        label: "Monokuma's Reveal",
+        hint: "Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.",
+        category: "incident"
+    },
     rebuttal: {
         label: "Rebuttal",
         hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",

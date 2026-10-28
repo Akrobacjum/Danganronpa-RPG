@@ -22,11 +22,16 @@
  *     stretches (picked, objection). Then an Overrule in a Testimony's exchange gives the speaker back the turn.
  *   D (E70 C7, the undiscovered dead): Botan killed with nobody told, the trial's voices settled on the primary (the
  *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn.
+ *   R (E70 C9, Monokuma's Reveal; E70-60 to E70-64): a Key Remnant the GM wrote into this chapter's plan and never
+ *     placed, with the fee's count set to one; no player holds or reads its words; the GM reveals it from the API (the
+ *     console's row and its confirmation are tier 1 R1044's): Aiko's and Chie's players each hold one copy - typed Key,
+ *     not read, open to Analyze in the trial (E16's one filter, amend 5 (c)) - Botan, dead with nobody told since D,
+ *     none; nothing left to reveal, the Key found on the plan.
  * The canary's player scan runs after every phase (`canary.scan`) on a GM's Key Remnant plan planted at the start.
  *
  * What it cannot see: a round at a table of 14-15 people (LIVE-E70-07), a step over on a real server's latency
  * (LIVE-E70-08), the sound of a turn, a Panic Round's or a Closing's start (the harness plays no audio), the Closing's
- * draw, confirmation and decision with real people (LIVE-E70-09).
+ * draw, confirmation and decision with real people (LIVE-E70-09), Enter in the Reveal's window on v14 (LIVE-E70-10).
  */
 export const layers = ["ci"];
 
@@ -246,6 +251,46 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     verdict("Botan, killed with nobody told, is not a participant and gets no turn: the Testimony's order is Aiko, Chie",
         dead.killed && dead.published === false && !dead.participants.includes(IDS.botan) && J(dead.order) === J([IDS.aiko, IDS.chie]), J(dead));
     await canary.scan({ phase: "D" });
+
+    /* ------------------------------ R. Monokuma's Reveal ------------------------------ */
+    begin("R", "Monokuma's Reveal: a Key Remnant nobody found, to every participant as a find");
+    const words = "S67 R the words of the revealed Key";
+    const holds = client => client.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const mine = game.actors.filter(a => a.isOwner && a.type === "character");
+        const copies = mine.flatMap(a => a.items.filter(i => T.isTruthBullet(i) && (T.truthBulletData(i)?.playerText ?? "") === ${J(words)}).map(i => ({ a, i })));
+        return { n: copies.length, seen: JSON.stringify(game.actors.contents.map(a => a.items.contents.map(i => i.flags))).includes(${J(words)}),
+            typed: copies.map(({ i }) => [T.truthBulletData(i).shownType, T.hasReading(i)]),
+            analysable: copies.map(({ a, i }) => T.analysableBullets(a).some(b => b.id === i.id) && !A.analyzeRowShut("bullet", { bullet: i })) };`);
+    const before = [];
+    for (const c of [p1, p2, p3]) before.push(await holds(c));
+    const revealed = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const M = await import("${repoUrl}/scripts/trial-modes.mjs");
+        const I = await import("${repoUrl}/scripts/investigation.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const ch = getClock().chapter;
+        await S.keyPlanStore.patch(ch + ":11", { scale: "standard", name: "S67 R Key", text: ${J(words)} });
+        await S.keyPlanStore.patch(ch + ":reveal", { paid: 1, revealed: [] });
+        const listed = (await game.drpg.missingKeys()).find(r => r.name === "S67 R Key")?.id ?? null;
+        const out = await game.drpg.revealMissingKey(listed);
+        await new Promise(r => setTimeout(r, 500));
+        return { listed, copies: out?.copies ?? null, left: M.revealLeft(I.keyRevealRecord(ch)),
+            still: (await game.drpg.missingKeys()).some(r => r.id === listed), found: I.keyPlanStatus().entries[11]?.found ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const after = [];
+    for (const c of [p1, p2, p3]) after.push(await holds(c));
+    verdict("before the Reveal no player holds or reads the Key Remnant's words",
+        before.every(b => b.n === 0 && !b.seen), J(before));
+    verdict("the Reveal hands Aiko and Chie one copy each - typed Key, not read, open to Analyze in the trial - and Botan, dead with nobody told, none; the count spent, the Key found",
+        revealed.listed === "11" && revealed.copies === 2 && revealed.left === 0 && revealed.still === false && revealed.found === true
+            && J(after.map(a => a.n)) === J([1, 0, 1]) && [after[0], after[2]].every(a => J(a.typed) === J([["key", false]]) && J(a.analysable) === J([true])),
+        J({ revealed, after }));
+    await canary.scan({ phase: "R" });
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/clock.mjs"); const ch = getClock().chapter;
+        for (const a of game.actors) for (const i of a.items.filter(i => T.isTruthBullet(i) && (T.truthBulletData(i)?.playerText ?? "") === ${J(words)})) {
+            const uuid = i.uuid; await i.delete(); await T.dropSecret(uuid);
+        }
+        await S.keyPlanStore.dropMany([ch + ":11", ch + ":reveal"]);
+        return true;`, { timeout: 60000 });
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
         const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");

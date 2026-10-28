@@ -1084,6 +1084,11 @@ export const DrpgApi = {
     pickClosingSpeaker: (...a) => import("./trial-modes.mjs").then(m => m.pickClosingSpeaker(...a)),
     continueClosing: (...a) => import("./trial-modes.mjs").then(m => m.continueClosing(...a)),
     resumeClosing: (...a) => import("./trial-modes.mjs").then(m => m.resumeClosing(...a)),
+    /* Monokuma's Reveal (E70 C9; E70-60 to E70-64), on a GM: `missingKeys()` this chapter's Key Remnants nobody found,
+       `revealMissingKey(slot, { text, beyondPaid })` one of them to every participant - the players' words where the row
+       has none, and past the Despair the fee charged for only with `beyondPaid`. Each said why when refused. */
+    missingKeys: (...a) => import("./trial-modes.mjs").then(m => m.missingKeys(...a)),
+    revealMissingKey: (...a) => import("./trial-modes.mjs").then(m => m.revealMissingKey(...a)),
 
     openVote,
     closeVote,

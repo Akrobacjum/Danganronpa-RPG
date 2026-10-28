@@ -13,7 +13,10 @@ import {
     adjustStep, drawOrder
 } from "./trial-floor.mjs";
 import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
-import { closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing } from "./trial-modes.mjs";
+import {
+    closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing,
+    missingKeys, revealLeft, revealMissingKey } from "./trial-modes.mjs";
+import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf } from "./utils.mjs";
@@ -948,6 +951,67 @@ async function pickClosingDialog() {
     return pickClosingSpeaker(picked);
 }
 
+/*
+ * MISSING KEY REMNANTS (E70 C9, 28.10.2026; S18-71, E70-60, E70-62): this chapter's Key Remnants nobody found
+ * (trial-modes.mjs `missingKeys`) under "Left to reveal: {n}" - the fee's own count less those revealed - each with its
+ * Reveal, pressed through the bar's one listener (`data-drpg-bar="reveal"`). Drawn while the trial runs and there is
+ * something to say: a row to reveal, or a count left with nothing listed.
+ */
+function revealConsole({ running }) {
+    if (!running || !game.user.isGM) return "";
+    const rows = missingKeys();
+    const left = revealLeft(keyRevealRecord());
+    if (!rows.length && !left) return "";
+    const line = row => `<li class="drpg-reveal-row">${esc(row.name || game.i18n.localize("DRPG.Reveal.defaultName"))}${row.hasTrace ? ""
+        : ` <span class="notes">(${esc(game.i18n.localize("DRPG.Reveal.noTrace"))})</span>`} <button type="button" class="drpg-trial-bar-op"
+        data-drpg-bar="reveal" data-drpg-reveal="${esc(row.id)}">${esc(game.i18n.localize("DRPG.Reveal.button"))}</button></li>`;
+    return `<h4>${esc(game.i18n.localize("DRPG.Reveal.section"))}</h4>
+            <p>${game.i18n.format("DRPG.Reveal.left", { n: left })}</p>
+            ${rows.length ? `<ul class="drpg-reveal-list">${rows.map(line).join("")}</ul>` : ""}`;
+}
+
+/**
+ * THE REVEAL'S CONFIRMATION (E70-61, amend 4 (f)): what the players will read - the row's words, or a box for the GM's
+ * where the row has none (a slot never placed, or whose trace was wiped) - and past the fee's count "No Despair was
+ * charged for this Key Remnant. Reveal it anyway?". Cancel stands first and is the default with autofocus; Reveal is
+ * `drpg-destructive` and never the default, so Enter reveals nothing (tier 1 R1044; Foundry's own Enter on v14 is
+ * LIVE-E70-10). Answers `{ text }` for a Reveal, null otherwise.
+ */
+export async function confirmReveal(row, { left = 0 } = {}) {
+    if (!row || alreadyOpen("drpg-reveal-confirm")) return null;
+    const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
+    const words = row.text
+        ? `<blockquote class="drpg-reveal-text">${esc(row.text)}</blockquote>`
+        : `<label>${esc(game.i18n.localize("DRPG.Reveal.textLabel"))}<textarea name="text" rows="3"></textarea></label>`;
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Reveal.title") },
+        classes: ["drpg-panel", "drpg-narrow", "drpg-reveal-confirm"],
+        content: dialogContent(`<form><p>${game.i18n.format("DRPG.Reveal.intro", { name: `<strong>${esc(name)}</strong>` })}</p>
+            ${words}
+            ${left > 0 ? "" : `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Reveal.beyondPaid"))}</p>`}</form>`),
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true, autofocus: true },
+            { action: "reveal", label: game.i18n.localize("DRPG.Reveal.button"), class: "drpg-destructive",
+                callback: (e, b, d) => ({ text: d.element.querySelector("[name=text]")?.value ?? "" }) }
+        ],
+        rejectClose: false
+    });
+    return answer && typeof answer === "object" ? answer : null;
+}
+
+/** A Reveal pressed on the console: its row as this GM holds it now, the confirmation, then the Reveal. */
+async function revealFromConsole(id) {
+    const row = missingKeys().find(r => r.id === id);
+    if (!row) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Reveal.notMissing"));
+        return null;
+    }
+    const left = revealLeft(keyRevealRecord());
+    const answer = await confirmReveal(row, { left });
+    if (!answer) return null;
+    return revealMissingKey(row.id, { text: answer.text, beyondPaid: left <= 0 });
+}
+
 /** A button of the Closing's row pressed (the bar's listener). */
 function runClosingOp(op, actorId = null) {
     const run = { confirm: () => confirmClosingSpeaker(), pick: () => pickClosingDialog(), continue: () => continueClosing(actorId),
@@ -1137,6 +1201,8 @@ function trialConsoleHtml(view) {
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p class="notes">${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
+
+            ${revealConsole(view)}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
             ${voteLine}
@@ -1458,6 +1524,11 @@ export async function manageClassTrial() {
                 pressing = false;
                 // The Closing's row (E70 C8): its own ops, through the same listener.
                 if (button.dataset.drpgClosing) return void runClosingOp(button.dataset.drpgClosing, button.dataset.drpgActor || null);
+                // Monokuma's Reveal (E70 C9): its row's confirmation, then the Reveal.
+                if (button.dataset.drpgReveal) {
+                    return void Promise.resolve().then(() => revealFromConsole(button.dataset.drpgReveal))
+                        .catch(err => error("Monokuma's Reveal failed", err));
+                }
                 // The Objection the bar named as it was drawn (E70 fix p1-G3; E70P1-R04): the primary refuses it once a
                 // newer one holds the floor, rather than overrule one this GM never saw.
                 runBarOp(button.dataset.drpgBar, { messageId: button.dataset.drpgTarget || null });

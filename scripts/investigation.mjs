@@ -62,6 +62,36 @@ const planKey = (chapter, slot) => `${chapter}:${slot}`;
 /** A chapter's case row (E09 C6, `recordCaseKeys`): beside its slots, and not one of them. */
 const caseKey = chapter => `${chapter}:case`;
 const isCaseKey = key => String(key).endsWith(":case");
+/**
+ * A chapter's reveal row (E70 C9, 28.10.2026; amend 4 (h)): `{ paid, revealed }` - how many Key Remnants the chapter's
+ * fee charged Despair for (`chargeForUnfoundKeys`, written with the fee and never counted again) and the rows of
+ * `missingKeys` Monokuma's Reveal has shown (trial-modes.mjs `revealMissingKey`). Beside the slots and the case row, read
+ * by no slot reader (`chapterRows` takes integer slots), dropped by a reset that keeps the plan (`keepOnlyKeyPlanChapter`).
+ * The GMs' store and not the trial's record, which every browser holds: the fee's count is whispered to the GMs alone
+ * (trap 116's "whispered, not announced"), and a count of the Key Remnants the table missed in the world record would
+ * tell a player's console what the whisper keeps from them.
+ */
+const revealKey = chapter => `${chapter}:reveal`;
+const isRevealKey = key => String(key).endsWith(":reveal");
+
+/** The chapter's reveal row as this GM holds it: `{ paid, revealed }`, 0 and none where nothing was written. */
+export function keyRevealRecord(chapter = getClock().chapter) {
+    const row = game.user?.isGM ? keyPlanStore.get(revealKey(Number(chapter))) ?? {} : {};
+    return {
+        paid: Math.max(Number(row.paid) || 0, 0),
+        revealed: Array.isArray(row.revealed) ? row.revealed.map(String) : []
+    };
+}
+
+/** A row of `missingKeys` the Reveal has shown, added to the chapter's reveal row (trial-modes.mjs `revealMissingKey`). */
+export async function recordKeyRevealed(chapter, id) {
+    if (!game.user.isGM) return null;
+    const { revealed } = keyRevealRecord(chapter);
+    if (revealed.includes(String(id))) return revealed;
+    const next = [...revealed, String(id)];
+    await keyPlanStore.patch(revealKey(Number(chapter)), { revealed: next });
+    return next;
+}
 const blank = value => value === undefined || value === null || value === "";
 /** Whether a row says anything a GM wrote: the scale alone is the slot's, not the GM's. */
 const worthKeeping = row => Boolean(row?.name || row?.text || row?.analysis || row?.note || row?.tokenId);
@@ -290,7 +320,8 @@ export async function clearKeyPlan() {
  */
 export async function keepOnlyKeyPlanChapter(chapter) {
     if (!game.user.isGM) return 0;
-    const drop = Object.keys(keyPlanStore.entries()).filter(key => isCaseKey(key) || Number(key.split(":")[0]) !== Number(chapter));
+    // The reveal row with the case row (E70 C9): the fee it counts was the old case's.
+    const drop = Object.keys(keyPlanStore.entries()).filter(key => isCaseKey(key) || isRevealKey(key) || Number(key.split(":")[0]) !== Number(chapter));
     if (drop.length) await keyPlanStore.dropMany(drop);
     return drop.length;
 }
@@ -423,11 +454,14 @@ export function keyPlanStatus() {
        what it says of a deleted one, "gone from the map", with the trace standing in its room.
        `retyped` tells the two apart; neither counts as placed. */
     const standing = id => [...game.scenes].some(scene => remnantsOn(scene).some(token => token.id === id));
-    const entries = plan.entries.map(entry => {
+    const revealedNow = new Set(keyRevealRecord(plan.chapter).revealed);
+    const entries = plan.entries.map((entry, slot) => {
         const placed = Boolean(entry.tokenId && onMap.has(entry.tokenId));
         const retyped = Boolean(entry.tokenId && !placed && standing(entry.tokenId));
         const who = entry.tokenId ? Array.from(finders.get(entry.tokenId) ?? []) : [];
-        return { ...entry, placed, retyped, finders: who, found: who.length > 0 };
+        // Revealed by Monokuma (E70 C9) is found: a slot with no trace has no copy that names it, and its row says so.
+        const revealed = revealedNow.has(String(slot));
+        return { ...entry, slot, placed, retyped, finders: who, found: who.length > 0 || revealed, revealed };
     });
 
     /*
@@ -467,6 +501,49 @@ export function keyPlanStatus() {
         foundAny: found + offPlan.length,
         missing: entries.filter(e => !e.found).length
     };
+}
+
+/**
+ * THE KEY REMNANTS NOBODY FOUND, FOR MONOKUMA'S REVEAL (E70 C9, 28.10.2026; S18-71, amend 4 (h)): this chapter's plan
+ * slots that no living student holds a copy of and the Reveal has not shown (`keyPlanStatus`'s `found`) - a slot with a
+ * trace standing on the map, or one the GM wrote a name or a text for and never placed (or whose trace was wiped) - and
+ * this chapter's Key Remnants off the plan with no living finder. A slot with nothing written and no trace is no Key
+ * Remnant and is not listed. Each row: `id` (the slot's number, or the trace's `sceneId.tokenId` off the plan), `slot`,
+ * the name and the text the players will read (the trace's own words once a GM described it, else the slot's), the
+ * analysis, and the trace's `sceneId`/`tokenId` with `hasTrace`. On a GM's browser; none elsewhere.
+ */
+export function missingKeyRows() {
+    if (!game.user?.isGM) return [];
+    const status = keyPlanStatus();
+    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
+    const placed = new Map(placedKeyRemnants().map(r => [r.token.id, r]));
+    const said = (pub, field) => (pub?.[field] && !(field === "name" && pub.name === neutral) ? String(pub[field]) : "");
+    const rows = [];
+    for (const entry of status.entries) {
+        if (entry.found) continue;
+        const trace = entry.placed ? placed.get(entry.tokenId) : null;
+        if (!trace && !entry.name && !entry.text) continue;
+        const pub = trace?.data?.public ?? null;
+        rows.push({
+            id: String(entry.slot), slot: entry.slot,
+            name: said(pub, "name") || entry.name || "", text: said(pub, "playerText") || entry.text || "",
+            analysis: said(pub, "analyzedText") || entry.analysis || "",
+            sceneId: trace ? trace.scene.id : null, tokenId: trace ? trace.token.id : null, hasTrace: Boolean(trace)
+        });
+    }
+    const planned = new Set(status.entries.map(e => e.tokenId).filter(Boolean));
+    const finders = findersByRemnant();
+    const chapter = getClock().chapter;
+    const revealed = new Set(keyRevealRecord(chapter).revealed);
+    for (const r of placed.values()) {
+        const id = `${r.scene.id}.${r.token.id}`;
+        if (planned.has(r.token.id) || revealed.has(id) || (finders.get(r.token.id)?.size ?? 0) > 0) continue;
+        if ((r.data?.chapter ?? chapter) !== chapter || !sameSeason(r.data)) continue;
+        const pub = r.data?.public ?? null;
+        rows.push({ id, slot: null, name: said(pub, "name"), text: said(pub, "playerText"), analysis: said(pub, "analyzedText"),
+            sceneId: r.scene.id, tokenId: r.token.id, hasTrace: true });
+    }
+    return rows;
 }
 
 /**
@@ -621,12 +698,18 @@ export async function chargeForUnfoundKeys() {
     // question whose answer has since changed - a Key Remnant found during the
     // trial itself would suddenly owe Despair backwards.
     await setTrialProgress({ keysCharged: true });
+    const { adjustDespair, monokumas } = await import("./despair.mjs");
+    /* THE COUNT MONOKUMA'S REVEAL READS (E70 C9; amend 4 (h), TR28 = 1): how many Key Remnants this fee charged for,
+       written with the fee - before any pool moves, so a payment that throws half way still leaves the count it was
+       for - and never counted again: a Key placed or found after the charge changes what the trial holds, not what
+       was paid. 0 where no Monokuma holds a pool (nobody was charged). Read by trial-modes.mjs `revealLeft`. */
+    const pools = monokumas();
+    await keyPlanStore.patch(revealKey(now), { paid: pools.length ? short : 0, revealed: [] });
     if (!short) return null;
 
     const amount = short * KEY_REMNANTS.unfoundDespair;
-    const { adjustDespair, monokumas } = await import("./despair.mjs");
     const paid = [];
-    for (const user of monokumas()) {
+    for (const user of pools) {
         await adjustDespair(user.id, amount);
         paid.push(user.name);
     }

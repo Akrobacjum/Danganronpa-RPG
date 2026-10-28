@@ -81,7 +81,7 @@ Trzy fazy:
 | Faza | Czym jest |
 |---|---|
 | **Daily Life** | Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz. |
-| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nie znajdziesz, tego nie będziesz mieć. |
+| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trialu Monokuma może to ujawnić. |
 | **Class Trial** | Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. |
 
 ### Eclipse
@@ -661,7 +661,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 - GMowie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
 - **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia i wciśnij *Weź* przy tym, co mieli przy sobie. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje ślad, że ktoś przeszedł przez kieszenie (jeden na ciało, ile by rzeczy z niego nie wyszło).
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
-- Czego nie znajdziesz, tego nie będziesz mieć w Class Trialu.
+- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trialu Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 
 > [!WARNING]
 > Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.

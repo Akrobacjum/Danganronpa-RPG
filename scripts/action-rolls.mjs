@@ -5201,15 +5201,20 @@ async function askDeclaration(actor, def) {
  * picker (`askWhatToAnalyze`) and by `performAnalyze` before the price, whatever the picker returned: a row of the picker
  * (`row`: "bullet", "hint", "stash", "passage") with the condition that shuts it in a Class Trial (`shut`, handed the
  * row's context: for "bullet" the bullet). Outside a trial no row is shut, so none is greyed (the owner, 11.10 A10:
- * "E16 zostawia jeden filtr, a wiersz poza rozprawą nigdy nie jest wyszarzony"). E70 appends its Key Remnant read here,
- * with its test in 66-trial-modes (session 0, 11.10); Frisk is no row (13.10 A11: the GM-online check covers it). The
+ * "E16 zostawia jeden filtr, a wiersz poza rozprawą nigdy nie jest wyszarzony"). E70 C9 appends its Key Remnant read here
+ * (the Reveal's copy, below), tested in tier 2 E70-T11 and scenario 67-trial-modes (66 is 66-rooms); Frisk is no row (13.10 A11: the GM-online check covers it). The
  * GMs refuse the stash hunt in a trial on their side too (vault.mjs `resolveStashSearch`), and the passage
  * (passages-gm.mjs `resolvePassageSearch`): this list is the player's window, not the protection.
  */
 export const ANALYZE_TRIAL_FILTER = [
     { row: "hint", shut: () => true },
     { row: "stash", shut: () => true },
-    { row: "passage", shut: () => true }
+    { row: "passage", shut: () => true },
+    /* MONOKUMA'S REVEAL'S COPY STAYS OPEN (E70 C9, amend 5 (c); the owner's Q-p2-2 of 27.10: "typed Key with the player's
+       text, not analysed; Analyze at its usual cost"). The copy a Reveal hands every participant (trial-modes.mjs
+       `revealInStep`) is a Truth Bullet to identify like any other in the trial: the row shuts no bullet, and is here so
+       that a later rule for the trial's bullets is written beside the one that keeps this read open. Tier 2 E70-T11. */
+    { row: "bullet", reveal: true, shut: () => false }
 ];
 
 /** Whether `row` of the Analyze picker is shut now (`ANALYZE_TRIAL_FILTER`): only in a Class Trial, by one of its conditions. */
