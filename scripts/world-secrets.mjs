@@ -98,6 +98,12 @@ export const WORLD_SECRET_RULES = Object.freeze({
             exceptWhile: Object.freeze({ setting: "clock", field: "phase", value: "classTrial" }),
             since: "E70 C5", why: "the Class Trial's list of the dead, a death nobody has found among them, outside the trial (TR30)"
         }),
+        /* The Closing Argument's volunteers and its draw (E70 C8; TR23 = 1): the GMs' store (gm-stores.mjs
+           `closingClaimStore`); the floor says how many volunteered and whether there is somebody to confirm, never who. */
+        trialQueue: Object.freeze({
+            fields: Object.freeze(["volunteers", "drawn"]),
+            since: "E70 C8", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52)"
+        }),
         murderState: Object.freeze({
             only: Object.freeze(["active", "stage"]),
             since: "E05 C8; the stage alone since E32 C2",

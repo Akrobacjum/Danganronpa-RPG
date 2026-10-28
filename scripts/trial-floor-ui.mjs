@@ -12,8 +12,11 @@ import {
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
     adjustStep, drawOrder
 } from "./trial-floor.mjs";
-import { topicOf, turnRange, isRoundMode } from "./floor-machine.mjs";
-import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
+import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
+import { closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing } from "./trial-modes.mjs";
+import { closingClaimStore } from "./gm-stores.mjs";
+import { RECORD } from "./gm-store.mjs";
+import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -726,8 +729,9 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
         /* THE BAR'S FIRST BUTTON (E70 C1): Skip while an Objection or a rebuttal runs - the step Enter pressed
            before the bar, which is no footer button now (the footer's step stays one for the whole debate, so the
            console does not reopen at every Objection, E70-06); the lead says what the floor waits for. */
-        view.barNext = running && view.restrictive ? "skip" : null;
-        view.lead = view.barNext && view.next !== "endRound" ? "now" : view.next;
+        // The Closing's choice and decision are the GM's row, not the bar's Skip (E70 C8).
+        view.barNext = running && view.restrictive && !(view.floor?.mode === FLOOR_MODES.closing && barRefusal("skip", view.floor)) ? "skip" : null;
+        view.lead = view.barNext && view.next !== "endRound" && view.next !== "endClosing" ? "now" : view.next;
         return view;
 }
 
@@ -763,7 +767,7 @@ export function trialNextStep({ floor, running, progress, afterwards, stopped, r
        footer's step is Close Debate for every mode of the debate now, and the bar's first button is Skip while an
        Objection or a rebuttal runs (`readTrial`'s `barNext`). Enter presses the footer's step only. */
     // A round's footer step is its end (E70 C7): the bar's Skip moves the speakers on.
-    if (running && floor) return floorFamily(floor) === "round" ? "endRound" : "closeDebate";
+    if (running && floor) return floorFamily(floor) === "round" ? "endRound" : floorFamily(floor) === "closing" || closingOf(floor) ? "endClosing" : "closeDebate";
     if (progress.verdictApplied && runner && runner !== game.user.id) return stopped ? "finishElsewhere" : "verdictElsewhere";
     if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
     if (progress.voteClosed) return "verdict";
@@ -796,6 +800,7 @@ const TRIAL_LEADS = {
     reopen: "DRPG.Floor.lead.reopen",
     closeDebate: "DRPG.Floor.lead.closeDebate",
     endRound: "DRPG.Floor.lead.round",
+    endClosing: "DRPG.Floor.lead.closing",
     now: "DRPG.Floor.lead.now",
     vote: "DRPG.Floor.lead.vote",
     verdict: "DRPG.Floor.lead.verdict",
@@ -843,6 +848,113 @@ const BAR_ACTIONS = {
         await repointDialog();
     }
 };
+
+/*
+ * THE CLOSING ARGUMENT ON THE CONSOLE (E70 C8, 28.10.2026; E70-52, E70-54, E70-56). Its row is drawn in the live region
+ * under the debate's line, its buttons pressed through the bar's one listener (`data-drpg-bar="closing"`, so a press is
+ * not lost to the region's rebuild): Confirm the drawn speaker, Pick someone else (a window: the volunteers first, then
+ * everybody else taking part, one who already spoke marked so), the decision after an exchange (the speaker with the
+ * seconds they had, each objector with a new 300 s), and Resume once it is over (the last speaker's rest, until the vote).
+ * The names and the draw are the GMs' store's (gm-stores.mjs `closingClaimStore`), read here on a GM's browser alone.
+ */
+
+/** m:ss of `seconds`. */
+function clockOf(seconds) {
+    const s = Math.max(Math.round(Number(seconds) || 0), 0);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** The GMs' volunteers and draw, as this GM's store holds them now. */
+function closingNames() {
+    const row = closingClaimStore.get(RECORD) ?? {};
+    const name = id => game.actors.get(id ?? "")?.name ?? "-";
+    return { volunteers: (Array.isArray(row.volunteers) ? row.volunteers : []).map(name), drawn: row.drawn ? name(row.drawn) : null };
+}
+
+/** A button of the Closing's row. */
+function closingButton(op, label, actorId = null) {
+    return `<button type="button" class="drpg-trial-bar-op" data-drpg-bar="closing" data-drpg-closing="${op}"${actorId
+        ? ` data-drpg-actor="${esc(actorId)}"` : ""}>${esc(label)}</button>`;
+}
+
+/** The Closing's lines and buttons on the console, or "" outside it. */
+function closingConsole({ floor, progress, running }) {
+    const closing = closingOf(floor);
+    if (!running) return "";
+    if (!floor) {
+        // Resume: the Closing over, its last speaker with seconds left, the vote not opened yet.
+        const last = progress.closing?.speakers?.at(-1) ?? null;
+        if (!progress.closing?.done || !(Number(last?.leftAtEnd) > 0) || progress.voteOpenedAt) return "";
+        const label = game.i18n.format("DRPG.Floor.closing.resume", { name: game.actors.get(last.actorId ?? "")?.name ?? "-", time: clockOf(last.leftAtEnd) });
+        return `<div class="drpg-trial-bar" role="group">${closingButton("resume", label)}</div>`;
+    }
+    if (!closing || floor.mode !== FLOOR_MODES.closing) return "";
+    const names = closingNames();
+    const list = arr => esc(arr.length ? listOf(arr) : game.i18n.localize("DRPG.Floor.closing.noVolunteers"));
+    if (closing.phase === "volunteer") {
+        return `<p>${game.i18n.format("DRPG.Floor.closing.gmVolunteers", { names: list(names.volunteers), seconds: Math.max(secondsLeft(floor), 0) })}</p>`;
+    }
+    if (closing.phase === "choice") {
+        const line = closing.choice === "confirm" && names.drawn
+            ? game.i18n.format("DRPG.Floor.closing.gmDrawn", { name: esc(names.drawn), names: list(names.volunteers) })
+            : game.i18n.localize(closing.choice === "pick" ? "DRPG.Floor.closing.picking" : "DRPG.Floor.closing.nobody");
+        return `<p>${line}</p><div class="drpg-trial-bar" role="group">${closing.choice === "confirm"
+            ? closingButton("confirm", game.i18n.localize("DRPG.Floor.closing.confirm")) : ""}${closingButton("pick",
+            game.i18n.localize(closing.choice === "confirm" ? "DRPG.Floor.closing.pickOther" : "DRPG.Floor.closing.pick"))}</div>`;
+    }
+    if (closing.phase === "decide") {
+        const speaker = closing.speakerId;
+        const full = Number(TRIAL.modes.closing.seconds) || 300;
+        const buttons = [
+            speaker ? closingButton("continue", `${game.actors.get(speaker)?.name ?? "-"} (${clockOf(closing.left)})`, speaker) : "",
+            ...(closing.chain ?? []).filter(id => id !== speaker).map(id => closingButton("continue", `${game.actors.get(id)?.name ?? "-"} (${clockOf(full)})`, id))
+        ].join("");
+        return `<p>${game.i18n.localize("DRPG.Floor.closing.whoContinues")}</p><div class="drpg-trial-bar" role="group">${buttons}</div>`;
+    }
+    return "";
+}
+
+/**
+ * PICK SOMEONE ELSE (E70-52): everybody taking part, the volunteers first, one who already spoke in this Closing marked
+ * "Already spoke in the Closing Argument" - the GM may pick anyone (DA18), so nobody is greyed.
+ */
+async function pickClosingDialog() {
+    const { trialParticipants, trialProgress } = await import("./vote.mjs");
+    const row = closingClaimStore.get(RECORD) ?? {};
+    const volunteers = Array.isArray(row.volunteers) ? row.volunteers : [];
+    const spoke = new Set((trialProgress().closing?.speakers ?? []).map(s => s.actorId));
+    const actors = trialParticipants().map(p => p.actor)
+        .sort((a, b) => Number(volunteers.includes(b.id)) - Number(volunteers.includes(a.id)) || a.name.localeCompare(b.name));
+    if (!actors.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.roundWindow.nobody"));
+        return null;
+    }
+    const option = actor => `<option value="${esc(actor.id)}">${esc(actor.name)}${volunteers.includes(actor.id)
+        ? ` - ${esc(game.i18n.localize("DRPG.Floor.closing.volunteered"))}` : ""}${spoke.has(actor.id)
+        ? ` - ${esc(game.i18n.localize("DRPG.Floor.closing.alreadySpoke"))}` : ""}</option>`;
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Floor.mode.closing") },
+        classes: ["drpg-panel", "drpg-narrow", "drpg-closing-pick"],
+        content: dialogContent(`<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
+            <select name="actor">${actors.map(option).join("")}</select></label></form>`),
+        buttons: [
+            { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+    if (!picked || picked === "cancel") return null;
+    return pickClosingSpeaker(picked);
+}
+
+/** A button of the Closing's row pressed (the bar's listener). */
+function runClosingOp(op, actorId = null) {
+    const run = { confirm: () => confirmClosingSpeaker(), pick: () => pickClosingDialog(), continue: () => continueClosing(actorId),
+        resume: () => resumeClosing() }[op];
+    if (!run) return;
+    Promise.resolve().then(run).catch(err => error(`The Closing Argument's ${op} failed`, err));
+}
 
 /** A bar button pressed: its op, or the reason it is greyed, said to this GM; `args` the button's own (Overrule's card). */
 function runBarOp(op, args = {}) {
@@ -921,6 +1033,11 @@ function trialConsoleHtml(view) {
                             seconds: Math.max(left, 0), next: esc(game.actors.get(next ?? "")?.name ?? "-") };
                         return `<p>${game.i18n.format(next ? "DRPG.Floor.holdingRound" : "DRPG.Floor.holdingRoundLast", words)}</p>`;
                     })()
+                : floor.mode === FLOOR_MODES.closing
+                    // The Closing Argument (E70 C8): its speaker and seconds, or its phase's line for the table.
+                    ? `<p>${floor.holderId
+                        ? game.i18n.format("DRPG.Floor.closing.holding", { who: esc(holder?.name ?? "-"), seconds: Math.max(left, 0) })
+                        : esc(game.i18n.localize("DRPG.Floor.mode.closing"))}</p>`
                 : floor.mode === FLOOR_MODES.objection
                     // E79 C16: an Objection raised and still waiting for its Truth Bullet runs the seconds to pick.
                     ? `<p>${game.i18n.format(floor.pending ? "DRPG.Floor.holdingObjectionPending" : "DRPG.Floor.holdingObjection", {
@@ -1014,8 +1131,11 @@ function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
-            ${floor && !isRoundMode(floor.mode) ? `<p class="notes">${game.i18n.localize(restrictive
+            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize(restrictive
                 ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
+            ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
+            ${closingConsole(view)}
+            ${!floor && running && progress.closing?.done ? `<p class="notes">${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
@@ -1050,8 +1170,9 @@ function trialSignature(view) {
            depend on the mode are the bar's now, inside the live region (`trialBar`), and the footer changes only
            with the floor's family - a debate and its exchange are one, no floor is another (trial-floor.mjs
            `floorFamily`). Tier 0 R1026 holds this function to reading no mode. */
+        // The Closing had (E70 C8): its start is greyed once this trial has had it.
         return [running, floorFamily(floor), finalNow, afterwards,
-            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-"].join("|");
+            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-", progress.closing?.done === true].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
@@ -1065,8 +1186,11 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                     ? (floorFamily(floor) === "round"
                         // A round's end (E70 C7): the bar's End this mode, here as the footer's step.
                         ? { action: "endRound", default: isDefault("endRound"), label: game.i18n.localize("DRPG.Floor.endRound") }
-                        : { action: "closeDebate", default: isDefault("closeDebate"),
-                            label: game.i18n.localize("DRPG.Floor.closeDebate") })
+                        : floorFamily(floor) === "closing" || closingOf(floor)
+                            // The Closing's end (E70 C8), in its exchange too: End this mode, with no decision.
+                            ? { action: "endClosing", default: isDefault("endClosing"), label: game.i18n.localize("DRPG.Floor.endClosing") }
+                            : { action: "closeDebate", default: isDefault("closeDebate"),
+                                label: game.i18n.localize("DRPG.Floor.closeDebate") })
                     : progress.againAfterOverrule
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
                         ? { action: "openAgain", default: isDefault("openAgain"),
@@ -1079,7 +1203,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // The rounds (E70 C7), each its start window, beside the debate while no floor is open.
                 ...(floor ? [] : [
                     { action: "startTestimony", label: game.i18n.localize("DRPG.Floor.startTestimony") },
-                    { action: "startPanic", label: game.i18n.localize("DRPG.Floor.startPanic") }
+                    { action: "startPanic", label: game.i18n.localize("DRPG.Floor.startPanic") },
+                    // The Closing Argument (E70 C8): one per trial, greyed after it (its reason is the console's note).
+                    { action: "startClosing", label: game.i18n.localize("DRPG.Floor.startClosing"), disabled: Boolean(closingRefusal(progress, floor)) }
                 ]),
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
@@ -1152,6 +1278,8 @@ const TRIAL_ACTIONS = {
     startTestimony: () => openRoundWindow(FLOOR_MODES.testimony),
     startPanic: () => openRoundWindow(FLOOR_MODES.panic),
     endRound: () => endMode(),
+    startClosing: () => startClosing(),
+    endClosing: () => endMode(),
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
@@ -1328,6 +1456,8 @@ export async function manageClassTrial() {
                 if (!button) return;
                 event.preventDefault();
                 pressing = false;
+                // The Closing's row (E70 C8): its own ops, through the same listener.
+                if (button.dataset.drpgClosing) return void runClosingOp(button.dataset.drpgClosing, button.dataset.drpgActor || null);
                 // The Objection the bar named as it was drawn (E70 fix p1-G3; E70P1-R04): the primary refuses it once a
                 // newer one holds the floor, rather than overrule one this GM never saw.
                 runBarOp(button.dataset.drpgBar, { messageId: button.dataset.drpgTarget || null });

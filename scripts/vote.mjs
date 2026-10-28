@@ -141,7 +141,10 @@ export function trialProgress(chapter = getClock().chapter) {
         topic: null, debateAgain: false, voteOpenedAt: null, trialSize: 0,
         // E70 C4 (DC36; amend (i)): the stamp of the chapter's newest verdict (`readSentence`), kept for the chapter; the
         // execution at the trial's end - its stamp on the server's clock and its own `{ done, failed }` - the trial's.
-        lastVerdictAt: null, executedAt: null, execution: null
+        lastVerdictAt: null, executedAt: null, execution: null,
+        // E70 C8: the trial's Closing Argument, `{ done, speakers: [{ actorId, via, messageId, leftAtEnd }] }` - one per
+        // trial (blanked at its entry), written by the floor's step on the primary (trial-floor.mjs `commitFloor`).
+        closing: null
     };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -208,7 +211,8 @@ export function setTrialProgress(patch = {}) {
  * An answer that does not come (the primary left mid-request) writes the patch here, as before the fix, and says so in
  * the log; the reset and the execution are not done twice that way.
  */
-const RECORD_KEPT = new Set(["chapter", "mutedDead", "objections"]);
+// E70 C8: the Closing's record is the floor's step's alone, never another GM's patch.
+const RECORD_KEPT = new Set(["chapter", "mutedDead", "objections", "closing"]);
 export const RECORD_FIELDS = Object.freeze(Object.keys(trialProgress(0)).filter(key => !RECORD_KEPT.has(key)));
 
 /** A record patch of another GM, held to the record's own fields; null when it names none. */
@@ -297,7 +301,7 @@ function resetInStep(seconds) {
         vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
         trialStartedAt: serverNow(), againAfterOverrule: null,
         topic: null, debateAgain: false, voteOpenedAt: null, trialSize: trialSizeNow(),
-        executedAt: null, execution: null
+        executedAt: null, execution: null, closing: null
     }));
 }
 
@@ -672,6 +676,13 @@ async function openRound(progress, op, picks) {
         voteClosed: false, tied: false, majority: 0, noMajority: false, accused: [], total: 0, accusedIds: [],
         voteOpenedAt: now.voteOpenedAt ?? serverNow()
     }));
+    // THE VOTE ENDS THE CLOSING ARGUMENT (E70 C8; E70-56): a Closing still on the floor, or in its exchange, is over.
+    try {
+        const { endClosingForVote } = await import("./trial-modes.mjs");
+        await endClosingForVote();
+    } catch (err) {
+        error("Could not end the Closing Argument as the vote opened", err);
+    }
     const older = Object.entries(ballotStore.entries())
         .filter(([, row]) => row?.chapter !== progress.chapter || row?.round !== round)
         .map(([userId]) => userId);

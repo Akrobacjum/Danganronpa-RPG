@@ -75,6 +75,8 @@ const ACTION_FLOOR_REPOINT = "floor.repoint";
 const ACTION_TRIAL_GM = "trial.gm";
 // A round's step from a participant's browser (E70 C7): the speaker's Done or Pass, anyone's step over once it is due.
 const ACTION_TRIAL_TURN = "trial.turn";
+// A participant volunteering for the Closing Argument (E70 C8): the name kept by the GMs alone.
+const ACTION_TRIAL_CLAIM = "trial.claim";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
@@ -1856,6 +1858,14 @@ async function handleTrialTurn(payload, sender) {
     return { reply: out?.reply ?? null };
 }
 
+/** The run of `trial.claim` (E70 C8): a volunteer for the Closing, judged on this primary (trial-modes.mjs `volunteerOnPrimary`). */
+async function handleTrialClaim(payload) {
+    const { volunteerOnPrimary } = await import("./trial-modes.mjs");
+    const out = await volunteerOnPrimary({ actorId: payload.actorId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2805,7 +2815,8 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.floor.now",
         guards: [gmOnly("only a GM moves the trial's floor on")],
         // E70 C7: a round's turn skipped by a GM that is not the primary rides the same Now.
-        sanitize: pick({ mode: as.oneOf("objection", "rebuttal", "testimony", "panic"), startedAt: as.num }),
+        // E70 C8: and the Closing's timed phases (the volunteers' window's draw, a speaker skipped).
+        sanitize: pick({ mode: as.oneOf("objection", "rebuttal", "testimony", "panic", "closing"), startedAt: as.num }),
         run: handleFloorNow,
         answer: "reply",
         claims: {
@@ -2896,7 +2907,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM changes the trial's floor")],
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-                "adjust", "endMode", "overrule", "testimony", "panic"),
+                "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue",
+                "closingResume"),
             seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text
         }),
         run: handleTrialGm,
@@ -2928,6 +2940,20 @@ export const BRIDGE_ACTIONS = table({
             kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds",
             step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds; any other is refused and moves nothing"
         }
+    },
+    /*
+     * A VOLUNTEER FOR THE CLOSING ARGUMENT (E70 C8, 28.10.2026; TR23 = 1, E70-51). The owner of a student taking part says
+     * "I'll sum up" in the Closing's 30 s. Judged on the primary (trial-modes.mjs `volunteerOnPrimary`), in one step of the
+     * floor's key: a Class Trial, the volunteers' window open, the character among the trial's participants (vote.mjs
+     * `trialParticipants`), once. The name goes to the GMs' store (gm-stores.mjs `closingClaimStore`) and only the count
+     * to the floor. "reply": the window says the volunteer is counted.
+     */
+    [ACTION_TRIAL_CLAIM]: {
+        label: "DRPG.Bridge.what.trial.claim",
+        guards: [knownSender, owns("actorId", "sender does not own the character volunteering")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleTrialClaim,
+        answer: "reply"
     },
     /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
@@ -3215,6 +3241,20 @@ export function requestTrialGm(op, { seconds = null, actorId = null, targetId = 
     return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined }, {
         onPrimary: true,
         local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined }))
+    });
+}
+
+/**
+ * A volunteer for the Closing Argument from this browser (E70 C8; trial-prompt.mjs): `actorId` this player's student.
+ * Its value is `{ count }`, the volunteers counted so far.
+ */
+export function requestClaim({ actorId }) {
+    return ask(ACTION_TRIAL_CLAIM, { actorId }, {
+        onPrimary: true,
+        local: () => import("./trial-modes.mjs").then(m => m.volunteerOnPrimary({ actorId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_CLAIM, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
     });
 }
 

@@ -5954,6 +5954,13 @@ const INVARIANTS = [
             ["trialProgress.mutedDead",
                 s => { s.settings.trialProgress = { chapter: 2, mutedDead: [] }; s.settings.clock.phase = "dailyLife"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "trialProgress" && h.path === "mutedDead"],
+            // E70 C8: the Closing's volunteers and its draw are the GMs' - on the floor's setting at any depth, an empty list too.
+            ["trialQueue.volunteers",
+                s => { s.settings.trialQueue = { active: true, mode: "closing", closing: { phase: "volunteer", count: 0, volunteers: [] } }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "closing.volunteers"],
+            ["trialQueue.drawn",
+                s => { s.settings.trialQueue = { active: true, mode: "closing", drawn: "R190BYSTANDER001" }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "drawn"],
             // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
@@ -25110,6 +25117,171 @@ const INVARIANTS = [
             offers: [60, 15, 10],
             guards: [true, null, null, true, true, null]
         }), "a round's row is not the owner's rule (start, Done, Pass, a step over, the clock, Skip, a speaker gone, the exchange and its resume, the mode's row, the guards and the offer)");
+    }],
+    ["R1043 - the Closing Argument on the floor's one engine (E70 C8, S18-73, S18-74; TR7, TR23, TR24, TR29, TR34, DA18, amend 7): floor-machine.mjs `nextFloor`'s Closing rows - one per trial, the volunteers' window and its draw, the GM's Confirm or pick of anyone, an Objection at the speaker at any second and at nobody else, the speaker's clock standing in the exchange, the GM's decision (the speaker with the rest or an objector of the chain with 300 s), Pass in and after the speaker's first 30 s, Skip, End this mode, Overrule, Resume, and the record kept", async () => {
+        /*
+         * E70 C8, 28.10.2026; E70-50 to E70-57. The Closing is a mode of the floor like the debate and the rounds
+         * (`MODES.closing`, its phase in `closing`), so every road that moves it - the heartbeat, the GM's console and bar,
+         * the speaker's "trial.turn", the API on any GM - asks these rows in the primary's step. Read without a world at a
+         * fixed `now` on floors frozen to the bottom: (1) the start, on no floor or a debate, refused once this trial has had
+         * its Closing (a second trial's record has none: allowed) and during an exchange; (2) the volunteers' window: the
+         * count alone on the floor, its clock run out or Skip turning into the choice the caller's draw gives ("confirm" or
+         * "none"), nothing skipped in the choice; (3) Confirm of the drawn (not one who left), a pick of anyone of the trial
+         * - outside the volunteers, one who already spoke - and of nobody else; (4) an Objection at second 5 of 300, its
+         * stack entry and the record's seconds; the mode's row (the speaker alone speaks, presents and is aimed at, nobody
+         * objects without a speaker, no clock to move in the choice); (5) the exchange over - its rebuttal run out or
+         * skipped, a cut-in's chain - is the GM's decision with the speaker's 200 s as they stood; the speaker continues
+         * with them, an objector of the chain with a new 300 s and the Objection's card, anyone else refused; an Overrule,
+         * a lapse, a withdrawal and Back give the speaker the 200 s; End this mode in the exchange ends the Closing; (6) Pass
+         * inside the window resigns (the choice again), after it and for one who continues is Done; Done, the time, Skip, a
+         * speaker gone, End this mode; -30 s to zero refused; (7) Resume, and the record's fold; (8) the config and the
+         * console's refusal. Red at 2f1e8772: no Closing on the floor's engine.
+         */
+        let M = null, F = null, T = null, C = null;
+        try {
+            M = await import("./floor-machine.mjs");
+            F = await import("./trial-floor.mjs");
+            T = await import("./trial-modes.mjs");
+            C = await import("./config.mjs");
+        } catch {
+            T = null;
+        }
+        ok(M?.MODES?.closing === "closing" && typeof M?.closingRecordAfter === "function" && typeof T?.closingRefusal === "function",
+            "no Closing Argument on the floor's engine (floor-machine.mjs MODES.closing, closingRecordAfter; trial-modes.mjs closingRefusal)");
+        if (M?.MODES?.closing !== "closing" || typeof M?.closingRecordAfter !== "function" || typeof T?.closingRefusal !== "function") return;
+        const NOW = 30_000_000, A = "speakerAAAAAAAAA", B = "drawnBBBBBBBBBBB", Cc = "otherCCCCCCCCCCC", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
+        const CARD = "cardRRRRRRRRRRRR", CARD2 = "cardSSSSSSSSSSSS", P = [A, B, Cc, D, E];
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const base = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null };
+        const volunteer = (left, count = 0) => ({ ...base, mode: "closing", holderId: null, seconds: 30, startedAt: NOW - (30 - left) * 1000,
+            closing: { phase: "volunteer", step: 1, openedAt: NOW - 30_000, count } });
+        const choice = pick => ({ ...base, mode: "closing", holderId: null, seconds: 0, startedAt: NOW - 5000,
+            closing: { phase: "choice", step: 2, openedAt: NOW - 60_000, count: 2, choice: pick } });
+        const speaking = (left, { holder = A, via = "drawn", resign = null } = {}) => ({ ...base, mode: "closing", holderId: holder, seconds: 300,
+            startedAt: NOW - (300 - left) * 1000, closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 2, choice: null,
+                speakerId: holder, via, resignUntil: resign, chain: [] } });
+        const exch = (mode, left, extra = {}) => ({ ...speaking(200), mode, holderId: D, targetId: A,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000,
+            before: [{ messageId: CARD, before: { mode: "closing", holderId: A, targetId: null, seconds: 300 }, leftAtObjection: 200 }],
+            closing: { ...speaking(200).closing, chain: [D] }, ...extra });
+        const decide = { ...base, mode: "closing", holderId: null, seconds: 0, startedAt: NOW - 1000,
+            closing: { phase: "decide", step: 4, openedAt: NOW - 90_000, count: 2, speakerId: A, left: 200, chain: [D, E], messageId: CARD } };
+        const debate = { ...base, mode: "debate", holderId: null, seconds: 600, startedAt: NOW - 10_000, topic: "R1043 the question" };
+        const go = (floor, event, ctx = {}) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW, ...ctx });
+        const timed = f => f && (f.mode !== "closing" || ["volunteer", "speak"].includes(f.closing?.phase));
+        const shape = r => r.refused ? { refused: r.refused } : {
+            mode: r.floor?.mode ?? null, holder: r.floor?.holderId ?? null, phase: r.floor?.closing?.phase ?? null,
+            choice: r.floor?.closing?.choice ?? null, left: timed(r.floor) ? M.leftAt(r.floor, NOW) : null, kept: r.floor?.closing?.left ?? null,
+            via: r.floor?.closing?.via ?? null, chain: r.floor?.closing?.chain ?? null, count: r.floor?.closing?.count ?? null,
+            stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+            cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? null]), record: r.record ?? null };
+        // A cut-in's chain: Eiji objects in Daichi's rebuttal; the Objection's minute and its rebuttal run out.
+        const cut = go(exch("rebuttal", 60), { type: "objection", holderId: E, targetId: D, cardId: CARD2 });
+        const cutRebuttal = M.nextFloor(cut.floor, { type: "due" }, { now: NOW + 60_000 });
+        const cutDecide = cutRebuttal.floor ? M.nextFloor(cutRebuttal.floor, { type: "due" }, { now: NOW + 180_000 }) : { refused: "none" };
+        const r0 = M.closingRecordAfter(null, { start: true });
+        const r1 = M.closingRecordAfter(r0, { push: { actorId: A, via: "drawn", messageId: null } });
+        const r2 = M.closingRecordAfter(r1, { leftAtEnd: 200 });
+        const r3 = M.closingRecordAfter(r2, { push: { actorId: D, via: "objection", messageId: CARD } });
+        const r4 = M.closingRecordAfter(r3, { leftAtEnd: 10, done: true });
+        const row = C.TRIAL?.modes?.closing ?? {};
+        const read = {
+            start: shape(go(null, { type: "closing" })), onDebate: stableJson(shape(go(debate, { type: "closing" }))) === stableJson(shape(go(null, { type: "closing" }))),
+            again: shape(go(null, { type: "closing" }, { closingDone: true })), busy: shape(go(exch("objection", 30), { type: "closing" })),
+            onClosing: shape(go(speaking(100), { type: "closing" })),
+            claim: shape(go(volunteer(20), { type: "claim", count: 2 })), claimLate: shape(go(choice("confirm"), { type: "claim", count: 3 })),
+            drawDue: shape(go(volunteer(0, 2), { type: "due" }, { drawn: B })), drawNone: shape(go(volunteer(0, 0), { type: "due" }, { drawn: null })),
+            drawSkip: shape(go(volunteer(20, 2), { type: "skip" }, { drawn: B })), choiceSkip: shape(go(choice("confirm"), { type: "skip" })),
+            confirm: shape(go(choice("confirm"), { type: "confirm" }, { drawn: B, participants: P })),
+            confirmNone: shape(go(choice("none"), { type: "confirm" }, { drawn: null, participants: P })),
+            confirmGone: shape(go(choice("confirm"), { type: "confirm" }, { drawn: B, absent: [B], participants: P })),
+            pickOther: shape(go(choice("confirm"), { type: "pick", actorId: Cc }, { drawn: B, participants: P })),
+            pickSpoke: shape(go(choice("none"), { type: "pick", actorId: A }, { participants: P })),
+            pickStranger: shape(go(choice("none"), { type: "pick", actorId: "strangerXXXXXXXX" }, { participants: P })),
+            pickEarly: shape(go(volunteer(20), { type: "pick", actorId: Cc }, { participants: P })),
+            objectAt5: shape(go(speaking(295), { type: "objection", holderId: D, targetId: A, cardId: CARD })),
+            rows: [F.modeAllows(speaking(100), "object"), F.modeAllows(speaking(100), "target", A), F.modeAllows(speaking(100), "target", D),
+                F.modeAllows(speaking(100), "speak", A), F.modeAllows(speaking(100), "speak", D), F.modeAllows(speaking(100), "present", A),
+                F.modeAllows(speaking(100), "present", D), F.modeAllows(choice("none"), "object"), F.modeAllows(choice("none"), "adjust"),
+                F.modeAllows(volunteer(20), "adjust"), F.modeAllows(volunteer(20), "object"), F.modeAllows(decide, "object")],
+            decideDue: shape(go(exch("rebuttal", 0), { type: "due" })), decideSkip: shape(go(exch("rebuttal", 60), { type: "skip" })),
+            cut: shape(cut), cutDecide: shape(cutDecide),
+            continueSpeaker: shape(go(decide, { type: "continue", actorId: A })), continueObjector: shape(go(decide, { type: "continue", actorId: E })),
+            continueOther: shape(go(decide, { type: "continue", actorId: Cc })), continueGone: shape(go(decide, { type: "continue", actorId: D }, { absent: [D] })),
+            overrule: shape(go(exch("rebuttal", 60), { type: "overrule" })),
+            lapse: shape(go(exch("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            withdraw: shape(go(exch("objection", 20, { pending: true, messageId: CARD }), { type: "withdraw" })),
+            backExchange: shape(go(exch("rebuttal", 60), { type: "back" })), back: shape(go(speaking(100), { type: "back" })),
+            endExchange: shape(go(exch("objection", 30), { type: "endMode" })),
+            passEarly: shape(go(speaking(290, { resign: NOW + 20_000 }), { type: "pass", actorId: A, step: 3 })),
+            passLate: shape(go(speaking(260, { resign: NOW - 10_000 }), { type: "pass", actorId: A, step: 3 })),
+            passContinued: shape(go(speaking(150, { via: "speaker" }), { type: "pass", actorId: A, step: 3 })),
+            done: shape(go(speaking(100), { type: "done", actorId: A, step: 3 })), doneOther: shape(go(speaking(100), { type: "done", actorId: B, step: 3 })),
+            doneStale: shape(go(speaking(100), { type: "done", actorId: A, step: 2 })), timeUp: shape(go(speaking(0), { type: "due" })),
+            overEarly: shape(go(speaking(2), { type: "over", step: 3 })), skipSpeaker: shape(go(speaking(100), { type: "skip" })),
+            gone: shape(go(speaking(100), { type: "gone", actorId: A })), endSpeaking: shape(go(speaking(100), { type: "endMode" })),
+            endChoice: shape(go(choice("none"), { type: "endMode" })),
+            minusToZero: shape(go(speaking(20), { type: "adjust", seconds: -30 })), plus: shape(go(speaking(20), { type: "adjust", seconds: 30 })),
+            adjustChoice: shape(go(choice("none"), { type: "adjust", seconds: 30 })),
+            resume: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 100 } })),
+            resumeNone: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 0 } })),
+            resumeVote: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 100 }, voteOpened: true })),
+            record: [r0, r4],
+            config: [row.volunteerSeconds, row.seconds, row.perTrial, row.passWindowSeconds, row.gmDecides, row.objection],
+            refusal: [typeof T.closingRefusal({ closing: { done: true, speakers: [] } }, null) === "string", T.closingRefusal({ closing: null }, null),
+                T.closingRefusal({ closing: null }, debate), typeof T.closingRefusal({ closing: null }, speaking(100)) === "string"]
+        };
+        const none = { mode: null, holder: null, phase: null, choice: null, left: null, kept: null, via: null, chain: null, count: null, stack: [] };
+        const over = (leftAtEnd = null) => ({ ...none, cards: [["DRPG.Floor.closing.over", null]], record: leftAtEnd === null ? { done: true } : { leftAtEnd, done: true } });
+        const choiceOf = (pick, cards = [], record = null, via = "drawn") => ({ mode: "closing", holder: null, phase: "choice", choice: pick, left: null, kept: null,
+            via, chain: [], count: 2, stack: [], cards, record });
+        const speech = (holder, left, via, cards, record, count = 2) => ({ mode: "closing", holder, phase: "speak", choice: null, left, kept: null, via,
+            chain: [], count, stack: [], cards, record });
+        const decided = (cards, chain = [D]) => ({ mode: "closing", holder: null, phase: "decide", choice: null, left: null, kept: 200, via: "drawn",
+            chain, count: 2, stack: [], cards, record: null });
+        const again = (left = 200) => ({ mode: "closing", holder: A, phase: "speak", choice: null, left, kept: null, via: "drawn", chain: [], count: 2,
+            stack: [], cards: [], record: null });
+        equal(stableJson(read), stableJson({
+            start: { mode: "closing", holder: null, phase: "volunteer", choice: null, left: 30, kept: null, via: null, chain: null, count: 0, stack: [],
+                cards: [["DRPG.Floor.closing.opened", null]], record: { start: true } },
+            onDebate: true, again: { refused: "DRPG.Floor.closing.already" }, busy: { refused: "DRPG.Floor.closing.busy" },
+            onClosing: { refused: "DRPG.Floor.closing.busy" },
+            claim: { mode: "closing", holder: null, phase: "volunteer", choice: null, left: 20, kept: null, via: null, chain: null, count: 2, stack: [], cards: [], record: null },
+            claimLate: { refused: "DRPG.Floor.closing.notVolunteering" },
+            drawDue: { ...choiceOf("confirm"), via: null, chain: null }, drawNone: { ...choiceOf("none"), via: null, chain: null, count: 0 },
+            drawSkip: { ...choiceOf("confirm"), via: null, chain: null }, choiceSkip: { refused: "DRPG.Floor.closing.waitsForGm" },
+            confirm: speech(B, 300, "drawn", [["DRPG.Floor.closing.speaks", B]], { push: { actorId: B, via: "drawn", messageId: null } }),
+            confirmNone: { refused: "DRPG.Floor.closing.noDrawn" }, confirmGone: { refused: "DRPG.Floor.closing.absent" },
+            pickOther: speech(Cc, 300, "picked", [["DRPG.Floor.closing.speaks", Cc]], { push: { actorId: Cc, via: "picked", messageId: null } }),
+            pickSpoke: speech(A, 300, "picked", [["DRPG.Floor.closing.speaks", A]], { push: { actorId: A, via: "picked", messageId: null } }),
+            pickStranger: { refused: "DRPG.Floor.closing.notParticipant" }, pickEarly: { refused: "DRPG.Floor.closing.noChoice" },
+            objectAt5: { mode: "objection", holder: D, phase: "speak", choice: null, left: 60, kept: null, via: "drawn", chain: [D], count: 2,
+                stack: [[CARD, "closing", 295]], cards: [], record: { leftAtEnd: 295 } },
+            rows: [true, true, false, true, false, true, false, false, false, true, false, false],
+            decideDue: decided([]), decideSkip: decided([["DRPG.Floor.turnSkipped", A]]),
+            cut: { mode: "objection", holder: E, phase: "speak", choice: null, left: 60, kept: null, via: "drawn", chain: [D, E], count: 2,
+                stack: [[CARD, "closing", 200], [CARD2, "rebuttal", 60]], cards: [], record: null },
+            cutDecide: { ...decided([], [D, E]), left: null },
+            continueSpeaker: speech(A, 200, "speaker", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "speaker", messageId: null } }),
+            continueObjector: speech(E, 300, "objection", [["DRPG.Floor.closing.continues", E]], { push: { actorId: E, via: "objection", messageId: CARD } }),
+            continueOther: { refused: "DRPG.Floor.closing.notInExchange" }, continueGone: { refused: "DRPG.Floor.closing.absent" },
+            overrule: again(), lapse: again(), withdraw: again(), backExchange: again(), back: { refused: "DRPG.Floor.bar.inClosing" },
+            endExchange: over(),
+            passEarly: choiceOf("pick", [["DRPG.Floor.round.passes", A]], { leftAtEnd: 290 }),
+            passLate: over(260), passContinued: over(150), done: over(100),
+            doneOther: { refused: "DRPG.Floor.round.notSpeaker" }, doneStale: { refused: "DRPG.Floor.round.stale" }, timeUp: over(0),
+            overEarly: { refused: "DRPG.Floor.round.notDue" },
+            skipSpeaker: choiceOf("pick", [["DRPG.Floor.turnSkipped", A]], { leftAtEnd: 100 }),
+            gone: choiceOf("pick", [["DRPG.Floor.round.passes", A]], { leftAtEnd: 100 }), endSpeaking: over(100), endChoice: over(),
+            minusToZero: { refused: "DRPG.Floor.closing.noTime" }, plus: { ...again(50), via: "drawn" },
+            adjustChoice: { refused: "DRPG.Floor.bar.noAdjust" },
+            resume: speech(A, 100, "resumed", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "resumed", messageId: null } }, 0),
+            resumeNone: { refused: "DRPG.Floor.closing.nothingToResume" }, resumeVote: { refused: "DRPG.Floor.closing.voteOpen" },
+            record: [{ done: false, speakers: [] }, { done: true, speakers: [{ actorId: A, via: "drawn", messageId: null, leftAtEnd: 200 },
+                { actorId: D, via: "objection", messageId: CARD, leftAtEnd: 10 }] }],
+            config: [30, 300, 1, 30, true, "exchange"],
+            refusal: [true, null, null, true]
+        }), "a Closing row is not the owner's rule (the start, the volunteers and the draw, Confirm and the pick, an Objection at the speaker, the mode's row, the decision, an Overrule and a lapse, Pass in and after its window, Done, the time, Skip, End this mode, the clock, Resume, the record, the config and the refusal)");
     }],
 ];
 

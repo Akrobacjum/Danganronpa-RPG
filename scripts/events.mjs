@@ -27,7 +27,7 @@ import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor, locateActor } from "./movement.mjs";
-import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
     incidentWitness, isDeceased } from "./settings.mjs";
@@ -451,6 +451,10 @@ export function trialCard(clock) {
             const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
             meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
                 : game.i18n.localize("DRPG.Events.trialLastTurn");
+        } else if (floor?.mode === FLOOR_MODES.closing) {
+            // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
+            speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
+            meta = closingLine(floor) ?? meta;
         }
         return {
             kind: "trial",

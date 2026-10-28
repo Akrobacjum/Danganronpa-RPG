@@ -576,7 +576,8 @@
         "objection": "Objection",
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
-        "panic": "Panic Round"
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "trialTooltip": "The Class Trial. The debate runs from the GM's console, not here.",
       "trialClockTooltip": "How long this part of the debate has left.",
@@ -1211,7 +1212,8 @@
         "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
         "sentenceWaits": "The trial goes on: the sentence is carried out when it ends.",
-        "round": "A round holds the floor: each speaker in turn. Skip moves to the next speaker; End this mode ends the round."
+        "round": "A round holds the floor: each speaker in turn. Skip moves to the next speaker; End this mode ends the round.",
+        "closing": "The Closing Argument holds the floor: confirm or pick its speaker, and after an Objection decide who continues. End the Closing Argument ends it; the vote is the next step."
       },
       "objectionNote": "You never move the debate for an objection: a player's OBJECTION! takes it, and the minute starts when their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
@@ -1220,7 +1222,8 @@
         "objection": "OBJECTION",
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
-        "panic": "Panic Round"
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
       "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
@@ -1245,7 +1248,8 @@
         "noOverrule": "There is no Objection to overrule.",
         "inRound": "A round has no debate to go back to: End this mode ends it.",
         "minusSeconds": "-{seconds} s",
-        "plusSeconds": "+{seconds} s"
+        "plusSeconds": "+{seconds} s",
+        "inClosing": "The Closing Argument has no debate to go back to: End this mode ends it."
       },
       "gmStepTitle": "The GM steps in",
       "turnSkipped": "Turn skipped: {name}.",
@@ -1321,7 +1325,47 @@
       "holdingRoundLast": "{mode}: {who} speaks - {seconds} s, the last turn.",
       "startTestimony": "Testimony",
       "startPanic": "Panic Round",
-      "endRound": "End the round"
+      "endRound": "End the round",
+      "closing": {
+        "opened": "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
+        "speaks": "{name} gives the Closing Argument.",
+        "continues": "{name} continues the Closing Argument ({time}).",
+        "over": "The Closing Argument is over.",
+        "already": "This trial has already had its Closing Argument.",
+        "busy": "The Closing Argument cannot start while an Objection or a round holds the floor.",
+        "notVolunteering": "Nobody is volunteering for the Closing Argument now.",
+        "noChoice": "The Closing Argument is not waiting for a speaker now.",
+        "noDrawn": "Nobody was drawn: pick a speaker.",
+        "absent": "That player is not connected: pick someone else.",
+        "notParticipant": "That character takes no part in this trial.",
+        "noDecision": "There is no decision to make now.",
+        "notInExchange": "Only the speaker or someone who objected in this exchange can continue.",
+        "voteOpen": "The vote has opened: the Closing Argument is over.",
+        "nothingToResume": "Nobody has time left in the Closing Argument.",
+        "waitsForGm": "The Closing Argument is waiting for your choice, not for a clock.",
+        "noTime": "That would end the speaker's time: use Skip or End this mode.",
+        "volunteers": "Volunteers: {n}",
+        "confirming": "The GM is confirming the speaker.",
+        "nobody": "Nobody volunteered. The GM picks a speaker or goes to the vote.",
+        "picking": "The GM picks the next speaker.",
+        "deciding": "The GM decides who continues the Closing Argument.",
+        "notDone": "The Closing Argument did not change.",
+        "resume": "Resume the Closing Argument: {name} ({time})",
+        "noVolunteers": "nobody yet",
+        "gmVolunteers": "Closing Argument - {seconds} s to volunteer. Volunteers: {names}.",
+        "gmDrawn": "Drawn: {name}. Volunteers: {names}.",
+        "confirm": "Confirm",
+        "pickOther": "Pick someone else",
+        "pick": "Pick a speaker",
+        "whoContinues": "Who continues the Closing Argument?",
+        "volunteered": "volunteered",
+        "alreadySpoke": "Already spoke in the Closing Argument",
+        "pickLabel": "Who gives the Closing Argument",
+        "holding": "Closing Argument: {who} speaks - {seconds} s left.",
+        "inExchange": "An Objection in the Closing Argument: after its exchange you decide who continues."
+      },
+      "startClosing": "Closing Argument",
+      "endClosing": "End the Closing Argument"
     },
     "Events": {
       "overflowMetaGm": "{count} of {max} in the hat",
@@ -2385,8 +2429,19 @@
         "title": "Your turn - {seconds} s",
         "body": "{mode}: you have the floor. Done ends your turn; Pass gives it to the next speaker.",
         "done": "Done",
-        "pass": "Pass"
-      }
+        "pass": "Pass",
+        "closingPassEarly": "Pass in your first 30 s hands the choice back to the GM; after that it ends the Closing Argument.",
+        "closingPass": "Pass ends the Closing Argument, as Done does."
+      },
+      "claim": {
+        "body": "The Closing Argument: will you sum up the case? {seconds} s to volunteer; the GM confirms the speaker.",
+        "yes": "I'll sum up",
+        "no": "Not me",
+        "counted": "You volunteered for the Closing Argument."
+      },
+      "objectionClosingNobody": "Nobody is speaking in the Closing Argument now.",
+      "objectionClosingSpeaker": "In the Closing Argument, an Objection can only be aimed at whoever is speaking.",
+      "objectionClosingDecision": "After the exchange, the GM decides who continues the Closing Argument: the speaker or one who objected."
     },
     "Handover": {
       "alreadyHasKey": "{who} already has a key to that room.",
@@ -3253,7 +3308,8 @@
         "gm.call": "A question to the GM",
         "bridge.refused": "A GM's refusal of your request",
         "bridge.ack": "A GM's word that your request arrived",
-        "trial.turn": "Your turn in the round"
+        "trial.turn": "Your turn in the round",
+        "trial.claim": "Volunteering for the Closing Argument"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
@@ -4787,6 +4843,7 @@
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
         "trialMute": "The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends",
+        "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
         "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
       },
       "row": {

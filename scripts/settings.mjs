@@ -382,6 +382,11 @@ export const SETTINGS = {
      */
     gmTrialMute: "gmTrialMute",
     /**
+     * THE CLOSING ARGUMENT'S VOLUNTEERS (E70 C8, 28.10.2026): a GM store (gm-stores.mjs `closingClaimStore`), one record
+     * `{ volunteers, drawn, openedAt }` - who volunteered and whom the draw named, which the floor never holds.
+     */
+    gmClosingClaim: "gmClosingClaim",
+    /**
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
@@ -1697,6 +1702,14 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The Closing's volunteers (E70 C8): the GM's console reads the names and the draw - another GM's merged in too.
+    game.settings.register(MODULE_ID, SETTINGS.gmClosingClaim, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgClosingClaims")
     });
     /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
        redraws what the world setting's change redrew (the caption, the HUD row, the sheets;

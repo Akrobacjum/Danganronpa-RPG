@@ -1166,8 +1166,9 @@ async function nameObjectionTarget(actor) {
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
     // In a round only its speaker may be named (E70 C7; the primary holds the same row, `targetRefusal`).
+    // And in the Closing its speaker alone (E70 C8; E70-53).
     const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId]
-        : floor?.mode === FLOOR_MODES.testimony ? [floor.holderId] : null;
+        : floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.closing ? [floor.holderId] : null;
     const choices = livingStudents()
         .filter(student => student.id !== actor.id && (!pair || pair.includes(student.id)))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -1184,7 +1185,8 @@ async function nameObjectionTarget(actor) {
                     `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
             ${pair ? `<p class="notes">${floor.mode === FLOOR_MODES.testimony
                 ? game.i18n.format("DRPG.Trial.objectionSpeakerOnly", { mode: game.i18n.localize("DRPG.Floor.mode.testimony") })
-                : game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
+                : floor.mode === FLOOR_MODES.closing ? game.i18n.localize("DRPG.Trial.objectionClosingSpeaker")
+                    : game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Trial.objectionNoRoom")}</p>
         </form>`),
         buttons: [
@@ -1217,6 +1219,11 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
         return pendingFor(floor, actor.id, messageId) ? Math.ceil(msLeft(floor) / 1000) : 0;
     };
     const countLine = () => game.i18n.format("DRPG.Trial.objectionPickCount", { seconds: left() });
+    // An Objection in the Closing Argument names the decision its exchange ends in (E70 C8; E70-53, TR24).
+    const { closingOf } = await import("./floor-machine.mjs");
+    const decisionLine = closingOf(trialFloor())
+        // A <div>, not a <p class="notes">: the count below is found as the form's first `p.notes`.
+        ? `<div class="notes drpg-objection-decision">${game.i18n.localize("DRPG.Trial.objectionClosingDecision")}</div>` : "";
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Trial.objectionPickTitle") },
         classes: ["drpg-panel", "drpg-objection-pick"],
@@ -1231,6 +1238,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             <p class="drpg-warning">${game.i18n.format("DRPG.Trial.objectionWarning", {
                 objection: TRIAL.objectionSeconds, rebuttal: TRIAL.rebuttalSeconds
             })}</p>
+            ${decisionLine}
             <p class="notes">${countLine()}</p>
         </form>`),
         buttons: [

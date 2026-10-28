@@ -1,5 +1,6 @@
 /**
- * Danganronpa RPG - the Class Trial's tools beside the debate: the rounds (E70 C7, 28.10.2026).
+ * Danganronpa RPG - the Class Trial's tools beside the debate: the rounds (E70 C7, 28.10.2026) and the Closing Argument
+ * (E70 C8, 28.10.2026).
  * ---------------------------------------------------------------------------
  * The guide's trial is more than a debate and its Objections. TESTIMONY: every participant in turn, a minute each (the
  * owner, TR6: "Zeznanie - maks 2 minuty na osobe. Nie 3."; 27.10: "Skrocmy proponowane testimony do 1 minuty"), the GM
@@ -24,7 +25,9 @@
 
 import { TRIAL } from "./config.mjs";
 import { error, isPrimaryGm, serialWrite } from "./utils.mjs";
-import { MODES, turnRange, isRoundMode } from "./floor-machine.mjs";
+import { MODES, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
+import { closingClaimStore } from "./gm-stores.mjs";
+import { RECORD } from "./gm-store.mjs";
 
 /** The turn the Testimony window offers (60 s since the owner's 27.10 answer; the range stays 30-120 s). */
 export function testimonyOffer() {
@@ -139,10 +142,15 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
     const { SEIZE_KEY } = await import("./trial.mjs");
     if (!floorMod.inClassTrial()) return { refused: "no Class Trial is in session" };
     const floor = floorMod.trialFloor();
-    if (!floor?.round || !isRoundMode(floor.round.mode)) return { refused: "no round holds the floor now" };
-    if (!floor.round.order.includes(actorId)) return { refused: "that character takes no part in the round" };
+    // The Closing's speaker ends or passes their own stretch, and anyone taking part calls its time over (E70 C8).
+    const closing = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak" ? closingOf(floor) : null;
+    if (!closing && (!floor?.round || !isRoundMode(floor.round.mode))) return { refused: "no round holds the floor now" };
+    if (closing) {
+        const { trialParticipants } = await import("./vote.mjs");
+        if (!trialParticipants().some(p => p.actor.id === actorId)) return { refused: "that character takes no part in the round" };
+    } else if (!floor.round.order.includes(actorId)) return { refused: "that character takes no part in the round" };
     if (kind === "over") {
-        const key = `${senderId ?? "-"}|${floor.round.openedAt ?? "-"}|${Number(step) || 0}`;
+        const key = `${senderId ?? "-"}|${(closing ? closing.openedAt : floor.round.openedAt) ?? "-"}|${Number(step) || 0}`;
         if (overHeard.has(key)) return { refused: "that player has already called that turn over" };
         if (overHeard.size > 500) overHeard.clear();
         overHeard.add(key);
@@ -151,11 +159,162 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
     const out = await serialWrite(SEIZE_KEY, () => floorMod.roundStepInStep(event));
     // The machine's reasons, in the bridge's closed words (bridge-guards.mjs `REASON_PATTERNS`).
     switch (out?.refused ?? null) {
-        case null: return { reply: { step: out?.written?.round?.step ?? null } };
+        case null: return { reply: { step: out?.written?.round?.step ?? out?.written?.closing?.step ?? null } };
         case "DRPG.Floor.bar.notTrial": return { refused: "no Class Trial is in session" };
         case "DRPG.Floor.round.noTurn": return { refused: "no round holds the floor now" };
         case "DRPG.Floor.round.notSpeaker": return { refused: "it is not that character's turn" };
         case "DRPG.Floor.round.notDue": return { refused: "that turn has not run out yet" };
         default: return { refused: "the round has moved on since that turn" };
+    }
+}
+
+/* ==========================================================================
+ * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", one per trial; TR23 = 1;
+ * TR24 "Mowca ma rebuttal, w oparciu o ktory gm decyduje, kto kontynuuje closing argument"; TR29 = 4 "Brak ochrony,
+ * chroni tylko GM"; TR34 = 1; DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac"; amend 7 of 14.10:
+ * "Chcialbym usunac nagrode +3 hope za ostatni glos" - no reward of any kind here).
+ * --------------------------------------------------------------------------
+ * The rows are the floor's (floor-machine.mjs `closingStep`, `closingOwnStep`), written in its one queue on the primary
+ * (trial-floor.mjs `closingStepInStep`). What lives here: the GM's calls on whichever GM asks (`startClosing`,
+ * `confirmClosingSpeaker`, `pickClosingSpeaker`, `continueClosing`, `resumeClosing`, the API's and the console's), the
+ * console's refusal, a volunteer's "trial.claim" on the primary (`volunteerOnPrimary`), the draw, and the vote's end of it.
+ *
+ * THE VOLUNTEERS ARE THE GMS' (the stage's write roads; E70-51). Who volunteered and whom the draw named are in the GM
+ * store `closingClaimStore` (`{ volunteers, drawn, openedAt }`), never in world data: the floor says how many volunteered
+ * and whether there is a drawn speaker to confirm, so the GM's change of the draw is never told (E70-52: "the card never
+ * tells a change"). world-secrets.mjs keeps `volunteers` and `drawn` out of the floor's setting.
+ * ========================================================================== */
+
+/** The GMs' record of the Closing's volunteers, once it has come in from the other GMs: `{ volunteers, drawn, openedAt }`. */
+export async function closingHeld() {
+    await closingClaimStore.whenHydrated();
+    const row = closingClaimStore.get(RECORD) ?? {};
+    return { volunteers: Array.isArray(row.volunteers) ? [...row.volunteers] : [], drawn: row.drawn ?? null, openedAt: row.openedAt ?? null };
+}
+
+/** The volunteers emptied for a new Closing, in its start's step on the primary (trial-floor.mjs `closingStepInStep`). */
+export async function clearClaims(openedAt = null) {
+    await closingClaimStore.whenHydrated();
+    await closingClaimStore.patch(RECORD, { volunteers: [], drawn: null, openedAt });
+}
+
+/**
+ * THE DRAW, in a step of the floor's key on the primary (trial-floor.mjs `advanceFrom`): one of the volunteers still
+ * taking part - a volunteer who died or became a Monocub in the window is dropped (vote.mjs `trialParticipants`) -
+ * at random, kept as `drawn`; null, kept as well, when nobody is left.
+ */
+export async function drawInStep() {
+    const { trialParticipants } = await import("./vote.mjs");
+    const taking = new Set(trialParticipants().map(p => p.actor.id));
+    const held = await closingHeld();
+    const left = held.volunteers.filter(id => taking.has(id));
+    const drawn = left.length ? left[Math.floor(Math.random() * left.length)] : null;
+    await closingClaimStore.patch(RECORD, { drawn });
+    return drawn;
+}
+
+/**
+ * Why the console's Closing Argument cannot start now, in the GM's words, or null (E70-50): this trial has had its
+ * Closing ("This trial has already had its Closing Argument."; a second trial's record starts without one, D17), or a
+ * mode other than an open debate holds the floor.
+ */
+export function closingRefusal(progress, floor) {
+    if (progress?.closing?.done === true) return game.i18n.localize("DRPG.Floor.closing.already");
+    if (floor && floor.mode !== MODES.debate) return game.i18n.localize("DRPG.Floor.closing.busy");
+    return null;
+}
+
+/** A GM's call on the Closing, on whichever GM asks: only in a Class Trial; the floor written, or null with a warning. */
+async function closingCall(op, args = {}) {
+    if (!game.user.isGM) return null;
+    const { inClassTrial, floorStep } = await import("./trial-floor.mjs");
+    if (!inClassTrial()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.bar.notTrial"));
+        return null;
+    }
+    const written = await floorStep(op, args);
+    if (written === null) ui.notifications.warn(game.i18n.localize("DRPG.Floor.closing.notDone"));
+    return written;
+}
+
+/**
+ * `game.drpg.startClosing()` (E70-57): the volunteers' window (30 s), refused once this trial has had its Closing and
+ * while another mode holds the floor - said in the GM's words here, judged again on the primary.
+ */
+export async function startClosing() {
+    if (!game.user.isGM) return null;
+    const { trialFloor } = await import("./trial-floor.mjs");
+    const { trialProgress } = await import("./vote.mjs");
+    const refused = closingRefusal(trialProgress(), trialFloor());
+    if (refused) {
+        ui.notifications.warn(refused);
+        return null;
+    }
+    return closingCall("closing");
+}
+
+/** `game.drpg.confirmClosingSpeaker()`: the drawn volunteer speaks (300 s). */
+export function confirmClosingSpeaker() {
+    return closingCall("closingConfirm");
+}
+
+/** `game.drpg.pickClosingSpeaker(actorId)`: anyone taking part in the trial speaks instead, a volunteer or not (DA18). */
+export function pickClosingSpeaker(actorId) {
+    return closingCall("closingPick", { actorId: actorId?.id ?? actorId ?? null });
+}
+
+/**
+ * `game.drpg.continueClosing(actorId)` after an exchange (TR24, TR34 = 1): the speaker, with the seconds they had at the
+ * Objection, or one of the exchange's objectors with a new 300 s.
+ */
+export function continueClosing(actorId) {
+    return closingCall("closingContinue", { actorId: actorId?.id ?? actorId ?? null });
+}
+
+/** `game.drpg.resumeClosing()`: the Closing's last speaker again with the seconds they had left, until the vote opens. */
+export function resumeClosing() {
+    return closingCall("closingResume");
+}
+
+/**
+ * A volunteer's "trial.claim" on the primary (gm-bridge.mjs `handleTrialClaim`; the "I'll sum up" window,
+ * trial-prompt.mjs): `{ reply: { count } }` or `{ refused }` in the bridge's closed words. The sender's ownership of
+ * `actorId` is the bridge's guard; here, in one step of the floor's key: a Class Trial, the volunteers' window open, the
+ * character taking part (vote.mjs `trialParticipants`), once; the name kept in the GMs' store and the count on the floor.
+ */
+export async function volunteerOnPrimary({ actorId }) {
+    if (!isPrimaryGm()) return { refused: "nothing was carried out: this GM's browser is not the primary" };
+    const floorMod = await import("./trial-floor.mjs");
+    const { SEIZE_KEY } = await import("./trial.mjs");
+    const { trialParticipants } = await import("./vote.mjs");
+    return serialWrite(SEIZE_KEY, async () => {
+        if (!floorMod.inClassTrial()) return { refused: "no Class Trial is in session" };
+        const floor = floorMod.trialFloor();
+        if (floor?.mode !== MODES.closing || closingOf(floor)?.phase !== "volunteer") return { refused: "nobody is volunteering for the Closing Argument now" };
+        if (!trialParticipants().some(p => p.actor.id === actorId)) return { refused: "that character takes no part in the round" };
+        const held = await closingHeld();
+        if (held.volunteers.includes(actorId)) return { refused: "that character has already volunteered" };
+        const volunteers = [...held.volunteers, actorId];
+        await closingClaimStore.patch(RECORD, { volunteers });
+        const out = await floorMod.closingStepInStep({ type: "claim", count: volunteers.length }, { why: true });
+        if (out?.refused) return { refused: "nobody is volunteering for the Closing Argument now" };
+        return { reply: { count: volunteers.length } };
+    });
+}
+
+/**
+ * THE VOTE ENDS THE CLOSING (E70 C8; E70-56): the vote's opening (vote.mjs `openRound`, on the primary) ends a Closing
+ * still on the floor or in its exchange, as End this mode would, its record done. Nothing on any other floor.
+ */
+export async function endClosingForVote() {
+    if (!isPrimaryGm()) return null;
+    const floorMod = await import("./trial-floor.mjs");
+    if (!closingOf(floorMod.trialFloor())) return null;
+    const { SEIZE_KEY } = await import("./trial.mjs");
+    try {
+        return await serialWrite(SEIZE_KEY, () => (closingOf(floorMod.trialFloor()) ? floorMod.closingStepInStep({ type: "closingEnd" }) : null));
+    } catch (err) {
+        error("Could not end the Closing Argument as the vote opened", err);
+        return null;
     }
 }

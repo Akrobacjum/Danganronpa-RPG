@@ -554,7 +554,8 @@
         "objection": "Objection",
         "rebuttal": "Rebuttal",
         "testimony": "Zeznanie",
-        "panic": "Panic Round"
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "trialTooltip": "Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
@@ -1200,7 +1201,8 @@
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
         "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy.",
-        "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę."
+        "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę.",
+        "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
@@ -1209,7 +1211,8 @@
         "objection": "OBJECTION",
         "rebuttal": "Rebuttal",
         "testimony": "Zeznanie",
-        "panic": "Panic Round"
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
       "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; OBJECTION! gracza przejmuje głos.",
@@ -1233,7 +1236,8 @@
         "noOverrule": "Nie ma Objection do oddalenia.",
         "inRound": "Runda nie ma debaty, do której można wrócić: Zakończ ten tryb ją kończy.",
         "minusSeconds": "-{seconds} s",
-        "plusSeconds": "+{seconds} s"
+        "plusSeconds": "+{seconds} s",
+        "inClosing": "Closing Argument nie ma debaty, do której można wrócić: Zakończ ten tryb go kończy."
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "Tura pominięta: {name}.",
@@ -1316,7 +1320,47 @@
       "holdingRoundLast": "{mode}: mówi {who} - {seconds} s, ostatnia tura.",
       "startTestimony": "Zeznanie",
       "startPanic": "Panic Round",
-      "endRound": "Zakończ rundę"
+      "endRound": "Zakończ rundę",
+      "closing": {
+        "opened": "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
+        "speaks": "Closing Argument wygłasza {name}.",
+        "continues": "{name} kontynuuje Closing Argument ({time}).",
+        "over": "Closing Argument dobiegł końca.",
+        "already": "Ta rozprawa miała już swój Closing Argument.",
+        "busy": "Closing Argument nie może się zacząć, gdy głos ma Objection albo runda.",
+        "notVolunteering": "Teraz nikt nie zgłasza się do Closing Argument.",
+        "noChoice": "Closing Argument nie czeka teraz na mówcę.",
+        "noDrawn": "Nikogo nie wylosowano: wybierz mówcę.",
+        "absent": "Ten gracz nie jest połączony: wybierz kogoś innego.",
+        "notParticipant": "Ta postać nie bierze udziału w tej rozprawie.",
+        "noDecision": "Teraz nie ma nic do zdecydowania.",
+        "notInExchange": "Dalej może mówić tylko mówca albo ktoś, kto zgłosił Objection w tej wymianie.",
+        "voteOpen": "Głosowanie się zaczęło: Closing Argument dobiegł końca.",
+        "nothingToResume": "Nikt nie ma już czasu w Closing Argument.",
+        "waitsForGm": "Closing Argument czeka na twój wybór, nie na zegar.",
+        "noTime": "To zakończyłoby czas mówcy: użyj Pomiń albo Zakończ ten tryb.",
+        "volunteers": "Zgłoszeni: {n}",
+        "confirming": "GM zatwierdza mówcę.",
+        "nobody": "Nikt się nie zgłosił. GM wybiera mówcę albo przechodzi do głosowania.",
+        "picking": "GM wybiera następnego mówcę.",
+        "deciding": "GM decyduje, kto kontynuuje Closing Argument.",
+        "notDone": "Closing Argument się nie zmienił.",
+        "resume": "Wznów Closing Argument: {name} ({time})",
+        "noVolunteers": "jeszcze nikt",
+        "gmVolunteers": "Closing Argument - {seconds} s na zgłoszenia. Zgłoszeni: {names}.",
+        "gmDrawn": "Wylosowano: {name}. Zgłoszeni: {names}.",
+        "confirm": "Zatwierdź",
+        "pickOther": "Wybierz kogoś innego",
+        "pick": "Wybierz mówcę",
+        "whoContinues": "Kto kontynuuje Closing Argument?",
+        "volunteered": "zgłosił(a) się",
+        "alreadySpoke": "Już mówił(a) w Closing Argument",
+        "pickLabel": "Kto wygłasza Closing Argument",
+        "holding": "Closing Argument: mówi {who} - zostało {seconds} s.",
+        "inExchange": "Objection w Closing Argument: po wymianie decydujesz, kto mówi dalej."
+      },
+      "startClosing": "Closing Argument",
+      "endClosing": "Zakończ Closing Argument"
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -2467,8 +2511,19 @@
         "title": "Twoja tura - {seconds} s",
         "body": "{mode}: masz głos. Gotowe kończy twoją turę; Pasuję oddaje ją następnemu mówcy.",
         "done": "Gotowe",
-        "pass": "Pasuję"
-      }
+        "pass": "Pasuję",
+        "closingPassEarly": "Pasuję w pierwszych 30 s oddaje wybór GM-owi; potem kończy Closing Argument.",
+        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
+      },
+      "claim": {
+        "body": "Closing Argument: podsumujesz sprawę? {seconds} s na zgłoszenie; GM zatwierdza mówcę.",
+        "yes": "Podsumuję",
+        "no": "Nie ja",
+        "counted": "Zgłosiłeś(-aś) się do Closing Argument."
+      },
+      "objectionClosingNobody": "Teraz nikt nie mówi w Closing Argument.",
+      "objectionClosingSpeaker": "W Closing Argument Objection można zgłosić tylko wobec osoby, która mówi.",
+      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection."
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -3377,7 +3432,8 @@
         "gm.call": "Pytanie do GM-a",
         "bridge.refused": "Odmowa GM-a na twoją prośbę",
         "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
-        "trial.turn": "Twoja tura w rundzie"
+        "trial.turn": "Twoja tura w rundzie",
+        "trial.claim": "Zgłoszenie do Closing Argument"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -5932,6 +5988,10 @@
         "panicStart": {
           "label": "Panic Round",
           "hint": "Zaczyna się Panic Round: wszyscy po kolei, po kilka sekund. Słyszy cały stół."
+        },
+        "closingStart": {
+          "label": "Closing Argument",
+          "hint": "Zaczyna się Closing Argument: kto podsumuje sprawę? Słyszy cały stół."
         }
       }
     },
@@ -6138,6 +6198,7 @@
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
         "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
+        "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
       },
       "row": {

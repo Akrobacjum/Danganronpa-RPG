@@ -3660,7 +3660,18 @@ export const TRIAL = {
             testimony: { offered: 60, min: 30, max: 120 },
             panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
             graceSeconds: 1
-        }
+        },
+        /*
+         * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,
+         * TR24, TR29 = 4, TR34 = 1, DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac", amend 7 of 14.10:
+         * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
+         * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
+         * second, its exchange (`objection`, the debate's 60 + 120 s with cut-ins), after which the GM decides who
+         * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
+         * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
+         * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
+         */
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 }
     },
     /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
@@ -4589,6 +4600,11 @@ export const SFX_EVENTS = {
     objection: {
         label: "Objection",
         hint: "Somebody takes the trial floor. Heard by the whole table.",
+        category: "incident"
+    },
+    closingStart: {
+        label: "Closing Argument",
+        hint: "The Closing Argument opens: who will sum up the case? Heard by the whole table.",
         category: "incident"
     },
     panicStart: {

@@ -39995,6 +39995,132 @@ const SCENARIOS = [
             + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
     }],
 
+    ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
+        /*
+         * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the
+         * participants as vote.mjs `trialParticipants` gives them: (1) `startClosing` opens the volunteers' window; (2) the
+         * first participant's owner volunteers by the bridge's "trial.claim" (taken), again (refused: once), the second's
+         * owner volunteers the first's student (refused: not theirs) and their own (taken) - the floor says "2" and nothing
+         * else, neither world setting holds a volunteer or a draw, the GMs' store holds both names; (3) Skip draws one of
+         * them and Confirm gives them the floor; (4) an Objection at a participant who is not speaking is refused, one at the
+         * speaker opens its exchange, and the rebuttal skipped is the GM's decision with the speaker's seconds kept; the
+         * speaker continues with them; (5) a second exchange, and the objector continues with a new 300 s; (6) an Objection
+         * at the new speaker overruled in its exchange gives them back the seconds they had at it; (7) End this mode ends the
+         * Closing, the record names three stretches (drawn, the speaker again, the objector) and is done; a second
+         * `startClosing` in this trial opens nothing. Red at 2f1e8772: no `startClosing`, no "trial.claim". The clock, the
+         * floor, the record, the store and the cards are put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a Closing's draw and its exchange need two connected players' students");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor and the GMs' store - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = S.closingClaimStore ? foundry.utils.deepClone(S.closingClaimStore.get(RECORD) ?? null) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        // A key named `volunteers` or `drawn` at any depth of either world setting (a speaker's `via` may read "drawn").
+        const keyed = value => value && typeof value === "object"
+            && Object.entries(value).some(([k, v]) => k === "volunteers" || k === "drawn" || keyed(v));
+        const worldClean = () => !keyed(getSetting(SETTINGS.trialQueue) ?? {}) && !keyed(getSetting(SETTINGS.trialProgress) ?? {});
+        const read = { api: ["startClosing", "confirmClosingSpeaker", "pickClosingSpeaker", "continueClosing", "resumeClosing"].map(k => typeof api[k]) };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await V.setTrialProgress({ closing: null });
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - a Closing's exchange needs two`);
+            const [one, two] = parts;
+            if (typeof api.startClosing === "function" && S.closingClaimStore) {
+                const opened = await api.startClosing();
+                await settle();
+                read.open = [opened?.mode ?? null, F.trialFloor()?.closing?.phase ?? null];
+                const c1 = await judged({ action: "trial.claim", requestId: "E70T10C1", actorId: one.actor.id }, one.user.id);
+                const c1again = await judged({ action: "trial.claim", requestId: "E70T10C1B", actorId: one.actor.id }, one.user.id);
+                const forged = await judged({ action: "trial.claim", requestId: "E70T10FORGED", actorId: one.actor.id }, two.user.id);
+                const c2 = await judged({ action: "trial.claim", requestId: "E70T10C2", actorId: two.actor.id }, two.user.id);
+                const held = S.closingClaimStore.get(RECORD) ?? {};
+                read.claims = [c1, c1again, forged, c2, F.trialFloor()?.closing?.count ?? null, worldClean(),
+                    [...(held.volunteers ?? [])].sort().join() === [one.actor.id, two.actor.id].sort().join()];
+                await api.skipStep();
+                await settle();
+                const drawn = S.closingClaimStore.get(RECORD)?.drawn ?? null;
+                read.draw = [F.trialFloor()?.closing?.phase ?? null, F.trialFloor()?.closing?.choice ?? null, [one.actor.id, two.actor.id].includes(drawn), worldClean()];
+                await api.confirmClosingSpeaker();
+                await settle();
+                const speaker = F.trialFloor()?.holderId ?? null;
+                const objector = speaker === one.actor.id ? two.actor.id : one.actor.id;
+                read.confirm = [F.trialFloor()?.closing?.phase ?? null, speaker === drawn, F.trialFloor()?.closing?.via ?? null];
+                const wrong = await F.openObjection(speaker, objector, {});
+                const opened1 = await F.openObjection(objector, speaker, {});
+                await F.openRebuttal();
+                await api.skipStep();
+                await settle();
+                const kept = F.trialFloor()?.closing?.left ?? null;
+                read.exchange = [wrong ?? null, Boolean(opened1), F.trialFloor()?.closing?.phase ?? null, Number(kept) > 250];
+                await api.continueClosing(speaker);
+                await settle();
+                read.speakerOn = [F.trialFloor()?.holderId === speaker, Math.abs(F.secondsLeft() - kept) <= 2];
+                await F.openObjection(objector, speaker, {});
+                await F.openRebuttal();
+                await api.skipStep();
+                await settle();
+                await api.continueClosing(objector);
+                await settle();
+                read.objectorOn = [F.trialFloor()?.holderId === objector, F.secondsLeft() >= 298, F.trialFloor()?.closing?.via ?? null];
+                await F.openObjection(speaker, objector, {});
+                const atObjection = F.trialFloor()?.before?.at(-1)?.leftAtObjection ?? null;
+                await api.overruleObjection();
+                await settle();
+                read.overrule = [F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === objector, Math.abs(F.secondsLeft() - atObjection) <= 2];
+                await api.endMode();
+                await settle();
+                const record = V.trialProgress().closing ?? null;
+                read.over = [F.trialFloor(), record?.done ?? null, (record?.speakers ?? []).map(s => s.via), worldClean()];
+                const second = await api.startClosing();
+                await settle();
+                read.second = [second ?? null, F.trialFloor()];
+            }
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            if (S.closingClaimStore) await S.closingClaimStore.patch(RECORD, store ?? { volunteers: [], drawn: null, openedAt: null });
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: ["function", "function", "function", "function", "function"],
+            open: ["closing", "volunteer"],
+            claims: [["bridge.done"], ["bridge.refused"], ["bridge.refused"], ["bridge.done"], 2, true, true],
+            draw: ["choice", "confirm", true, true],
+            confirm: ["speak", true, "drawn"],
+            exchange: [null, true, "decide", true],
+            speakerOn: [true, true],
+            objectorOn: [true, true, "objection"],
+            overrule: ["closing", true, true],
+            over: [null, true, ["drawn", "speaker", "objection"], true],
+            second: [null, null]
+        }), "(1) the window; (2) the claims - the first, again, another's student, the second's own - the floor's count, the world settings and the GMs' store; (3) the draw and Confirm; "
+            + "(4) an Objection at somebody not speaking, at the speaker, the decision and the seconds kept, the speaker on with them; (5) the objector on with 300 s; (6) the Overrule; (7) the end, the record, a second Closing");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary

@@ -428,7 +428,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["movedOn", /^the round has moved on since that turn$/],
     ["cannotNow", /^that turn has not run out yet$/],
     ["notEligible", /^that character takes no part in the round$/],
-    ["alreadyDone", /^that player has already called that turn over$/]
+    ["alreadyDone", /^that player has already called that turn over$/],
+    // E70 C8: a volunteer for the Closing Argument ("trial.claim", trial-modes.mjs `volunteerOnPrimary`).
+    ["cannotNow", /^nobody is volunteering for the Closing Argument now$/],
+    ["alreadyDone", /^that character has already volunteered$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

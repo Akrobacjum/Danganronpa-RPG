@@ -5696,6 +5696,8 @@ const REGRESSIONS = [
             withdrawOnPrimary: "refused",
             // E70 C7: a round's step from a participant's browser, judged on the primary (trial-modes.mjs).
             turnOnPrimary: "refused",
+            // E70 C8: a volunteer for the Closing Argument, judged on the primary (trial-modes.mjs).
+            volunteerOnPrimary: "refused",
             // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
             crossTunnel: "refused", crossingWhy: "returns",
             // E17 C3: "Refund last crossing", given back on the primary (movement.mjs), whose run passes its `{ refused }` on.
@@ -7687,6 +7689,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.gm#order", "judged (E70 C7): gmOnly; `as.text`, ids joined by commas, of which trial-floor.mjs `startRoundInStep` keeps only the trial's participants as the primary holds them (`trialParticipants`), once each"],
             ["PACKET gm-bridge.mjs#trial.turn#actorId", "judged (E70 C7): knownSender + owns(actorId); trial-modes.mjs `turnOnPrimary` holds it to the round's order on the floor the primary holds, and Done or Pass to its speaker (floor-machine.mjs `nextFloor`)"],
             ["PACKET gm-bridge.mjs#trial.turn#kind", "judged (E70 C7): `as.oneOf` done, pass, over; a step over is believed only once the turn has run out on the primary's clock (a second's grace), one per sender and step (`turnOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.claim#actorId", "judged (E70 C8): knownSender + owns(actorId); trial-modes.mjs `volunteerOnPrimary` holds it, in one step of the floor's key, to the trial's participants as the primary holds them (`trialParticipants`), in the Closing's volunteers' window, once; the name goes to the GMs' store `closingClaimStore`, only the count to the floor"],
             ["PACKET gm-bridge.mjs#trial.turn#step", "judged (E70 C7): `as.num`, compared by floor-machine.mjs `nextFloor` to the round's step on the floor the primary holds; any other moves nothing"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
@@ -8801,6 +8804,7 @@ const REGRESSIONS = [
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE frisk.mjs#performFriskOpenly", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `action.friskFollow`, and the reason a literal, `cannotNow`): a GM's own Frisk force the gate stopped or voided before the primary judged it, said as a player's refused draw is (E80 fix r2-G3, the review's r2fix-2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestClaim", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry"],
             ["NOTDONE gm-bridge.mjs#requestTurn", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, a step over's not at all); kept as a notDone entry: read, these words and no others (R297; E70 C7)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],

@@ -1075,6 +1075,15 @@ export const DrpgApi = {
        trial's participants drawn after them. Only in a Class Trial; refused, and said why, past the range. */
     startTestimony: (...a) => import("./trial-modes.mjs").then(m => m.startTestimony(...a)),
     startPanicRound: (...a) => import("./trial-modes.mjs").then(m => m.startPanicRound(...a)),
+    /* The Closing Argument (E70 C8; E70-57), on any GM: `startClosing()` the volunteers' 30 s (one per trial),
+       `confirmClosingSpeaker()` the drawn volunteer, `pickClosingSpeaker(actorId)` anyone taking part instead,
+       `continueClosing(actorId)` after an exchange - the speaker with the seconds they had or an objector with 300 s -
+       and `resumeClosing()` the last speaker's rest, until the vote opens. Each said why when refused. */
+    startClosing: (...a) => import("./trial-modes.mjs").then(m => m.startClosing(...a)),
+    confirmClosingSpeaker: (...a) => import("./trial-modes.mjs").then(m => m.confirmClosingSpeaker(...a)),
+    pickClosingSpeaker: (...a) => import("./trial-modes.mjs").then(m => m.pickClosingSpeaker(...a)),
+    continueClosing: (...a) => import("./trial-modes.mjs").then(m => m.continueClosing(...a)),
+    resumeClosing: (...a) => import("./trial-modes.mjs").then(m => m.resumeClosing(...a)),
 
     openVote,
     closeVote,

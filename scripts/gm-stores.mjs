@@ -784,6 +784,20 @@ export const trialMuteStore = defineGmStore({
 });
 
 /**
+ * THE CLOSING ARGUMENT'S VOLUNTEERS (E70 C8, 28.10.2026; TR23 = 1, E70-51). A record, `{ volunteers, drawn, openedAt }`:
+ * who volunteered in the Closing's 30 s ("trial.claim"), the one the draw named for the GM to confirm, and the Closing's
+ * stamp. Written by the primary in a step of the floor's key (trial-modes.mjs `volunteerOnPrimary`, `drawInStep`,
+ * `clearClaims`); the floor holds only how many, and whether there is somebody to confirm, so the GM's change of the
+ * draw is told to nobody (E70-52). Synced between the GMs, so another GM's console reads the names; never world data
+ * (world-secrets.mjs, the floor's rule). Cut by the reset's trial group; not backed up - a volunteer means nothing once
+ * the Closing's speaker is chosen.
+ */
+export const closingClaimStore = defineGmStore({
+    name: "closingClaim", key: SETTINGS.gmClosingClaim,
+    kind: "record", fields: ["volunteers", "drawn", "openedAt"], resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's

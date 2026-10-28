@@ -30,7 +30,8 @@ import { TRIAL } from "./config.mjs";
  * The floor's modes, spelled once (trial-floor.mjs `FLOOR_MODES` is this object): the debate and its exchange, and since
  * E70 C7 the two rounds, Testimony and Panic Round (S18-72), whose speaker is the round's, one after another.
  */
-export const MODES = Object.freeze({ debate: "debate", objection: "objection", rebuttal: "rebuttal", testimony: "testimony", panic: "panic" });
+export const MODES = Object.freeze({ debate: "debate", objection: "objection", rebuttal: "rebuttal", testimony: "testimony", panic: "panic",
+    closing: "closing" });
 
 /*
  * THE ROUNDS (E70 C7, 28.10.2026; S18-72; the owner's TR6 "Zeznanie - maks 2 minuty na osobe. Nie 3.", TR14 = 3, of
@@ -106,6 +107,212 @@ function speakerAgain(floor, now, gmNote = null) {
     };
     back.startedAt = now - (modeSecondsOf(back) - Math.max(Number(entry?.leftAtObjection) || 0, 0)) * 1000;
     return { floor: back, cards: [] };
+}
+
+/*
+ * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7, TR23 = 1, TR24, TR29 = 4, TR34 = 1, DA18;
+ * amend 7: no Hope for the last voice). One mode of the floor, `MODES.closing`, whose `closing` field says where it is:
+ *   volunteer  30 s in which the players volunteer ("trial.claim"); the floor holds only how many (`count`), the names
+ *              and the draw are the GMs' (gm-stores.mjs `closingClaimStore`); its clock run out or Skip is the draw,
+ *              which the caller made (`ctx.drawn`, trial-modes.mjs `drawInStep`): `choice` "confirm" or "none";
+ *   choice     no clock: the GM confirms the drawn speaker or picks anyone of the trial (DA18), a volunteer or not -
+ *              `choice` "confirm" after a draw that named somebody, "none" when nobody volunteered, "pick" when a
+ *              speaker resigned, left or was skipped;
+ *   speak      the speaker's 300 s (`via` drawn, picked, speaker, objection, resumed); an Objection at the speaker at
+ *              any second (TR29 = 4: nobody protects them but the GM), its exchange the debate's (60 + 120 s, cut-ins
+ *              allowed), the speaker's clock standing at `leftAtObjection` meanwhile (the stack's entry); a drawn or
+ *              picked speaker's Pass inside `resignUntil` gives the choice back, any later Pass is Done;
+ *   decide     the exchange over, no clock: the GM decides who continues (TR24, TR34 = 1) - the speaker with `left`, the
+ *              seconds they had at the Objection, or one of the exchange's objectors (`chain`) with a new 300 s.
+ * Done, the speaker's time and End this mode end the Closing ("The Closing Argument is over."; the vote is the next
+ * step), and so does the vote's opening. What the trial record keeps of it is `record`, an answer's field
+ * `commitFloor` folds into `trialProgress().closing` (`closingRecordAfter`): `{ done, speakers: [{ actorId, via,
+ * messageId, leftAtEnd }] }`, one Closing per trial (`ctx.closingDone`), Resume giving the last speaker the rest.
+ */
+
+/** The floor's Closing Argument, or null: on the Closing's own mode and under its exchange. */
+export function closingOf(floor) {
+    const closing = floor?.closing;
+    return closing && typeof closing === "object" && typeof closing.phase === "string" ? closing : null;
+}
+
+/** Whether `floor` is the Closing in a phase with a clock - the volunteers' 30 s, a speaker's time. */
+export function closingTimed(floor) {
+    const phase = floor?.mode === MODES.closing ? closingOf(floor)?.phase : null;
+    return phase === "volunteer" || phase === "speak";
+}
+
+/** The Closing's floor in `phase`, with `patch` over its `closing` and `over` over the floor; a step further. */
+function closingFloor(floor, phase, now, patch = {}, over = {}) {
+    const closing = closingOf(floor) ?? {};
+    return {
+        ...floor, mode: MODES.closing, holderId: null, targetId: null, seconds: 0, startedAt: now, pending: false,
+        messageId: null, before: [], gmNote: null, round: null, ...over,
+        closing: { ...closing, phase, step: (Number(closing.step) || 0) + 1, ...patch }
+    };
+}
+
+/**
+ * A speaker's stretch of the Closing (E70-52 to E70-56): `seconds` of `TRIAL.modes.closing.seconds`, a drawn or picked
+ * one with its Pass window, told by its card ("{name} gives the Closing Argument." or, for one who continues, "{name}
+ * continues the Closing Argument ({time})."), and its row in the record.
+ */
+function closingSpeech(floor, actorId, via, now, { left = null, messageId = null, card = "DRPG.Floor.closing.speaks", note = null } = {}) {
+    const full = Number(TRIAL.modes?.closing?.seconds) || 300;
+    const rest = left === null ? full : Math.max(Number(left) || 0, 0);
+    const resign = via === "drawn" || via === "picked" ? now + (Number(TRIAL.modes?.closing?.passWindowSeconds) || 0) * 1000 : null;
+    const next = closingFloor(floor, "speak", now, { speakerId: actorId, via, resignUntil: resign, choice: null, left: null, chain: [],
+        messageId: null }, { holderId: actorId, seconds: full, startedAt: now - (full - rest) * 1000, gmNote: note });
+    return { floor: next, cards: card ? [{ key: card, actorId, seconds: rest, title: "DRPG.Floor.mode.closing" }] : [],
+        record: { push: { actorId, via, messageId } } };
+}
+
+/** The interrupted speaker again, with the seconds they had at the Objection: a lapse, a withdrawal, Back, an Overrule. */
+function closingSpeakerAgain(floor, now, note = null) {
+    const closing = closingOf(floor);
+    const entry = stackOf(floor).find(e => e?.before?.mode === MODES.closing) ?? null;
+    const speaker = entry?.before?.holderId ?? closing.speakerId ?? null;
+    const full = Number(TRIAL.modes?.closing?.seconds) || 300;
+    const rest = Math.max(Number(entry?.leftAtObjection) || 0, 0);
+    const back = closingFloor(floor, "speak", now, { speakerId: speaker, chain: [] },
+        { holderId: speaker, seconds: entry?.before?.seconds ?? full, gmNote: note });
+    back.startedAt = now - (back.seconds - rest) * 1000;
+    return { floor: back, cards: [] };
+}
+
+/** The exchange is over: the GM decides who continues (TR24, TR34 = 1), the speaker's seconds kept as they stood. */
+function closingDecide(floor, now, cards) {
+    const closing = closingOf(floor);
+    const stack = stackOf(floor);
+    const entry = stack.find(e => e?.before?.mode === MODES.closing) ?? null;
+    return { floor: closingFloor(floor, "decide", now, {
+        speakerId: entry?.before?.holderId ?? closing.speakerId ?? null,
+        left: Math.max(Number(entry?.leftAtObjection) || 0, 0),
+        chain: [...new Set((closing.chain ?? []).filter(id => typeof id === "string" && id))],
+        messageId: entry?.messageId ?? null, resignUntil: null
+    }), cards };
+}
+
+/** The Closing over: an empty floor, its card, and the record's last speaker's seconds and its end. */
+function closingOver(floor, now, cards = []) {
+    const speaking = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
+    return { floor: null, cards: [...cards, { key: "DRPG.Floor.closing.over", title: "DRPG.Floor.mode.closing" }],
+        record: { ...(speaking ? { leftAtEnd: Math.max(leftAt(floor, now), 0) } : {}), done: true } };
+}
+
+/**
+ * The trial record's Closing after a machine's `record` (pure; vote.mjs `trialProgress().closing`, written by
+ * trial-floor.mjs `commitFloor` in the record's own key): `start` begins it, `push` adds a speaker, `leftAtEnd` is the last
+ * speaker's seconds when their stretch stopped, `done` whether it is over.
+ */
+export function closingRecordAfter(closing, record = {}) {
+    if (!record || typeof record !== "object") return closing ?? null;
+    const was = record.start ? { done: false, speakers: [] } : { done: closing?.done === true, speakers: [...(closing?.speakers ?? [])] };
+    if (record.push) was.speakers.push({ actorId: record.push.actorId ?? null, via: record.push.via ?? null, messageId: record.push.messageId ?? null, leftAtEnd: null });
+    if (Number.isFinite(record.leftAtEnd) && was.speakers.length) was.speakers[was.speakers.length - 1] = { ...was.speakers.at(-1), leftAtEnd: record.leftAtEnd };
+    if (record.done === true) was.done = true;
+    if (record.push) was.done = false;
+    return was;
+}
+
+/**
+ * The Closing's rows (E70 C8): `closing` its start, `claim` { count }, `confirm`, `pick` { actorId }, `continue`
+ * { actorId }, `resume`, and the speaker's and the clock's steps (`done`, `pass`, `over`, `gone`, `due`, `skip`) on its
+ * own mode. `ctx`: `closingDone` (this trial has had its Closing), `drawn` (the draw's actor, or null), `participants`
+ * (the trial's, when the caller read them), `absent`, `lastSpeaker` { actorId, leftAtEnd }, `voteOpened`.
+ */
+function closingStep(floor, event, ctx, now) {
+    const type = event?.type;
+    const closing = closingOf(floor);
+    const phase = floor?.mode === MODES.closing ? closing?.phase ?? null : null;
+    const absent = new Set(Array.isArray(ctx?.absent) ? ctx.absent : []);
+    const among = id => typeof id === "string" && id && (!Array.isArray(ctx?.participants) || ctx.participants.includes(id));
+    switch (type) {
+        case "closing": {
+            if (ctx?.closingDone) return { refused: "DRPG.Floor.closing.already" };
+            if (floor && floor.mode !== MODES.debate) return { refused: "DRPG.Floor.closing.busy" };
+            const base = { active: true, pending: false, messageId: null, before: [], gmNote: null, topic: null, order: null, current: null };
+            const opened = closingFloor(base, "volunteer", now, { step: 1, openedAt: now, count: 0 },
+                { seconds: Number(TRIAL.modes?.closing?.volunteerSeconds) || 30 });
+            return { floor: opened, cards: [{ key: "DRPG.Floor.closing.opened", title: "DRPG.Floor.mode.closing" }], record: { start: true } };
+        }
+        case "claim":
+            if (phase !== "volunteer") return { refused: "DRPG.Floor.closing.notVolunteering" };
+            return { floor: { ...floor, closing: { ...closing, count: Math.max(Number(event.count) || 0, 0) } }, cards: [] };
+        case "confirm":
+            if (phase !== "choice") return { refused: "DRPG.Floor.closing.noChoice" };
+            if (closing.choice !== "confirm" || !ctx?.drawn) return { refused: "DRPG.Floor.closing.noDrawn" };
+            if (absent.has(ctx.drawn) || !among(ctx.drawn)) return { refused: "DRPG.Floor.closing.absent" };
+            return closingSpeech(floor, ctx.drawn, "drawn", now);
+        case "pick":
+            if (phase !== "choice") return { refused: "DRPG.Floor.closing.noChoice" };
+            if (!among(event.actorId)) return { refused: "DRPG.Floor.closing.notParticipant" };
+            if (absent.has(event.actorId)) return { refused: "DRPG.Floor.closing.absent" };
+            return closingSpeech(floor, event.actorId, "picked", now);
+        case "continue": {
+            if (phase !== "decide") return { refused: "DRPG.Floor.closing.noDecision" };
+            const id = event.actorId;
+            const speaker = id && id === closing.speakerId;
+            if (!speaker && !(closing.chain ?? []).includes(id)) return { refused: "DRPG.Floor.closing.notInExchange" };
+            if (absent.has(id)) return { refused: "DRPG.Floor.closing.absent" };
+            return speaker
+                ? closingSpeech(floor, id, "speaker", now, { left: closing.left, card: "DRPG.Floor.closing.continues" })
+                : closingSpeech(floor, id, "objection", now, { messageId: closing.messageId ?? null, card: "DRPG.Floor.closing.continues" });
+        }
+        case "resume": {
+            if (ctx?.voteOpened) return { refused: "DRPG.Floor.closing.voteOpen" };
+            if (floor && floor.mode !== MODES.debate) return { refused: "DRPG.Floor.closing.busy" };
+            const last = ctx?.lastSpeaker ?? null;
+            if (!last?.actorId || !(Number(last.leftAtEnd) > 0)) return { refused: "DRPG.Floor.closing.nothingToResume" };
+            if (absent.has(last.actorId)) return { refused: "DRPG.Floor.closing.absent" };
+            const base = { active: true, pending: false, messageId: null, before: [], gmNote: null, topic: null, order: null, current: null,
+                closing: { phase: "speak", step: 0, openedAt: now, count: 0 } };
+            return closingSpeech(base, last.actorId, "resumed", now, { left: last.leftAtEnd, card: "DRPG.Floor.closing.continues" });
+        }
+        default:
+            return null;
+    }
+}
+
+/** The Closing's own mode, after the speaker's, the clock's or the GM's step; null when the event is not one of these. */
+function closingOwnStep(floor, event, ctx, now) {
+    const closing = closingOf(floor);
+    const phase = closing.phase;
+    const type = event?.type;
+    if (type === "due" || type === "skip") {
+        // The volunteers' window over (its 30 s, or the GM's Skip): the draw the caller made, for the GM to confirm.
+        if (phase === "volunteer") return { floor: closingFloor(floor, "choice", now, { choice: ctx?.drawn ? "confirm" : "none" }), cards: [] };
+        if (phase === "speak" && type === "due") return closingOver(floor, now);
+        // The GM's Skip of a speaker: the choice again, the stretch's seconds kept in the record.
+        if (phase === "speak") return { floor: closingFloor(floor, "choice", now, { choice: "pick", resignUntil: null }),
+            cards: [{ key: "DRPG.Floor.turnSkipped", actorId: floor.holderId }], record: { leftAtEnd: Math.max(leftAt(floor, now), 0) } };
+        return { refused: "DRPG.Floor.closing.waitsForGm" };
+    }
+    if (type === "done" || type === "pass" || type === "over" || type === "gone") {
+        if (phase !== "speak") return { refused: "DRPG.Floor.round.noTurn" };
+        if (type !== "gone" && Number(event.step) !== Number(closing.step)) return { refused: "DRPG.Floor.round.stale" };
+        if (type !== "over" && event.actorId !== floor.holderId) return { refused: "DRPG.Floor.round.notSpeaker" };
+        const grace = (Number(TRIAL.modes?.round?.graceSeconds) || 0) * 1000;
+        if (type === "over" && modeSecondsOf(floor) * 1000 - (now - (Number(floor.startedAt) || 0)) > grace) return { refused: "DRPG.Floor.round.notDue" };
+        if (type === "done" || type === "over") return closingOver(floor, now);
+        /* A PASS (E70-55): inside a drawn or picked speaker's window it resigns - the choice is the GM's again; later it is
+           Done. A speaker gone (no player connected) hands the choice back at any second. */
+        const resigns = type === "gone" || (Number(closing.resignUntil) > 0 && now < Number(closing.resignUntil));
+        if (!resigns) return closingOver(floor, now);
+        return { floor: closingFloor(floor, "choice", now, { choice: "pick", resignUntil: null }),
+            cards: [{ key: "DRPG.Floor.round.passes", actorId: floor.holderId, title: "DRPG.Floor.mode.closing" }],
+            record: { leftAtEnd: Math.max(leftAt(floor, now), 0) } };
+    }
+    if (type === "endMode" || type === "end" || type === "closingEnd") return closingOver(floor, now);
+    if (type === "back") return { refused: "DRPG.Floor.bar.inClosing" };
+    if (type === "overrule") return { refused: "DRPG.Floor.bar.noOverrule" };
+    if (type === "lapse" || type === "withdraw" || type === "rebuttal" || type === "fill" || type === "repoint") return { refused: "DRPG.Floor.bar.noObjection" };
+    if (type === "adjust") {
+        if (!closingTimed(floor)) return { refused: "DRPG.Floor.bar.noAdjust" };
+        // Taken to zero it would be the draw or the speaker's end with nobody's word: the GM's Skip says which.
+        if (Number(event.seconds) < 0 && Math.max(leftAt(floor, now), 0) + Number(event.seconds) <= 0) return { refused: "DRPG.Floor.closing.noTime" };
+    }
+    return null;
 }
 
 /** How long each timed mode runs; a debate's length is the GM's budget, the floor's `seconds`. */
@@ -185,6 +392,11 @@ export function topicOf(value) {
  * opened). A debate has no next step: it never runs out by itself, and nobody's turn is in it to skip.
  */
 function stepOn(floor, now, cards, ctx = {}) {
+    // The Closing's exchange (E70 C8): a lapse gives the speaker their seconds back, a rebuttal over is the GM's decision.
+    if (closingOf(floor) && floor.mode !== MODES.closing) {
+        if (floor.mode === MODES.objection && floor.pending) return { ...closingSpeakerAgain(floor, now), cards };
+        if (floor.mode === MODES.rebuttal) return closingDecide(floor, now, cards);
+    }
     const inRound = Boolean(roundOf(floor));
     if (floor.mode === MODES.objection && floor.pending) return inRound ? { ...speakerAgain(floor, now), cards } : { floor: debateAgain(floor, null, now), cards };
     if (floor.mode === MODES.objection) return { floor: { ...floor, mode: MODES.rebuttal, startedAt: now, pending: false, gmNote: null }, cards };
@@ -250,7 +462,7 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             seconds: Number(event.seconds) > 0 ? Number(event.seconds) : TRIAL.speakSeconds,
             startedAt: now, pending: false, messageId: null, before: [], gmNote: null, topic: topicOf(event.topic),
             // Left over from the queue the floor used to be: cleared rather than ignored.
-            order: null, current: null, round: null
+            order: null, current: null, round: null, closing: null
         }, cards: [] };
     }
     if (type === "round") {
@@ -272,7 +484,20 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         const opened = turnAt(base, { mode: event.mode, order, index: -1, step: 0, seconds, openedAt: now }, 0, now, [], ctx.absent, 1);
         return opened.floor ? opened : { refused: "DRPG.Floor.round.nobody" };
     }
+    if (type === "closing" || type === "claim" || type === "confirm" || type === "pick" || type === "continue" || type === "resume") {
+        return closingStep(floor, event, ctx, now);
+    }
     if (!floor) return { refused: "DRPG.Floor.bar.noMode" };
+    if (floor.mode === MODES.closing && closingOf(floor)) {
+        const own = closingOwnStep(floor, event, ctx, now);
+        if (own) return own;
+    } else if (closingOf(floor) && (type === "lapse" || type === "withdraw" || type === "back" || type === "overrule")) {
+        // The Closing's exchange: the speaker brought back with the seconds they had at the Objection (E70-56).
+        return closingSpeakerAgain(floor, now, type === "overrule" ? { key: "DRPG.Floor.gmNoteOverrule", at: now } : null);
+    } else if (closingOf(floor) && (type === "endMode" || type === "end" || type === "closingEnd")) {
+        // End this mode in the exchange ends the Closing with no decision (E70-55); so does the vote's opening.
+        return closingOver(floor, now);
+    }
 
     switch (type) {
         case "objection": {
@@ -282,10 +507,15 @@ export function nextFloor(floor, event = {}, ctx = {}) {
                 before: { mode: floor.mode, holderId: floor.holderId ?? null, targetId: floor.targetId ?? null, seconds: floor.seconds ?? null },
                 leftAtObjection: leftAt(floor, now)
             };
+            // The Closing's exchange keeps its objectors, from whom the GM may pick who continues (E70-54), and the
+            // speaker's seconds at the Objection go into the record (E70-56).
+            const closing = closingOf(floor);
+            const chained = closing ? { closing: { ...closing, chain: [...(closing.chain ?? []), event.holderId].filter(Boolean) } } : {};
+            const record = closing && floor.mode === MODES.closing ? { record: { leftAtEnd: Math.max(entry.leftAtObjection, 0) } } : {};
             return { floor: {
                 ...floor, mode: MODES.objection, holderId: event.holderId, targetId: event.targetId, startedAt: now,
-                pending, messageId: pending ? (event.messageId ?? null) : null, before: [...stackOf(floor), entry], gmNote: null
-            }, cards: [] };
+                pending, messageId: pending ? (event.messageId ?? null) : null, before: [...stackOf(floor), entry], gmNote: null, ...chained
+            }, cards: [], ...record };
         }
         case "fill":
             return { floor: { ...floor, pending: false, startedAt: now, gmNote: null }, cards: [] };

@@ -16,29 +16,94 @@
  *
  * A GM's browser does neither: a GM's students are the GM's spares, who pass at once when nobody plays them
  * (trial-floor.mjs `absentOf`), and the primary's own clock is its heartbeat.
+ *
+ * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; E70-51, E70-55). In its volunteers' 30 s every participant's player is asked
+ * "I'll sum up?" once ("trial.claim"; Not me is the default, so Enter volunteers nobody); its speaker gets the same
+ * window as a round's, Done and Pass - Pass in a drawn or picked speaker's first 30 s hands the choice back to the GM,
+ * later it ends the Closing (floor-machine.mjs) - and every participant's browser calls the speaker's time over as in a
+ * round.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error, ownerOf, dialogContent } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { isRoundMode } from "./floor-machine.mjs";
+import { isRoundMode, MODES, closingOf } from "./floor-machine.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const WINDOW_CLASS = "drpg-your-turn";
 let ticker = null;
 let calledOver = null;
 let promptedFor = null;
+let claimedFor = null;
+const CLAIM_CLASS = "drpg-closing-claim";
 
-/** This player's student in the round's order (the first, for an account with two), or null. */
-function myParticipant(floor) {
+/** The Closing on `floor` in `phase`, or null (E70 C8). */
+function closingIn(floor, phase) {
+    return floor?.mode === MODES.closing && closingOf(floor)?.phase === phase ? closingOf(floor) : null;
+}
+
+/**
+ * This player's student in the round's order (the first, for an account with two), or null; in the Closing, the
+ * student this player takes part in the trial with (vote.mjs `trialParticipants`).
+ */
+async function myParticipant(floor) {
     if (game.user.isGM) return null;
+    if (floor?.mode === MODES.closing) {
+        const { trialParticipants } = await import("./vote.mjs");
+        return trialParticipants().find(p => p.user?.id === game.user.id)?.actor?.id ?? null;
+    }
     return (floor?.round?.order ?? []).find(id => ownerOf(game.actors.get(id))?.id === game.user.id) ?? null;
 }
 
-/** The step a floor's turn is: the round's start and its step, or null outside a round's own turn. */
+/** The step a floor's turn is: the round's start and its step, the Closing's speaker's, or null outside a turn. */
 function turnKey(floor) {
-    return floor && isRoundMode(floor.mode) && floor.round ? `${floor.round.openedAt ?? "-"}|${floor.round.step}` : null;
+    if (floor && isRoundMode(floor.mode) && floor.round) return `${floor.round.openedAt ?? "-"}|${floor.round.step}`;
+    const closing = closingIn(floor, "speak");
+    return closing ? `closing|${closing.openedAt ?? "-"}|${closing.step}` : null;
+}
+
+/** The step a turn's request names: the round's, or the Closing's. */
+function stepOf(floor) {
+    return floor?.round?.step ?? closingOf(floor)?.step ?? 0;
+}
+
+/**
+ * "I'LL SUM UP" (E70 C8; E70-51): once a Closing, in its volunteers' window, to a player whose student takes part. The
+ * window closes itself when the window does; the press asks the primary ("trial.claim"), which counts it or says why not.
+ */
+async function promptClaim(floor) {
+    const closing = closingIn(floor, "volunteer");
+    if (!closing || game.user.isGM) return;
+    const key = String(closing.openedAt ?? "-");
+    if (claimedFor === key || alreadyOpen(CLAIM_CLASS)) return;
+    const actorId = await myParticipant(floor);
+    if (!actorId) return;
+    claimedFor = key;
+    const { trialFloor, secondsLeft } = await import("./trial-floor.mjs");
+    const still = () => String(closingIn(trialFloor(), "volunteer")?.openedAt ?? "") === key;
+    const choice = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Floor.mode.closing") },
+        classes: ["drpg-panel", CLAIM_CLASS],
+        content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.claim.body", { seconds: Math.max(secondsLeft(floor), 0) })}</p>`),
+        buttons: [
+            { action: "claim", label: game.i18n.localize("DRPG.Trial.claim.yes") },
+            { action: "no", label: game.i18n.localize("DRPG.Trial.claim.no"), default: true }
+        ],
+        render: (event, dialog) => {
+            const watch = setInterval(() => {
+                if (!dialog.element?.isConnected) return void clearInterval(watch);
+                if (still()) return;
+                clearInterval(watch);
+                dialog.close();
+            }, 500);
+        },
+        rejectClose: false
+    });
+    if (choice !== "claim" || !still()) return;
+    const { requestClaim } = await import("./gm-bridge.mjs");
+    const res = await requestClaim({ actorId });
+    if (res.ok) ui.notifications.info(game.i18n.localize("DRPG.Trial.claim.counted"));
 }
 
 /** The speaker's window, for the turn `floor` holds, when the speaker is this player's own student. */
@@ -49,12 +114,18 @@ async function promptTurn(floor) {
     if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;
     promptedFor = key;
     const { trialFloor } = await import("./trial-floor.mjs");
-    const step = floor.round.step;
+    const step = stepOf(floor);
     const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
+    // The Closing's speaker may hold less than the whole stretch (the rest after an exchange), and is told what Pass does.
+    const closing = closingIn(floor, "speak");
+    const { secondsLeft } = await import("./trial-floor.mjs");
+    const seconds = closing ? Math.max(secondsLeft(floor), 0) : floor.seconds;
+    const passLine = closing ? `<p class="notes">${game.i18n.localize(Number(closing.resignUntil) > 0
+        ? "DRPG.Trial.turn.closingPassEarly" : "DRPG.Trial.turn.closingPass")}</p>` : "";
     const choice = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Trial.turn.title", { seconds: floor.seconds }) },
+        window: { title: game.i18n.format("DRPG.Trial.turn.title", { seconds }) },
         classes: ["drpg-panel", WINDOW_CLASS],
-        content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>`),
+        content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`),
         buttons: [
             { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done"), default: true },
             { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") }
@@ -81,14 +152,18 @@ async function tick() {
     try {
         const { trialFloor, msLeft } = await import("./trial-floor.mjs");
         const floor = trialFloor();
+        if (closingIn(floor, "volunteer")) {
+            promptClaim(floor).catch(err => error("Could not open the Closing Argument's volunteer window", err));
+            return;
+        }
         const key = turnKey(floor);
         if (!key) return;
         promptTurn(floor).catch(err => error("Could not open the round's turn window", err));
-        const mine = myParticipant(floor);
+        const mine = await myParticipant(floor);
         if (!mine || calledOver === key || msLeft(floor) > 0) return;
         calledOver = key;
         const { requestTurn } = await import("./gm-bridge.mjs");
-        await requestTurn({ actorId: mine, kind: "over", step: floor.round.step });
+        await requestTurn({ actorId: mine, kind: "over", step: stepOf(floor) });
     } catch (err) {
         error("Could not read the round's turn", err);
     }
@@ -99,7 +174,7 @@ export async function renderTrialPrompt() {
     try {
         const { trialFloor } = await import("./trial-floor.mjs");
         const floor = trialFloor();
-        const round = Boolean(turnKey(floor)) && !game.user.isGM;
+        const round = (Boolean(turnKey(floor)) || Boolean(closingIn(floor, "volunteer"))) && !game.user.isGM;
         if (!round) {
             if (ticker) clearInterval(ticker);
             ticker = null;

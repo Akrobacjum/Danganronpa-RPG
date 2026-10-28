@@ -5935,6 +5935,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objTurnBotan, null) && objTurnBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objTurnOver, "floorClosed")
             && objTurnOver.after.mode === "objection" && objTurnOver.after.target === ids.chie && objTurnOver.after.cards === objTurnOver.before.cards,
         JSON.stringify({ objTurnBotan, objTurnOver }), { flow: "class-trial" });
+    /* E70 C8 (1.2.90): a volunteer for the Closing Argument (`trial.claim`) forged from p1's console during Aiko's running
+       Objection - Botan (not p1's character) and Aiko (no Closing's window is open). Each refused and told with its code;
+       the floor as it was, and the GMs' store holds no volunteer. The legal road is the players' own (67 C). */
+    const objClaimBotan = await objSend(p1, "trial.claim", { actorId: ids.botan }, "SECOBJCLAIMBOTAN");
+    const objClaimAiko = await objSend(p1, "trial.claim", { actorId: ids.aiko }, "SECOBJCLAIMAIKO");
+    const objClaimStore = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { RECORD } = await import("${repoUrl}/scripts/gm-store.mjs");
+        return [...(S.closingClaimStore.get(RECORD)?.volunteers ?? [])];`);
+    check("SECURITY: p1's volunteers for a Closing Argument during Aiko's running Objection are refused - Botan (ownership) and Aiko (no window) - the floor as it was, no volunteer kept",
+        refusedAs(objClaimBotan, null) && objClaimBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objClaimAiko, "cannotNow")
+            && objClaimAiko.after.mode === "objection" && objClaimAiko.after.cards === objClaimAiko.before.cards && !objClaimStore.includes(ids.aiko),
+        JSON.stringify({ objClaimBotan, objClaimAiko, objClaimStore }), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

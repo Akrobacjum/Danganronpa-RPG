@@ -48,7 +48,7 @@ import { renderEvents } from "./events.mjs";
 // utils and nothing else - it stopped importing trial.mjs when the evidence
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
-import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialFloor, floorHolder, floorTarget, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { trialVoiceLine } from "./voice.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 
@@ -1181,6 +1181,9 @@ export function trialSlot() {
         } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
             // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}".
             speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
+        } else if (floor?.mode === FLOOR_MODES.closing) {
+            // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
+            speaker = closingLine(floor) ?? unknown;
         }
 
         return { key, label: game.i18n.localize(`DRPG.Hud.trial.${key}`), speaker, versus };
