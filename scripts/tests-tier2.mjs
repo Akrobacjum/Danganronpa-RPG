@@ -40582,7 +40582,10 @@ const SCENARIOS = [
          * their own). Each scored roll that planted something is rerolled on this GM for the player (`rerollOnGm`). Read,
          * per road: the traces it left, the copies of them the author holds, the line on the author's card, the GMs' fact on
          * the roll, and after its Reroll the copies left and the Reroll's line. Red at 220c0054 (28.10.2026): the frame's
-         * and the body's success each [true, 1, 0, false, false, 0, false] - the trace, and no copy, line or fact.
+         * and the body's success each [true, 1, 0, false, false, 0, false] - the trace, and no copy, line or fact. The
+         * frame's success once more as the player's "murder.cleanup" the primary judges (its result off the GMs' record of
+         * the roll), since the copy's note on the roll rides on the bridge handing the resolver its roll: added at cc541bdc,
+         * where the mutant c12-e5 (the bridge's `rollId` dropped) survived the direct call alone.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the Tamper is a connected player's character's, in a named room");
         const M = await import("./murder.mjs");
@@ -40614,14 +40617,20 @@ const SCENARIOS = [
             stand.putBack(); stand = null;
             return out;
         };
-        const road = async (key, context, packet, { again = false } = {}) => {
-            F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context });
+        // `bridge`: the player's packet judged as the primary judges "murder.cleanup" (its result off the GMs' record of the
+        // roll), where the resolver's answer does not come back - so its success and its card's line read null.
+        const road = async (key, context, packet, { again = false, bridge = false } = {}) => {
+            F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context },
+                bridge ? { record: { total: packet.total, isCritical: packet.isCritical, withHope: packet.withHope } } : {});
             must(F.verdict, `the GMs kept no row of the ${key} roll - this would measure nothing`);
             const at = made.length;
-            const res = await CL.resolveStageSix({ actorId: who.id, key, price: "stress", rollId: F.message.id, by: player.id, ...packet });
+            const res = bridge
+                ? (await F.ask({ action: "murder.cleanup", requestId: `suite-e70t14-${key}`, actorId: who.id, tokenId: null, price: "stress",
+                    grant: false, rollId: F.message.id, ...packet }), null)
+                : await CL.resolveStageSix({ actorId: who.id, key, price: "stress", rollId: F.message.id, by: player.id, ...packet });
             await settle();
             const traces = made.slice(at).filter(d => d.parent?.tokens?.get(d.id)).map(d => d.id);
-            const read = [res?.success ?? null, traces.length, copiesOf(traces), (res?.done ?? []).includes(known),
+            const read = [bridge ? null : res?.success ?? null, traces.length, copiesOf(traces), bridge ? null : (res?.done ?? []).includes(known),
                 typeof F.row()?.facts?.authorsCopy === "string"];
             if (again) {
                 const out = await reroll();
@@ -40637,6 +40646,7 @@ const SCENARIOS = [
             const frame = { key: "misleadingTrail", targetId: framed.id, viaAction: true, isCritical: false };
             const ctx = { cleanupTarget: framed.id, cleanupVia: true };
             read.frame = await road("misleadingTrail", ctx, { ...frame, total: 30, withHope: true }, { again: true });
+            read.bridged = await road("misleadingTrail", ctx, { ...frame, total: 30, withHope: true }, { again: true, bridge: true });
             read.faint = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: true }, { again: true });
             read.despair = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: false });
             C = await cleanupFixture(who, "SUITE E70-T14 a trace covered");
@@ -40694,13 +40704,14 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             frame: [true, 1, 1, true, true, 0, true],
+            bridged: [null, 1, 1, null, true, 0, true],
             faint: [false, 1, 0, false, false, 0, false],
             despair: [false, 0, 0, false, false],
             cover: [true, 0, 0],
             body: [true, 1, 1, true, true, 0, true]
         }), "per road - success, traces left, the author's copies of them, the card's line, the GMs' fact on the roll, then after its "
             + "Reroll the copies left and the Reroll's line: a frame's success, its Faint failure, a Despair failure, a cover's success "
-            + "(erased, traces left, items gained) and a body moved");
+            + "(erased, traces left, items gained) and a body moved; and the frame's success again as the player's packet the bridge judges");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
