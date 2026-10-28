@@ -4846,6 +4846,20 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     border: 1px solid var(--drpg-crimson);
 }
 
+/* OVERRULED BY THE GM (E70 C2): the stamp an overruled Objection's card carries - in the chat log, drawn from the
+   card's flag, and on the notice the closed card leaves in the history. The banner's own red, outlined, so it reads as
+   a mark on the card rather than as a second banner. */
+.drpg-overruled-stamp {
+    align-self: center;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border: 2px solid var(--drpg-crimson);
+    border-radius: 3px;
+    color: var(--drpg-crimson);
+}
+
 .drpg-evidence-who {
     font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
     opacity: 0.75;

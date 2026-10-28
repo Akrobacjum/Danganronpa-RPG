@@ -24549,13 +24549,16 @@ const INVARIANTS = [
         }), "a row of the floor's machine answers otherwise (per row: the mode, seconds left and budget it writes, its stack, the GM's note, the cards it posts - or its refusal)");
     }],
 
-    ["R1025 - the GM's bar in every mode (E70 C1, S18-75; TR21, DX2): trial-floor.mjs `BAR_OPS` is Skip, -30 s, +30 s, End this mode, Back to the debate, Re-point in that order, and `barRefusal` greys each one with its own reason on every state - all of them outside a Class Trial and with no floor - and lets through the rest", async () => {
+    ["R1025 - the GM's bar in every mode (E70 C1, S18-75; TR21, DX2): trial-floor.mjs `BAR_OPS` is Skip, -30 s, +30 s, Overrule (E70 C2), End this mode, Back to the debate, Re-point in that order, and `barRefusal` greys each one with its own reason on every state - all of them outside a Class Trial and with no floor - and lets through the rest", async () => {
         /*
          * E70 C1, 27.10.2026; E70-04. The bar stays put: the same six buttons in the same order in every mode, and a
          * button whose op would change nothing is greyed with the reason its op gives (the machine's refusal, which the
          * primary's step gives again). Read at a fixed `now` on six states: outside a trial (a debate on the floor), no
          * floor, a debate with 100 s left, a debate with none left, a pending and a filled Objection, a rebuttal. Red at
          * f388d722: no `BAR_OPS`, no `barRefusal`.
+         * E70 C2: Overrule after +30 s, on an empty record (`record`, so the world's receipts are not read): pressable in
+         * an Objection's exchange, "no Objection to overrule" elsewhere, and pressable with no floor once this trial
+         * has a receipt not yet overruled (`after`). Red at accb2ded: six buttons.
          */
         const F = await import("./trial-floor.mjs");
         ok(Array.isArray(F.BAR_OPS) && typeof F.barRefusal === "function", "trial-floor.mjs has no BAR_OPS or no barRefusal - the GM has no bar");
@@ -24565,28 +24568,116 @@ const INVARIANTS = [
         const timed = (mode, extra = {}) => ({ active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: NOW - 10_000, pending: false, messageId: null, ...extra });
         const states = {
             outside: [debate(100), false], none: [null, true], debate: [debate(100), true], spent: [debate(0), true],
-            pending: [timed("objection", { pending: true, messageId: "cardAAAAAAAAAAAA" }), true], objection: [timed("objection"), true], rebuttal: [timed("rebuttal"), true]
+            pending: [timed("objection", { pending: true, messageId: "cardAAAAAAAAAAAA" }), true], objection: [timed("objection"), true], rebuttal: [timed("rebuttal"), true],
+            after: [null, true, { objections: { cardBBBBBBBBBBBB: { objectorId: H, at: NOW - 5000, trialStartedAt: null, overruled: false } } }]
         };
         const read = { order: [...F.BAR_OPS] };
-        for (const [name, [floor, running]] of Object.entries(states)) {
-            read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running, now: NOW })]));
+        for (const [name, [floor, running, record = { objections: {} }]] of Object.entries(states)) {
+            read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running, now: NOW, record })]));
         }
-        const all = key => Object.fromEntries(["skip", "minus", "plus", "endMode", "back", "repoint"].map(op => [op, key]));
-        const open = { skip: null, minus: null, plus: null, endMode: null, back: null, repoint: null };
+        const OPS = ["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"];
+        const all = key => Object.fromEntries(OPS.map(op => [op, key]));
+        const open = Object.fromEntries(OPS.map(op => [op, null]));
+        const none = "DRPG.Floor.bar.noOverrule";
         equal(stableJson(read), stableJson({
-            order: ["skip", "minus", "plus", "endMode", "back", "repoint"],
+            order: OPS,
             outside: all("DRPG.Floor.bar.notTrial"),
-            none: all("DRPG.Floor.bar.noMode"),
-            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
-            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            none: { ...all("DRPG.Floor.bar.noMode"), overrule: none },
+            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
             pending: open,
             objection: open,
-            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" }
+            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" },
+            after: { ...all("DRPG.Floor.bar.noMode"), overrule: null }
         }), "the bar's order, or a button's greying on a state, is not what the GM was promised (per state: each op's reason, null where it may be pressed)");
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.bar ?? {});
-        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "skip", "minus", "plus", "endMode", "label"];
+        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
         equal(JSON.stringify(reasons.filter(k => !lang.en[k] || !lang.pl[k])), "[]", "a reason or a label of the bar has no words in English or Polish");
+    }],
+
+    ["R1027 - Overrule's judgement and its move (E70 C2, S18-77; TR25, TR35): floor-machine.mjs `overruleTarget` names only the newest Objection - the running one during its exchange, else this trial's newest receipt not yet overruled - and refuses an older one, a second Overrule, a card with no receipt, another trial's and every one once the trial is over; `nextFloor`'s `overrule` gives the floor back to whom or what was interrupted with the seconds it had then, a chain in two presses", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-10, E70-11. The owner, TR25: the price stays, and the floor goes back to the person or
+         * the mode the Objection was raised against, with the time it had then; TR35: only the newest not overruled. Read
+         * without a world, at a fixed `now`, on frozen inputs. (1) The judgement on a record of four receipts - A older,
+         * B newest, one overruled already, one of an earlier trial in the chapter (another `trialStartedAt`) - with no
+         * floor: no card named is B; A, the overruled one and a card with no receipt (a refused or withdrawn Objection
+         * keeps none) are "only the newest", the earlier trial's is "that trial is over", and so is every card once the
+         * trial is not running; an empty record has nothing to overrule. (2) During an exchange only the running one: an
+         * Objection the API opened (a stack entry with no card, no receipt) is named, B named instead is refused. (3) The
+         * move: an Objection over a debate with 200 s left gives the debate back with its 200 s and its budget of 300; a
+         * pending one the same, no longer pending; a rebuttal the same; a chain - B raised in A's rebuttal with 90 s left -
+         * gives the rebuttal back to its two with its 90 s, A's entry still under it, and a second press gives the debate
+         * its 200 s; an overrun debate comes back overrun; a floor from before 1.2.90 gets its budget; a debate refuses.
+         * Red at accb2ded: no `overruleTarget`, no `overrule` row.
+         */
+        const M = await import("./floor-machine.mjs");
+        ok(typeof M.overruleTarget === "function", "floor-machine.mjs has no overruleTarget - nothing judges which Objection an Overrule names");
+        if (typeof M.overruleTarget !== "function") return;
+        const NOW = 10_000_000, T0 = 9_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", X = "thirdAAAAAAAAAAA";
+        const A = "cardAAAAAAAAAAAA", B = "cardBBBBBBBBBBBB", OLD = "cardOOOOOOOOOOOO", DONE = "cardDDDDDDDDDDDD";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const receipt = (at, extra = {}) => ({ objectorId: H, targetId: T, paid: { pay: "action", amount: 1 }, mode: "debate",
+            leftAtObjection: 200, debateLeft: 200, trialStartedAt: T0, at, overruled: false, ...extra });
+        const objections = freeze({ [A]: receipt(T0 + 100), [B]: receipt(T0 + 200), [DONE]: receipt(T0 + 400, { overruled: true }),
+            [OLD]: receipt(T0 + 300, { trialStartedAt: T0 - 50_000 }) });
+        const judge = (args = {}) => {
+            const r = M.overruleTarget({ objections, trialStartedAt: T0, running: true, ...args });
+            return r.refused ? r.refused : [r.messageId, r.during, Boolean(r.receipt)];
+        };
+        const entry = (messageId, mode, left, who = {}) => ({ messageId, before: { mode, holderId: who.h ?? null, targetId: who.t ?? null, seconds: 300 }, leftAtObjection: left });
+        const objectionOn = (stack, extra = {}) => ({ active: true, mode: "objection", holderId: H, targetId: T, seconds: 300,
+            startedAt: NOW - 20_000, pending: false, messageId: null, before: stack, ...extra });
+        const only = "DRPG.Floor.overrule.onlyNewest", over = "DRPG.Floor.overrule.trialOver";
+        const judged = {
+            newest: judge(), older: judge({ messageId: A }), named: judge({ messageId: B }), second: judge({ messageId: DONE }),
+            noReceipt: judge({ messageId: "cardZZZZZZZZZZZZ" }), otherTrial: judge({ messageId: OLD }),
+            afterTrial: judge({ running: false }), afterTrialNamed: judge({ running: false, messageId: B }),
+            empty: M.overruleTarget({ objections: {}, trialStartedAt: T0 }).refused ?? null,
+            during: judge({ floor: objectionOn([entry(null, "debate", 200)]) }),
+            duringOther: judge({ floor: objectionOn([entry(null, "debate", 200)]), messageId: B }),
+            duringB: judge({ floor: objectionOn([entry(B, "debate", 200)]) })
+        };
+        equal(stableJson(judged), stableJson({
+            newest: [B, false, true], older: only, named: [B, false, true], second: only, noReceipt: only, otherTrial: over,
+            afterTrial: over, afterTrialNamed: over, empty: "DRPG.Floor.bar.noOverrule",
+            during: [null, true, false], duringOther: only, duringB: [B, true, true]
+        }), "an Overrule names another Objection, or lets through one it must refuse (per case: the card, during its exchange, with a receipt - or the reason)");
+
+        const go = (floor, event = { type: "overrule" }) => M.nextFloor(freeze(JSON.parse(JSON.stringify(floor))), event, { now: NOW });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, who: [r.floor?.holderId ?? null, r.floor?.targetId ?? null], left: r.floor ? M.leftAt(r.floor, NOW) : null,
+                seconds: r.floor?.seconds ?? null, pending: r.floor?.pending ?? null, stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                note: r.floor?.gmNote?.key ?? null };
+        const rebuttalA = { ...objectionOn([entry(A, "debate", 200)]), mode: "rebuttal", startedAt: NOW - 30_000 };
+        const chained = M.nextFloor(freeze(JSON.parse(JSON.stringify(rebuttalA))), { type: "objection", holderId: X, targetId: H, cardId: B }, { now: NOW }).floor;
+        const firstPress = go(chained);
+        const old = objectionOn([]);
+        delete old.before;
+        const input = objectionOn([entry(A, "debate", 200)]);
+        const before = JSON.stringify(input);
+        const moved = {
+            objection: shape(go(input)),
+            pending: shape(go(objectionOn([entry(A, "debate", 200)], { pending: true, messageId: A }))),
+            rebuttal: shape(go(rebuttalA)),
+            chainFirst: shape(firstPress),
+            chainSecond: firstPress.floor ? shape(go(firstPress.floor)) : null,
+            overrun: shape(go(objectionOn([entry(A, "debate", -15)]))),
+            old: shape(go(old)),
+            debate: shape(go({ ...input, mode: "debate", holderId: null, targetId: null, before: [] })),
+            unchanged: JSON.stringify(input) === before
+        };
+        const debate200 = { mode: "debate", who: [null, null], left: 200, seconds: 300, pending: false, stack: [], note: "DRPG.Floor.gmNoteOverrule" };
+        equal(stableJson(moved), stableJson({
+            objection: debate200, pending: debate200, rebuttal: debate200,
+            chainFirst: { mode: "rebuttal", who: [H, T], left: 90, seconds: 300, pending: false, stack: [[A, "debate", 200]], note: "DRPG.Floor.gmNoteOverrule" },
+            chainSecond: debate200,
+            overrun: { ...debate200, left: -15 },
+            old: { mode: "debate", who: [null, null], left: 300, seconds: 300, pending: false, stack: [], note: "DRPG.Floor.gmNoteOverrule" },
+            debate: { refused: "DRPG.Floor.bar.noOverrule" },
+            unchanged: true
+        }), "an Overrule moves the floor elsewhere than back to what the Objection interrupted, with the time it had then (per row: mode, holder and target, seconds left, budget, pending, stack, note)");
     }],
 ];
 

@@ -1153,6 +1153,64 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             && zAt(zRead.plus, "objection", 80) && zAt(zRead.minus, "objection", 50) && zAt(zRead.skip, "rebuttal", 120)
             && zAt(zRead.back, "debate", 200) && zAt(zRead.endMode, null), J(zRead));
 
+    /* ------------------------------ O. Overrule from another GM ------------------------------ */
+
+    /* E70 C2 (27.10.2026; E70-12, S18-77; TR25, DB41; amend 5 (b)). gm3, not the primary, posts a GM's Objection card for
+       Aiko at Chie with a Truth Bullet gm2 made her, over a debate of 300 s gm2 (the primary) opened: gm2 takes the
+       floor, takes Aiko's action and keeps the receipt. OBJECTION! is on p3's and gm3's screens. gm3 presses Overrule
+       by game.drpg: by "trial.gm" gm2 gives the debate back with the seconds it had at the Objection, the price stays
+       (Aiko's actions as after the payment), the receipt and the card are marked, OBJECTION! is gone from p3's and
+       gm3's screens with p3's notice history keeping the card with the stamp, and the table's card of the Overrule
+       reached p3. Red at accb2ded: no game.drpg.overruleObjection. */
+    begin("O", "Overrule from a GM that is not the primary: the debate back with its time, the price kept, OBJECTION! closed everywhere and kept with its stamp");
+    const Fo = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");
+        const V = await import("${repoUrl}/scripts/vote.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const oSetup = await gm2.eval(`${Fo} const B = await import("${repoUrl}/scripts/truth-bullets.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        globalThis.__s63oClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63oClock, phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({ seconds: 300 });
+        const aiko = game.actors.get("${IDS.aiko}");
+        await aiko.setFlag("${MOD}", "freeActionGrants", 0);
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        const item = await B.createTruthBullet(aiko, { name: "S63 O bullet", realType: "neutral", visibility: "obvious" });
+        await A.sheetAuditIdle();
+        return { item: item?.id ?? null, primary: U.isPrimaryGm(), floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const oCard = await gm3.eval(`${Fo} const aiko = game.actors.get("${IDS.aiko}"), chie = game.actors.get("${IDS.chie}");
+        const m = await ChatMessage.create({ content: '<div class="drpg-evidence-card objection"><p>S63 O</p></div>', speaker: ChatMessage.getSpeaker({ actor: aiko }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: true, [T.TRIAL_FLAGS.presenter]: aiko.name,
+                [T.TRIAL_FLAGS.item]: "${oSetup.item}", [T.TRIAL_FLAGS.target]: chie.id, [T.TRIAL_FLAGS.targetName]: chie.name,
+                [T.TRIAL_FLAGS.chapter]: game.settings.get("${MOD}", "clock").chapter } } });
+        return m?.id ?? null;`, { timeout: 30000 });
+    await settle(1500);
+    const oOnScreen = client => client.eval(`return document.querySelectorAll('.drpg-popup[data-drpg-message="${oCard}"]').length;`);
+    const oPrimary = () => gm2.eval(`${Fo} const f = F.trialFloor(); const r = V.trialProgress().objections?.["${oCard}"] ?? null;
+        return { mode: f?.mode ?? null, left: f ? F.secondsLeft(f) : null, holder: f?.holderId ?? null, receipt: r,
+            actions: game.actors.get("${IDS.aiko}").system.resources.actions.value,
+            flag: Boolean(game.messages.get("${oCard}")?.getFlag("${MOD}", T.TRIAL_FLAGS.overruled)) };`);
+    const oBefore = { gm2: await oPrimary(), p3: await oOnScreen(p3), gm3: await oOnScreen(gm3), gm3Primary: await gm3.eval(`${Fo} return U.isPrimaryGm();`) };
+    await gm3.eval(`if (typeof game.drpg?.overruleObjection === "function") await game.drpg.overruleObjection(); return true;`, { timeout: 30000 });
+    await settle(2500);
+    const oAfter = { gm2: await oPrimary(), p3: await oOnScreen(p3), gm3: await oOnScreen(gm3),
+        kept: await p3.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+            return NH.noticeEntries().filter(e => e.messageId === "${oCard}").map(e => String(e.html ?? "")).join("\\n").includes(game.i18n.localize("DRPG.Trial.overruledStamp"));`),
+        told: await p3.eval(`const title = ">" + game.i18n.localize("DRPG.Floor.overrule.title") + "<";
+            return game.messages.contents.filter(m => String(m.content ?? "").includes(title)).length;`) };
+    await gm2.eval(`${Fo} if (F.trialFloor()) await F.endFloor();
+        try { await game.actors.get("${IDS.aiko}").items.get("${oSetup.item}")?.delete(); } catch { /* already gone */ }
+        await game.settings.set("${MOD}", "clock", globalThis.__s63oClock); return true;`, { timeout: 30000 });
+    await settle(500);
+    const oReceipt = oBefore.gm2.receipt;
+    verdict("gm3 overrules Aiko's Objection by game.drpg: gm2 gives the debate back with the seconds it had, the action stays paid, the receipt and the card marked, OBJECTION! gone from p3 and gm3, p3's history keeps it stamped, the table told",
+        oSetup.primary === true && oSetup.floor === "debate" && Boolean(oCard) && oBefore.gm3Primary === false
+            && oBefore.gm2.mode === "objection" && oBefore.gm2.holder === IDS.aiko && oBefore.gm2.actions === 2
+            && oReceipt?.objectorId === IDS.aiko && oReceipt?.paid?.pay === "action" && oReceipt?.mode === "debate" && oReceipt?.overruled === false
+            && oBefore.p3 === 1 && oBefore.gm3 === 1
+            && oAfter.gm2.mode === "debate" && Math.abs(oAfter.gm2.left - (oReceipt?.leftAtObjection ?? -999)) <= 4 && oAfter.gm2.actions === 2
+            && oAfter.gm2.receipt?.overruled === true && oAfter.gm2.flag === true && oAfter.p3 === 0 && oAfter.gm3 === 0
+            && oAfter.kept === true && oAfter.told === 1, J({ oSetup, oCard, oBefore, oAfter }));
+
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

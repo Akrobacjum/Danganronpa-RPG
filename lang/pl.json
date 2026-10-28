@@ -1185,6 +1185,7 @@
       "lead": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial: faza się zmienia, stół dostaje ogłoszenie, a Class Trial otwiera się dyskusją.",
         "openDebate": "Class Trial jest w fazie dyskusji. Otwórz debatę, gdy pokój jest gotów się spierać; gdy spór się wyczerpie, wyślij karty z okna Głosowanie.",
+        "openAgain": "GM oddalił Objection po jego wymianie i Class Trial jest w fazie dyskusji. Otwórz debatę ponownie z czasem, który jej został, albo wyślij karty z okna Głosowanie.",
         "closeDebate": "Debata jest otwarta. Zamknij ją, gdy spór się wyczerpie, a potem wyślij karty z okna Głosowanie.",
         "now": "Sprzeciw albo replika ma głos. Kończy się sam; Pomiń na pasku ucina go wcześniej.",
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
@@ -1211,6 +1212,7 @@
         "skip": "Pomiń",
         "minus": "-30 s",
         "plus": "+30 s",
+        "overrule": "Oddalenie",
         "endMode": "Zakończ ten tryb",
         "notTrial": "Tylko w trakcie Class Trialu.",
         "noMode": "Nic nie trwa: najpierw otwórz debatę.",
@@ -1218,13 +1220,26 @@
         "noTime": "Debacie nie zostało już czasu do odjęcia.",
         "inDebate": "Debata już trwa.",
         "noObjection": "Tylko w trakcie Objection.",
-        "noAdjust": "Zegara tego trybu nie da się przesunąć."
+        "noAdjust": "Zegara tego trybu nie da się przesunąć.",
+        "noOverrule": "Nie ma Objection do oddalenia."
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "Tura pominięta: {name}.",
       "modeEnded": "GM kończy tryb {mode}.",
       "gmNoteAdjust": "GM: {seconds} s",
       "gmNoteBack": "GM: powrót do debaty",
+      "gmNoteOverrule": "GM: oddalenie",
+      "againAfterOverrule": "Otwórz debatę ponownie (zostało {seconds} s)",
+      "overrule": {
+        "title": "Oddalenie",
+        "card": "GM oddala Objection: {name}. Koszt zostaje, a rozprawa wraca tam, gdzie była: {state}.",
+        "cardOver": "GM oddala Objection: {name}. Koszt zostaje.",
+        "over": "Wymiana już się skończyła, więc nic więcej się nie zmienia.",
+        "onlyNewest": "Oddalić można tylko najnowsze Objection.",
+        "trialOver": "Ta rozprawa już się skończyła, więc jej Objection nie da się oddalić.",
+        "stateDebate": "Nonstop Debate, zostało {seconds} s",
+        "stateRebuttal": "Rebuttal: {who} i {target}, zostało {seconds} s"
+      },
       "repointTo": "Wymierz Objection w",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
       "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje pół minuty albo wraca od razu do otwartej debaty.",
@@ -2374,6 +2389,8 @@
       "objectionFailed": "Twoje Objection nie przeszło. Naciśnij OBJECTION! jeszcze raz albo powiedz GM-owi.",
       "logRefused": "odrzucone",
       "logWithdrawn": "wycofane",
+      "logOverruled": "oddalone przez GM-a",
+      "overruledStamp": "Objection oddalone przez GM-a",
       "objectionPaid": "Twoje Objection przejmuje głos. {what}",
       "objectionRefusedWhisper": "Twoje Objection nie przejęło głosu: {why} Nic ci nie zabrano, a karta jest oznaczona jako odrzucona.",
       "objectionNotYours": "To Objection wysłał ktoś, kto nie jest właścicielem postaci {name}, więc nikt nie przejął głosu.",
@@ -5812,6 +5829,10 @@
         "rebuttal": {
           "label": "Rebuttal",
           "hint": "Zaczyna się Rebuttal: mówią tylko autor Objection i osoba, którą wskazał, dopóki głos nie wróci do wszystkich. Słyszy cały stół."
+        },
+        "overrule": {
+          "label": "Oddalenie",
+          "hint": "GM oddala Objection: rozprawa wraca tam, gdzie była, koszt zostaje. Słyszy cały stół."
         },
         "voteOpen": {
           "label": "Głosowanie się otwiera",

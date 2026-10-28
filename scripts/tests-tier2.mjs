@@ -39100,6 +39100,157 @@ const SCENARIOS = [
             + "(4) outside a Class Trial: the floor and whether its clock stayed after +30 s and End this mode by trial.gm, and what this GM was told");
     }],
 
+    ["an Overrule gives the floor back with its time and keeps the price, stamps and closes the card, and after the exchange marks it and offers the debate again (E70-T5)", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-09 to E70-12 (S18-77; TR25, TR35, DB41). Read on this primary in a Class Trial: O
+         * raises an Objection at B over a debate of 300 s on the fallback road (no Room) and fills it, and the receipt
+         * is read off the trial record - who, against whom, the action paid, the mode it interrupted, the debate's
+         * seconds then. With the OBJECTION! card on this screen, `game.drpg.overruleObjection()`: the debate is back
+         * with the seconds it had (not its 300 again from now, and not the rebuttal), O's actions as they were after
+         * the payment, the card marked and its sticky card closed, its notice history entry kept with the stamp, the
+         * receipt overruled, the table told with the price; a second Overrule of it is refused and moves nothing; the
+         * card's mark taken off again leaves the log's row overruled (the receipt, not the card). Then a second
+         * Objection runs to its end (Skip, Skip) and is overruled with no floor: nothing on the floor moves, the
+         * receipt is marked, the table is told the exchange was over, and the console's next step is the debate again
+         * with the time it had; a debate opened takes the offer away; and the first, older one is refused. Then a third
+         * runs to its end and the trial is ended: "trial.gm"'s Overrule is refused on the primary (DX2) and marks nothing;
+         * the trial entered again is another trial (its own `trialStartedAt`), and the earlier one's Objection is refused.
+         * Red at accb2ded: no `overruleObjection`. The clock, the floor, the record, the cards and O's sheet are put back.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection raised on the primary GM to overrule");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const F = await import("./trial-floor.mjs");
+        const NH = await import("./notice-history.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const Bridge = await import("./gm-bridge.mjs");
+        const Guards = await import("./bridge-guards.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the record it reads are the primary's to write");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const posted = words => game.messages.filter(m => !seen.has(m.id) && String(m.content ?? "").includes(words)).length;
+        const onScreen = id => document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`).length;
+        const stamp = game.i18n.localize("DRPG.Trial.overruledStamp");
+        let item = null, room = null;
+        const read = { api: typeof F.overruleObjection === "function" && game.drpg?.overruleObjection === F.overruleObjection };
+        try {
+            ok(typeof F.overruleObjection === "function", "trial-floor.mjs has no overruleObjection - the GM cannot overrule an Objection");
+            if (typeof F.overruleObjection !== "function") return;
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await F.startFloor({ seconds: 300 });
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE E70-T5 bullet", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            await settle();
+            room = standInRoom(speakers, { connected: false });
+
+            const raise = async () => {
+                const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+                must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+                const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+                must(!filled.refused, `the Objection was not filled (${filled.refused})`);
+                await settle();
+                return raised.reply.messageId;
+            };
+            const first = await raise();
+            const receipt = trialProgress().objections?.[first] ?? null;
+            read.receipt = receipt ? [receipt.objectorId === O.id, receipt.targetId === B.id, receipt.paid?.pay ?? null, receipt.mode,
+                Math.abs((receipt.leftAtObjection ?? 0) - 300) <= 10, receipt.overruled] : null;
+            const paidActions = O.system.resources.actions.value;
+            await until(() => onScreen(first) > 0, 4000);
+            const shown = onScreen(first);
+            await F.overruleObjection();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.debate && onScreen(first) === 0, 6000);
+            await wait(400);
+            await sheetAuditIdle();
+            const card = game.messages.get(first);
+            const kept = NH.noticeEntries().filter(e => e.messageId === first).map(e => String(e.html ?? "")).join("\n");
+            read.during = [shown > 0, F.trialFloor()?.mode ?? null, Math.abs(F.secondsLeft() - (receipt?.leftAtObjection ?? 300)) <= 5, F.trialFloor()?.seconds ?? null,
+                (F.trialFloor()?.before ?? []).length, O.system.resources.actions.value === paidActions, paidActions < 3,
+                Boolean(card?.getFlag(MODULE_ID, trial.TRIAL_FLAGS.overruled)), trialProgress().objections?.[first]?.overruled ?? null,
+                onScreen(first), kept.includes(stamp),
+                posted(`>${game.i18n.localize("DRPG.Floor.overrule.title")}<`)];
+            const startedAt = F.trialFloor()?.startedAt;
+            read.second = [await F.overruleObjection(first), F.trialFloor()?.startedAt === startedAt];
+            await card?.setFlag(MODULE_ID, trial.TRIAL_FLAGS.overruled, false);
+            await settle();
+            read.log = trial.presentedThisChapter().find(e => e.id === first)?.overruled ?? null;
+
+            const second = await raise();
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            const after = await F.overruleObjection();
+            await settle();
+            const again = trialProgress().againAfterOverrule ?? null;
+            read.after = [after?.overruled === second, F.trialFloor(), trialProgress().objections?.[second]?.overruled ?? null,
+                again?.messageId === second, Number(again?.seconds) > 200, posted(game.i18n.localize("DRPG.Floor.overrule.over"))];
+            read.older = await F.overruleObjection(first);
+            await F.startFloor({ seconds: 60 });
+            await settle();
+            read.taken = trialProgress().againAfterOverrule ?? null;
+
+            // A third, run to its end, then the trial ended: "trial.gm" from a GM is refused on the primary and
+            // marks nothing; the trial entered again is another trial, whose Overrule cannot reach it.
+            await O.update({ "system.resources.actions.value": 3 });
+            await sheetAuditIdle();
+            const third = await raise();
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            await setClock({ ...getClock(), phase: "dailyLife" });
+            await settle();
+            const heard = [];
+            const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+            await Guards.judge(Bridge.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T5OVER", op: "overrule" }, game.user.id, { send });
+            read.ended = [heard, trialProgress().objections?.[third]?.overruled ?? null];
+            await setClock({ ...getClock(), phase: "classTrial" });
+            await settle();
+            read.nextTrial = [await F.overruleObjection(third), trialProgress().objections?.[third]?.overruled ?? null];
+        } finally {
+            room?.restore();
+            await clearObjections(F, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: true,
+            receipt: [true, true, "action", "debate", true, false],
+            during: [true, "debate", true, 300, 0, true, true, true, true, 0, true, 1],
+            second: [null, true],
+            log: true,
+            after: [true, null, true, true, true, 1],
+            older: null,
+            taken: null,
+            ended: [["bridge.refused"], false],
+            nextTrial: [null, false]
+        }), "(0) game.drpg.overruleObjection; (1) the receipt: objector, target, price, mode, the debate's seconds, overruled; (2) the Overrule during the exchange: the card on screen before, the floor, its seconds as at the Objection, "
+            + "its budget, the stack, the price kept and paid, the card's mark, the receipt's, the card on screen after, the history's stamp, the table's card; (3) a second Overrule and the clock; "
+            + "(4) the log's row after the card's mark was taken off; (5) after the exchange: its answer, the floor, the receipt, the offer of the debate again and its seconds, the table's card; "
+            + "(6) the older one; (7) the offer after a debate was opened; (8) a third run to its end and the trial ended: what trial.gm's Overrule was told, the receipt; "
+            + "(9) the trial entered again: the Overrule of the earlier trial's Objection, its receipt");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary

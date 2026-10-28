@@ -204,6 +204,7 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * `window-*`, `inline-roll`, `content-link`, `fa-*`), which would dress a snapshot as a live card
  * or a window. 62 at E81 C2 (12.10.2026), 61 at E79 C16 (the Present dialog lost its Objection fieldset);
  * 63 at E80 part 2 C2 (19.10.2026, counted in the list: 61 before it, and a Frisk's two ways under its Palm row);
+ * 64 at E70 C2 (27.10.2026): the stamp of an overruled Objection, which the card on screen gains before it closes;
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -215,7 +216,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
     "drpg-evidence-text", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
     "drpg-gm-route", "drpg-item-effect",
-    "drpg-objection-banner", "drpg-objection-live", "drpg-objection-log",
+    "drpg-objection-banner", "drpg-objection-live", "drpg-objection-log", "drpg-overruled-stamp",
     "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
     "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",

@@ -21,7 +21,7 @@
  * (its mode, holder, target and budget) and that floor's seconds left - and a rebuttal keeps it. Back to the debate
  * gives the newest debate on it the seconds it had left (TR31: "Back to the debate gives the rest"), not its whole
  * budget again; a floor written before 1.2.90 has no stack and gets its `seconds`, as before. A debate has nothing
- * under it, so every write of a debate empties the stack. Part 2's Overrule (C2) reads the stack too.
+ * under it, so every write of a debate empties the stack. The Overrule (C2) takes the top off it (`overrule`).
  */
 
 import { TRIAL } from "./config.mjs";
@@ -100,9 +100,44 @@ function turnOf(floor) {
 }
 
 /**
+ * WHICH OBJECTION AN OVERRULE NAMES, AND WHETHER IT MAY (E70 C2, 27.10.2026; TR35: only the newest not overruled;
+ * E70-10, E70-11). Pure, as `nextFloor` is: `floor` as `trialFloor()` reads it, `objections` the trial record's receipts
+ * (vote.mjs `trialProgress().objections`, by card: `{ objectorId, targetId, paid, mode, trialStartedAt,
+ * leftAtObjection, debateLeft, at, overruled }`, written by the primary from the price it took - trial.mjs
+ * `keepReceipt`), `trialStartedAt` the running trial's stamp, `messageId` the card the GM named or null for "the
+ * newest", `running` whether a Class Trial is in session. Answers `{ messageId, receipt, during }` or `{ refused }`:
+ *   - while an Objection or its rebuttal holds the floor (`during`), only that one: the stack's top, the card it was
+ *     raised on, its receipt if it has one - an Objection the API opened has none and is overruled from the stack alone;
+ *   - after its exchange, the newest receipt of this trial not yet overruled: an older one, one overruled already, a
+ *     card with no receipt (refused, withdrawn, never one) or another trial's is refused, and so is every one once the
+ *     trial is over. A card deleted since blocks nothing: the receipt is the record, never the card.
+ */
+export function overruleTarget({ floor = null, objections = {}, trialStartedAt = null, messageId = null, running = true } = {}) {
+    if (!running) return { refused: "DRPG.Floor.overrule.trialOver" };
+    const receipts = objections && typeof objections === "object" ? objections : {};
+    if (floor && floor.mode !== MODES.debate) {
+        const top = stackOf(floor).at(-1)?.messageId ?? floor.messageId ?? null;
+        if (messageId && messageId !== top) return { refused: "DRPG.Floor.overrule.onlyNewest" };
+        return { messageId: top, receipt: (top && receipts[top]) || null, during: true };
+    }
+    const sameTrial = r => (r?.trialStartedAt ?? null) === (trialStartedAt ?? null);
+    const newest = Object.entries(receipts)
+        .filter(([, r]) => r && sameTrial(r) && !r.overruled)
+        .sort((a, b) => (Number(b[1].at) || 0) - (Number(a[1].at) || 0))[0] ?? null;
+    if (messageId) {
+        const receipt = receipts[messageId] ?? null;
+        if (receipt && !sameTrial(receipt)) return { refused: "DRPG.Floor.overrule.trialOver" };
+        if (!receipt || receipt.overruled || newest?.[0] !== messageId) return { refused: "DRPG.Floor.overrule.onlyNewest" };
+        return { messageId, receipt, during: false };
+    }
+    if (!newest) return { refused: "DRPG.Floor.bar.noOverrule" };
+    return { messageId: newest[0], receipt: newest[1], during: false };
+}
+
+/**
  * What `floor` becomes after `event`, at `ctx.now`. Events: `start` { seconds }, `objection` { holderId, targetId,
  * pending, messageId, cardId }, `fill`, `repoint` { targetId }, `rebuttal`, `due`, `skip`, `lapse`, `withdraw`,
- * `adjust` { seconds, signed }, `back` { seconds, note }, `end`, `endMode`. Never mutates `floor`.
+ * `adjust` { seconds, signed }, `back` { seconds, note }, `overrule`, `end`, `endMode`. Never mutates `floor`.
  */
 export function nextFloor(floor, event = {}, ctx = {}) {
     const now = Number(ctx.now) || 0;
@@ -176,6 +211,37 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             // nothing to go back to.
             if (floor.mode === MODES.debate && given === null) return { refused: "DRPG.Floor.bar.inDebate" };
             return { floor: debateAgain(floor, given, now, event.note ? { key: "DRPG.Floor.gmNoteBack", at: now } : null), cards: [] };
+        }
+        case "overrule": {
+            /*
+             * OVERRULE (E70 C2, 27.10.2026; TR25: "koszt ma zostac, ale do glosu ma wrocic osoba (lub tryb), wobec
+             * ktorej padlo objection z czasem, jaki jej wtedy pozostal"). The Objection on top of the stack is taken
+             * off it, and the floor it interrupted comes back - its mode, holder and target - with the seconds it had
+             * left then (`leftAtObjection`, as it was: a debate overrun stays overrun), not with its whole length. The
+             * price is not this function's: nothing here or in the step that asks it gives anything back. A floor with
+             * no stack (written before 1.2.90) has nothing recorded to go back to and gets the debate with its budget,
+             * as Back to the debate gives it. Inside a debate there is no Objection to overrule.
+             */
+            if (floor.mode === MODES.debate) return { refused: "DRPG.Floor.bar.noOverrule" };
+            const note = { key: "DRPG.Floor.gmNoteOverrule", at: now };
+            const stack = stackOf(floor);
+            const entry = stack.at(-1);
+            if (!entry?.before) return { floor: debateAgain(floor, null, now, note), cards: [] };
+            const was = entry.before;
+            const back = {
+                ...floor,
+                mode: was.mode ?? MODES.debate,
+                holderId: was.holderId ?? null,
+                targetId: was.targetId ?? null,
+                seconds: was.seconds ?? floor.seconds,
+                pending: false,
+                messageId: null,
+                // A debate has nothing under it; a rebuttal brought back keeps the Objection it answers.
+                before: (was.mode ?? MODES.debate) === MODES.debate ? [] : stack.slice(0, -1),
+                gmNote: note
+            };
+            back.startedAt = now - (modeSecondsOf(back) - (Number(entry.leftAtObjection) || 0)) * 1000;
+            return { floor: back, cards: [] };
         }
         case "end":
             return ended();

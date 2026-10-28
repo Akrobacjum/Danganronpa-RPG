@@ -904,7 +904,9 @@ async function onFloorChanged() {
     if (worldWas.known && open && !worldWas.floorOpen) playSfx("debateOpen");
     const into = target => mode === target && worldWas.floorMode !== target;
     if (worldWas.known && into(FLOOR_MODES.objection)) playSfx("objection");
-    if (worldWas.known && into(FLOOR_MODES.rebuttal)) playSfx("rebuttal");
+    // A rebuttal an Overrule brings back is no rebuttal starting: the Overrule's card carries its own sound (E70 C2).
+    const overruled = floor?.gmNote?.key === "DRPG.Floor.gmNoteOverrule";
+    if (worldWas.known && into(FLOOR_MODES.rebuttal) && !overruled) playSfx("rebuttal");
 
     worldWas.floorOpen = open;
     worldWas.floorMode = mode;

@@ -53,8 +53,8 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
-import { SEIZE_KEY } from "./trial.mjs";
-import { MODES, nextFloor, modeSecondsOf } from "./floor-machine.mjs";
+import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
+import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt } from "./floor-machine.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -167,7 +167,7 @@ async function writeFloor(patch) {
 
 /** The ops a GM's change of the floor names, here and in gm-bridge.mjs "trial.gm" (its `as.oneOf`): `FLOOR_OPS`' keys. */
 export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-    "adjust", "endMode"]);
+    "adjust", "endMode", "overrule"]);
 
 /*
  * Each op's in-step twin, handed what the op reads. A count the bridge did not carry reads 0 there (`as.num`), and
@@ -189,7 +189,9 @@ const FLOOR_OPS = {
     end: () => endFloorInStep(),
     // The bar's two new ops (E70 C1), each only in a Class Trial (DX2 = 2): -30 s / +30 s, and End this mode.
     adjust: ({ seconds }) => (inClassTrial() && modeAllows(trialFloor(), "adjust") ? extendFloorInStep(Number(seconds) || 0) : null),
-    endMode: () => (inClassTrial() ? endModeInStep() : null)
+    endMode: () => (inClassTrial() ? endModeInStep() : null),
+    // The GM's Overrule (E70 C2): the card it names, or the newest; only in a Class Trial, judged in the step.
+    overrule: ({ messageId = null }) => overruleInStep({ messageId: messageId || null })
 };
 
 /** Whether the campaign is in its Class Trial phase: the GM's bar moves nothing outside it (DX2 = 2). */
@@ -204,7 +206,7 @@ export function inClassTrial() {
  * not that Objection (E79 C16's `withdrawReplaced`, which each twin called before); the machine's cards posted; and
  * `drpgTrialStep` called with the op and the floor written, on this primary, after each step (E70-19 reads it in C5).
  */
-async function commitFloor(prev, result, op) {
+async function commitFloor(prev, result, op, { replaced = true } = {}) {
     if (!result || result.refused) return null;
     let written;
     if (result.floor === null) {
@@ -214,8 +216,9 @@ async function commitFloor(prev, result, op) {
         written = await writeFloor(result.floor);
         if (!written) return null;
     }
+    // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
     const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
-    if (!kept) await withdrawReplaced(prev);
+    if (!kept && replaced) await withdrawReplaced(prev);
     for (const card of result.cards ?? []) await postFloorCard(card, prev);
     try {
         Hooks.callAll("drpgTrialStep", { op, floor: written });
@@ -373,7 +376,13 @@ export async function startFloorInStep(seconds = TRIAL.speakSeconds) {
     // The machine's `start` row (E70 C1): a debate of `seconds`, its stack empty, and the old queue's rota cleared
     // rather than ignored, so a world that has been through this update keeps no stale rota for somebody to find.
     const replaced = trialFloor();
-    return commitFloor(replaced, nextFloor(replaced, { type: "start", seconds }, { now: serverNow() }), "start");
+    const written = await commitFloor(replaced, nextFloor(replaced, { type: "start", seconds }, { now: serverNow() }), "start");
+    // A debate opened by any road takes up the console's offer to open it again after an Overrule (E70 C2).
+    if (written && overruleRecord().again) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => (record.againAfterOverrule ? { againAfterOverrule: null } : null));
+    }
+    return written;
 }
 
 /**
@@ -808,10 +817,12 @@ export async function endModeInStep() {
  *   plus     +30 s from what is left, never from a clock already run out (F9);
  *   endMode  End this mode (`endMode`); back  Back to the debate with the time it had (`returnToDebate`);
  *   repoint  the running Objection aimed at somebody else (trial.mjs `repointDialog`).
- * C2 puts Overrule between plus and endMode. A button whose op would change nothing is greyed with the reason the
- * machine gives for it (`barRefusal`), so a dead button says why; the primary asks the same rows again in its step.
+ *   overrule the newest Objection overruled (E70 C2, `overruleObjection`): during its exchange the floor goes back to
+ *            whom or what it interrupted, with the time it had; after it, only the receipt and the card are marked.
+ * A button whose op would change nothing is greyed with the reason the machine gives for it (`barRefusal`), so a dead
+ * button says why; the primary asks the same rows again in its step.
  */
-export const BAR_OPS = Object.freeze(["skip", "minus", "plus", "endMode", "back", "repoint"]);
+export const BAR_OPS = Object.freeze(["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"]);
 
 /** The machine's event for a bar `op` (null for one the machine does not run: Re-point is its own window). */
 function barEvent(op, seconds) {
@@ -829,9 +840,12 @@ function barEvent(op, seconds) {
 /**
  * Why the bar's `op` would change nothing on `floor` now - a DRPG key the greyed button shows - or null. Outside a
  * Class Trial every op refuses (DX2); a mode whose row does not let the GM move its clock refuses -30 s and +30 s.
+ * `record` stands for the trial record's receipts (`{ objections, trialStartedAt }`, the suite's), read when not given.
  */
-export function barRefusal(op, floor = trialFloor(), { running = inClassTrial(), now = serverNow(), seconds = null } = {}) {
+export function barRefusal(op, floor = trialFloor(), { running = inClassTrial(), now = serverNow(), seconds = null, record = null } = {}) {
     if (!running) return "DRPG.Floor.bar.notTrial";
+    // Asked before the floor: an Objection whose exchange is over is overruled with no floor at all (E70 C2).
+    if (op === "overrule") return overruleTarget({ floor, ...overruleRecord(record), running }).refused ?? null;
     if (!floor) return "DRPG.Floor.bar.noMode";
     if (op === "repoint") return floor.mode === FLOOR_MODES.objection ? null : "DRPG.Floor.bar.noObjection";
     if ((op === "minus" || op === "plus") && !modeAllows(floor, "adjust")) return "DRPG.Floor.bar.noAdjust";
@@ -858,6 +872,93 @@ export async function adjustTime(seconds = TRIAL.modes.gm.adjustSeconds) {
     const by = Number(seconds) || 0;
     if (!game.user.isGM || !by || !barMay(by < 0 ? "minus" : "plus", by)) return null;
     return floorStep("adjust", { seconds: by });
+}
+
+/*
+ * OVERRULE (E70 C2, 27.10.2026; S18-77; TR25, TR35, DB41; E70-09 to E70-12). The owner, TR25: "koszt ma zostac, ale do
+ * glosu ma wrocic osoba (lub tryb), wobec ktorej padlo objection z czasem, jaki jej wtedy pozostal". So:
+ *   - the price stays: nothing on this road gives anything back - no refund, no put-back of a pip (tier 0 R1028 reads
+ *     every function the step reaches for one);
+ *   - during the Objection's exchange (its minute, its pending seconds or its rebuttal) the floor goes back to what it
+ *     interrupted, with the seconds that had left then: floor-machine.mjs `overrule`, the top of the stack E70 C1 keeps;
+ *     a chain - an Objection inside a rebuttal - is two presses, each the newest one then (TR35);
+ *   - after its exchange nothing on the floor moves: the receipt and the card are marked, and the console offers the
+ *     debate again with the time the debate had (`againAfterOverrule`, trial-floor-ui.mjs `trialNextStep`);
+ *   - the record is the receipt the primary wrote from the price it took (trial.mjs `keepReceipt`), never a flag on the
+ *     card: a card's flag is what a chat log draws the stamp from (`objectionOverruled`, display only), and the log, the
+ *     judgement and the offer read the receipt (`presentedThisChapter`).
+ * Judged on the primary, in a step of the floor's key, from the floor and the record as the step finds them
+ * (`overruleTarget`); a GM that is not the primary asks it by "trial.gm". The pressing GM is told a refusal first.
+ */
+
+/** The record's receipts, stamp and offer (trial.mjs `objectionRecord`), or the suite's `given`. */
+function overruleRecord(given = null) {
+    return objectionRecord({ given });
+}
+
+/** Overrule the Objection on the card `messageId`, or the newest (the bar's, the log's, `game.drpg.overruleObjection`). */
+export async function overruleObjection(messageId = null) {
+    if (!game.user.isGM) return null;
+    const refused = overruleTarget({ floor: trialFloor(), ...overruleRecord(), messageId: messageId || null, running: inClassTrial() }).refused;
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
+        return null;
+    }
+    return floorStep("overrule", { messageId: messageId || null });
+}
+
+/** Where the trial went back to, in the words of the Overrule's card: the debate or the rebuttal, and its time. */
+function overruledState(floor) {
+    const seconds = Math.max(leftAt(floor, serverNow()), 0);
+    if (floor?.mode === FLOOR_MODES.rebuttal) {
+        return game.i18n.format("DRPG.Floor.overrule.stateRebuttal", {
+            who: game.actors.get(floor.holderId ?? "")?.name ?? "-", target: game.actors.get(floor.targetId ?? "")?.name ?? "-", seconds
+        });
+    }
+    if (floor?.mode === FLOOR_MODES.objection) return game.i18n.localize("DRPG.Floor.mode.objection");
+    return game.i18n.format("DRPG.Floor.overrule.stateDebate", { seconds });
+}
+
+/**
+ * `overruleObjection`'s judgement and writes, in a step of `SEIZE_KEY` on the primary: the floor back (during the
+ * exchange), the receipt marked overruled and, after the exchange, the offer of the debate again - one write of the
+ * record - then the card and the table told (trial.mjs `markOverruled`). Its answer is the floor written, or
+ * `{ overruled }` when the floor did not move; null for a refusal.
+ */
+export async function overruleInStep({ messageId = null } = {}) {
+    if (!isPrimaryGm() || !inClassTrial()) return null;
+    const floor = trialFloor();
+    const judged = overruleTarget({ floor, ...overruleRecord(), messageId, running: true });
+    if (judged.refused) return null;
+    const now = serverNow();
+    let written = null;
+    if (judged.during) {
+        written = await commitFloor(floor, nextFloor(floor, { type: "overrule" }, { now }), "overrule", { replaced: false });
+        if (!written) return null;
+    }
+    const id = judged.messageId;
+    if (judged.receipt || !judged.during) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => {
+            const objections = { ...(record.objections ?? {}) };
+            if (id && objections[id]) objections[id] = { ...objections[id], overruled: true, overruledAt: now };
+            const change = { objections };
+            // The debate's time when the Objection cut in (the newest debate under it, TR31's rest) - offered only
+            // with no floor: a debate the GM already opened again is the debate.
+            if (!judged.during && !floor) change.againAfterOverrule = { messageId: id, seconds: Number(judged.receipt?.debateLeft ?? judged.receipt?.leftAtObjection) || 0 };
+            return change;
+        });
+    }
+    try {
+        const { markOverruled } = await import("./trial.mjs");
+        await markOverruled(id, {
+            objectorId: judged.receipt?.objectorId ?? (judged.during ? floor.holderId : null),
+            state: judged.during ? overruledState(written) : null
+        });
+    } catch (err) {
+        error("Could not mark the overruled Objection's card", err);
+    }
+    return written ?? { overruled: id };
 }
 
 /** End this mode: a debate closed, an Objection or a rebuttal ended into the discussion (TR11 = 1). */

@@ -120,7 +120,7 @@ import {
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
     startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
-    extendFloor, endFloor, skipStep, adjustTime, endMode
+    extendFloor, endFloor, skipStep, adjustTime, endMode, overruleObjection
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
     trialProgressChapter } from "./vote.mjs";
@@ -1063,6 +1063,9 @@ export const DrpgApi = {
     skipStep,
     adjustTime,
     endMode,
+    /* Overrule (E70 C2; S18-77): `overruleObjection()` the newest Objection, `overruleObjection(messageId)` the one on
+       that card - refused, and said why, for any but the newest of this trial. The price stays. */
+    overruleObjection,
 
     openVote,
     closeVote,

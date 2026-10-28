@@ -7657,6 +7657,7 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
             ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
             ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16, fix r4-G2): a GM's write of the GMs' own pending card when its floor is replaced (trial-floor.mjs `withdrawReplaced`: the lapse, Back to debate, a closed floor, the trial's end, the objector's `trial.withdraw`) or its fill failed (`unfill`); its flags are the ones `objectOnPrimary` wrote"],
+            ["CHAT trial.mjs#markOverruled", "judged (E70 C2): called only from trial-floor.mjs `overruleInStep`, the primary's step of `SEIZE_KEY` in a Class Trial that judged the Overrule (`overruleTarget`) from the floor and the record as the step finds them; a GM's write of the GMs' own Objection card (its `objectionOverruled` mark, display only - the receipt is the record) and a public card of the GM's, no packet field read (R1028)"],
             ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
             ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name when the primary answers `needName` (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
             ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeceased` (the published death: a death the GMs keep is not told, fix r4-G1), never spoken by an account that owns the objector (`objectionTarget`); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
@@ -8816,6 +8817,7 @@ const REGRESSIONS = [
             ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
+            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
@@ -15571,6 +15573,51 @@ const REGRESSIONS = [
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
         equal(JSON.stringify(readOf(src)), JSON.stringify(all),
             "the console's signature, next step or footer reads the floor's mode again, so the console reopens at every Objection (read: cut, signature, next, footer)");
+    }],
+
+    ["R1028 - an Overrule gives nothing back and reads the receipt (E70 C2, S18-77; TR25): trial-floor.mjs `overruleObjection` and `overruleInStep` and trial.mjs `markOverruled` name no refund and no write of a sheet; the step is the primary's in a Class Trial and asks `overruleTarget`; trial.mjs `seizeFloor` and `objectOnPrimary` keep the receipt (`keepReceipt`) after the price; and the log (`presentedThisChapter`) reads the overrule off the receipt, never off the card's flag", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-09, E70-10. "Koszt ma zostac" (TR25): the price an Objection paid is not given back by
+         * an Overrule of any kind - an action, Hope, a Burst - so no function on the Overrule's road may name a refund
+         * (`refundPrice`, `refundAction`) or write a student's sheet (`trustedWrite`, an actor's `update`); tier 2
+         * E70-T5 reads the action that stays. And the Overrule is the receipt the primary wrote from the price it took,
+         * never the card: a card's flag is its poster's, and a log that read it read whatever a card said. Read in the
+         * module's files, comments blanked; the reader is shown a clean twin first, then a refund and a log off the flag.
+         * Red at accb2ded: no such functions.
+         */
+        const readOf = (floorSrc, trialSrc) => {
+            const cut = name => topLevelFunction(floorSrc, name) ?? topLevelFunction(trialSrc, name) ?? "";
+            const road = ["overruleObjection", "overruleInStep", "markOverruled"].map(cut);
+            const step = cut("overruleInStep");
+            const kept = name => {
+                const body = cut(name);
+                return body.indexOf("payPrice(") >= 0 && body.indexOf("keepReceipt(") > body.indexOf("payPrice(");
+            };
+            const log = cut("presentedThisChapter");
+            return {
+                cut: road.every(body => body.length > 60) && log.length > 60,
+                nothingBack: road.every(body => !/\brefund\w*\s*\(|\btrustedWrite\s*\(|\bactor\.update\s*\(/.test(body)),
+                primary: /\bisPrimaryGm\(\)/.test(step) && /\binClassTrial\(\)/.test(step) && /\boverruleTarget\(/.test(step),
+                receipts: kept("seizeFloor") && kept("objectOnPrimary"),
+                logOffReceipt: /\bobjections\[m\.id\]\?\.overruled\b/.test(log) && !/TRIAL_FLAGS\.overruled|OVERRULED_FLAG/.test(log)
+            };
+        };
+        const pad = "// " + "x".repeat(80) + "\n";
+        const twinFloor = `export async function overruleObjection(messageId = null) {\n${pad}    return floorStep("overrule", { messageId });\n}\n`
+            + `export async function overruleInStep({ messageId = null } = {}) {\n${pad}    if (!isPrimaryGm() || !inClassTrial()) return null;\n    const judged = overruleTarget({});\n    return judged;\n}\n`;
+        const twinTrial = `async function seizeFloor(message) {\n${pad}    const receipt = await payPrice(actor, "objection");\n    await keepReceipt(message.id, opened, {});\n}\n`
+            + `export async function objectOnPrimary({ actorId }) {\n${pad}    const receipt = await payPrice(actor, "objection");\n    await keepReceipt(message.id, floor, {});\n}\n`
+            + `export async function markOverruled(messageId) {\n${pad}    await announce({ content: "" });\n}\n`
+            + `export function presentedThisChapter() {\n${pad}    return game.messages.map(m => ({ overruled: Boolean(objections[m.id]?.overruled) }));\n}\n`;
+        const all = { cut: true, nothingBack: true, primary: true, receipts: true, logOffReceipt: true };
+        equal(JSON.stringify(readOf(twinFloor, twinTrial)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = twinTrial.replace('await announce({ content: "" });', 'await refundPrice(actor, receipt, { quiet: true });')
+            .replace("Boolean(objections[m.id]?.overruled)", "Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.overruled))");
+        equal(JSON.stringify(readOf(twinFloor, planted)), JSON.stringify({ ...all, nothingBack: false, logOffReceipt: false }),
+            "the reader misses a planted refund on the Overrule's road or a log reading the card's flag");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        equal(JSON.stringify(readOf(await read("trial-floor.mjs"), await read("trial.mjs"))), JSON.stringify(all),
+            "the Overrule gives something back, is not the primary's judgement in a Class Trial, keeps no receipt after the price, or the log reads the card (read: cut, nothingBack, primary, receipts, logOffReceipt)");
     }],
 
     ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {

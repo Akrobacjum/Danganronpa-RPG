@@ -9,7 +9,7 @@
 import { TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
-    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode
+    returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection
 } from "./trial-floor.mjs";
 import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -329,7 +329,8 @@ export async function openDebate(options = {}) {
        And a floor that did not open (`startFloor` answered null: a refused phase) is no debate to
        remember or to announce. */
     if (!(await startFloor({ seconds: budget, confirmNewTrial: confirmed }))) return null;
-    await setTrialProgress({ seconds: budget });
+    // The debate again after an Overrule (E70 C2) runs on the time that was left, which is no budget to remember.
+    if (options?.remember !== false) await setTrialProgress({ seconds: budget });
 
     const { announce } = await import("./utils.mjs");
     await announce({
@@ -623,13 +624,17 @@ function trialNextStep({ floor, running, progress, afterwards, stopped, runner }
     if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
     if (progress.voteClosed) return "verdict";
     // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
-    return progress.vote.open ? "vote" : "openDebate";
+    if (progress.vote.open) return "vote";
+    /* THE DEBATE AGAIN AFTER AN OVERRULE (E70 C2; E70-11): an Objection overruled once its exchange was over leaves the
+       trial in discussion, and the step is the debate again with the time it had when the Objection cut in. */
+    return progress.againAfterOverrule ? "openAgain" : "openDebate";
 }
 
 /** The console's first line, by the next step: what the trial is waiting for, said once. */
 const TRIAL_LEADS = {
     start: "DRPG.Floor.lead.start",
     openDebate: "DRPG.Floor.lead.openDebate",
+    openAgain: "DRPG.Floor.lead.openAgain",
     closeDebate: "DRPG.Floor.lead.closeDebate",
     now: "DRPG.Floor.lead.now",
     vote: "DRPG.Floor.lead.vote",
@@ -642,7 +647,7 @@ const TRIAL_LEADS = {
 
 /*
  * THE GM'S BAR (E70 C1, 27.10.2026; S18-75; TR21). Skip, -30 s, +30 s, End this mode, Back to the debate and Re-point,
- * in that order in every mode, so a button is where it was a second ago whatever the floor did (C2 puts Overrule after
+ * in that order in every mode, so a button is where it was a second ago whatever the floor did (E70 C2 put Overrule after
  * +30 s): one that would change nothing is greyed - `aria-disabled`, still focusable and still showing its title - with
  * the reason trial-floor.mjs `barRefusal` gives, and pressing it says that reason. Only while a Class Trial runs (DX2).
  * Each button is a `game.drpg` function too (api.mjs), which another GM's console reaches the primary by.
@@ -651,6 +656,7 @@ const BAR_LABELS = {
     skip: "DRPG.Floor.bar.skip",
     minus: "DRPG.Floor.bar.minus",
     plus: "DRPG.Floor.bar.plus",
+    overrule: "DRPG.Floor.bar.overrule",
     endMode: "DRPG.Floor.bar.endMode",
     back: "DRPG.Floor.backToDebate",
     repoint: "DRPG.Floor.repoint"
@@ -660,6 +666,8 @@ const BAR_ACTIONS = {
     skip: () => skipStep(),
     minus: () => adjustTime(-TRIAL.modes.gm.adjustSeconds),
     plus: () => adjustTime(TRIAL.modes.gm.adjustSeconds),
+    // E70 C2: the newest Objection overruled - during its exchange the floor goes back with its time.
+    overrule: () => overruleObjection(),
     endMode: () => endMode(),
     back: () => returnToDebate(),
     // E79 C16: the running Objection aimed at somebody else, picked in a window of its own - this console's body is
@@ -864,8 +872,12 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 floor
                     ? { action: "closeDebate", default: isDefault("closeDebate"),
                         label: game.i18n.localize("DRPG.Floor.closeDebate") }
-                    : { action: "openDebate", default: isDefault("openDebate"),
-                        label: game.i18n.localize("DRPG.Floor.openDebate") },
+                    : progress.againAfterOverrule
+                        // After an Overrule (E70 C2): the same button, the debate again with the time it had.
+                        ? { action: "openAgain", default: isDefault("openAgain"),
+                            label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Math.max(Number(progress.againAfterOverrule.seconds) || 0, 0) }) }
+                        : { action: "openDebate", default: isDefault("openDebate"),
+                            label: game.i18n.localize("DRPG.Floor.openDebate") },
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
               ]
@@ -926,6 +938,12 @@ const TRIAL_ACTIONS = {
     start: () => startClassTrial(),
     end: () => endClassTrial(),
     openDebate: () => openDebate(),
+    // E70 C2: the seconds the debate had when the overruled Objection cut in; none left, the length is asked.
+    openAgain: async () => {
+        const { trialProgress } = await import("./vote.mjs");
+        const seconds = Number(trialProgress().againAfterOverrule?.seconds) || 0;
+        return openDebate(seconds > 0 ? { seconds, remember: false } : {});
+    },
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This

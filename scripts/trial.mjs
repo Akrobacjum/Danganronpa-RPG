@@ -46,10 +46,11 @@
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
-import { showPopup } from "./popup.mjs";
+import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serialWrite } from "./utils.mjs";
+    whisperToOwner, serialWrite, serverNow } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -105,6 +106,12 @@ export const TRIAL_FLAGS = {
      * the card says so, and the price stays paid.
      */
     withdrawn: "objectionWithdrawn",
+    /**
+     * The GM overruled this Objection (E70 C2). DISPLAY ONLY: the chat log draws the stamp from it and every screen
+     * closes the card (popup.mjs `onUpdateChatMessage`); what the trial knows of the Overrule is the receipt in the
+     * trial record (`keepReceipt`), which is what the log, the judgement and the console read.
+     */
+    overruled: OVERRULED_FLAG,
     chapter: "chapter"
 };
 
@@ -374,14 +381,17 @@ export function holderView(data) {
  * An objection's card before its evidence (E79 C16): the banner, who objects to whom, and one line of its state -
  * "pending" while the objector chooses the Truth Bullet, "withdrawn" once it was withdrawn before one (`withdrawObjectionCard`).
  *
- * @param {"pending"|"withdrawn"} state
+ * @param {"pending"|"withdrawn"|"overruled"} state  "overruled" for a pending card the GM overruled (E70 C2)
  */
 function objectionStateCard(name, targetName, state) {
-    const line = game.i18n.localize(state === "withdrawn" ? "DRPG.Trial.objectionWithdrawn" : "DRPG.Trial.objectionPending");
+    const line = game.i18n.localize(state === "withdrawn" ? "DRPG.Trial.objectionWithdrawn"
+        : state === "overruled" ? "DRPG.Trial.overruledStamp" : "DRPG.Trial.objectionPending");
     return `<div class="drpg-evidence-card objection ${state}">
         <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>
         <div class="drpg-evidence-who">${whoLine(name, targetName)}</div>
-        <p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(line)}</em></p>
+        ${state === "overruled"
+            ? `<div class="drpg-overruled-stamp">${foundry.utils.escapeHTML(line)}</div>`
+            : `<p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(line)}</em></p>`}
     </div>`;
 }
 
@@ -488,6 +498,14 @@ export function registerTrial() {
      * body to its last words (popup.mjs `watchCard`, R293), one entry. A GM's card only: the GMs write these, and a
      * player's card that changes its words is not redrawn on anybody's screen by this.
      */
+    /* THE STAMP OF AN OVERRULE (E70 C2; DB41: "Overruled by the GM"), drawn by the chat log from the card's flag on a
+       GM's card: display only, as the flag is - the receipt is the record. */
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!message?.getFlag?.(MODULE_ID, TRIAL_FLAGS.overruled) || !message.author?.isGM) return;
+        const card = element?.querySelector?.(".drpg-evidence-card") ?? null;
+        if (card && !card.querySelector(".drpg-overruled-stamp")) card.append(overruledStamp());
+    });
+
     Hooks.on("updateChatMessage", (message, change) => {
         if (!message.getFlag(MODULE_ID, TRIAL_FLAGS.present) || !("content" in (change ?? {}))) return;
         if (!message.author?.isGM) return;
@@ -661,6 +679,9 @@ async function seizeFloor(message, objectorId, targetId) {
         return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"));
     }
 
+    // The receipt of the price this step took, for the Overrule (E70 C2): the floor it took, as the stack keeps it.
+    await keepReceipt(message.id, opened, { objectorId, aimedAt: targetId, paid: receipt });
+
     // The sound travels as a flag on the whisper rather than being played here:
     // this is the GM's client, and the pip that just moved is the objector's.
     await whisperToOwner(actor,
@@ -668,6 +689,108 @@ async function seizeFloor(message, objectorId, targetId) {
         receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
 
     return opened;
+}
+
+/*
+ * THE RECEIPT OF AN OBJECTION (E70 C2, 27.10.2026; S18-77, E70-09). What the Overrule needs - who objected to whom,
+ * what they paid, what they interrupted and with how much time left - was nowhere but the card, which is a chat
+ * message: its flags are the poster's, its words are HTML, and a log that read them read whatever a card said. The
+ * primary writes it here, in the step that took the price (`seizeFloor`, `objectOnPrimary`), from what it charged
+ * (`payPrice`'s answer) and the floor it wrote (the stack's newest entry, E70 C1): into the trial record
+ * (`trialProgress().objections`, by card), kept for the chapter, never read off a card. An Objection refused or
+ * refunded never gets one; a withdrawn one loses it (`withdrawObjectionCard`): there is nothing to overrule in either.
+ */
+// `aimedAt`, the target the step judged: objectOnPrimary names the packet's `targetId` in its no-Room branch alone (R591).
+async function keepReceipt(messageId, floor, { objectorId, aimedAt, paid }) {
+    if (!messageId || !floor) return;
+    try {
+        const { restOf } = await import("./floor-machine.mjs");
+        const entry = (Array.isArray(floor.before) ? floor.before : []).findLast(e => e?.messageId === messageId) ?? null;
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => ({
+            objections: {
+                ...(record.objections ?? {}),
+                [messageId]: {
+                    objectorId, targetId: aimedAt ?? null,
+                    paid: paid ? { key: paid.key ?? null, pay: paid.pay ?? null, amount: Number(paid.amount) || 0, grant: Boolean(paid.grant) } : null,
+                    mode: entry?.before?.mode ?? null, leftAtObjection: entry ? Number(entry.leftAtObjection) || 0 : null,
+                    debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false
+                }
+            }
+        }));
+    } catch (err) {
+        error("Could not keep the receipt of an Objection", err);
+    }
+}
+
+/**
+ * The trial record's receipts (`objections`), the trial's stamp and the console's offer of the debate again
+ * (`againAfterOverrule`), as vote.mjs `trialProgress` reads the record: `chapter`'s (the clock's), else none - a record
+ * of another chapter is another trial's. `given` stands for the record (the suite's). Read synchronously, for the bar's
+ * greyed button and the log, without the vote's file.
+ */
+export function objectionRecord({ chapter = null, given = null } = {}) {
+    const none = { objections: {}, trialStartedAt: null, again: null };
+    try {
+        const stored = given ?? game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        if (!given && stored.chapter !== (chapter ?? getClock().chapter)) return none;
+        return { objections: stored.objections ?? {}, trialStartedAt: stored.trialStartedAt ?? null, again: stored.againAfterOverrule ?? null };
+    } catch {
+        return none;
+    }
+}
+
+/** A withdrawn Objection's receipt taken out of the record (`withdrawObjectionCard`): nothing of it is left to overrule. */
+async function dropReceipt(messageId) {
+    try {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => {
+            if (!record.objections?.[messageId]) return null;
+            const objections = { ...record.objections };
+            delete objections[messageId];
+            return { objections };
+        });
+    } catch (err) {
+        error("Could not take a withdrawn Objection's receipt out of the trial record", err);
+    }
+}
+
+/**
+ * The Overrule told (E70 C2; trial-floor.mjs `overruleInStep`, on the primary): the card marked - its stamp drawn by the
+ * chat log from the flag, its sticky card closed on every screen (popup.mjs) - and a card to the table with the sound,
+ * "The GM overrules {name}'s Objection. The price stays, ..." with where the trial went back to, or, after the
+ * exchange, that nothing else changes. A card deleted since is skipped: the receipt is the record. A pending card's
+ * words say it was overruled, not that a bullet is being chosen.
+ */
+export async function markOverruled(messageId, { objectorId = null, state = null } = {}) {
+    if (!game.user.isGM) return;
+    const message = messageId ? (game.messages.get(messageId) ?? null) : null;
+    const name = game.actors.get(objectorId ?? "")?.name ?? message?.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?";
+    if (message?.author?.isGM) {
+        try {
+            const pending = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.pending));
+            await message.update({
+                ...(pending ? { content: objectionStateCard(name, message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "overruled") } : {}),
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.overruled]: true, ...(pending ? { [TRIAL_FLAGS.pending]: false } : {}) } }
+            });
+        } catch (err) {
+            error("Could not mark the overruled Objection's card", err);
+        }
+    }
+    const { trialEventCard } = await import("./trial-floor-ui.mjs");
+    const esc = foundry.utils.escapeHTML;
+    const lines = state
+        ? [game.i18n.format("DRPG.Floor.overrule.card", { name: esc(name), state: esc(state) })]
+        : [game.i18n.format("DRPG.Floor.overrule.cardOver", { name: esc(name) }), game.i18n.localize("DRPG.Floor.overrule.over")];
+    try {
+        await announce({
+            content: trialEventCard("DRPG.Floor.overrule.title", ...lines),
+            flags: { [MODULE_ID]: { sfx: { key: "overrule", gm: true } } }
+        });
+    } catch (err) {
+        error("Could not tell the table the Objection was overruled", err);
+    }
+    log(`The GM overruled ${name}'s Objection${state ? `; back to ${state}` : ""}.`);
 }
 
 
@@ -801,6 +924,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
             return { refused: "the floor did not move for that objection" };
         }
 
+        await keepReceipt(message.id, floor, { objectorId: actor.id, aimedAt: target.id, paid: receipt });
         await whisperToOwner(actor,
             `<p>${game.i18n.format("DRPG.Trial.objectionPaid", { what: paidLine(receipt) })}</p>`,
             receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
@@ -951,6 +1075,7 @@ export async function withdrawObjectionCard(messageId) {
             message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "withdrawn"),
         flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.withdrawn]: true } }
     });
+    await dropReceipt(messageId);
     return true;
 }
 
@@ -1156,6 +1281,8 @@ export async function repointDialog() {
  */
 export function presentedThisChapter({ objectionsOnly = false, chapter = null } = {}) {
     const want = chapter ?? getClock().chapter;
+    // The Overrule is the receipt's (E70 C2), never the card's flag, which its own author could take off again.
+    const { objections } = objectionRecord({ chapter: want });
 
     return game.messages
         .filter(m => m.getFlag(MODULE_ID, TRIAL_FLAGS.present))
@@ -1174,6 +1301,9 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             refused: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.refused)),
             // An Objection whose Truth Bullet never came (E79 C16): it stopped the room and showed nothing.
             withdrawn: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.withdrawn)),
+            // Overruled by the GM (E70 C2): read off the receipt the primary keeps, as is whether it has one.
+            overruled: Boolean(objections[m.id]?.overruled),
+            receipt: Boolean(objections[m.id]),
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
             timestamp: m.timestamp
         }))
@@ -1213,14 +1343,24 @@ export async function openObjectionLog() {
      * which `keepLive` carries by default, because no other window in the module is
      * about chat.
      */
+    /* OVERRULE ON THE NEWEST ROW (E70 C2): the one Objection an Overrule would name now - the running one, else the
+       newest of this trial not yet overruled (floor-machine.mjs `overruleTarget`) - carries the button; each row of an
+       overruled one says so, read off the receipt ("OBJECTION - overruled by the GM"). */
+    const floorMod = await import("./trial-floor.mjs");
+    const { overruleTarget } = await import("./floor-machine.mjs");
     const logBody = () => {
         const entries = presentedThisChapter();
+        const named = overruleTarget({ floor: floorMod.trialFloor(), ...objectionRecord(), running: floorMod.inClassTrial() });
         const rows = entries.map(e => `<tr>
             <td>${e.objection
                 ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>${
                     e.refused
                         ? ` <em>${game.i18n.localize("DRPG.Trial.logRefused")}</em>`
-                        : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>` : ""}`
+                        : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>`
+                            : e.overruled ? ` - <em>${game.i18n.localize("DRPG.Trial.logOverruled")}</em>` : ""}${
+                    !named.refused && named.messageId === e.id
+                        ? ` <button type="button" data-drpg-overrule="${e.id}">${
+                            game.i18n.localize("DRPG.Floor.bar.overrule")}</button>` : ""}`
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>
             <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
@@ -1249,11 +1389,20 @@ export async function openObjectionLog() {
         classes: ["drpg-panel", "drpg-window-objections"],
         content: dialogContent(logBody()),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
-        render: (event, dialog) => keepLive(dialog, {
-            region: ".drpg-objection-live",
-            build: logBody,
-            watch: { hooks: ["createChatMessage", "deleteChatMessage", "updateChatMessage"] }
-        }),
+        render: (event, dialog) => {
+            // By delegation on the window: the region is rebuilt whenever the record or a card changes.
+            dialog.element?.addEventListener("click", ev => {
+                const button = ev.target?.closest?.("[data-drpg-overrule]");
+                if (!button) return;
+                ev.preventDefault();
+                floorMod.overruleObjection(button.dataset.drpgOverrule).catch(err => error("The log's Overrule failed", err));
+            });
+            return keepLive(dialog, {
+                region: ".drpg-objection-live",
+                build: logBody,
+                watch: { hooks: ["createChatMessage", "deleteChatMessage", "updateChatMessage"] }
+            });
+        },
         rejectClose: false
     });
 }

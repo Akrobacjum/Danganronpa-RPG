@@ -4575,6 +4575,11 @@ export const SFX_EVENTS = {
         hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
         category: "incident"
     },
+    overrule: {
+        label: "Overrule",
+        hint: "The GM overrules an Objection: the trial goes back to where it was, the price stays. Heard by the whole table.",
+        category: "incident"
+    },
     voteOpen: {
         label: "The vote opens",
         hint: "Heard by the whole table.",

@@ -2825,7 +2825,7 @@ export const BRIDGE_ACTIONS = table({
      * A GM'S CHANGE OF THE FLOOR, RUN ON THE PRIMARY GM (E70 C0, 27.10.2026; amend 5 (d)). Every public writer of the
      * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `fillObjection`, `withdrawObjection`,
      * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`, and since E70 C1 the bar's `adjustTime` and
-     * `endMode`, which the primary refuses outside a Class Trial) asks this on a GM that is not the primary, and
+     * `endMode`, and since E70 C2 `overruleObjection`, which the primary refuses outside a Class Trial) asks this on a GM that is not the primary, and
      * the primary runs the op's twin in a step of the floor's key (`floorOnPrimary`): one writer of the floor, the
      * primary, one write at a time. Its ops are `FLOOR_OP_NAMES` (tier 0 R1020 holds the two lists equal). A GM's
      * request only: a player's console has the four rows above for what a player may do on the floor.
@@ -2835,7 +2835,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM changes the trial's floor")],
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-                "adjust", "endMode"),
+                "adjust", "endMode", "overrule"),
             seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id
         }),
         run: handleTrialGm,
@@ -2843,7 +2843,7 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
             targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
-            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds; any other changes nothing"
+            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing"
         }
     },
     /*

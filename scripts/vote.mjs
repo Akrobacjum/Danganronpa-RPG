@@ -42,7 +42,7 @@ import { ballotStore, deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serialWrite } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serialWrite, serverNow } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -130,7 +130,11 @@ export function trialProgress(chapter = getClock().chapter) {
         chapter, seconds: TRIAL.speakSeconds,
         voteClosed: false, verdictApplied: false, keysCharged: false,
         tied: false, majority: 0, noMajority: false,
-        vote: blankVote(), accused: [], total: 0, accusedIds: [], verdict: null
+        vote: blankVote(), accused: [], total: 0, accusedIds: [], verdict: null,
+        // E70 C2: the Objections' receipts, by card, kept for the chapter (trial.mjs `keepReceipt`); the trial's own
+        // stamp, which tells this trial's receipts from an earlier one's in the chapter (D17); the console's offer of
+        // the debate again after an Overrule (trial-floor.mjs `overruleInStep`).
+        objections: {}, trialStartedAt: null, againAfterOverrule: null
     };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -207,9 +211,12 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
     // is of an older round, so no count of the second can read it. `keysCharged`
     // is not named, so the merge keeps it - the Key fee is the chapter's (E09 C7).
     // The round as the record's step finds it (E70 C0).
+    // THE TRIAL'S STAMP (E70 C2): on the server's clock, at the trial's entry - the only road here (clock.mjs
+    // `reconcilePhase`). The Objections' receipts are the chapter's and stay; an Overrule reads only this trial's.
     return setTrialProgress(now => ({
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
-        vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null
+        vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
+        trialStartedAt: serverNow(), againAfterOverrule: null
     }));
 }
 
