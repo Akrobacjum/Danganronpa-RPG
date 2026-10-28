@@ -39999,8 +39999,8 @@ const SCENARIOS = [
         /*
          * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the
          * participants as vote.mjs `trialParticipants` gives them: (1) `startClosing` opens the volunteers' window; (2) the
-         * first participant's owner volunteers by the bridge's "trial.claim" (taken), again (refused: once), the second's
-         * owner volunteers the first's student (refused: not theirs) and their own (taken) - the floor says "2" and nothing
+         * second participant's owner volunteers the first's student (refused: not theirs), the first's owner volunteers by
+         * the bridge's "trial.claim" (taken), again (refused: once), the second's owner their own (taken) - the floor says "2" and nothing
          * else, neither world setting holds a volunteer or a draw, the GMs' store holds both names; (3) Skip draws one of
          * them and Confirm gives them the floor; (4) an Objection at a participant who is not speaking is refused, one at the
          * speaker opens its exchange, and the rebuttal skipped is the GM's decision with the speaker's seconds kept; the
@@ -40048,9 +40048,11 @@ const SCENARIOS = [
                 const opened = await api.startClosing();
                 await settle();
                 read.open = [opened?.mode ?? null, F.trialFloor()?.closing?.phase ?? null];
+                // The forged claim first (E70 C8 fix-mutant): asked after the first's own, the once rule refused it as well, and
+                // mutant c6 - "trial.claim" without its ownership guard - survived.
+                const forged = await judged({ action: "trial.claim", requestId: "E70T10FORGED", actorId: one.actor.id }, two.user.id);
                 const c1 = await judged({ action: "trial.claim", requestId: "E70T10C1", actorId: one.actor.id }, one.user.id);
                 const c1again = await judged({ action: "trial.claim", requestId: "E70T10C1B", actorId: one.actor.id }, one.user.id);
-                const forged = await judged({ action: "trial.claim", requestId: "E70T10FORGED", actorId: one.actor.id }, two.user.id);
                 const c2 = await judged({ action: "trial.claim", requestId: "E70T10C2", actorId: two.actor.id }, two.user.id);
                 const held = S.closingClaimStore.get(RECORD) ?? {};
                 read.claims = [c1, c1again, forged, c2, F.trialFloor()?.closing?.count ?? null, worldClean(),
