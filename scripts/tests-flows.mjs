@@ -92,11 +92,25 @@ export const FLOWS = Object.freeze([
     // (`trial.evidence`), and a GM re-points it (`floor.repoint`); 63 drives the three, 33 the legal pair from a player
     // and 30 the forged ones. E79 fix r4-G2: the objector's closed picker withdraws it (`trial.withdraw`); 33 sends it
     // from p1, 30 a forged one from p2.
-    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
+    // E70 C0 (1.2.90): every GM's change of the floor on a GM that is not the primary is asked of it through `trial.gm`
+    // (trial-floor.mjs `floorStep`); 30 sends a forged one from p1. No scenario sends it from a second GM until E70 C1.
+    // E70 C5 (1.2.90): the trial's voices - its dead listed and muted at the entry, given back at the exit - are settled on
+    // the primary, asked of it through `trial.enter` by a GM that is not (voice.mjs `askTrialVoices`); 30 sends a forged one.
+    // E70 fix p1-G2 (1.2.90): every write of the trial's record by a GM that is not the primary - a patch, the reset, the
+    // execution, the sentence taken back - is asked of it through `trial.record` (vote.mjs `recordOnPrimary`); 63 R sends it
+    // from gm3, 30 a forged one from p1.
+    // E70 C7 (1.2.90): a round's step from a participant's browser - the speaker's Done or Pass, anyone's step over once
+    // the turn has run out - is asked of the primary through `trial.turn` (trial-prompt.mjs); 67 drives it from the players.
+    // E70 C8 (1.2.90): a volunteer for the Closing Argument through `trial.claim` (trial-prompt.mjs); 67 from the players,
+    // 30 a forged one.
+    // E70 C10 (1.2.90): a Present posted by the primary with its copies, through `trial.present` (trial.mjs `presentDialog`);
+    // tier 2 E70-T12 from a player's owner and from another's.
+    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
-            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint"],
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
+            "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },

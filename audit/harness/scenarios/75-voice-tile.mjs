@@ -104,6 +104,8 @@
  *   not by v14: "no reconnect mid-drag" holds as far as v14 marks a drag's steps so (LIVE-H82-02 (c)). With p1's connect held 2000 ms,
  *   two rooms 1700 ms apart end in the second after two reconnects, and p1's Debug log says how long each connect took
  *   (H82-03). The real reconnect's time is LIVE-H82-02.
+ * G2 (E70 C11): OBJECTION! on p1's tile outside a trial - held with "Objection only in a Class Trial.", a press that says
+ *   so and sends no Objection, and no button on p1's trial row; read between G and H, while p1's tile stands.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -131,7 +133,7 @@ export const layers = ["ci"];
    33 checks, 1 of them the expected red, in 36.4 s, 41.8 s of wall time - the bound stood. The two lines merged (24.10.2026,
    line A's I after line B's H; two green runs, under the harness lock, 4 cores): 37 checks, none of them an expected red, in
    54.7 s and 54.5 s, 58.7 s and 59 s of wall time - H's 15 s and I's 21.4 s of waiting by design add up, so 90 s was a margin
-   of 1.5 over the wall time; the bound goes to 120 s, about twice it, a margin chosen for a loaded runner, not measured on one. */
+   of 1.5 over the wall time; the bound goes to 120 s, about twice it, a margin chosen for a loaded runner, not measured on one.With G2 (E70 C11, one green run on 28.10.2026, under the harness lock): 41 checks in 64.6 s - it stands. */
 export const timeoutMs = 120000;
 
 const J = value => JSON.stringify(value);
@@ -927,6 +929,35 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && said(st.home, "connected") && st.speaking?.shown === true && st.speaking.word === "connected" && st.speaking.face === true
             && J([st.speaking.run, st.speaking.title]) === J(st.texts.speaking) && st.speaking.live === st.texts.connected[1],
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
+
+    phase("G2: OBJECTION! on p1's voice tile outside a trial - held with its reason, a press says why and asks the primary GM nothing, the trial row none");
+    /* E70 C11 (28.10.2026; the owner's B3 and Q-p2-4 of 27.10): OBJECTION! stands on the voice tile in every phase, greyed
+       with "Objection only in a Class Trial." outside one (hud.mjs `objectionControl`, host "tile"; voice-tile.mjs
+       `paintObjection`). Read on p1's real tile in the seed's phase, not a trial: the button in the tile's controls, held,
+       the sentence as its tooltip; a press tells p1 the sentence and sends no "trial.object" (every emit of p1's socket is
+       read for 400 ms); the trial row has no button. Live in a trial and its press is 63 Y on p1's tile; the button's
+       place at 1366x768, in the stacked row and under Legacy is LIVE-E70-12. Before C11 the tile drew no OBJECTION! (E70-T13 red at b2dd974c). */
+    const oj = await p1.eval(`
+        const tile = document.getElementById("drpg-voice-tile");
+        const button = tile?.querySelector(".drpg-voice-tile-controls > .drpg-voice-objection") ?? null;
+        const warned = [], sent = [], warn = ui.notifications.warn, emit = game.socket.emit;
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        game.socket.emit = function (...args) { sent.push(JSON.stringify(args.slice(0, 2)) ?? ""); return emit.apply(this, args); };
+        try {
+            button?.click();
+            await new Promise(r => setTimeout(r, 400));
+        } finally {
+            ui.notifications.warn = warn;
+            game.socket.emit = emit;
+        }
+        return { phase: game.settings.get("danganronpa-rpg", "clock")?.phase ?? null, button: Boolean(button),
+            held: button?.getAttribute("aria-disabled") ?? null, tip: button?.dataset.tooltipText ?? null,
+            words: game.i18n.localize("DRPG.Trial.objectionOutside"), warned, objected: sent.filter(line => line.includes("trial.object")).length,
+            hud: Boolean(document.querySelector("#drpg-hud .drpg-hud-objection")) };`);
+    check("G2: outside a trial p1's voice tile holds OBJECTION! with its reason - in the controls, aria-disabled, \"Objection only in a Class Trial.\" as its tooltip; a press says it and sends no Objection; the trial row has none",
+        oj.phase !== "classTrial" && oj.button === true && oj.held === "true" && oj.tip === oj.words && oj.warned.includes(oj.words)
+            && oj.objected === 0 && oj.hud === false,
+        J(oj));
 
     phase("H: a voice drop on p1 - one card in p1's notice history and no toast, p1's own reconnect at its steps while the server refuses, the card gone once p1 is back and its entry kept");
     // E19 C2 (S11-09, A7). p1's Room dropped while every connect is refused: the times at which p1's reconnects

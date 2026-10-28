@@ -376,6 +376,17 @@ export const SETTINGS = {
      */
     gmVerdict: "gmVerdict",
     /**
+     * WHAT THE TRIAL'S MUTE FOUND (E70 C5, 28.10.2026; amend 6, answer 3 (b)): a GM store, a row per user whose
+     * microphone the trial blocked, `{ had, value, wrote }` - whether the user had a BROADCAST_AUDIO grant of its own
+     * and which, so the exit puts back exactly that (gm-stores.mjs `trialMuteStore`, voice.mjs `settleTrialVoices`).
+     */
+    gmTrialMute: "gmTrialMute",
+    /**
+     * THE CLOSING ARGUMENT'S VOLUNTEERS (E70 C8, 28.10.2026): a GM store (gm-stores.mjs `closingClaimStore`), one record
+     * `{ volunteers, drawn, openedAt }` - who volunteered and whom the draw named, which the floor never holds.
+     */
+    gmClosingClaim: "gmClosingClaim",
+    /**
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
@@ -1685,6 +1696,21 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // What the trial's mute found (E70 C5): no `onChange`, as nothing on any screen shows it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTrialMute, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The Closing's volunteers (E70 C8): the GM's console reads the names and the draw - another GM's merged in too.
+    game.settings.register(MODULE_ID, SETTINGS.gmClosingClaim, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgClosingClaims")
+    });
     /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
        redraws what the world setting's change redrew (the caption, the HUD row, the sheets;
        the pools' bar and sheets), and tells the windows that show a count or what a pool
@@ -2940,6 +2966,29 @@ export function isDeadForGm(actor) {
     return deadIn(actor, () => pendingDeath(actor));
 }
 
+/*
+ * THE TRIAL'S DEAD, WHOSE MICROPHONES ARE OFF (E70 C5, 28.10.2026; S18-78, S18-87; the owner's DC19 and TR30 = 2: "Tak,
+ * ona też wyciszona"). The primary GM writes the list into the trial's record when the trial opens, after its deaths
+ * store has hydrated (voice.mjs `settleTrialVoices`): every ordinary dead student - a death nobody has found too, which
+ * no player's copy of the GMs' records would show - and never a Monocub. Public on purpose (TR30: the silence tells the
+ * table of a body nobody found; LIVE-E70 and the books say so), and answered only in a Class Trial: outside one the
+ * list means nothing, and the exit takes it out of the record. Here, beside `isDeadForGm`, because movement.mjs,
+ * vote.mjs, trial.mjs, trial-floor.mjs and voice.mjs all ask it and this file imports none of them. `clock` and
+ * `record` (the stored trial record) can be handed in, so tier 1 R1034 asks it a table without a world.
+ */
+export function mutedDeadIds({ clock = getClock(), record } = {}) {
+    if (clock?.phase !== "classTrial") return null;
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    if (stored.chapter !== clock.chapter || !Array.isArray(stored.mutedDead)) return null;
+    return stored.mutedDead;
+}
+
+/** Whether the module mutes this student for the trial (`mutedDeadIds`): never outside a Class Trial. */
+export function isMutedDead(actor, facts = {}) {
+    const id = actor?.id;
+    return Boolean(id && mutedDeadIds(facts)?.includes(id));
+}
+
 /**
  * The rule under `isDeadForGm`, with the reader of the held rows handed in (R193 drives it
  * on fake stores): the table's fact first, and a row held here only for an actor with an id.
@@ -2948,13 +2997,19 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1) and its `deathId` (fix r1-G1). */
+/**
+ * The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and
+ * season (E11 C1), its `deathId` (fix r1-G1) and the verdict before it (`sinceVerdict`, E70 fix p1-G3) - the fields
+ * chapter.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
+ * at df6f6fbd, 28.10.2026: "a Finishing Blow leaves the victim unflagged" read the published record with `sinceVerdict`
+ * and this one without).
+ */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
     return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null } : null;
+        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null, sinceVerdict: row.sinceVerdict ?? null } : null;
 }
 
 /*

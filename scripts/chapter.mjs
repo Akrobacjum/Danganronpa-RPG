@@ -33,7 +33,7 @@ import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.m
 import { getClock, phaseLabel } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
-    deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound
+    deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound, SETTINGS
 } from "./settings.mjs";
 import {
     TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
@@ -116,7 +116,24 @@ export function livingStudentsForGm() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
-export async function markDeceased(actor, { record: when = null, phase = null } = {}) {
+/*
+ * THE CHAPTER'S NEWEST VERDICT AS A DEATH HAPPENS (E70 fix p1-G3; the review's E70P1-R14 = E70P1-R11 goal; DC29, DC41,
+ * D17). A Monocub whose own trial runs listens ("You listen: this trial is about your death", monocub.mjs `ownCaseOpen`),
+ * and that read the chapter's `lastVerdictAt` alone: a second murder after the chapter's first verdict read as closed.
+ * The death keeps the stamp of the newest verdict before it (the trial record's `lastVerdictAt`, public on the verdict's
+ * card), so its case is open while no verdict came after it. Not the death's time: a death the GMs keep would tell every
+ * console when it happened once published (the `deathId` note below).
+ */
+function verdictBefore(chapter) {
+    try {
+        const record = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        return record.chapter === chapter ? (record.lastVerdictAt ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function markDeceased(actor, { record: when = null, phase = null, cause = null, chapter = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
     // A death published after the kill carries the kill's chapter, day and time of day
@@ -128,9 +145,12 @@ export async function markDeceased(actor, { record: when = null, phase = null } 
     // `deathId` names this death and no other, so a discovery's stamp counts for the death it
     // announced and not for the next one of the same student (`announcedIn`); a random key and
     // not the time, which would tell every console when a death the GMs kept happened.
+    // WHY, AND WHOSE CHAPTER (E70 C4; amend 4 (b)). An execution at the trial's end says so (`cause: "executed"`), and
+    // is the trial's chapter's even when the chapter's end has moved the clock on before closing the trial
+    // (vote.mjs `executeAtExit`). A death with no cause writes none, as before.
     const clock = getClock();
-    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
-        deathId: foundry.utils.randomID() };
+    const record = when ?? { chapter: chapter ?? clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
+        deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(chapter ?? clock.chapter), ...(cause ? { cause } : {}) };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -151,7 +171,7 @@ export async function markDeceased(actor, { record: when = null, phase = null } 
     return record;
 }
 
-export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null } = {}) {
+export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null, cause = null, chapter = null } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
@@ -198,7 +218,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
         if (!keepBullets) removed = await destroyBullets(actor);
         // The record and the token marker, which the Players window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
-        record = await markDeceased(actor, { phase });
+        record = await markDeceased(actor, { phase, cause, chapter });
     }
     if (!record) return null;
 
@@ -434,7 +454,7 @@ async function destroyBullets(actor) {
 async function recordSecretDeath(actor, { keepBullets = false, phase = null } = {}) {
     const clock = getClock();
     const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
-        deathId: foundry.utils.randomID() };
+        deathId: foundry.utils.randomID(), sinceVerdict: verdictBefore(clock.chapter) };
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -484,7 +504,7 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
  * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-panel.mjs
  * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
- * that executes a student whose death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4:
+ * that executes a student whose death the GMs hold (vote.mjs `executeAtExit`, E10 fix r1-G4:
  * the GM named them in the verdict's window, which told that GM whose death it is). Nothing
  * else: no trial and no chapter's end publishes a death on its own (the owner's Q3, 26.09.2026;
  * callers read with `git grep` on 10.10.2026, E10 fix r2-G3). Last, each loot of the body before this
@@ -494,19 +514,20 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * and the ties to the crime that waited for this death (remnants.mjs `publishTiesFor`; E09 fix
  * r1-G1), whichever road made it known - the discovery, or a GM's hand here.
  */
-export async function publishDeath(actor, { phase = null } = {}) {
+export async function publishDeath(actor, { phase = null, cause = null } = {}) {
     if (!game.user.isGM || !actor) return null;
     const row = deathStore.get(actor.id);
     if (!row) return isDeceased(actor) ? deathRecord(actor) : null;
     const removed = row.keepBullets ? 0 : await destroyBullets(actor);
     /* THE KILL'S RECORD, AND THE EXECUTION'S PHASE (E11 C1, 1.2.73). A verdict that executes a
-       death the GMs held passes `phase: "classTrial"` (vote.mjs `executeSentenced`): the record
+       death the GMs held passes `phase: "classTrial"` (vote.mjs `executeAtExit`): the record
        keeps the kill's chapter, day and time, and says the death is the execution, so after End
        the trial two students walking past it do not discover it (`bodiesToDiscover`). Reading this
        chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
     const record = await markDeceased(actor, {
         record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null }
+            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null, sinceVerdict: row.sinceVerdict ?? null,
+            ...(cause ? { cause } : {}) }
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).

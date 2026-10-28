@@ -71,6 +71,18 @@ const ACTION_TRIAL_EVIDENCE = "trial.evidence";
 const ACTION_TRIAL_WITHDRAW = "trial.withdraw";
 /** GM -> primary GM: the running Objection aimed at somebody else, from the trial console (E79 C16; trial.mjs `repointOnPrimary`). */
 const ACTION_FLOOR_REPOINT = "floor.repoint";
+/** GM -> primary GM: a GM's change of the trial's floor, run in the floor's step there (E70 C0; trial-floor.mjs `floorStep`). */
+const ACTION_TRIAL_GM = "trial.gm";
+// A round's step from a participant's browser (E70 C7): the speaker's Done or Pass, anyone's step over once it is due.
+const ACTION_TRIAL_TURN = "trial.turn";
+// A participant volunteering for the Closing Argument (E70 C8): the name kept by the GMs alone.
+const ACTION_TRIAL_CLAIM = "trial.claim";
+// A Present posted by the primary with a copy as shown to every other participant (E70 C10; trial.mjs `presentOnPrimary`).
+const ACTION_TRIAL_PRESENT = "trial.present";
+/** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
+const ACTION_TRIAL_ENTER = "trial.enter";
+/** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
+const ACTION_TRIAL_RECORD = "trial.record";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1021,7 +1033,9 @@ async function handleCleanup(payload, sender, ctx, prepared) {
             grant: payload.grant,
             // Who sent it, as below: a give-back the GMs' audit cannot check is not
             // made on a player's word (cleanup.mjs `paidBack`, fix r2-G8).
-            by: sender.id
+            by: sender.id,
+            // The roll the author's copy is noted on (cleanup.mjs `authorsCopy`, E70 C12): the bridge's `rolled` holds it.
+            rollId: payload.rollId ?? null
         });
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
@@ -1750,6 +1764,18 @@ async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (vote.mjs `recordOnPrimary`), its answer or null. */
+async function handleTrialRecord(payload) {
+    const { recordOnPrimary } = await import("./vote.mjs");
+    return { reply: await recordOnPrimary(payload.op, { patch: payload.patch, seconds: payload.seconds, chapter: payload.chapter }) ?? null };
+}
+
+/** The run of `trial.enter` (E70 C5): the primary's own settle of the trial's voices (voice.mjs `settleTrialVoices`), its answer or null. */
+async function handleTrialEnter() {
+    const { settleTrialVoices } = await import("./voice.mjs");
+    return { reply: await settleTrialVoices() };
+}
+
 /** The run of `vote.run` (E10 C1): the primary's own step of the vote (vote.mjs `runVoteOp`), its reply or status. */
 async function handleVoteRun(payload) {
     const { runVoteOp } = await import("./vote.mjs");
@@ -1793,7 +1819,8 @@ async function handleTrialObject(payload) {
 /** The run of `trial.evidence` (E79 C16): the Truth Bullet on the objector's own pending card (trial.mjs `evidenceOnPrimary`). */
 async function handleTrialEvidence(payload) {
     const { evidenceOnPrimary } = await import("./trial.mjs");
-    const out = await evidenceOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment });
+    const out = await evidenceOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment,
+        analysis: !payload.bare });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.reply ?? null };
 }
@@ -1809,6 +1836,46 @@ async function handleTrialWithdraw(payload) {
 async function handleFloorRepoint(payload) {
     const { repointOnPrimary } = await import("./trial.mjs");
     const out = await repointOnPrimary({ targetId: payload.targetId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/**
+ * The run of `trial.gm` (E70 C0): a GM's change of the floor in a step of the floor's key on this primary (trial-floor.mjs
+ * `floorOnPrimary`). An op that changed nothing - its own refusal, a floor that moved on - is refused here, so the GM
+ * who pressed is told.
+ */
+async function handleTrialGm(payload) {
+    const { floorOnPrimary } = await import("./trial-floor.mjs");
+    const out = await floorOnPrimary(payload.op, {
+        seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text,
+        order: payload.order, slot: payload.slot, beyondPaid: payload.beyondPaid
+    });
+    if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
+    return { reply: out };
+}
+
+/** The run of `trial.turn` (E70 C7): a round's step, judged on this primary (trial-modes.mjs `turnOnPrimary`). */
+async function handleTrialTurn(payload, sender) {
+    const { turnOnPrimary } = await import("./trial-modes.mjs");
+    const out = await turnOnPrimary({ actorId: payload.actorId, kind: payload.kind, step: payload.step }, sender.id);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.claim` (E70 C8): a volunteer for the Closing, judged on this primary (trial-modes.mjs `volunteerOnPrimary`). */
+async function handleTrialClaim(payload) {
+    const { volunteerOnPrimary } = await import("./trial-modes.mjs");
+    const out = await volunteerOnPrimary({ actorId: payload.actorId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.present` (E70 C10): the card and the copies, judged on this primary (trial.mjs `presentOnPrimary`). */
+async function handleTrialPresent(payload) {
+    const { presentOnPrimary } = await import("./trial.mjs");
+    const out = await presentOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment,
+        analysis: !payload.bare });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.reply ?? null };
 }
@@ -2660,6 +2727,39 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply"
     },
     /*
+     * THE TRIAL'S VOICES, SETTLED ON THE PRIMARY GM (E70 C5, 28.10.2026; amend 6, answer 3 (b)). The trial opens and
+     * ends on whichever GM moved the phase (clock.mjs `reconcilePhase`); its list of the dead reads the GMs' deaths
+     * store after it has hydrated, and the blocks are written by one GM in one step of the record's key, so another GM
+     * asks the primary here (voice.mjs `askTrialVoices`), as the Key fee is asked above. Carries nothing: the settle
+     * reads the clock, the deaths and the users on this side.
+     */
+    [ACTION_TRIAL_ENTER]: {
+        label: "DRPG.Bridge.what.trial.enter",
+        guards: [gmOnly("only a GM opens or ends a Class Trial, and the trial's voices are settled as it does")],
+        sanitize: pick({}),
+        run: handleTrialEnter,
+        answer: "reply"
+    },
+    /*
+     * THE TRIAL'S RECORD, WRITTEN ON THE PRIMARY GM (E70 fix p1-G2, 28.10.2026; the review's SEC-3, SEC-4, E70-01, E70-16).
+     * The record is one world setting, and each GM wrote it in its own browser's queue from its own copy: a write of
+     * another GM and one of the primary landed over each other, and two GMs ending the trial carried the sentence out
+     * twice. Another GM's object patch, the reset at the entry, the execution and the season's taking back of the
+     * sentence are asked here (vote.mjs `setTrialProgress`, `resetTrialProgress`, `executeAtExit`, `clearSentence`) and
+     * run in the primary's one queue. A GM's request only: `patch` is held there to the record's own fields
+     * (`recordPatchOf`), never the trial's list of the dead or the receipts, which only the primary's own steps write.
+     */
+    [ACTION_TRIAL_RECORD]: {
+        label: "DRPG.Bridge.what.trial.record",
+        guards: [gmOnly("only a GM writes the trial's record")],
+        sanitize: pick({ op: as.oneOf("patch", "reset", "execute", "clearSentence"), patch: as.raw, seconds: as.num, chapter: as.num }),
+        run: handleTrialRecord,
+        answer: "reply",
+        claims: {
+            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (vote.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; a GM's request only"
+        }
+    },
+    /*
      * THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17). The ballots are recorded
      * on the primary (vote.mjs `recordBallot`, into the GMs' store), so the steps that read or
      * reset them are taken there too: another GM's Send the ballots, Start the vote over,
@@ -2728,7 +2828,9 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_FLOOR_NOW]: {
         label: "DRPG.Bridge.what.floor.now",
         guards: [gmOnly("only a GM moves the trial's floor on")],
-        sanitize: pick({ mode: as.oneOf("objection", "rebuttal"), startedAt: as.num }),
+        // E70 C7: a round's turn skipped by a GM that is not the primary rides the same Now.
+        // E70 C8: and the Closing's timed phases (the volunteers' window's draw, a speaker skipped).
+        sanitize: pick({ mode: as.oneOf("objection", "rebuttal", "testimony", "panic", "closing"), startedAt: as.num }),
         run: handleFloorNow,
         answer: "reply",
         claims: {
@@ -2766,7 +2868,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_TRIAL_EVIDENCE]: {
         label: "DRPG.Bridge.what.trial.evidence",
         guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
-        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text }),
+        // `bare`: the card without the Analyze result (E70 C10; Q-p2-3); a packet without it shows the result, as before.
+        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
         run: handleTrialEvidence,
         answer: "reply",
         claims: {
@@ -2803,6 +2906,89 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: {
             targetId: "held by trial.mjs repointOnPrimary to a living student the floor lets the objector aim at (trial-floor.mjs mayObjectTo); a GM's request only"
+        }
+    },
+    /*
+     * A GM'S CHANGE OF THE FLOOR, RUN ON THE PRIMARY GM (E70 C0, 27.10.2026; amend 5 (d)). Every public writer of the
+     * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `fillObjection`, `withdrawObjection`,
+     * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`, and since E70 C1 the bar's `adjustTime` and
+     * `endMode`, and since E70 C2 `overruleObjection`, which the primary refuses outside a Class Trial) asks this on a GM that is not the primary, and
+     * the primary runs the op's twin in a step of the floor's key (`floorOnPrimary`): one writer of the floor, the
+     * primary, one write at a time. Its ops are `FLOOR_OP_NAMES` (tier 0 R1020 holds the two lists equal). A GM's
+     * request only: a player's console has the four rows above for what a player may do on the floor.
+     */
+    [ACTION_TRIAL_GM]: {
+        label: "DRPG.Bridge.what.trial.gm",
+        guards: [gmOnly("only a GM changes the trial's floor")],
+        sanitize: pick({
+            op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
+                "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue",
+                "closingResume", "reveal"),
+            seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text,
+            // Monokuma's Reveal (E70 C9): the row of missingKeys() a GM reveals, and past the fee's count when confirmed.
+            slot: as.text, beyondPaid: as.bool
+        }),
+        run: handleTrialGm,
+        answer: "reply",
+        claims: {
+            actorId: "the objector of a GM's Objection, held by trial-floor.mjs openObjectionInStep (floorRefusal, targetRefusal) to the floor the primary holds, or of the pending Objection a fill or a withdrawal names, held by pendingFor; a GM's request only",
+            targetId: "held by trial-floor.mjs targetRefusal to a student the floor the primary holds lets the objector aim at, for an Objection or a re-point; a GM's request only",
+            messageId: "held by trial-floor.mjs pendingFor to the card of the pending Objection on the floor the primary holds, or for an Overrule by floor-machine.mjs overruleTarget to the Objection running on that floor or the newest receipt of this trial the primary's record keeps; any other changes nothing",
+            text: "the question of a debate a GM opens (E70 C3), read by the start alone and cut by floor-machine.mjs topicOf to a trimmed string of TRIAL.modes.topicLength; shown as text, escaped, wherever it is shown; or the players' words for a Key Remnant of Monokuma's Reveal whose row has none (E70 C9), read by trial-modes.mjs revealInStep only then and escaped on the copies' card; a GM's request only",
+            order: "a round's order a GM gives (E70 C7), ids joined by commas: trial-floor.mjs startRoundInStep keeps only the trial's participants as the primary holds them (vote.mjs trialParticipants), once each, and draws the rest; a GM's request only"
+        }
+    },
+    /*
+     * A ROUND'S STEP FROM A PARTICIPANT'S BROWSER (E70 C7, 28.10.2026; E70-44, E70-45; S06-38: the GM's tab in the
+     * background held a turn past its end). The speaker's owner ends the turn (Done) or passes it (Pass); any
+     * participant's owner calls it over once it has run out on the primary's clock (a second's grace). Judged on the
+     * primary (trial-modes.mjs `turnOnPrimary`): a Class Trial, a round on the floor, the character a participant of it,
+     * the step the floor is at, Done and Pass the speaker's alone (floor-machine.mjs `done`, `pass`, `over`), one step
+     * over per sender and step; the first that matches moves the round, every later one finds the next step. "reply":
+     * the speaker's window closes on it; a step over is asked quietly (nobody waits on it).
+     */
+    [ACTION_TRIAL_TURN]: {
+        label: "DRPG.Bridge.what.trial.turn",
+        guards: [knownSender, owns("actorId", "sender does not own the character speaking")],
+        sanitize: pick({ actorId: as.id, kind: as.oneOf("done", "pass", "over"), step: as.num }),
+        run: handleTrialTurn,
+        answer: "reply",
+        claims: {
+            kind: "one of done, pass, over (as.oneOf); judged by trial-modes.mjs turnOnPrimary and floor-machine.mjs nextFloor on the floor the primary holds",
+            step: "compared by floor-machine.mjs nextFloor to the round's step on the floor the primary holds; any other is refused and moves nothing"
+        }
+    },
+    /*
+     * A VOLUNTEER FOR THE CLOSING ARGUMENT (E70 C8, 28.10.2026; TR23 = 1, E70-51). The owner of a student taking part says
+     * "I'll sum up" in the Closing's 30 s. Judged on the primary (trial-modes.mjs `volunteerOnPrimary`), in one step of the
+     * floor's key: a Class Trial, the volunteers' window open, the character among the trial's participants (vote.mjs
+     * `trialParticipants`), once. The name goes to the GMs' store (gm-stores.mjs `closingClaimStore`) and only the count
+     * to the floor. "reply": the window says the volunteer is counted.
+     */
+    [ACTION_TRIAL_CLAIM]: {
+        label: "DRPG.Bridge.what.trial.claim",
+        guards: [knownSender, owns("actorId", "sender does not own the character volunteering")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleTrialClaim,
+        answer: "reply"
+    },
+    /*
+     * A PRESENT, POSTED BY THE PRIMARY WITH ITS COPIES (E70 C10, 28.10.2026; S18-79, TR2 = 1, B2, B6, Q-p2-5). The
+     * owner of a student taking part shows one of their Truth Bullets, with or without its Analyze result; the primary
+     * posts the card as a GM and mints a copy as shown onto every other participant's sheet (trial.mjs
+     * `presentOnPrimary`, handover.mjs `mintCopy`): a Class Trial, the presenter alive as the GMs hold it, the mode's row
+     * (trial-floor.mjs `presentRefusal`), a bullet the character holds as the GMs hold it, one copy per person. "reply":
+     * the presenter's window says it went out. With no GM connected the bridge refuses it, as every row.
+     */
+    [ACTION_TRIAL_PRESENT]: {
+        label: "DRPG.Bridge.what.trial.present",
+        guards: [knownSender, owns("actorId", "sender does not own the character presenting")],
+        // `bare`: without the Analyze result (B2), so a packet that names nothing shows what the presenter knows.
+        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
+        run: handleTrialPresent,
+        answer: "reply",
+        claims: {
+            itemId: "held by trial.mjs presentOnPrimary to a Truth Bullet the presenter holds as the GMs hold it (sheet-audit.mjs itemAsHeld), the card and the copies minted from it as the GMs hold it (bulletAsHeld)"
         }
     },
     /*
@@ -3049,10 +3235,10 @@ export function requestObject({ actorId, targetId = null }) {
 }
 
 /** The Truth Bullet for the asker's pending Objection (E79 C16; trial.mjs `pickObjectionEvidence`). Its value is `{ item }`. */
-export function requestEvidence({ actorId, itemId, comment = "" }) {
-    return ask(ACTION_TRIAL_EVIDENCE, { actorId, itemId, comment }, {
+export function requestEvidence({ actorId, itemId, comment = "", analysis = true }) {
+    return ask(ACTION_TRIAL_EVIDENCE, { actorId, itemId, comment, bare: analysis === false }, {
         onPrimary: true,
-        local: () => import("./trial.mjs").then(m => m.evidenceOnPrimary({ actorId, itemId, comment })).then(out => {
+        local: () => import("./trial.mjs").then(m => m.evidenceOnPrimary({ actorId, itemId, comment, analysis })).then(out => {
             if (out?.refused) sayNotDone(ACTION_TRIAL_EVIDENCE, reasonOf(out.refused));
             return out?.reply ?? null;
         })
@@ -3076,6 +3262,63 @@ export function requestRepoint(targetId) {
         onPrimary: true,
         local: () => import("./trial.mjs").then(m => m.repointOnPrimary({ targetId })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FLOOR_REPOINT, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * A GM's change of the trial's floor, asked of the primary GM (E70 C0; trial-floor.mjs `floorStep`). Its value is the
+ * floor written, `{}` for an end; the primary itself runs it in place.
+ */
+export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null, order = null,
+    slot = null, beyondPaid = false } = {}) {
+    // A round's order travels as one string of ids (E70 C7; the row's `as.text`).
+    const joined = Array.isArray(order) ? order.join(",") : order;
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }, {
+        onPrimary: true,
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }))
+    });
+}
+
+/**
+ * A volunteer for the Closing Argument from this browser (E70 C8; trial-prompt.mjs): `actorId` this player's student.
+ * Its value is `{ count }`, the volunteers counted so far.
+ */
+export function requestClaim({ actorId }) {
+    return ask(ACTION_TRIAL_CLAIM, { actorId }, {
+        onPrimary: true,
+        local: () => import("./trial-modes.mjs").then(m => m.volunteerOnPrimary({ actorId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_CLAIM, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * A Present from this browser (E70 C10; trial.mjs `presentDialog`): the card and the copies, posted by the primary. Its
+ * value is `{ item, copies }`.
+ */
+export function requestPresent({ actorId, itemId, comment = "", analysis = true }) {
+    return ask(ACTION_TRIAL_PRESENT, { actorId, itemId, comment, bare: analysis === false }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.presentOnPrimary({ actorId, itemId, comment, analysis })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_PRESENT, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * A round's step from this browser (E70 C7; trial-prompt.mjs): `kind` done or pass for the speaker's own turn, over for
+ * a turn run out. Its value is `{ step }`, the step written. A step over is quiet: the floor says what came of it.
+ */
+export function requestTurn({ actorId, kind, step }) {
+    return ask(ACTION_TRIAL_TURN, { actorId, kind, step }, {
+        onPrimary: true,
+        ...(kind === "over" ? { quiet: true } : {}),
+        local: () => import("./trial-modes.mjs").then(m => m.turnOnPrimary({ actorId, kind, step }, game.user.id)).then(out => {
+            if (out?.refused && kind !== "over") sayNotDone(ACTION_TRIAL_TURN, reasonOf(out.refused));
             return out?.reply ?? null;
         })
     });
@@ -4279,7 +4522,7 @@ export function requestCleanup({
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
-                price, grant
+                price, grant, rollId
             }))
     });
 }

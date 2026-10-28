@@ -50,25 +50,96 @@
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, error, serverNow } from "./utils.mjs";
+import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
+import { isMonocub } from "./monocub.mjs";
+import { cubVoice } from "./voice.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
+import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
+import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
 
-/** The three modes, spelled out once so nothing else has to spell them. */
-export const FLOOR_MODES = {
-    debate: "debate",
-    objection: "objection",
-    rebuttal: "rebuttal"
-};
+/** The three modes, spelled out once so nothing else has to spell them (floor-machine.mjs `MODES`, since E70 C1). */
+export const FLOOR_MODES = MODES;
 
-/** How long each mode runs. `debate` is the GM's, so it is not here. */
-const MODE_SECONDS = {
-    [FLOOR_MODES.objection]: TRIAL.objectionSeconds,
-    [FLOOR_MODES.rebuttal]: TRIAL.rebuttalSeconds
-};
+/*
+ * WHAT EACH MODE ALLOWS, IN ONE TABLE (E70 C1, 27.10.2026; S18-79's table, amend 4 (e)). `maySpeak`, `floorRefusal` and
+ * `targetRefusal` each spelled a mode's rule in a switch of its own, so the HUD, the Objection window and the primary's
+ * judgement could drift apart one mode at a time; they answer from this row now (`modeAllows`), and part 2's modes are
+ * rows here. Its columns:
+ *   family   which of the console's footers the mode belongs to (trial-floor-ui.mjs `trialSignature`): an Objection
+ *            and its rebuttal are the debate's own exchange, so the console stays open across them (E70-06);
+ *   speak    who may be speaking: "all", the objector alone ("holder"), or the two in the exchange ("pair");
+ *   present  who may present a Truth Bullet: everybody in today's three modes (free since E79 C16);
+ *   object   whether an Objection may be raised: never inside an Objection's own minute;
+ *   target   who an Objection may be aimed at: anybody, or during a rebuttal only the two in it (Dawid, 28.08);
+ *   adjust   whether the GM's -30 s and +30 s move this mode's clock.
+ * Discussion - no floor at all - is the row `null` answers: everybody speaks, nobody objects (no floor to take).
+ * Tier 1 R1023 holds the table to the three functions' answers at 1.2.89 on every state.
+ * E70 C7 (28.10.2026; S18-72, TR2): the rounds, family "round". In Testimony the speaker ("holder") alone speaks and
+ * presents, and an Objection may be raised by anyone else, at the speaker alone; in Panic Round no Objection at all (the
+ * guide's "no Objection"). Tier 1 R1042 reads the rows.
+ * E70 C8 (28.10.2026; S18-73, S18-74): the Closing Argument, family "closing". Its speaker alone speaks and presents, and
+ * is the only one an Objection may be aimed at, at any second (TR29 = 4); while nobody speaks in it - the volunteers'
+ * window, the GM's choice and decision - nobody objects and only a timed phase's clock moves (`modeAllows`). R1043.
+ */
+export const MODE_RULES = Object.freeze({
+    [MODES.debate]: Object.freeze({ family: "debate", speak: "all", present: "all", object: true, target: "any", adjust: true }),
+    [MODES.objection]: Object.freeze({ family: "debate", speak: "holder", present: "all", object: false, target: "any", adjust: true }),
+    [MODES.rebuttal]: Object.freeze({ family: "debate", speak: "pair", present: "all", object: true, target: "pair", adjust: true }),
+    [MODES.testimony]: Object.freeze({ family: "round", speak: "holder", present: "holder", object: true, target: "holder", adjust: true }),
+    [MODES.panic]: Object.freeze({ family: "round", speak: "holder", present: "holder", object: false, target: "holder", adjust: true }),
+    [MODES.closing]: Object.freeze({ family: "closing", speak: "holder", present: "holder", object: true, target: "holder", adjust: true })
+});
+
+/** The console's family of `floor`'s mode, "none" with no floor (trial-floor-ui.mjs `trialSignature`). */
+export function floorFamily(floor = trialFloor()) {
+    // The Closing's exchange is the Closing's (E70 C8): its footer, End the Closing Argument, stands through it.
+    if (floor && closingOf(floor)) return "closing";
+    return floor ? (MODE_RULES[floor.mode]?.family ?? floor.mode) : "none";
+}
+
+/**
+ * Whether `floor` allows `kind` ("speak", "present", "object", "target", "adjust") to `actorId`: for "target",
+ * whether `actorId` may be aimed at. The one question `maySpeak`, `floorRefusal` and `targetRefusal` ask.
+ */
+export function modeAllows(floor, kind, actorId = null) {
+    if (!floor) return kind === "speak" || kind === "present";
+    const rule = MODE_RULES[floor.mode] ?? MODE_RULES[MODES.debate];
+    const among = who => who === "all" || who === "any"
+        || (who === "holder" && actorId === floor.holderId)
+        || (who === "pair" && (actorId === floor.holderId || actorId === floor.targetId));
+    switch (kind) {
+        case "speak": return among(rule.speak);
+        case "present": return among(rule.present);
+        // The Closing with nobody speaking in it has nobody to object to, and no clock outside its timed phases (E70 C8).
+        case "object": return rule.object === true && (floor.mode !== MODES.closing || Boolean(floor.holderId));
+        case "target": return among(rule.target);
+        case "adjust": return rule.adjust === true && (floor.mode !== MODES.closing || closingTimed(floor));
+        default: return false;
+    }
+}
+
+/**
+ * Why `actorId` may not present a Truth Bullet on `floor` now, by the mode's row (`modeAllows` "present"), or null (E70 C10,
+ * 28.10.2026; S18-79, TR2 = 1). The sheet's row draws its Present held with this line, the window refuses with it, and
+ * the primary judges "trial.present" by it (trial.mjs `presentOnPrimary`). In a mode with a speaker only the speaker
+ * presents ("Only {name} can present right now."), and where the row allows no Objection either (Panic Round) the line
+ * says so, since the button the others would reach for next is OBJECTION!; the Closing with nobody speaking in it - the
+ * volunteers, the GM's choice and decision - has nobody to present. `nameOf` is handed in by tier 1 R1045.
+ */
+export function presentRefusal(floor, actorId, { nameOf = id => game.actors.get(id ?? "")?.name ?? null } = {}) {
+    if (modeAllows(floor, "present", actorId)) return null;
+    const name = floor?.holderId ? nameOf(floor.holderId) : null;
+    if (!name) return game.i18n.localize("DRPG.Trial.presentNobody");
+    const only = game.i18n.format("DRPG.Trial.presentOnly", { name });
+    const rule = MODE_RULES[floor.mode];
+    return rule && rule.object === false
+        ? `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) })}`
+        : only;
+}
 
 /**
  * The floor state, or `null` when the trial is not in session.
@@ -104,19 +175,311 @@ export function trialFloor() {
     };
 }
 
+/*
+ * ONE WRITER OF THE FLOOR, IN ONE QUEUE (E70 C0, 27.10.2026; E70-01, E70-02, amend 5 (d) of the plan's E70). Every
+ * public writer below wrote the floor on whichever GM called it, each spreading its patch over the floor it read: a
+ * second GM's +30 s beside the primary's heartbeat, or a seizure beside the console's Back to debate, read the same
+ * floor and the later write dropped the earlier one's move (tier 2 E70-T1 at e2085d7b: the GM's +30 s moved the floor
+ * while a step of the seizures' key was held). Now the floor is written only on the primary GM, and only inside a step
+ * of trial.mjs `SEIZE_KEY` - the key E17 C0 gave the seizures - read and written in the same step:
+ *   - each public writer is `floorStep(op, args)`: on the primary a step of the key running the op's in-step twin
+ *     (`FLOOR_OPS`), on another GM the request "trial.gm" (gm-bridge.mjs, gmOnly), which runs the same step there;
+ *   - the heartbeat's tick and the GM's Now are steps of the key too (`advanceIfDue`, `advanceFloorOnPrimary`), and the
+ *     latch `advancing` stays: it keeps a second tick from queueing a second move behind the first;
+ *   - a step never calls a public writer, which would queue behind itself and wait for ever: the seizures
+ *     (trial.mjs `seizeFloor`, `objectOnPrimary`, `evidenceOnPrimary`, `unfill`) and `advanceFrom` call the twins.
+ * The census is tier 0 R991's floor row and R1020 (who writes the setting), R1021 (no step reaches its key's wrapper)
+ * and R1022 (the primary-only reads).
+ */
 async function writeFloor(patch) {
-    if (!game.user.isGM) return null;
+    if (!isPrimaryGm()) return null;
     const next = { ...(game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {}), ...patch };
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, next);
     return next;
 }
 
+/** The ops a GM's change of the floor names, here and in gm-bridge.mjs "trial.gm" (its `as.oneOf`): `FLOOR_OPS`' keys. */
+export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
+    "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue", "closingResume", "reveal"]);
+
+/*
+ * Each op's in-step twin, handed what the op reads. A count the bridge did not carry reads 0 there (`as.num`), and
+ * stands for the default it stood for before the request existed.
+ */
+const FLOOR_OPS = {
+    // The debate's question (E70 C3) travels as the request's `text`: the GM's own words, cut by the machine (`topicOf`).
+    start: ({ seconds, text = null }) => startFloorInStep(Number(seconds) > 0 ? seconds : TRIAL.speakSeconds, { topic: text }),
+    // A pending Objection's `messageId` is the card it waits on; an Objection with its evidence names its card the
+    // same way (`openObjection`'s `cardId`), which goes on the floor's stack (E70 C1).
+    objection: ({ actorId, targetId, pending = false, messageId = null }) =>
+        openObjectionInStep(actorId, targetId, { pending, messageId: pending ? messageId : null, cardId: pending ? null : messageId }),
+    rebuttal: () => openRebuttalInStep(),
+    fill: ({ actorId, messageId }) => fillObjectionInStep(actorId, messageId),
+    withdraw: ({ actorId, messageId }) => withdrawObjectionInStep(actorId, messageId),
+    repoint: ({ targetId }) => repointObjectionInStep(targetId),
+    // The GM's Back to the debate (the bar's, the API's): told in the Event panel ("GM: back to the debate").
+    back: ({ seconds }) => returnToDebateInStep({ seconds: Number(seconds) > 0 ? seconds : null, note: true }),
+    // Signed, as at 1.2.89 (E70 fix p1-G3; the review's E70P1-R11): `extendFloor(-30)` takes half a minute off, and only
+    // a 0 or a value that is no number reads as the old default, +30 s.
+    extend: ({ seconds }) => extendFloorInStep(Number(seconds) || 30),
+    // The Closing ended by the floor's end is over in the record too (E70 C8): one Closing per trial. Outside the trial
+    // (the trial's exit) the floor is closed as before.
+    end: async () => (closingOf(trialFloor()) && inClassTrial() ? ((await closingStepInStep({ type: "end" })) ?? endFloorInStep()) : endFloorInStep()),
+    // The bar's two new ops (E70 C1), each only in a Class Trial (DX2 = 2): -30 s / +30 s, and End this mode.
+    adjust: ({ seconds }) => (inClassTrial() && modeAllows(trialFloor(), "adjust") ? extendFloorInStep(Number(seconds) || 0) : null),
+    endMode: () => (inClassTrial() ? endModeInStep() : null),
+    // The GM's Overrule (E70 C2): the card it names, or the newest; only in a Class Trial, judged in the step.
+    overrule: ({ messageId = null }) => overruleInStep({ messageId: messageId || null }),
+    // The rounds (E70 C7): the turn's seconds, held to the mode's range by the machine, and the order the GM gave (ids,
+    // or one string of them joined by commas, as "trial.gm" carries it); the participants are the primary's.
+    testimony: ({ seconds, order = null }) => startRoundInStep(MODES.testimony, seconds, order),
+    panic: ({ seconds, order = null }) => startRoundInStep(MODES.panic, seconds, order),
+    // The Closing Argument (E70 C8): its start, the GM's Confirm of the draw, a pick of anyone of the trial, the decision
+    // after an exchange (`actorId` the one who continues), and Resume; each judged by the machine in the step.
+    closing: () => closingStepInStep({ type: "closing" }),
+    closingConfirm: () => closingStepInStep({ type: "confirm" }),
+    closingPick: ({ actorId }) => closingStepInStep({ type: "pick", actorId: actorId || null }),
+    closingContinue: ({ actorId }) => closingStepInStep({ type: "continue", actorId: actorId || null }),
+    closingResume: () => closingStepInStep({ type: "resume" }),
+    // Monokuma's Reveal (E70 C9): a missing Key Remnant to every participant, minted here on the primary and judged in
+    // the step (trial-modes.mjs `revealInStep`); `slot` the row's id, `text` the players' words where the row has none.
+    // It writes no floor: in the floor's key so that two GMs' Reveals of one row are one after the other.
+    reveal: ({ slot = null, text = "", beyondPaid = false }) => import("./trial-modes.mjs").then(m => m.revealInStep({ slot, text, beyondPaid }))
+};
+
+/** Whether the campaign is in its Class Trial phase: the GM's bar moves nothing outside it (DX2 = 2). */
+export function inClassTrial() {
+    return getClock()?.phase === "classTrial";
+}
+
+/**
+ * The actors of `ids` whose player is not connected - a round's speaker with nobody at the keyboard passes at once
+ * (E70-45; the GM's spare student is one: no player owns it). Read on the primary at the step.
+ */
+export function absentOf(ids = []) {
+    return (Array.isArray(ids) ? ids : []).filter(id => {
+        const actor = game.actors.get(id ?? "");
+        return !actor || !game.users.some(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+    });
+}
+
+/** The moment (the server's clock unless given) and the absent a machine's step reads (`nextFloor`'s ctx). */
+function floorCtx(floor, now = serverNow()) {
+    return { now, absent: absentOf(floor?.round?.order ?? []) };
+}
+
+/**
+ * A ROUND OPENS, in a step of `SEIZE_KEY` on the primary (E70 C7; E70-40, E70-41, E70-43): only in a Class Trial; the
+ * participants as the primary holds them now (vote.mjs `trialParticipants`: connected players' living students, one
+ * each, nobody on the trial's list of the dead - an undiscovered death among them - and no Monocub), frozen into the
+ * order: the GM's own order first, as far as it names participants, then the rest drawn at random (`drawOrder`); the
+ * turn held to the mode's range by the machine. The floor written, or null.
+ */
+export async function startRoundInStep(mode, seconds, given = null) {
+    if (!isPrimaryGm() || !inClassTrial() || !isRoundMode(mode)) return null;
+    const { trialParticipants } = await import("./vote.mjs");
+    const ids = trialParticipants().map(p => p.actor.id);
+    const asked = (Array.isArray(given) ? given : String(given ?? "").split(",")).map(id => String(id ?? "").trim()).filter(id => ids.includes(id));
+    const first = [...new Set(asked)];
+    const order = [...first, ...drawOrder(ids.filter(id => !first.includes(id)))];
+    const floor = trialFloor();
+    return commitFloor(floor, nextFloor(floor, { type: "round", mode, seconds, order }, floorCtx({ round: { order } })), mode);
+}
+
+/** `ids` in a random order (Fisher-Yates on `Math.random`): the round's order the GM may change before the start. */
+export function drawOrder(ids = []) {
+    const out = [...ids];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+}
+
+/**
+ * A STEP OF THE ROUND, in a step of `SEIZE_KEY` on the primary (E70 C7; E70-44): a participant's Done, Pass or step over
+ * (trial-modes.mjs `turnOnPrimary`, "trial.turn"), or a speaker gone (`speakerGone`). The machine judges it on the floor
+ * the step finds; the answer `{ written }`, or `{ refused }` with the machine's key.
+ */
+export async function roundStepInStep(event) {
+    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const floor = trialFloor();
+    let result = nextFloor(floor, event, floorCtx(floor));
+    if (result.refused) return { refused: result.refused };
+    /* The volunteers' window called over (E70 fix p2-G3): judged first with no draw, so an early or stale call draws
+       nothing, then drawn here as the heartbeat draws (`advanceFrom`) and judged again with it. */
+    if (event?.type === "over" && floor?.mode === FLOOR_MODES.closing && closingOf(floor)?.phase === "volunteer") {
+        const { drawInStep } = await import("./trial-modes.mjs");
+        result = nextFloor(floor, event, { ...floorCtx(floor), drawn: await drawInStep() });
+        if (result.refused) return { refused: result.refused };
+    }
+    const written = await commitFloor(floor, result, event.type);
+    return written ? { written } : { refused: "DRPG.Floor.round.stale" };
+}
+
+/**
+ * THE CLOSING'S LINE FOR THE TABLE (E70 C8; E70-51, E70-52, E70-54), the HUD's and the Event panel's, or null outside
+ * the Closing's own mode: "Volunteers: {n}"; "The GM is confirming the speaker."; "Nobody volunteered. The GM picks a
+ * speaker or goes to the vote."; "The GM picks the next speaker."; "The GM decides who continues the Closing
+ * Argument."; "{name} speaks". Never who volunteered or was drawn - the floor does not know.
+ */
+export function closingLine(floor = trialFloor()) {
+    const closing = floor?.mode === MODES.closing ? closingOf(floor) : null;
+    if (!closing) return null;
+    switch (closing.phase) {
+        case "volunteer": return game.i18n.format("DRPG.Floor.closing.volunteers", { n: Number(closing.count) || 0 });
+        case "choice":
+            return game.i18n.localize(closing.choice === "confirm" ? "DRPG.Floor.closing.confirming"
+                : closing.choice === "pick" ? "DRPG.Floor.closing.picking" : "DRPG.Floor.closing.nobody");
+        case "decide": return game.i18n.localize("DRPG.Floor.closing.deciding");
+        case "speak": return game.i18n.format("DRPG.Hud.trialSpeaks", { name: game.actors.get(floor.holderId ?? "")?.name ?? "-" });
+        default: return null;
+    }
+}
+
+/**
+ * WHAT THE CLOSING'S ROWS READ, on the primary in the step (E70 C8): the trial's participants as the primary holds them
+ * (vote.mjs `trialParticipants`), the draw the GMs keep (gm-stores.mjs `closingClaimStore`, never world data), the record's
+ * Closing - whether this trial has had one, and its last speaker for Resume - and whether the vote has opened.
+ */
+async function closingCtx(floor) {
+    const { trialParticipants, trialProgress } = await import("./vote.mjs");
+    const { closingHeld } = await import("./trial-modes.mjs");
+    const participants = trialParticipants().map(p => p.actor.id);
+    const record = trialProgress();
+    const last = record.closing?.speakers?.at(-1) ?? null;
+    return {
+        ...floorCtx(floor), absent: absentOf(participants), participants, drawn: (await closingHeld()).drawn ?? null,
+        closingDone: record.closing?.done === true, lastSpeaker: last, voteOpened: Boolean(record.voteOpenedAt || record.vote?.open)
+    };
+}
+
+/**
+ * A STEP OF THE CLOSING ARGUMENT, in a step of `SEIZE_KEY` on the primary (E70 C8; E70-50 to E70-57): the GM's start,
+ * Confirm, pick, decision and Resume (`FLOOR_OPS`), a volunteer's count (trial-modes.mjs `volunteerOnPrimary`), the vote's
+ * opening (`closingEnd`). The start empties the GMs' volunteers first. The floor written, or null; `{ refused }` is the
+ * machine's key, for the asker that wants it (`closingStepInStep(event, { why: true })`).
+ */
+export async function closingStepInStep(event, { why = false } = {}) {
+    if (!isPrimaryGm() || !inClassTrial()) return why ? { refused: "DRPG.Floor.bar.notTrial" } : null;
+    const floor = trialFloor();
+    const ctx = await closingCtx(floor);
+    const result = nextFloor(floor, event, ctx);
+    if (result.refused) return why ? { refused: result.refused } : null;
+    if (event.type === "closing") {
+        const { clearClaims } = await import("./trial-modes.mjs");
+        await clearClaims(ctx.now);
+    }
+    const written = await commitFloor(floor, result, event.type);
+    return why ? (written ? { written } : { refused: "DRPG.Floor.round.stale" }) : written;
+}
+
+/**
+ * A SPEAKER GONE (E70 C7; E70-45: "a disconnected speaker passes at once"): on the primary, when a user leaves and the
+ * round's speaker has no player connected any more, the turn passes; the Closing's speaker hands the choice back to the
+ * GM (E70 C8).
+ */
+async function speakerGone() {
+    const floor = trialFloor();
+    const closingSpeaker = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak";
+    if (!isPrimaryGm() || !floor || !(isRoundMode(floor.mode) || closingSpeaker) || !floor.holderId) return;
+    if (!absentOf([floor.holderId]).length) return;
+    try {
+        await serialWrite(SEIZE_KEY, () => roundStepInStep({ type: "gone", actorId: floor.holderId }));
+    } catch (err) {
+        error("Could not pass the turn of a speaker who left", err);
+    }
+}
+
+/*
+ * THE ONE WRITE OF A MACHINE'S ANSWER (E70 C1). Every in-step twin asks `nextFloor` and hands its answer here, in the
+ * step it runs in: nothing for a refusal; the empty floor through `endFloorInStep` (the one writer of `{}`, R1020) or
+ * the new floor through `writeFloor`; a pending Objection's card marked withdrawn when the floor that replaced it is
+ * not that Objection (E79 C16's `withdrawReplaced`, which each twin called before); the machine's cards posted; and
+ * `drpgTrialStep` called with the op and the floor written, on this primary, after each step (E70-19 reads it in C5).
+ */
+async function commitFloor(prev, result, op, { replaced = true } = {}) {
+    if (!result || result.refused) return null;
+    let written;
+    if (result.floor === null) {
+        written = await endFloorInStep({ withdraw: false });
+        if (!written) return null;
+    } else {
+        written = await writeFloor(result.floor);
+        if (!written) return null;
+    }
+    /* THE DEBATE AGAIN (E70 C3; TR11 = 1): a floor its exchange closed - a rebuttal over, an Objection or a rebuttal
+       the GM ended - marks the trial record, and the console's next step is "Open the debate again" (trial-floor-ui.mjs
+       `reopenDebate`); a debate opened takes the mark away (`startFloorInStep`). The record's own key, not this one. */
+    if (result.again) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress({ debateAgain: true });
+    }
+    /* THE CLOSING'S RECORD (E70 C8; E70-56): the machine's `record` folded into `trialProgress().closing` in the record's
+       own step, read there (`closingRecordAfter`): its start, each speaker, the seconds a stretch stopped at, its end. */
+    if (result.record) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => ({ closing: closingRecordAfter(record.closing ?? null, result.record) }));
+    }
+    // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
+    const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
+    if (!kept && replaced) await withdrawReplaced(prev);
+    for (const card of result.cards ?? []) await postFloorCard(card, prev);
+    try {
+        Hooks.callAll("drpgTrialStep", { op, floor: written });
+    } catch (err) {
+        error("A listener of the trial's step threw", err);
+    }
+    return written;
+}
+
+/**
+ * A card of the GM's intervention, told to the table as something that happened (E70-07): "Turn skipped: {name}.",
+ * "The GM ends the {mode}." - the trial's own cards' markup (trial-floor-ui.mjs `trialEventCard`).
+ */
+async function postFloorCard(card, prev) {
+    try {
+        const { trialEventCard } = await import("./trial-floor-ui.mjs");
+        const { announce, esc } = await import("./utils.mjs");
+        const name = esc(game.actors.get(card.actorId ?? "")?.name ?? "-");
+        const mode = game.i18n.localize(`DRPG.Floor.mode.${card.mode ?? prev?.mode ?? "debate"}`);
+        // A round's own card (a pass, the round's end) is titled by its mode, not as the GM's step (E70 C7).
+        // The Closing's "{name} continues the Closing Argument ({time})." (E70 C8): the seconds the stretch starts with, m:ss.
+        const seconds = Math.max(Math.round(Number(card.seconds) || 0), 0);
+        const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time })) });
+    } catch (err) {
+        error("Could not post the card of the GM's change of the floor", err);
+    }
+}
+
+/**
+ * A change of the floor on the primary GM: a step of `SEIZE_KEY` running `op`'s twin, its answer the floor written
+ * (`{}` for an end) or null when the op refused or this is not the primary. Asked by `floorStep` here and by the
+ * bridge's "trial.gm" for another GM.
+ */
+export function floorOnPrimary(op, args = {}) {
+    if (!isPrimaryGm() || !FLOOR_OP_NAMES.includes(op)) return Promise.resolve(null);
+    return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op](args ?? {}));
+}
+
+/**
+ * A GM's change of the floor, wherever it is asked: on the primary its step (`floorOnPrimary`), on another GM the
+ * request "trial.gm" to the primary (gm-bridge.mjs `requestTrialGm`), whose answer is the floor written or null; the
+ * bridge has told this GM why when it is refused. Null on a player's browser.
+ */
+export async function floorStep(op, args = {}) {
+    if (!game.user.isGM) return null;
+    if (isPrimaryGm()) return floorOnPrimary(op, args);
+    const { requestTrialGm } = await import("./gm-bridge.mjs");
+    const res = await requestTrialGm(op, args);
+    return res.ok ? (res.value ?? null) : null;
+}
+
 /** How long the current mode is meant to run. */
 export function modeSeconds(floor = trialFloor()) {
-    if (!floor) return 0;
-    // The objector's seconds to choose the bullet (E79 C16): the minute itself starts at the fill (`fillObjection`).
-    if (floor.mode === FLOOR_MODES.objection && floor.pending) return TRIAL.objectionPickSeconds;
-    return MODE_SECONDS[floor.mode] ?? floor.seconds ?? TRIAL.speakSeconds;
+    // The objector's seconds to choose the bullet (E79 C16) are a pending Objection's: the machine's one answer.
+    return modeSecondsOf(floor);
 }
 
 /** Seconds left in the current mode. Negative once it has overrun. */
@@ -158,15 +521,30 @@ export function floorTarget(floor = trialFloor()) {
  * modes, and has no opinion about ordinary play.
  */
 export function maySpeak(actorId, floor = trialFloor()) {
-    if (!floor) return true;
-    switch (floor.mode) {
-        case FLOOR_MODES.objection:
-            return actorId === floor.holderId;
-        case FLOOR_MODES.rebuttal:
-            return actorId === floor.holderId || actorId === floor.targetId;
-        default:
-            return true;
-    }
+    // The mode's row (`MODE_RULES`, E70 C1): the objector alone in an Objection, the two in a rebuttal, else anybody.
+    return modeAllows(floor, "speak", actorId);
+}
+
+/**
+ * WHO MAY SPEAK IN THE TRIAL, AND WHO ONLY LISTENS (E70 C5, 28.10.2026; S18-78; E70-19): "speak", "listen" or "muted"
+ * for this character now. Outside a Class Trial "speak" - this is the trial's rule and says nothing of ordinary play.
+ * On the trial's list of the dead (settings.mjs `isMutedDead`: every ordinary dead, a death nobody has found too; TR30)
+ * "muted", and so is a known dead not listed (a trial whose list a road in has not written yet). A Monocub speaks in the
+ * discussion and listens in a mode and from the vote's opening on, and listens through a trial about its own death
+ * (voice.mjs `cubVoice`; DC4, DC28, DC29). The living - a convict among them until the trial ends (DC36) - speak as the
+ * mode's row says (`modeAllows`: the objector alone, the two in a rebuttal), and listen otherwise. A display and the
+ * tile's line read it (voice.mjs `micHold`); the module silences only the listed (the block, `settleTrialVoices`).
+ * The facts can be handed in, so tier 1 R1034 asks it a table without a world; `drpgTrialStep` follows each step.
+ */
+export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, actor = game.actors?.get(actorId ?? "") ?? null } = {}) {
+    if (clock?.phase !== "classTrial" || !actor) return "speak";
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    const on = floor === undefined ? trialFloor() : floor;
+    const facts = { clock, floor: on, record: stored, epoch: epoch ?? seasonEpoch() };
+    if (isMutedDead(actor, facts)) return "muted";
+    if (isMonocub(actor)) return cubVoice(actor, facts) === "speak" ? "speak" : "listen";
+    if (isDeceased(actor)) return "muted";
+    return modeAllows(on, "speak", actor.id) ? "speak" : "listen";
 }
 
 /* ==========================================================================
@@ -180,7 +558,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * from the first second. All the GM chooses is how long they expect it to run,
  * and even that is a budget rather than a limit.
  */
-export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false } = {}) {
+export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false, topic = null } = {}) {
     if (!game.user.isGM) return null;
 
     // THE PHASE FOLLOWS THE FLOOR, and it is set here rather than at the call
@@ -220,24 +598,29 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
         error("Could not switch the campaign phase to the Class Trial", err);
     }
 
+    // The phase above on this GM, as before (its own key, CLOCK_KEY); the floor in the floor's step on the primary.
+    // A round or the Closing is ended first (E70 fix p2-G3; the machine's `start` refuses it on every road): told here.
+    const busy = nextFloor(trialFloor(), { type: "start", seconds }, { now: serverNow() }).refused;
+    if (busy) {
+        ui.notifications.warn(game.i18n.localize(busy));
+        return null;
+    }
+    return floorStep("start", { seconds, text: typeof topic === "string" ? topic : null });
+}
+
+/** `startFloor`'s write, in a step of `SEIZE_KEY` on the primary; `topic` the debate's question, or none (E70 C3). */
+export async function startFloorInStep(seconds = TRIAL.speakSeconds, { topic = null } = {}) {
+    // The machine's `start` row (E70 C1): a debate of `seconds`, its stack empty, and the old queue's rota cleared
+    // rather than ignored, so a world that has been through this update keeps no stale rota for somebody to find.
     const replaced = trialFloor();
-    const opened = await writeFloor({
-        active: true,
-        mode: FLOOR_MODES.debate,
-        holderId: null,
-        targetId: null,
-        seconds,
-        startedAt: serverNow(),
-        pending: false,
-        messageId: null,
-        // Left over from the queue. Cleared rather than ignored, so a world
-        // that has been through this update does not keep a stale rota in its
-        // settings for somebody to find later and wonder about.
-        order: null,
-        current: null
-    });
-    await withdrawReplaced(replaced);
-    return opened;
+    const written = await commitFloor(replaced, nextFloor(replaced, { type: "start", seconds, topic }, { now: serverNow() }), "start");
+    // A debate opened by any road takes up the console's offer to open it again after an Overrule (E70 C2), or after
+    // its exchange (E70 C3): read in the record's own step, so a mark written just before is read too.
+    if (written) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => (record.againAfterOverrule || record.debateAgain ? { againAfterOverrule: null, debateAgain: false } : null));
+    }
+    return written;
 }
 
 /**
@@ -264,7 +647,11 @@ export function floorRefusal(floor = trialFloor()) {
      *                         the rebuttal the first one bought would never
      *                         happen at all.
      */
-    if (floor.mode === FLOOR_MODES.objection) {
+    if (!modeAllows(floor, "object")) {
+        // A mode with no Objection at all (Panic Round, E70 C7) says so by its name.
+        if (isRoundMode(floor.mode)) return game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) });
+        // The Closing while nobody speaks in it (E70 C8): the volunteers, the GM's choice, the GM's decision.
+        if (floor.mode === MODES.closing) return game.i18n.localize("DRPG.Trial.objectionClosingNobody");
         return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
     }
     return null;
@@ -312,8 +699,11 @@ export function targetRefusal(objectorId, targetId, floor = trialFloor()) {
      * own. The picker in trial.mjs offers exactly these two; this is the rule
      * that holds when something reaches here by another road.
      */
-    if (floor?.mode === FLOOR_MODES.rebuttal
-        && ![floor.holderId, floor.targetId].includes(targetId)) {
+    if (floor && !modeAllows(floor, "target", targetId)) {
+        // In a round only its speaker may be objected to (E70 C7; E70-42).
+        if (isRoundMode(floor.mode)) return game.i18n.format("DRPG.Trial.objectionSpeakerOnly", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) });
+        // In the Closing only its speaker (E70 C8; E70-53).
+        if (floor.mode === MODES.closing) return game.i18n.localize("DRPG.Trial.objectionClosingSpeaker");
         return game.i18n.localize("DRPG.Trial.objectionRebuttalOutsider");
     }
     return null;
@@ -337,12 +727,16 @@ export function targetRefusal(objectorId, targetId, floor = trialFloor()) {
  *
  * @returns {object|null} the new state, or `null` when refused.
  */
-export async function openObjection(objectorId, targetId, { pending = false, messageId = null } = {}) {
+export async function openObjection(objectorId, targetId, { pending = false, messageId = null, cardId = null } = {}) {
     // STAYS HERE, and does not move into either helper: the two refusals are
     // asked by the player's own window as well, and a client-side isGM test
     // would refuse every player in the game.
     if (!game.user.isGM) return null;
+    return floorStep("objection", { actorId: objectorId, targetId, pending, messageId: messageId ?? cardId });
+}
 
+/** `openObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (the seizures call it there). */
+export async function openObjectionInStep(objectorId, targetId, { pending = false, messageId = null, cardId = null } = {}) {
     const floor = trialFloor();
 
     // WHICH MODES AN OBJECTION MAY INTERRUPT.
@@ -388,14 +782,15 @@ export async function openObjection(objectorId, targetId, { pending = false, mes
      * (`fillObjection`). Every other caller - the GM's card road (`seizeFloor`), the API, the suite - opens it with
      * its evidence, as before.
      */
-    const opened = await writeFloor({
-        mode: FLOOR_MODES.objection,
-        holderId: objectorId,
-        targetId,
-        startedAt: serverNow(),
-        pending: pending === true,
-        messageId: pending === true ? messageId : null
-    });
+    /*
+     * THE FLOOR IT INTERRUPTED GOES ON THE STACK (E70 C1; the machine's `objection` row): `before` gains the entry
+     * `{ messageId, before, leftAtObjection }` - the card (the pending one, or the GM's card road's `cardId`), the
+     * mode, holder, target and budget it interrupted, and that mode's seconds left - so Back to the debate gives the
+     * debate the time it had (TR31) and C2's Overrule knows where to go back to. The API's Objection pushes it too.
+     */
+    const opened = await commitFloor(floor, nextFloor(floor, {
+        type: "objection", holderId: objectorId, targetId, pending: pending === true, messageId, cardId
+    }, { now: serverNow() }), "objection");
 
     /*
      * AN OBJECTION RESTARTS THE OBJECTION MUSIC, ALWAYS (Dawid, 28.08).
@@ -446,12 +841,15 @@ export async function openObjection(objectorId, targetId, { pending = false, mes
 /** Move to the rebuttal: the same pair, two minutes, both of them talking. */
 export async function openRebuttal() {
     if (!game.user.isGM) return null;
+    return floorStep("rebuttal");
+}
+
+/** `openRebuttal`'s write, in a step of `SEIZE_KEY` on the primary. */
+export async function openRebuttalInStep() {
     const floor = trialFloor();
     if (!floor) return null;
 
-    const next = await writeFloor({ mode: FLOOR_MODES.rebuttal, startedAt: serverNow(), pending: false });
-    await withdrawReplaced(floor);
-    return next;
+    return commitFloor(floor, nextFloor(floor, { type: "rebuttal" }, { now: serverNow() }), "rebuttal");
 }
 
 /**
@@ -463,6 +861,12 @@ export async function openRebuttal() {
  * @returns {Promise<object|null>} the floor written, or null
  */
 export async function fillObjection(objectorId, messageId) {
+    if (!game.user.isGM) return null;
+    return floorStep("fill", { actorId: objectorId, messageId });
+}
+
+/** `fillObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`). */
+export async function fillObjectionInStep(objectorId, messageId) {
     // Under the heartbeat's latch (`advancing`): a fill read inside the seconds and written after the lapse would
     // turn the debate the lapse wrote into an objection's floor with nobody's card on it.
     if (!game.user.isGM || advancing) return null;
@@ -470,7 +874,7 @@ export async function fillObjection(objectorId, messageId) {
     if (!pendingFor(floor, objectorId, messageId)) return null;
     advancing = true;
     try {
-        return await writeFloor({ pending: false, startedAt: serverNow() });
+        return await commitFloor(floor, nextFloor(floor, { type: "fill" }, { now: serverNow() }), "fill");
     } finally {
         advancing = false;
     }
@@ -513,11 +917,19 @@ async function withdrawReplaced(floor) {
  * @returns {Promise<object|null>} the floor written, or null
  */
 export async function withdrawObjection(objectorId, messageId) {
+    if (!game.user.isGM) return null;
+    return floorStep("withdraw", { actorId: objectorId, messageId });
+}
+
+/** `withdrawObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
+export async function withdrawObjectionInStep(objectorId, messageId) {
     if (!game.user.isGM || advancing) return null;
-    if (!pendingFor(trialFloor(), objectorId, messageId)) return null;
+    const floor = trialFloor();
+    if (!pendingFor(floor, objectorId, messageId)) return null;
     advancing = true;
     try {
-        return await returnToDebate({});
+        // Back to the debate with the seconds it had when the Objection cut in (the stack's top), nothing given back.
+        return await commitFloor(floor, nextFloor(floor, { type: "withdraw" }, { now: serverNow() }), "withdraw");
     } finally {
         advancing = false;
     }
@@ -532,34 +944,45 @@ export async function withdrawObjection(objectorId, messageId) {
  */
 export async function repointObjection(targetId) {
     if (!game.user.isGM) return null;
+    return floorStep("repoint", { targetId });
+}
+
+/** `repointObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
+export async function repointObjectionInStep(targetId) {
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection) return null;
     if (targetRefusal(floor.holderId, targetId, floor)) return null;
-    return writeFloor({ targetId });
+    // The stack's entry stays: it is the same Objection, aimed elsewhere.
+    return commitFloor(floor, nextFloor(floor, { type: "repoint", targetId }, { now: serverNow() }), "repoint");
 }
 
-/** Back to everybody talking at once. The GM's budget starts again. */
+/**
+ * Back to everybody talking at once (the bar's Back to the debate; TR31 = 1). Without `seconds` the debate gets the
+ * seconds it had left when the Objection on top of the stack cut in (`leftAtObjection`, never below zero), not its
+ * whole budget again; a floor written before 1.2.90 has no stack and gets its budget, as before. With `seconds`, a
+ * debate of that length (the API's). In a debate without `seconds` there is nothing to go back to, and nothing moves.
+ */
 export async function returnToDebate({ seconds = null } = {}) {
     if (!game.user.isGM) return null;
+    return floorStep("back", { seconds });
+}
+
+/** `returnToDebate`'s write, in a step of `SEIZE_KEY` on the primary (a lapse, a withdrawal, trial.mjs `unfill`). */
+export async function returnToDebateInStep({ seconds = null, note = false } = {}) {
     const floor = trialFloor();
     if (!floor) return null;
-
-    const next = await writeFloor({
-        mode: FLOOR_MODES.debate,
-        holderId: null,
-        targetId: null,
-        seconds: seconds ?? floor.seconds ?? TRIAL.speakSeconds,
-        startedAt: serverNow(),
-        pending: false,
-        messageId: null
-    });
-    await withdrawReplaced(floor);
-    return next;
+    // `note`: the GM's own press, told in the Event panel ("GM: back to the debate"); a lapse or a put-back is not.
+    return commitFloor(floor, nextFloor(floor, { type: "back", seconds, note }, { now: serverNow() }), "back");
 }
 
 /** Give the current mode more time, without changing whose it is. */
 export async function extendFloor(extraSeconds = 30) {
     if (!game.user.isGM) return null;
+    return floorStep("extend", { seconds: extraSeconds });
+}
+
+/** `extendFloor`'s write, in a step of `SEIZE_KEY` on the primary. */
+export async function extendFloorInStep(extraSeconds = 30) {
     const floor = trialFloor();
     if (!floor) return null;
 
@@ -587,8 +1010,9 @@ export async function extendFloor(extraSeconds = 30) {
      * past zero. Before this, +30 there wrote left = -10 and the next tick threw
      * it away.
      */
-    const want = Math.max(secondsLeft(floor), 0) + extraSeconds;
-    return writeFloor({ startedAt: serverNow() - (modeSeconds(floor) - want) * 1000 });
+    // The arithmetic is the machine's `adjust` row since E70 C1 (floor-machine.mjs): from what is left, clamped at
+    // zero, and told in the Event panel as "GM: +30 s"; -30 s there too, where a timed mode taken to zero is Skip.
+    return commitFloor(floor, nextFloor(floor, { type: "adjust", seconds: extraSeconds }, floorCtx(floor, serverNow())), "adjust");
 }
 
 /**
@@ -601,10 +1025,202 @@ export async function extendFloor(extraSeconds = 30) {
  */
 export async function endFloor() {
     if (!game.user.isGM) return null;
+    // On another GM (clock.mjs `reconcilePhase` out of the trial, the console's Close the debate): "trial.gm".
+    await floorStep("end");
+    return null;
+}
+
+/**
+ * `endFloor`'s write, in a step of `SEIZE_KEY` on the primary: the empty queue, `{}` its answer. `withdraw: false`
+ * from `commitFloor`, which marks the replaced Objection's card itself.
+ */
+export async function endFloorInStep({ withdraw = true } = {}) {
+    if (!isPrimaryGm()) return null;
     const floor = trialFloor();
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
-    await withdrawReplaced(floor);
-    return null;
+    if (withdraw) await withdrawReplaced(floor);
+    return {};
+}
+
+/**
+ * END THIS MODE (E70 C1; TR21, TR11 = 1), the bar's: a debate's end closes it; an Objection or a rebuttal the GM ends
+ * ends the floor as a rebuttal's own end does - the exchange is over and the trial is back in discussion, not in a
+ * debate nobody opened. Told in chat ("The GM ends the {mode}."). In a step of `SEIZE_KEY` on the primary.
+ */
+export async function endModeInStep() {
+    const floor = trialFloor();
+    if (!floor) return null;
+    return commitFloor(floor, nextFloor(floor, { type: "endMode" }, floorCtx(floor)), "endMode");
+}
+
+/*
+ * THE GM'S BAR (E70 C1, 27.10.2026; S18-75, S18-76; the owner's TR21: "GM zawsze ma mieć maksimum kontroli, tzn móc
+ * kończyć tryb, dodawać i odejmować czas, a nawet pomijać mówców"; DX2 = 2, only in the trial; TR26 = 1, +30 s may
+ * pass a mode's own length). Its buttons, in the order the console draws them (trial-floor-ui.mjs `trialBar`):
+ *   skip     the turn now running is over: an Objection's minute becomes the rebuttal, a rebuttal ends the floor, a
+ *            pending Objection lapses (`skipStep`, through the GM's Now and its seen floor, E10 fix r2-G7);
+ *   minus    -30 s: a debate down to zero at most; a timed mode taken to zero or below is its Skip;
+ *   plus     +30 s from what is left, never from a clock already run out (F9);
+ *   endMode  End this mode (`endMode`); back  Back to the debate with the time it had (`returnToDebate`);
+ *   repoint  the running Objection aimed at somebody else (trial.mjs `repointDialog`).
+ *   overrule the newest Objection overruled (E70 C2, `overruleObjection`): during its exchange the floor goes back to
+ *            whom or what it interrupted, with the time it had; after it, only the receipt and the card are marked.
+ * A button whose op would change nothing is greyed with the reason the machine gives for it (`barRefusal`), so a dead
+ * button says why; the primary asks the same rows again in its step.
+ */
+export const BAR_OPS = Object.freeze(["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"]);
+
+/** The bar's -/+ step on `floor`: 30 s, and 5 s in a Panic Round (E70 C7; `TRIAL.modes.gm.panicAdjustSeconds`). */
+export function adjustStep(floor = trialFloor()) {
+    return floor?.mode === MODES.panic ? TRIAL.modes.gm.panicAdjustSeconds : TRIAL.modes.gm.adjustSeconds;
+}
+
+/** The machine's event for a bar `op` (null for one the machine does not run: Re-point is its own window). */
+function barEvent(op, seconds, floor = null) {
+    const step = Math.abs(Number(seconds) || adjustStep(floor));
+    switch (op) {
+        case "skip": return { type: "skip" };
+        case "minus": return { type: "adjust", seconds: -step };
+        case "plus": return { type: "adjust", seconds: step };
+        case "endMode": return { type: "endMode" };
+        case "back": return { type: "back" };
+        default: return null;
+    }
+}
+
+/**
+ * Why the bar's `op` would change nothing on `floor` now - a DRPG key the greyed button shows - or null. Outside a
+ * Class Trial every op refuses (DX2); a mode whose row does not let the GM move its clock refuses -30 s and +30 s.
+ * `record` stands for the trial record's receipts (`{ objections, trialStartedAt }`, the suite's), read when not given.
+ */
+export function barRefusal(op, floor = trialFloor(), { running = inClassTrial(), now = serverNow(), seconds = null, record = null } = {}) {
+    if (!running) return "DRPG.Floor.bar.notTrial";
+    // Asked before the floor: an Objection whose exchange is over is overruled with no floor at all (E70 C2).
+    if (op === "overrule") return overruleTarget({ floor, ...overruleRecord(record), running }).refused ?? null;
+    if (!floor) return "DRPG.Floor.bar.noMode";
+    if (op === "repoint") return floor.mode === FLOOR_MODES.objection ? null : "DRPG.Floor.bar.noObjection";
+    if ((op === "minus" || op === "plus") && !modeAllows(floor, "adjust")) return "DRPG.Floor.bar.noAdjust";
+    const event = barEvent(op, seconds, floor);
+    if (!event) return "DRPG.Floor.bar.noMode";
+    return nextFloor(floor, event, { now }).refused ?? null;
+}
+
+/** A bar op refused here, told to this GM; true when it may go on to the primary. */
+function barMay(op, seconds = null) {
+    const refused = barRefusal(op, trialFloor(), { seconds });
+    if (refused) ui.notifications.warn(game.i18n.localize(refused));
+    return !refused;
+}
+
+/** Skip: the running turn is over now (the bar's first button in an Objection or a rebuttal). */
+export async function skipStep() {
+    if (!game.user.isGM || !barMay("skip")) return null;
+    return advanceFloorNow();
+}
+
+/** -30 s or +30 s (`seconds` signed, `TRIAL.modes.gm.adjustSeconds` by default) on the running mode's clock. */
+export async function adjustTime(seconds = TRIAL.modes.gm.adjustSeconds) {
+    const by = Number(seconds) || 0;
+    if (!game.user.isGM || !by || !barMay(by < 0 ? "minus" : "plus", by)) return null;
+    return floorStep("adjust", { seconds: by });
+}
+
+/*
+ * OVERRULE (E70 C2, 27.10.2026; S18-77; TR25, TR35, DB41; E70-09 to E70-12). The owner, TR25: "koszt ma zostac, ale do
+ * glosu ma wrocic osoba (lub tryb), wobec ktorej padlo objection z czasem, jaki jej wtedy pozostal". So:
+ *   - the price stays: nothing on this road gives anything back - no refund, no put-back of a pip (tier 0 R1028 reads
+ *     every function the step reaches for one);
+ *   - during the Objection's exchange (its minute, its pending seconds or its rebuttal) the floor goes back to what it
+ *     interrupted, with the seconds that had left then: floor-machine.mjs `overrule`, the top of the stack E70 C1 keeps;
+ *     a chain - an Objection inside a rebuttal - is two presses, each the newest one then (TR35);
+ *   - after its exchange nothing on the floor moves: the receipt and the card are marked, and the console offers the
+ *     debate again with the time the debate had (`againAfterOverrule`, trial-floor-ui.mjs `trialNextStep`);
+ *   - the record is the receipt the primary wrote from the price it took (trial.mjs `keepReceipt`), never a flag on the
+ *     card: a card's flag is what a chat log draws the stamp from (`objectionOverruled`, display only), and the log, the
+ *     judgement and the offer read the receipt (`presentedThisChapter`).
+ * Judged on the primary, in a step of the floor's key, from the floor and the record as the step finds them
+ * (`overruleTarget`); a GM that is not the primary asks it by "trial.gm". The pressing GM is told a refusal first.
+ */
+
+/** The record's receipts, stamp and offer (trial.mjs `objectionRecord`), or the suite's `given`. */
+function overruleRecord(given = null) {
+    return objectionRecord({ given });
+}
+
+/** The card of the Objection an Overrule would take now, or null (the bar names it on its button, trial-floor-ui.mjs). */
+export function overruleTargetId(floor = trialFloor()) {
+    return overruleTarget({ floor, ...overruleRecord(), running: inClassTrial() }).messageId ?? null;
+}
+
+/** Overrule the Objection on the card `messageId`, or the newest (the bar's, the log's, `game.drpg.overruleObjection`). */
+export async function overruleObjection(messageId = null) {
+    if (!game.user.isGM) return null;
+    const refused = overruleTarget({ floor: trialFloor(), ...overruleRecord(), messageId: messageId || null, running: inClassTrial() }).refused;
+    if (refused) {
+        ui.notifications.warn(game.i18n.localize(refused));
+        return null;
+    }
+    return floorStep("overrule", { messageId: messageId || null });
+}
+
+/** Where the trial went back to, in the words of the Overrule's card: the debate or the rebuttal, and its time. */
+function overruledState(floor) {
+    const seconds = Math.max(leftAt(floor, serverNow()), 0);
+    if (floor?.mode === FLOOR_MODES.rebuttal) {
+        return game.i18n.format("DRPG.Floor.overrule.stateRebuttal", {
+            who: game.actors.get(floor.holderId ?? "")?.name ?? "-", target: game.actors.get(floor.targetId ?? "")?.name ?? "-", seconds
+        });
+    }
+    if (floor?.mode === FLOOR_MODES.objection) return game.i18n.localize("DRPG.Floor.mode.objection");
+    return game.i18n.format("DRPG.Floor.overrule.stateDebate", { seconds });
+}
+
+/**
+ * `overruleObjection`'s judgement and writes, in a step of `SEIZE_KEY` on the primary: the floor back (during the
+ * exchange), the receipt marked overruled and, after the exchange, the offer of the debate again - one write of the
+ * record - then the card and the table told (trial.mjs `markOverruled`). Its answer is the floor written, or
+ * `{ overruled }` when the floor did not move; null for a refusal.
+ */
+export async function overruleInStep({ messageId = null } = {}) {
+    if (!isPrimaryGm() || !inClassTrial()) return null;
+    const floor = trialFloor();
+    const judged = overruleTarget({ floor, ...overruleRecord(), messageId, running: true });
+    if (judged.refused) return null;
+    const now = serverNow();
+    let written = null;
+    if (judged.during) {
+        written = await commitFloor(floor, nextFloor(floor, { type: "overrule" }, { now }), "overrule", { replaced: false });
+        if (!written) return null;
+    }
+    const id = judged.messageId;
+    if (judged.receipt || !judged.during) {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => {
+            const objections = { ...(record.objections ?? {}) };
+            if (id && objections[id]) objections[id] = { ...objections[id], overruled: true, overruledAt: now };
+            const change = { objections };
+            // The debate's time when the Objection cut in (the newest debate under it, TR31's rest) - offered only
+            // with no floor: a debate the GM already opened again is the debate.
+            if (!judged.during && !floor) change.againAfterOverrule = { messageId: id, seconds: Number(judged.receipt?.debateLeft ?? judged.receipt?.leftAtObjection) || 0 };
+            return change;
+        });
+    }
+    try {
+        const { markOverruled } = await import("./trial.mjs");
+        await markOverruled(id, {
+            objectorId: judged.receipt?.objectorId ?? (judged.during ? floor.holderId : null),
+            state: judged.during ? overruledState(written) : null
+        });
+    } catch (err) {
+        error("Could not mark the overruled Objection's card", err);
+    }
+    return written ?? { overruled: id };
+}
+
+/** End this mode: a debate closed, an Objection or a rebuttal ended into the discussion (TR11 = 1). */
+export async function endMode() {
+    if (!game.user.isGM || !barMay("endMode")) return null;
+    return floorStep("endMode");
 }
 
 /* ==========================================================================
@@ -640,7 +1256,10 @@ export async function advanceFloorNow() {
        is told when it had moved on. An open debate has no next mode, so it is asked nothing. */
     if (!game.user.isGM) return null;
     const floor = trialFloor();
-    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
+    // A round's turn is skipped the same way (E70 C7): the bar's Skip in Testimony and Panic Round.
+    // And the Closing's timed phases (E70 C8): the volunteers' window's Skip is the draw, a speaker's the GM's choice again.
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal && !isRoundMode(floor?.mode)
+        && !(floor?.mode === FLOOR_MODES.closing && closingTimed(floor))) return null;
     const seen = { mode: floor.mode, startedAt: floor.startedAt };
     const res = await bridgeRequest("floor.now", seen, { settle: "reply", onPrimary: true, quiet: true, local: () => advanceFloorOnPrimary(seen) });
     if (res.ok) return res.value ?? null;
@@ -676,47 +1295,61 @@ export async function advanceFloorOnPrimary(seen) {
 
     advancing = true;
     try {
-        return await advanceFrom(floor);
+        // Read again in the step (E70 C0): a step queued ahead of this one may have moved the floor on.
+        return await serialWrite(SEIZE_KEY, () => {
+            const now = trialFloor();
+            return floorAsSeen(seen, now) ? advanceFrom(now, "skip") : null;
+        });
     } finally {
         advancing = false;
     }
 }
 
-/** `advanceFloorOnPrimary`'s write, held under `advancing`. */
-async function advanceFrom(floor) {
-    // A pending Objection's next step is its lapse (E79 C16): no evidence came, so there is nothing to answer.
-    if (floor.mode === FLOOR_MODES.objection && floor.pending) return lapseObjection();
-    if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
-    /*
-     * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
-     * an open debate.
-     *
-     * Debate and discussion are two different things, and this file used to
-     * spell both of them "discussion". A DEBATE is a floor, with a budget and
-     * a clock the GM is watching; the trial's own DISCUSSION is no floor at
-     * all, which is what the console calls "in open discussion" and what the
-     * music still keys off as `trial.discussion`.
-     *
-     * So the old behaviour handed the trial back a running debate clock that
-     * nobody had asked to open: the objection was over, the answer was given,
-     * and the table was still being timed. Ending it puts them back where the
-     * exchange began.
-     */
-    if (floor.mode === FLOOR_MODES.rebuttal) return endFloor();
-    return null;
+/**
+ * `advanceFloorOnPrimary`'s and the heartbeat's write, held under `advancing`: the machine's `due` row for the
+ * heartbeat, its `skip` row for a GM's Now (the bar's Skip, told in chat as "Turn skipped: {name}."). Since E70 C1 the
+ * rows are floor-machine.mjs `stepOn`'s: a pending Objection lapses back to the debate with the seconds it had (E79
+ * C16: no evidence came, so there is nothing to answer, and nothing is given back), an Objection's minute becomes the
+ * rebuttal, and a rebuttal ends the floor:
+ *
+ * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
+ * an open debate.
+ *
+ * Debate and discussion are two different things, and this file used to
+ * spell both of them "discussion". A DEBATE is a floor, with a budget and
+ * a clock the GM is watching; the trial's own DISCUSSION is no floor at
+ * all, which is what the console calls "in open discussion" and what the
+ * music still keys off as `trial.discussion`.
+ *
+ * So the old behaviour handed the trial back a running debate clock that
+ * nobody had asked to open: the objection was over, the answer was given,
+ * and the table was still being timed. Ending it puts them back where the
+ * exchange began.
+ */
+async function advanceFrom(floor, type = "due") {
+    /* THE CLOSING'S DRAW (E70 C8; E70-52): its volunteers' window over, by its clock or the GM's Skip - one of the
+       volunteers still taking part, drawn here and kept in the GMs' store (trial-modes.mjs `drawInStep`), named to the
+       machine; the floor says only that there is somebody to confirm. */
+    if (floor?.mode === FLOOR_MODES.closing && closingOf(floor)?.phase === "volunteer") {
+        const { drawInStep } = await import("./trial-modes.mjs");
+        const drawn = await drawInStep();
+        return commitFloor(floor, nextFloor(floor, { type }, { ...floorCtx(floor), drawn }), type);
+    }
+    return commitFloor(floor, nextFloor(floor, { type }, floorCtx(floor)), type);
 }
 
 let advancing = false;
 
 /**
- * A pending Objection whose seconds ran out with no Truth Bullet (E79 C16, 1.2.79; the owner's default D4 of
- * 17.10.2026): the floor goes back to the debate and the card says the Objection was withdrawn. NOTHING IS GIVEN
- * BACK - the price was the interruption, and the room did stop for it. Written by the two writers of a timed move
- * (`advanceIfDue`, and the GM's Now through `advanceFrom`), under their latch, on the primary. The card is marked
- * by `returnToDebate`, after the floor, as on every road that replaces a pending floor (`withdrawReplaced`).
+ * Whether the floor's mode has run out into a move: a pending Objection's seconds are the primary's test's, to the
+ * millisecond (`msLeft`, fix r4-G2). A debate past its budget makes no move (it turns the clock red), so it is never due
+ * and the heartbeat queues no step for it.
  */
-async function lapseObjection() {
-    return returnToDebate({});
+function isDue(floor) {
+    if (floor.mode === FLOOR_MODES.debate) return false;
+    // The Closing waits for the GM in its choice and its decision (E70 C8): no clock runs there.
+    if (floor.mode === FLOOR_MODES.closing && !closingTimed(floor)) return false;
+    return floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) <= 0 : secondsLeft(floor) <= 0;
 }
 
 /**
@@ -750,16 +1383,16 @@ async function advanceIfDue() {
     if (advancing) return;
     const floor = trialFloor();
     if (!floor || !isPrimaryGm()) return;
-    // A pending Objection's seconds are the primary's test's, to the millisecond (`msLeft`, fix r4-G2).
-    if (floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) > 0 : secondsLeft(floor) > 0) return;
+    if (!isDue(floor)) return;
 
     advancing = true;
     try {
-        if (floor.mode === FLOOR_MODES.objection && floor.pending) await lapseObjection();
-        else if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
-        // Same rule when the clock runs it out as when the GM brings it
-        // forward - see `advanceFloorNow`.
-        else if (floor.mode === FLOOR_MODES.rebuttal) await endFloor();
+        // Same rule when the clock runs it out as when the GM brings it forward - see `advanceFloorNow` - and in a
+        // step of the floor's key (E70 C0), the floor read again there: a step ahead of this one may have moved it.
+        await serialWrite(SEIZE_KEY, () => {
+            const now = trialFloor();
+            return now && isDue(now) ? advanceFrom(now) : null;
+        });
     } catch (err) {
         error("Could not advance the trial floor to its next mode", err);
     } finally {
@@ -801,6 +1434,10 @@ export function registerTrialFloor() {
      */
     document.addEventListener("visibilitychange", () => {
         advanceIfDue().catch(err => error("Could not advance the trial floor on the tab's return", err));
+    });
+    // A round's speaker whose player leaves passes at once (E70 C7; E70-45), on the primary alone.
+    Hooks.on("userConnected", (user, connected) => {
+        if (!connected && !user?.isGM) speakerGone();
     });
 }
 

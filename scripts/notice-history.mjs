@@ -204,18 +204,23 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * `window-*`, `inline-roll`, `content-link`, `fa-*`), which would dress a snapshot as a live card
  * or a window. 62 at E81 C2 (12.10.2026), 61 at E79 C16 (the Present dialog lost its Objection fieldset);
  * 63 at E80 part 2 C2 (19.10.2026, counted in the list: 61 before it, and a Frisk's two ways under its Palm row);
+ * 64 at E70 C2 (27.10.2026): the stamp of an overruled Objection, which the card on screen gains before it closes;
+ * 66 at E70 C3 (27.10.2026): the debate's question on a Present or Objection card, and the log's heading row by question
+ * (trial.mjs, whose classes the grep reads with the cards');
+ * 68 at E70 part 2 (28.10.2026; CI at fffe49e6 counted them, the list did not): the Closing's decision line on an
+ * Objection's card (C8) and the Present window's "with the Analyze result" checkbox label (C10), in trial.mjs;
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
 export const NOTICE_CLASSES = Object.freeze([
-    "chapter", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-checkbox",
+    "chapter", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
     "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary",
     "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
     "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",
     "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
-    "drpg-evidence-text", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
+    "drpg-evidence-text", "drpg-evidence-topic", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
     "drpg-gm-route", "drpg-item-effect",
-    "drpg-objection-banner", "drpg-objection-live", "drpg-objection-log",
+    "drpg-objection-banner", "drpg-objection-decision", "drpg-objection-live", "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp",
     "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
     "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",

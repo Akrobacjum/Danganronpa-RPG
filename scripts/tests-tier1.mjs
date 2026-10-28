@@ -5649,7 +5649,8 @@ const INVARIANTS = [
         const waited = analyze.indexOf("await answerKeysRefusal()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
         ok(waited > 0 && read > waited && !/isHydrated\(\) && !secret\.realType/.test(analyze),
             "an Analyze reads the answer key, or decides it is missing, before the other GMs' copies have arrived");
-        const share = fnSource(src("handover.mjs"), "shareBullet");
+        // The copy is minted by `mintCopy` since E70 C10 (Share's and Present's).
+        const share = fnSource(src("handover.mjs"), "mintCopy");
         const shareWaited = share.indexOf("await answerKeysRefusal()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
         ok(shareWaited > 0 && refused > shareWaited && minted > refused && !/realType \?\? "neutral"/.test(share),
             "a handover mints a copy of a bullet whose answer key is missing, or decides before the copies arrive");
@@ -5950,6 +5951,17 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
+            // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).
+            ["trialProgress.mutedDead",
+                s => { s.settings.trialProgress = { chapter: 2, mutedDead: [] }; s.settings.clock.phase = "dailyLife"; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialProgress" && h.path === "mutedDead"],
+            // E70 C8: the Closing's volunteers and its draw are the GMs' - on the floor's setting at any depth, an empty list too.
+            ["trialQueue.volunteers",
+                s => { s.settings.trialQueue = { active: true, mode: "closing", closing: { phase: "volunteer", count: 0, volunteers: [] } }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "closing.volunteers"],
+            ["trialQueue.drawn",
+                s => { s.settings.trialQueue = { active: true, mode: "closing", drawn: "R190BYSTANDER001" }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "drawn"],
             // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
@@ -5968,6 +5980,11 @@ const INVARIANTS = [
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
            beside it is found - an exemption is one setting's, not the field's. */
         const EXEMPT = [
+            /* E70 C5, both ways: the trial's list of the dead stands while the clock's phase is the trial (TR30), and
+               the same list with the phase written otherwise is found (the fixture above). */
+            ["trialProgress may hold mutedDead in a Class Trial",
+                s => { s.settings.trialProgress = { chapter: 2, mutedDead: ["R190BYSTANDER001"] }; s.settings.clock.phase = "classTrial"; },
+                hits => !hits.some(h => h.id === "trialProgress")],
             ["projectMeta may hold tokenId",
                 s => {
                     Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
@@ -6145,10 +6162,12 @@ const INVARIANTS = [
                 `the reason a waiting Reinforced gives has no ${lang} text`);
         }
         // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
-        // the pick cleared): its call is read, after the kill that takes an executed Mastermind's.
+        // the pick cleared): its call is read. Since E70 C4 the Mastermind dies when the trial ends, not in the
+        // verdict, so the batch leaves out a Mastermind it sentenced, whose kill drops their row (R1033).
         const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
-        const kill = finalVerdict.indexOf("killCharacter("), batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm(), null)");
-        ok(kill > 0 && batch > kill, "the Final Trial's verdict does not hand out what waited for the class (Q7), or does so before its kill");
+        const sentence = finalVerdict.indexOf("finalSentenced: [mastermind.id]"),
+            batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null)");
+        ok(sentence > 0 && batch > sentence, "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
             stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
     }],
@@ -8679,7 +8698,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const sources = await moduleSources();
-        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection) showPopup(", { length: 500 });
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (!playersCard) showPopup(", { length: 500 });
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
         direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
         const t = key => game.i18n.localize(key);
@@ -24423,6 +24442,1127 @@ const INVARIANTS = [
         equal(JSON.stringify([stood, b.log.slice(mark), b.state.busy, b.state.queued, b.frames.filter(f => f.generation === 1).length]),
             JSON.stringify([true, [], false, false, 1]),
             "[whether the dissolve could be stood down, what its end did after the scene was left, whether a dissolve is busy, queued, the frames drawn before]");
+    }],
+
+    ["R1023 - one table says what each mode of the floor allows (E70 C1, S18-79): trial-floor.mjs `modeAllows(floor, kind, actorId)` answers, on every floor of today's three modes and with none, what `maySpeak`, `floorRefusal` and `targetRefusal` answered at 1.2.89, and those three answer it still", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-03 (amend 4 (e)). `maySpeak`, `floorRefusal` and `targetRefusal` each spelled the
+         * modes' rules in a switch of their own, so the HUD, the Objection window and the primary's judgement could
+         * drift apart one mode at a time; they answer from `MODE_RULES` now, and part 2's modes are rows there. 1.2.89's
+         * answers are written out here as they were read in its code (every state: no floor, a debate, a pending and a
+         * filled Objection, a rebuttal; every role: the holder, the target, a third student), and held against both the
+         * table and the three functions. Red at f388d722: no `modeAllows`.
+         */
+        const F = await import("./trial-floor.mjs");
+        ok(typeof F.modeAllows === "function" && F.MODE_RULES && typeof F.MODE_RULES === "object",
+            "trial-floor.mjs has no modeAllows or no MODE_RULES - the modes' rules are still spelled one function at a time");
+        if (typeof F.modeAllows !== "function") return;
+        const H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", O = "otherAAAAAAAAAAA";
+        const at = mode => mode && { active: true, mode, holderId: mode === "debate" ? null : H, targetId: mode === "debate" ? null : T,
+            seconds: 300, startedAt: 1, pending: false, messageId: null };
+        const floors = { none: null, debate: at("debate"), pending: { ...at("objection"), pending: true, messageId: "cardAAAAAAAAAAAA" },
+            objection: at("objection"), rebuttal: at("rebuttal") };
+        // 1.2.89's three functions, as they read (trial-floor.mjs at 1a1bf1ff).
+        const speak89 = (a, f) => !f ? true : f.mode === "objection" ? a === f.holderId : f.mode === "rebuttal" ? a === f.holderId || a === f.targetId : true;
+        const object89 = f => Boolean(f) && f.mode !== "objection";
+        const target89 = (o, t, f) => Boolean(o && t) && o !== t && !(f?.mode === "rebuttal" && ![f.holderId, f.targetId].includes(t));
+        const pairs = [[O, H], [O, T], [H, T], [T, H], [H, O], [O, O], [null, T]];
+        const read = {}, want = {};
+        for (const [name, f] of Object.entries(floors)) {
+            read[name] = {
+                speak: [H, T, O].map(a => F.modeAllows(f, "speak", a)),
+                speakFn: [H, T, O].map(a => F.maySpeak(a, f)),
+                object: f ? F.modeAllows(f, "object") : false,
+                objectFn: F.floorRefusal(f) === null,
+                target: pairs.map(([o, t]) => Boolean(o && t) && o !== t && (!f || F.modeAllows(f, "target", t))),
+                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f) === null)
+            };
+            const speak = [H, T, O].map(a => speak89(a, f)), target = pairs.map(([o, t]) => target89(o, t, f));
+            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target };
+        }
+        equal(stableJson(read), stableJson(want),
+            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair)");
+    }],
+
+    ["R1024 - the floor's one engine (E70 C1, S18-72): floor-machine.mjs `nextFloor(floor, event, ctx)` is pure and answers each row - a timed mode run out, Skip, -30 s and +30 s, an Objection's stack, Back to the debate, End this mode, a lapse - as the GM's bar and the heartbeat need", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-03, E70-04, E70-05. Every road that moves the floor - the heartbeat, the GM's bar, a
+         * seizure, the API - asks this one function in the primary's step, so its rows are read here without a world, at
+         * a fixed `now`, on floors frozen to the bottom (a write into one throws): (1) due: an Objection's minute becomes
+         * the rebuttal, a rebuttal ends the floor, a pending Objection lapses back to the debate with the seconds the
+         * debate had, a debate has no next step; (2) Skip: refused in a debate, told as "Turn skipped" with whose turn;
+         * (3) -30 s at 20 s of an Objection is its Skip, a debate goes to zero at most, and a debate with nothing left
+         * refuses; (4) +30 s on a debate 40 s over leaves 30 s (F9), on an Objection with 50 s left leaves 80 s, past its
+         * 60 (TR26), with the GM's note; (5) an Objection on a debate with 200 s left pushes the debate and its 200 s,
+         * with the card; Back to the debate from the rebuttal gives those 200 s (TR31), a floor from before 1.2.90 its
+         * budget, a debate without seconds nothing, and with seconds a debate of them; (6) End this mode ends the floor
+         * with its card; (7) start empties the stack; (8) the input is unchanged. Red at f388d722: no floor-machine.mjs.
+         */
+        let M = null;
+        try {
+            M = await import("./floor-machine.mjs");
+        } catch {
+            M = null;
+        }
+        ok(typeof M?.nextFloor === "function", "floor-machine.mjs has no nextFloor - each writer of the floor still spells its own move");
+        if (typeof M?.nextFloor !== "function") return;
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", CARD = "cardAAAAAAAAAAAA";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const debate = (left, seconds = 300) => ({ active: true, mode: "debate", holderId: null, targetId: null, seconds,
+            startedAt: NOW - (seconds - left) * 1000, pending: false, messageId: null, before: [] });
+        const timed = (mode, left, extra = {}) => ({ active: true, mode, holderId: H, targetId: T, seconds: 300,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000, pending: false, messageId: null,
+            before: [{ messageId: CARD, before: { mode: "debate", holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }], ...extra });
+        const go = (floor, event) => M.nextFloor(freeze(JSON.parse(JSON.stringify(floor))), event, { now: NOW });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, left: r.floor ? M.leftAt(r.floor, NOW) : null, seconds: r.floor?.seconds ?? null,
+                stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                note: r.floor?.gmNote?.key ?? null, cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? c.mode ?? null]) };
+        const old = { ...debate(0), mode: "rebuttal", holderId: H, targetId: T, startedAt: NOW - 60_000, seconds: 240 };
+        delete old.before;
+        const input = timed("objection", 20);
+        const before = JSON.stringify(input);
+        const read = {
+            dueObjection: shape(go(timed("objection", 0), { type: "due" })),
+            dueRebuttal: shape(go(timed("rebuttal", 0), { type: "due" })),
+            duePending: shape(go(timed("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            dueDebate: shape(go(debate(0), { type: "due" })),
+            skipDebate: shape(go(debate(100), { type: "skip" })),
+            skipObjection: shape(go(timed("objection", 40), { type: "skip" })),
+            minusObjection: shape(go(input, { type: "adjust", seconds: -30 })),
+            minusDebate: shape(go(debate(20), { type: "adjust", seconds: -30 })),
+            minusEmpty: shape(go(debate(0), { type: "adjust", seconds: -30 })),
+            plusOverrun: shape(go(debate(-40), { type: "adjust", seconds: 30 })),
+            plusPastLimit: shape(go(timed("objection", 50), { type: "adjust", seconds: 30 })),
+            objection: shape(go(debate(200), { type: "objection", holderId: H, targetId: T, cardId: CARD })),
+            back: shape(go(timed("rebuttal", 90), { type: "back" })),
+            backOld: shape(go(old, { type: "back" })),
+            backDebate: shape(go(debate(100), { type: "back" })),
+            backGiven: shape(go(debate(100), { type: "back", seconds: 120 })),
+            endMode: shape(go(timed("rebuttal", 90), { type: "endMode" })),
+            start: shape(go(timed("rebuttal", 90), { type: "start", seconds: 180 })),
+            unchanged: JSON.stringify(input) === before
+        };
+        const stack = [[CARD, "debate", 200]];
+        const skipped = [["DRPG.Floor.turnSkipped", H]];
+        equal(stableJson(read), stableJson({
+            dueObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: [] },
+            dueRebuttal: { mode: null, left: null, seconds: null, stack: [], note: null, cards: [] },
+            duePending: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
+            dueDebate: { refused: "DRPG.Floor.bar.noTurn" },
+            skipDebate: { refused: "DRPG.Floor.bar.noTurn" },
+            skipObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: skipped },
+            minusObjection: { mode: "rebuttal", left: 120, seconds: 300, stack, note: null, cards: skipped },
+            minusDebate: { mode: "debate", left: 0, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            minusEmpty: { refused: "DRPG.Floor.bar.noTime" },
+            plusOverrun: { mode: "debate", left: 30, seconds: 300, stack: [], note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            plusPastLimit: { mode: "objection", left: 80, seconds: 300, stack, note: "DRPG.Floor.gmNoteAdjust", cards: [] },
+            objection: { mode: "objection", left: 60, seconds: 300, stack, note: null, cards: [] },
+            back: { mode: "debate", left: 200, seconds: 200, stack: [], note: null, cards: [] },
+            backOld: { mode: "debate", left: 240, seconds: 240, stack: [], note: null, cards: [] },
+            backDebate: { refused: "DRPG.Floor.bar.inDebate" },
+            backGiven: { mode: "debate", left: 120, seconds: 120, stack: [], note: null, cards: [] },
+            endMode: { mode: null, left: null, seconds: null, stack: [], note: null, cards: [["DRPG.Floor.modeEnded", "rebuttal"]] },
+            start: { mode: "debate", left: 180, seconds: 180, stack: [], note: null, cards: [] },
+            unchanged: true
+        }), "a row of the floor's machine answers otherwise (per row: the mode, seconds left and budget it writes, its stack, the GM's note, the cards it posts - or its refusal)");
+    }],
+
+    ["R1025 - the GM's bar in every mode (E70 C1, S18-75; TR21, DX2): trial-floor.mjs `BAR_OPS` is Skip, -30 s, +30 s, Overrule (E70 C2), End this mode, Back to the debate, Re-point in that order, and `barRefusal` greys each one with its own reason on every state - all of them outside a Class Trial and with no floor - and lets through the rest", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-04. The bar stays put: the same six buttons in the same order in every mode, and a
+         * button whose op would change nothing is greyed with the reason its op gives (the machine's refusal, which the
+         * primary's step gives again). Read at a fixed `now` on six states: outside a trial (a debate on the floor), no
+         * floor, a debate with 100 s left, a debate with none left, a pending and a filled Objection, a rebuttal. Red at
+         * f388d722: no `BAR_OPS`, no `barRefusal`.
+         * E70 C2: Overrule after +30 s, on an empty record (`record`, so the world's receipts are not read): pressable in
+         * an Objection's exchange, "no Objection to overrule" elsewhere, and pressable with no floor once this trial
+         * has a receipt not yet overruled (`after`). Red at accb2ded: six buttons.
+         */
+        const F = await import("./trial-floor.mjs");
+        ok(Array.isArray(F.BAR_OPS) && typeof F.barRefusal === "function", "trial-floor.mjs has no BAR_OPS or no barRefusal - the GM has no bar");
+        if (typeof F.barRefusal !== "function") return;
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA";
+        const debate = left => ({ active: true, mode: "debate", holderId: null, targetId: null, seconds: 300, startedAt: NOW - (300 - left) * 1000, pending: false, messageId: null });
+        const timed = (mode, extra = {}) => ({ active: true, mode, holderId: H, targetId: T, seconds: 300, startedAt: NOW - 10_000, pending: false, messageId: null, ...extra });
+        const states = {
+            outside: [debate(100), false], none: [null, true], debate: [debate(100), true], spent: [debate(0), true],
+            pending: [timed("objection", { pending: true, messageId: "cardAAAAAAAAAAAA" }), true], objection: [timed("objection"), true], rebuttal: [timed("rebuttal"), true],
+            after: [null, true, { objections: { cardBBBBBBBBBBBB: { objectorId: H, at: NOW - 5000, trialStartedAt: null, overruled: false } } }]
+        };
+        const read = { order: [...F.BAR_OPS] };
+        for (const [name, [floor, running, record = { objections: {} }]] of Object.entries(states)) {
+            read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running, now: NOW, record })]));
+        }
+        const OPS = ["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"];
+        const all = key => Object.fromEntries(OPS.map(op => [op, key]));
+        const open = Object.fromEntries(OPS.map(op => [op, null]));
+        const none = "DRPG.Floor.bar.noOverrule";
+        equal(stableJson(read), stableJson({
+            order: OPS,
+            outside: all("DRPG.Floor.bar.notTrial"),
+            none: { ...all("DRPG.Floor.bar.noMode"), overrule: none },
+            debate: { ...open, skip: "DRPG.Floor.bar.noTurn", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            spent: { ...open, skip: "DRPG.Floor.bar.noTurn", minus: "DRPG.Floor.bar.noTime", overrule: none, back: "DRPG.Floor.bar.inDebate", repoint: "DRPG.Floor.bar.noObjection" },
+            pending: open,
+            objection: open,
+            rebuttal: { ...open, repoint: "DRPG.Floor.bar.noObjection" },
+            after: { ...all("DRPG.Floor.bar.noMode"), overrule: null }
+        }), "the bar's order, or a button's greying on a state, is not what the GM was promised (per state: each op's reason, null where it may be pressed)");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.bar ?? {});
+        const reasons = ["notTrial", "noMode", "noTurn", "noTime", "inDebate", "noObjection", "noAdjust", "noOverrule", "skip", "minus", "plus", "overrule", "endMode", "label"];
+        equal(JSON.stringify(reasons.filter(k => !lang.en[k] || !lang.pl[k])), "[]", "a reason or a label of the bar has no words in English or Polish");
+    }],
+
+    ["R1027 - Overrule's judgement and its move (E70 C2, S18-77; TR25, TR35): floor-machine.mjs `overruleTarget` names only the newest Objection - the running one during its exchange, else this trial's newest receipt not yet overruled - and refuses an older one, a second Overrule, a card with no receipt, another trial's and every one once the trial is over; `nextFloor`'s `overrule` gives the floor back to whom or what was interrupted with the seconds it had then, a chain in two presses", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-10, E70-11. The owner, TR25: the price stays, and the floor goes back to the person or
+         * the mode the Objection was raised against, with the time it had then; TR35: only the newest not overruled. Read
+         * without a world, at a fixed `now`, on frozen inputs. (1) The judgement on a record of four receipts - A older,
+         * B newest, one overruled already, one of an earlier trial in the chapter (another `trialStartedAt`) - with no
+         * floor: no card named is B; A, the overruled one and a card with no receipt (a refused or withdrawn Objection
+         * keeps none) are "only the newest", the earlier trial's is "that trial is over", and so is every card once the
+         * trial is not running; an empty record has nothing to overrule. (2) During an exchange only the running one: an
+         * Objection the API opened (a stack entry with no card, no receipt) is named, B named instead is refused. (3) The
+         * move: an Objection over a debate with 200 s left gives the debate back with its 200 s and its budget of 300; a
+         * pending one the same, no longer pending; a rebuttal the same; a chain - B raised in A's rebuttal with 90 s left -
+         * gives the rebuttal back to its two with its 90 s, A's entry still under it, and a second press gives the debate
+         * its 200 s; an overrun debate comes back overrun; a floor from before 1.2.90 gets its budget; a debate refuses.
+         * Red at accb2ded: no `overruleTarget`, no `overrule` row.
+         */
+        const M = await import("./floor-machine.mjs");
+        ok(typeof M.overruleTarget === "function", "floor-machine.mjs has no overruleTarget - nothing judges which Objection an Overrule names");
+        if (typeof M.overruleTarget !== "function") return;
+        const NOW = 10_000_000, T0 = 9_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", X = "thirdAAAAAAAAAAA";
+        const A = "cardAAAAAAAAAAAA", B = "cardBBBBBBBBBBBB", OLD = "cardOOOOOOOOOOOO", DONE = "cardDDDDDDDDDDDD";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const receipt = (at, extra = {}) => ({ objectorId: H, targetId: T, paid: { pay: "action", amount: 1 }, mode: "debate",
+            leftAtObjection: 200, debateLeft: 200, trialStartedAt: T0, at, overruled: false, ...extra });
+        const objections = freeze({ [A]: receipt(T0 + 100), [B]: receipt(T0 + 200), [DONE]: receipt(T0 + 400, { overruled: true }),
+            [OLD]: receipt(T0 + 300, { trialStartedAt: T0 - 50_000 }) });
+        const judge = (args = {}) => {
+            const r = M.overruleTarget({ objections, trialStartedAt: T0, running: true, ...args });
+            return r.refused ? r.refused : [r.messageId, r.during, Boolean(r.receipt)];
+        };
+        const entry = (messageId, mode, left, who = {}) => ({ messageId, before: { mode, holderId: who.h ?? null, targetId: who.t ?? null, seconds: 300 }, leftAtObjection: left });
+        const objectionOn = (stack, extra = {}) => ({ active: true, mode: "objection", holderId: H, targetId: T, seconds: 300,
+            startedAt: NOW - 20_000, pending: false, messageId: null, before: stack, ...extra });
+        const only = "DRPG.Floor.overrule.onlyNewest", over = "DRPG.Floor.overrule.trialOver";
+        const judged = {
+            newest: judge(), older: judge({ messageId: A }), named: judge({ messageId: B }), second: judge({ messageId: DONE }),
+            noReceipt: judge({ messageId: "cardZZZZZZZZZZZZ" }), otherTrial: judge({ messageId: OLD }),
+            afterTrial: judge({ running: false }), afterTrialNamed: judge({ running: false, messageId: B }),
+            empty: M.overruleTarget({ objections: {}, trialStartedAt: T0 }).refused ?? null,
+            during: judge({ floor: objectionOn([entry(null, "debate", 200)]) }),
+            duringOther: judge({ floor: objectionOn([entry(null, "debate", 200)]), messageId: B }),
+            duringB: judge({ floor: objectionOn([entry(B, "debate", 200)]) })
+        };
+        equal(stableJson(judged), stableJson({
+            newest: [B, false, true], older: only, named: [B, false, true], second: only, noReceipt: only, otherTrial: over,
+            afterTrial: over, afterTrialNamed: over, empty: "DRPG.Floor.bar.noOverrule",
+            during: [null, true, false], duringOther: only, duringB: [B, true, true]
+        }), "an Overrule names another Objection, or lets through one it must refuse (per case: the card, during its exchange, with a receipt - or the reason)");
+
+        const go = (floor, event = { type: "overrule" }) => M.nextFloor(freeze(JSON.parse(JSON.stringify(floor))), event, { now: NOW });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, who: [r.floor?.holderId ?? null, r.floor?.targetId ?? null], left: r.floor ? M.leftAt(r.floor, NOW) : null,
+                seconds: r.floor?.seconds ?? null, pending: r.floor?.pending ?? null, stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                note: r.floor?.gmNote?.key ?? null };
+        const rebuttalA = { ...objectionOn([entry(A, "debate", 200)]), mode: "rebuttal", startedAt: NOW - 30_000 };
+        const chained = M.nextFloor(freeze(JSON.parse(JSON.stringify(rebuttalA))), { type: "objection", holderId: X, targetId: H, cardId: B }, { now: NOW }).floor;
+        const firstPress = go(chained);
+        const old = objectionOn([]);
+        delete old.before;
+        const input = objectionOn([entry(A, "debate", 200)]);
+        const before = JSON.stringify(input);
+        const moved = {
+            objection: shape(go(input)),
+            pending: shape(go(objectionOn([entry(A, "debate", 200)], { pending: true, messageId: A }))),
+            rebuttal: shape(go(rebuttalA)),
+            chainFirst: shape(firstPress),
+            chainSecond: firstPress.floor ? shape(go(firstPress.floor)) : null,
+            overrun: shape(go(objectionOn([entry(A, "debate", -15)]))),
+            old: shape(go(old)),
+            debate: shape(go({ ...input, mode: "debate", holderId: null, targetId: null, before: [] })),
+            unchanged: JSON.stringify(input) === before
+        };
+        const debate200 = { mode: "debate", who: [null, null], left: 200, seconds: 300, pending: false, stack: [], note: "DRPG.Floor.gmNoteOverrule" };
+        equal(stableJson(moved), stableJson({
+            objection: debate200, pending: debate200, rebuttal: debate200,
+            chainFirst: { mode: "rebuttal", who: [H, T], left: 90, seconds: 300, pending: false, stack: [[A, "debate", 200]], note: "DRPG.Floor.gmNoteOverrule" },
+            chainSecond: debate200,
+            overrun: { ...debate200, left: -15 },
+            old: { mode: "debate", who: [null, null], left: 300, seconds: 300, pending: false, stack: [], note: "DRPG.Floor.gmNoteOverrule" },
+            debate: { refused: "DRPG.Floor.bar.noOverrule" },
+            unchanged: true
+        }), "an Overrule moves the floor elsewhere than back to what the Objection interrupted, with the time it had then (per row: mode, holder and target, seconds left, budget, pending, stack, note)");
+    }],
+    ["R1029 - the debate's question (E70 C3, S18-70): floor-machine.mjs `nextFloor`'s `start` writes the GM's optional question on the floor (`topic`, trimmed and cut to `TRIAL.modes.topicLength`, null when none was asked), and every row that keeps the debate's floor - an Objection, its fill, a re-point, the rebuttal, +30 s, Back to the debate, an Overrule, a lapse - keeps it; a floor that ends holds none", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13. In the games every Nonstop Debate has its question at the top of the screen; the
+         * module's debate had none, so it drifted, and the end of a debate cleared the only public state there was. The
+         * question is the floor's for the debate's life (the Event panel and the cards read it there) and the trial
+         * record's for the trial (vote.mjs, read by the debate again). Read without a world, at a fixed `now`, on frozen
+         * inputs. Red at bf1a076b: the floor held no `topic`.
+         */
+        const M = await import("./floor-machine.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA", X = "thirdAAAAAAAAAAA";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const step = (floor, event) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW });
+        const Q = "Who left the gym unlocked?";
+        const limit = Number(TRIAL.modes?.topicLength) || 0;
+        const start = step(null, { type: "start", seconds: 300, topic: `  ${Q}  ` }).floor;
+        const objection = step(start, { type: "objection", holderId: H, targetId: T, cardId: "cardAAAAAAAAAAAA" }).floor;
+        const pending = step(start, { type: "objection", holderId: H, targetId: T, pending: true, messageId: "cardBBBBBBBBBBBB" }).floor;
+        const rebuttal = objection ? step(objection, { type: "rebuttal" }).floor : null;
+        const topics = {
+            start: start?.topic ?? null,
+            none: step(null, { type: "start", seconds: 300 }).floor?.topic ?? null,
+            blank: step(null, { type: "start", seconds: 300, topic: "   " }).floor?.topic ?? null,
+            notText: step(null, { type: "start", seconds: 300, topic: { q: Q } }).floor?.topic ?? null,
+            long: limit > 0 ? (step(null, { type: "start", seconds: 300, topic: "x".repeat(limit + 50) }).floor?.topic ?? "").length : null,
+            objection: objection?.topic ?? null,
+            fill: pending ? (step(pending, { type: "fill" }).floor?.topic ?? null) : null,
+            lapse: pending ? (step(pending, { type: "lapse" }).floor?.topic ?? null) : null,
+            repoint: objection ? (step(objection, { type: "repoint", targetId: X }).floor?.topic ?? null) : null,
+            rebuttal: rebuttal?.topic ?? null,
+            plus: objection ? (step(objection, { type: "adjust", seconds: 30 }).floor?.topic ?? null) : null,
+            back: objection ? (step(objection, { type: "back" }).floor?.topic ?? null) : null,
+            overrule: rebuttal ? (step(rebuttal, { type: "overrule" }).floor?.topic ?? null) : null,
+            ended: rebuttal ? step(rebuttal, { type: "due" }).floor : "no rebuttal",
+            restarted: start ? (step(start, { type: "start", seconds: 120 }).floor?.topic ?? null) : null
+        };
+        equal(stableJson(topics), stableJson({
+            start: Q, none: null, blank: null, notText: null, long: limit > 0 ? limit : null, objection: Q, fill: Q, lapse: Q, repoint: Q,
+            rebuttal: Q, plus: Q, back: Q, overrule: Q, ended: null, restarted: null
+        }), "the debate's question is not on the floor as asked, or a row of the floor drops it or keeps it where it ends (per row: the question, the length cut to, null)");
+        ok(limit >= 80, `TRIAL.modes.topicLength is ${limit} - a question needs room for a sentence`);
+    }],
+
+    ["R1030 - the debate again after its exchange (E70 C3, S18-70; TR11): floor-machine.mjs `nextFloor` marks the floor's end by an exchange (`again`: a rebuttal run out or skipped, End this mode in an Objection or a rebuttal), not a debate the GM closed or ended; trial-floor-ui.mjs `trialNextStep` makes \"Open the debate again\" the step then (`reopen`), after the Overrule's offer and before the vote", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13 (TR11 = 1: a Rebuttal ends the debate; then "Open the debate again", the same
+         * question and budget, no window). Before, the GM opened the debate again through its window and typed the
+         * budget again. Read without a world. (1) The machine's answers at a fixed `now`: which ends say the exchange
+         * ended it. (2) The console's next step on six readings (`trialNextStep`, exported for this): a running floor,
+         * the record's mark, the Overrule's offer with it, an open vote with it, neither, no trial. (3) The words, EN
+         * and PL. Red at bf1a076b: no `again`, no exported `trialNextStep`, no `reopen`.
+         */
+        const M = await import("./floor-machine.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const NOW = 10_000_000, H = "holderAAAAAAAAAA", T = "targetAAAAAAAAAA";
+        const floorOf = (mode, extra = {}) => Object.freeze({ active: true, mode, holderId: mode === "debate" ? null : H, targetId: mode === "debate" ? null : T,
+            seconds: 300, startedAt: NOW - 200_000, pending: false, messageId: null, before: [], topic: "Q", ...extra });
+        const again = (floor, event) => {
+            const r = M.nextFloor(floor, event, { now: NOW });
+            return r.refused ? r.refused : [r.floor === null, r.again === true];
+        };
+        const ends = {
+            rebuttalDue: again(floorOf("rebuttal"), { type: "due" }),
+            rebuttalSkip: again(floorOf("rebuttal"), { type: "skip" }),
+            rebuttalMinus: again(floorOf("rebuttal", { startedAt: NOW - 110_000 }), { type: "adjust", seconds: -30 }),
+            objectionEndMode: again(floorOf("objection"), { type: "endMode" }),
+            rebuttalEndMode: again(floorOf("rebuttal"), { type: "endMode" }),
+            objectionSkip: again(floorOf("objection"), { type: "skip" }),
+            debateEndMode: again(floorOf("debate"), { type: "endMode" }),
+            end: again(floorOf("rebuttal"), { type: "end" })
+        };
+        equal(stableJson(ends), stableJson({
+            rebuttalDue: [true, true], rebuttalSkip: [true, true], rebuttalMinus: [true, true], objectionEndMode: [true, true],
+            rebuttalEndMode: [true, true], objectionSkip: [false, false], debateEndMode: [true, false], end: [true, false]
+        }), "an end of the floor is marked as the exchange's when it is not, or not when it is (per end: the floor closed, marked)");
+
+        ok(typeof UI.trialNextStep === "function", "trial-floor-ui.mjs exports no trialNextStep - the console's next step cannot be read");
+        if (typeof UI.trialNextStep !== "function") return;
+        const vote = open => ({ open, round: 1 });
+        const view = (progress, extra = {}) => ({ afterwards: true, running: true, floor: null, stopped: null, runner: null,
+            progress: { voteClosed: false, verdictApplied: false, vote: vote(false), againAfterOverrule: null, debateAgain: false, ...progress }, ...extra });
+        const steps = {
+            floor: UI.trialNextStep(view({ debateAgain: true }, { floor: floorOf("debate") })),
+            marked: UI.trialNextStep(view({ debateAgain: true })),
+            overruled: UI.trialNextStep(view({ debateAgain: true, againAfterOverrule: { messageId: "cardAAAAAAAAAAAA", seconds: 90 } })),
+            voting: UI.trialNextStep(view({ debateAgain: true, vote: vote(true) })),
+            plain: UI.trialNextStep(view({})),
+            noTrial: UI.trialNextStep(view({ debateAgain: true }, { afterwards: false, running: false }))
+        };
+        equal(stableJson(steps), stableJson({ floor: "closeDebate", marked: "reopen", overruled: "openAgain", voting: "vote", plain: "openDebate", noTrial: "start" }),
+            "the console's next step after a debate its exchange ended is not the debate again where it should be (per reading: the step)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const words = code => [lang[code].againSame, lang[code].lead?.reopen].map(w => typeof w === "string" && w.length > 0);
+        equal(stableJson([words("en"), words("pl")]), stableJson([[true, true], [true, true]]), "\"Open the debate again\" or its lead line has no words in English or Polish (per language: the button, the lead)");
+    }],
+
+    ["R1031 - the trial's clock (E70 C3, S18-80; TR17): trial-floor-ui.mjs `trialTime(record, now)` reads the trial's start on the server's clock and its size at the start, and answers the minutes used and the guide's budget, `TRIAL.modes.budget.minutesAt16` x N/16; the console's line says it is an estimate, and neither it nor the question's line names discussion", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-14. The guide: a Class Trial should take about 4.5 hours at 16 players, scaled by
+         * N/16; the module kept no start of the trial, so the GM counted in their head. The owner, TR17 = 1: a line, "but
+         * these are estimates only". Read without a world: the arithmetic on six records at a fixed `now`, the setting,
+         * and the words. And S06-10's rule (E10 C15), held here for the lines C3 adds: discussion is only the state
+         * with no debate, so the question's line and the clock's never say it. Red at bf1a076b: no `trialTime`.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        equal(TRIAL.modes?.budget?.minutesAt16 ?? null, 270, "the guide's 4.5 hours at 16 is not the budget's setting");
+        ok(typeof UI.trialTime === "function", "trial-floor-ui.mjs has no trialTime - the GM has no trial clock");
+        if (typeof UI.trialTime !== "function") return;
+        const NOW = 100_000_000, min = m => NOW - m * 60_000;
+        const read = {
+            sixteen: UI.trialTime({ trialStartedAt: min(90), trialSize: 16 }, NOW),
+            eight: UI.trialTime({ trialStartedAt: min(30.5), trialSize: 8 }, NOW),
+            twelve: UI.trialTime({ trialStartedAt: NOW, trialSize: 12 }, NOW),
+            ten: UI.trialTime({ trialStartedAt: min(200), trialSize: 10 }, NOW),
+            nobody: UI.trialTime({ trialStartedAt: min(5), trialSize: 0 }, NOW),
+            unstamped: UI.trialTime({ trialStartedAt: null, trialSize: 16 }, NOW),
+            ahead: UI.trialTime({ trialStartedAt: NOW + 5000, trialSize: 16 }, NOW)
+        };
+        equal(stableJson(read), stableJson({
+            sixteen: { used: 90, budget: 270 }, eight: { used: 30, budget: 135 }, twelve: { used: 0, budget: 203 }, ten: { used: 200, budget: 169 },
+            nobody: { used: 5, budget: null }, unstamped: null, ahead: { used: 0, budget: 270 }
+        }), "the trial's clock is not the minutes since the start against 270 x N/16 (per record: used, budget)");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const lines = code => [lang[code].trialTime, lang[code].trialTimeNoBudget, lang[code].topicLine];
+        const shape = code => {
+            const [time, noBudget, topic] = lines(code);
+            return [typeof time === "string" && time.includes("{used}") && time.includes("{budget}"),
+                typeof noBudget === "string" && noBudget.includes("{used}") && !noBudget.includes("{budget}"),
+                typeof topic === "string" && topic.includes("{topic}")];
+        };
+        equal(stableJson([shape("en"), shape("pl"), /estimate/i.test(lang.en.trialTime ?? ""), /szacun/i.test(lang.pl.trialTime ?? "")]),
+            stableJson([[true, true, true], [true, true, true], true, true]),
+            "the trial clock's or the question's line is missing its words or its numbers, or does not say it is an estimate (EN, PL, then the estimate in each)");
+        ok(!lines("en").some(w => /discussion/i.test(w ?? "")) && !lines("pl").some(w => /dyskusj/i.test(w ?? "")),
+            "the question's or the clock's line names discussion, which is only the trial with no debate (S06-10)");
+    }],
+    ["R1034 - who takes part and who may speak (E70 C5, S18-78, S18-79's list; DC4, DC19, DC29, TR30, TR33): settings.mjs `isMutedDead` answers only in a Class Trial, from the trial's list; trial-floor.mjs `trialVoice` says speak, listen or muted for a living participant, a convict, a listed death the table has not been told of, a known dead, a Monocub and a Monocub whose own case is being tried, in every mode, the vote, the verdict and outside the trial; `micHold` holds a listed dead student's microphone and gives a Monocub its line", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-19, E70-22. The owner: the dead do not speak in the trial, the undiscovered
+         * dead too (TR30 = 2: "Tak, ona też wyciszona"); a Monocub speaks only "wtedy gdy nie ma żadnego trybu gry"
+         * and listens from the vote's opening on (DC4, DC28); a Monocub whose death the trial is about listens, as
+         * information only ("Słuchasz: to rozprawa w twojej sprawie", DC29, DC41). Read without a world: the facts
+         * handed in (the clock, the floor, the trial's record, the season), on stand-in actors that carry only the two
+         * flags the rule reads. The convict is alive until the trial ends (DC36), so a living participant. Red at
+         * 9f40de9a: no `isMutedDead`, no `trialVoice`, and `micHold` held nobody in the trial.
+         */
+        const voice = await import("./voice.mjs");
+        const { isMutedDead } = await import("./settings.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof isMutedDead === "function", "settings.mjs has no isMutedDead - nobody's microphone is the trial's");
+        ok(typeof F.trialVoice === "function", "trial-floor.mjs has no trialVoice - nothing says who may speak in the trial");
+        if (typeof isMutedDead !== "function" || typeof F.trialVoice !== "function") return;
+        const EPOCH = 4, CH = 3;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const people = {
+            alive: stand("aliveAAAAAAAAAAA"), convict: stand("convictCCCCCCCCC"), other: stand("otherOOOOOOOOOOO"),
+            unfound: stand("unfoundUUUUUUUUU"), known: stand("knownKKKKKKKKKKK", { [FLAGS.deceased]: { chapter: 2, epoch: EPOCH } }),
+            cub: stand("cubMMMMMMMMMMMMM", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH }, [FLAGS.monocub]: true }),
+            own: stand("ownOOOOOOOOOOOOO", { [FLAGS.deceased]: { chapter: CH, epoch: EPOCH }, [FLAGS.monocub]: true })
+        };
+        const trial = { phase: "classTrial", chapter: CH }, life = { phase: "dailyLife", chapter: CH };
+        const record = (more = {}) => ({ chapter: CH, mutedDead: [people.unfound.id, people.known.id].sort(), lastVerdictAt: null, voteOpenedAt: null,
+            vote: { open: false }, verdict: { sentenced: [people.convict.id] }, ...more });
+        const floors = {
+            debate: { active: true, mode: "debate" },
+            objection: { active: true, mode: "objection", holderId: people.alive.id, targetId: people.other.id },
+            rebuttal: { active: true, mode: "rebuttal", holderId: people.other.id, targetId: people.alive.id }
+        };
+        const states = {
+            outside: { clock: life, floor: null, record: record() },
+            discussion: { clock: trial, floor: null, record: record() },
+            debate: { clock: trial, floor: floors.debate, record: record() },
+            objection: { clock: trial, floor: floors.objection, record: record() },
+            rebuttal: { clock: trial, floor: floors.rebuttal, record: record() },
+            vote: { clock: trial, floor: null, record: record({ vote: { open: true }, voteOpenedAt: 1000 }) },
+            verdict: { clock: trial, floor: null, record: record({ voteOpenedAt: 1000, voteClosed: true, verdictApplied: true, lastVerdictAt: 2000 }) },
+            noList: { clock: trial, floor: null, record: { ...record(), mutedDead: undefined } }
+        };
+        const read = {};
+        for (const [name, s] of Object.entries(states)) {
+            read[name] = Object.fromEntries(Object.entries(people).map(([who, actor]) =>
+                [who, F.trialVoice(actor.id, { ...s, actor, epoch: EPOCH })]));
+        }
+        const S = "speak", L = "listen", M = "muted";
+        const want = {
+            outside: { alive: S, convict: S, other: S, unfound: S, known: S, cub: S, own: S },
+            discussion: { alive: S, convict: S, other: S, unfound: M, known: M, cub: S, own: L },
+            debate: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            objection: { alive: S, convict: L, other: L, unfound: M, known: M, cub: L, own: L },
+            rebuttal: { alive: S, convict: L, other: S, unfound: M, known: M, cub: L, own: L },
+            vote: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            verdict: { alive: S, convict: S, other: S, unfound: M, known: M, cub: L, own: L },
+            noList: { alive: S, convict: S, other: S, unfound: S, known: M, cub: S, own: L }
+        };
+        equal(stableJson(read), stableJson(want),
+            "who may speak in the trial is not the owner's rule (per state: the living, a convict, a bystander, a death nobody found, a known dead, a Monocub, a Monocub whose own case is tried)");
+
+        const muted = Object.fromEntries(Object.entries(states).map(([name, s]) =>
+            [name, [isMutedDead(people.unfound, s), isMutedDead(people.known, s), isMutedDead(people.alive, s)]]));
+        equal(stableJson(muted), stableJson({ outside: [false, false, false], discussion: [true, true, false], debate: [true, true, false],
+            objection: [true, true, false], rebuttal: [true, true, false], vote: [true, true, false], verdict: [true, true, false], noList: [false, false, false] }),
+            "isMutedDead answers outside a Class Trial, or not from the trial's list (per state: the death nobody found, the known dead, the living)");
+
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const hold = (actor, s, extra = {}) => {
+            const out = voice.micHold({ user, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [actor],
+                trial: { ...s, epoch: EPOCH }, ...extra });
+            return out ? [out.reason, out.held, out.data?.mode ? "mode" : null] : null;
+        };
+        equal(stableJson({
+            unfound: hold(people.unfound, states.debate), blockedToo: hold(people.unfound, states.debate, { canBroadcastAudio: false }),
+            cubTalks: hold(people.cub, states.discussion), cubHears: hold(people.cub, states.debate), cubVote: hold(people.cub, states.vote),
+            own: hold(people.own, states.discussion), alive: hold(people.alive, states.objection), gm: hold(people.alive, states.debate, { canBroadcastAudio: false }),
+            after: hold(people.unfound, states.outside)
+        }), stableJson({
+            unfound: ["deadMuted", true, null], blockedToo: ["deadMuted", true, null],
+            cubTalks: ["cubSpeak", false, null], cubHears: ["cubListen", false, "mode"], cubVote: ["cubVote", false, null],
+            own: ["ownCase", false, null], alive: null, gm: ["gmBlock", false, null], after: null
+        }), "micHold does not hold a listed dead student's microphone in the trial (named before a GM's block), or does not give a Monocub its line (per case: reason, held, a mode named)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Voice?.held ?? {});
+        const lines = code => ["deadMuted", "cubSpeak", "cubListen", "cubVote", "ownCase"].map(k => typeof lang[code][k] === "string" && lang[code][k].length > 10);
+        equal(stableJson([lines("en"), lines("pl"), String(lang.en.cubListen ?? "").includes("{mode}"), String(lang.pl.cubListen ?? "").includes("{mode}")]),
+            stableJson([[true, true, true, true, true], [true, true, true, true, true], true, true]),
+            "the tile's trial lines are missing in English or Polish, or the Monocub's listening line names no mode (EN keys, PL keys, EN {mode}, PL {mode})");
+    }],
+    ["R1037 - an account with a dead student and a living one speaks in the trial as the living one (E70 fix p1-G1; the review's BEH-4 = E70P1-R01): voice.mjs `trialVoiceActorOf` takes a character not on the trial's list before one on it, then the lowest id, and `micHold` asks the same, so only an account whose every character is listed is muted", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026. A player whose first student died is given a new one: the dead one has the lower
+         * actor id about half the time (Foundry's ids are random). In the trial every row of an account is the trial's
+         * claim, so `voiceRowFor` and `trialVoiceActorOf` took the lowest id - the dead one, listed - and the primary
+         * blocked the player while `trialParticipants` handed them a ballot through the living one; the tile said "Your
+         * character is dead". Read without a world, on stand-in actors as R1034's. Red at 95bf1ffc: the living account
+         * read the dead one and `micHold` held it as "deadMuted".
+         */
+        const voice = await import("./voice.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        const CH = 3;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const dead = stand("aaDeadDDDDDDDDDD", { [FLAGS.deceased]: { chapter: 1, epoch: 4 } });
+        const alive = stand("zzAliveAAAAAAAAA");
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const facts = list => ({ clock: { phase: "classTrial", chapter: CH }, floor: { active: true, mode: "debate" },
+            record: { chapter: CH, mutedDead: list, vote: { open: false } }, epoch: 4 });
+        const voiceOf = list => voice.trialVoiceActorOf(user, [dead, alive], list)?.id ?? null;
+        const hold = list => {
+            const out = voice.micHold({ user, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [dead, alive], trial: facts(list) });
+            return out ? [out.reason, out.held] : null;
+        };
+        equal(stableJson({
+            voice: [voiceOf([dead.id]), voiceOf([dead.id, alive.id]), voiceOf([]), voice.trialVoiceActorOf({ ...user, isGM: true }, [dead, alive], [dead.id]) ?? null],
+            hold: [hold([dead.id]), hold([dead.id, alive.id]), hold([])]
+        }), stableJson({
+            voice: [alive.id, dead.id, dead.id, null],
+            hold: [null, ["deadMuted", true], null]
+        }), "an account's voice character in the trial is not its living one (voice: one listed, both listed, none listed, a GM; micHold the same three)");
+    }],
+    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): vote.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
+        /*
+         * E70 fix p1-G2, 28.10.2026. A GM that is not the primary asks the primary for its write of the record ("trial.record",
+         * vote.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
+         * the receipts are the primary's own steps' (the settle, `keepReceipt`), and the chapter the step's: a patch that
+         * named them would write over them. Read without a world. Red at 5ee86113: no `recordPatchOf`.
+         */
+        const V = await import("./vote.mjs");
+        ok(typeof V.recordPatchOf === "function", "vote.mjs has no recordPatchOf - another GM's patch is not held to anything");
+        if (typeof V.recordPatchOf !== "function") return;
+        equal(stableJson({
+            kept: V.recordPatchOf({ topic: "Q", seconds: 300, verdict: { stage: "done" }, lastVerdictAt: 5, mutedDead: ["x"], objections: { m: {} }, chapter: 9, sneaky: 1 }),
+            none: [V.recordPatchOf({ mutedDead: [] }), V.recordPatchOf(() => ({ topic: "Q" })), V.recordPatchOf(["topic"]), V.recordPatchOf(null)],
+            fields: ["topic", "seconds", "verdict", "verdictApplied", "lastVerdictAt", "executedAt", "trialSize"].every(f => V.RECORD_FIELDS.includes(f)),
+            kept2: ["chapter", "mutedDead", "objections"].some(f => V.RECORD_FIELDS.includes(f))
+        }), stableJson({
+            kept: { topic: "Q", seconds: 300, verdict: { stage: "done" }, lastVerdictAt: 5 },
+            none: [null, null, null, null], fields: true, kept2: false
+        }), "another GM's record patch is not held to the record's own fields (kept; patches that name none; the fields a patch may write; the primary's own)");
+    }],
+    ["R1040 - who may speak where no tile says it, and a second trial's own case (E70 fix p1-G3; the review's E70P1-R08 = E70P1-R05, E70P1-R14 = E70P1-R11): voice.mjs `trialVoiceLine` gives a listed student \"deadMuted\" and a Monocub its line whatever the connection, and nobody else and no GM; monocub.mjs `ownCaseOpen` reads the verdict a death names (`sinceVerdict`), so a Monocub killed after the chapter's first verdict listens through the second trial and not after its verdict", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026. `micHold` answered the connection first, so a player with no LiveKit, or with the
+         * tile off, was never told that the trial holds their microphone or that their Monocub listens; the HUD asks
+         * `trialVoiceLine` where no tile is drawn. And `ownCaseOpen` read the chapter's `lastVerdictAt` alone: a second
+         * murder after the chapter's first verdict (D17) read as closed. Read without a world, on stand-in actors as
+         * R1034. Red at d1f01644: no `trialVoiceLine`, and the second trial's Monocub read "cubSpeak".
+         */
+        const voice = await import("./voice.mjs");
+        const { ownCaseOpen } = await import("./monocub.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof voice.trialVoiceLine === "function", "voice.mjs has no trialVoiceLine - nothing says who may speak without the tile");
+        if (typeof voice.trialVoiceLine !== "function") return;
+        const CH = 3, EPOCH = 4;
+        const stand = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: () => true });
+        const dead = stand("deadDDDDDDDDDDDD", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH } });
+        const cub = stand("cubCCCCCCCCCCCCC", { [FLAGS.deceased]: { chapter: 1, epoch: EPOCH }, [FLAGS.monocub]: true });
+        const second = stand("secondSSSSSSSSSS", { [FLAGS.deceased]: { chapter: CH, epoch: EPOCH, sinceVerdict: 1000 }, [FLAGS.monocub]: true });
+        const alive = stand("aliveAAAAAAAAAAA");
+        const user = { id: "userPPPPPPPPPPPP", name: "P", isGM: false, active: true };
+        const facts = (floor, more = {}) => ({ clock: { phase: "classTrial", chapter: CH }, floor, epoch: EPOCH,
+            record: { chapter: CH, mutedDead: [dead.id], vote: { open: false }, lastVerdictAt: 1000, ...more } });
+        const line = (actor, f, u = user) => { const out = voice.trialVoiceLine({ user: u, actors: [actor], trial: f }); return out ? out.reason : null; };
+        const debate = { active: true, mode: "debate" };
+        equal(stableJson({
+            lines: [line(dead, facts(null)), line(cub, facts(null)), line(cub, facts(debate)), line(alive, facts(null)), line(dead, facts(null), { ...user, isGM: true }),
+                line(dead, { ...facts(null), clock: { phase: "dailyLife", chapter: CH } })],
+            own: [ownCaseOpen(second, { clock: { phase: "classTrial", chapter: CH }, record: { chapter: CH, lastVerdictAt: 1000 }, epoch: EPOCH }),
+                ownCaseOpen(second, { clock: { phase: "classTrial", chapter: CH }, record: { chapter: CH, lastVerdictAt: 2000 }, epoch: EPOCH }),
+                line(second, facts(null))]
+        }), stableJson({
+            lines: ["deadMuted", "cubSpeak", "cubListen", null, null, null],
+            own: [true, false, "ownCase"]
+        }), "who may speak without the tile, or a second trial's own case, is not the owner's rule (lines: a listed dead, a Monocub in the discussion and in a debate, the living, a GM, outside the trial; own: the case open before its verdict, closed after, the line)");
+    }],
+    ["R1042 - Testimony and Panic Round on the floor's one engine (E70 C7, S18-72; TR6, TR14, TR26): floor-machine.mjs `nextFloor`'s round rows - the order frozen at the start, a speaker with no owner connected passing at once, Done and Pass by the speaker of this step alone, a step over only when due (a second's grace) and seven of them moving once, the clock and Skip, an Objection at the speaker whose exchange resumes the queue on both roads that end it, an Overrule giving the speaker the turn's rest - and the start's guards (30-120 s, Panic 10-15 s, 10 offered from 12)", async () => {
+        /*
+         * E70 C7, 28.10.2026; E70-40 to E70-46. A round is a mode of the floor like the debate (`MODES.testimony`,
+         * `MODES.panic`), so every road that moves it - the heartbeat, the GM's bar, a participant's "trial.turn", the API -
+         * asks these rows in the primary's step. Read without a world at a fixed `now`, on floors frozen to the bottom:
+         * (1) the start: the order as given, its first speaker with a connected owner, the absent told as passing, the
+         * turn's length held to its mode's range (TR26: the start alone - +30 s may pass it), nobody to speak, and a start
+         * in an exchange refused; (2) Done and Pass: the speaker's alone, this step's alone, the next speaker's full turn,
+         * the last one's ending the round with its card; (3) a step over: refused two seconds early, taken at one, and seven
+         * of them on one step move it once (the first; the rest find the next step); (4) the clock run out and Skip move
+         * on; a speaker gone passes; (5) an Objection at the speaker keeps the round under the exchange, and a rebuttal
+         * run out or skipped resumes the queue at the next speaker, an Overrule and a lapse give the speaker the seconds
+         * left at the Objection, End this mode in the exchange resumes it and on the round ends it; (6) the mode's row:
+         * in Testimony only the speaker speaks, presents and is aimed at, in Panic nobody objects; (7) trial-modes.mjs's
+         * guards and the offer. Red at 182cdd57: no round rows (no trial-modes.mjs).
+         */
+        let M = null, F = null, T = null;
+        try {
+            M = await import("./floor-machine.mjs");
+            F = await import("./trial-floor.mjs");
+            T = await import("./trial-modes.mjs");
+        } catch {
+            T = null;
+        }
+        ok(Boolean(T) && M?.MODES?.testimony === "testimony" && M?.MODES?.panic === "panic",
+            "no Testimony or Panic Round on the floor's engine (floor-machine.mjs MODES, trial-modes.mjs)");
+        if (!T || M?.MODES?.testimony !== "testimony") return;
+        const NOW = 20_000_000, A = "speakerAAAAAAAAA", B = "speakerBBBBBBBBB", C = "speakerCCCCCCCCC", D = "objectorDDDDDDDD", CARD = "cardRRRRRRRRRRRR";
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const round = (left, { holder = A, index = 0, step = 1, mode = "testimony", seconds = 60 } = {}) => ({
+            active: true, mode, holderId: holder, targetId: null, seconds, startedAt: NOW - (seconds - left) * 1000, pending: false,
+            messageId: null, before: [], gmNote: null, topic: null, round: { mode, order: [A, B, C], index, step, seconds } });
+        const exchange = (mode, left, extra = {}) => ({ ...round(40), mode, holderId: D, targetId: A, seconds: 60,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000,
+            before: [{ messageId: CARD, before: { mode: "testimony", holderId: A, targetId: null, seconds: 60 }, leftAtObjection: 40 }], ...extra });
+        const go = (floor, event, ctx = {}) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW, ...ctx });
+        const shape = r => r.refused ? { refused: r.refused }
+            : { mode: r.floor?.mode ?? null, holder: r.floor?.holderId ?? null, left: r.floor ? M.leftAt(r.floor, NOW) : null,
+                step: r.floor?.round?.step ?? null, stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+                cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? c.mode ?? null]) };
+        const start = (mode, seconds, absent = [], floor = null) => shape(go(floor, { type: "round", mode, seconds, order: [A, B, C] }, { absent }));
+        // Seven browsers' step overs of one due step, each handed the floor the ones before it left.
+        let floor = round(0), moved = 0;
+        for (let i = 0; i < 7; i++) {
+            const r = go(floor, { type: "over", step: 1 });
+            if (!r.refused) { moved++; floor = r.floor; }
+        }
+        const live = round(40);
+        const read = {
+            start: start("testimony", 60), absent: start("testimony", 60, [A]), long: start("testimony", 121), short: start("testimony", 29),
+            panic: start("panic", 10), panicLong: start("panic", 16), nobody: shape(go(null, { type: "round", mode: "testimony", seconds: 60, order: [A] }, { absent: [A] })),
+            busy: start("testimony", 60, [], exchange("objection", 30)),
+            done: shape(go(live, { type: "done", actorId: A, step: 1 })), doneOther: shape(go(live, { type: "done", actorId: B, step: 1 })),
+            doneStale: shape(go(live, { type: "done", actorId: A, step: 0 })), doneInExchange: shape(go(exchange("objection", 30), { type: "done", actorId: D, step: 1 })),
+            pass: shape(go(live, { type: "pass", actorId: A, step: 1 }, { absent: [B] })),
+            last: shape(go(round(10, { holder: C, index: 2, step: 3 }), { type: "done", actorId: C, step: 3 })),
+            overEarly: shape(go(round(2), { type: "over", step: 1 })), overGrace: shape(go(round(1), { type: "over", step: 1 })),
+            seven: [moved, floor?.holderId ?? null, floor?.round?.step ?? null],
+            due: shape(go(round(0), { type: "due" })), skip: shape(go(live, { type: "skip" })),
+            gone: shape(go(live, { type: "gone", actorId: A })), goneOther: shape(go(live, { type: "gone", actorId: B })),
+            objection: shape(go(live, { type: "objection", holderId: D, targetId: A, cardId: CARD })),
+            rebuttalDue: shape(go(exchange("rebuttal", 0), { type: "due" })), rebuttalSkip: shape(go(exchange("rebuttal", 60), { type: "skip" })),
+            overrule: shape(go(exchange("rebuttal", 60), { type: "overrule" })),
+            lapse: shape(go(exchange("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            endExchange: shape(go(exchange("objection", 30), { type: "endMode" })), endRound: shape(go(live, { type: "endMode" })),
+            back: shape(go(live, { type: "back" })),
+            rows: [F.modeAllows(live, "object"), F.modeAllows(live, "target", A), F.modeAllows(live, "target", D), F.modeAllows(live, "speak", A),
+                F.modeAllows(live, "speak", D), F.modeAllows(live, "present", A), F.modeAllows(live, "present", D), F.modeAllows(round(10, { mode: "panic", seconds: 15 }), "object"),
+                F.modeAllows(live, "adjust")],
+            offers: [T.testimonyOffer(), T.panicSuggest(11), T.panicSuggest(12)],
+            guards: [T.testimonyRefusal(121)?.includes("120") === true, T.testimonyRefusal(120), T.testimonyRefusal(30), typeof T.testimonyRefusal(29) === "string",
+                typeof T.panicRefusal(16) === "string", T.panicRefusal(10)]
+        };
+        const step2 = (holder, cards = [], left = 60) => ({ mode: "testimony", holder, left, step: 2, stack: [], cards });
+        const passes = id => ["DRPG.Floor.round.passes", id];
+        equal(stableJson(read), stableJson({
+            start: { mode: "testimony", holder: A, left: 60, step: 1, stack: [], cards: [] },
+            absent: { mode: "testimony", holder: B, left: 60, step: 1, stack: [], cards: [passes(A)] },
+            long: { refused: "DRPG.Floor.round.tooLong" }, short: { refused: "DRPG.Floor.round.tooShort" },
+            panic: { mode: "panic", holder: A, left: 10, step: 1, stack: [], cards: [] }, panicLong: { refused: "DRPG.Floor.round.tooLong" },
+            nobody: { refused: "DRPG.Floor.round.nobody" }, busy: { refused: "DRPG.Floor.round.busy" },
+            done: step2(B), doneOther: { refused: "DRPG.Floor.round.notSpeaker" }, doneStale: { refused: "DRPG.Floor.round.stale" },
+            doneInExchange: { refused: "DRPG.Floor.round.noTurn" },
+            pass: { mode: "testimony", holder: C, left: 60, step: 2, stack: [], cards: [passes(A), passes(B)] },
+            last: { mode: null, holder: null, left: null, step: null, stack: [], cards: [["DRPG.Floor.round.over", "testimony"]] },
+            overEarly: { refused: "DRPG.Floor.round.notDue" }, overGrace: step2(B),
+            seven: [1, B, 2],
+            due: step2(B), skip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
+            gone: step2(B, [passes(A)]), goneOther: { refused: "DRPG.Floor.round.notSpeaker" },
+            objection: { mode: "objection", holder: D, left: 60, step: 1, stack: [[CARD, "testimony", 40]], cards: [] },
+            rebuttalDue: step2(B), rebuttalSkip: step2(B, [["DRPG.Floor.turnSkipped", A]]),
+            overrule: step2(A, [], 40), lapse: step2(A, [], 40),
+            endExchange: step2(B, [["DRPG.Floor.modeEnded", "objection"]]),
+            endRound: { mode: null, holder: null, left: null, step: null, stack: [], cards: [["DRPG.Floor.modeEnded", "testimony"]] },
+            back: { refused: "DRPG.Floor.bar.inRound" },
+            rows: [true, true, false, true, false, true, false, false, true],
+            offers: [60, 15, 10],
+            guards: [true, null, null, true, true, null]
+        }), "a round's row is not the owner's rule (start, Done, Pass, a step over, the clock, Skip, a speaker gone, the exchange and its resume, the mode's row, the guards and the offer)");
+    }],
+    ["R1043 - the Closing Argument on the floor's one engine (E70 C8, S18-73, S18-74; TR7, TR23, TR24, TR29, TR34, DA18, amend 7): floor-machine.mjs `nextFloor`'s Closing rows - one per trial, the volunteers' window and its draw, the GM's Confirm or pick of anyone, an Objection at the speaker at any second and at nobody else, the speaker's clock standing in the exchange, the GM's decision (the speaker with the rest or an objector of the chain with 300 s), Pass in and after the speaker's first 30 s, Skip, End this mode, Overrule, Resume, and the record kept", async () => {
+        /*
+         * E70 C8, 28.10.2026; E70-50 to E70-57. The Closing is a mode of the floor like the debate and the rounds
+         * (`MODES.closing`, its phase in `closing`), so every road that moves it - the heartbeat, the GM's console and bar,
+         * the speaker's "trial.turn", the API on any GM - asks these rows in the primary's step. Read without a world at a
+         * fixed `now` on floors frozen to the bottom: (1) the start, on no floor or a debate, refused once this trial has had
+         * its Closing (a second trial's record has none: allowed) and during an exchange; (2) the volunteers' window: the
+         * count alone on the floor, its clock run out or Skip turning into the choice the caller's draw gives ("confirm" or
+         * "none"), nothing skipped in the choice; (3) Confirm of the drawn (not one who left), a pick of anyone of the trial
+         * - outside the volunteers, one who already spoke - and of nobody else; (4) an Objection at second 5 of 300, its
+         * stack entry and the record's seconds; the mode's row (the speaker alone speaks, presents and is aimed at, nobody
+         * objects without a speaker, no clock to move in the choice); (5) the exchange over - its rebuttal run out or
+         * skipped, a cut-in's chain - is the GM's decision with the speaker's 200 s as they stood; the speaker continues
+         * with them, an objector of the chain with a new 300 s and the Objection's card, anyone else refused; an Overrule,
+         * a lapse, a withdrawal and Back give the speaker the 200 s; End this mode in the exchange ends the Closing; (6) Pass
+         * inside the window resigns (the choice again), after it and for one who continues is Done; Done, the time, Skip, a
+         * speaker gone, End this mode; -30 s to zero refused; (7) Resume, and the record's fold; (8) the config and the
+         * console's refusal. Red at 2f1e8772: no Closing on the floor's engine.
+         */
+        let M = null, F = null, T = null, C = null;
+        try {
+            M = await import("./floor-machine.mjs");
+            F = await import("./trial-floor.mjs");
+            T = await import("./trial-modes.mjs");
+            C = await import("./config.mjs");
+        } catch {
+            T = null;
+        }
+        ok(M?.MODES?.closing === "closing" && typeof M?.closingRecordAfter === "function" && typeof T?.closingRefusal === "function",
+            "no Closing Argument on the floor's engine (floor-machine.mjs MODES.closing, closingRecordAfter; trial-modes.mjs closingRefusal)");
+        if (M?.MODES?.closing !== "closing" || typeof M?.closingRecordAfter !== "function" || typeof T?.closingRefusal !== "function") return;
+        const NOW = 30_000_000, A = "speakerAAAAAAAAA", B = "drawnBBBBBBBBBBB", Cc = "otherCCCCCCCCCCC", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
+        const CARD = "cardRRRRRRRRRRRR", CARD2 = "cardSSSSSSSSSSSS", P = [A, B, Cc, D, E];
+        const freeze = v => { if (v && typeof v === "object") { Object.values(v).forEach(freeze); Object.freeze(v); } return v; };
+        const base = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null };
+        const volunteer = (left, count = 0) => ({ ...base, mode: "closing", holderId: null, seconds: 30, startedAt: NOW - (30 - left) * 1000,
+            closing: { phase: "volunteer", step: 1, openedAt: NOW - 30_000, count } });
+        const choice = pick => ({ ...base, mode: "closing", holderId: null, seconds: 0, startedAt: NOW - 5000,
+            closing: { phase: "choice", step: 2, openedAt: NOW - 60_000, count: 2, choice: pick } });
+        const speaking = (left, { holder = A, via = "chosen", resign = null } = {}) => ({ ...base, mode: "closing", holderId: holder, seconds: 300,
+            startedAt: NOW - (300 - left) * 1000, closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 2, choice: null,
+                speakerId: holder, via, resignUntil: resign, chain: [] } });
+        const exch = (mode, left, extra = {}) => ({ ...speaking(200), mode, holderId: D, targetId: A,
+            startedAt: NOW - ((mode === "rebuttal" ? 120 : extra.pending ? 30 : 60) - left) * 1000,
+            before: [{ messageId: CARD, before: { mode: "closing", holderId: A, targetId: null, seconds: 300 }, leftAtObjection: 200 }],
+            closing: { ...speaking(200).closing, chain: [D] }, ...extra });
+        const decide = { ...base, mode: "closing", holderId: null, seconds: 0, startedAt: NOW - 1000,
+            closing: { phase: "decide", step: 4, openedAt: NOW - 90_000, count: 2, speakerId: A, left: 200, chain: [D, E], messageId: CARD } };
+        const debate = { ...base, mode: "debate", holderId: null, seconds: 600, startedAt: NOW - 10_000, topic: "R1043 the question" };
+        const go = (floor, event, ctx = {}) => M.nextFloor(floor ? freeze(JSON.parse(JSON.stringify(floor))) : null, event, { now: NOW, ...ctx });
+        const timed = f => f && (f.mode !== "closing" || ["volunteer", "speak"].includes(f.closing?.phase));
+        const shape = r => r.refused ? { refused: r.refused } : {
+            mode: r.floor?.mode ?? null, holder: r.floor?.holderId ?? null, phase: r.floor?.closing?.phase ?? null,
+            choice: r.floor?.closing?.choice ?? null, left: timed(r.floor) ? M.leftAt(r.floor, NOW) : null, kept: r.floor?.closing?.left ?? null,
+            via: r.floor?.closing?.via ?? null, chain: r.floor?.closing?.chain ?? null, count: r.floor?.closing?.count ?? null,
+            stack: (r.floor?.before ?? []).map(e => [e.messageId, e.before?.mode, e.leftAtObjection]),
+            cards: (r.cards ?? []).map(c => [c.key, c.actorId ?? null]), record: r.record ?? null };
+        // A cut-in's chain: Eiji objects in Daichi's rebuttal; the Objection's minute and its rebuttal run out.
+        const cut = go(exch("rebuttal", 60), { type: "objection", holderId: E, targetId: D, cardId: CARD2 });
+        const cutRebuttal = M.nextFloor(cut.floor, { type: "due" }, { now: NOW + 60_000 });
+        const cutDecide = cutRebuttal.floor ? M.nextFloor(cutRebuttal.floor, { type: "due" }, { now: NOW + 180_000 }) : { refused: "none" };
+        const r0 = M.closingRecordAfter(null, { start: true });
+        const r1 = M.closingRecordAfter(r0, { push: { actorId: A, via: "chosen", messageId: null } });
+        const r2 = M.closingRecordAfter(r1, { leftAtEnd: 200 });
+        const r3 = M.closingRecordAfter(r2, { push: { actorId: D, via: "objection", messageId: CARD } });
+        const r4 = M.closingRecordAfter(r3, { leftAtEnd: 10, done: true });
+        const row = C.TRIAL?.modes?.closing ?? {};
+        const read = {
+            start: shape(go(null, { type: "closing" })), onDebate: stableJson(shape(go(debate, { type: "closing" }))) === stableJson(shape(go(null, { type: "closing" }))),
+            again: shape(go(null, { type: "closing" }, { closingDone: true })), busy: shape(go(exch("objection", 30), { type: "closing" })),
+            onClosing: shape(go(speaking(100), { type: "closing" })),
+            claim: shape(go(volunteer(20), { type: "claim", count: 2 })), claimLate: shape(go(choice("confirm"), { type: "claim", count: 3 })),
+            drawDue: shape(go(volunteer(0, 2), { type: "due" }, { drawn: B })), drawNone: shape(go(volunteer(0, 0), { type: "due" }, { drawn: null })),
+            drawSkip: shape(go(volunteer(20, 2), { type: "skip" }, { drawn: B })), choiceSkip: shape(go(choice("confirm"), { type: "skip" })),
+            confirm: shape(go(choice("confirm"), { type: "confirm" }, { drawn: B, participants: P })),
+            confirmNone: shape(go(choice("none"), { type: "confirm" }, { drawn: null, participants: P })),
+            confirmGone: shape(go(choice("confirm"), { type: "confirm" }, { drawn: B, absent: [B], participants: P })),
+            pickOther: shape(go(choice("confirm"), { type: "pick", actorId: Cc }, { drawn: B, participants: P })),
+            pickSpoke: shape(go(choice("none"), { type: "pick", actorId: A }, { participants: P })),
+            pickStranger: shape(go(choice("none"), { type: "pick", actorId: "strangerXXXXXXXX" }, { participants: P })),
+            pickEarly: shape(go(volunteer(20), { type: "pick", actorId: Cc }, { participants: P })),
+            objectAt5: shape(go(speaking(295), { type: "objection", holderId: D, targetId: A, cardId: CARD })),
+            rows: [F.modeAllows(speaking(100), "object"), F.modeAllows(speaking(100), "target", A), F.modeAllows(speaking(100), "target", D),
+                F.modeAllows(speaking(100), "speak", A), F.modeAllows(speaking(100), "speak", D), F.modeAllows(speaking(100), "present", A),
+                F.modeAllows(speaking(100), "present", D), F.modeAllows(choice("none"), "object"), F.modeAllows(choice("none"), "adjust"),
+                F.modeAllows(volunteer(20), "adjust"), F.modeAllows(volunteer(20), "object"), F.modeAllows(decide, "object")],
+            decideDue: shape(go(exch("rebuttal", 0), { type: "due" })), decideSkip: shape(go(exch("rebuttal", 60), { type: "skip" })),
+            cut: shape(cut), cutDecide: shape(cutDecide),
+            continueSpeaker: shape(go(decide, { type: "continue", actorId: A })), continueObjector: shape(go(decide, { type: "continue", actorId: E })),
+            continueOther: shape(go(decide, { type: "continue", actorId: Cc })), continueGone: shape(go(decide, { type: "continue", actorId: D }, { absent: [D] })),
+            overrule: shape(go(exch("rebuttal", 60), { type: "overrule" })),
+            lapse: shape(go(exch("objection", 0, { pending: true, messageId: CARD }), { type: "due" })),
+            withdraw: shape(go(exch("objection", 20, { pending: true, messageId: CARD }), { type: "withdraw" })),
+            backExchange: shape(go(exch("rebuttal", 60), { type: "back" })), back: shape(go(speaking(100), { type: "back" })),
+            endExchange: shape(go(exch("objection", 30), { type: "endMode" })),
+            passEarly: shape(go(speaking(290, { resign: NOW + 20_000 }), { type: "pass", actorId: A, step: 3 })),
+            passLate: shape(go(speaking(260, { resign: NOW - 10_000 }), { type: "pass", actorId: A, step: 3 })),
+            passContinued: shape(go(speaking(150, { via: "speaker" }), { type: "pass", actorId: A, step: 3 })),
+            done: shape(go(speaking(100), { type: "done", actorId: A, step: 3 })), doneOther: shape(go(speaking(100), { type: "done", actorId: B, step: 3 })),
+            doneStale: shape(go(speaking(100), { type: "done", actorId: A, step: 2 })), timeUp: shape(go(speaking(0), { type: "due" })),
+            overEarly: shape(go(speaking(2), { type: "over", step: 3 })), skipSpeaker: shape(go(speaking(100), { type: "skip" })),
+            gone: shape(go(speaking(100), { type: "gone", actorId: A })), endSpeaking: shape(go(speaking(100), { type: "endMode" })),
+            endChoice: shape(go(choice("none"), { type: "endMode" })),
+            minusToZero: shape(go(speaking(20), { type: "adjust", seconds: -30 })), plus: shape(go(speaking(20), { type: "adjust", seconds: 30 })),
+            adjustChoice: shape(go(choice("none"), { type: "adjust", seconds: 30 })),
+            resume: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 100 } })),
+            resumeNone: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 0 } })),
+            resumeVote: shape(go(null, { type: "resume" }, { lastSpeaker: { actorId: A, leftAtEnd: 100 }, voteOpened: true })),
+            record: [r0, r4],
+            config: [row.volunteerSeconds, row.seconds, row.perTrial, row.passWindowSeconds, row.gmDecides, row.objection],
+            refusal: [typeof T.closingRefusal({ closing: { done: true, speakers: [] } }, null) === "string", T.closingRefusal({ closing: null }, null),
+                T.closingRefusal({ closing: null }, debate), typeof T.closingRefusal({ closing: null }, speaking(100)) === "string"]
+        };
+        const none = { mode: null, holder: null, phase: null, choice: null, left: null, kept: null, via: null, chain: null, count: null, stack: [] };
+        const over = (leftAtEnd = null) => ({ ...none, cards: [["DRPG.Floor.closing.over", null]], record: leftAtEnd === null ? { done: true } : { leftAtEnd, done: true } });
+        const choiceOf = (pick, cards = [], record = null, via = "chosen") => ({ mode: "closing", holder: null, phase: "choice", choice: pick, left: null, kept: null,
+            via, chain: [], count: 2, stack: [], cards, record });
+        const speech = (holder, left, via, cards, record, count = 2) => ({ mode: "closing", holder, phase: "speak", choice: null, left, kept: null, via,
+            chain: [], count, stack: [], cards, record });
+        const decided = (cards, chain = [D]) => ({ mode: "closing", holder: null, phase: "decide", choice: null, left: null, kept: 200, via: "chosen",
+            chain, count: 2, stack: [], cards, record: null });
+        const again = (left = 200) => ({ mode: "closing", holder: A, phase: "speak", choice: null, left, kept: null, via: "chosen", chain: [], count: 2,
+            stack: [], cards: [], record: null });
+        equal(stableJson(read), stableJson({
+            start: { mode: "closing", holder: null, phase: "volunteer", choice: null, left: 30, kept: null, via: null, chain: null, count: 0, stack: [],
+                cards: [["DRPG.Floor.closing.opened", null]], record: { start: true } },
+            onDebate: true, again: { refused: "DRPG.Floor.closing.already" }, busy: { refused: "DRPG.Floor.closing.busy" },
+            onClosing: { refused: "DRPG.Floor.closing.busy" },
+            claim: { mode: "closing", holder: null, phase: "volunteer", choice: null, left: 20, kept: null, via: null, chain: null, count: 2, stack: [], cards: [], record: null },
+            claimLate: { refused: "DRPG.Floor.closing.notVolunteering" },
+            drawDue: { ...choiceOf("confirm"), via: null, chain: null }, drawNone: { ...choiceOf("none"), via: null, chain: null, count: 0 },
+            drawSkip: { ...choiceOf("confirm"), via: null, chain: null }, choiceSkip: { refused: "DRPG.Floor.closing.waitsForGm" },
+            confirm: speech(B, 300, "chosen", [["DRPG.Floor.closing.speaks", B]], { push: { actorId: B, via: "chosen", messageId: null } }),
+            confirmNone: { refused: "DRPG.Floor.closing.noDrawn" }, confirmGone: { refused: "DRPG.Floor.closing.absent" },
+            pickOther: speech(Cc, 300, "chosen", [["DRPG.Floor.closing.speaks", Cc]], { push: { actorId: Cc, via: "chosen", messageId: null } }),
+            pickSpoke: speech(A, 300, "chosen", [["DRPG.Floor.closing.speaks", A]], { push: { actorId: A, via: "chosen", messageId: null } }),
+            pickStranger: { refused: "DRPG.Floor.closing.notParticipant" }, pickEarly: { refused: "DRPG.Floor.closing.noChoice" },
+            objectAt5: { mode: "objection", holder: D, phase: "speak", choice: null, left: 60, kept: null, via: "chosen", chain: [D], count: 2,
+                stack: [[CARD, "closing", 295]], cards: [], record: { leftAtEnd: 295 } },
+            rows: [true, true, false, true, false, true, false, false, false, true, false, false],
+            decideDue: decided([]), decideSkip: decided([["DRPG.Floor.turnSkipped", A]]),
+            cut: { mode: "objection", holder: E, phase: "speak", choice: null, left: 60, kept: null, via: "chosen", chain: [D, E], count: 2,
+                stack: [[CARD, "closing", 200], [CARD2, "rebuttal", 60]], cards: [], record: null },
+            cutDecide: { ...decided([], [D, E]), left: null },
+            continueSpeaker: speech(A, 200, "speaker", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "speaker", messageId: null } }),
+            continueObjector: speech(E, 300, "objection", [["DRPG.Floor.closing.continues", E]], { push: { actorId: E, via: "objection", messageId: CARD } }),
+            continueOther: { refused: "DRPG.Floor.closing.notInExchange" }, continueGone: { refused: "DRPG.Floor.closing.absent" },
+            overrule: again(), lapse: again(), withdraw: again(), backExchange: again(), back: { refused: "DRPG.Floor.bar.inClosing" },
+            endExchange: over(),
+            passEarly: choiceOf("pick", [["DRPG.Floor.round.passes", A]], { leftAtEnd: 290 }),
+            passLate: over(260), passContinued: over(150), done: over(100),
+            doneOther: { refused: "DRPG.Floor.round.notSpeaker" }, doneStale: { refused: "DRPG.Floor.round.stale" }, timeUp: over(0),
+            overEarly: { refused: "DRPG.Floor.round.notDue" },
+            skipSpeaker: choiceOf("pick", [["DRPG.Floor.turnSkipped", A]], { leftAtEnd: 100 }),
+            gone: choiceOf("pick", [["DRPG.Floor.round.passes", A]], { leftAtEnd: 100 }), endSpeaking: over(100), endChoice: over(),
+            minusToZero: { refused: "DRPG.Floor.closing.noTime" }, plus: { ...again(50), via: "chosen" },
+            adjustChoice: { refused: "DRPG.Floor.bar.noAdjust" },
+            resume: speech(A, 100, "resumed", [["DRPG.Floor.closing.continues", A]], { push: { actorId: A, via: "resumed", messageId: null } }, 0),
+            resumeNone: { refused: "DRPG.Floor.closing.nothingToResume" }, resumeVote: { refused: "DRPG.Floor.closing.voteOpen" },
+            record: [{ done: false, speakers: [] }, { done: true, speakers: [{ actorId: A, via: "chosen", messageId: null, leftAtEnd: 200 },
+                { actorId: D, via: "objection", messageId: CARD, leftAtEnd: 10 }] }],
+            config: [30, 300, 1, 30, true, "exchange"],
+            refusal: [true, null, null, true]
+        }), "a Closing row is not the owner's rule (the start, the volunteers and the draw, Confirm and the pick, an Objection at the speaker, the mode's row, the decision, an Overrule and a lapse, Pass in and after its window, Done, the time, Skip, End this mode, the clock, Resume, the record, the config and the refusal)");
+    }],
+
+    ["R1044 - Monokuma's Reveal, its count and its confirmation (E70 C9, S18-71; TR28 = 1, amend 4 (f)): trial-modes.mjs `revealLeft` - the Key Remnants the fee charged for (a critical opening's three) less those revealed, never below 0 - and trial-floor-ui.mjs `confirmReveal`'s window: Cancel first, the default, with autofocus; Reveal `drpg-destructive`, not the default; Enter (the default's answer) reveals nothing; the GM's text asked for a slot with no trace; past the count \"No Despair was charged for this Key Remnant. Reveal it anyway?\"", async () => {
+        /*
+         * E70 C9, 28.10.2026; E70-61, E70-62. The harm: a GM's Enter in the Reveal's window hands every participant a Key
+         * Remnant the table never found - something no button undoes - and a count recomputed at the Reveal would let a
+         * Key found or placed after the fee change what Monokuma may show. `revealLeft` reads the fee's own count
+         * (`paid`, investigation.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through
+         * DialogV2.wait answered as Enter answers it, with the default button's action, then put back. Nothing is
+         * written: the window answers before any reveal is asked. Whether Enter in Foundry's own DialogV2 on v14 presses
+         * the default the window names is LIVE-E70-10. Red at 713fe35b: no `revealLeft`, no `confirmReveal`.
+         */
+        const M = await import("./trial-modes.mjs");
+        const U = await import("./trial-floor-ui.mjs");
+        const read = { fns: [typeof M.revealLeft, typeof U.confirmReveal] };
+        if (typeof M.revealLeft === "function") {
+            read.left = [M.revealLeft({ paid: 3, revealed: [] }), M.revealLeft({ paid: 3, revealed: ["0", "2"] }),
+                M.revealLeft({ paid: 3, revealed: ["0", "1", "2"] }), M.revealLeft({ paid: 3, revealed: ["0", "1", "2", "4"] }),
+                M.revealLeft({}), M.revealLeft(null)];
+        }
+        if (typeof U.confirmReveal === "function") {
+            const api = foundry.applications.api.DialogV2;
+            const realWait = api.wait;
+            const seen = [];
+            api.wait = async config => {
+                seen.push(config);
+                return (config.buttons ?? []).find(button => button.default)?.action ?? null;
+            };
+            try {
+                read.enter = [
+                    await U.confirmReveal({ id: "0", name: "R1044 Key", text: "R1044 the words", hasTrace: true }, { left: 2 }),
+                    await U.confirmReveal({ id: "1", name: "R1044 Key", text: "", hasTrace: false }, { left: 0 })
+                ];
+            } finally {
+                api.wait = realWait;
+            }
+            const beyond = game.i18n.localize("DRPG.Reveal.beyondPaid");
+            read.windows = seen.map(config => {
+                // `dialogContent` answers markup or an element, as the window takes either.
+                const html = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? String(config.content ?? ""));
+                return {
+                    buttons: (config.buttons ?? []).map(b => [b.action, Boolean(b.default), Boolean(b.autofocus), /\bdrpg-destructive\b/.test(String(b.class ?? ""))]),
+                    beyond: html.includes(beyond), textBox: /<textarea[^>]*name="text"/.test(html)
+                };
+            });
+        }
+        equal(stableJson(read), stableJson({
+            fns: ["function", "function"],
+            left: [3, 1, 0, 0, 0, 0],
+            enter: [null, null],
+            windows: [
+                { buttons: [["cancel", true, true, false], ["reveal", false, false, true]], beyond: false, textBox: false },
+                { buttons: [["cancel", true, true, false], ["reveal", false, false, true]], beyond: true, textBox: true }
+            ]
+        }), "the Reveal's count or its window is not the owner's rule [the two functions; what is left to reveal of three paid, as rows are revealed, past them, and of nothing; Enter's answer in a window within the count and past it; each window's buttons as [action, default, autofocus, destructive], the beyond-the-fee question, the GM's text box]");
+
+    }],
+
+    ["R1045 - Present by the mode's row, with or without the Analyze result (E70 C10, S18-79; TR2 = 1, B2, Q-p2-3): trial-floor.mjs `presentRefusal` - in a debate, an Objection and a Rebuttal everybody presents, in Testimony and the Closing only the speaker (\"Only {name} can present right now.\"), in Panic Round only the speaker and nobody objects, in the Closing with nobody speaking nobody - and trial.mjs `analysisOffered` and `unreadView`: the choice offered only for a bullet that shows something an Analyze gave, and without it the card's bullet as never analysed (no reading, no identified type, no Faint)", async () => {
+        /*
+         * E70 C10, 28.10.2026; E70-70, E70-71. The harm: during somebody's turn in Testimony every other player could still
+         * put evidence on every screen (the sheet's Present asked only for a Class Trial), and a player who wanted to show a
+         * Truth Bullet without the reading their Analyze bought had to show it all. Pure functions on hand-made floors and
+         * views; nothing is written, no world is read (the names are handed in). Red at cbce376f: no `presentRefusal`, no
+         * `analysisOffered`, no `unreadView`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const T = await import("./trial.mjs");
+        const read = { fns: [typeof F.presentRefusal, typeof T.analysisOffered, typeof T.unreadView] };
+        const names = { A: "R1045 Aoi", B: "R1045 Bo" };
+        const nameOf = id => names[id] ?? null;
+        if (typeof F.presentRefusal === "function") {
+            const floors = {
+                none: null,
+                debate: { active: true, mode: "debate", holderId: null },
+                objection: { active: true, mode: "objection", holderId: "A", targetId: "B" },
+                rebuttal: { active: true, mode: "rebuttal", holderId: "A", targetId: "B" },
+                testimony: { active: true, mode: "testimony", holderId: "A" },
+                panic: { active: true, mode: "panic", holderId: "A" },
+                closing: { active: true, mode: "closing", holderId: "A" },
+                volunteers: { active: true, mode: "closing", holderId: null }
+            };
+            read.matrix = Object.fromEntries(Object.entries(floors).map(([k, floor]) =>
+                [k, ["A", "B"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
+        }
+        const only = game.i18n.format("DRPG.Trial.presentOnly", { name: names.A });
+        const panic = `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize("DRPG.Floor.mode.panic") })}`;
+        const nobody = game.i18n.localize("DRPG.Trial.presentNobody");
+        const view = (over = {}) => ({ name: "R1045 bullet", shownType: "neutral", shownLabel: "Neutral", faint: false, identified: false,
+            visibilityLabel: "Obvious", chapter: 1, room: null, playerText: "R1045 the words", analyzedText: "", analyzed: false, ...over });
+        const analysed = view({ shownType: "incident", shownLabel: "Incident", faint: true, identified: true, analyzed: true, analyzedText: "R1045 the reading" });
+        const keyRead = view({ shownType: "key", shownLabel: "Key", identified: true, analyzed: true, analyzedText: "R1045 the Key's reading" });
+        const keyUnread = view({ shownType: "key", shownLabel: "Key", identified: true });
+        // A Faint Key never analysed (E70 fix p2-G4; the review's BEH-1): a Key is born identified and its Faint shows from
+        // the find on, so nothing of it is an Analyze's - kept without the result, and no choice offered for it.
+        const keyFaint = view({ shownType: "key", shownLabel: "Key", identified: true, faint: true });
+        if (typeof T.analysisOffered === "function") {
+            read.offered = [view(), keyUnread, analysed, keyRead, view({ analyzed: true, identified: true }), keyFaint].map(v => T.analysisOffered(v));
+        }
+        if (typeof T.unreadView === "function") {
+            const cut = v => { const u = T.unreadView(v); return [u.shownType, u.analyzedText, u.faint, u.identified, u.playerText, u.name]; };
+            read.unread = [cut(analysed), cut(keyRead), cut(view()), cut(keyFaint)];
+            read.untouched = analysed.analyzedText === "R1045 the reading" && analysed.shownType === "incident";
+        }
+        equal(stableJson(read), stableJson({
+            fns: ["function", "function", "function"],
+            matrix: {
+                none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
+                testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
+            },
+            offered: [false, false, true, true, true, false],
+            unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
+                ["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", true, true, "R1045 the words", "R1045 bullet"]],
+            untouched: true
+        }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
+            + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
+    }],
+    ["R1046 - the floor's modes and their music, one row a mode (E70 C13, E70-82): Testimony, Panic Round and the Closing Argument play the trial's discussion, an Objection and its rebuttal the Objection's in every mode, the Closing's exchange too", async () => {
+        /*
+         * E70 C13, 28.10.2026. Part 2 put three modes on the floor with no playlist of their own, and the trial's three
+         * music states each tested one mode by name, so a new mode played whatever state came next and nothing said so.
+         * music.mjs answers from one table over floor-machine.mjs MODES now (`TRIAL_MODE_MUSIC`, `trialMusicState`). Read
+         * here: every mode has its row and the row is the spec's; a floor with no mode in the trial is the discussion,
+         * none outside it; and the Closing's exchange, built by `nextFloor` itself from a speaker objected at, is the
+         * Objection's. Red at 4c58d5a7: music.mjs had neither export - the behaviour was the same for today's six modes
+         * (the three states fell through to the discussion), the table that holds a seventh did not exist.
+         */
+        const Mu = await import("./music.mjs");
+        const M = await import("./floor-machine.mjs");
+        ok(Mu.TRIAL_MODE_MUSIC && typeof Mu.trialMusicState === "function", "music.mjs has no table of the floor's modes (TRIAL_MODE_MUSIC, trialMusicState)");
+        if (!Mu.TRIAL_MODE_MUSIC || typeof Mu.trialMusicState !== "function") return;
+        const want = { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.objection", testimony: "trial.discussion",
+            panic: "trial.discussion", closing: "trial.discussion" };
+        const NOW = 40_000_000, A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD";
+        const speaking = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null,
+            mode: "closing", holderId: A, seconds: 300, startedAt: NOW - 100_000,
+            closing: { phase: "speak", step: 3, openedAt: NOW - 90_000, count: 1, choice: null, speakerId: A, via: "chosen", resignUntil: null, chain: [] } };
+        const exchange = M.nextFloor(speaking, { type: "objection", holderId: D, targetId: A, cardId: "cardR1046AAAAAAA" }, { now: NOW });
+        const keys = new Set(Mu.MUSIC_STATES.map(s => s.key));
+        equal(JSON.stringify({
+            modes: Object.values(M.MODES).map(mode => [mode, Mu.TRIAL_MODE_MUSIC[mode] ?? null, Mu.trialMusicState({ mode }, "classTrial")]),
+            states: Object.values(Mu.TRIAL_MODE_MUSIC).every(key => keys.has(key)),
+            noFloor: [Mu.trialMusicState(null, "classTrial"), Mu.trialMusicState(null, "investigation")],
+            exchange: [exchange?.floor?.mode ?? exchange?.refused ?? null, exchange?.floor?.closing?.phase ?? null, Mu.trialMusicState(exchange?.floor, "classTrial")]
+        }), JSON.stringify({
+            modes: Object.values(M.MODES).map(mode => [mode, want[mode] ?? "no row in the spec", want[mode] ?? "no row in the spec"]),
+            states: true,
+            noFloor: ["trial.discussion", null],
+            exchange: ["objection", "speak", "trial.objection"]
+        }), "the floor's modes and their music are not the spec's [each mode of floor-machine.mjs MODES with its row and the state it plays; every row a "
+            + "music state; no floor in the trial and outside it; the Closing's exchange - its mode, the Closing's phase kept under it, its music]");
+    }],
+
+    ["R1047 - the floor's modes hold each other (E70 fix p2-G3): an Overrule on a round's own turn or the Closing's speaker names the newest receipt and moves no floor, a debate's start never replaces a round or the Closing, the volunteers' window called over from a participant's browser, and the speaker's window ends nothing on Enter", async () => {
+        /*
+         * E70 fix p2-G3, 28.10.2026; the part 2 review's P2R-02, BEH-3 (P2R-06, E70P2-R05), BEH-4 (P2R-07, E70P2-R04)
+         * and E70P2-R12. Read without a world at a fixed `now` on floors the machine itself builds: (1) Overrule on a
+         * Testimony turn and a Panic turn with nothing on the stack - floor-machine.mjs `overruleTarget` answered
+         * `{ during: true, messageId: null }`, and `nextFloor` "overrule" then called `debateAgain`, so the round was wiped
+         * for an open debate of the turn's seconds: now no receipt is "nothing to overrule", a receipt left from an earlier
+         * exchange is named with `during` false (the floor does not move), the machine refuses the row on the turn, and an
+         * exchange inside the round is still `during`; the Closing's speaker the same; (2) `start` - a debate - over a
+         * round, the Closing's volunteers, its speaker and an exchange inside the Closing: refused (it replaced the Closing
+         * without its record's `done`, so a second Closing could start), over a debate still a fresh debate; (3) the
+         * volunteers' window's `over` from a participant's browser: before its 30 s (but for the second's grace) refused,
+         * with another step stale, due with the caller's draw the choice "confirm", with none "none"; (4) the speaker's
+         * window (trial-prompt.mjs `promptTurn`): Done and Pass are not the default, "Keep speaking" is. Red at bd24d768
+         * (measured, the first assertion: the testimony turn's Overrule read during).
+         */
+        let M = null;
+        try { M = await import("./floor-machine.mjs"); } catch { M = null; }
+        ok(typeof M?.overruleTarget === "function" && typeof M?.nextFloor === "function", "floor-machine.mjs exports no overruleTarget or nextFloor");
+        if (typeof M?.overruleTarget !== "function" || typeof M?.nextFloor !== "function") return;
+        const NOW = 40_000_000, TS = 39_000_000, A = "speakerAAAAAAAAA", B = "otherBBBBBBBBBBB", Cc = "otherCCCCCCCCCCC";
+        const at = (floor, event, ctx = {}) => M.nextFloor(floor, event, { now: NOW, ...ctx });
+        const testimony = at(null, { type: "round", mode: "testimony", seconds: 60, order: [A, B, Cc] }).floor;
+        const panic = at(null, { type: "round", mode: "panic", seconds: 15, order: [A, B, Cc] }).floor;
+        const debate = at(null, { type: "start", seconds: 180 }).floor;
+        const volunteer = at(null, { type: "closing" }).floor;
+        must(testimony?.round && panic?.round && debate?.mode === "debate" && volunteer?.closing?.phase === "volunteer",
+            "the machine built no round, debate or Closing to read - this would measure nothing");
+        const choice = M.nextFloor(volunteer, { type: "due" }, { now: NOW + 30_000, drawn: A }).floor;
+        const speak = M.nextFloor(choice, { type: "confirm" }, { now: NOW + 31_000, drawn: A, participants: [A, B, Cc] }).floor;
+        const inRound = at(testimony, { type: "objection", holderId: B, targetId: A, pending: false, cardId: "cardROUNDROUNDRO" }).floor;
+        const inClosing = at(speak, { type: "objection", holderId: B, targetId: A, pending: false, cardId: "cardCLOSECLOSECL" }).floor;
+        must(speak?.closing?.phase === "speak" && inRound?.mode === "objection" && inClosing?.mode === "objection", "the speaker or an exchange was not built - this would measure nothing");
+        const receipts = { cardEARLIEREARLI: { objectorId: B, targetId: A, paid: "hope", trialStartedAt: TS, at: NOW - 60_000, overruled: false } };
+        const target = (floor, objections = {}) => {
+            const r = M.overruleTarget({ floor, objections, trialStartedAt: TS, running: true });
+            return r.refused ?? [r.messageId, r.during];
+        };
+        const refusedOr = r => r?.refused ?? r?.floor?.mode ?? null;
+        const read = {
+            overrule: [target(testimony), target(testimony, receipts), target(panic), target(panic, receipts), target(speak), target(speak, receipts),
+                target(inRound, receipts), refusedOr(at(testimony, { type: "overrule" })), refusedOr(at(panic, { type: "overrule" })), refusedOr(at(speak, { type: "overrule" }))],
+            start: [testimony, panic, volunteer, choice, speak, inClosing, debate].map(floor => refusedOr(at(floor, { type: "start", seconds: 180 }))),
+            volunteerOver: [
+                refusedOr(M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 10_000, drawn: A })),
+                refusedOr(M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step + 1 }, { now: NOW + 30_000, drawn: A })),
+                M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 29_500, drawn: A }).floor?.closing?.choice ?? null,
+                M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 30_000, drawn: null }).floor?.closing?.choice ?? null
+            ]
+        };
+        const sources = await moduleSources();
+        const prompt = fnSource(stripComments(sources.get("trial-prompt.mjs") ?? ""), "promptTurn");
+        must(prompt.length > 400, "trial-prompt.mjs promptTurn is cut short or gone - this would measure nothing");
+        read.window = ["done", "pass", "keep"].map(action => {
+            const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
+            return button === null ? null : /default:\s*true/.test(button);
+        });
+        equal(stableJson(read), stableJson({
+            overrule: ["DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false],
+                "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], ["cardROUNDROUNDRO", true],
+                "DRPG.Floor.bar.noOverrule", "DRPG.Floor.bar.noOverrule", "DRPG.Floor.bar.noOverrule"],
+            start: ["DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "debate"],
+            volunteerOver: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.stale", "confirm", "none"],
+            window: [false, false, true]
+        }), "[overruleTarget on a Testimony turn, with an earlier receipt, a Panic turn, with one, the Closing's speaker, with one, an exchange in the round; the machine's "
+            + "overrule on the Testimony turn, the Panic turn, the speaker], [start over Testimony, Panic, the volunteers, the choice, the speaker, the Closing's exchange, a debate], "
+            + "[the volunteers' over: at 10 s, another step, within the grace, with no draw], [the speaker's window: Done, Pass, Keep speaking the default]");
+    }],
+
+    ["R1048 - the GM's console for part 2's modes (E70 fix p2-G5): the Closing's lines and buttons in each phase - the volunteers by name, the draw with Confirm and Pick someone else, nobody, the decision with the speaker's rest and an objector's new 5:00, Resume with the last speaker's rest - Missing Key Remnants with its count and a Reveal per row, and a round's length in m:ss", async () => {
+        /*
+         * E70 fix p2-G5, 28.10.2026; the part 2 review's E70P2-R02: no test drew the console's part 2 UI, so a decision row
+         * that lost the objectors' buttons, a draw line gone or a Resume never offered passed every test. Read on built
+         * HTML at fixed floors (trial-floor-ui.mjs `closingConsole`, `revealConsole`, exported for this; the GMs' names and
+         * rows handed in, nothing written): (1) the volunteers' window names them; (2) the choice after a draw names the
+         * drawn and offers Confirm and Pick someone else; with nobody, Pick only; (3) the decision offers the speaker with
+         * the seconds they had and each other objector of the chain with 5:00; (4) the Closing over with time left offers
+         * Resume with it, and not once the vote opened; (5) nothing outside a running trial; (6) Missing Key Remnants: the
+         * count and one Reveal per row, the "no trace" mark; (7) `roundLength`. The window's own DOM (its live line, Up,
+         * Draw again; the pick window's "Already spoke") is LIVE-E70-07/09. Red at the fix's parent: neither builder was
+         * exported (the first assertion).
+         */
+        let U = null, T = null, listOf = null;
+        try { U = await import("./trial-floor-ui.mjs"); T = await import("./trial-modes.mjs"); ({ listOf } = await import("./utils.mjs")); } catch { U = null; }
+        ok(typeof U?.closingConsole === "function" && typeof U?.revealConsole === "function", "trial-floor-ui.mjs exports no closingConsole or revealConsole");
+        if (typeof U?.closingConsole !== "function" || typeof U?.revealConsole !== "function") return;
+        must(game.user.isGM, "the console is a GM's - this would measure nothing");
+        const A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
+        const base = { active: true, mode: "closing", holderId: null, targetId: null, seconds: 30, startedAt: Date.now(), pending: false, messageId: null, before: [], round: null };
+        const at = (phase, patch = {}) => ({ ...base, closing: { phase, step: 2, openedAt: 1, count: 2, ...patch } });
+        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
+        const names = { volunteers: ["R1048 Aiko", "R1048 Botan"], drawn: "R1048 Botan" };
+        const run = (floor, progress = {}, given = names) => U.closingConsole({ floor, progress, running: true, names: given });
+        const volunteer = run(at("volunteer"));
+        const drawn = run(at("choice", { choice: "confirm" }));
+        const nobody = run(at("choice", { choice: "none" }), {}, { volunteers: [], drawn: null });
+        const decide = run(at("decide", { speakerId: A, left: 200, chain: [D, E] }));
+        const resumeProgress = { closing: { done: true, speakers: [{ actorId: A, via: "chosen", messageId: null, leftAtEnd: 90 }] } };
+        const resume = run(null, resumeProgress);
+        const read = {
+            volunteer: ["R1048 Aiko", "R1048 Botan"].every(n => volunteer.includes(n)) && ops(volunteer).length === 0,
+            drawn: [drawn.includes(game.i18n.format("DRPG.Floor.closing.gmDrawn", { name: "R1048 Botan", names: listOf(names.volunteers) })),
+                drawn.includes("R1048 Botan"), ops(drawn).map(o => o[0])],
+            nobody: [nobody.includes(game.i18n.localize("DRPG.Floor.closing.nobody")), ops(nobody).map(o => o[0])],
+            decide: [decide.includes(game.i18n.localize("DRPG.Floor.closing.whoContinues")), ops(decide).map(o => [o[0], o[1], /\(([\d:]+)\)/.exec(o[2])?.[1] ?? null])],
+            resume: ops(resume).map(o => [o[0], o[2].includes("1:30")]),
+            afterVote: run(null, { ...resumeProgress, voteOpenedAt: 5 }),
+            notRunning: U.closingConsole({ floor: at("volunteer"), progress: {}, running: false, names })
+        };
+        const reveal = U.revealConsole({ running: true, rows: [{ id: "3", name: "R1048 Key", hasTrace: false }, { id: "s.t", name: "R1048 Trace", hasTrace: true }], left: 2 });
+        read.reveal = [reveal.includes(game.i18n.format("DRPG.Reveal.left", { n: 2 })), [...reveal.matchAll(/data-drpg-reveal="([^"]+)"/g)].map(m => m[1]),
+            (reveal.match(new RegExp(game.i18n.localize("DRPG.Reveal.noTrace").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length,
+            U.revealConsole({ running: true, rows: [], left: 0 }), U.revealConsole({ running: false, rows: [{ id: "3", name: "x", hasTrace: true }], left: 1 })];
+        read.length = [T.roundLength(60, 7), T.roundLength(45, 3), T.roundLength(15, 0)];
+        equal(stableJson(read), stableJson({
+            volunteer: true,
+            drawn: [true, true, ["confirm", "pick"]],
+            nobody: [true, ["pick"]],
+            decide: [true, [["continue", A, "3:20"], ["continue", D, "5:00"], ["continue", E, "5:00"]]],
+            resume: [["resume", true]],
+            afterVote: "",
+            notRunning: "",
+            reveal: [true, ["3", "s.t"], 1, "", ""],
+            length: ["7:00", "2:15", "0:00"]
+        }), "the console's part 2 rows are not the spec's [the volunteers named, no button; the draw's line, its name, its buttons; nobody: the line, the buttons; "
+            + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
+            + "nothing to say, outside a trial; roundLength]");
     }],
 ];
 

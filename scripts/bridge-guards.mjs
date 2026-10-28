@@ -421,7 +421,20 @@ export const REASON_PATTERNS = Object.freeze([
     ["failed", /^the floor did not move for that objection$/],
     ["badRequest", /^the comment is longer than a player's words may be$/],
     ["objectionOver", /^that objection is no longer waiting for its Truth Bullet$/],
-    ["objectionOver", /^the floor holds no objection to re-point$/]
+    ["objectionOver", /^the floor holds no objection to re-point$/],
+    // E70 C7: a round's step from a participant's browser ("trial.turn", trial-modes.mjs `turnOnPrimary`).
+    ["floorClosed", /^no round holds the floor now$/],
+    ["notYourTurn", /^it is not that character's turn$/],
+    ["movedOn", /^the round has moved on since that turn$/],
+    ["cannotNow", /^that turn has not run out yet$/],
+    ["notEligible", /^that character takes no part in the round$/],
+    ["alreadyDone", /^that player has already called that turn over$/],
+    // E70 C8: a volunteer for the Closing Argument ("trial.claim", trial-modes.mjs `volunteerOnPrimary`).
+    ["cannotNow", /^nobody is volunteering for the Closing Argument now$/],
+    ["alreadyDone", /^that character has already volunteered$/],
+    ["cannotNow", /^a dead student does not present$/],
+    ["cannotNow", /^that character may not present now$/],
+    ["failed", /^the Present's card could not be posted$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

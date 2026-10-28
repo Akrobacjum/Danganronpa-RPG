@@ -5901,6 +5901,59 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objRepoint, "gmOnly") && objRepoint.logged.some(r => /only a GM re-points an objection/.test(r))
             && objRepoint.after.mode === "objection" && objRepoint.after.target === ids.chie && objRepoint.after.cards === objRepoint.before.cards,
         JSON.stringify(objRepoint), { flow: "class-trial" });
+    /* E70 C0 (1.2.90; amend 5 (d)): a GM's change of the floor, asked of the primary (`trial.gm`, a GM's only), forged from
+       p1's console during Aiko's running Objection as an end of the floor. Refused gmOnly and told with its code, logged on
+       the GM; the floor still the Objection aimed at Chie, nothing posted. The legal road is a second GM's (63, E70 C1). */
+    const objTrialGm = await objSend(p1, "trial.gm", { op: "end" }, "SECOBJTRIALGM");
+    check("SECURITY: p1's end of the floor through the GMs' row (trial.gm) during Aiko's running Objection is refused (gmOnly) and told - the floor as it was",
+        refusedAs(objTrialGm, "gmOnly") && objTrialGm.logged.some(r => /only a GM changes the trial's floor/.test(r))
+            && objTrialGm.after.mode === "objection" && objTrialGm.after.target === ids.chie && objTrialGm.after.cards === objTrialGm.before.cards,
+        JSON.stringify(objTrialGm), { flow: "class-trial" });
+    /* E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's voices settled on the primary (`trial.enter`, a GM's only),
+       forged from p1's console during Aiko's running Objection. Refused gmOnly and told with its code, logged on the GM;
+       the floor as it was. The legal road is the entry and the exit from a GM that is not the primary. */
+    const objTrialEnter = await objSend(p1, "trial.enter", {}, "SECOBJTRIALENTER");
+    check("SECURITY: p1's settle of the trial's voices through the GMs' row (trial.enter) is refused (gmOnly) and told - the floor as it was",
+        refusedAs(objTrialEnter, "gmOnly") && objTrialEnter.logged.some(r => /only a GM opens or ends a Class Trial/.test(r))
+            && objTrialEnter.after.mode === "objection" && objTrialEnter.after.target === ids.chie && objTrialEnter.after.cards === objTrialEnter.before.cards,
+        JSON.stringify(objTrialEnter), { flow: "class-trial" });
+    /* E70 fix p1-G2 (1.2.90; the review's SEC-4): a write of the trial's record asked of the primary (`trial.record`, a GM's
+       only), forged from p1's console as a patch of the question and the verdict. Refused gmOnly and told, logged on the
+       GM; the record's question as it was, the floor as it was. The legal road is a second GM's (63 R). */
+    const objTrialRecord = await objSend(p1, "trial.record", { op: "patch", patch: { topic: "SEC forged question", verdictApplied: true } }, "SECOBJTRIALRECORD");
+    const objRecordAfter = await gm.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}; return [r.topic ?? null, r.verdictApplied ?? null];`);
+    check("SECURITY: p1's write of the trial's record through the GMs' row (trial.record) is refused (gmOnly) and told - the record's question and verdict as they were",
+        refusedAs(objTrialRecord, "gmOnly") && objTrialRecord.logged.some(r => /only a GM writes the trial's record/.test(r))
+            && objRecordAfter[0] !== "SEC forged question" && objRecordAfter[1] !== true && objTrialRecord.after.mode === objTrialRecord.before.mode,
+        JSON.stringify({ objTrialRecord, objRecordAfter }), { flow: "class-trial" });
+    /* E70 C7 (1.2.90): a round's step (`trial.turn`) forged from p1's console during Aiko's running Objection - Botan's Done
+       (not p1's character) and Aiko's own step over (no round holds the floor). Each refused and told with its code; the
+       floor still the Objection aimed at Chie. The legal road is the players' own (67 T, P). */
+    const objTurnBotan = await objSend(p1, "trial.turn", { actorId: ids.botan, kind: "done", step: 1 }, "SECOBJTURNBOTAN");
+    const objTurnOver = await objSend(p1, "trial.turn", { actorId: ids.aiko, kind: "over", step: 1 }, "SECOBJTURNOVER");
+    check("SECURITY: p1's round steps during Aiko's running Objection are refused - Botan's Done (ownership) and Aiko's step over (no round) - the floor as it was",
+        refusedAs(objTurnBotan, null) && objTurnBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objTurnOver, "floorClosed")
+            && objTurnOver.after.mode === "objection" && objTurnOver.after.target === ids.chie && objTurnOver.after.cards === objTurnOver.before.cards,
+        JSON.stringify({ objTurnBotan, objTurnOver }), { flow: "class-trial" });
+    /* E70 C8 (1.2.90): a volunteer for the Closing Argument (`trial.claim`) forged from p1's console during Aiko's running
+       Objection - Botan (not p1's character) and Aiko (no Closing's window is open). Each refused and told with its code;
+       the floor as it was, and the GMs' store holds no volunteer. The legal road is the players' own (67 C). */
+    const objClaimBotan = await objSend(p1, "trial.claim", { actorId: ids.botan }, "SECOBJCLAIMBOTAN");
+    const objClaimAiko = await objSend(p1, "trial.claim", { actorId: ids.aiko }, "SECOBJCLAIMAIKO");
+    const objClaimStore = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { RECORD } = await import("${repoUrl}/scripts/gm-store.mjs");
+        return [...(S.closingClaimStore.get(RECORD)?.volunteers ?? [])];`);
+    check("SECURITY: p1's volunteers for a Closing Argument during Aiko's running Objection are refused - Botan (ownership) and Aiko (no window) - the floor as it was, no volunteer kept",
+        refusedAs(objClaimBotan, null) && objClaimBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objClaimAiko, "cannotNow")
+            && objClaimAiko.after.mode === "objection" && objClaimAiko.after.cards === objClaimAiko.before.cards && !objClaimStore.includes(ids.aiko),
+        JSON.stringify({ objClaimBotan, objClaimAiko, objClaimStore }), { flow: "class-trial" });
+    /* E70 C10 (1.2.90): a Present (`trial.present`) forged from p1's console in Botan's name, with Botan's bullet - the
+       primary would post the card and hand every other participant a copy. Refused by ownership and told (the guard runs
+       before the run, so nothing is posted); the floor and the Objection's cards as they were. The legal road is the presenter's own (tier 2 E70-T12). */
+    const objPresent = await objSend(p1, "trial.present", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "", comment: "SEC" }, "SECOBJPRESENT");
+    check("SECURITY: p1's Present in Botan's name during Aiko's running Objection is refused (ownership) and told - the floor and its cards as they were",
+        refusedAs(objPresent, null) && objPresent.logged.some(r => /sender does not own/.test(r))
+            && objPresent.after.mode === "objection" && objPresent.after.cards === objPresent.before.cards,
+        JSON.stringify(objPresent), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",
@@ -5946,6 +5999,84 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
             && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
         JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
+    /* E70 fix p2-G2 (1.2.90; the review's SEC-1, E70P2-R08): every Present card is the primary's since C10 ("trial.present"),
+       so a Present card p1's console posts in Aiko's name, with a bullet she holds and words of its own (an "analysis"
+       nobody made), is a console's card: shown on no screen, marked refused on the primary. Red at 2fc865ac: raised on
+       every screen (the hook asked only that the author own the speaker and the speaker hold the item), not refused. */
+    const presCard = await p1.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.aiko}");
+        const doc = await ChatMessage.create({ content: "<h3>SEC Bloody knife</h3><p>Analysis: SEC a forged reading</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: false, [T.TRIAL_FLAGS.presenter]: a.name,
+                [T.TRIAL_FLAGS.item]: ${JSON.stringify(objSetup?.items?.[0] ?? null)}, popupKind: "none" } } });
+        return doc?.id ?? null;`);
+    await settle(1500);
+    const presShown = c => c.eval(`return [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].some(el => el.dataset.drpgMessage === ${JSON.stringify(presCard)});`);
+    const presCardRead = { id: presCard, held: Boolean(await gm.eval(`return game.actors.get("${ids.aiko}")?.items?.has(${JSON.stringify(objSetup?.items?.[0] ?? null)}) ?? false;`)),
+        refused: await gm.eval(`const T = await import("${repoUrl}/scripts/trial.mjs");
+            return Boolean(game.messages.get(${JSON.stringify(presCard)})?.getFlag("${MOD}", T.TRIAL_FLAGS.refused));`),
+        onGm: await presShown(gm), onP2: await presShown(p2), onP3: await presShown(p3) };
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(presCard)}); if (m) await m.delete(); return true;`);
+    check("SECURITY: a Present card p1's console posts as Aiko, with a bullet she holds and words of its own, is marked refused on the primary and raised on no screen",
+        Boolean(presCard) && presCardRead.held && presCardRead.refused && !presCardRead.onGm && !presCardRead.onP2 && !presCardRead.onP3,
+        JSON.stringify(presCardRead), { flow: "class-trial" });
+    /* E70 fix p1-G1 (1.2.90; the review's SEC-2 and BEH-1): the trial's dead as the GMs hold them. Botan dies in public
+       and the primary lists him and blocks p2's microphone (voice.mjs `settleTrialVoices`). (1) p2's console unsets his
+       `deceased` flag: the settle the write schedules read the document until the fix, took him off the list and gave
+       the microphone back until the audit's put-back of the GM's flag landed - so every change of p2's permissions on
+       the GM is counted, and none may happen. (2) p2's console posts a Present card as Botan: marked refused on the
+       primary and raised on no screen. Red at 95bf1ffc (measured, 28.10.2026): with the put-back held past the settle's
+       quarter second, p2's microphone given back; and the card raised on gm and p3, not refused. Without the hold the
+       put-back landed first there and the first check passed at 95bf1ffc; with a hold that lands, the fix's wait for the
+       judgement alone kept the list (mutant gA survived), so the put-back fails here, and only the held flags list Botan. */
+    const VO = `const C = await import("${repoUrl}/scripts/chapter.mjs"); const Vo = await import("${repoUrl}/scripts/voice.mjs");`;
+    const deadRead = `const p2user = game.users.get("${p2.userId}"); const rec = game.settings.get("${MOD}", "trialProgress") ?? {};
+        return { listed: (rec.mutedDead ?? []).includes("${ids.botan}"), blocked: ((p2user._source ?? p2user).permissions ?? {}).BROADCAST_AUDIO === false,
+            dead: Boolean(game.actors.get("${ids.botan}")?.getFlag("${MOD}", "deceased")), changes: [...(globalThis.__s30dead?.changes ?? [])] };`;
+    const deadSetup = await gm.eval(`${F30} ${VO} if (F.trialFloor()) await F.endFloor();
+        globalThis.__s30dead = { changes: [] };
+        await C.killCharacter(game.actors.get("${ids.botan}"), { secret: false, keepBullets: true });
+        globalThis.__s30dead.flag = foundry.utils.deepClone(game.actors.get("${ids.botan}").getFlag("${MOD}", "deceased") ?? null);
+        await Vo.settleTrialVoices();
+        globalThis.__s30deadHook = Hooks.on("updateUser", (u, change) => { if (u.id === "${p2.userId}" && change?.permissions) globalThis.__s30dead.changes.push(JSON.stringify(change.permissions)); });
+        /* The audit's put-back of the flag held for 1.5 s on this GM, as a slow server round trip holds it, and then
+           failed, as a refused write fails it: the settle the forged write schedules runs a quarter second after it, so it
+           reads the student before the put-back would land, and the document keeps the forged flag after. Only the GMs'
+           held flags (sheet-audit.mjs flagsHeldNow) still say Botan is dead. */
+        const botan = game.actors.get("${ids.botan}"), realUpdate = botan.update;
+        botan.update = async function (data, ...rest) {
+            if (!JSON.stringify(data ?? {}).includes("deceased")) return realUpdate.call(this, data, ...rest);
+            await new Promise(r => setTimeout(r, 1500));
+            throw new Error("SEC a put-back that fails");
+        };
+        ${deadRead}`, { timeout: 60000 });
+    await settle(800);
+    // Past the writer's own courtesy guard, as a console steps past it (`drpgAutomated`, the sheet's forgeries above); true when the write landed.
+    const deadForged = await p2.eval(`const a = game.actors.get("${ids.botan}");
+        try { await a.update({ "flags.${MOD}.deceased": null }, { drpgAutomated: true }); } catch (e) { return String(e?.message ?? e); }
+        return !a.getFlag("${MOD}", "deceased");`);
+    await settle(2500);
+    const deadAfter = await gm.eval(`const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs"); await sheetAuditIdle();
+        await new Promise(r => setTimeout(r, 1000)); delete game.actors.get("${ids.botan}").update; ${deadRead}`, { timeout: 30000 });
+    check("SECURITY: p2's console unsetting dead Botan's death mid-trial takes nothing back, the audit's put-back failing - Botan still listed and p2's microphone never given back",
+        deadSetup.listed && deadSetup.blocked && deadForged === true && deadAfter.listed && deadAfter.blocked && !deadAfter.dead && deadAfter.changes.length === 0,
+        JSON.stringify({ deadSetup, deadForged, deadAfter }), { flow: "class-trial" });
+    const deadCard = await p2.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.botan}");
+        const doc = await ChatMessage.create({ content: "<p>SEC a dead student's evidence</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: false, [T.TRIAL_FLAGS.presenter]: a.name, popupKind: "none" } } });
+        return doc?.id ?? null;`);
+    await settle(1500);
+    const deadShown = c => c.eval(`return [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].some(el => el.dataset.drpgMessage === ${JSON.stringify(deadCard)});`);
+    const deadCardRead = { id: deadCard, refused: await gm.eval(`const T = await import("${repoUrl}/scripts/trial.mjs");
+            return Boolean(game.messages.get(${JSON.stringify(deadCard)})?.getFlag("${MOD}", T.TRIAL_FLAGS.refused));`),
+        onGm: await deadShown(gm), onP3: await deadShown(p3) };
+    check("SECURITY: a Present card p2's console posts as dead, listed Botan is marked refused on the primary and raised on no screen",
+        Boolean(deadCard) && deadCardRead.refused && !deadCardRead.onGm && !deadCardRead.onP3, JSON.stringify(deadCardRead), { flow: "class-trial" });
+    await gm.eval(`${VO} Hooks.off("updateUser", globalThis.__s30deadHook);
+        const m = game.messages.get(${JSON.stringify(deadCard)}); if (m) await m.delete();
+        const botan = game.actors.get("${ids.botan}");
+        // The put-back that failed above, made by the GM, so the revival finds the death it undoes.
+        if (!botan.getFlag("${MOD}", "deceased") && globalThis.__s30dead?.flag) await botan.setFlag("${MOD}", "deceased", globalThis.__s30dead.flag);
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        return true;`, { timeout: 60000 });
     await gm.eval(`${F30} const was = globalThis.__s30obj;
         for (const m of game.messages.filter(x => x.getFlag("${MOD}", T.TRIAL_FLAGS.objection))) await m.delete();
         if (F.trialFloor()) await F.endFloor();
@@ -5958,6 +6089,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
                 if (h.grants === null) await a.unsetFlag("${MOD}", "freeActionGrants"); else await a.setFlag("${MOD}", "freeActionGrants", h.grants);
             }
         }
+        // The trial's block of p2 given back now the clock has left the trial (E70 fix p1-G1's part above).
+        await (await import("${repoUrl}/scripts/voice.mjs")).settleTrialVoices();
         for (const [i, id] of ["${ids.aiko}", "${ids.botan}"].entries()) await game.actors.get(id).items.get(${JSON.stringify(objSetup?.items ?? [])}[i] ?? "")?.delete();
         await game.webrtc.disconnect?.();
         return true;`, { timeout: 60000 });

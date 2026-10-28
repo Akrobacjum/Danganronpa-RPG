@@ -113,6 +113,16 @@
       ],
       "readme": "leak:foundry-secret-door-type",
       "measuredAt": "E80 fix r1-G8, 19.10.2026, before its commit (parent 529e404): on p1 the GM's secret door read door 2, and p1's console wrote ds 1 to it (\"written\"); the primary GM shut it again (ds 0 on the GM and on p1) and sent Aiko back to [1300,400] (30-security, phase 'a secret door a player opens')"
+    },
+    {
+      "id": "TR30",
+      "findings": ["TR30"],
+      "class": "metadata",
+      "severity": "low",
+      "what": "In a Class Trial the trial's list of the dead (trialProgress.mutedDead), a death nobody has found among them, is world data every player's browser holds, while nothing else of that browser's world says the student is dead. Public on purpose while the trial runs (the owner's TR30 = 2: the silenced microphone tells the table), taken out of the record when the trial ends.",
+      "closes": "E67",
+      "detectedBy": [{"scenario": "67-trial-modes", "check": "D2: no death nobody has found reaches a player's browser on the trial's list of the dead (TR30, E70-24)"}],
+      "measuredAt": "E70 C13, 28.10.2026, before its commit (parent 4c58d5a7): in 67-trial-modes phase D, with Botan killed with nobody told and the trial's voices settled, p1's browser read the clock's phase classTrial, Botan on trialProgress.mutedDead, and no deceased flag on Botan (D2 expected red, measured); 72-canary reads the list gone from p1 after the trial"
     }
   ]
 }

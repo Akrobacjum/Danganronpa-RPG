@@ -346,9 +346,10 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
        the Gym, where both bodies lie, during the Class Trial; `checkBodyFound` admits only the Investigation or
        a hold, and the hold went when the phase changed. So this is already C1's reading, kept as a guard
        rather than a flip; the flip is B4's. */
-    check("B3: after a wrong verdict executes Botan, a move inside the room during the trial posts no second discovery card",
+    /* E70 C4 (DC36): the verdict sentences Botan and the trial's end executes him - B3 reads him alive, B4 dead. */
+    check("B3: after a wrong verdict sentences Botan, alive until the trial ends (E70 C4), a move inside the room during the trial posts no second discovery card",
         trial.investigation.phase === "investigation" && trial.started === true && trial.phase === "classTrial" && J(trial.known) === J([IDS.chie])
-            && trial.botan === true && trial.cards === 1 && afterVerdictRoom === found.room && afterVerdict.cards === 1 && afterVerdict.hold === false,
+            && trial.botan === false && trial.cards === 1 && afterVerdictRoom === found.room && afterVerdict.cards === 1 && afterVerdict.hold === false,
         J({ trial, afterVerdictRoom, afterVerdict }), { flow: "body-discovery" });
     const ended = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         globalThis.__dialogAnswers.push(true);
@@ -356,7 +357,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         ${CARDS} const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
         const ended = await UI.endClassTrial();
         await new Promise(r => setTimeout(r, 1500));
-        return { ended, phase: getClock().phase, cards: cards(), hold: Boolean(bodyDiscovery()) };`, { timeout: 60000 });
+        const botan = game.actors.get("${IDS.botan}");
+        return { ended, phase: getClock().phase, cards: cards(), hold: Boolean(bodyDiscovery()),
+            botan: game.drpg.isDeceased(botan), cause: botan.getFlag("${MOD}", "deceased")?.cause ?? null };`, { timeout: 60000 });
     const afterEndRoom = await walkTo(IDS.aiko, found.room);
     const afterEnd = await gm.eval(`${CARDS} const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         return { cards: cards(), hold: Boolean(bodyDiscovery()), stamps: (bodiesFoundIn?.(getClock().chapter) ?? []).length };`);
@@ -367,8 +370,8 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
        `announced` dropped B4 is red, and with the execution's phase test dropped it stays green (both measured
        10.10.2026), so the executed body is held by R347 and the tier-2 execution test, not here. Whether Botan's
        token still lies in the room after the verdict was not measured. */
-    check("B4: after End the trial, Aiko walking into the room posts no second discovery card, no new hold and no second stamp",
-        ended.ended === true && ended.phase === "dailyLife" && ended.cards === 1 && ended.hold === false && afterEnd.cards === 1 && afterEnd.hold === false
+    check("B4: End the trial executes Botan (E70 C4), and after it Aiko walking into the room posts no second discovery card, no new hold and no second stamp",
+        ended.ended === true && ended.phase === "dailyLife" && ended.botan === true && ended.cause === "executed" && ended.cards === 1 && ended.hold === false && afterEnd.cards === 1 && afterEnd.hold === false
             && afterEnd.stamps === 1,
         J({ ended, afterEndRoom, afterEnd }), { flow: "body-discovery" });
     // The cast back for the rest of the season, and the hold the last discovery left taken.

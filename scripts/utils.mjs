@@ -23,6 +23,19 @@ import { count } from "./perf-counters.mjs";
  */
 export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+/**
+ * Names as one list in the table's language - "Aiko, Botan and Chie" / "Aiko, Botan i Chie" - through `Intl.ListFormat`
+ * (E70 C8, minimal: the signature E66 is to keep), joined by commas where the browser has none. Not escaped.
+ */
+export function listOf(items = [], { type = "conjunction" } = {}) {
+    const list = (Array.isArray(items) ? items : []).map(item => String(item ?? ""));
+    try {
+        return new Intl.ListFormat(game.i18n?.lang || "en", { style: "long", type }).format(list);
+    } catch {
+        return list.join(", ");
+    }
+}
+
 /** The window event camera-view.mjs `measureCameraDock` sends when the camera dock's lift (`--drpg-av-lift`) changes,
  *  which glass.mjs cuts the curtain again on (E19 fix r1-G2). Here, so neither file imports the other. */
 export const AV_LIFT_EVENT = "drpg-av-lift";

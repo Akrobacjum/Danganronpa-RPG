@@ -833,6 +833,39 @@ async function reconcilePhase(from, to) {
         } catch (err) {
             error("Could not close the debate floor after the phase changed", err);
         }
+        /* THE SENTENCE, ON EVERY ROAD OUT (E70 C4; DC36). After the floor and before the hall's move below, so the
+           executed die in the hall and do not gather at school. End the trial carried it out before its write
+           (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
+           road out reach it here - in the trial's own chapter, which Edit campaign may move in this same write
+           (vote.mjs `executeAtExit` reads the record by its own chapter). */
+        /* THE DEAD'S MICROPHONES GIVEN BACK (E70 C5), before the sentence: the trial's list taken out of the record and
+           every block it wrote put back on the primary, so the convicted, who spoke until now, are not listed as they
+           die, and nobody leaves the trial muted (voice.mjs `settleTrialVoices`, asked of the primary by "trial.enter"). */
+        try {
+            const { askTrialVoices } = await import("./voice.mjs");
+            await askTrialVoices();
+        } catch (err) {
+            error("Could not give the dead's microphones back after the trial", err);
+        }
+        try {
+            const { executeAtExit } = await import("./vote.mjs");
+            await executeAtExit();
+        } catch (err) {
+            error("Could not carry out the trial's sentence after the phase changed", err);
+        }
+    }
+
+    /* A SENTENCE THAT COULD NOT BE CARRIED OUT, ASKED AGAIN (E70 fix p1-G2; the review's BEH-2) at every change of phase
+       outside the trial: the primary carries it out once (vote.mjs `executeAtExit`), and a record with nothing waiting
+       answers null. */
+    if (from !== "classTrial" && to !== "classTrial") {
+        try {
+            const { executeAtExit, trialProgressChapter, trialProgress } = await import("./vote.mjs");
+            const chapter = trialProgressChapter();
+            if (chapter !== null && trialProgress(chapter).execution?.failed?.length) await executeAtExit({ chapter });
+        } catch (err) {
+            error("Could not carry out a sentence that waited", err);
+        }
     }
 
     if (to === "classTrial") {
@@ -860,6 +893,14 @@ async function reconcilePhase(from, to) {
             await resetTrialProgress();
         } catch (err) {
             error("Could not reset the trial's progress after the phase changed", err);
+        }
+        /* THE TRIAL'S DEAD MUTED (E70 C5; TR30, DC19), after the reset - the list is a field of the record it blanks - and
+           on the primary, whose deaths store holds the deaths nobody has found (voice.mjs `settleTrialVoices`). */
+        try {
+            const { askTrialVoices } = await import("./voice.mjs");
+            await askTrialVoices();
+        } catch (err) {
+            error("Could not mute the dead for the trial after the phase changed", err);
         }
         try {
             /* AFTER the reset, never before: the reset blanks this chapter's trial

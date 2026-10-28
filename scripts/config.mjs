@@ -3633,6 +3633,53 @@ export const TRIAL = {
      */
     objectionPickSeconds: 30,
     /**
+     * The GM's bar on the trial console (E70 C1, 27.10.2026; TR21, TR26, DX2): -30 s and +30 s move the running mode's
+     * clock by `adjustSeconds`; `panicAdjustSeconds` is a Panic Round's step (trial-floor.mjs `adjustStep`, since E70
+     * C7); a GM's change of the clock is told in the Event panel as "GM: +30 s" for `noteSeconds`, counted on each
+     * browser's own clock from the moment it saw it. The owner's TR17: these are estimates, not measured at a table
+     * (LIVE-E70-01).
+     *
+     * THE WHOLE TABLE (E70 C13, 28.10.2026; E70-82): `gm` (the bar), `topicLength`, `budget`, `round` (Testimony, Panic
+     * Round) and `closing` (the Closing Argument), each read where its comment says; the floor's modes have no music of
+     * their own (music.mjs `TRIAL_MODE_MUSIC`). The budget is read only as the console's estimate: what a GM over it
+     * skips first is the GM handbook's advice (section 15), never a rule here, and nothing the module skips by itself.
+     *
+     * E70 C3 (27.10.2026; S18-70, S18-80): `topicLength` is the longest debate question kept (floor-machine.mjs
+     * `topicOf` cuts there), room for a sentence on the Event panel's card, chosen, not measured at a table; `budget`
+     * is the guide's whole trial, "Class Trial lacznie powinien trwac 4.5 godziny" at 16 players, scaled by N/16 at the
+     * trial's start (trial-floor-ui.mjs `trialTime`) - an estimate on the GM's console that blocks nothing (TR17 = 1).
+     */
+    modes: {
+        gm: { adjustSeconds: 30, panicAdjustSeconds: 5, noteSeconds: 10 },
+        topicLength: 200,
+        budget: { minutesAt16: 270 },
+        /*
+         * THE ROUNDS (E70 C7, 28.10.2026; S18-72). Testimony: each participant in turn, the turn typed by the GM at every
+         * start between `min` and `max` (TR6 "maks 2 minuty na osobe", TR14 = 3, TR26 = 1: the start alone is held, +30 s
+         * during a turn may pass it), `offered` the window's value (the owner, 27.10: "Skrocmy proponowane testimony do 1
+         * minuty"). Panic Round: 15 s a turn, 10 s offered from `smallFrom` participants on ("10-15 sekund maks"), no
+         * Objection (its `MODE_RULES` row), the bar's step `gm.panicAdjustSeconds`. `graceSeconds`: how early a
+         * participant's browser may call a turn over and be believed (floor-machine.mjs `over`), for a clock rounded on
+         * another browser - chosen, not measured at a table (LIVE-E70-08).
+         */
+        round: {
+            testimony: { offered: 60, min: 30, max: 120 },
+            panic: { offered: 15, small: 10, smallFrom: 12, min: 10, max: 15 },
+            graceSeconds: 1
+        },
+        /*
+         * THE CLOSING ARGUMENT (E70 C8, 28.10.2026; S18-73, S18-74; the owner's TR7 "proponuje 5 minut", TR23 = 1,
+         * TR24, TR29 = 4, TR34 = 1, DA18 "Wszedzie gracz ma proponowac, a DM zatwierdzac lub zmieniac", amend 7 of 14.10:
+         * no Hope for the last voice). One per trial (`perTrial`); `volunteerSeconds` of volunteering, then a draw among
+         * the volunteers that the GM confirms or changes; `seconds` for a speaker; an Objection at the speaker at any
+         * second, its exchange (`objection`, the debate's 60 + 120 s with cut-ins), after which the GM decides who
+         * continues (`gmDecides`): the speaker with the time left at the Objection or an objector with a new `seconds`.
+         * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
+         * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
+         */
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 }
+    },
+    /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
      * an Objection's target (trial-speakers.mjs; the owner's default D2 of 17.10.2026): a cough, a laugh or a "hm"
      * is not the floor. Whether a second is right at a real table, and how soon LiveKit lists somebody after their
@@ -4561,9 +4608,29 @@ export const SFX_EVENTS = {
         hint: "Somebody takes the trial floor. Heard by the whole table.",
         category: "incident"
     },
+    closingStart: {
+        label: "Closing Argument",
+        hint: "The Closing Argument opens: who will sum up the case? Heard by the whole table.",
+        category: "incident"
+    },
+    panicStart: {
+        label: "Panic Round",
+        hint: "A Panic Round starts: everyone in turn, a few seconds each. Heard by the whole table.",
+        category: "incident"
+    },
+    keyReveal: {
+        label: "Monokuma's Reveal",
+        hint: "Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.",
+        category: "incident"
+    },
     rebuttal: {
         label: "Rebuttal",
         hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
+        category: "incident"
+    },
+    overrule: {
+        label: "Overrule",
+        hint: "The GM overrules an Objection: the trial goes back to where it was, the price stays. Heard by the whole table.",
         category: "incident"
     },
     voteOpen: {
@@ -4574,6 +4641,16 @@ export const SFX_EVENTS = {
     verdict: {
         label: "The verdict",
         hint: "Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        category: "incident"
+    },
+    execution: {
+        label: "An execution",
+        hint: "The trial ends and the sentence is carried out on whoever the verdict named. Heard by the whole table.",
+        category: "incident"
+    },
+    trialClose: {
+        label: "The trial ends",
+        hint: "The Class Trial is over and everyone goes back to school. Heard by the whole table.",
         category: "incident"
     },
     levelUp: {

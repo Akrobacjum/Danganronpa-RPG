@@ -64,6 +64,7 @@ export const SEEDS = Object.freeze({
     "keyplan.text": { cls: "answer-key", field: "the Key Remnant plan: what an entry says", plantedBy: "72-canary" },
     "keyplan.analysis": { cls: "answer-key", field: "the Key Remnant plan: an entry's analysis", plantedBy: "72-canary" },
     "keyplan.note": { cls: "gm-notes", field: "the Key Remnant plan: the GM's note", plantedBy: "72-canary" },
+    "closing.volunteer": { cls: "metadata", field: "the Closing Argument's volunteers in the GMs' store (closingClaimStore)", plantedBy: "67-trial-modes" },
     "remnant.note": { cls: "answer-key", field: "a trace's note (placeRemnant)", plantedBy: "72-canary, 10-murder" },
     "remnant.subject": { cls: "answer-key", field: "a trace's subject (placeRemnant)", plantedBy: "72-canary, 10-murder" },
     "bullet.note": { cls: "gm-notes", field: "a Truth Bullet's GM note", plantedBy: "72-canary" },

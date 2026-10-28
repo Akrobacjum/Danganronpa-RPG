@@ -25,7 +25,7 @@ import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
-    isDeceased, getClock, eclipseId, eclipseCountOf
+    isDeceased, getClock, eclipseId, eclipseCountOf, isMutedDead
 } from "./settings.mjs";
 // The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
 // that reaches neither this file nor vault.mjs (bedroom-keys.mjs's header).
@@ -1532,11 +1532,12 @@ function onPreUpdateToken(tokenDoc, changes, options) {
  * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
  * rather than through `monocub.mjs`: this runs inside the synchronous
  * `preUpdateToken` veto, where there is no chance to await an import. On the
- * mover's own browser, so it asks what that browser may know (rule C).
+ * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
+ * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
  */
 function isCorpse(actor) {
     try {
-        if (!isDeadForGm(actor)) return false;
+        if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;
         return !actor.getFlag(MODULE_ID, FLAGS.monocub);
     } catch {
         // A state we cannot read must not freeze a token nobody can move.

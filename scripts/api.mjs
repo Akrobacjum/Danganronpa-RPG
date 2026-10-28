@@ -120,7 +120,7 @@ import {
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
     startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
-    extendFloor, endFloor
+    extendFloor, endFloor, skipStep, adjustTime, endMode, overruleObjection
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
     trialProgressChapter } from "./vote.mjs";
@@ -783,6 +783,9 @@ export const DrpgApi = {
     manageClassTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial(...a)),
     closeTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeTrial(...a)),
     openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
+    // E70 C3 (S18-70; TR11): `openDebate({ seconds, topic })` asks no window and opens the debate with its question;
+    // `reopenDebate()` opens it again after its exchange with the question and budget the trial record holds.
+    reopenDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.reopenDebate(...a)),
     closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
     /** The trial hall and the school (E13 C6). Inside a running trial the table taken to the hall (its cast
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
@@ -1053,6 +1056,39 @@ export const DrpgApi = {
     advanceFloorNow,
     extendFloor,
     endFloor,
+    /*
+     * THE GM'S BAR, A FUNCTION PER BUTTON (E70 C1; S18-76): Skip, -30 s / +30 s (`adjustTime(-30)`, `adjustTime(30)`),
+     * End this mode and Back to the debate (`returnToDebate()` above, with the time the debate had). Each refuses
+     * outside a Class Trial and says why; on a GM that is not the primary each reaches the primary as the console's
+     * button does. The older names stay (D25): `advanceFloorNow` is Skip without the trial's check, `extendFloor(seconds)`
+     * adds the seconds, signed as at 1.2.89 (`extendFloor(-30)` takes half a minute off; no number is +30 s; E70 fix p1-G3),
+     * `endFloor` closes the floor whatever runs.
+     */
+    skipStep,
+    adjustTime,
+    endMode,
+    /* Overrule (E70 C2; S18-77): `overruleObjection()` the newest Objection, `overruleObjection(messageId)` the one on
+       that card - refused, and said why, for any but the newest of this trial. The price stays. */
+    overruleObjection,
+    /* The rounds (E70 C7; E70-46): `startTestimony({ seconds, order })` - 60 s offered, 30-120 s - and
+       `startPanicRound({ seconds, order })` - 15 s, 10 s from 12 participants, 10-15 s; `order` actor ids, the rest of the
+       trial's participants drawn after them. Only in a Class Trial; refused, and said why, past the range. */
+    startTestimony: (...a) => import("./trial-modes.mjs").then(m => m.startTestimony(...a)),
+    startPanicRound: (...a) => import("./trial-modes.mjs").then(m => m.startPanicRound(...a)),
+    /* The Closing Argument (E70 C8; E70-57), on any GM: `startClosing()` the volunteers' 30 s (one per trial),
+       `confirmClosingSpeaker()` the drawn volunteer, `pickClosingSpeaker(actorId)` anyone taking part instead,
+       `continueClosing(actorId)` after an exchange - the speaker with the seconds they had or an objector with 300 s -
+       and `resumeClosing()` the last speaker's rest, until the vote opens. Each said why when refused. */
+    startClosing: (...a) => import("./trial-modes.mjs").then(m => m.startClosing(...a)),
+    confirmClosingSpeaker: (...a) => import("./trial-modes.mjs").then(m => m.confirmClosingSpeaker(...a)),
+    pickClosingSpeaker: (...a) => import("./trial-modes.mjs").then(m => m.pickClosingSpeaker(...a)),
+    continueClosing: (...a) => import("./trial-modes.mjs").then(m => m.continueClosing(...a)),
+    resumeClosing: (...a) => import("./trial-modes.mjs").then(m => m.resumeClosing(...a)),
+    /* Monokuma's Reveal (E70 C9; E70-60 to E70-64), on a GM: `missingKeys()` this chapter's Key Remnants nobody found,
+       `revealMissingKey(slot, { text, beyondPaid })` one of them to every participant - the players' words where the row
+       has none, and past the Despair the fee charged for only with `beyondPaid`. Each said why when refused. */
+    missingKeys: (...a) => import("./trial-modes.mjs").then(m => m.missingKeys(...a)),
+    revealMissingKey: (...a) => import("./trial-modes.mjs").then(m => m.revealMissingKey(...a)),
 
     openVote,
     closeVote,

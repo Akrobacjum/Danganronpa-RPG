@@ -896,8 +896,9 @@ export async function nameUnfinishedCarries() {
  */
 
 /**
- * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name, or that
- * none is linked - and `rule`, the table's rule of D8. The count of tokens shown went with E81 DZ6:
+ * The Start window's lines (E13 C6): `table`, where the table goes - the hall by name, or that
+ * none is linked - and `rule`, the table's rule of D8; since E70 C5 `voices`, what the trial holds of it (the dead's
+ * microphones off, a Monocub's turns, the convicted's end). The count of tokens shown went with E81 DZ6:
  * the window holds the ticks it would have counted, and a count drawn once goes stale as they change.
  * Pure over `{ hall }` (R437 asks it of plain objects); the hall's name is escaped.
  */
@@ -905,7 +906,9 @@ export function startTrialLines({ hall = null } = {}) {
     return {
         table: hall ? game.i18n.format("DRPG.Floor.startTrialHall", { hall: esc(hall.name ?? "") })
             : game.i18n.localize("DRPG.Floor.startTrialNoHall"),
-        rule: game.i18n.localize("DRPG.Floor.tableRuleDead")
+        rule: game.i18n.localize("DRPG.Floor.tableRuleDead"),
+        // E70 C5 (DC4, DC19, TR30, DC36): what the module holds of that rule now, beside it.
+        voices: game.i18n.localize("DRPG.Floor.tableRuleVoices")
     };
 }
 

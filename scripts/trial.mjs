@@ -46,10 +46,11 @@
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
-import { showPopup } from "./popup.mjs";
+import { SETTINGS, isMutedDead } from "./settings.mjs";
+import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
+import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serialWrite } from "./utils.mjs";
+    whisperToOwner, serialWrite, serverNow, esc } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -105,6 +106,18 @@ export const TRIAL_FLAGS = {
      * the card says so, and the price stays paid.
      */
     withdrawn: "objectionWithdrawn",
+    /**
+     * The GM overruled this Objection (E70 C2). DISPLAY ONLY: the chat log draws the stamp from it and every screen
+     * closes the card (popup.mjs `onUpdateChatMessage`); what the trial knows of the Overrule is the receipt in the
+     * trial record (`keepReceipt`), which is what the log, the judgement and the console read.
+     */
+    overruled: OVERRULED_FLAG,
+    /**
+     * The question of the debate the card was put on the table in (E70 C3; S18-70), as the floor held it when the card
+     * was built - DISPLAY ONLY, as `presenter` is: the GM's log groups its rows by it, and an Objection's own question is
+     * read off its receipt where it has one (`keepReceipt`), which the primary writes.
+     */
+    topic: "debateTopic",
     chapter: "chapter"
 };
 
@@ -150,13 +163,28 @@ export async function presentDialog(actor, item) {
      * `objectOnPrimary` judges a dead objector on the primary GM. The document's
      * death on this browser is a courtesy, as everything in this window is.
      */
+    /* AND THE TRIAL'S LIST OF THE DEAD (E70 fix p1-G1, 28.10.2026; the review's BEH-1): a death nobody has found is
+       on it (TR30) and not on the document, so its player's window opened and put evidence on every screen all
+       trial. A courtesy here too; the card a console posts anyway is refused on the primary (`registerTrial`). */
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
+    if (isDeceased(actor) || isMutedDead(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
         return false;
     }
 
+    /* BY THE MODE'S ROW (E70 C10; TR2 = 1): in a mode with a speaker - Testimony, Panic Round, the Closing - only the
+       speaker presents; the row's line says who. A courtesy here, as the sheet's held button is: "trial.present" is
+       judged on the primary by the same rule (`presentOnPrimary`). */
+    const { presentRefusal, trialFloor } = await import("./trial-floor.mjs");
+    const held = presentRefusal(trialFloor(), actor.id);
+    if (held) {
+        ui.notifications.warn(held);
+        return false;
+    }
+
     const data = truthBulletData(item);
+    // With or without the Analyze result (E70 C10; B2): offered only for a bullet that shows something an Analyze gave.
+    const offer = analysisOffered(data);
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }) },
@@ -166,6 +194,7 @@ export async function presentDialog(actor, item) {
                 name: foundry.utils.escapeHTML(item.name),
                 type: foundry.utils.escapeHTML(data.shownLabel)
             })}</p>
+            ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
@@ -178,7 +207,8 @@ export async function presentDialog(actor, item) {
                 label: game.i18n.localize("DRPG.Trial.present"),
                 default: true,
                 callback: (e, b, d) => ({
-                    comment: d.element.querySelector("[name=comment]").value.trim()
+                    comment: d.element.querySelector("[name=comment]").value.trim(),
+                    analysis: analysisChosen(d.element)
                 })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -187,12 +217,32 @@ export async function presentDialog(actor, item) {
     });
 
     if (!choice || choice === "cancel") return false;
-    const posted = await presentBullet(actor, item, { comment: choice.comment });
+    /* THE PRIMARY POSTS IT AND HANDS OUT THE COPIES (E70 C10; B6): the card and a copy as shown to every other
+       participant, by "trial.present" - refused with the bridge's words when no GM is connected (Q-p2-5). */
+    const { requestPresent } = await import("./gm-bridge.mjs");
+    const res = await requestPresent({ actorId: actor.id, itemId: item.id, comment: choice.comment, analysis: choice.analysis });
+    const posted = Boolean(res.ok);
     /* SAID WHEN IT WENT OUT (E10 C16, 1.2.71; audit S03-27). The window closed and
        nothing else on the presenter's screen moved - the card lands in the chat
        and the evidence stage, and on a busy screen neither is where they look. */
     if (posted) ui.notifications.info(game.i18n.format("DRPG.Trial.presented", { name: item.name }));
     return posted;
+}
+
+/**
+ * The window's "with the Analyze result" box (E70 C10; B2, Q-p2-3), checked, or nothing where there is nothing to hide. Its
+ * note is a <div>: the Objection's picker finds its count as the form's first `p.notes`.
+ */
+function analysisChoice(offer) {
+    return offer ? `<label class="drpg-check"><input type="checkbox" name="analysis" checked>
+            ${game.i18n.localize("DRPG.Trial.presentWithAnalysis")}</label>
+            <div class="notes">${game.i18n.localize("DRPG.Trial.presentWithoutNote")}</div>` : "";
+}
+
+/** The box's answer: true unless it is there and unchecked. */
+function analysisChosen(element) {
+    const box = element?.querySelector?.("[name=analysis]") ?? null;
+    return box ? Boolean(box.checked) : true;
 }
 
 /*
@@ -217,9 +267,9 @@ export async function presentBullet(actor, item, {
     if (!data) return false;
 
     // The API's road to the card a dead student's window no longer opens (see
-    // `presentDialog`; E10 C16).
+    // `presentDialog`; E10 C16), the trial's list of the dead too (E70 fix p1-G1).
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
+    if (isDeceased(actor) || isMutedDead(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
         return false;
     }
@@ -233,6 +283,13 @@ export async function presentBullet(actor, item, {
     if (objection && !game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionByButton"));
         return false;
+    }
+    /* A PLAYER'S PRESENT IS THE PRIMARY'S CARD (E70 C10; B6): posted there with the copies, by "trial.present". The
+       API's road on a GM's browser below stays as it was: the card alone. */
+    if (!game.user.isGM) {
+        const { requestPresent } = await import("./gm-bridge.mjs");
+        const res = await requestPresent({ actorId: actor.id, itemId: item.id, comment, analysis: true });
+        return Boolean(res.ok);
     }
 
     const target = objection && targetId ? (game.actors.get(targetId) ?? null) : null;
@@ -263,9 +320,12 @@ export async function presentBullet(actor, item, {
         }
     }
 
+    // The debate's question, as the floor holds it now (E70 C3): the card's marker and its flag for the log.
+    const { trialFloor } = await import("./trial-floor.mjs");
+    const topic = trialFloor()?.topic ?? null;
     try {
         await announce({
-            content: buildCard(actor, data, { objection, comment, target }),
+            content: buildCard(actor, data, { objection, comment, target, topic }),
             speaker: ChatMessage.getSpeaker({ actor }),
             flags: {
                 [MODULE_ID]: {
@@ -277,6 +337,7 @@ export async function presentBullet(actor, item, {
                     [TRIAL_FLAGS.item]: item.id,
                     [TRIAL_FLAGS.target]: target?.id ?? null,
                     [TRIAL_FLAGS.targetName]: target?.name ?? null,
+                    [TRIAL_FLAGS.topic]: topic,
                     [TRIAL_FLAGS.chapter]: getClock().chapter,
                     // This file raises its own sticky card from the
                     // `createChatMessage` hook below; the generic popup layer
@@ -295,8 +356,101 @@ export async function presentBullet(actor, item, {
     return true;
 }
 
+/**
+ * The run of "trial.present" on the primary GM (E70 C10, 28.10.2026; S18-79, TR2 = 1, B2, B6, Q-p2-5). The owner's
+ * session notes of 27.10: "Present udostępnia kopie tak, jak zostały pokazane, bez dodatkowego kosztu" - a Present put
+ * the evidence on every screen and left nobody holding it, so the table copied it by Share, one player at a time - and
+ * "gracz wybiera, czy pokazuje bullet z wynikiem Analyze, czy bez". So the card is posted here, as a GM, from the bullet
+ * as the GMs hold it (`bulletAsHeld`, `holderView`; without the analysis `unreadView`), and every other participant of
+ * the trial (vote.mjs `trialParticipants`: no Monocub, nobody on the trial's list of the dead) gets a copy as it was
+ * shown (handover.mjs `mintCopy`), free; none twice - one trace, one copy per person, and a bullet with no trace
+ * behind it by its name and words - and none of a bullet whose answer key this browser lacks, the presenter told.
+ * Refused: outside a Class Trial, a dead presenter as the GMs hold it or on the trial's list, a mode whose row lets
+ * somebody else present (trial-floor.mjs `modeAllows`), a bullet the character does not hold as the GMs hold it.
+ * One Present at a time (`PRESENT_KEY`), so two at once cannot both find nobody holding a copy.
+ *
+ * @param {{actorId: string, itemId: string, comment?: string, analysis?: boolean}} request
+ */
+export async function presentOnPrimary({ actorId, itemId, comment = "", analysis = true }) {
+    return serialWrite(PRESENT_KEY, async () => {
+        const actor = game.actors.get(actorId ?? "");
+        if (!actor) return { refused: "no such character" };
+        if (!inClassTrial()) return { refused: "no Class Trial is in session" };
+        const { isDeadForGm } = await import("./chapter.mjs");
+        if (isDeadForGm(actor) || isMutedDead(actor)) return { refused: "a dead student does not present" };
+        // The mode's row (`modeAllows` "present", the rule trial-floor.mjs `presentRefusal` words for the sheet and window).
+        const { modeAllows, trialFloor } = await import("./trial-floor.mjs");
+        const floor = trialFloor();
+        if (!modeAllows(floor, "present", actor.id)) return { refused: "that character may not present now" };
+        const { noteTooLong } = await import("./pre-session-note.mjs");
+        if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
+        const { itemAsHeld } = await import("./sheet-audit.mjs");
+        const held = itemId ? await itemAsHeld(actor, itemId) : null;
+        const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
+        const data = item ? truthBulletData(bulletAsHeld(item)) : null;
+        if (!data) return { refused: "that character holds no such Truth Bullet" };
+        const shown = analysis !== false;
+        /* NOTHING POSTED THAT CANNOT BE HANDED OUT (E70 fix p2-G4; the review's E70P2-R07): the answer keys not open on
+           this primary (a reload a moment ago) or the bullet's own key missing were found by the first copy, after the
+           card was on every screen - the presenter read "not done", pressed again, and a second card went out. Asked
+           first; a refusal posts nothing. */
+        const { answerKeysRefusal } = await import("./gm-stores.mjs");
+        const notOpen = await answerKeysRefusal();
+        if (notOpen) return { refused: notOpen };
+        if (!secretOf(item.uuid).realType) {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            return { refused: "the answer key for that bullet is not on this GM's browser" };
+        }
+
+        try {
+            await announce({
+                content: buildCard(actor, holderView(data), { objection: false, comment: String(comment ?? "").trim(),
+                    topic: floor?.topic ?? null, analysis: shown }),
+                speaker: ChatMessage.getSpeaker({ actor }),
+                flags: { [MODULE_ID]: {
+                    [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: false, [TRIAL_FLAGS.presenter]: actor.name,
+                    [TRIAL_FLAGS.item]: item.id, [TRIAL_FLAGS.target]: null, [TRIAL_FLAGS.targetName]: null,
+                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                } }
+            });
+        } catch (err) {
+            error("Could not present the Truth Bullet", err);
+            return { refused: "the Present's card could not be posted" };
+        }
+
+        const { mintCopy } = await import("./handover.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const trace = secretOf(item.uuid).remnantId ?? null;
+        let copies = 0, noKey = false;
+        // Every participant's student, connected or not (E70 fix p2-G4; the review's P2R-03): a player reloading now
+        // would otherwise never get the copy the rest of the table holds.
+        for (const { actor: to } of trialParticipants({ connected: false })) {
+            if (to.id === actor.id) continue;
+            // A bullet with no trace behind it (a GM's own) has no trace to count copies by: by its name and words.
+            if (!trace && to.items.some(other => isTruthBullet(other) && other.name === data.name
+                && (truthBulletData(other)?.playerText ?? "") === data.playerText)) continue;
+            const minted = await mintCopy(actor, to, item, { analysis: shown, quiet: true });
+            if (minted.refused) return { refused: minted.refused };
+            if (minted.skipped === "noKey") { noKey = true; break; }
+            if (!minted.copy) continue;
+            copies++;
+            await whisperToOwner(to, `<p>${esc(game.i18n.format("DRPG.Trial.presentCopy", { who: actor.name, name: data.name }))}</p>`);
+        }
+        if (noKey) {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+        }
+        log(`${actor.name} presented "${data.name}"${shown ? "" : " without its analysis"}; ${copies} cop${copies === 1 ? "y" : "ies"} handed out.`);
+        return { reply: { item: data.name, copies } };
+    });
+}
+
+/** One Present at a time on the primary (`presentOnPrimary`): a step of utils.mjs `serialWrite` under this key. */
+const PRESENT_KEY = "trial.present";
+
 /** The card itself. What the PRESENTER knows - see the note at the top. */
-function buildCard(actor, data, { objection, comment, target = null }) {
+function buildCard(actor, data, { objection, comment, target = null, topic = null, analysis = true }) {
+    // Without the Analyze result (E70 C10; B2): the bullet as it was before any Analyze (`unreadView`).
+    if (analysis === false) data = unreadView(data);
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
     const badges = [
@@ -333,6 +487,7 @@ function buildCard(actor, data, { objection, comment, target = null }) {
             ? `<div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>`
             : ""}
         <div class="drpg-evidence-who">${whoLine(actor.name, objection && target ? target.name : null)}</div>
+        ${topicMarker(topic)}
         <h3 class="drpg-evidence-name">${foundry.utils.escapeHTML(data.name)}</h3>
         <div class="drpg-tb-badges">${badges.join("")}</div>
         ${data.playerText
@@ -342,6 +497,11 @@ function buildCard(actor, data, { objection, comment, target = null }) {
         ${comment
             ? `<p class="drpg-evidence-comment">"${foundry.utils.escapeHTML(comment)}"</p>` : ""}
     </div>`;
+}
+
+/** The debate's question on a card (E70 C3; S18-70): the question the card was put on the table under, or nothing. */
+function topicMarker(topic) {
+    return topic ? `<p class="drpg-evidence-topic">${game.i18n.format("DRPG.Floor.topicLine", { topic: foundry.utils.escapeHTML(String(topic)) })}</p>` : "";
 }
 
 /** The card's first line: who presents, or who objects to whom. Its own function, because a re-point rewrites it alone. */
@@ -371,17 +531,49 @@ export function holderView(data) {
 }
 
 /**
+ * The holder's view of a bullet shown WITHOUT the Analyze result (E70 C10, 28.10.2026; B2, the owner's "'bez' ukrywa
+ * też zidentyfikowany typ"): what it showed before any Analyze - its unanalysed type (truth-bullets.mjs
+ * `unanalysedType`: a Key stays a Key, the rest Neutral), no reading, no Faint. A new object; the view handed in is not
+ * touched (R1045). A Key keeps its Faint (E70 fix p2-G4; the review's BEH-1, P2R-05, E70P2-R06): it is born identified,
+ * so its Faint shows from the find on and no Analyze gave it - and every copy, a Key born identified too, shows it
+ * (truth-bullets.mjs `createTruthBullet`), so the card hid what each receiver's sheet then showed.
+ */
+export function unreadView(view) {
+    if (!view) return view;
+    const type = unanalysedType(view.shownType ?? "neutral");
+    const identified = type !== "neutral";
+    return { ...view, shownType: type, shownLabel: TRUTH_BULLET_TYPES[type]?.label ?? type, faint: identified && Boolean(view.faint),
+        identified, analyzedText: "" };
+}
+
+/**
+ * Whether a Present (or an Objection's Truth Bullet, Q-p2-3) offers to hide the Analyze result (E70 C10; B2): only for a
+ * bullet that shows something an Analyze gave - read, a reading, a type it did not show at pickup, or Faint. A bullet
+ * never analysed has nothing to hide, and the choice is not offered (R1045).
+ */
+export function analysisOffered(view) {
+    if (!view) return false;
+    const unread = unreadView(view);
+    return Boolean(view.analyzed) || Boolean(view.analyzedText) || view.shownType !== unread.shownType
+        || Boolean(view.faint && view.identified && !unread.faint);
+}
+
+/**
  * An objection's card before its evidence (E79 C16): the banner, who objects to whom, and one line of its state -
  * "pending" while the objector chooses the Truth Bullet, "withdrawn" once it was withdrawn before one (`withdrawObjectionCard`).
  *
- * @param {"pending"|"withdrawn"} state
+ * @param {"pending"|"withdrawn"|"overruled"} state  "overruled" for a pending card the GM overruled (E70 C2)
  */
-function objectionStateCard(name, targetName, state) {
-    const line = game.i18n.localize(state === "withdrawn" ? "DRPG.Trial.objectionWithdrawn" : "DRPG.Trial.objectionPending");
+function objectionStateCard(name, targetName, state, topic = null) {
+    const line = game.i18n.localize(state === "withdrawn" ? "DRPG.Trial.objectionWithdrawn"
+        : state === "overruled" ? "DRPG.Trial.overruledStamp" : "DRPG.Trial.objectionPending");
     return `<div class="drpg-evidence-card objection ${state}">
         <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>
         <div class="drpg-evidence-who">${whoLine(name, targetName)}</div>
-        <p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(line)}</em></p>
+        ${topicMarker(topic)}
+        ${state === "overruled"
+            ? `<div class="drpg-overruled-stamp">${foundry.utils.escapeHTML(line)}</div>`
+            : `<p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(line)}</em></p>`}
     </div>`;
 }
 
@@ -412,30 +604,29 @@ export function registerTrial() {
          * author owns the character the card speaks as, and that character holds
          * the evidence. A GM's card is a GM's to post.
          *
-         * Only the POPUP waits on the answer. The card still goes on to
-         * `seizeFloor` below, which refuses it and marks it refused - that mark is
-         * how the table's log shows a forged objection for what it was, and the
-         * suite holds it ("a card posted in somebody else's name").
+         * Only the POPUP waited on the answer; the card went on to be refused and
+         * marked refused - that mark is how the table's log shows a forged card for
+         * what it was. Since E70 fix p2-G2 (below) no player's card is raised at
+         * all, and the primary marks every one refused.
          */
         const author = message.author;
-        let authorised = Boolean(author?.isGM);
-        if (!authorised) {
-            const speaker = game.actors.get(message.speaker?.actor ?? "");
-            const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
-            authorised = Boolean(author && speaker?.testUserPermission(author, "OWNER")
-                && (!itemId || speaker.items.has(itemId)));
-        }
-
         const objection = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.objection));
         /*
-         * A PLAYER'S OBJECTION CARD IS NOT A ROAD ANY MORE (E79 C16, 1.2.79). The Objection is raised on the
-         * primary GM (`objectOnPrimary`), which posts its card as a GM, so a card a player's browser posts with the
-         * flag is a console's or an old client's: no popup, and the primary marks it refused below and tells its
-         * owner, as it marked a forged one. A player's Present - no objection flag - is today's, and free.
+         * A PLAYER'S CARD IS NOT A ROAD ANY MORE, OBJECTION OR PRESENT (E79 C16, 1.2.79, for the Objection; E70 fix
+         * p2-G2, 28.10.2026, for the Present - the review's SEC-1 and E70P2-R08). The Objection is raised on the primary
+         * GM (`objectOnPrimary`) and since E70 C10 a Present is too ("trial.present", `presentOnPrimary`): both cards are
+         * posted by a GM. So a card a player's browser posts with the flag is a console's or an old client's, and none
+         * raises it - before this fix a console's Present card went up on every screen whenever its author owned the
+         * speaker and the speaker held the item (E02's check), with words of its own, an "analysis" nobody made among
+         * them, out of the mode's turn (measured in 30-security at 2fc865ac: raised on gm, p2 and p3, not refused). The
+         * primary marks it refused below and tells its owner, as it marked a forged one; a card of the trial's dead
+         * (settings.mjs `isMutedDead`, E70 fix p1-G1) is told that the dead do not present. A GM's card is a GM's to
+         * post, and E02's question - does the author own the speaker - is answered for it by being a GM.
          */
-        const playerObjection = objection && !author?.isGM;
+        const playersCard = !author?.isGM;
+        const mutedPresenter = playersCard && isMutedDead(game.actors.get(message.speaker?.actor ?? ""));
 
-        if (authorised && !playerObjection) showPopup(contentOf(message), {
+        if (!playersCard) showPopup(contentOf(message), {
             title: game.i18n.localize(objection ? "DRPG.Trial.objection" : "DRPG.Trial.evidence"),
             kind: objection ? "objection" : "evidence",
             // Evidence stays up until somebody closes it. A trial argues with a
@@ -450,17 +641,20 @@ export function registerTrial() {
             messageId: message.id
         });
 
+        if (playersCard) {
+            if (isPrimaryGm()) {
+                serialWrite(SEIZE_KEY, () => (mutedPresenter ? refusePlayersCard(message, "dead")
+                    : refusePlayersCard(message, objection ? "objection" : "present")))
+                    .catch(err => error("Could not mark a player's card as refused", err));
+            }
+            return;
+        }
+
         // Showing the evidence and taking the floor are one act in the guide,
         // so they are one act here. Exactly one client writes it: this hook
         // fires on every GM, and two of them racing on the same setting is how
         // the floor ends up pointing at the wrong person.
         if (!objection || !isPrimaryGm()) return;
-
-        if (playerObjection) {
-            serialWrite(SEIZE_KEY, () => refusePlayersCard(message))
-                .catch(err => error("Could not mark a player's objection card as refused", err));
-            return;
-        }
         // The primary's own card of a player's Objection: its floor is `objectOnPrimary`'s, opened after the post.
         if (message.getFlag(MODULE_ID, TRIAL_FLAGS.pending)) return;
 
@@ -488,6 +682,14 @@ export function registerTrial() {
      * body to its last words (popup.mjs `watchCard`, R293), one entry. A GM's card only: the GMs write these, and a
      * player's card that changes its words is not redrawn on anybody's screen by this.
      */
+    /* THE STAMP OF AN OVERRULE (E70 C2; DB41: "Overruled by the GM"), drawn by the chat log from the card's flag on a
+       GM's card: display only, as the flag is - the receipt is the record. */
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!message?.getFlag?.(MODULE_ID, TRIAL_FLAGS.overruled) || !message.author?.isGM) return;
+        const card = element?.querySelector?.(".drpg-evidence-card") ?? null;
+        if (card && !card.querySelector(".drpg-overruled-stamp")) card.append(overruledStamp());
+    });
+
     Hooks.on("updateChatMessage", (message, change) => {
         if (!message.getFlag(MODULE_ID, TRIAL_FLAGS.present) || !("content" in (change ?? {}))) return;
         if (!message.author?.isGM) return;
@@ -503,14 +705,24 @@ export function registerTrial() {
 /**
  * A card a player's browser posted with the objection flag, on the primary GM (E79 C16): marked refused - the log
  * shows it for what it was - and its character's owner told where an Objection is raised now, or, for a card in
- * somebody else's name, that it was not theirs. Nothing is paid and the floor does not move.
+ * somebody else's name, that it was not theirs. Nothing is paid and the floor does not move. `kind` "dead": a Present
+ * card of a student on the trial's list of the dead (E70 fix p1-G1), its owner told the dead do not present;
+ * "present": any other player's Present card (E70 fix p2-G2), its owner told where a Present is made now.
  */
-async function refusePlayersCard(message) {
+async function refusePlayersCard(message, kind = "objection") {
     if (!isPrimaryGm()) return;
     try {
         await message.setFlag(MODULE_ID, TRIAL_FLAGS.refused, true);
         const actor = game.actors.get(message.speaker?.actor ?? "");
         if (!actor) return;
+        if (kind === "dead") {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }))}</p>`);
+            return;
+        }
+        if (kind === "present") {
+            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Trial.presentByButton")}</p>`);
+            return;
+        }
         const why = message.author && actor.testUserPermission(message.author, "OWNER")
             ? game.i18n.localize("DRPG.Trial.objectionByButton")
             : game.i18n.format("DRPG.Trial.objectionNotYours", { name: actor.name });
@@ -534,6 +746,10 @@ async function refusePlayersCard(message) {
  * was this file's own promise, and the bridge's Objection (`objectOnPrimary`) held it by hand with a release in a
  * `finally`; both are steps of utils.mjs `serialWrite` under this key now, in the order they were asked, and a step
  * that throws fails only its own caller (tier 0 R991, R45).
+ *
+ * THE FLOOR'S KEY SINCE E70 C0 (27.10.2026; amend 5 (d)): every write of the floor is a step of it on the primary GM
+ * (trial-floor.mjs `floorStep`, which imports it from here), the evidence's fill too (`evidenceOnPrimary`), so a
+ * seizure, the heartbeat and a GM's button read and write the floor one after another.
  */
 export const SEIZE_KEY = "trial.seize";
 
@@ -577,7 +793,8 @@ async function seizeFloor(message, objectorId, targetId) {
     const actor = game.actors.get(objectorId);
     if (!actor) return null;
 
-    const { floorRefusal, targetRefusal, openObjection, trialFloor } =
+    // The in-step twin (E70 C0): this is a step of SEIZE_KEY, and the public `openObjection` would queue behind it.
+    const { floorRefusal, targetRefusal, openObjectionInStep, trialFloor } =
         await import("./trial-floor.mjs");
 
     /** Mark the card and tell the objector why their minute did not happen. */
@@ -609,7 +826,7 @@ async function seizeFloor(message, objectorId, targetId) {
      */
     const { itemAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
     const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(await flagsAsHeld(actor))) {
+    if (isDeceased(await flagsAsHeld(actor)) || isMutedDead(actor)) {
         return refuse(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
     }
 
@@ -640,7 +857,8 @@ async function seizeFloor(message, objectorId, targetId) {
 
     let opened = null;
     try {
-        opened = await openObjection(objectorId, targetId);
+        // The card goes on the floor's stack with the floor it interrupted (E70 C1): C2's Overrule finds it there.
+        opened = await openObjectionInStep(objectorId, targetId, { cardId: message.id });
     } catch (err) {
         error("Could not open the objection", err);
     }
@@ -655,6 +873,9 @@ async function seizeFloor(message, objectorId, targetId) {
         return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"));
     }
 
+    // The receipt of the price this step took, for the Overrule (E70 C2): the floor it took, as the stack keeps it.
+    await keepReceipt(message.id, opened, { objectorId, aimedAt: targetId, paid: receipt });
+
     // The sound travels as a flag on the whisper rather than being played here:
     // this is the GM's client, and the pip that just moved is the objector's.
     await whisperToOwner(actor,
@@ -662,6 +883,111 @@ async function seizeFloor(message, objectorId, targetId) {
         receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
 
     return opened;
+}
+
+/*
+ * THE RECEIPT OF AN OBJECTION (E70 C2, 27.10.2026; S18-77, E70-09). What the Overrule needs - who objected to whom,
+ * what they paid, what they interrupted and with how much time left - was nowhere but the card, which is a chat
+ * message: its flags are the poster's, its words are HTML, and a log that read them read whatever a card said. The
+ * primary writes it here, in the step that took the price (`seizeFloor`, `objectOnPrimary`), from what it charged
+ * (`payPrice`'s answer) and the floor it wrote (the stack's newest entry, E70 C1): into the trial record
+ * (`trialProgress().objections`, by card), kept for the chapter, never read off a card. An Objection refused or
+ * refunded never gets one; a withdrawn one loses it (`withdrawObjectionCard`): there is nothing to overrule in either.
+ */
+// `aimedAt`, the target the step judged: objectOnPrimary names the packet's `targetId` in its no-Room branch alone (R591).
+async function keepReceipt(messageId, floor, { objectorId, aimedAt, paid }) {
+    if (!messageId || !floor) return;
+    try {
+        const { restOf } = await import("./floor-machine.mjs");
+        const entry = (Array.isArray(floor.before) ? floor.before : []).findLast(e => e?.messageId === messageId) ?? null;
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => ({
+            objections: {
+                ...(record.objections ?? {}),
+                [messageId]: {
+                    objectorId, targetId: aimedAt ?? null,
+                    paid: paid ? { key: paid.key ?? null, pay: paid.pay ?? null, amount: Number(paid.amount) || 0, grant: Boolean(paid.grant) } : null,
+                    mode: entry?.before?.mode ?? null, leftAtObjection: entry ? Number(entry.leftAtObjection) || 0 : null,
+                    debateLeft: restOf(floor), trialStartedAt: record.trialStartedAt ?? null, at: serverNow(), overruled: false,
+                    // The debate's question it was raised in (E70 C3), as the floor the primary wrote holds it.
+                    topic: floor.topic ?? null
+                }
+            }
+        }));
+    } catch (err) {
+        error("Could not keep the receipt of an Objection", err);
+    }
+}
+
+/**
+ * The trial record's receipts (`objections`), the trial's stamp and the console's offer of the debate again
+ * (`againAfterOverrule`), as vote.mjs `trialProgress` reads the record: `chapter`'s (the clock's), else none - a record
+ * of another chapter is another trial's. `given` stands for the record (the suite's). Read synchronously, for the bar's
+ * greyed button and the log, without the vote's file.
+ */
+export function objectionRecord({ chapter = null, given = null } = {}) {
+    const none = { objections: {}, trialStartedAt: null, again: null };
+    try {
+        const stored = given ?? game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        if (!given && stored.chapter !== (chapter ?? getClock().chapter)) return none;
+        return { objections: stored.objections ?? {}, trialStartedAt: stored.trialStartedAt ?? null, again: stored.againAfterOverrule ?? null };
+    } catch {
+        return none;
+    }
+}
+
+/** A withdrawn Objection's receipt taken out of the record (`withdrawObjectionCard`): nothing of it is left to overrule. */
+async function dropReceipt(messageId) {
+    try {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress(record => {
+            if (!record.objections?.[messageId]) return null;
+            const objections = { ...record.objections };
+            delete objections[messageId];
+            return { objections };
+        });
+    } catch (err) {
+        error("Could not take a withdrawn Objection's receipt out of the trial record", err);
+    }
+}
+
+/**
+ * The Overrule told (E70 C2; trial-floor.mjs `overruleInStep`, on the primary): the card marked - its stamp drawn by the
+ * chat log from the flag, its sticky card closed on every screen (popup.mjs) - and a card to the table with the sound,
+ * "The GM overrules {name}'s Objection. The price stays, ..." with where the trial went back to, or, after the
+ * exchange, that nothing else changes. A card deleted since is skipped: the receipt is the record. A pending card's
+ * words say it was overruled, not that a bullet is being chosen.
+ */
+export async function markOverruled(messageId, { objectorId = null, state = null } = {}) {
+    if (!game.user.isGM) return;
+    const message = messageId ? (game.messages.get(messageId) ?? null) : null;
+    const name = game.actors.get(objectorId ?? "")?.name ?? message?.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?";
+    if (message?.author?.isGM) {
+        try {
+            const pending = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.pending));
+            await message.update({
+                ...(pending ? { content: objectionStateCard(name, message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "overruled",
+                    message.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null) } : {}),
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.overruled]: true, ...(pending ? { [TRIAL_FLAGS.pending]: false } : {}) } }
+            });
+        } catch (err) {
+            error("Could not mark the overruled Objection's card", err);
+        }
+    }
+    const { trialEventCard } = await import("./trial-floor-ui.mjs");
+    const esc = foundry.utils.escapeHTML;
+    const lines = state
+        ? [game.i18n.format("DRPG.Floor.overrule.card", { name: esc(name), state: esc(state) })]
+        : [game.i18n.format("DRPG.Floor.overrule.cardOver", { name: esc(name) }), game.i18n.localize("DRPG.Floor.overrule.over")];
+    try {
+        await announce({
+            content: trialEventCard("DRPG.Floor.overrule.title", ...lines),
+            flags: { [MODULE_ID]: { sfx: { key: "overrule", gm: true } } }
+        });
+    } catch (err) {
+        error("Could not tell the table the Objection was overruled", err);
+    }
+    log(`The GM overruled ${name}'s Objection${state ? `; back to ${state}` : ""}.`);
 }
 
 
@@ -714,13 +1040,18 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         const actor = game.actors.get(actorId ?? "");
         if (!actor) return { refused: "no such character" };
         if (!inClassTrial()) return { refused: "no Class Trial is in session" };
-        const { objectionOpen, mayObjectTo, openObjection, trialFloor } = await import("./trial-floor.mjs");
+        const { objectionOpen, mayObjectTo, openObjectionInStep, trialFloor } = await import("./trial-floor.mjs");
         if (!objectionOpen()) return { refused: "the trial's floor is not open to an objection now" };
-        if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
-        // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20).
+        // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20). The death
+        // before the price (E70 C5 fix-mutant): the price's own refusal of the dead (price.mjs `cannotPayAtAll`, on
+        // `isDeadForGm`) answered first and left this line unreachable - tier 2 E70-T8 read "that character is offered no
+        // Objection" for K and U, the same code (`cannotNow`) to the player, and mutant v1 survived it.
         const { itemsAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
         const { isDeceased, livingStudents } = await import("./chapter.mjs");
         if (isDeceased(await flagsAsHeld(actor))) return { refused: "a dead student does not object" };
+        // E70 C5: nor one on the trial's list of the dead - a death nobody has found, which the flag does not show (TR30).
+        if (isMutedDead(actor)) return { refused: "a dead student does not object" };
+        if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
         if (!(await itemsAsHeld(actor)).some(item => isTruthBullet(item))) return { refused: "that character holds no Truth Bullet" };
 
         const speakers = await import("./trial-speakers.mjs");
@@ -751,7 +1082,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         let message = null;
         try {
             message = await announce({
-                content: objectionStateCard(actor.name, target.name, "pending"),
+                content: objectionStateCard(actor.name, target.name, "pending", trialFloor()?.topic ?? null),
                 speaker: ChatMessage.getSpeaker({ actor }),
                 flags: {
                     [MODULE_ID]: {
@@ -763,6 +1094,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
                         [TRIAL_FLAGS.target]: target.id,
                         [TRIAL_FLAGS.targetName]: target.name,
                         [TRIAL_FLAGS.how]: how,
+                        [TRIAL_FLAGS.topic]: trialFloor()?.topic ?? null,
                         [TRIAL_FLAGS.chapter]: getClock().chapter,
                         popupKind: "none"
                     }
@@ -778,7 +1110,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
 
         let opened = null;
         try {
-            opened = await openObjection(actor.id, target.id, { pending: true, messageId: message.id });
+            opened = await openObjectionInStep(actor.id, target.id, { pending: true, messageId: message.id });
         } catch (err) {
             error("Could not open the objection", err);
         }
@@ -795,6 +1127,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
             return { refused: "the floor did not move for that objection" };
         }
 
+        await keepReceipt(message.id, floor, { objectorId: actor.id, aimedAt: target.id, paid: receipt });
         await whisperToOwner(actor,
             `<p>${game.i18n.format("DRPG.Trial.objectionPaid", { what: paidLine(receipt) })}</p>`,
             receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
@@ -817,50 +1150,58 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * minute with the pending words on the table while its objector was told it failed. The floor goes back to the
  * debate and the card is marked withdrawn, nothing given back, as at a lapse.
  *
- * @param {{actorId: string, itemId: string, comment?: string}} request
+ * A STEP OF THE FLOOR'S KEY (E70 C0): the fill read the floor and wrote it outside `SEIZE_KEY`, beside the seizures
+ * and the heartbeat that are steps of it; the read, the fill and a put-back are one step now, through the floor's
+ * in-step twins (`fillObjectionInStep`, and `unfill`'s `returnToDebateInStep`).
+ *
+ * @param {{actorId: string, itemId: string, comment?: string, analysis?: boolean}} request
  */
-export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
-    const actor = game.actors.get(actorId ?? "");
-    if (!actor) return { refused: "no such character" };
-    const { noteTooLong } = await import("./pre-session-note.mjs");
-    if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
-    const { trialFloor, pendingFor, fillObjection } = await import("./trial-floor.mjs");
-    const floor = trialFloor();
-    const message = floor?.messageId ? (game.messages.get(floor.messageId) ?? null) : null;
-    if (!message || !pendingFor(floor, actor.id, message.id)) {
-        return { refused: "that objection is no longer waiting for its Truth Bullet" };
-    }
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
-    const held = itemId ? await itemAsHeld(actor, itemId) : null;
-    const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
-    const data = item ? truthBulletData(bulletAsHeld(item)) : null;
-    if (!data) return { refused: "that character holds no such Truth Bullet" };
+export async function evidenceOnPrimary({ actorId, itemId, comment = "", analysis = true }) {
+    return serialWrite(SEIZE_KEY, async () => {
+        const actor = game.actors.get(actorId ?? "");
+        if (!actor) return { refused: "no such character" };
+        const { noteTooLong } = await import("./pre-session-note.mjs");
+        if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
+        const { trialFloor, pendingFor, fillObjectionInStep } = await import("./trial-floor.mjs");
+        const floor = trialFloor();
+        const message = floor?.messageId ? (game.messages.get(floor.messageId) ?? null) : null;
+        if (!message || !pendingFor(floor, actor.id, message.id)) {
+            return { refused: "that objection is no longer waiting for its Truth Bullet" };
+        }
+        const { itemAsHeld } = await import("./sheet-audit.mjs");
+        const held = itemId ? await itemAsHeld(actor, itemId) : null;
+        const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
+        const data = item ? truthBulletData(bulletAsHeld(item)) : null;
+        if (!data) return { refused: "that character holds no such Truth Bullet" };
 
-    if (!(await fillObjection(actor.id, message.id))) {
-        return { refused: "that objection is no longer waiting for its Truth Bullet" };
-    }
-    try {
-        await message.update({
-            content: buildCard(actor, holderView(data), {
-                objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null
-            }),
-            flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
-        });
-    } catch (err) {
-        error("Could not put the Truth Bullet on the Objection's card", err);
-        await unfill(actor.id, message.id);
-        return { refused: "the objection's card could not be filled" };
-    }
-    log(`${actor.name} objected with "${data.name}".`);
-    return { reply: { item: data.name } };
+        if (!(await fillObjectionInStep(actor.id, message.id))) {
+            return { refused: "that objection is no longer waiting for its Truth Bullet" };
+        }
+        try {
+            await message.update({
+                content: buildCard(actor, holderView(data), {
+                    objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null,
+                    // With or without the Analyze result, as a Present (E70 C10; Q-p2-3): the same card, no copies.
+                    topic: floor.topic ?? null, analysis: analysis !== false
+                }),
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
+            });
+        } catch (err) {
+            error("Could not put the Truth Bullet on the Objection's card", err);
+            await unfill(actor.id, message.id);
+            return { refused: "the objection's card could not be filled" };
+        }
+        log(`${actor.name} objected with "${data.name}".`);
+        return { reply: { item: data.name } };
+    });
 }
 
 /** `evidenceOnPrimary`'s put-back when its card could not be filled: the floor it filled back to the debate, the card withdrawn. */
 async function unfill(objectorId, messageId) {
     try {
-        const { trialFloor, returnToDebate, FLOOR_MODES } = await import("./trial-floor.mjs");
+        const { trialFloor, returnToDebateInStep, FLOOR_MODES } = await import("./trial-floor.mjs");
         const floor = trialFloor();
-        if (floor?.mode === FLOOR_MODES.objection && floor.holderId === objectorId && floor.messageId === messageId) await returnToDebate({});
+        if (floor?.mode === FLOOR_MODES.objection && floor.holderId === objectorId && floor.messageId === messageId) await returnToDebateInStep({});
         await withdrawObjectionCard(messageId);
     } catch (err) {
         error("Could not put the floor back after the Objection's card could not be filled", err);
@@ -936,9 +1277,10 @@ export async function withdrawObjectionCard(messageId) {
     if (!message?.getFlag(MODULE_ID, TRIAL_FLAGS.pending)) return false;
     await message.update({
         content: objectionStateCard(message.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?",
-            message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "withdrawn"),
+            message.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null, "withdrawn", message.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null),
         flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.withdrawn]: true } }
     });
+    await dropReceipt(messageId);
     return true;
 }
 
@@ -971,7 +1313,7 @@ export async function raiseObjection(actor) {
         if (pendingFor(trialFloor(), actor.id, raised.messageId)) await requestWithdraw({ actorId: actor.id, messageId: raised.messageId });
         return false;
     }
-    const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment });
+    const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment, analysis: pick.analysis });
     return filled.ok === true;
 }
 
@@ -980,7 +1322,10 @@ async function nameObjectionTarget(actor) {
     const { livingStudents } = await import("./chapter.mjs");
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
-    const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId] : null;
+    // In a round only its speaker may be named (E70 C7; the primary holds the same row, `targetRefusal`).
+    // And in the Closing its speaker alone (E70 C8; E70-53).
+    const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId]
+        : floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.closing ? [floor.holderId] : null;
     const choices = livingStudents()
         .filter(student => student.id !== actor.id && (!pair || pair.includes(student.id)))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -995,7 +1340,10 @@ async function nameObjectionTarget(actor) {
             <label>${game.i18n.localize("DRPG.Trial.objectionTarget")}
                 <select name="target">${choices.map(student =>
                     `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
-            ${pair ? `<p class="notes">${game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
+            ${pair ? `<p class="notes">${floor.mode === FLOOR_MODES.testimony
+                ? game.i18n.format("DRPG.Trial.objectionSpeakerOnly", { mode: game.i18n.localize("DRPG.Floor.mode.testimony") })
+                : floor.mode === FLOOR_MODES.closing ? game.i18n.localize("DRPG.Trial.objectionClosingSpeaker")
+                    : game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Trial.objectionNoRoom")}</p>
         </form>`),
         buttons: [
@@ -1028,6 +1376,13 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
         return pendingFor(floor, actor.id, messageId) ? Math.ceil(msLeft(floor) / 1000) : 0;
     };
     const countLine = () => game.i18n.format("DRPG.Trial.objectionPickCount", { seconds: left() });
+    // An Objection in the Closing Argument names the decision its exchange ends in (E70 C8; E70-53, TR24).
+    const { closingOf } = await import("./floor-machine.mjs");
+    // The Present's choice, with or without the Analyze result (E70 C10; Q-p2-3), where any bullet offered has one to hide.
+    const offer = bullets.some(item => analysisOffered(truthBulletData(item)));
+    const decisionLine = closingOf(trialFloor())
+        // A <div>, not a <p class="notes">: the count below is found as the form's first `p.notes`.
+        ? `<div class="notes drpg-objection-decision">${game.i18n.localize("DRPG.Trial.objectionClosingDecision")}</div>` : "";
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Trial.objectionPickTitle") },
         classes: ["drpg-panel", "drpg-objection-pick"],
@@ -1036,19 +1391,22 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             <label>${game.i18n.localize("DRPG.Trial.objectionPickLabel")}
                 <select name="item">${bullets.map(item =>
                     `<option value="${item.id}">${foundry.utils.escapeHTML(item.name)}</option>`).join("")}</select></label>
+            ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
             <p class="drpg-warning">${game.i18n.format("DRPG.Trial.objectionWarning", {
                 objection: TRIAL.objectionSeconds, rebuttal: TRIAL.rebuttalSeconds
             })}</p>
+            ${decisionLine}
             <p class="notes">${countLine()}</p>
         </form>`),
         buttons: [
             { action: "evidence", label: game.i18n.localize("DRPG.Trial.objection"), default: true,
                 callback: (e, b, d) => ({
                     itemId: d.element.querySelector("[name=item]")?.value ?? "",
-                    comment: d.element.querySelector("[name=comment]")?.value.trim() ?? ""
+                    comment: d.element.querySelector("[name=comment]")?.value.trim() ?? "",
+                    analysis: analysisChosen(d.element)
                 }) },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -1144,6 +1502,8 @@ export async function repointDialog() {
  */
 export function presentedThisChapter({ objectionsOnly = false, chapter = null } = {}) {
     const want = chapter ?? getClock().chapter;
+    // The Overrule is the receipt's (E70 C2), never the card's flag, which its own author could take off again.
+    const { objections } = objectionRecord({ chapter: want });
 
     return game.messages
         .filter(m => m.getFlag(MODULE_ID, TRIAL_FLAGS.present))
@@ -1162,6 +1522,11 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             refused: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.refused)),
             // An Objection whose Truth Bullet never came (E79 C16): it stopped the room and showed nothing.
             withdrawn: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.withdrawn)),
+            // Overruled by the GM (E70 C2): read off the receipt the primary keeps, as is whether it has one.
+            overruled: Boolean(objections[m.id]?.overruled),
+            receipt: Boolean(objections[m.id]),
+            // The debate's question (E70 C3): the receipt's where the primary kept one, else the card's own marker.
+            topic: objections[m.id]?.topic ?? m.getFlag(MODULE_ID, TRIAL_FLAGS.topic) ?? null,
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
             timestamp: m.timestamp
         }))
@@ -1201,14 +1566,31 @@ export async function openObjectionLog() {
      * which `keepLive` carries by default, because no other window in the module is
      * about chat.
      */
+    /* OVERRULE ON THE NEWEST ROW (E70 C2): the one Objection an Overrule would name now - the running one, else the
+       newest of this trial not yet overruled (floor-machine.mjs `overruleTarget`) - carries the button; each row of an
+       overruled one says so, read off the receipt ("OBJECTION - overruled by the GM"). */
+    const floorMod = await import("./trial-floor.mjs");
+    const { overruleTarget } = await import("./floor-machine.mjs");
     const logBody = () => {
         const entries = presentedThisChapter();
-        const rows = entries.map(e => `<tr>
+        const named = overruleTarget({ floor: floorMod.trialFloor(), ...objectionRecord(), running: floorMod.inClassTrial() });
+        /* THE LOG BY QUESTION (E70 C3; S18-70): once any row of the chapter has a debate's question, a heading row goes
+           above each run of rows under one question, newest first as the rows are, and the rows put on the table with
+           no question are headed so. A chapter whose debates had no question reads as it did. */
+        const grouped = entries.some(e => e.topic);
+        let heading;
+        const rows = entries.map(e => `${grouped && e.topic !== heading ? `<tr class="drpg-objection-log-topic"><th colspan="4">${(heading = e.topic)
+            ? game.i18n.format("DRPG.Floor.topicLine", { topic: foundry.utils.escapeHTML(e.topic) })
+            : game.i18n.localize("DRPG.Trial.logNoTopic")}</th></tr>` : ""}<tr>
             <td>${e.objection
                 ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>${
                     e.refused
                         ? ` <em>${game.i18n.localize("DRPG.Trial.logRefused")}</em>`
-                        : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>` : ""}`
+                        : e.withdrawn ? ` <em>${game.i18n.localize("DRPG.Trial.logWithdrawn")}</em>`
+                            : e.overruled ? ` - <em>${game.i18n.localize("DRPG.Trial.logOverruled")}</em>` : ""}${
+                    !named.refused && named.messageId === e.id
+                        ? ` <button type="button" data-drpg-overrule="${e.id}">${
+                            game.i18n.localize("DRPG.Floor.bar.overrule")}</button>` : ""}`
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>
             <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
@@ -1237,11 +1619,20 @@ export async function openObjectionLog() {
         classes: ["drpg-panel", "drpg-window-objections"],
         content: dialogContent(logBody()),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
-        render: (event, dialog) => keepLive(dialog, {
-            region: ".drpg-objection-live",
-            build: logBody,
-            watch: { hooks: ["createChatMessage", "deleteChatMessage", "updateChatMessage"] }
-        }),
+        render: (event, dialog) => {
+            // By delegation on the window: the region is rebuilt whenever the record or a card changes.
+            dialog.element?.addEventListener("click", ev => {
+                const button = ev.target?.closest?.("[data-drpg-overrule]");
+                if (!button) return;
+                ev.preventDefault();
+                floorMod.overruleObjection(button.dataset.drpgOverrule).catch(err => error("The log's Overrule failed", err));
+            });
+            return keepLive(dialog, {
+                region: ".drpg-objection-live",
+                build: logBody,
+                watch: { hooks: ["createChatMessage", "deleteChatMessage", "updateChatMessage"] }
+            });
+        },
         rejectClose: false
     });
 }

@@ -756,10 +756,45 @@ export const ballotStore = defineGmStore({
  * `applyVerdict`, read by `finishVerdict` when its `at` is the stopped verdict's. A GM store and
  * never the world's record, which every console reads and which C5 keeps free of a Blackened. Cut
  * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
+ * And the Final Trial's sentence (E70 C4; the owner's Q2 answer, 27.10.2026): `finalSentenced`, the Mastermind's
+ * id, under the Final verdict's `at` (`finalAt`), carried out at the trial's end (vote.mjs `executeAtExit`) - the
+ * world's record says only that it waits (`sentencePending`), as it names nobody (mastermind.mjs `applyFinalVerdict`).
+ * BACKED UP SINCE E70 fix p1-G2 (the review's E70P1-R10): "not backed up, as a ballot means nothing once counted" held
+ * for the Blackened, not for a sentence that waits for the trial's end - a GM who moved to another browser before End
+ * the trial executed nobody. In the backup and the health check now; a record that says a Final sentence waits and a
+ * store that holds none is told to the GMs (vote.mjs `sentenceOf`).
  */
 export const verdictStore = defineGmStore({
     name: "verdict", key: SETTINGS.gmVerdict,
-    kind: "record", fields: ["at", "blackenedIds"], resetGroup: "trialProgress", backup: false, sync: true
+    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced"], resetGroup: "trialProgress", backup: true, sync: true
+});
+
+/**
+ * WHAT THE TRIAL'S MUTE FOUND (E70 C5, 28.10.2026; amend 6, answer 3 (b)). A row per user whose microphone the trial
+ * blocked: `had` (the user held a BROADCAST_AUDIO grant of its own), `value` (which), `wrote` (the block is the trial's).
+ * Written by the primary as it blocks (voice.mjs `blockForTrial`) and dropped as it puts the grant back
+ * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
+ * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
+ * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ */
+export const trialMuteStore = defineGmStore({
+    name: "trialMute", key: SETTINGS.gmTrialMute,
+    kind: "ledger", resetGroup: "trialProgress", backup: true, sync: true,
+    exists: userId => Boolean(game.users?.has(userId))
+});
+
+/**
+ * THE CLOSING ARGUMENT'S VOLUNTEERS (E70 C8, 28.10.2026; TR23 = 1, E70-51). A record, `{ volunteers, drawn, openedAt }`:
+ * who volunteered in the Closing's 30 s ("trial.claim"), the one the draw named for the GM to confirm, and the Closing's
+ * stamp. Written by the primary in a step of the floor's key (trial-modes.mjs `volunteerOnPrimary`, `drawInStep`,
+ * `clearClaims`); the floor holds only how many, and whether there is somebody to confirm, so the GM's change of the
+ * draw is told to nobody (E70-52). Synced between the GMs, so another GM's console reads the names; never world data
+ * (world-secrets.mjs, the floor's rule). Cut by the reset's trial group; not backed up - a volunteer means nothing once
+ * the Closing's speaker is chosen.
+ */
+export const closingClaimStore = defineGmStore({
+    name: "closingClaim", key: SETTINGS.gmClosingClaim,
+    kind: "record", fields: ["volunteers", "drawn", "openedAt"], resetGroup: "trialProgress", backup: false, sync: true
 });
 
 /**

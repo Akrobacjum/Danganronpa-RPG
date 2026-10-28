@@ -94,12 +94,19 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     // ("Send another ballot ({n})" reads "Send another ballot"), and looked for after a "**" in the
     // handbook of the same language. R321 reads what the sentences say against the code; this reads the
     // names. 56 labels; at the commit before C17, 34 of them were missing.
+    // E70 C6 (28.10.2026): the GM's bar (C1), Overrule's button and stamp (C2), the debate again (C3) and the
+    // execution's card (C4) - 26 labels more, 82 in all; at a40405b7, before C6,
+    // 18 of the 26 were missing, and +30 s and End this mode were found only inside the retired "+30 seconds" and
+    // "End this mode now" (node, these readers on the files, 28.10.2026).
     const LABELS = {
         gm: ["Floor.startTrial", "Floor.openDebate", "Floor.closeDebate", "Floor.newTrialTitle", "Floor.incidentKeep", "Murder.endMurder",
             "Vote.openTitle", "Vote.send", "Vote.remind", "Vote.sendAgain", "Vote.tally", "Vote.nobodyExecuted", "Vote.gotItRight",
             "Vote.gotItWrong", "Vote.verdictCardTitle", "Vote.finishVerdict", "Advance.queueTitle", "Advance.pickPlayer", "Advance.pickMe",
-            "Advance.queueGive", "Advance.allPlayers", "Advance.takeBack", "Mastermind.verdictTitle", "Floor.endTrial"],
-        player: ["Vote.castConfirmed", "Vote.verdictCardTitle", "Trial.present", "Trial.objectionShort"]
+            "Advance.queueGive", "Advance.allPlayers", "Advance.takeBack", "Mastermind.verdictTitle", "Floor.endTrial",
+            "Floor.bar.skip", "Floor.bar.minus", "Floor.bar.plus", "Floor.bar.overrule", "Floor.bar.endMode", "Floor.backToDebate", "Floor.repoint",
+            "Floor.againSame", "Trial.overruledStamp", "Vote.executionCardTitle"],
+        player: ["Vote.castConfirmed", "Vote.verdictCardTitle", "Trial.present", "Trial.objectionShort", "Floor.bar.overrule", "Trial.overruledStamp",
+            "Vote.executionCardTitle"]
     };
     const named = await gm.eval(`
         const U = foundry.utils, LABELS = ${JSON.stringify(LABELS)};
@@ -121,5 +128,5 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         }
         return out;`, { timeout: 30000 });
     check("gm: the handbooks name the Class Trial's buttons by the labels the module draws, in English and in Polish",
-        named.read === 56 && named.missing.length === 0, JSON.stringify(named));
+        named.read === 82 && named.missing.length === 0, JSON.stringify(named));
 }

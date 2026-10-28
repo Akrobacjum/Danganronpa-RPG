@@ -16,7 +16,7 @@ import {
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
@@ -30,6 +30,7 @@ import {
 } from "./truth-bullets.mjs";
 import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
+import { presentRefusal, trialFloor } from "./trial-floor.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
 import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
@@ -90,6 +91,10 @@ export function registerSheetTweaks() {
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
+    // The row's Present follows the floor (E70 C10): painted in place, no sheet rendered.
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) repaintPresentButtons();
+    });
     // A token moved onto a tunnel's end goes through it as 'Go through' does (H81-13; `onTunnelStep`'s note).
     Hooks.on("preUpdateToken", noteStepStart);
     Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
@@ -3451,7 +3456,10 @@ function buildBulletRow(li, item, app) {
     // Evidence is worth passing on whatever state it is in - an unidentified
     // copy is exactly what you hand to somebody whose analysis has not been
     // burned yet. So this button is offered regardless of the lock.
-    addHandoverButton(li, item, app, { copying: true });
+    // NOT IN THE CLASS TRIAL (E70 C10, 28.10.2026; B6, the owner's "Share znika z wiersza rozprawy"): a Present hands
+    // every participant a copy as it was shown (trial.mjs `presentOnPrimary`), so Share there is a second road to the
+    // same copy with none of the table watching. A bedroom key's row keeps its own button (`buildItemRow`).
+    if (!inClassTrial()) addHandoverButton(li, item, app, { copying: true });
     addPresentButton(li, item, app);
 
     // Nothing to analyse once it is read - an Autopsy bullet arrives whole, an
@@ -3495,16 +3503,17 @@ function buildBulletRow(li, item, app) {
  * free, the floor untouched, in a debate as outside one.
  */
 function addPresentButton(li, item, app) {
-    if (!inClassTrial() || isDeceased(app.document)) return;
+    // Nor for a student on the trial's list of the dead (E70 fix p1-G1): a death nobody has found too (TR30).
+    if (!inClassTrial() || isDeceased(app.document) || isMutedDead(app.document)) return;
 
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.drpgRowAction = "present";
-    const tip = game.i18n.localize("DRPG.Trial.presentTooltip");
     button.className = "drpg-row-button drpg-row-present";
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-gavel" inert></i>`;
+
+    button.dataset.drpgActorId = app.document.id;
+    paintPresentButton(button, app.document);
 
     button.addEventListener("click", async () => {
         const { presentDialog } = await import("./trial.mjs");
@@ -3512,6 +3521,28 @@ function addPresentButton(li, item, app) {
     });
 
     li.append(button);
+}
+
+/**
+ * The row's Present by the mode's row (E70 C10; TR2 = 1): held, with the row's line as its tooltip ("Only {name} can
+ * present right now."), while somebody else holds the floor of a mode with a speaker; the window says the same if it is
+ * pressed. Painted in place when the floor moves (`repaintPresentButtons`), so a turn's change renders no sheet.
+ */
+function paintPresentButton(button, actor) {
+    const held = presentRefusal(trialFloor(), actor.id);
+    const tip = held ?? game.i18n.localize("DRPG.Trial.presentTooltip");
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
+    if (held) button.setAttribute("aria-disabled", "true");
+    else button.removeAttribute("aria-disabled");
+}
+
+/** Every drawn row's Present painted again for the floor as it stands (the floor's setting written). */
+function repaintPresentButtons() {
+    for (const button of document.querySelectorAll(".drpg-row-present[data-drpg-actor-id]")) {
+        const actor = game.actors.get(button.dataset.drpgActorId);
+        if (actor) paintPresentButton(button, actor);
+    }
 }
 
 /**

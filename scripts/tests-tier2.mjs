@@ -2575,10 +2575,32 @@ async function withVerdictOpen(run) {
     const { trialProgress } = await import("./vote.mjs");
     const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
     try {
-        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter: getClock().chapter, verdictApplied: false,
+            executedAt: null, execution: null });
         return await run();
     } finally {
         await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+    }
+}
+
+/**
+ * A verdict given in a Class Trial, then the trial's end that carries its sentence out (E70 C4: vote.mjs
+ * `executeAtExit`, as End the trial asks it), over `withVerdictOpen`'s record. The clock is written raw around both,
+ * so no phase write runs its roads (the floor, the hall), and put back. Answers what `run` answered.
+ */
+async function withVerdictCarriedOut(run) {
+    const { executeAtExit } = await import("./vote.mjs");
+    const clock = foundry.utils.deepClone(getClock());
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+        return await withVerdictOpen(async () => {
+            const out = await run();
+            await executeAtExit();
+            await settle();
+            return out;
+        });
+    } finally {
+        await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
     }
 }
 
@@ -2654,6 +2676,20 @@ async function safewordRun(S, player, act, read) {
  * back, one a botched wipe left - with the bullet, and puts the Sanity back. `place` (E09 C9)
  * lays the trace elsewhere: `placeRemnant`'s own fields, over the anchor and the scene on screen.
  */
+/*
+ * THE AUTHOR'S COPY OF A TAMPER'S TRACE (E70 C12, 28.10.2026): a frame or a body moved that succeeds hands its author
+ * the trace's Truth Bullet (cleanup.mjs `authorsCopy`). A test that scores one for its own reading puts it back with
+ * its answer key: every bullet of a trace that `actor` holds and did not hold when `had` (the item ids then) was read.
+ */
+async function dropNewCopies(actor, had) {
+    const T = await import("./truth-bullets.mjs");
+    for (const item of actor.items.filter(i => !had.has(i.id) && T.secretOf(i.uuid)?.remnantId)) {
+        const uuid = item.uuid;
+        try { await item.delete(); } catch { /* already gone */ }
+        try { await T.dropSecret(uuid); } catch { /* none filed */ }
+    }
+}
+
 async function cleanupFixture(who, note, place = {}) {
     const cleanup = await import("./cleanup.mjs");
     const remnants = await import("./remnants.mjs");
@@ -6388,6 +6424,7 @@ const SCENARIOS = [
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const made = [];
+        const had = new Set(third.items.map(i => i.id));
         let trace = null;
         try {
             const mine = await inHand(killer, "cleaningTool", "SUITE C12 the killer's gloves");
@@ -6419,6 +6456,7 @@ const SCENARIOS = [
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             for (const actor of [killer, third]) if (S.usedToolStore?.has(actor.id)) await S.usedToolStore.drop(actor.id);
+            await dropNewCopies(third, had);
             for (const doc of [...made, trace]) {
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
@@ -23300,7 +23338,9 @@ const SCENARIOS = [
         const esc = foundry.utils.escapeHTML;
         const from = new Set(game.messages.map(m => m.id));
         try {
-            const after = await withVerdictOpen(async () => {
+            /* E70 C4 (DC36): the verdict sentences in the trial, and the trial's end executes - its own card, with the
+               execution's sound, and the owner's note. */
+            const after = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null,
                     () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
                 await settle();
@@ -23311,12 +23351,17 @@ const SCENARIOS = [
             const cards = fresh.filter(m => said.get(m.id).includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
             const card = cards[0] ?? null, sfx = card?.getFlag(MODULE_ID, "sfx") ?? null;
             equal(stableJson([cards.length, card?.whisper?.length ?? null, card?.getFlag(MODULE_ID, "verdictCard") ?? null, sfx?.key ?? sfx, after.stage]),
-                stableJson([1, 0, getClock().chapter ?? null, "death", "done"]),
-                "the verdict is not one public card of the chapter with the death's sound, or did not finish (cards, whispered to, chapter, sound, stage)");
+                stableJson([1, 0, getClock().chapter ?? null, null, "done"]),
+                "the verdict is not one public card of the chapter without the death's sound, or did not finish (cards, whispered to, chapter, sound, stage)");
             const words = said.get(card?.id) ?? "";
-            ok(words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))
+            ok(words.includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) }))
                 && words.includes(game.i18n.localize("DRPG.Vote.verdictWrong")),
-                "the verdict's card does not say who was executed and that the class got it wrong");
+                "the verdict's card does not say who is executed when the trial ends and that the class got it wrong");
+            const executions = fresh.filter(m => m.getFlag(MODULE_ID, "executionCard"));
+            equal(stableJson([executions.length, executions[0]?.whisper?.length ?? null, executions[0]?.getFlag(MODULE_ID, "sfx")?.key ?? null,
+                said.get(executions[0]?.id)?.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) })) ?? false]),
+                stableJson([1, 0, "execution", true]),
+                "the trial's end did not post one public execution card with its sound naming the executed (cards, whispered to, sound, the line)");
             const told = fresh.filter(m => !m.whisper?.length)
                 .map(m => `${said.get(m.id)} ${JSON.stringify(m.flags ?? {})} ${JSON.stringify(m.speaker ?? {})}`);
             equal(stableJson(told.filter(text => text.includes(killer.id) || text.includes(killer.name)).length), "0",
@@ -24281,7 +24326,8 @@ const SCENARIOS = [
                 "the verdict window did not open on an accused whose body nobody has found, listed them dead or not to be "
                 + "picked, or did not tell the GM whose death that is (the select's value; the option disabled, its words; the "
                 + "GM's line; \"already dead\")");
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict(answer));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24289,12 +24335,13 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))),
                 cards.some(words => words.includes(game.i18n.localize("DRPG.Vote.nobodyExecuted"))),
                 isDeceased(accused), deathStore.has(accused.id), stage]),
             stableJson([1, true, false, true, false, "done"]),
             "the wrong verdict the window gave did not execute the accused whose body nobody had found, or the card and the "
-                + "sheet disagree (cards; the card names them executed; it says nobody was; the flag; the GMs' row; the stage)");
+                + "sheet disagree (verdict cards; the execution card names them executed; it says nobody was; the flag; the GMs' row; the stage)");
         } finally {
             await reviveCharacter(accused, { quiet: true });
             for (const id of answer?.blackenedIds ?? []) if (deferredOfferStore.has(id)) await deferredOfferStore.drop(id);
@@ -24320,7 +24367,8 @@ const SCENARIOS = [
         const from = new Set(game.messages.map(m => m.id));
         must(await killCharacter(killer, { secret: true, keepBullets: true }), `${killer.name}'s death was not kept by the GMs`);
         try {
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24328,10 +24376,11 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(killer.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(killer.name) }))),
                 isDeceased(killer), deathStore.has(killer.id), stage]),
             stableJson([1, true, true, false, "done"]),
-            "the right verdict's card and the sheet of the Blackened whose body nobody had found disagree (cards; the card "
+            "the right verdict's card and the sheet of the Blackened whose body nobody had found disagree (verdict cards; the execution card "
                 + "names them executed; the flag; the GMs' row; the stage)");
         } finally {
             await reviveCharacter(killer, { quiet: true });
@@ -24391,7 +24440,8 @@ const SCENARIOS = [
 
     ["an execution of an open incident's living victim is public", async () => {
         /*
-         * E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5. `executeSentenced` called `killCharacter(actor)`,
+         * E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5 (since E70 C4 the execution is the trial's end's,
+         * `withVerdictCarriedOut`, on its own card). `executeSentenced` called `killCharacter(actor)`,
          * which keeps the running incident's victim's death for the GMs by default, and C12's "keep" lets a trial run
          * beside an open incident (trial-floor-ui.mjs `incidentClosedFirst`): executing its victim, alive, wrote a death
          * the GMs held while the card said "executed". An incident opened on a living victim, its opening resolved as
@@ -24420,7 +24470,8 @@ const SCENARIOS = [
             await settle();
             must(M.murderState()?.active && M.murderState()?.victimId === victim.id && !isDeadForGm(victim),
                 "the incident is not open on a living victim - this would measure nothing");
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [victim.id], blackenedIds: [] }));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24428,10 +24479,11 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
                 isDeceased(victim), deathStore.has(victim.id), stage]),
             stableJson([1, true, true, false, "done"]),
-            "the execution of the open incident's living victim is not the table's (cards; the card names them executed; the flag; "
+            "the execution of the open incident's living victim is not the table's (verdict cards; the execution card names them executed; the flag; "
                 + "the GMs' row; the stage)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -26094,6 +26146,7 @@ const SCENARIOS = [
         const traces = () => game.scenes.contents.flatMap(s => remnants.remnantsOn(s));
         const before = new Set(traces().map(t => t.id));
         const seen = new Set(game.messages.contents.map(m => m.id));
+        const had = new Set(who.items.map(i => i.id));
         try {
             const result = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30,
                 withHope: true, viaAction: true, price: "action" });
@@ -26109,6 +26162,7 @@ const SCENARIOS = [
                 "a misleading trail named its band by the ledger's key, or the GMs' copy did not read the roll against its threshold "
                 + "(success, the player's line, the note, the GMs' copy)");
         } finally {
+            await dropNewCopies(who, had);
             for (const trace of traces().filter(t => !before.has(t.id))) {
                 try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
                 try { await trace.delete(); } catch { /* already gone */ }
@@ -36577,6 +36631,14 @@ const SCENARIOS = [
             ui.notifications.info = ownInfo;
             for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
             try { await item?.delete(); } catch { /* already gone */ }
+            // The copies the window's Present handed the other participants (E70 C10, `presentOnPrimary`), and their answer keys.
+            for (const actor of game.actors) {
+                for (const copy of actor.items.filter(i => bullets.isTruthBullet(i) && i.name === "SUITE E10 C16 a toast")) {
+                    const uuid = copy.uuid;
+                    await copy.delete();
+                    await bullets.dropSecret(uuid);
+                }
+            }
             if (floorMod.trialFloor()) await floorMod.endFloor();
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await setClock(clock);
@@ -37314,7 +37376,7 @@ const SCENARIOS = [
             + "[at B on the filled card: answer, writes, filled], [the same at B]");
     }],
 
-    ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present is free", async () => {
+    ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present card the same", async () => {
         /*
          * E79 C16 (1.2.79; the prep's (f)). An Objection is raised on the primary GM now, which posts its card as a GM
          * (`objectOnPrimary`), so a card a player's browser posts with the objection flag is a console's or an old
@@ -37323,8 +37385,10 @@ const SCENARIOS = [
          * GM may) with the owner's own bullet, in a debate - every question `seizeFloor` used to ask answers yes.
          * Read: refused, the floor's holder, whether it stood on this screen, the objector's actions, and whether a
          * whisper said OBJECTION! is on the HUD; then a Present card of the same owner's, with no objection flag:
-         * shown, not refused, the actions the same. Red at C16's parent (e79run, 17.10.2026, by reading
-         * `seizeFloor`): the card took the floor and was paid for.
+         * since E70 C10 a Present is the primary's card too ("trial.present"), so since E70 fix p2-G2 (the review's
+         * SEC-1) it is refused the same way - shown on no screen, refused, the actions the same, its owner told where a
+         * Present is made. Red at C16's parent (e79run, 17.10.2026, by reading `seizeFloor`): the card took the floor
+         * and was paid for; the Present's half red at 2fc865ac (shown, not refused).
          */
         const [O, B] = cast(2);
         const owner = game.users.find(user => !user.isGM && O.testUserPermission(user, "OWNER"));
@@ -37340,6 +37404,7 @@ const SCENARIOS = [
         const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
         const seen = new Set(game.messages.map(m => m.id));
         const told = game.i18n.localize("DRPG.Trial.objectionByButton");
+        const toldPresent = game.i18n.localize("DRPG.Trial.presentByButton");
         let item = null;
         const read = [];
         const card = objection => ChatMessage.create({
@@ -37371,9 +37436,11 @@ const SCENARIOS = [
                 O.system.resources.actions.value, whispers.some(w => String(w ?? "").includes(told)));
             if (floorMod.trialFloor()?.holderId) await floorMod.returnToDebate({});
             const present = await card(false);
-            await until(() => shown(present));
+            await until(() => present.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || shown(present));
             await settle();
-            read.push(shown(present), Boolean(present.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, O.system.resources.actions.value);
+            const whispered = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
+            read.push(shown(present), Boolean(present.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, O.system.resources.actions.value,
+                whispered.some(w => String(w ?? "").includes(toldPresent)));
         } finally {
             await clearObjections(floorMod, seen);
             try { await item?.delete(); } catch { /* already gone */ }
@@ -37385,8 +37452,8 @@ const SCENARIOS = [
             await sheetAuditIdle();
             await settle();
         }
-        equal(stableJson(read), stableJson([true, null, false, 3, true, true, false, null, 3]),
-            "[the player's Objection card: refused; the floor's holder; on this screen; the objector's actions; its owner told of OBJECTION!], [their Present: on this screen; refused; the floor's holder; the actions]");
+        equal(stableJson(read), stableJson([true, null, false, 3, true, false, true, null, 3, true]),
+            "[the player's Objection card: refused; the floor's holder; on this screen; the objector's actions; its owner told of OBJECTION!], [their Present card: on this screen; refused; the floor's holder; the actions; its owner told of Present]");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {
@@ -38253,7 +38320,11 @@ const SCENARIOS = [
             await UI.manageClassTrial();
             const buttons = opened?.buttons ?? [];
             const content = opened?.content;
-            const sections = [...(content?.querySelectorAll?.("h4") ?? [])];
+            /* Not Monokuma's Reveal (E70 C9): its section is drawn while the world holds a Key nobody found, which this
+               test does not set and does not read (R1048 reads it); CI at fffe49e6 (run 40728132248) counted it as a
+               fourth section in a world 01's parts had left a Key plan in. */
+            const revealHeading = game.i18n.localize("DRPG.Reveal.section");
+            const sections = [...(content?.querySelectorAll?.("h4") ?? [])].filter(h => h.textContent.trim() !== revealHeading);
             const voteButton = buttons.find(b => b.action === "vote");
             let lines = null;
             if (sections.length) {
@@ -38802,6 +38873,1928 @@ const SCENARIOS = [
         equal(stableJson(readings), stableJson({ tick: [true, true, 1], now: [true, 1] }),
             "the GM's Now and the heartbeat wrote the rebuttal twice between them, or the floor did not move on "
             + "(read per order: the heartbeat's write started, the floor moved on, the rebuttal writes asked for)");
+    }],
+
+    ["one writer of the trial's records (E70-T1): two record writes in one tick both land, a record's function reads what its step finds, a floor write waits for the floor's key, and a GM's change of the floor reaches the primary by trial.gm while a player's is refused", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-01, E70-02 (amend 5 (d): trial-floor.mjs and vote.mjs write through `serialWrite`).
+         * Foundry changes a setting's cached value only when the server answers, so two writes of the trial's record
+         * begun within one round trip each spread their patch over the record they read, and the second dropped the
+         * first's field; the floor was written at once by whichever GM asked, beside the primary's queue of seizures
+         * (`SEIZE_KEY`). Read on this primary: (1) two `setTrialProgress` of two fields of the suite's own, together:
+         * both are in the record after; (2) two `setTrialProgress(fn)` that each add one to a counter of the suite's
+         * own: it ends at 2, each function handed the record its step found; (3) on a debate set here, a step of this
+         * test held on `SEIZE_KEY` and the GM's +30 s pressed: the floor does not move while the step is held, and moves
+         * once it opens; (4) the bridge's runner handed a "trial.gm" +30 s as this GM sends it, then an end of the floor
+         * as a connected player sends it (Foundry's sender): the first moves the floor and is answered done, the second is
+         * refused (gmOnly) and the floor stays; (5) on an Objection set here, the GM's Now ("floor.now") as that player
+         * sends it, naming the floor exactly: refused (gmOnly), the Objection still on the floor. Red at e2085d7b: (1) one
+         * field, (2) no counter (a function was spread as a patch), (3) the floor moved inside the held step, (4) no such
+         * row (judge answered nothing). (5) was green there; it is the other road to a player's move of the floor, and
+         * held nothing until E70 C0's mutant g3 (floor.now's guard made `knownSender`) survived tiers 0-1 (27.10.2026).
+         * The floor and the record are written back as found.
+         */
+        const F = await import("./trial-floor.mjs");
+        const T = await import("./trial.mjs");
+        const V = await import("./vote.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { serialWrite, isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the queue it reads is the primary's");
+        const player = game.users.find(u => !u.isGM && u.active);
+        must(player, "no player is connected - the refusal read here would be nobody's");
+        const [objector, target] = cast(2);
+        const saved = {
+            floor: foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {}),
+            progress: foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {})
+        };
+        const read = {};
+        let open = () => {};
+        try {
+            await Promise.all([V.setTrialProgress({ e70t1a: 1 }), V.setTrialProgress({ e70t1b: 2 })]);
+            const record = getSetting(SETTINGS.trialProgress) ?? {};
+            read.record = [record.e70t1a ?? null, record.e70t1b ?? null];
+            const bump = progress => ({ e70t1n: (progress?.e70t1n ?? 0) + 1 });
+            await Promise.all([V.setTrialProgress(bump), V.setTrialProgress(bump)]);
+            read.counter = getSetting(SETTINGS.trialProgress)?.e70t1n ?? null;
+
+            const start = serverNow() - 10_000;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 600, startedAt: start,
+                pending: false, messageId: null
+            });
+            await settle();
+            const gate = new Promise(resolve => { open = resolve; });
+            const held = serialWrite(T.SEIZE_KEY, () => gate);
+            const extended = F.extendFloor(30);
+            await wait(400);
+            read.whileHeld = F.trialFloor()?.startedAt === start;
+            open();
+            await held;
+            read.afterHeld = Boolean(await extended) && F.trialFloor()?.startedAt > start;
+
+            const heard = [];
+            const send = (to, packet) => heard.push([to === game.user.id ? "gm" : to === player.id ? "player" : String(to),
+                packet?.action ?? null, packet?.reason ?? null]);
+            const before = F.trialFloor()?.startedAt ?? 0;
+            await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T1GM", op: "extend", seconds: 30 }, game.user.id, { send });
+            const moved = (F.trialFloor()?.startedAt ?? 0) > before;
+            await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T1PLAYER", op: "end" }, player.id, { send });
+            read.row = { moved, stays: F.trialFloor()?.mode === F.FLOOR_MODES.debate, heard };
+
+            const objectionAt = serverNow() - 5_000;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 600,
+                startedAt: objectionAt, pending: false, messageId: null
+            });
+            await settle();
+            const nowHeard = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "floor.now", requestId: "E70T1NOW", mode: F.FLOOR_MODES.objection, startedAt: objectionAt },
+                player.id, { send: (to, packet) => nowHeard.push([packet?.action ?? null, packet?.reason ?? null]) });
+            read.now = { mode: F.trialFloor()?.mode ?? null, heard: nowHeard };
+        } finally {
+            open();
+            await serialWrite(T.SEIZE_KEY, () => null).catch(() => null);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, saved.floor);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, saved.progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            record: [1, 2], counter: 2, whileHeld: true, afterHeld: true,
+            row: { moved: true, stays: true, heard: [["gm", "bridge.ack", null], ["gm", "bridge.done", null], ["player", "bridge.refused", "gmOnly"]] },
+            now: { mode: "objection", heard: [["bridge.refused", "gmOnly"]] }
+        }), "(1) the two record writes, (2) the counter two functions raised, (3) the floor while the floor's key was held and after, "
+            + "(4) the GM's +30 s by trial.gm, the floor after a player's end, and what each sender was told, (5) the floor after a player's Now and what it was told");
+    }],
+
+    ["the trial console stays open across an Objection and its rebuttal, and the GM's bar is told to the table (E70-T2)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-06, E70-07. The console's footer is built once, and the window opened again whenever
+         * its signature changed - and the signature named the floor's mode, so every Objection and every rebuttal's end
+         * closed the console under the GM's pointer and drew a new one. Read on this primary, in a Class Trial, with the
+         * console drawn (the harness's DialogV2 draws real windows): a debate of 300 s, then an Objection by the API - the
+         * same window still open, and only one; then the bar's +30 s pressed in it - thirty seconds more on the floor and
+         * "GM: +30 s" on the Event panel's trial card (its note, `gmNoteText`); then Skip - the rebuttal, the same window, and the chat card
+         * "Turn skipped" naming the objector; then End this mode - no floor, and the card "The GM ends the Rebuttal.".
+         * Red at f388d722: a new window at the Objection, and no bar. The clock, the floor and the cards are put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const posted = () => game.messages.filter(m => !seen.has(m.id)).map(m => String(m.content ?? ""));
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const app = consoles()[0] ?? null;
+            ok(app?.element, "the trial console did not open");
+            if (!app?.element) return;
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            await wait(1500);
+            read.objection = [F.trialFloor()?.mode ?? null, consoles().length, consoles()[0] === app];
+            const press = op => {
+                const button = app.element?.querySelector(`[data-drpg-bar="${op}"]`);
+                button?.click();
+                return Boolean(button);
+            };
+            const left = F.secondsLeft();
+            const plus = press("plus");
+            await until(() => F.secondsLeft() > left + 20, 4000);
+            read.plus = [plus, F.secondsLeft() - left >= 25, typeof E.gmNoteText === "function" ? E.gmNoteText(F.trialFloor()) : null];
+            const skip = press("skip");
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await wait(1500);
+            const skipped = game.i18n.format("DRPG.Floor.turnSkipped", { name: objector.name });
+            read.skip = [skip, F.trialFloor()?.mode ?? null, consoles()[0] === app, posted().filter(c => c.includes(skipped)).length];
+            const ended = press("endMode");
+            await until(() => !F.trialFloor(), 4000);
+            const words = game.i18n.format("DRPG.Floor.modeEnded", { mode: game.i18n.localize("DRPG.Floor.mode.rebuttal") });
+            await until(() => posted().some(c => c.includes(words)), 3000);
+            read.endMode = [ended, F.trialFloor(), posted().filter(c => c.includes(words)).length];
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            objection: ["objection", 1, true],
+            plus: [true, true, game.i18n.format("DRPG.Floor.gmNoteAdjust", { seconds: "+30" })],
+            skip: [true, "rebuttal", true, 1],
+            endMode: [true, null, 1]
+        }), "(1) the floor, how many consoles and whether it is the same one after the Objection; (2) the bar's +30 s pressed, the time it put on, the Event card's note; "
+            + "(3) Skip pressed, the floor, the same console, the cards naming the turn skipped; (4) End this mode pressed, the floor, its cards");
+    }],
+
+    ["the console holds Enter while an Objection runs, its Overrule names the Objection it drew, a press let go outside the window lets the clock run, extendFloor is signed, the Event panel shows a floor after the verdict, and the Overrule's card carries its sound (E70 fix p1-G3)", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026; the review's BEH-3 = E70P1-R02, E70P1-R04, E70P1-R12, E70P1-R11, BEH-5 = E70P1-R13,
+         * E70P1-R15. Read on this primary in a Class Trial with the console drawn, as E70-T2. (1) A debate, then an
+         * Objection on a card: Enter in the console is held (the footer's Close Debate would end the exchange and the
+         * debate), and the floor is still the Objection; the bar's Overrule names that card. (2) A pointer pressed on the
+         * bar and let go outside the window: the console's live region is drawn again within three seconds. (3)
+         * `extendFloor(-30)` on a debate with 100 s left leaves about 70. (4) A verdict in the record and a debate with its
+         * question open after it: the Event panel's card is the debate's, the question its subtitle. (5) The Overrule's
+         * card rings "overrule". Red at d1f01644: Enter not held, no card on the button, the console frozen, 130 s left,
+         * the card after the verdict.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const T = await import("./trial.mjs");
+        const V = await import("./vote.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const CARD = "SUITEE70G3CARD01";
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await F.startFloor({ seconds: 300 });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const app = consoles()[0] ?? null;
+            ok(app?.element, "the trial console did not open");
+            if (!app?.element) return;
+            await F.openObjection(objector.id, target.id, { cardId: CARD });
+            await settle();
+            await wait(1500);
+            const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+            (app.element.querySelector("button, input") ?? app.element).dispatchEvent(enter);
+            await wait(800);
+            read.enter = [enter.defaultPrevented, F.trialFloor()?.mode ?? null,
+                app.element.querySelector('[data-drpg-bar="overrule"]')?.dataset.drpgTarget ?? null];
+
+            const region = () => app.element.querySelector(".drpg-trial-console")?.innerHTML ?? "";
+            app.element.querySelector('[data-drpg-bar="minus"]')?.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            window.dispatchEvent(new Event("pointerup", { bubbles: true }));
+            const before = region();
+            read.released = Boolean(await until(() => region() !== before || null, 3500));
+
+            await F.endFloor();
+            await F.startFloor({ seconds: 100 });
+            await settle();
+            await F.extendFloor(-30);
+            await settle();
+            const left = F.secondsLeft();
+            read.minus = left > 55 && left < 85;
+
+            await F.endFloor();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [], sentenced: [], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] } });
+            await F.startFloor({ seconds: 300, topic: "SUITE fix p1-G3: after the verdict" });
+            await settle();
+            read.panel = E.trialCard(getClock())?.sub ?? null;
+
+            await T.markOverruled(null, { objectorId: objector.id, state: null });
+            await settle();
+            const card = game.messages.filter(m => !seen.has(m.id)).find(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over")));
+            read.sound = card ? soundFromMessage(card)?.key ?? null : "no card";
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            enter: [true, "objection", CARD], released: true, minus: true, panel: "SUITE fix p1-G3: after the verdict", sound: "overrule"
+        }), "(1) Enter held, the floor, the Overrule's card on the bar; (2) the console drawn again after a press let go outside it; (3) -30 s by extendFloor; (4) the Event panel's subtitle after the verdict; (5) the Overrule card's sound");
+    }],
+
+    ["Back to the debate gives the debate the time it had when the Objection cut in (E70-T3)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-05 (TR31 = 1: "Back to the debate gives the rest"). A debate of 600 s with 500 s left
+         * is cut by an Objection (the API's), and the GM presses Back to the debate during the Objection's minute: the
+         * debate comes back with its 500 s, not its 600 again. A floor written before 1.2.90 - an Objection with no
+         * stack - goes back to its budget, as before. Red at f388d722: 600 s both times. The floor is put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 600, startedAt: serverNow() - 100_000,
+                pending: false, messageId: null
+            });
+            await settle();
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            const objection = F.trialFloor()?.mode ?? null;
+            await F.returnToDebate();
+            await settle();
+            read.back = [objection, F.trialFloor()?.mode ?? null, Math.abs(F.secondsLeft() - 500) <= 3, F.trialFloor()?.seconds ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 600,
+                startedAt: serverNow() - 5_000, pending: false, messageId: null
+            });
+            await settle();
+            await F.returnToDebate();
+            await settle();
+            read.old = [F.trialFloor()?.mode ?? null, F.trialFloor()?.seconds ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ back: ["objection", "debate", true, 500], old: ["debate", 600] }),
+            "(1) the floor after the Objection, after Back to the debate, whether it had the 500 s left, its budget; (2) an old floor's debate and budget");
+    }],
+
+    ["a function of game.drpg for each button of the GM's bar, and the same floor by trial.gm (E70-T4)", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-08 (S18-76, D25). Each button of the bar is a `game.drpg` function a macro or another
+         * GM's console can call - `skipStep`, `adjustTime`, `endMode`, `returnToDebate` - and the older names stay
+         * (`advanceFloorNow`, `extendFloor`, `endFloor`, trial-floor.mjs's own functions). Read on this primary in a
+         * Class Trial, on an Objection with 50 s left and a debate under it with 200 s: +30 s leaves 80 s, -30 s 50 s,
+         * Skip opens the rebuttal, Back to the debate gives the 200 s, End this mode empties the floor; then on the same
+         * Objection the bridge's runner handed "trial.gm" as this GM sends it - +30 s, then End this mode - moves it
+         * the same; then, the campaign back in Daily Life with the same Objection written, the same two by "trial.gm" are
+         * refused and the floor's clock stays (DX2 = 2: the primary judges its own clock). Scenario 63 Z presses each on
+         * a GM that is not the primary. Red at f388d722: no such functions.
+         * The clock, the floor and the cards are put back.
+         */
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor it reads is the primary's to write");
+        const [objector, target] = cast(2);
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const names = ["skipStep", "adjustTime", "endMode", "returnToDebate"];
+        const read = {
+            fns: names.map(n => typeof api[n] === "function"),
+            aliases: [api.advanceFloorNow === F.advanceFloorNow, api.extendFloor === F.extendFloor, api.endFloor === F.endFloor]
+        };
+        const fixture = async () => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: F.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id, seconds: 300,
+                startedAt: serverNow() - 10_000, pending: false, messageId: null,
+                before: [{ messageId: null, before: { mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }]
+            });
+            await settle();
+        };
+        const near = want => Math.abs(F.secondsLeft() - want) <= 3;
+        try {
+            if (read.fns.every(Boolean)) {
+                await setClock({ ...clock, phase: "classTrial" });
+                await fixture();
+                await api.adjustTime(30);
+                read.plus = near(80);
+                await api.adjustTime(-30);
+                read.minus = near(50);
+                await api.skipStep();
+                await settle();
+                read.skip = F.trialFloor()?.mode ?? null;
+                await api.returnToDebate();
+                await settle();
+                read.back = [F.trialFloor()?.mode ?? null, near(200)];
+                await api.endMode();
+                await settle();
+                read.endMode = F.trialFloor();
+                await fixture();
+                const heard = [];
+                const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4PLUS", op: "adjust", seconds: 30 }, game.user.id, { send });
+                const bridged = near(80);
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4END", op: "endMode" }, game.user.id, { send });
+                read.bridge = [bridged, F.trialFloor(), heard];
+                await setClock({ ...getClock(), phase: "dailyLife" });
+                await fixture();
+                const at = F.trialFloor()?.startedAt ?? null, outside = [];
+                const sendOut = (to, packet) => { if (packet?.action !== "bridge.ack") outside.push(packet?.action ?? null); };
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4OUT", op: "adjust", seconds: 30 }, game.user.id, { send: sendOut });
+                await G.judge(B.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T4OUTEND", op: "endMode" }, game.user.id, { send: sendOut });
+                read.outside = [F.trialFloor()?.mode ?? null, F.trialFloor()?.startedAt === at, outside];
+            }
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            fns: [true, true, true, true], aliases: [true, true, true],
+            plus: true, minus: true, skip: "rebuttal", back: ["debate", true], endMode: null,
+            bridge: [true, null, ["bridge.done", "bridge.done"]],
+            outside: ["objection", true, ["bridge.refused", "bridge.refused"]]
+        }), "(1) the bar's functions on game.drpg and the older names; (2) +30 s, -30 s, Skip, Back to the debate, End this mode by them; (3) +30 s and End this mode by trial.gm, and what this GM was told; "
+            + "(4) outside a Class Trial: the floor and whether its clock stayed after +30 s and End this mode by trial.gm, and what this GM was told");
+    }],
+
+    ["an Overrule gives the floor back with its time and keeps the price, stamps and closes the card, and after the exchange marks it and offers the debate again (E70-T5)", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-09 to E70-12 (S18-77; TR25, TR35, DB41). Read on this primary in a Class Trial: O
+         * raises an Objection at B over a debate of 300 s on the fallback road (no Room) and fills it, and the receipt
+         * is read off the trial record - who, against whom, the action paid, the mode it interrupted, the debate's
+         * seconds then. With the OBJECTION! card on this screen, `game.drpg.overruleObjection()`: the debate is back
+         * with the seconds it had (not its 300 again from now, and not the rebuttal), O's actions as they were after
+         * the payment, the card marked and its sticky card closed, its notice history entry kept with the stamp, the
+         * receipt overruled, the table told with the price; a second Overrule of it is refused and moves nothing; the
+         * card's mark taken off again leaves the log's row overruled (the receipt, not the card). Then a second
+         * Objection runs to its end (Skip, Skip) and is overruled with no floor: nothing on the floor moves, the
+         * receipt is marked, the table is told the exchange was over, and the console's next step is the debate again
+         * with the time it had; a debate opened takes the offer away; and the first, older one is refused. Then a third
+         * runs to its end and the trial is ended: "trial.gm"'s Overrule is refused on the primary (DX2) and marks nothing;
+         * the trial entered again is another trial (its own `trialStartedAt`), and the earlier one's Objection is refused.
+         * Red at accb2ded: no `overruleObjection`. The clock, the floor, the record, the cards and O's sheet are put back.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection raised on the primary GM to overrule");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const F = await import("./trial-floor.mjs");
+        const NH = await import("./notice-history.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const Bridge = await import("./gm-bridge.mjs");
+        const Guards = await import("./bridge-guards.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the record it reads are the primary's to write");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const posted = words => game.messages.filter(m => !seen.has(m.id) && String(m.content ?? "").includes(words)).length;
+        const onScreen = id => document.querySelectorAll(`.drpg-popup[data-drpg-message="${id}"]`).length;
+        const stamp = game.i18n.localize("DRPG.Trial.overruledStamp");
+        let item = null, room = null;
+        const read = { api: typeof F.overruleObjection === "function" && game.drpg?.overruleObjection === F.overruleObjection };
+        try {
+            ok(typeof F.overruleObjection === "function", "trial-floor.mjs has no overruleObjection - the GM cannot overrule an Objection");
+            if (typeof F.overruleObjection !== "function") return;
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await F.startFloor({ seconds: 300 });
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE E70-T5 bullet", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            await settle();
+            room = standInRoom(speakers, { connected: false });
+
+            const raise = async () => {
+                const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+                must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+                const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+                must(!filled.refused, `the Objection was not filled (${filled.refused})`);
+                await settle();
+                return raised.reply.messageId;
+            };
+            const first = await raise();
+            const receipt = trialProgress().objections?.[first] ?? null;
+            read.receipt = receipt ? [receipt.objectorId === O.id, receipt.targetId === B.id, receipt.paid?.pay ?? null, receipt.mode,
+                Math.abs((receipt.leftAtObjection ?? 0) - 300) <= 10, receipt.overruled] : null;
+            const paidActions = O.system.resources.actions.value;
+            await until(() => onScreen(first) > 0, 4000);
+            const shown = onScreen(first);
+            await F.overruleObjection();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.debate && onScreen(first) === 0, 6000);
+            await wait(400);
+            await sheetAuditIdle();
+            const card = game.messages.get(first);
+            const kept = NH.noticeEntries().filter(e => e.messageId === first).map(e => String(e.html ?? "")).join("\n");
+            read.during = [shown > 0, F.trialFloor()?.mode ?? null, Math.abs(F.secondsLeft() - (receipt?.leftAtObjection ?? 300)) <= 5, F.trialFloor()?.seconds ?? null,
+                (F.trialFloor()?.before ?? []).length, O.system.resources.actions.value === paidActions, paidActions < 3,
+                Boolean(card?.getFlag(MODULE_ID, trial.TRIAL_FLAGS.overruled)), trialProgress().objections?.[first]?.overruled ?? null,
+                onScreen(first), kept.includes(stamp),
+                posted(`>${game.i18n.localize("DRPG.Floor.overrule.title")}<`)];
+            const startedAt = F.trialFloor()?.startedAt;
+            read.second = [await F.overruleObjection(first), F.trialFloor()?.startedAt === startedAt];
+            await card?.setFlag(MODULE_ID, trial.TRIAL_FLAGS.overruled, false);
+            await settle();
+            read.log = trial.presentedThisChapter().find(e => e.id === first)?.overruled ?? null;
+
+            const second = await raise();
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            const after = await F.overruleObjection();
+            await settle();
+            const again = trialProgress().againAfterOverrule ?? null;
+            read.after = [after?.overruled === second, F.trialFloor(), trialProgress().objections?.[second]?.overruled ?? null,
+                again?.messageId === second, Number(again?.seconds) > 200, posted(game.i18n.localize("DRPG.Floor.overrule.over"))];
+            read.older = await F.overruleObjection(first);
+            await F.startFloor({ seconds: 60 });
+            await settle();
+            read.taken = trialProgress().againAfterOverrule ?? null;
+
+            // A third, run to its end, then the trial ended: "trial.gm" from a GM is refused on the primary and
+            // marks nothing; the trial entered again is another trial, whose Overrule cannot reach it.
+            await O.update({ "system.resources.actions.value": 3 });
+            await sheetAuditIdle();
+            const third = await raise();
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            await setClock({ ...getClock(), phase: "dailyLife" });
+            await settle();
+            const heard = [];
+            const send = (to, packet) => { if (packet?.action !== "bridge.ack") heard.push(packet?.action ?? null); };
+            await Guards.judge(Bridge.BRIDGE_ACTIONS, { action: "trial.gm", requestId: "E70T5OVER", op: "overrule" }, game.user.id, { send });
+            read.ended = [heard, trialProgress().objections?.[third]?.overruled ?? null];
+            await setClock({ ...getClock(), phase: "classTrial" });
+            await settle();
+            read.nextTrial = [await F.overruleObjection(third), trialProgress().objections?.[third]?.overruled ?? null];
+        } finally {
+            room?.restore();
+            await clearObjections(F, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: true,
+            receipt: [true, true, "action", "debate", true, false],
+            during: [true, "debate", true, 300, 0, true, true, true, true, 0, true, 1],
+            second: [null, true],
+            log: true,
+            after: [true, null, true, true, true, 1],
+            older: null,
+            taken: null,
+            ended: [["bridge.refused"], false],
+            nextTrial: [null, false]
+        }), "(0) game.drpg.overruleObjection; (1) the receipt: objector, target, price, mode, the debate's seconds, overruled; (2) the Overrule during the exchange: the card on screen before, the floor, its seconds as at the Objection, "
+            + "its budget, the stack, the price kept and paid, the card's mark, the receipt's, the card on screen after, the history's stamp, the table's card; (3) a second Overrule and the clock; "
+            + "(4) the log's row after the card's mark was taken off; (5) after the exchange: its answer, the floor, the receipt, the offer of the debate again and its seconds, the table's card; "
+            + "(6) the older one; (7) the offer after a debate was opened; (8) a third run to its end and the trial ended: what trial.gm's Overrule was told, the receipt; "
+            + "(9) the trial entered again: the Overrule of the earlier trial's Objection, its receipt");
+    }],
+    ["the debate's question on the floor, the Event panel, the cards and the log, and the debate again after its exchange with the same question and budget, no window (E70-T6)", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13 (S18-70; TR11 = 1). Read on this primary in a Class Trial. The GM opens a debate of
+         * 240 s with a question (`openDebate({ seconds, topic })`, the API's road; the window's field is the same
+         * option): the floor and the trial record hold it, the Event panel's trial card has it as its subtitle (the
+         * card every browser builds from the floor), and the card that opens the debate says it. O raises an
+         * Objection at B on the fallback road (no Room) and fills it: its card carries the question, and so do its
+         * receipt and the log's row. The exchange runs to its end (Skip, Skip): no floor, the record marks the debate
+         * again and still holds the question, and the console's footer offers "Open the debate again" as its next
+         * step. `game.drpg.reopenDebate()` opens it with the same question and the same 240 s, asks nothing (no
+         * length field drawn) and takes the mark away. Red at bf1a076b: the floor held no question. The clock, the
+         * floor, the record, the cards and O's sheet are put back.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection raised on the primary GM to carry the question");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const E = await import("./events.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the record it reads are the primary's to write");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const posted = words => game.messages.filter(m => !seen.has(m.id) && String(m.content ?? "").includes(words)).length;
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const Q = "SUITE E70-T6: who left the gym unlocked?";
+        let item = null, room = null;
+        const read = { api: typeof UI.reopenDebate === "function" && typeof game.drpg?.reopenDebate === "function" };
+        try {
+            ok(typeof UI.reopenDebate === "function", "trial-floor-ui.mjs has no reopenDebate - the debate cannot be opened again as it was");
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await settle();
+            await UI.openDebate({ seconds: 240, topic: Q });
+            await settle();
+            read.open = [F.trialFloor()?.mode ?? null, F.trialFloor()?.topic ?? null, trialProgress().topic ?? null, trialProgress().seconds,
+                E.trialCard(getClock())?.sub ?? null, posted(Q)];
+
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE E70-T6 bullet", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            room = standInRoom(speakers, { connected: false });
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const id = raised.reply.messageId;
+            const pendingHas = String(game.messages.get(id)?.content ?? "").includes(Q);
+            const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+            must(!filled.refused, `the Objection was not filled (${filled.refused})`);
+            await settle();
+            read.card = [pendingHas, String(game.messages.get(id)?.content ?? "").includes(Q), trialProgress().objections?.[id]?.topic ?? null,
+                trial.presentedThisChapter().find(e => e.id === id)?.topic ?? null];
+
+            await F.skipStep();
+            await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 4000);
+            await F.skipStep();
+            await until(() => !F.trialFloor(), 4000);
+            await until(() => trialProgress().debateAgain === true, 3000);
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            const footer = consoles()[0]?.element?.querySelector('[data-action="reopen"]') ?? null;
+            read.ended = [F.trialFloor(), trialProgress().debateAgain ?? null, trialProgress().topic ?? null,
+                footer?.textContent?.trim() === game.i18n.localize("DRPG.Floor.againSame")];
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+
+            if (typeof UI.reopenDebate === "function") await game.drpg.reopenDebate();
+            await settle();
+            const asked = Boolean(document.querySelector('form input[name="seconds"]'));
+            read.again = [F.trialFloor()?.mode ?? null, F.trialFloor()?.topic ?? null, F.trialFloor()?.seconds ?? null,
+                Math.abs(F.secondsLeft() - 240) <= 3, asked, trialProgress().debateAgain ?? null];
+        } finally {
+            room?.restore();
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            await clearObjections(F, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: true,
+            open: ["debate", Q, Q, 240, Q, 1],
+            card: [true, true, Q, Q],
+            ended: [null, true, Q, true],
+            again: ["debate", Q, 240, true, false, false]
+        }), "(0) game.drpg.reopenDebate; (1) the debate opened with its question: the floor, its question, the record's, the budget, the Event card's subtitle, the opening card; "
+            + "(2) the Objection's card waiting and filled, its receipt's question, the log's; (3) the exchange run out: the floor, the record's mark, its question, the console's Open the debate again; "
+            + "(4) the debate again: the floor, its question, its budget and seconds, a length asked, the mark");
+    }],
+
+    ["the verdict kills nobody and ends nothing; the convicted die once when the trial ends, in its own chapter; a verdict after End the trial is carried out at once; an old record reaches done; the season's reset takes the sentence back (E70-T7)", async () => {
+        /*
+         * E70 C4, 28.10.2026; E70-15 to E70-17 (S18-87; the owner's DC36: "token osoby na którą zagłosowano umiera po
+         * class trialu, gdy class trial się kończy, a nie w trakcie. Niech werdykt nie kończy automatycznie triala").
+         * Read on this primary, the clock and the record written raw (no phase write runs its roads), so the test holds
+         * in a trial and out of one. (1) In a Class Trial a right verdict sentences A: A lives, the phase stays, the
+         * record holds the sentence and the chapter's stamp, and the verdict's card says the execution waits for the
+         * trial's end, without the death's sound. (2) The chapter's end moves the clock on before it closes the trial:
+         * the exit (`executeAtExit`, as `closeTrial` and `reconcilePhase` ask it) executes A in the trial's chapter,
+         * in its phase, with the cause "executed", stamps the record of that chapter, and posts one execution card with
+         * its sound and one note to A's owner. (3) A second road kills nobody twice; nor does one after an exit whose
+         * stamp was lost half way. (4) A verdict given after End the trial carries its sentence out at once. (5) A
+         * record written before 1.2.90 - stopped, "executions" not done - reaches "done" on Finish and kills nobody in
+         * the trial. (6) The season's reset takes the sentence back, and the exit then executes nobody. Red at
+         * b776bf72: the verdict executed A at once. The clock, the floor, the record and the three students are put
+         * back.
+         */
+        needs(env.primaryGm(), "the sentence is read held on the primary GM (the sheet audit's mark)");
+        const [accused, late, other] = cast(3);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { deferredOfferStore, offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const esc = foundry.utils.escapeHTML;
+        must([accused, late, other].every(a => !isDeadForGm(a)), "one of the three students is dead before the verdict - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const fresh = () => game.messages.filter(m => !seen.has(m.id));
+        const executions = () => fresh().filter(m => m.getFlag(MODULE_ID, "executionCard"));
+        const { wordsOf } = await import("./secret.mjs");
+        // A whisper's words are read as its owner reads them (`wordsOf`), as "a wrong verdict's card names the executed" did.
+        const notes = async actor => (await Promise.all(fresh().filter(m => m.whisper?.length).map(m => wordsOf(m, 1000))))
+            .filter(words => String(words ?? "").includes(game.i18n.format("DRPG.Vote.executedNote", { name: esc(actor.name) }))).length;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const blankRecord = chapter => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter,
+            verdictApplied: false, verdict: null, executedAt: null, execution: null });
+        const exit = (...a) => (typeof V.executeAtExit === "function" ? V.executeAtExit(...a) : null);
+        const read = {};
+        try {
+            ok(typeof V.executeAtExit === "function", "vote.mjs has no executeAtExit - nothing carries a sentence out when the trial ends");
+            const chapter = getClock().chapter;
+            await rawClock({ phase: "classTrial" });
+            await blankRecord(chapter);
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [accused.id], blackenedIds: [accused.id] }));
+            await settle();
+            const given = V.trialProgress();
+            const card = fresh().find(m => m.getFlag(MODULE_ID, "verdictAt") === given.verdict?.at) ?? null;
+            read.verdict = [isDeadForGm(accused), getClock().phase, given.verdict?.stage ?? null, given.verdict?.sentenced ?? null,
+                given.lastVerdictAt === given.verdict?.at,
+                String(card?.content ?? "").includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) })),
+                card?.getFlag(MODULE_ID, "sfx")?.key ?? null, executions().length];
+
+            await rawClock({ chapter: chapter + 1 });
+            await exit();
+            await settle();
+            const stored = getSetting(SETTINGS.trialProgress) ?? {};
+            const death = deathRecord(accused);
+            read.exit = [isDeceased(accused), death?.chapter ?? null, death?.phase ?? null, death?.cause ?? null, stored.chapter ?? null,
+                Number.isFinite(stored.executedAt), executions().length, executions()[0]?.getFlag(MODULE_ID, "sfx")?.key ?? null,
+                String(executions()[0]?.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) })),
+                (await notes(accused)) === 1];
+
+            await exit({ chapter });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...getSetting(SETTINGS.trialProgress), executedAt: null });
+            await exit({ chapter });
+            await settle();
+            read.once = [executions().length, Number.isFinite(getSetting(SETTINGS.trialProgress)?.executedAt)];
+
+            await rawClock({ chapter, phase: "dailyLife" });
+            await blankRecord(chapter);
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [late.id], blackenedIds: [late.id] }));
+            await settle();
+            read.after = [isDeceased(late), deathRecord(late)?.cause ?? null, Number.isFinite(V.trialProgress().executedAt), executions().length];
+
+            await rawClock({ phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                executedAt: null, execution: null, verdict: { stage: "applying", correct: true, executedIds: [other.id], by: "a GM who left",
+                    at: Date.now(), done: ["sentence", "levelUps", "overflow"], failed: [] } });
+            await withAdvanceWindows(() => null, () => V.finishVerdict());
+            await settle();
+            read.old = [V.trialProgress().verdict?.stage ?? null, isDeadForGm(other), executions().length];
+
+            if (typeof V.clearSentence === "function") await V.clearSentence();
+            await exit({ chapter });
+            await settle();
+            read.reset = [isDeadForGm(other), executions().length, V.trialProgress().verdict?.executedIds ?? null];
+        } finally {
+            for (const a of [accused, late, other]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            for (const a of studentActors()) {
+                if (offerStore.has(a.id)) await offerStore.drop(a.id);
+                if (deferredOfferStore.has(a.id)) await deferredOfferStore.drop(a.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        const chapter = clock.chapter;
+        equal(stableJson(read), stableJson({
+            verdict: [false, "classTrial", "done", [accused.id], true, true, null, 0],
+            exit: [true, chapter, "classTrial", "executed", chapter, true, 1, "execution", true, true],
+            once: [1, true],
+            after: [true, "executed", true, 2],
+            old: ["done", false, 2],
+            reset: [false, 2, []]
+        }), "(1) the verdict in a trial: A dead, the phase, the stage, the sentence, the chapter's stamp, the card's line, the card's sound, execution cards; "
+            + "(2) the exit after the clock moved on: A dead, the death's chapter, phase and cause, the record's chapter, its stamp, execution cards, their sound, their line, the owner's note; "
+            + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
+            + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
+    }],
+    ["a sentence that could not be carried out is carried out when asked again and leaves no body to find, a Final sentence this browser does not hold is told to the GMs, and the trial's size counts every player of a student who takes part (E70 fix p1-G2)", async () => {
+        /*
+         * E70 fix p1-G2, 28.10.2026; the review's BEH-2, BEH-6 = E70P1-R16, E70P1-R10, E70P1-R08 (goal). Read on this
+         * primary, the clock and the record written raw. (1) An exit's kill failed: the record holds the sentence,
+         * `execution.failed` and no stamp, and the phase is Daily Life. Asked again (vote.mjs `retrySentence`, which the
+         * primary's ready and every later change of phase ask), A dies executed in the trial's phase, the record is
+         * stamped, and no walk past A finds a body (chapter.mjs `bodiesToDiscover`, the death's phase - E70-16's
+         * "discovery stamp" is the death record's phase, STATUS). (2) A Final verdict's sentence waits and this browser's
+         * GM store holds another verdict's: `pendingSentence` names nobody and the GMs are told, once; the store is backed
+         * up. (3) `trialSizeNow` counts each player account holding a student who takes part, connected or not. Red at
+         * 5ee86113: no `retrySentence`, no word, the store not backed up, no `trialSizeNow`.
+         */
+        needs(env.primaryGm(), "a sentence is carried out on the primary GM");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm, bodiesToDiscover } = await import("./chapter.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { verdictStore } = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(!isDeadForGm(A), "the student is dead before the test - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        await verdictStore.whenHydrated();
+        const kept = foundry.utils.deepClone(verdictStore.record());
+        const seen = new Set(game.messages.map(m => m.id));
+        const { wordsOf } = await import("./secret.mjs");
+        // A whisper's words are read as a GM reads them (`wordsOf`), as E70-T7 reads the owner's note.
+        const missing = async () => (await Promise.all(game.messages.filter(m => !seen.has(m.id)).map(m => wordsOf(m, 1000))))
+            .filter(words => String(words ?? "").includes(game.i18n.localize("DRPG.Vote.finalSentenceMissing"))).length;
+        const read = {};
+        try {
+            ok(typeof V.retrySentence === "function", "vote.mjs has no retrySentence - a sentence that failed is never carried out");
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [A.id], sentenced: [A.id], by: game.user.id, at: Date.now(),
+                    done: ["sentence", "card"], failed: [] }, executedAt: null, execution: { done: [], failed: [A.id] } });
+            if (typeof V.retrySentence === "function") await V.retrySentence();
+            await settle();
+            read.retry = [isDeceased(A), deathRecord(A)?.cause ?? null, deathRecord(A)?.phase ?? null,
+                Number.isFinite(getSetting(SETTINGS.trialProgress)?.executedAt), bodiesToDiscover({ actors: [A], held: flagsHeldNow }).length];
+
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", final: true, by: game.user.id, at: 4242, done: [], failed: [], sentencePending: true }, executedAt: null, execution: null });
+            await verdictStore.patch(RECORD, { finalAt: 4141, finalSentenced: [A.id] });
+            const named = [(await V.pendingSentence()).length, (await V.pendingSentence()).length];
+            await settle();
+            read.final = [named, await missing(), verdictStore.spec.backup === true];
+
+            const owners = new Set();
+            for (const a of studentActors()) {
+                const held = flagsHeldNow(a);
+                if (held.getFlag(MODULE_ID, "monocub") || isDeceased(held)) continue;
+                const u = game.users.find(x => !x.isGM && a.testUserPermission(x, "OWNER"));
+                if (u) owners.add(u.id);
+            }
+            read.size = typeof V.trialSizeNow === "function" ? [V.trialSizeNow() === owners.size, V.trialSizeNow() >= V.trialParticipants().length,
+                V.trialSizeNow([A.id]) <= owners.size] : null;
+        } finally {
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            retry: [true, "executed", "classTrial", true, 0],
+            final: [[0, 0], 1, true],
+            size: [true, true, true]
+        }), "(1) a failed sentence asked again: dead, the cause, the death's phase, the stamp, bodies to find; (2) a Final sentence not held here: named twice, the GMs told, the store backed up; (3) the trial's size: every player of a student who takes part, at least the ballot's, a listed student not counted");
+    }],
+    ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-20, E70-21, E70-23 (the owner's TR30 = 2, DC19; amend 6, answer 3 (b)). Read on
+         * this primary, the clock written raw (no phase write runs its roads) and the trial's voices settled by hand as
+         * the entry, a death, a new Monocub and the exit settle them (voice.mjs `settleTrialVoices`, which clock.mjs
+         * `reconcilePhase` and the primary's hooks ask), so the test holds in a trial and out of one. Three students
+         * whose players are here: U dies and nobody finds the body, K dies in public and its player's microphone is
+         * blocked by a GM before the trial, A lives. (0) Neither K before the list nor U after it raises an Objection on a
+         * debate. (1) The entry lists U and K, blocks U's player and records what it
+         * found, leaves K's player's block alone and records nothing for it, hands neither a ballot and tells who may
+         * speak. (2) K made a Monocub leaves the list; its player's GM block stays. (3) A dies in the trial and joins.
+         * (4) The exit takes the list out of the record, removes the key U's player did not have, puts A's player's own
+         * grant back, leaves K's player blocked and the store empty. Red at 9f40de9a: no settle, and U was handed a ballot.
+         * The clock, the floor, the record, the three students, their players' permissions and the store are put back.
+         */
+        needs(env.primaryGm(), "the trial's dead are listed on the primary GM, after its deaths store has hydrated");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "three students whose players are here");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { setMonocub, isMonocub } = await import("./monocub.mjs");
+        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
+            .sort((x, y) => (x.id < y.id ? -1 : 1))[0] ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && voiceOf(u)?.id === a.id && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students who are their players' only voice, found ${picked.length} - the probe above counts them`);
+        const [A, U, K] = picked.slice(0, 3);
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries([A, U, K].map(p => [p.user.id, perm(p.user)]));
+        const resources = foundry.utils.deepClone(K.actor.system.resources);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = stores.trialMuteStore ?? null;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const settleNow = async () => { if (typeof voice.settleTrialVoices === "function") await voice.settleTrialVoices(); await settle(); };
+        const listNow = () => { const r = getSetting(SETTINGS.trialProgress) ?? {}; return Object.hasOwn(r, "mutedDead") ? [...(r.mutedDead ?? [])].sort() : "absent"; };
+        const rows = () => (store ? Object.keys(store.entries()).sort() : null);
+        const voices = () => [A, U, K].map(p => (typeof F.trialVoice === "function" ? F.trialVoice(p.actor.id) : null));
+        const ballot = () => V.ballotRecipients().map(r => r.actor.id);
+        const read = {};
+        try {
+            ok(typeof voice.settleTrialVoices === "function", "voice.mjs has no settleTrialVoices - nobody's microphone is the trial's");
+            ok(Boolean(store), "gm-stores.mjs has no trialMuteStore - nothing remembers what a block found");
+            await K.user.update({ "permissions.BROADCAST_AUDIO": false });
+            await A.user.update({ "permissions.BROADCAST_AUDIO": true });
+            if (perm(U.user)[0]) await U.user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
+            must(!perm(U.user)[0], "U's player still has a block of its own after the fixture took it off - the removal would measure nothing");
+            await killCharacter(U.actor, { secret: true, keepBullets: true });
+            await killCharacter(K.actor, { secret: false, keepBullets: true });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            /* The dead do not object, as the GMs hold the death (E10 C16) and by the trial's list (E70 C5): K, dead on the
+               document, before any list is written; U, whose death nobody has found, once the entry has listed it. On a
+               debate written raw, so the floor is open to an Objection and only the death refuses it. */
+            const T = await import("./trial.mjs");
+            const object = async p => (await T.objectOnPrimary({ actorId: p.actor.id, targetId: A.actor.id }))?.refused ?? "raised";
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { active: true, mode: "debate", startedAt: Date.now(), seconds: 300 });
+            read.object = [await object(K)];
+            await settleNow();
+            read.object.push(await object(U));
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            read.entry = { list: listNow(), u: perm(U.user), k: perm(K.user), a: perm(A.user), rows: rows(), voices: voices(),
+                ballot: [ballot().includes(A.actor.id), ballot().includes(U.actor.id), ballot().includes(K.actor.id)] };
+
+            await setMonocub(K.actor, true);
+            await settleNow();
+            read.monocub = { list: listNow(), k: perm(K.user), rows: rows(), cub: isMonocub(K.actor), voice: voices()[2] };
+
+            await killCharacter(A.actor, { secret: true, keepBullets: true });
+            await settleNow();
+            read.death = { list: listNow(), a: perm(A.user), rows: rows(), voice: voices()[0], ballot: ballot().includes(A.actor.id) };
+
+            await rawClock({ phase: "dailyLife" });
+            await settleNow();
+            read.exit = { list: listNow(), u: perm(U.user), k: perm(K.user), a: perm(A.user), rows: rows(), voices: voices() };
+        } finally {
+            if (isMonocub(K.actor)) await setMonocub(K.actor, false);
+            for (const p of [A, U, K]) if (isDeadForGm(p.actor)) await reviveCharacter(p.actor, { quiet: true });
+            await K.actor.update({ "system.resources": resources });
+            for (const p of [A, U, K]) {
+                const [had, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": had ? value : forcedDeletion() });
+            }
+            if (store) for (const key of Object.keys(store.entries())) await store.drop(key);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        const ids = (...p) => p.map(x => x.actor.id).sort();
+        equal(stableJson(read), stableJson({
+            object: ["a dead student does not object", "a dead student does not object"],
+            entry: { list: ids(U, K), u: [true, false], k: [true, false], a: [true, true], rows: [U.user.id], voices: ["speak", "muted", "muted"],
+                ballot: [true, false, false] },
+            monocub: { list: ids(U), k: [true, false], rows: [U.user.id], cub: true, voice: "listen" },
+            death: { list: ids(A, U), a: [true, false], rows: [A.user.id, U.user.id].sort(), voice: "muted", ballot: false },
+            exit: { list: "absent", u: [false, null], k: [true, false], a: [true, true], rows: [], voices: ["speak", "speak", "speak"] }
+        }), "the trial's dead are not muted as the owner asked (entry: list, U's, K's and A's players' block [had, value], the store's rows, who may speak, who holds a ballot; then a new Monocub, a death in the trial, the exit)");
+    }],
+
+    ["the trial lists no living victim of an open incident, a listed death presents nothing, and a list written after the clock moved chapters keeps the trial's record (E70 fix p1-G1)", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026; the review's SEC-1, BEH-1, E70P1-R06. Read on this primary, the clock written raw
+         * and the trial's voices settled by hand, as E70-T8. (1) An incident is open and its victim V alive (the crisis
+         * runs; a Survive is one of its ends): the list names nobody living, and V's player keeps the microphone; U dies
+         * and nobody finds the body: U is listed. (2) U, listed, presents nothing by the API's road. (3) The clock moves to
+         * the next chapter inside the trial (Edit campaign): the next settle writes the list into the record that
+         * stands, which keeps its question and its vote's round. Red at 95bf1ffc: V listed and blocked, U's card posted,
+         * and the record replaced by the next chapter's blank. The incident is put back by tier 2's restore, as every
+         * murder test's state is; the clock, the floor, the record, the students, the permissions and the store here.
+         */
+        needs(env.primaryGm(), "the trial's dead are listed on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a death nobody found, each with a player");
+        const voice = await import("./voice.mjs");
+        const V = await import("./vote.mjs");
+        const M = await import("./murder.mjs");
+        const T = await import("./trial.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { killCharacter, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const picked = [];
+        for (const a of studentActors()) {
+            const u = ownerOf(a);
+            if (!isDeadForGm(a) && u && !picked.some(p => p.user.id === u.id)) picked.push({ actor: a, user: u });
+        }
+        must(picked.length >= 3, `three living students of three players, found ${picked.length} - the probe above counts them`);
+        must(!M.murderState(), "an incident is already running - this test opens its own");
+        const [K, Vi, U] = picked.slice(0, 3);
+        const perm = user => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = Object.fromEntries([K, Vi, U].map(p => [p.user.id, perm(p.user)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const listNow = () => [...((getSetting(SETTINGS.trialProgress) ?? {}).mutedDead ?? [])].sort();
+        const read = {};
+        let item = null;
+        try {
+            await M.openMurder({ killerId: K.actor.id, victimId: Vi.actor.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.victimId === Vi.actor.id && !isDeadForGm(Vi.actor), `the fixture's incident is not open with a living victim: ${stableJson(M.murderState())}`);
+            await killCharacter(U.actor, { secret: true, keepBullets: true });
+            item = await bullets.createTruthBullet(U.actor, { name: "SUITE E70 fix p1-G1 bullet", realType: "neutral", visibility: "obvious" });
+            await settle();
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, topic: "SUITE fix p1-G1 question", vote: { ...V.trialProgress(chapter).vote, round: 7 } });
+            await rawClock({ phase: "classTrial", eclipse: false });
+            await voice.settleTrialVoices();
+            await settle();
+            read.entry = { list: listNow(), victim: perm(Vi.user), unfound: perm(U.user)[1] };
+            const cards = game.messages.size;
+            read.present = [await T.presentBullet(U.actor, item, {}), game.messages.size - cards];
+
+            await rawClock({ chapter: chapter + 1 });
+            await killCharacter(K.actor, { secret: true, keepBullets: true });
+            await voice.settleTrialVoices();
+            await settle();
+            const stored = getSetting(SETTINGS.trialProgress) ?? {};
+            read.moved = { chapter: stored.chapter === chapter, topic: stored.topic ?? null, round: stored.vote?.round ?? null, list: listNow().length };
+        } finally {
+            for (const p of [K, Vi, U]) if (isDeadForGm(p.actor)) await reviveCharacter(p.actor, { quiet: true });
+            if (item) await U.actor.items.get(item.id)?.delete();
+            for (const p of [K, Vi, U]) {
+                const [had, value] = before[p.user.id];
+                if (JSON.stringify(perm(p.user)) !== JSON.stringify(before[p.user.id])) await p.user.update({ "permissions.BROADCAST_AUDIO": had ? value : forcedDeletion() });
+            }
+            for (const key of Object.keys(stores.trialMuteStore.entries())) await stores.trialMuteStore.drop(key);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            entry: { list: [U.actor.id], victim: before[Vi.user.id], unfound: false },
+            present: [false, 0],
+            moved: { chapter: true, topic: "SUITE fix p1-G1 question", round: 7, list: 2 }
+        }), "the trial's list names an open incident's living victim, a listed death posts a Present card, or a settle after the clock moved chapters replaced the trial's record (entry: the list, the victim's player's [had, value], the unfound's grant; present: the answer, cards posted; moved: the record's chapter kept, its question, its round, the list's length)");
+    }],
+
+    ["Testimony and Panic Round: the start's guard on the API and the GMs' row, Done by the speaker alone, a participant's step over while the primary's heartbeat is held, no Objection in Panic, and an Objection's exchange resuming the queue (E70-T9)", async () => {
+        /*
+         * E70 C7, 28.10.2026; E70-41, E70-42, E70-44, E70-46. Read on this primary in a Class Trial, with the floor's
+         * participants as vote.mjs `trialParticipants` gives them (connected players' living students, one each):
+         * (1) a turn of 121 s refused by `startTestimony` and by "trial.gm" op testimony, and the floor stays shut; (2) a
+         * Testimony in the order given, its first speaker the first named; Done from the second speaker's owner refused
+         * (not their turn), the speaker's Done sent by the second speaker's owner refused (not their character), from the
+         * speaker's owner taken - the second speaker's turn; (3) the primary's heartbeat held as
+         * a background tab holds it, the turn run out: the participants' browsers' step overs ("trial.turn" kind "over",
+         * trial-prompt.mjs) move the round within four seconds, the same step over again is refused (the round moved on),
+         * and so is one of the new turn before it is due; (4) a Panic Round: an Objection refused
+         * (`objectOnPrimary`, "floorClosed"), End this mode; (5) a Testimony again, an Objection at the speaker
+         * (`openObjection`), its rebuttal, Skip: the round resumes at the next speaker. Red at 182cdd57: no
+         * `startTestimony`, no "trial.turn" (the step stood with the heartbeat held). The clock, the floor, the record and
+         * the cards are put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a round needs two speakers, and only a connected player's student takes part");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const realInterval = globalThis.setInterval;
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const read = { api: [typeof api.startTestimony, typeof api.startPanicRound] };
+        let parts = [];
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+            parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - a round of one measures no order`);
+            const [one, two] = parts;
+            const order = [one.actor.id, two.actor.id];
+            if (typeof api.startTestimony === "function") {
+                const long = await api.startTestimony({ seconds: 121, order });
+                const bridged = await judged({ action: "trial.gm", requestId: "E70T9LONG", op: "testimony", seconds: 121, order: order.join(",") }, game.user.id);
+                read.guard = [long ?? null, F.trialFloor(), bridged];
+                await api.startTestimony({ seconds: 60, order });
+                await settle();
+                const started = F.trialFloor();
+                read.start = [started?.mode ?? null, started?.holderId === one.actor.id, started?.round?.order?.slice(0, 2)?.join() === order.join()];
+                const step = started?.round?.step ?? 0;
+                const notTheirs = await judged({ action: "trial.turn", requestId: "E70T9DONE2", actorId: two.actor.id, kind: "done", step }, two.user.id);
+                const forged = await judged({ action: "trial.turn", requestId: "E70T9FORGED", actorId: one.actor.id, kind: "done", step }, two.user.id);
+                const theirs = await judged({ action: "trial.turn", requestId: "E70T9DONE1", actorId: one.actor.id, kind: "done", step }, one.user.id);
+                read.done = [notTheirs, forged, theirs, F.trialFloor()?.holderId === two.actor.id];
+                // The heartbeat held (a background tab's) from before the write that runs the second speaker's turn out
+                // on the primary's clock - the write's own hook starts the heartbeat again (`renderTrialFloor`) - until
+                // the step over is judged.
+                const due = F.trialFloor();
+                const overStep = due?.round?.step ?? 0;
+                globalThis.setInterval = () => 0;
+                let over = null, after = null, again = null;
+                try {
+                    F.renderTrialFloor();
+                    await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), startedAt: serverNow() - 61_000 });
+                    await settle();
+                    // The participants' own browsers call the turn over (trial-prompt.mjs) within their second's tick.
+                    read.moved = Boolean(await until(() => F.trialFloor()?.round?.step !== overStep || null, 4000));
+                    after = F.trialFloor();
+                    over = await judged({ action: "trial.turn", requestId: "E70T9OVER1", actorId: one.actor.id, kind: "over", step: overStep }, one.user.id);
+                    again = after ? await judged({ action: "trial.turn", requestId: "E70T9OVER2", actorId: one.actor.id, kind: "over", step: after.round.step }, one.user.id) : ["none"];
+                } finally {
+                    globalThis.setInterval = realInterval;
+                }
+                read.over = [over, after?.holderId ?? null, (after?.round?.step ?? null) === (after ? overStep + 1 : null), again];
+                // The next speaker as the started round's own order names it (E70 fix p2-G5; the review's P2R-09): the order
+                // past the GM's two is drawn at random, so with four players or more `parts[2]` was the holder half the time.
+                read.overWant = started?.round?.order?.[2] ?? null;
+                F.renderTrialFloor();
+                if (F.trialFloor()) await api.endMode();
+                await settle();
+                await api.startPanicRound({ seconds: 15, order });
+                await settle();
+                const { objectOnPrimary } = await import("./trial.mjs");
+                const objected = await objectOnPrimary({ actorId: two.actor.id, targetId: one.actor.id });
+                read.panic = [F.trialFloor()?.mode ?? null, objected?.refused ?? null];
+                await api.endMode();
+                await settle();
+                await api.startTestimony({ seconds: 60, order });
+                await settle();
+                const opened = await F.openObjection(two.actor.id, one.actor.id, {});
+                await F.openRebuttal();
+                await settle();
+                const inRebuttal = F.trialFloor()?.mode ?? null;
+                await api.skipStep();
+                await settle();
+                read.resume = [Boolean(opened), inRebuttal, F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === two.actor.id];
+            }
+        } finally {
+            globalThis.setInterval = realInterval;
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const overWant = read.overWant;
+        delete read.overWant;
+        equal(stableJson(read), stableJson({
+            api: ["function", "function"],
+            guard: [null, null, ["bridge.refused"]],
+            start: ["testimony", true, true],
+            done: [["bridge.refused"], ["bridge.refused"], ["bridge.done"], true],
+            moved: true,
+            over: [["bridge.refused"], overWant, true, overWant ? ["bridge.refused"] : ["none"]],
+            panic: ["panic", "the trial's floor is not open to an objection now"],
+            resume: [true, "rebuttal", "testimony", true]
+        }), "(1) the 121 s turn on the API and trial.gm, and the floor; (2) the start; Done from the second speaker, the speaker's Done sent by the second speaker's owner, the speaker's own, and whose turn; (3) the run-out turn moved on by the participants' browsers with the heartbeat held; the same step over again, the next speaker, the step, a step over of the new turn before it is due; "
+            + "(4) a Panic Round's Objection; (5) an Objection at the speaker, its rebuttal, Skip: the mode and speaker after");
+    }],
+
+    ["the Closing Argument: volunteers by \"trial.claim\" kept by the GMs alone, the draw confirmed, an Objection only at the speaker, both of the GM's decisions, an Overrule in the exchange, and one Closing per trial (E70-T10)", async () => {
+        /*
+         * E70 C8, 28.10.2026; E70-51, E70-52, E70-54, E70-56, E70-57. Read on this primary in a Class Trial, with the
+         * participants as vote.mjs `trialParticipants` gives them: (1) `startClosing` opens the volunteers' window; (2) the
+         * second participant's owner volunteers the first's student (refused: not theirs), the first's owner volunteers by
+         * the bridge's "trial.claim" (taken), again (refused: once), the second's owner their own (taken) - the floor says "2" and nothing
+         * else, neither world setting holds a volunteer or a draw, the GMs' store holds both names; (3) Skip draws one of
+         * them and Confirm gives them the floor; (4) an Objection at a participant who is not speaking is refused, one at the
+         * speaker opens its exchange, and the rebuttal skipped is the GM's decision with the speaker's seconds kept; the
+         * speaker continues with them; (5) a second exchange, and the objector continues with a new 300 s; (6) an Objection
+         * at the new speaker overruled in its exchange gives them back the seconds they had at it; (7) End this mode ends the
+         * Closing, the record names three stretches (drawn, the speaker again, the objector) and is done; a second
+         * `startClosing` in this trial opens nothing. Red at 2f1e8772: no `startClosing`, no "trial.claim". The clock, the
+         * floor, the record, the store and the cards are put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a Closing's draw and its exchange need two connected players' students");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor and the GMs' store - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const V = await import("./vote.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const api = game.drpg ?? {};
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const store = S.closingClaimStore ? foundry.utils.deepClone(S.closingClaimStore.get(RECORD) ?? null) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        // A key named `volunteers` or `drawn` at any depth of either world setting (a speaker's `via` may read "drawn").
+        const keyed = value => value && typeof value === "object"
+            && Object.entries(value).some(([k, v]) => k === "volunteers" || k === "drawn" || keyed(v));
+        const worldClean = () => !keyed(getSetting(SETTINGS.trialQueue) ?? {}) && !keyed(getSetting(SETTINGS.trialProgress) ?? {});
+        const read = { api: ["startClosing", "confirmClosingSpeaker", "pickClosingSpeaker", "continueClosing", "resumeClosing"].map(k => typeof api[k]) };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await V.setTrialProgress({ closing: null });
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - a Closing's exchange needs two`);
+            const [one, two] = parts;
+            if (typeof api.startClosing === "function" && S.closingClaimStore) {
+                const opened = await api.startClosing();
+                await settle();
+                read.open = [opened?.mode ?? null, F.trialFloor()?.closing?.phase ?? null];
+                // The forged claim first (E70 C8 fix-mutant): asked after the first's own, the once rule refused it as well, and
+                // mutant c6 - "trial.claim" without its ownership guard - survived.
+                const forged = await judged({ action: "trial.claim", requestId: "E70T10FORGED", actorId: one.actor.id }, two.user.id);
+                const c1 = await judged({ action: "trial.claim", requestId: "E70T10C1", actorId: one.actor.id }, one.user.id);
+                const c1again = await judged({ action: "trial.claim", requestId: "E70T10C1B", actorId: one.actor.id }, one.user.id);
+                const c2 = await judged({ action: "trial.claim", requestId: "E70T10C2", actorId: two.actor.id }, two.user.id);
+                const held = S.closingClaimStore.get(RECORD) ?? {};
+                read.claims = [c1, c1again, forged, c2, F.trialFloor()?.closing?.count ?? null, worldClean(),
+                    [...(held.volunteers ?? [])].sort().join() === [one.actor.id, two.actor.id].sort().join()];
+                /* The volunteers' 30 s run out with the primary's heartbeat held, as a GM's tab in the background holds it
+                   (E70 fix p2-G3; the review's BEH-4; S06-38): the participants' browsers call the window over
+                   (trial-prompt.mjs, "trial.turn" kind "over") and the draw is made in that step. Red at the fix's parent:
+                   the window stood until the GM's Skip. */
+                const realInterval = globalThis.setInterval;
+                globalThis.setInterval = () => 0;
+                try {
+                    F.renderTrialFloor();
+                    await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), startedAt: serverNow() - 31_000 });
+                    await settle();
+                    read.volunteerOver = Boolean(await until(() => F.trialFloor()?.closing?.phase === "choice" || null, 4000));
+                } finally {
+                    globalThis.setInterval = realInterval;
+                }
+                F.renderTrialFloor();
+                if (F.trialFloor()?.closing?.phase === "volunteer") await api.skipStep();
+                await settle();
+                const drawn = S.closingClaimStore.get(RECORD)?.drawn ?? null;
+                read.draw = [F.trialFloor()?.closing?.phase ?? null, F.trialFloor()?.closing?.choice ?? null, [one.actor.id, two.actor.id].includes(drawn), worldClean()];
+                /* Confirm and the speaker's continue by the GMs' row "trial.gm" (E70 fix p2-G5; the review's E70P2-R03, E70-57's
+                   "the same on gm2"): this GM's own packet judged as a second GM's is, and a player's refused. */
+                const confirmForged = await judged({ action: "trial.gm", requestId: "E70T10GMCP", op: "closingConfirm" }, one.user.id);
+                const confirmRow = await judged({ action: "trial.gm", requestId: "E70T10GMC", op: "closingConfirm" }, game.user.id);
+                read.gmRow = [confirmForged, confirmRow];
+                await settle();
+                const speaker = F.trialFloor()?.holderId ?? null;
+                const objector = speaker === one.actor.id ? two.actor.id : one.actor.id;
+                read.confirm = [F.trialFloor()?.closing?.phase ?? null, speaker === drawn, F.trialFloor()?.closing?.via ?? null];
+                const wrong = await F.openObjection(speaker, objector, {});
+                const opened1 = await F.openObjection(objector, speaker, {});
+                await F.openRebuttal();
+                await api.skipStep();
+                await settle();
+                const kept = F.trialFloor()?.closing?.left ?? null;
+                read.exchange = [wrong ?? null, Boolean(opened1), F.trialFloor()?.closing?.phase ?? null, Number(kept) > 250];
+                read.gmRow.push(await judged({ action: "trial.gm", requestId: "E70T10GMK", op: "closingContinue", actorId: speaker }, game.user.id));
+                await settle();
+                read.speakerOn = [F.trialFloor()?.holderId === speaker, Math.abs(F.secondsLeft() - kept) <= 2];
+                await F.openObjection(objector, speaker, {});
+                await F.openRebuttal();
+                await api.skipStep();
+                await settle();
+                await api.continueClosing(objector);
+                await settle();
+                read.objectorOn = [F.trialFloor()?.holderId === objector, F.secondsLeft() >= 298, F.trialFloor()?.closing?.via ?? null];
+                await F.openObjection(speaker, objector, {});
+                const atObjection = F.trialFloor()?.before?.at(-1)?.leftAtObjection ?? null;
+                await api.overruleObjection();
+                await settle();
+                read.overrule = [F.trialFloor()?.mode ?? null, F.trialFloor()?.holderId === objector, Math.abs(F.secondsLeft() - atObjection) <= 2];
+                await api.endMode();
+                await settle();
+                const record = V.trialProgress().closing ?? null;
+                read.over = [F.trialFloor(), record?.done ?? null, (record?.speakers ?? []).map(s => s.via), worldClean()];
+                const second = await api.startClosing();
+                await settle();
+                read.second = [second ?? null, F.trialFloor()];
+            }
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            if (S.closingClaimStore) await S.closingClaimStore.patch(RECORD, store ?? { volunteers: [], drawn: null, openedAt: null });
+            await setClock(clock);
+            F.renderTrialFloor();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            api: ["function", "function", "function", "function", "function"],
+            open: ["closing", "volunteer"],
+            claims: [["bridge.done"], ["bridge.refused"], ["bridge.refused"], ["bridge.done"], 2, true, true],
+            volunteerOver: true,
+            gmRow: [["bridge.refused"], ["bridge.done"], ["bridge.done"]],
+            draw: ["choice", "confirm", true, true],
+            confirm: ["speak", true, "chosen"],
+            exchange: [null, true, "decide", true],
+            speakerOn: [true, true],
+            objectorOn: [true, true, "objection"],
+            overrule: ["closing", true, true],
+            over: [null, true, ["chosen", "speaker", "objection"], true],
+            second: [null, null]
+        }), "(1) the window; (2) the claims - the first, again, another's student, the second's own - the floor's count, the world settings and the GMs' store; (3) the draw and Confirm; "
+            + "(4) an Objection at somebody not speaking, at the speaker, the decision and the seconds kept, the speaker on with them; (5) the objector on with 300 s; (6) the Overrule; (7) the end, the record, a second Closing");
+    }],
+
+    ["Monokuma's Reveal: the Key Remnants nobody found listed, a copy to each participant as a find - typed Key with the players' text, not analysed - the fee's own count, once, past the count only when asked, the GMs' row \"trial.gm\", and Analyze still open on the copy in the trial (E70-T11)", async () => {
+        /*
+         * E70 C9, 28.10.2026; E70-60 to E70-64 (TR5 = 1, TR28 = 1, Q-p2-2). The harm: a Key Remnant the investigation never
+         * turned up was lost to the trial for good - "what you fail to find, you will not have" - and the guide's Monokuma
+         * reveals it. Read on this primary in a Class Trial, with the participants as vote.mjs `trialParticipants` gives
+         * them: (1) the fee for a critical opening's three Keys charged from empty pools, and charged again (nothing more:
+         * the pools and the count stand); the count then set to two as a fixture; (2) three slots of this chapter's plan -
+         * A with a hidden Key trace the GM described, B with nothing written and no trace (not listed), C with a
+         * name the GM wrote, no text and no trace - and `missingKeys()` lists A and C, no participant holding their words; (3) the GMs'
+         * row "trial.gm" op "reveal" for A from a player (refused) and from this GM (done): one copy of A to each
+         * participant, typed Key, its text the players', not read, the trace's token shown, A no longer missing and found
+         * on the plan, one left to reveal, each participant told; (4) A again, by the API and by the GMs' row: nothing, still one copy each; (5) C by the
+         * API with no text of its own given and the GM's: copies with the GM's words, none left; (6) a fourth Key D,
+         * written now: refused past the count by the API and by the GMs' row, revealed when asked to go past it; (7) the copy of A on a participant is
+         * offered to Analyze in the trial (`analysableBullets`, `analyzeRowShut`) and the filter holds the Reveal's row.
+         * Red at 713fe35b: no `missingKeys`, no `revealMissingKey`. Everything is put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "the Reveal's copies go to the participants, two connected players' students");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which mints the Reveal's copies - this would measure nothing");
+        const M = await import("./trial-modes.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const V = await import("./vote.mjs");
+        const S = await import("./gm-stores.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const A = await import("./action-rolls.mjs");
+        const D = await import("./despair.mjs");
+        const SEC = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const api = game.drpg ?? {};
+        const scene = canvas?.scene;
+        must(scene, "no scene is on screen to place the hidden Key trace on");
+        const clock = foundry.utils.deepClone(getClock());
+        const chapter = Number(clock.chapter);
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const keys = { A: `${chapter}:17`, B: `${chapter}:18`, C: `${chapter}:19`, D: `${chapter}:20`, caseRow: `${chapter}:case`, reveal: `${chapter}:reveal` };
+        const kept = Object.fromEntries(Object.entries(keys).map(([k, key]) => [k, foundry.utils.deepClone(S.keyPlanStore.get(key) ?? null)]));
+        const users = D.monokumas();
+        must(users.length > 0, "no Monokuma has a pool to charge - the fee would measure nothing");
+        const pools = users.map(user => D.getDespair(user.id));
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await settle();
+            return sent;
+        };
+        const words = { A: "E70T11 the words of A", C: "E70T11 the words of C", gm: "E70T11 the GM's words for C", D: "E70T11 the words of D" };
+        let token = null;
+        const read = { api: ["missingKeys", "revealMissingKey"].map(k => typeof api[k]) };
+        const copiesOf = (actor, match) => actor.items.filter(item => T.isTruthBullet(item) && match(item));
+        const ofA = item => T.secretOf(item.uuid).remnantId === token?.id;
+        const saying = text => item => (T.truthBulletData(item)?.playerText ?? "") === text;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - the copies need two`);
+            if (typeof api.missingKeys === "function" && typeof M.revealLeft === "function") {
+                /* (1) The fee: a critical opening's three, from empty pools, then asked again. */
+                for (const user of users) if (D.getDespair(user.id) !== 0) await D.setDespair(user.id, 0);
+                await I.recordCaseKeys(chapter, 3);
+                await V.setTrialProgress({ keysCharged: false });
+                const fee = await I.keyFeeOf(chapter);
+                must(fee && fee.short > 0 && !fee.held, `the fee owes nothing here (${stableJson(fee)}) - its count would measure nothing`);
+                await I.chargeForUnfoundKeys();
+                const first = [users.map(u => D.getDespair(u.id)), I.keyRevealRecord(chapter).paid];
+                await I.chargeForUnfoundKeys();
+                const second = [users.map(u => D.getDespair(u.id)), I.keyRevealRecord(chapter).paid];
+                read.fee = [first[1] === fee.short, first[0].every(n => n === Math.min(fee.short * 3, 12)), stableJson(second) === stableJson(first)];
+                await S.keyPlanStore.patch(keys.reveal, { paid: 2, revealed: [] });
+
+                /* (2) The plan's three slots and A's hidden trace. */
+                token = await R.placeRemnant({ type: "key", visibility: "evident", x: 300, y: 300, scene, chapter, note: "E70T11 A" });
+                must(token?.id, "the Key trace of slot A was not placed");
+                if (!token.hidden) await token.update({ hidden: true });
+                await R.setRemnantPublic(token, { name: "E70T11 A", playerText: words.A, analyzedText: "E70T11 the reading of A" });
+                await S.keyPlanStore.patch(keys.A, { scale: "standard", name: "E70T11 slot A", tokenId: token.id, sceneId: scene.id });
+                await S.keyPlanStore.patch(keys.B, { scale: "standard" });
+                await S.keyPlanStore.patch(keys.C, { scale: "standard", name: "E70T11 C" });
+                await settle();
+                const listed = (await api.missingKeys()).map(row => row.id);
+                const anyHolds = text => parts.some(p => copiesOf(p.actor, saying(text)).length);
+                read.listed = [listed.includes("17"), listed.includes("18"), listed.includes("19"), anyHolds(words.A), M.revealLeft(I.keyRevealRecord(chapter))];
+
+                /* (3) A by the GMs' row, from a player and from this GM. */
+                const forged = await judged({ action: "trial.gm", requestId: "E70T11P", op: "reveal", slot: "17" }, parts[0].user.id);
+                /* The second participant's player reloading at the Reveal (E70 fix p2-G4; the review's P2R-03, E70P2-R11): read
+                   as not connected for the Reveal's step. Their student is in the trial and gets the copy all the same - the
+                   slot leaves the list, so nothing would hand it over later. Red at the fix's parent: no copy for them. */
+                const away = parts[1].user;
+                Object.defineProperty(away, "active", { get: () => false, configurable: true });
+                let done = null;
+                try {
+                    done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
+                } finally {
+                    delete away.active;
+                }
+                await sheetAuditIdle();
+                await settle();
+                const copyA = parts.map(p => copiesOf(p.actor, ofA));
+                const one = copyA.map(list => list[0] ?? null);
+                const status = I.keyPlanStatus().entries[17] ?? {};
+                read.revealA = [forged, done, copyA.map(list => list.length),
+                    one.map(item => item ? [T.secretOf(item.uuid).realType, T.truthBulletData(item).shownType, T.truthBulletData(item).playerText === words.A, T.hasReading(item)] : null),
+                    token.hidden, (await api.missingKeys()).some(row => row.id === "17"), status.found ?? null, M.revealLeft(I.keyRevealRecord(chapter)),
+                    // Told by a whisper to the participant's owner that carries the Reveal's sound (a private card's flags ride
+                    // with its words, secret.mjs `cardFlag`).
+                    parts.every(p => game.messages.some(m => !seen.has(m.id) && SEC.cardFlag(m, "sfx") === "keyReveal"
+                        && (m.whisper ?? []).includes(p.user.id)))];
+
+                /* (4) A again. */
+                const again = await api.revealMissingKey(17);
+                // And by the GMs' row, past the asking GM's own check: the primary judges it again.
+                const againRow = await judged({ action: "trial.gm", requestId: "E70T11G2", op: "reveal", slot: "17" }, game.user.id);
+                await settle();
+                read.again = [again ?? null, againRow, parts.map(p => copiesOf(p.actor, ofA).length)];
+
+                /* (5) C by the API, the GM's words. */
+                const c = await api.revealMissingKey(19, { text: words.gm });
+                await sheetAuditIdle();
+                await settle();
+                read.revealC = [Boolean(c), parts.map(p => copiesOf(p.actor, saying(words.gm)).length),
+                    parts.map(p => copiesOf(p.actor, saying(words.gm)).map(item => T.secretOf(item.uuid).realType)).flat(),
+                    I.keyPlanStatus().entries[19]?.found ?? null, M.revealLeft(I.keyRevealRecord(chapter))];
+                /* The dashboard's Key tab names the Reveal (E70 fix p2-G4; the review's BEH-5, P2R-08, E70P2-R13): C, revealed
+                   with no trace, has copies with no trace behind them, so "Found by" read nobody; the plan's reveal row is the
+                   source, drawn as "Revealed by Monokuma". Red at the fix's parent: the row read "Found by: " and no more. */
+                const revealedWord = game.i18n.localize("DRPG.Investigation.revealedByMonokuma");
+                const tab = I.caseKeyRows({ plan: I.keyPlan(), status: I.keyPlanStatus(), placed: [], limit: null, roomOptionsFor: () => "", visOptionsFor: () => "" });
+                read.dashboard = [revealedWord !== "DRPG.Investigation.revealedByMonokuma", tab.split("<tr").filter(row => row.includes(revealedWord)).length];
+
+                /* (6) D, past the count. */
+                await S.keyPlanStore.patch(keys.D, { scale: "standard", name: "E70T11 D", text: words.D });
+                const past = await api.revealMissingKey(20);
+                // And by the GMs' row, past the asking GM's own check (E70 C9 fix-mutant: with the primary's recheck taken out,
+                // mutant r5, only a refusal the step itself crashed on was measured): the primary refuses it past the count.
+                const pastRow = await judged({ action: "trial.gm", requestId: "E70T11G3", op: "reveal", slot: "20" }, game.user.id);
+                await sheetAuditIdle();
+                await settle();
+                const pastHeld = parts.map(p => copiesOf(p.actor, saying(words.D)).length);
+                const asked = await api.revealMissingKey(20, { beyondPaid: true });
+                await sheetAuditIdle();
+                await settle();
+                read.beyond = [past ?? null, pastRow, pastHeld, Boolean(asked), parts.map(p => copiesOf(p.actor, saying(words.D)).length)];
+
+                /* (7) Analyze on the copy, in the trial. */
+                const holder = parts[0].actor;
+                const copy = copiesOf(holder, ofA)[0] ?? null;
+                read.analyze = [Boolean(copy) && T.analysableBullets(holder).some(item => item.id === copy.id),
+                    A.analyzeRowShut("bullet", { phase: "classTrial", bullet: copy }),
+                    A.ANALYZE_TRIAL_FILTER.some(entry => entry.row === "bullet" && entry.reveal === true)];
+            }
+        } finally {
+            for (const actor of game.actors) {
+                for (const item of actor.items.filter(i => T.isTruthBullet(i) && (ofA(i) || Object.values(words).some(w => saying(w)(i))))) {
+                    const uuid = item.uuid;
+                    await item.delete();
+                    await T.dropSecret(uuid);
+                }
+            }
+            if (token && scene.tokens.has(token.id)) {
+                await R.dropRemnantSecret(token);
+                await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            const drop = Object.entries(keys).filter(([k]) => kept[k] === null).map(([, key]) => key).filter(key => S.keyPlanStore.get(key));
+            if (drop.length) await S.keyPlanStore.dropMany(drop);
+            for (const [k, key] of Object.entries(keys)) if (kept[k] !== null) await S.keyPlanStore.patch(key, kept[k]);
+            for (const [i, user] of users.entries()) if (D.getDespair(user.id) !== pools[i]) await D.setDespair(user.id, pools[i]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await sheetAuditIdle();
+            await settle();
+        }
+        const n = read.revealA ? read.revealA[2].length : 0;
+        equal(stableJson(read), stableJson({
+            api: ["function", "function"],
+            fee: [true, true, true],
+            listed: [true, false, true, false, 2],
+            revealA: [["bridge.refused"], ["bridge.done"], Array(n).fill(1), Array(n).fill(["key", "key", true, false]), false, false, true, 1, true],
+            again: [null, ["bridge.refused"], Array(n).fill(1)],
+            revealC: [true, Array(n).fill(1), Array(n).fill("key"), true, 0],
+            dashboard: [true, 2],
+            beyond: [null, ["bridge.refused"], Array(n).fill(0), true, Array(n).fill(1)],
+            analyze: [true, false, true]
+        }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM (the second participant's player away): the copies each, typed and read, "
+            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; the Key tab: the words exist, the rows reading Revealed by Monokuma (A and C); (6) D past the count by the API and by the GMs' row, the copies, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
+    }],
+
+    ["Present on the primary by \"trial.present\": the card with or without the Analyze result, a copy as shown to every other participant, none twice, refused to somebody else's owner and outside the mode's row, and Share gone from the Truth Bullet's row in the trial (E70-T12)", async () => {
+        /*
+         * E70 C10, 28.10.2026; E70-70 to E70-73 (TR2 = 1, B2, B6, Q-p2-5). The harm, the owner's session notes of 27.10: a
+         * Present showed the bullet to everybody and left nobody holding it, so each player copied it by Share one by one;
+         * a player could not show evidence without the reading their Analyze bought; and during somebody's turn anybody
+         * could present. Read on this primary in a Class Trial with the participants as vote.mjs `trialParticipants` gives
+         * them; P presents, O is another participant. (1) "trial.present" from P's owner without the analysis: done, one
+         * card a GM authored with P's words and neither the reading nor the identified type nor Faint, one copy on every
+         * other participant typed as never analysed (Neutral, not read), none on P, each told; (2) again with the
+         * analysis: the card with the reading and the type, still one copy each; (3) the same packet from O's owner:
+         * refused, nothing posted; (4) in Testimony with O speaking: refused, nothing posted; (5) P's sheet's row in the
+         * trial: Present held with the row's reason while O speaks, no Share; outside the trial Share and no Present.
+         * Red at cbce376f: no "trial.present" (the bridge refuses an unknown action), the row drew Share in the trial.
+         * Everything is put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "Present's copies go to the other participants, two connected players' students");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which posts the card and mints the copies - this would measure nothing");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const V = await import("./vote.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas?.scene;
+        must(scene, "no scene is on screen to place the bullet's trace on");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await sheetAuditIdle();
+            await settle();
+            return sent;
+        };
+        const words = { text: "E70T12 the words the players read", reading: "E70T12 the reading only an Analyze gives" };
+        let token = null, item = null, sheet = null, keyItem = null;
+        const read = {};
+        const ofTrace = i => T.isTruthBullet(i) && token && T.secretOf(i.uuid).remnantId === token.id;
+        const cards = () => game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, TRIAL_FLAGS.present));
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - the copies need two`);
+            const [P, O] = parts;
+            const others = parts.slice(1);
+            token = await R.placeRemnant({ type: "incident", visibility: "evident", x: 340, y: 340, scene, chapter: Number(clock.chapter), note: "E70T12" });
+            must(token?.id, "the trace of the presented bullet was not placed");
+            item = await T.createTruthBullet(P.actor, { name: "E70T12 the presented bullet", realType: "incident", shownType: "incident", analyzed: true, faint: true,
+                playerText: words.text, analyzedText: words.reading, remnantId: token.id, sceneId: scene.id });
+            must(item && T.hasReading(item), "the presenter's analysed Truth Bullet was not made");
+            await settle();
+            const packet = (analysis, requestId) => ({ action: "trial.present", requestId, actorId: P.actor.id, itemId: item.id, comment: "E70T12", bare: !analysis });
+            const copies = () => others.map(o => o.actor.items.filter(ofTrace));
+            const cardOf = list => list.map(m => [Boolean(m.author?.isGM), m.content.includes(words.text), m.content.includes(words.reading),
+                /drpg-tb-badge type incident/.test(m.content), /drpg-tb-badge faint/.test(m.content)]);
+
+            /* (0) Share by the bridge in the trial (E70 fix p2-G2; the review's E70P2-R09): the sheet's row draws no Share
+               there (5), and the row a console sends is refused on the primary with a closed reason - no copy for O. NOT red
+               at 2fc865ac (measured): handover.mjs `verify` asks inventory.mjs `transferRefusal` mode "give", which refuses
+               in a Class Trial ("that waits until the Class Trial is over", cannotNow) - the review's road was closed
+               already; this holds it closed. */
+            const shareSent = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
+            await sheetAuditIdle();
+            await settle();
+            read.share = [shareSent, O.actor.items.filter(ofTrace).length];
+
+            /* (1) Without the analysis. */
+            const without = await judged(packet(false, "E70T12a"), P.user.id);
+            const first = copies();
+            read.without = [without, cardOf(cards()), first.map(list => list.length), P.actor.items.filter(ofTrace).length,
+                first.map(list => list[0] ? [T.truthBulletData(list[0]).shownType, T.hasReading(list[0]), T.truthBulletData(list[0]).analyzedText,
+                    T.truthBulletData(list[0]).playerText === words.text, T.secretOf(list[0].uuid).realType] : null),
+                others.every(o => game.messages.some(m => !seen.has(m.id) && (m.whisper ?? []).includes(o.user.id)))];
+
+            /* (2) With it: the card reads it, and nobody gets a second copy. */
+            const before = cards().length;
+            const withIt = await judged(packet(true, "E70T12b"), P.user.id);
+            read.withIt = [withIt, cardOf(cards().slice(before)), copies().map(list => list.length)];
+
+            /* (3) From somebody else's owner. */
+            const n3 = cards().length;
+            read.forged = [await judged(packet(true, "E70T12c"), O.user.id), cards().length - n3];
+
+            /* (3b) A Faint Key shown without the analysis, O's player away (E70 fix p2-G4; the review's BEH-1, P2R-05,
+               E70P2-R06, and P2R-03): a Key is born identified, so its Faint shows from the find on - no Analyze gave it -
+               and the card keeps it as the copy does (unreadView); the reading stays off both. O, reloading, gets the copy
+               all the same. Red at the fix's parent: the card hid Faint while every copy showed it, and O got none. */
+            keyItem = await T.createTruthBullet(P.actor, { name: "E70T12 the Faint Key", realType: "key", faint: true, analyzed: true,
+                playerText: "E70T12 the Key's words", analyzedText: "E70T12 the Key's reading" });
+            must(keyItem, "the presenter's Faint Key was not made");
+            await settle();
+            const nk = cards().length;
+            Object.defineProperty(O.user, "active", { get: () => false, configurable: true });
+            let keyAnswer = null;
+            try {
+                keyAnswer = await judged({ action: "trial.present", requestId: "E70T12k", actorId: P.actor.id, itemId: keyItem.id, comment: "", bare: true }, P.user.id);
+            } finally {
+                delete O.user.active;
+            }
+            read.faintKey = [keyAnswer, cards().slice(nk).map(m => [/drpg-tb-badge faint/.test(m.content), m.content.includes("E70T12 the Key's reading")]),
+                others.map(o => o.actor.items.filter(i => T.isTruthBullet(i) && i.name === "E70T12 the Faint Key")
+                    .map(i => [Boolean(T.truthBulletData(i).faint), T.truthBulletData(i).analyzedText]))];
+
+            /* (4) Testimony, O speaking. */
+            await (await import("./trial-modes.mjs")).startTestimony({ seconds: 60, order: [O.actor.id, P.actor.id] });
+            await settle();
+            must(F.trialFloor()?.holderId === O.actor.id, "Testimony did not start with O speaking - the mode's row would measure nothing");
+            const n4 = cards().length;
+            read.mode = [await judged(packet(true, "E70T12d"), P.user.id), cards().length - n4, copies().map(list => list.length)];
+
+            /* (5) The row. */
+            sheet = drawnSheet(P.actor);
+            const row = () => sheet.element.querySelector(`[data-item-uuid="${item.uuid}"]`);
+            const present = () => row()?.querySelector(".drpg-row-present") ?? null;
+            const only = game.i18n.format("DRPG.Trial.presentOnly", { name: O.actor.name });
+            read.row = [Boolean(row()), Boolean(present()), present()?.getAttribute("aria-disabled") ?? null, present()?.dataset.tooltip === only,
+                Boolean(row()?.querySelector(".drpg-row-handover"))];
+            sheet.remove();
+            await F.endFloor();
+            await setClock({ ...clock, phase: "investigation" });
+            await settle();
+            sheet = drawnSheet(P.actor);
+            read.outside = [Boolean(row()), Boolean(present()), Boolean(row()?.querySelector(".drpg-row-handover"))];
+        } finally {
+            sheet?.remove();
+            for (const actor of game.actors) {
+                for (const held of actor.items.filter(i => ofTrace(i) || i.id === item?.id || (T.isTruthBullet(i) && i.name === "E70T12 the Faint Key"))) {
+                    const uuid = held.uuid;
+                    await held.delete();
+                    await T.dropSecret(uuid);
+                }
+            }
+            if (token && scene.tokens.has(token.id)) {
+                await R.dropRemnantSecret(token);
+                await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await sheetAuditIdle();
+            await settle();
+        }
+        const n = read.without ? read.without[2].length : 0;
+        equal(stableJson(read), stableJson({
+            share: [[["bridge.refused", "cannotNow"]], 0],
+            without: [["bridge.done"], [[true, true, false, false, false]], Array(n).fill(1), 1, Array(n).fill(["neutral", false, "", true, "incident"]), true],
+            withIt: [["bridge.done"], [[true, true, true, true, true]], Array(n).fill(1)],
+            forged: [["bridge.refused"], 0],
+            faintKey: [["bridge.done"], [[true, false]], Array(n).fill([[true, ""]])],
+            mode: [["bridge.refused"], 0, Array(n).fill(1)],
+            row: [true, true, "true", true, false],
+            outside: [true, false, true]
+        }), "(0) Share by the bridge in the trial: the answers [action, reason], O's copies; (1) without the analysis: the answer, the card (a GM's, the words, the reading, the type, Faint), the copies each, the presenter's own, each copy's type, reading and words and its answer key, each told; "
+            + "(2) with it: the answer, the card, still one copy each; (3) from another's owner: the answer, cards posted; (3b) a Faint Key without the analysis, O away: the answer, the card [Faint, the reading], each copy [Faint, its reading]; (4) in Testimony with O speaking: the answer, cards posted, copies; "
+            + "(5) the row in the trial: drawn, Present, held, its reason, Share; outside the trial: drawn, Present, Share");
+    }],
+
+    ["OBJECTION! on the voice tile: held with its reason in Daily Life and the Investigation, where a press says why and raises nothing; live in a trial, where two presses raise one Objection; none for a Monocub or the dead; the HUD's only where no tile is drawn; and the plate's \"has the floor\" (E70-T13)", async () => {
+        /*
+         * E70 C11, 28.10.2026; E70-75, E70-76 (B3, amend 3, Q-p2-4 as the owner answered it on 27.10: OBJECTION! MOVES to
+         * the voice tile, and the HUD keeps it only where no tile is drawn). The harm, the owner's session notes of 27.10:
+         * the one OBJECTION! stood on the clock's trial row, far from the voice a player watches while someone speaks, and
+         * nothing said outside a trial that there is such a button at all. The suite runs on a GM's browser, whose tile
+         * draws no OBJECTION! (a Monokuma objects to nobody), so the tile is built here loose (`buildVoiceTile`, as R535
+         * builds its own) and painted for a living student with the phase, the floor, the preview's reader and the press
+         * handed in (`paintObjection`; the tile hands in none at a table: the viewer, the clock, the floor this browser
+         * holds, trial.mjs `objectionButtonState` and `raiseObjection`). Read: (1) in Daily Life and in the Investigation
+         * the button stands in the tile's controls, held (aria-disabled) with "Objection only in a Class Trial." as its
+         * tooltip, and a press says that sentence and asks and raises nothing; (2) in a trial on a debate it is live and the
+         * preview's words are what the reader answers, two presses at once raise one Objection, and a paint with nothing
+         * changed keeps the same button (no mutation); (3) a Monocub's and a dead student's tile carry none; (4) the HUD's
+         * rule (`objectionOnHud`) on a document with and without `#drpg-voice-tile`; (5) the plate's "has the floor" for the
+         * speaker the floor's holder names, in a trial only. A player's real tile and trial row in a real trial is
+         * scenario 63 Y; where the third button stands at 1366x768, in the stacked row and under Legacy is LIVE-E70-12.
+         * Red at b2dd974c: voice-tile.mjs exported no `paintObjection` (the first assertion). Nothing is written.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's student to draw the tile's button for and to name on the plate");
+        const V = await import("./voice-tile.mjs");
+        const H = await import("./hud.mjs");
+        const there = [typeof V.paintObjection, typeof V.paintFloorMark, typeof H.objectionOnHud];
+        ok(there.every(type => type === "function"), `voice-tile.mjs paintObjection, paintFloorMark and hud.mjs objectionOnHud are ${there.join(", ")} - OBJECTION! is not on the voice tile`);
+        if (!there.every(type => type === "function")) return;
+        const { livingStudents } = await import("./chapter.mjs");
+        const { isMutedDead } = await import("./settings.mjs");
+        const { voiceActorFor } = await import("./camera-view.mjs");
+        const student = livingStudents().find(actor => actor.type === "character" && !isMutedDead(actor));
+        must(student, "no living student who may object - this would measure nothing");
+        const speaker = game.users.find(user => !user.isGM && voiceActorFor(user)?.type === "character");
+        must(speaker, "no player named by a student on the plate - this would measure nothing");
+        const outsideWords = game.i18n.localize("DRPG.Trial.objectionOutside");
+        must(outsideWords !== "DRPG.Trial.objectionOutside", "the outside sentence has no words - this would measure nothing");
+        const asked = [], raised = [], warned = [];
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const state = async actor => { asked.push(actor.id); return { text: "E70-T13 at B", held: false }; };
+        const raise = async actor => { raised.push(actor.id); await gate; return true; };
+        const tile = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+        const debate = { mode: "debate", holderId: null };
+        const paint = (phase, actor = student) => V.paintObjection(tile, { actor, phase, floor: debate, state, raise });
+        const look = button => button && [button.parentElement?.classList.contains("drpg-voice-tile-controls") ?? false,
+            button.getAttribute("aria-disabled"), button.dataset.tooltipText ?? null];
+        const read = {};
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        try {
+            read.outside = ["dailyLife", "investigation"].map(phase => look(paint(phase)));
+            const held = tile.querySelector(".drpg-voice-objection");
+            held?.click();
+            await until(() => warned.length > 0, 2000);
+            await wait(100);
+            read.heldPress = [warned.filter(line => line === outsideWords).length, asked.length, raised.length];
+            const live = paint("classTrial");
+            const again = paint("classTrial");
+            read.live = [look(live)?.slice(0, 2), live === again, tile.querySelectorAll(".drpg-voice-objection").length];
+            live?.dispatchEvent(new FocusEvent("focus"));
+            await until(() => asked.length === 1, 2000);
+            read.preview = live?.dataset.tooltipText ?? null;
+            live?.click();
+            // A second press dispatched, not clicked (R592's reading: a disabled button takes no click()), so the latch holds it.
+            live?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await until(() => raised.length > 0, 2000);
+            await wait(100);
+            read.presses = [raised.length, raised[0] === student.id];
+            const standIn = (key, flag) => ({ id: `E70T13${key}`.padEnd(16, "0"), name: `E70-T13 ${key}`, type: "character",
+                getFlag: (scope, k) => (scope === MODULE_ID && k === flag ? true : undefined) });
+            read.none = [standIn("MONOCUB", FLAGS.monocub), standIn("DEAD", FLAGS.deceased)]
+                .map(actor => [paint("classTrial", actor), tile.querySelectorAll(".drpg-voice-objection").length]);
+            const doc = document.implementation.createHTMLDocument("E70-T13");
+            const bare = H.objectionOnHud(doc);
+            const planted = doc.createElement("section");
+            planted.id = "drpg-voice-tile";
+            doc.body.append(planted);
+            read.hud = [bare, H.objectionOnHud(doc)];
+            const plate = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+            const mark = () => {
+                const el = plate.querySelector(".drpg-voice-tile-floor");
+                return el ? [el.hidden, el.textContent] : null;
+            };
+            const holder = voiceActorFor(speaker).id;
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: holder }, "classTrial");
+            const holds = mark();
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: `${holder}x` }, "classTrial");
+            const other = mark();
+            V.paintFloorMark(plate, speaker, { mode: "objection", holderId: holder }, "dailyLife");
+            read.floor = [holds, other, mark()];
+        } finally {
+            release();
+            await wait(50);
+            ui.notifications.warn = warn;
+        }
+        const hasFloor = game.i18n.localize("DRPG.Voice.tile.hasFloor");
+        equal(stableJson(read), stableJson({
+            outside: [[true, "true", outsideWords], [true, "true", outsideWords]],
+            heldPress: [1, 0, 0],
+            live: [[true, null], true, 1],
+            preview: "E70-T13 at B",
+            presses: [1, true],
+            none: [[null, 0], [null, 0]],
+            hud: [true, false],
+            floor: [[false, hasFloor], [true, hasFloor], [true, hasFloor]]
+        }), "(1) Daily Life, the Investigation: in the controls, held, the outside sentence; a held press: told, asked, raised; "
+            + "(2) in a trial: in the controls and live, the same button on a second paint, one button; the preview's words; two presses: raised, the student's own; "
+            + "(3) a Monocub's and a dead student's: the button, the tile's count; (4) the HUD's: no tile, a tile; "
+            + "(5) the plate's mark: the holder speaking in a trial (hidden, words), another holder, outside a trial");
+    }],
+
+    ["a successful Tamper that leaves its author's trace gives the author that trace's Truth Bullet at once, none on a failure or a cover, and the Reroll takes it back (E70-T14)", async () => {
+        /*
+         * E70 C12, 28.10.2026; the owner's B1 (27.10, "autor dostaje Truth Bullet wlasnego sladu przy udanym Tamper, a nie
+         * przy porazce z Despair") and Q-p2-1 (none on any failure). A frame (cleanup.mjs `resolveStageSix`, "misleadingTrail",
+         * the Tamper tile's) and a body moved (Stage 6's own) left a trace their author had to find again by Observe like
+         * anybody else. A connected player's character, on rolls the GMs keep (`playerRollBookmark`): a frame that succeeds,
+         * a frame's Faint failure (the trail is still planted, hidden and faint), a Despair failure (nothing planted), a
+         * cover's success (an erase through the tile, `cleanupFixture`), then the same character as the killer of a fight
+         * carrying the body to the next room (every region's teleport answered as done: the harness's regions have none of
+         * their own). Each scored roll that planted something is rerolled on this GM for the player (`rerollOnGm`). Read,
+         * per road: the traces it left, the copies of them the author holds, the line on the author's card, the GMs' fact on
+         * the roll, and after its Reroll the copies left and the Reroll's line. Red at 220c0054 (28.10.2026): the frame's
+         * and the body's success each [true, 1, 0, false, false, 0, false] - the trace, and no copy, line or fact. The
+         * frame's success once more as the player's "murder.cleanup" the primary judges (its result off the GMs' record of
+         * the roll), since the copy's note on the roll rides on the bridge handing the resolver its roll: added at cc541bdc,
+         * where the mutant c12-e5 (the bridge's `rollId` dropped) survived the direct call alone.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Tamper is a connected player's character's, in a named room");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const RR = await import("./reroll.mjs");
+        const Rm = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { locateActor, neighbouringRooms } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { player, actor: who, where } = await playerInRoom();
+        const scene = where.scene;
+        const known = game.i18n.localize("DRPG.Cleanup.authorsCopy");
+        const back = game.i18n.localize("DRPG.Reroll.authorsCopyBack");
+        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value };
+        const made = [];
+        const hook = Hooks.on("createToken", doc => { made.push(doc); });
+        const copiesOf = ids => who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? "")).length;
+        const regions = [...scene.regions];
+        const tokenOf = a => scene.tokens.find(t => t.actorId === a.id) ?? null;
+        let F = null, stand = null, C = null, victim = null, declared = null, self = null, body = null, bodyWas = null;
+        const reroll = async () => {
+            await trustedWrite(who, { "system.resources.hope.value": Math.max(4, who.system.resources.hope.value) }, { reason: "gmRuling" });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+            const out = await RR.rerollOnGm(who, player);
+            await settle();
+            stand.putBack(); stand = null;
+            return out;
+        };
+        // `bridge`: the player's packet judged as the primary judges "murder.cleanup" (its result off the GMs' record of the
+        // roll), where the resolver's answer does not come back - so its success and its card's line read null.
+        const road = async (key, context, packet, { again = false, bridge = false } = {}) => {
+            F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context },
+                bridge ? { record: { total: packet.total, isCritical: packet.isCritical, withHope: packet.withHope } } : {});
+            must(F.verdict, `the GMs kept no row of the ${key} roll - this would measure nothing`);
+            const at = made.length;
+            const res = bridge
+                ? (await F.ask({ action: "murder.cleanup", requestId: `suite-e70t14-${key}`, actorId: who.id, tokenId: null, price: "stress",
+                    grant: false, rollId: F.message.id, ...packet }), null)
+                : await CL.resolveStageSix({ actorId: who.id, key, price: "stress", rollId: F.message.id, by: player.id, ...packet });
+            await settle();
+            const traces = made.slice(at).filter(d => d.parent?.tokens?.get(d.id)).map(d => d.id);
+            const read = [bridge ? null : res?.success ?? null, traces.length, copiesOf(traces), bridge ? null : (res?.done ?? []).includes(known),
+                typeof F.row()?.facts?.authorsCopy === "string"];
+            if (again) {
+                const out = await reroll();
+                read.push(copiesOf(traces), Array.isArray(out?.lines) && out.lines.includes(back));
+            }
+            await F.putBack(); F = null;
+            return read;
+        };
+        const read = {};
+        try {
+            const framed = (await CL.framingCandidates(who))[0];
+            must(framed, "nobody can be framed - this would measure nothing");
+            const frame = { key: "misleadingTrail", targetId: framed.id, viaAction: true, isCritical: false };
+            const ctx = { cleanupTarget: framed.id, cleanupVia: true };
+            read.frame = await road("misleadingTrail", ctx, { ...frame, total: 30, withHope: true }, { again: true });
+            read.bridged = await road("misleadingTrail", ctx, { ...frame, total: 30, withHope: true }, { again: true, bridge: true });
+            read.faint = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: true }, { again: true });
+            read.despair = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: false });
+            C = await cleanupFixture(who, "SUITE E70-T14 a trace covered");
+            must(C.trace, "the fixture's trace was not placed - this would measure nothing");
+            const items = who.items.size, mark = C.mark();
+            const covered = await C.scrub(30);
+            await settle();
+            read.cover = [covered?.removed ?? null, C.since(mark).filter(id => scene.tokens.has(id) && id !== C.trace.id).length, who.items.size - items];
+            await C.putBack(); C = null;
+
+            victim = livingStudents().find(a => a.id !== who.id && tokenOf(a));
+            must(victim, "no second student stands on the scene to be the body - this would measure nothing");
+            const room = locateActor(who).room;
+            self = regions.find(r => r.name === room);
+            declared = neighbouringRooms(scene, room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
+            if (declared) await self.setFlag(MODULE_ID, "drpgNeighbours", declared);
+            const target = neighbouringRooms(scene, room).find(r => r !== room) ?? null;
+            must(target, `${room} connects to no room the body could be carried to - this would measure nothing`);
+            body = tokenOf(victim); bodyWas = { x: body.x, y: body.y };
+            await fightOpen(M, who, victim);
+            await turnFor(M, who, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: who.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            await body.update({ x: tokenOf(who).x, y: tokenOf(who).y });
+            must(CL.bodyIsHere(who), "the body does not lie in the killer's room - this would measure nothing");
+            for (const region of regions) region.teleportTokens = async () => {};
+            read.body = await road("moveBody", { cleanupTarget: target, cleanupVia: false },
+                { key: "moveBody", targetId: target, total: 30, isCritical: false, withHope: true }, { again: true });
+        } finally {
+            Hooks.off("createToken", hook);
+            stand?.putBack();
+            await F?.putBack();
+            await C?.putBack();
+            for (const region of regions) delete region.teleportTokens;
+            if (declared) await self.unsetFlag(MODULE_ID, "drpgNeighbours");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (victim && isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(who.id)) await S.usedToolStore.drop(who.id);
+            if (body && scene.tokens.has(body.id)) await body.update(bodyWas);
+            const ids = made.map(d => d.id);
+            for (const item of who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? ""))) {
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await T.dropSecret(uuid).catch(() => {});
+            }
+            for (const doc of made) {
+                const live = doc.parent?.tokens?.get(doc.id);
+                if (!live) continue;
+                await Rm.dropRemnantSecret(live).catch(() => {});
+                await live.delete().catch(() => {});
+            }
+            await who.update(had);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({
+            frame: [true, 1, 1, true, true, 0, true],
+            bridged: [null, 1, 1, null, true, 0, true],
+            faint: [false, 1, 0, false, false, 0, false],
+            despair: [false, 0, 0, false, false],
+            cover: [true, 0, 0],
+            body: [true, 1, 1, true, true, 0, true]
+        }), "per road - success, traces left, the author's copies of them, the card's line, the GMs' fact on the roll, then after its "
+            + "Reroll the copies left and the Reroll's line: a frame's success, its Faint failure, a Despair failure, a cover's success "
+            + "(erased, traces left, items gained) and a body moved; and the frame's success again as the player's packet the bridge judges");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
@@ -42976,6 +44969,7 @@ const SCENARIOS = [
         const framed = (await CL.framingCandidates(who))[0];
         must(framed, "nobody can be framed - this would measure nothing");
         const made = [];
+        const had = new Set(who.items.map(i => i.id));
         const hook = Hooks.on("createToken", doc => { made.push(doc); });
         try {
             await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30, isCritical: false, withHope: true, viaAction: true });
@@ -42985,6 +44979,7 @@ const SCENARIOS = [
             equal(stableJson(trails[0].tiedToCrime), stableJson(null), "an innocent's misleading trail on a plain day was decided as the crime's (its tie)");
         } finally {
             Hooks.off("createToken", hook);
+            await dropNewCopies(who, had);
             for (const doc of made) {
                 const live = doc.parent?.tokens?.get(doc.id);
                 if (!live) continue;
@@ -44720,6 +46715,29 @@ const SCENARIOS = [
                 back: id => S.deferredOfferStore.get(id)?.chapter === 99 && S.deferredOfferStore.get(id)?.kind === "reinforced"
             },
             // The overflow's count, through its record (E05 C12): below any X, so nothing is armed by it.
+            // The trial's verdict and the Final Trial's sentence (E70 C4, fix p1-G2), through their store: under an `at` no
+            // trial record's verdict carries, so no Finish, sentence or retry reads them.
+            verdict: {
+                seed: async () => {
+                    await S.verdictStore.patch("record", { at: 1, blackenedIds: [holder.id], finalAt: 1, finalSentenced: [holder.id] });
+                    return holder.id;
+                },
+                gone: () => S.verdictStore.record().at === undefined,
+                back: id => stableJson([S.verdictStore.record().at, S.verdictStore.record().blackenedIds, S.verdictStore.record().finalSentenced])
+                    === stableJson([1, [id], [id]])
+            },
+            // What the trial's mute found (E70 C5), through its store: keyed by this GM's own user, which the settle of the
+            // trial's voices passes over (it blocks and gives back players only, and drops rows of users that are gone),
+            // and a row the trial did not write (`wrote: false`), so nothing is given back for it.
+            trialMute: {
+                seed: async () => {
+                    await S.trialMuteStore.patch(game.user.id, { had: true, value: true, wrote: false });
+                    return game.user.id;
+                },
+                gone: (report, id) => !S.trialMuteStore.has(id),
+                back: id => stableJson([S.trialMuteStore.get(id)?.had, S.trialMuteStore.get(id)?.value, S.trialMuteStore.get(id)?.wrote])
+                    === stableJson([true, true, false])
+            },
             overflow: {
                 seed: async () => {
                     await S.overflowStore.patch("record", { count: 3 });
@@ -52096,6 +54114,8 @@ const SCENARIOS = [
          * another (`maybeBodyFound` on `updateToken`). Read: the executed record's phase, the discovery
          * cards since the walk, the hold, this chapter's stamps since the walk, the room each token read as
          * it arrived. The gather is the discovery's, after its stamp (`runDiscovery`): no stamp, no gather.
+         * E70 C4: the verdict kills nobody in a trial; given after End the trial, as here, its sentence is carried out at
+         * once (vote.mjs `runVerdict` -> `executeAtExit`, which keeps the trial's phase), so this still reads the kill.
          */
         needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
         needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
@@ -53250,6 +55270,8 @@ const SCENARIOS = [
          * convict the verdict executes after End the trial is no body to find" reads: the record's phase,
          * the discovery cards since the walk, the hold, this chapter's stamps since the walk, the room each
          * token read as it arrived.
+         * E70 C4: the Final verdict kills nobody in a trial; given after End the trial, as here, its sentence (kept in the
+         * GMs' `verdictStore`) is carried out at once (`executeAtExit`), so this still reads the kill.
          */
         needs(env.primaryGm(), "the watcher runs on the primary GM alone");
         needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
@@ -69799,7 +71821,8 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({
             classTrial: [[["bullet", false]]],
             investigation: [all],
-            list: [["hint", "function"], ["stash", "function"], ["passage", "function"]],
+            // E70 C9 (amend 5 (c)): the Reveal's row, which shuts no bullet (E70-T11 holds a revealed copy open).
+            list: [["hint", "function"], ["stash", "function"], ["passage", "function"], ["bullet", "function"]],
             shut: [["hint", "stash", "passage"], [], []]
         }), "in a Class Trial Analyze offered a row that identifies no Truth Bullet, outside one a row was missing or greyed, or the filter is not one "
             + "list of conditions [the picker's rows in a trial and in an investigation as [value, greyed]; the exported filter's rows and their "

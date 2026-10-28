@@ -344,7 +344,7 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-plate {
     gap: 4px;
     min-width: 0;
 }
-body.drpg-stacked #drpg-tile-row :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) { display: none; }
+body.drpg-stacked #drpg-tile-row :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note, .drpg-voice-tile-floor) { display: none; }
 body.drpg-stacked #drpg-tile-row .drpg-voice-tile-name {
     min-width: 0;
     white-space: nowrap;

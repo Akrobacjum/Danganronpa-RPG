@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.89";
+    --drpg-css-version: "1.2.90";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1221,6 +1221,14 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     justify-content: center;
     gap: 6px;
     margin-top: 2px;
+}
+
+/* Who may speak in the trial, under the mode, where no voice tile says it (E70 fix p1-G3; voice.mjs `trialVoiceLine`). */
+#drpg-hud .drpg-hud-trial-voice {
+    font-size: var(--font-size-11, 0.7rem);
+    opacity: 0.85;
+    text-align: center;
+    max-width: 18rem;
 }
 
 #drpg-hud .drpg-hud-time {
@@ -4605,6 +4613,12 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     cursor: not-allowed;
 }
 
+/* Present held by the mode's row (E70 C10): somebody else holds the floor; its tooltip names who. Both themes. */
+.drpg-row-button.drpg-row-present[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .drpg-row-button.is-broken:hover {
     background: rgba(var(--drpg-bone-rgb), 0.2);
 }
@@ -4844,6 +4858,20 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     border-radius: 3px;
     background: rgba(var(--drpg-crimson-rgb), 0.3);
     border: 1px solid var(--drpg-crimson);
+}
+
+/* OVERRULED BY THE GM (E70 C2): the stamp an overruled Objection's card carries - in the chat log, drawn from the
+   card's flag, and on the notice the closed card leaves in the history. The banner's own red, outlined, so it reads as
+   a mark on the card rather than as a second banner. */
+.drpg-overruled-stamp {
+    align-self: center;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border: 2px solid var(--drpg-crimson);
+    border-radius: 3px;
+    color: var(--drpg-crimson);
 }
 
 .drpg-evidence-who {
@@ -6691,6 +6719,12 @@ body.drpg-dock-hidden {
     text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
 }
 .drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
+/* "has the floor" (E70 C11; amend 3) under the name, in the small letters 'Speaking' wears above it. */
+.drpg-voice-tile-floor {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
 
 /* Read by a screen reader while nobody speaks, never seen: the sentence of the state word (E79 C15), and the
    microphone's line, which the note under the buttons showed until C15 and the word says now. */
@@ -6758,6 +6792,16 @@ body.drpg-dock-hidden {
     pointer-events: none;
 }
 .drpg-voice-mic.is-held {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* OBJECTION! on the tile (E70 C11; the owner's B3): grey while held - outside a trial, with no debate, while an
+   Objection runs - as the held microphone is, but not struck (nothing of the viewer's is switched off); still pressed,
+   and a press says why (hud.mjs `objectionControl`). */
+.drpg-voice-objection[aria-disabled="true"] {
     border-color: var(--drpg-line-strong);
     color: var(--drpg-line-strong);
     filter: grayscale(1);
@@ -13670,6 +13714,56 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 
 .drpg-trial-console h4:first-child {
     margin-top: 0;
+}
+
+/* The GM's bar (E70 C1): six buttons in one fixed row in every mode, so nothing moves under the pointer when the
+   floor changes; a button that would change nothing is greyed and keeps its title (the reason). Wraps on a narrow
+   window rather than scrolling it. Not measured at a table: LIVE-E70-01 (1366x768, both themes). */
+.drpg-trial-console .drpg-trial-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 2px;
+}
+
+.drpg-trial-console .drpg-trial-bar-op {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-trial-console .drpg-trial-bar-op[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.drpg-trial-console .drpg-trial-bar-op.drpg-bar-next:not([aria-disabled="true"]) {
+    border-color: var(--drpg-crimson);
+}
+
+/* A round's start window (E70 C7): the order as a numbered list, each name with its Up button on one row, the
+   round's length under it. Theme tokens only, so both themes draw it. Not measured at a table: LIVE-E70-07. */
+.drpg-round-window .drpg-round-order {
+    margin: 6px 0;
+    padding-left: 1.6em;
+}
+
+.drpg-round-window .drpg-round-order li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.drpg-round-window .drpg-round-order button {
+    flex: 0 0 auto;
+    width: auto;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-round-window .drpg-round-length {
+    color: var(--drpg-dim);
 }
 
 /* ---- season setup: the row that is allowed to stay unticked ------------- */

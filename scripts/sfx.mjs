@@ -850,7 +850,7 @@ function onDocumentClick(event) {
  * What the last look at the world said, so only changes speak. `known` is false until
  * `snapshotWorld` has read the world at ready: before it, a change has nothing to be a change from.
  */
-const worldWas = { known: false, floorOpen: false, floorMode: null, myTurn: false };
+const worldWas = { known: false, floorOpen: false, floorMode: null, myTurn: false, turnStep: null, closingAt: null };
 
 /**
  * The baseline, read at ready (E19 C6, audit S11-31). It was read from `registerSfx` at init, where
@@ -901,10 +901,30 @@ async function onFloorChanged() {
     const open = Boolean(floor);
     const mode = floor?.mode ?? null;
 
-    if (worldWas.known && open && !worldWas.floorOpen) playSfx("debateOpen");
+    // The Closing's start has its own sound (E70 C8, below), not the debate's.
+    const closingOpens = mode === FLOOR_MODES.closing && floor?.closing?.phase === "volunteer";
+    if (worldWas.known && open && !worldWas.floorOpen && !closingOpens) playSfx("debateOpen");
     const into = target => mode === target && worldWas.floorMode !== target;
     if (worldWas.known && into(FLOOR_MODES.objection)) playSfx("objection");
-    if (worldWas.known && into(FLOOR_MODES.rebuttal)) playSfx("rebuttal");
+    // A rebuttal an Overrule brings back is no rebuttal starting: the Overrule's card carries its own sound (E70 C2).
+    const overruled = floor?.gmNote?.key === "DRPG.Floor.gmNoteOverrule";
+    if (worldWas.known && into(FLOOR_MODES.rebuttal) && !overruled) playSfx("rebuttal");
+    /* A ROUND (E70 C7; E70-45, amend 0): a Panic Round's start for the whole table, and `yourTurn` for the speaker's
+       player alone, once a turn - a GM owns every student, so the question is whose character it is (`ownerOf`). */
+    if (worldWas.known && into(FLOOR_MODES.panic)) playSfx("panicStart");
+    /* THE CLOSING ARGUMENT (E70 C8; amend 0): its start for the whole table, once a Closing (its volunteers' window, by
+       its stamp - the Closing's mode stands through its phases, so `into` would sound again after every exchange), and
+       `yourTurn` for its speaker's player at each stretch. */
+    const closingAt = mode === FLOOR_MODES.closing && floor?.closing?.phase === "volunteer" ? (floor.closing.openedAt ?? null) : null;
+    if (worldWas.known && closingAt !== null && worldWas.closingAt !== closingAt) playSfx("closingStart");
+    if (closingAt !== null) worldWas.closingAt = closingAt;
+    const closingTurn = mode === FLOOR_MODES.closing && floor?.closing?.phase === "speak" && floor?.holderId
+        ? `closing|${floor.closing.openedAt ?? "-"}|${floor.closing.step ?? "-"}` : null;
+    const roundTurn = (mode === FLOOR_MODES.testimony || mode === FLOOR_MODES.panic) && floor?.holderId
+        ? `${floor.round?.openedAt ?? "-"}|${floor.round?.step ?? "-"}` : closingTurn;
+    const mineNow = Boolean(roundTurn) && ownerOf(game.actors.get(floor.holderId))?.id === game.user.id;
+    if (worldWas.known && mineNow && worldWas.turnStep !== roundTurn) playSfx("yourTurn");
+    worldWas.turnStep = roundTurn;
 
     worldWas.floorOpen = open;
     worldWas.floorMode = mode;

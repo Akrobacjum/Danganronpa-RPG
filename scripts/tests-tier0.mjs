@@ -2119,7 +2119,8 @@ const REGRESSIONS = [
         const finders = topLevelFunction(inv, "findersByRemnant") ?? "";
         ok(/\blivingStudentsForGm\(/.test(finders) && !/\bstudentActors\(/.test(finders),
             "the planner's finders walk every student again, the dead for the GMs among them, while the fee counts the living");
-        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "shareBullet") ?? "";
+        // Share's copy is minted by `mintCopy` since E70 C10 (Present's copies take the same road).
+        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "mintCopy") ?? "";
         ok(/\bfoundIn:\s*secret\.chapter\b/.test(share),
             "a handover's copy is dated by the giver's item, which the giver writes, and not by the giver's answer key");
         const charge = topLevelFunction(inv, "chargeForUnfoundKeys") ?? "";
@@ -2325,7 +2326,8 @@ const REGRESSIONS = [
 
         ok(seize.includes("payPrice(") && seize.includes("refundPrice("),
             "the seizure stopped paying, or stopped handing it back when the floor did not move");
-        ok(seize.indexOf("payPrice(") < seize.indexOf("openObjection("),
+        // The floor's in-step twin since E70 C0: the seizure is a step of SEIZE_KEY, and the public writer would wait on it.
+        ok(seize.indexOf("payPrice(") < seize.indexOf("openObjectionInStep("),
             "the price is taken after the floor moves, which cannot be undone if it fails");
         ok(seize.includes("testUserPermission("),
             "anybody can post an objection in somebody else's name again");
@@ -2457,8 +2459,9 @@ const REGRESSIONS = [
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
         const reroll = stripComments(new Map(await otherSources()).get("reroll.mjs") ?? "");
-        const replay = bodyOf(reroll, "async function settleCleanup");
-        ok(/price: bookmark\.cleanupPrice/.test(replay.slice(0, 2400)),
+        // The function whole (E70 C12 put the author's copy's take-back before the replay, past the 2400 characters read here before).
+        const replay = bodyOf(reroll, "async function settleCleanup", { until: "\n}\n" });
+        ok(/price: bookmark\.cleanupPrice/.test(replay),
             "a rerolled clean-up forgets which step it paid, so the GM charges it again");
     }],
 
@@ -3017,12 +3020,18 @@ const REGRESSIONS = [
             "the closing is reported after the road that returns early, so a vote nobody answered "
             + "leaves the console printing its voters");
 
+        // Since E70 C1 the arithmetic is floor-machine.mjs `nextFloor`'s `adjust` row, which `extendFloorInStep` asks;
+        // tier 1 R1024 drives it (+30 s on a debate 40 s over leaves 30 s).
         const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
         const extend = bodyOf(floorSrc, "export async function extendFloor", { until: "export async function endFloor" });
-        ok(extend.includes("secondsLeft("),
-            "extendFloor stopped asking how much is left, so an overrun mode stays overrun");
-        ok(extend.includes("Math.max("), "extendFloor no longer clamps an expired clock at zero");
-        ok(!/startedAt \?\? Date\.now\(\)\) \+ extraSeconds/.test(extend),
+        ok(/nextFloor\(floor, \{ type: "adjust", seconds: extraSeconds \}/.test(extend),
+            "extendFloor no longer asks the floor's machine for its +30 s");
+        const machine = stripComments(sources.get("floor-machine.mjs") ?? "");
+        const adjust = bodyOf(machine, 'case "adjust": {', { until: 'case "back": {' });
+        ok(adjust.includes("leftAt(floor, now)"),
+            "the machine's +30 s stopped asking how much is left, so an overrun mode stays overrun");
+        ok(/Math\.max\(Math\.max\(left, 0\) \+ seconds, 0\)/.test(adjust), "the machine's +30 s no longer clamps an expired clock at zero");
+        ok(!/startedAt \?\? Date\.now\(\)\) \+ extraSeconds/.test(extend + adjust),
             "the flat push on `startedAt` is back");
     }],
 
@@ -3397,8 +3406,9 @@ const REGRESSIONS = [
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
-        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's).
-        ok(/await markDeceased\(actor(?:, \{ phase \})?\)/.test(kill),
+        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's), and the
+        // cause and the trial's chapter since E70 C4 (an execution at the trial's end).
+        ok(/await markDeceased\(actor(?:, \{ phase(?:, cause, chapter)? \})?\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
@@ -5686,6 +5696,12 @@ const REGRESSIONS = [
             objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
             // E79 fix r4-G2: the objector's pending Objection taken back, on the primary (trial.mjs).
             withdrawOnPrimary: "refused",
+            // E70 C7: a round's step from a participant's browser, judged on the primary (trial-modes.mjs).
+            turnOnPrimary: "refused",
+            // E70 C8: a volunteer for the Closing Argument, judged on the primary (trial-modes.mjs).
+            volunteerOnPrimary: "refused",
+            // E70 C10: a Present posted by the primary with its copies (trial.mjs).
+            presentOnPrimary: "refused",
             // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
             crossTunnel: "refused", crossingWhy: "returns",
             // E17 C3: "Refund last crossing", given back on the primary (movement.mjs), whose run passes its `{ refused }` on.
@@ -7444,13 +7460,17 @@ const REGRESSIONS = [
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
-            ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
+            ["ITEM handover.mjs#mintCopy", "judged (E70 C10, Share's core moved out of shareBullet, which names no field now): the copy is built from bulletAsHeld (E29), the answer key's fields from secretOf, one copy per trace by copiedRemnants; Share's road (shareBullet after verify) and Present's (presentOnPrimary), on a GM"],
             ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
+            ["ITEM investigation.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
             ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
+            ["ITEM trial.mjs#presentOnPrimary", "judged (E70 C10): on the primary in one PRESENT_KEY step; the holding by itemAsHeld, the card's words from bulletAsHeld (holderView, unreadView without the analysis), the copies by handover.mjs mintCopy (bulletAsHeld, secretOf, copiedRemnants)"],
+            ["ITEM trial-modes.mjs#revealInStep", "judged (E70 C9): on the primary in a step of the floor's key, each row judged again (revealRefusal); the copy built from the GMs' row of the trace (remnantData) and the plan, never from an item; copiedRemnants asks only whether a copy of the trace is held, in the character's finds' queue (observeFindKey)"],
             ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
             ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off the held copy; the copies the answer key lists since fix r1-G4 (copiesInKey: bulletAsHeld, the category the key's)"],
             ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
@@ -7646,10 +7666,11 @@ const REGRESSIONS = [
             ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
-            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
-            ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when a GM authored it - every Present and Objection card is the primary's since E70 C10 (E70 fix p2-G2; before, an author owning the speaker who held the item was enough); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
+            ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16; a Present card too since E70 fix p2-G2): the primary marks a player-authored objection or Present card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
             ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
             ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16, fix r4-G2): a GM's write of the GMs' own pending card when its floor is replaced (trial-floor.mjs `withdrawReplaced`: the lapse, Back to debate, a closed floor, the trial's end, the objector's `trial.withdraw`) or its fill failed (`unfill`); its flags are the ones `objectOnPrimary` wrote"],
+            ["CHAT trial.mjs#markOverruled", "judged (E70 C2): called only from trial-floor.mjs `overruleInStep`, the primary's step of `SEIZE_KEY` in a Class Trial that judged the Overrule (`overruleTarget`) from the floor and the record as the step finds them; a GM's write of the GMs' own Objection card (its `objectionOverruled` mark, display only - the receipt is the record) and a public card of the GM's, no packet field read (R1028)"],
             ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
             ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name when the primary answers `needName` (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
             ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeceased` (the published death: a death the GMs keep is not told, fix r4-G1), never spoken by an account that owns the objector (`objectionTarget`); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
@@ -7661,16 +7682,44 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.withdraw#actorId", "judged (E79 fix r4-G2): knownSender + owns(actorId); the floor must be that character's pending Objection (`withdrawObjection`, `pendingFor`)"],
             ["PACKET gm-bridge.mjs#trial.withdraw#messageId", "judged (E79 fix r4-G2): the card of the objector's own Objection on the floor the primary holds, still pending (`pendingFor`); any other changes nothing"],
             ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#op", "judged (E70 C0): gmOnly; one of trial-floor.mjs `FLOOR_OP_NAMES` (`as.oneOf`), else nothing is run (`floorOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#seconds", "judged (E70 C0): gmOnly; `as.num`, a count of 0 or less read as the op's default (`FLOOR_OPS`)"],
+            ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.gm#targetId", "judged (E70 C0): gmOnly; held by `targetRefusal` to a student the floor lets the objector aim at (an Objection, a re-point)"],
+            ["PACKET gm-bridge.mjs#trial.gm#messageId", "judged (E70 C0): gmOnly; held by `pendingFor` to the pending Objection's card on the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.record#op", "judged (E70 fix p1-G2): gmOnly; one of patch, reset, execute, clearSentence (`as.oneOf`), else nothing is run (vote.mjs `recordOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.record#patch", "judged (E70 fix p1-G2): gmOnly; held to the record's own fields (vote.mjs `recordPatchOf`, `RECORD_FIELDS`) - never the chapter, the trial's list of the dead or the receipts - and spread over the record in the primary's step"],
+            ["PACKET gm-bridge.mjs#trial.record#seconds", "judged (E70 fix p1-G2): gmOnly; `as.num`, the reset's speaking seconds, 0 read as `TRIAL.speakSeconds`"],
+            ["PACKET gm-bridge.mjs#trial.record#chapter", "judged (E70 fix p1-G2): gmOnly; `as.num`, the chapter whose stored record the execution reads (`carryOutSentence` reads only a record stored for it)"],
+            ["PACKET gm-bridge.mjs#trial.enter#-", "judged (E70 C5): gmOnly; carries nothing (`pick({})`) - the primary's settle reads the clock, its deaths store after it has hydrated and the users on its side (voice.mjs `settleTrialVoices`)"],
+            ["SHEET trial-floor.mjs#trialVoice", "out of scope as a judgement (E70 C5): who may speak in the trial, a display and the tile's line - the trial's public list (`isMutedDead`), the Monocub flag and `isDeceased` from the document; the module's one hold, the block, is the primary's (`settleTrialVoices`, on `isDeadForGm`) [E70-19]"],
+            ["PACKET gm-bridge.mjs#trial.gm#text", "judged (E70 C3): gmOnly; the debate's question, read by the start alone and cut by floor-machine.mjs `topicOf` to a trimmed string of `TRIAL.modes.topicLength`; shown escaped"],
+            ["PACKET gm-bridge.mjs#trial.gm#order", "judged (E70 C7): gmOnly; `as.text`, ids joined by commas, of which trial-floor.mjs `startRoundInStep` keeps only the trial's participants as the primary holds them (`trialParticipants`), once each"],
+            ["PACKET gm-bridge.mjs#trial.turn#actorId", "judged (E70 C7): knownSender + owns(actorId); trial-modes.mjs `turnOnPrimary` holds it to the round's order on the floor the primary holds, and Done or Pass to its speaker (floor-machine.mjs `nextFloor`)"],
+            ["PACKET gm-bridge.mjs#trial.turn#kind", "judged (E70 C7): `as.oneOf` done, pass, over; a step over is believed only once the turn has run out on the primary's clock (a second's grace), one per sender and step (`turnOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.claim#actorId", "judged (E70 C8): knownSender + owns(actorId); trial-modes.mjs `volunteerOnPrimary` holds it, in one step of the floor's key, to the trial's participants as the primary holds them (`trialParticipants`), in the Closing's volunteers' window, once; the name goes to the GMs' store `closingClaimStore`, only the count to the floor"],
+            // E70 C9's two fields of the GMs' row (no row was written with them), and E70 C10's Present.
+            ["PACKET gm-bridge.mjs#trial.gm#slot", "judged (E70 C9): gmOnly; `as.text`, the row of `missingKeys()` a GM reveals, held by trial-modes.mjs `revealInStep` to a row of this chapter's plan nobody found, once"],
+            ["PACKET gm-bridge.mjs#trial.gm#beyondPaid", "judged (E70 C9): gmOnly; `as.bool`, a Reveal past the fee's count only when the GM confirmed it; within the count it changes nothing"],
+            ["PACKET gm-bridge.mjs#trial.evidence#bare", "judged (E70 C10; Q-p2-3): `as.bool`, the Objection's card without the Analyze result (trial.mjs `unreadView`): it can only take words off the card the primary builds from the bullet as the GMs hold it"],
+            ["PACKET gm-bridge.mjs#trial.present#actorId", "judged (E70 C10): knownSender + owns(actorId); trial.mjs `presentOnPrimary` holds it to a living student as the GMs hold it (`isDeadForGm`, `isMutedDead`) whom the mode's row lets present (trial-floor.mjs `presentRefusal`), in a Class Trial"],
+            ["PACKET gm-bridge.mjs#trial.present#itemId", "judged (E70 C10): a Truth Bullet the presenter holds as the GMs hold it (`itemAsHeld`); the card and the copies are built from `bulletAsHeld`, the copies by handover.mjs `mintCopy` (one per trace and person)"],
+            ["PACKET gm-bridge.mjs#trial.present#comment", "judged (E70 C10): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
+            ["PACKET gm-bridge.mjs#trial.present#bare", "judged (E70 C10; B2): `as.bool`, the card and the copies without the Analyze result (`unreadView`, `mintCopy`'s unanalysed type): it can only take a reading off what the presenter holds"],
+            ["SHEET trial.mjs#presentOnPrimary", "judged (E70 C10): `trial.present`'s run on the primary - the presenter's death as the GMs hold it (`isDeadForGm`) and the trial's list (`isMutedDead`), the bullet through `itemAsHeld`, before the card is posted; the copies to `trialParticipants` (held flags) but the presenter"],
+            ["PACKET gm-bridge.mjs#trial.turn#step", "judged (E70 C7): `as.num`, compared by floor-machine.mjs `nextFloor` to the round's step on the floor the primary holds; any other moves nothing"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
-            ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
+            ["SHEET vote.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
+            ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
-            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
+            ["SHEET vote.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
+            ["SHEET vote.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
@@ -8455,6 +8504,9 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
+            ["SHEET voice.mjs#trialVoiceActorOf", "out of scope as a judgement (E70 C5): `isMonokuma` from the document, to rank an account's characters in the trial - one not on the trial's list before one on it (E70 fix p1-G1), then the lowest id, as `voiceRowFor` does - for the primary's block of the trial's dead; the list is the primary's own, read from held flags (`deadForTrial`)"],
+            ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
+            ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8744,7 +8796,7 @@ const REGRESSIONS = [
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
-            ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when a GM authored it (E70 fix p2-G2); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
@@ -8769,6 +8821,9 @@ const REGRESSIONS = [
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE frisk.mjs#performFriskOpenly", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `action.friskFollow`, and the reason a literal, `cannotNow`): a GM's own Frisk force the gate stopped or voided before the primary judged it, said as a player's refused draw is (E80 fix r2-G3, the review's r2fix-2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestClaim", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry"],
+            ["NOTDONE gm-bridge.mjs#requestPresent", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E70 C10)"],
+            ["NOTDONE gm-bridge.mjs#requestTurn", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, a step over's not at all); kept as a notDone entry: read, these words and no others (R297; E70 C7)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
@@ -8804,6 +8859,7 @@ const REGRESSIONS = [
             ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
+            ["HOOK popup.mjs#registerPopups#updateChatMessage", "an Objection card a GM marked overruled closes its cards on screen as by code - `onUpdateChatMessage`, a `drpg-dismiss` with reason \"code\", so the entry is kept unread with the stamp its body gained before the close (`watchCard`, R293); a player's card is not one: the mark is read only on a GM's message (E70 C2)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
@@ -9340,6 +9396,10 @@ const REGRESSIONS = [
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
+            // E70 C5 (1.2.90; amend 6, answer 3 (b)): the trial's own block of the dead's microphones, on the primary (R1035).
+            ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],
+            ["BLOCK voice.mjs#blockForTrial -> block", "the trial's block (E70 C5), on the primary in a step of the record's key (`settleTrialVoices`): only a player whose voice character is on the trial's list, never a GM, and never over a GM's explicit false, which it leaves and records nowhere; what it found kept in the GMs' `trialMuteStore` before the write (E70-T8, R1035)"],
+            ["BLOCK voice.mjs#restoreTrialBlock -> block", "the trial's block given back (E70 C5), on the primary: only a block the trial wrote and finds standing, back to the grant it found or the key removed with `forcedDeletion()` (never `-=`), a block a GM changed meanwhile left as it is (E70-T8, R1035)"],
             ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player, and whether the block holds against the blocked player's own browser (their own User document, or a microphone that publishes anyway), which decides the list's 'for everyone', are not measured here (LIVE-E78-06; R539)"],
             // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
@@ -11148,14 +11208,15 @@ const REGRESSIONS = [
          * document's death; `postVerdictCard`, the one public card, reads no Blackened. Tier 2 drives
          * the card and a verdict that stops halfway ("a wrong verdict's card names the executed and
          * never the Blackened", "a verdict that stops halfway is finished by Finish the verdict"), and
-         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice.
+         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice. Since E70 C4 the
+         * executions are the trial's end's (`carryOutSentence`, the step of `executeAtExit`; R1033), read the same way.
          */
         const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
         ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
         equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
             "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
-        const execute = fnSource(vote, "executeSentenced"), card = fnSource(vote, "postVerdictCard");
-        ok(execute.length > 200 && card.length > 200, "executeSentenced or postVerdictCard is cut short - the reads below would measure nothing");
+        const execute = fnSource(vote, "carryOutSentence"), card = fnSource(vote, "postVerdictCard");
+        ok(execute.length > 200 && card.length > 200, "carryOutSentence or postVerdictCard is cut short - the reads below would measure nothing");
         const judged = execute.indexOf("judgedFor("), held = execute.indexOf("flagsHeldNow("), kill = execute.indexOf("killCharacter(");
         ok(judged > 0 && held > judged && kill > held,
             "an execution does not await the audit and read the student as the GMs hold them before `killCharacter`");
@@ -11254,7 +11315,8 @@ const REGRESSIONS = [
         const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
         const now = topLevelFunction(utils, "serverNow") ?? "";
         ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
-        const floorFns = ["startFloor", "openObjection", "openRebuttal", "returnToDebate", "extendFloor", "secondsLeft"];
+        // The floor's writes are the in-step twins since E70 C0 (trial-floor.mjs `FLOOR_OPS`); the public writers hand them on.
+        const floorFns = ["startFloorInStep", "openObjectionInStep", "openRebuttalInStep", "returnToDebateInStep", "extendFloorInStep", "secondsLeft"];
         const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "wipeSeason"]];
         const cut = [...floorFns.map(name => [name, fnSource(floor, name)]), ...timeFns.map(([src, name]) => [name, fnSource(src, name)])];
         ok(cut.every(([, body]) => body.length > 150), `a function this reads is cut short: ${cut.filter(([, b]) => b.length <= 150).map(([n]) => n).join(", ")}`);
@@ -11264,7 +11326,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(server), JSON.stringify(cut.map(([name]) => name)), "a stamp or a count of the trial's clock or the time of day reads no server time (S06-37)");
         const advance = fnSource(floor, "advanceIfDue");
         const guard = advance.search(/if \(advancing\) return;/), raised = advance.search(/advancing = true;/);
-        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/openRebuttal\(\)/)
+        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/serialWrite\(SEIZE_KEY/)
             && /finally \{\s*advancing = false;/.test(advance),
             "the heartbeat writes a transition while the last one is on its way, or a write that threw stops it for good (S06-38)");
         ok(/addEventListener\("visibilitychange",[^]*?advanceIfDue\(\)/.test(fnSource(floor, "registerTrialFloor")),
@@ -11523,14 +11585,16 @@ const REGRESSIONS = [
          * E09 fix r1-G2 adds the legacy migration, remnants.mjs `moveIntoLedger` (the round-1 reviews'
          * cor F4 = sec F9): its new row ran a token's tie through `Boolean(f("tiedToCrime"))`, a shape
          * the reader did not know, and its live row's fill took the token's raw `false`; both read
-         * `oldTokenTie` now, and the reader knows the call shape.
+         * `oldTokenTie` now, and the reader knows the call shape. E70 C12 (28.10.2026) moved Observe's copy out of
+         * `createFind` into observe.mjs `mintFindCopy`, which a successful Tamper's copy for its author takes too, so
+         * the reader reads the copy maker there.
          */
         const sources = new Map(await otherSources());
         const READS = [
             ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
             ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
             ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
-            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
+            ["observe.mjs", "mintFindCopy"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
         ];
         const FLAT = /\bBoolean\(\s*(?:[\w.?]*tiedToCrime|\w+\(\s*["']tiedToCrime["']\s*\))\s*\)/;
         // A token's flag passed on as it stands: the old `false` is a GM's "not tied" in the ledger.
@@ -11739,7 +11803,7 @@ const REGRESSIONS = [
          * executed", put one card in front of every player, gathered the class's Level Ups into one window,
          * and made a reset count the season on - and the handbooks said "tallied in memory" and "one per
          * character" for as long as the code said otherwise. Each claim here is a pair: what the code does,
-         * read from its function (`eligibleVoters`, `ballotFor`, `majorityOf`, `openVerdictDialog`,
+         * read from its function (`trialParticipants` - `eligibleVoters` until E70 C5 - `ballotFor`, `majorityOf`, `openVerdictDialog`,
          * `postVerdictCard`, `askWhoPicks` and `runAdvancementBatch`, `wipeSeason`, `confirmNewTrial`, the
          * console's verdict action, `seizeFloor`), and the sentences that say it, one per handbook that
          * says it. A code fact that changes fails here with its sentences, which then have to be rewritten
@@ -11753,7 +11817,7 @@ const REGRESSIONS = [
          * leaving can fall between (the batch's `onGiven` after the row's Level Up - read in the code, and
          * the sentence says so), a take-back refused while the Level Up is written (`takeBackOffer`),
          * Enter giving what the rows say (`askWhoPicks`), and a body nobody has found made the execution
-         * (`executeSentenced`). At the books before it the twelve sentences were missing.
+         * (`executeSentenced`; `carryOutSentence` since E70 C4). At the books before it the twelve sentences were missing.
          * E10 fix r2-G2 (10.10.2026; round 2's cor M1) moved Finish from the primary alone to the verdict's
          * runner (`verdictRunner`: its own GM while connected, otherwise the primary), which the console's
          * lead reads too (`trialNextStep`); the claim and both sentences say so now.
@@ -11769,6 +11833,9 @@ const REGRESSIONS = [
          * asking GM's browsers - and "busy" on any other GM's (the bridge's refusal; tier 2 "a second take-back of
          * one character while the first is written is told as a take-back" reads that code). At c51d2bd the four
          * sentences said less, and the second said its words held on every browser.
+         * E70 C6 (28.10.2026): the button Now ran under is Skip on the GM's bar (E70 C1), so nowOnPrimary's sentence names
+         * it, and the sentence goes on with the bar's other buttons (no full stop after it); an execution happens when the
+         * trial ends (E70 C4), so unfoundExecuted's sentence says the table learns it then. R1036 reads the rest of part 1.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -11784,13 +11851,15 @@ const REGRESSIONS = [
         const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
         const facts = {
             onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
-                .every(re => re.test(fnSource(vote, "eligibleVoters"))),
-            inWorld: /setTrialProgress\(\{ vote:/.test(fnSource(vote, "ballotFor")),
-            lateBallot: /issued: \[\.\.\.issued, sender\.id\]/.test(fnSource(vote, "ballotFor")),
+                .every(re => re.test(fnSource(vote, "trialParticipants"))),
+            inWorld: /setTrialProgress\(now => \(\{ vote:/.test(fnSource(vote, "ballotFor")),
+            // The record's step's own list since E70 C0 (`setTrialProgress` with a function).
+            lateBallot: /issued: \[\.\.\.now\.vote\.issued\.filter\(id => id !== sender\.id\), sender\.id\]/.test(fnSource(vote, "ballotFor")),
             majority: /return Math\.floor\(issued \/ 2\) \+ 1;/.test(fnSource(vote, "majorityOf")),
             nobodyFirst: /executedOptions = `<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(verdict),
             cancelFirst: cancelFirst.test(verdict),
-            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(card) && !/blackened/i.test(card),
+            // The owner's note moved to the execution's card at the trial's end in E70 C4 (`postExecutionCard`).
+            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(fnSource(vote, "postExecutionCard")) && !/blackened/i.test(card),
             oneWindow: [...batch.matchAll(/\baskWhoPicks\(/g)].length === 1
                 && /"DRPG\.Advance\.queueTitle"/.test(fnSource(levelUp, "askWhoPicks")),
             closeWindow: /!who \? \(playable \? "player" : null\)/.test(batch),
@@ -11810,7 +11879,7 @@ const REGRESSIONS = [
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
-            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor, \{ phase: "classTrial" \}\)/.test(fnSource(vote, "executeSentenced")),
+            unfoundExecuted: /isDeadForGm\(held\)\s*\? await publishDeath\(actor, \{ phase: "classTrial", cause: "executed" \}\)/.test(fnSource(vote, "carryOutSentence")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
@@ -11846,10 +11915,10 @@ const REGRESSIONS = [
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
                     enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
-                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/],
+                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it when the trial ends/],
                     eclipseDoors: [/no other door opens a trial in the dark: Edit campaign keeps the phase, applies the rest of its window and says so, and `game\.drpg\.setPhase` and `game\.drpg\.setClock` refuse the whole move/],
                     editAsksChapter: [/Edit campaign asks the same question when it moves the phase to Class Trial, about the chapter the window moves to/],
-                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so\./],
+                    nowOnPrimary: [/\*\*Skip\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so/],
                     runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
                     takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words on the primary GM's browser and on the browser of the GM who asked for the first \(that one read in the code\), and as busy on any other GM's\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
@@ -11883,10 +11952,10 @@ const REGRESSIONS = [
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
                     enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
-                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/],
+                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej, gdy rozprawa się kończy/],
                     eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
                     editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
-                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym\./],
+                    nowOnPrimary: [/\*\*Pomiń\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym/],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
                     takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
@@ -11978,7 +12047,7 @@ const REGRESSIONS = [
         const writers = [
             ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
                 && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
-            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "shareBullet"))],
+            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "mintCopy"))],
             ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
@@ -13454,7 +13523,8 @@ const REGRESSIONS = [
         const builders = [...trialSrc.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1])
             .filter(name => /\bholderView\(|\btruthBulletData\(/.test(stripComments(fnSource(src("trial.mjs"), name))));
         equal(JSON.stringify([dataRead, builders.sort()]),
-            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "presentBullet", "presentDialog"]]),
+            // E70 C10: the primary's Present card (`presentOnPrimary`) and the Objection's picker's with-or-without choice.
+            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "pickObjectionEvidence", "presentBullet", "presentDialog", "presentOnPrimary"]]),
             "[what evidenceOnPrimary hands truthBulletData; the functions of trial.mjs that read a bullet's data or its holder's view]");
         ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
             "presentBullet refuses an Objection on a player's browser");
@@ -14997,7 +15067,7 @@ const REGRESSIONS = [
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
     }],
 
-    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain", async () => {
+    ["R991 - one queue on the primary (E17 C0): every write of Despair's pools, the search tokens, the clock, the overflow and the Eclipse's count, every tunnel's price, every seizure of the trial's floor and (E17 C9) every write of a project's row and of the Countdowns lies in a step of utils.mjs `serialWrite` under its own key (despair.mjs `DESPAIR_KEY`, search-tokens.mjs `SEARCH_KEY`, clock.mjs `CLOCK_KEY`, overflow.mjs `OVERFLOW_KEY`, trial.mjs `SEIZE_KEY`, movement.mjs `crossingKey(actorId)`, projects-secrecy.mjs `COUNTDOWNS_KEY`); the primary's charge of a door's crossing (movement.mjs `settleRoute`) and `objectOnPrimary` queue on theirs; and trial.mjs keeps no hand-made `seizing` chain; and (E70 C0) every write of the trial's floor and of its record lies in a step of trial.mjs `SEIZE_KEY` and of vote.mjs `TRIAL_PROGRESS_KEY`", async () => {
         /*
          * E17 C0, 26.10.2026; E17-02 and E17-04, audit S10-23, S07-24 and S09-32, session 0 (11.10) and the owner's Q1
          * of 19.10 ("Ok": the named list, a table later stages extend). Foundry changes a setting's cached value only
@@ -15032,17 +15102,23 @@ const REGRESSIONS = [
          * Eclipse's end) are not rows. The reader is shown planted source first: a clean twin that must read clean,
          * then one fault of each rule alone. Red at 9f727e07 (1.2.86): no key of the six exists, so every write of
          * every row stands outside a step, settleRoute and objectOnPrimary hold none, and trial.mjs keeps `seizing`.
+         * E70 C0 (27.10.2026; E70-01, amend 5 (d)) adds two rows: the trial's floor (`SETTINGS.trialQueue`) under the
+         * seizures' key, and its record (`SETTINGS.trialProgress`) under `TRIAL_PROGRESS_KEY`. Red at e2085d7b: the
+         * floor's two writes (trial-floor.mjs `writeFloor`, `endFloor`) and the record's (vote.mjs `setTrialProgress`)
+         * stood outside every step, and the season reset handed both settings to `emptied` (rule (d)).
          */
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
         const KEYS = {
             despair: /^(?:[\w$]+\s*\.\s*)?DESPAIR_KEY$/, searchTokens: /^(?:[\w$]+\s*\.\s*)?SEARCH_KEY$/,
             clock: /^(?:[\w$]+\s*\.\s*)?CLOCK_KEY$/, overflow: /^(?:[\w$]+\s*\.\s*)?OVERFLOW_KEY$/,
             seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, crossing: /^(?:[\w$]+\s*\.\s*)?crossingKey\s*\(/,
-            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/
+            projects: /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/,
+            progress: /^(?:[\w$]+\s*\.\s*)?TRIAL_PROGRESS_KEY$/
         };
         const SETS = [["despair", /^SETTINGS\s*\.\s*(?:despairPools|poolNames|extraPoolUsers)$/], ["searchTokens", /^SETTINGS\s*\.\s*searchTokens$/],
             ["clock", /^SETTINGS\s*\.\s*clock$/], ["overflow", /^SETTINGS\s*\.\s*overflow$/],
-            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/]];
+            ["projects", /^(?:SETTINGS\s*\.\s*projectMeta|COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/],
+            ["seize", /^SETTINGS\s*\.\s*trialQueue$/], ["progress", /^SETTINGS\s*\.\s*trialProgress$/]];
         const CALLS = [["overflow", /(?<![\w$])overflowStore\s*\.\s*patch\s*\(/g], ["crossing", /(?<![\w$])eclipseMoveStore\s*\.\s*patch\s*\(/g],
             ["crossing", /(?<!function\s+)(?<![\w$])(?:settleCrossingOnGm|refundCrossingOnGm)\s*\(/g],
             ["seize", /(?<!function\s+)(?<![\w$])(?:seizeFloor|refusePlayersCard)\s*\(/g]];
@@ -15208,6 +15284,19 @@ const REGRESSIONS = [
                 "}",
                 "export async function objectOnPrimary(request) { return serialWrite(SEIZE_KEY, async () => request); }"
             ],
+            "trial-floor.mjs": [
+                "import { SEIZE_KEY } from \"./trial.mjs\";",
+                "async function writeFloor(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, patch); return patch; }",
+                "export async function endFloorInStep() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); return {}; }",
+                "const FLOOR_OPS = { extend: () => writeFloor({ startedAt: 1 }), end: () => endFloorInStep() };",
+                "export function floorOnPrimary(op) { return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op]()); }",
+                "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }"
+            ],
+            "vote.mjs": [
+                "export const TRIAL_PROGRESS_KEY = \"trial.progress\";",
+                "async function writeInStep(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, patch); }",
+                "export function setTrialProgress(patch) { return serialWrite(TRIAL_PROGRESS_KEY, () => writeInStep(patch)); }"
+            ],
             "projects-secrecy.mjs": [
                 "export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;",
                 "export async function writeAllCountdowns(data) { await game.settings.set(DH, COUNTDOWNS, data); }",
@@ -15262,26 +15351,327 @@ const REGRESSIONS = [
             "a setting handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
                 "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
                 "export const RESETS = { searchTokens: wipe(SETTINGS.searchTokens, {}) };"
+            ] }, ["through wipe season-setup.mjs#RESETS"]],
+            "the floor written by a GM's button outside its key": [{ "trial-floor.mjs": [...clean["trial-floor.mjs"],
+                "export async function extendFloor() { return writeFloor({ startedAt: 2 }); }"
+            ] }, ["seize outside trial-floor.mjs#writeFloor"]],
+            "the record written outside its key": [{ "vote.mjs": [...clean["vote.mjs"],
+                "export async function resetTrialProgress() { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}); }"
+            ] }, ["progress outside vote.mjs#resetTrialProgress"]],
+            "the season reset's floor handed to a writer of a key held in a variable": [{ "season-setup.mjs": [
+                "const wipe = (key, value) => () => game.settings.set(MODULE_ID, key, value);",
+                "export const RESETS = { trialFloor: wipe(SETTINGS.trialQueue, {}) };"
             ] }, ["through wipe season-setup.mjs#RESETS"]]
         };
         const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
         const twin = censusOf(planted(clean));
-        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 2, crossing: 3, projects: 2 }]),
-            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures, 3 crossings', 2 projects') - it would read the module wrong too");
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { despair: 2, searchTokens: 1, clock: 1, overflow: 3, seize: 4, crossing: 3, projects: 2, progress: 1 }]),
+            "the census reader does not read the clean twin clean, or not all of it (2 Despair writes, 1 search tokens', 1 clock's, 3 overflow's, 2 seizures and 2 floor writes, 3 crossings', 2 projects', 1 record write) - it would read the module wrong too");
         const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
             .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
         equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
 
         const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
-        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs"].every(file => sources.has(file)),
+        must(["despair.mjs", "search-tokens.mjs", "clock.mjs", "overflow.mjs", "eclipse.mjs", "movement.mjs", "passages-gm.mjs", "trial.mjs",
+            "trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)),
             "a file of the census is not served - this test reads nothing until it is");
         const { broken, read, table } = censusOf(sources);
-        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 2 && read.crossing >= 4
-            && read.projects >= 6,
+        ok(read.despair >= 6 && read.searchTokens >= 4 && read.clock >= 1 && read.overflow >= 4 && read.seize >= 5 && read.crossing >= 4
+            && read.projects >= 6 && read.progress >= 2,
             `${JSON.stringify(read)} writes read in the module - this would measure nothing`);
         log(`R991: ${JSON.stringify(read)}; the table (row, where, key): ${table.join("; ")}`);
         equal(JSON.stringify(broken), "[]",
             "the census of the one queue: each of these writes shared state on the primary outside a step of its key, or a road that must queue does not (rule, where)");
+    }],
+
+    ["R1020 - the trial's floor and its record have named writers (E70 C0): `SETTINGS.trialQueue` is written only in trial-floor.mjs `writeFloor` and `endFloorInStep` and the season reset (`wipeSeason`), `SETTINGS.trialProgress` only in vote.mjs `writeTrialProgressInStep` and the season reset; a planted writer is caught; and the GMs' row trial.gm names exactly the floor's ops", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-01 (amend 5 (d)). R991 holds each write of the two settings to a step of its key; this
+         * holds who writes them at all, so a new writer is a decision a test has to be changed for, not a line that
+         * slips in beside a public writer. Read in the module's files without the suite's (tests.mjs, tests-*.mjs),
+         * comments blanked: every `game.settings.set(` whose key is `SETTINGS.trialQueue` or `SETTINGS.trialProgress`,
+         * by the top-level statement it stands in; a key handed to a writer in a variable is R991's rule (d). The
+         * reader is shown a clean twin first, then the twin with one more writer. And the ops: trial-floor.mjs
+         * `FLOOR_OP_NAMES`, the keys of its `FLOOR_OPS` as written, and the `as.oneOf` of gm-bridge.mjs "trial.gm" are
+         * one list. Red at e2085d7b: `endFloor` wrote the floor and `setTrialProgress` the record, and no row existed.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const ROWS = [["floor", /^SETTINGS\s*\.\s*trialQueue$/], ["record", /^SETTINGS\s*\.\s*trialProgress$/]];
+        const WRITERS = ["floor season-setup.mjs#wipeSeason", "floor trial-floor.mjs#endFloorInStep", "floor trial-floor.mjs#writeFloor",
+            "record season-setup.mjs#wipeSeason", "record vote.mjs#writeTrialProgressInStep"];
+        const writersOf = sources => {
+            const found = new Set();
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs") || SUITE.test(file)) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                for (const m of blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const text = args[1] ? code.slice(args[1].start, args[1].end).trim() : "";
+                    const row = ROWS.find(([, re]) => re.test(text));
+                    if (!row) continue;
+                    const decl = decls.findLast(d => d.start <= m.index);
+                    found.add(`${row[0]} ${file}#${decl?.name ?? `L${lineAt(code, m.index)}`}`);
+                }
+            }
+            return [...found].sort();
+        };
+        const clean = new Map([
+            ["trial-floor.mjs", [
+                "async function writeFloor(patch) { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, patch); }",
+                "export async function endFloorInStep() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); }",
+                "export function trialFloor() { return game.settings.get(MODULE_ID, SETTINGS.trialQueue); }",
+                "// game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"
+            ].join("\n")],
+            ["vote.mjs", "async function writeTrialProgressInStep(p) { await game.settings.set(MODULE_ID, SETTINGS.trialProgress, p); }"],
+            ["season-setup.mjs", [
+                "async function wipeSeason(plan) {",
+                "    const rows = { trialFloor: () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}),",
+                "        trialProgress: () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}) };",
+                "}"
+            ].join("\n")],
+            ["tests-tier2.mjs", "export const T = () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});"]
+        ]);
+        equal(JSON.stringify(writersOf(clean)), JSON.stringify(WRITERS), "the writers' reader does not read its clean twin as the named writers");
+        const planted = new Map([...clean, ["trial-floor-ui.mjs", "export async function closeDebate() { await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}); }"]]);
+        equal(JSON.stringify(writersOf(planted)), JSON.stringify([...WRITERS, "floor trial-floor-ui.mjs#closeDebate"].sort()),
+            "the writers' reader misses a planted writer of the floor");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["trial-floor.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        const found = writersOf(sources);
+        log(`R1020: the writers read in the module: ${found.join("; ")}`);
+        equal(JSON.stringify(found), JSON.stringify(WRITERS),
+            "the trial's floor or record is written by a function the census does not name (setting and file#statement), or a named writer is gone");
+
+        const F = await import("./trial-floor.mjs");
+        const ops = bodyOf(blankComments(sources.get("trial-floor.mjs")), "const FLOOR_OPS = {", { until: "\n};" });
+        const keys = [...ops.matchAll(/^ {4}([\w$]+):/gm)].map(m => m[1]);
+        // The row as written: its `pick` keeps only the kinds of its fields, so the list is read off gm-bridge.mjs.
+        const row = bodyOf(blankComments(sources.get("gm-bridge.mjs") ?? ""), "[ACTION_TRIAL_GM]: {", { until: "\n    },\n" });
+        const listed = row.match(/\bop:\s*as\.oneOf\(([^)]*)\)/)?.[1] ?? null;
+        const allowed = listed === null ? null : [...listed.matchAll(/"([^"]*)"/g)].map(m => m[1]);
+        equal(JSON.stringify([keys, allowed]), JSON.stringify([[...F.FLOOR_OP_NAMES], [...F.FLOOR_OP_NAMES]]),
+            "the floor's ops, the keys of FLOOR_OPS and the GMs' row trial.gm's ops are not one list ([FLOOR_OPS' keys, trial.gm's ops] against FLOOR_OP_NAMES)");
+    }],
+
+    ["R1021 - no step of the floor's key or of the record's calls into a function that opens a step of the same key (E70 C0): from inside `serialWrite(SEIZE_KEY, ...)` and `serialWrite(TRIAL_PROGRESS_KEY, ...)` no call reaches a function holding a step of that key, which would wait for ever behind itself; a planted public writer called from a seizure, from `advanceFrom` and from the record's step is caught", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-02. A step of a key that awaits a function which opens another step of the same key
+         * waits for itself: utils.mjs `serialWrite` runs a key's steps one after another, so the inner step starts only
+         * after the outer one ends, which it never does - the seizures, the heartbeat and every GM's button behind it
+         * stop for good. So every public writer has an in-step twin (trial-floor.mjs `FLOOR_OPS`, vote.mjs
+         * `writeTrialProgressInStep`) and a step calls the twin. Read in the module's files without the suite's,
+         * comments and literals blanked: each `serialWrite(` whose first argument is the key, and from its arguments
+         * every call `name(` (or `name[...](`) of a top-level function of the same file or of a file it imports
+         * (statically or through `import(`), followed into that function, and so on; a function holding a step of the
+         * key (the `wrapper`) reached that way is the fault, named with the statement whose step reached it. Not
+         * followed: a method of an object (`x.name(`), a function handed on by reference, and the functions a caller
+         * hands `setTrialProgress` (they run in its step; none calls it at 27.10). The reader is shown a clean twin
+         * first, then three faults. Red at e2085d7b: `advanceFrom`, `seizeFloor` and `objectOnPrimary` called the
+         * public `endFloor`, `openRebuttal` and `openObjection` - no step then, so nothing waited; at this commit they
+         * would.
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const KEYS = { seize: /^(?:[\w$]+\s*\.\s*)?SEIZE_KEY$/, progress: /^(?:[\w$]+\s*\.\s*)?TRIAL_PROGRESS_KEY$/ };
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const reachOf = sources => {
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => { d.end = decls[i + 1]?.start ?? blank.length; d.id = `${file}#${d.name ?? "?"}`; });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$.])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    const key = args[0] ? Object.keys(KEYS).find(k => KEYS[k].test(code.slice(args[0].start, args[0].end).trim())) : null;
+                    if (key) steps.push({ key, start: args[0].end, end: close, at: declAt(m.index) });
+                }
+                return { file, blank, decls, imports, steps };
+            });
+            const byName = new Map();
+            for (const f of files) for (const d of f.decls) if (d.name) byName.set(d.name, [...(byName.get(d.name) ?? []), { f, d }]);
+            const resolve = (f, name) => {
+                const all = byName.get(name) ?? [];
+                const own = all.filter(x => x.f === f);
+                return own.length ? own : all.filter(x => f.imports.has(x.f.file));
+            };
+            const broken = new Set(), counted = Object.fromEntries(Object.keys(KEYS).map(k => [k, 0]));
+            for (const key of Object.keys(KEYS)) {
+                const wrappers = new Set(files.flatMap(f => f.steps.filter(s => s.key === key && s.at).map(s => s.at.id)));
+                for (const f of files) for (const step of f.steps.filter(s => s.key === key)) {
+                    counted[key]++;
+                    const seen = new Set(), queue = [[f, step.start, step.end]];
+                    while (queue.length) {
+                        const [g, a, b] = queue.pop();
+                        for (const m of g.blank.slice(a, b).matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\[[^\]\n]*\]\s*)?\(/g)) {
+                            for (const { f: h, d } of resolve(g, m[1])) {
+                                if (seen.has(d.id)) continue;
+                                seen.add(d.id);
+                                if (wrappers.has(d.id)) broken.add(`${key} ${step.at?.id ?? f.file} reaches ${d.id}`);
+                                else queue.push([h, d.start, d.end]);
+                            }
+                        }
+                    }
+                }
+            }
+            return { broken: [...broken].sort(), counted };
+        };
+        const twin = {
+            "trial-floor.mjs": [
+                "import { SEIZE_KEY } from \"./trial.mjs\";",
+                "async function writeFloor(p) { return p; }",
+                "export async function endFloorInStep() { return writeFloor({}); }",
+                "export async function openObjectionInStep(m) { return writeFloor(m); }",
+                "const FLOOR_OPS = { end: () => endFloorInStep() };",
+                "export function floorOnPrimary(op) { return serialWrite(SEIZE_KEY, () => FLOOR_OPS[op]()); }",
+                "export async function endFloor() { return floorOnPrimary(\"end\"); }",
+                "async function advanceFrom(floor) { return endFloorInStep(); }",
+                "export async function advanceIfDue() { await serialWrite(SEIZE_KEY, () => advanceFrom({})); }"
+            ],
+            "trial.mjs": [
+                "export const SEIZE_KEY = \"trial.seize\";",
+                "async function seizeFloor(m) { const { openObjectionInStep } = await import(\"./trial-floor.mjs\"); return openObjectionInStep(m); }",
+                "export function registerTrial() { Hooks.on(\"createChatMessage\", m => { serialWrite(SEIZE_KEY, () => seizeFloor(m)); }); }"
+            ],
+            "vote.mjs": [
+                "export const TRIAL_PROGRESS_KEY = \"trial.progress\";",
+                "async function writeInStep(patch) { return patch; }",
+                "export function setTrialProgress(patch) { return serialWrite(TRIAL_PROGRESS_KEY, () => writeInStep(patch)); }",
+                "export function resetTrialProgress() { return setTrialProgress({}); }"
+            ],
+            "tests-tier2.mjs": ["export const T = () => serialWrite(SEIZE_KEY, () => endFloor());"]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const swap = (file, from, to) => ({ ...twin, [file]: twin[file].map(line => line.startsWith(from) ? to : line) });
+        const faults = [
+            [swap("trial.mjs", "async function seizeFloor", "async function seizeFloor(m) { const { endFloor } = await import(\"./trial-floor.mjs\"); return endFloor(); }"),
+                ["seize trial.mjs#registerTrial reaches trial-floor.mjs#floorOnPrimary"]],
+            [swap("trial-floor.mjs", "async function advanceFrom", "async function advanceFrom(floor) { return endFloor(); }"),
+                ["seize trial-floor.mjs#advanceIfDue reaches trial-floor.mjs#floorOnPrimary"]],
+            [swap("vote.mjs", "async function writeInStep", "async function writeInStep(patch) { return resetTrialProgress(); }"),
+                ["progress vote.mjs#setTrialProgress reaches vote.mjs#setTrialProgress"]]
+        ];
+        const clean = reachOf(planted(twin));
+        equal(JSON.stringify(clean), JSON.stringify({ broken: [], counted: { seize: 3, progress: 1 } }),
+            "the reach reader does not read its clean twin clean, or not all of its steps (3 of the floor's key, 1 of the record's)");
+        const misread = faults.map(([files, want]) => [reachOf(planted(files)).broken, want]).filter(([got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the reach reader misses a planted fault, or reads one more ([read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["trial-floor.mjs", "trial.mjs", "vote.mjs", "season-setup.mjs"].every(file => sources.has(file)), "a file of the census is not served - this test reads nothing until it is");
+        const { broken, counted } = reachOf(sources);
+        log(`R1021: steps read ${JSON.stringify(counted)}`);
+        ok(counted.seize >= 7 && counted.progress >= 2, `${JSON.stringify(counted)} steps read in the module - this would measure nothing`);
+        equal(JSON.stringify(broken), "[]", "a step of the floor's or the record's key reaches a function that opens a step of the same key, and would wait for itself (key, the step's statement, the function reached)");
+    }],
+
+    ["R1022 - the floor is moved on and written on the primary GM alone (E70 C0, S18-72): `advanceIfDue` asks `isPrimaryGm()` before its step, `writeFloor` and `endFloorInStep` before their write, `floorOnPrimary` before its step, and `floorStep` asks the primary by trial.gm from any other GM", async () => {
+        /*
+         * E70 C0, 27.10.2026; E70-02 (S18-72's R-test; amend (l): `advanceIfDue` was primary-only since E10 C13, and
+         * nothing read it). Every client counts the floor's clock, and two GMs writing the move it makes restart the
+         * next mode's timer on the second write (E10 C13). Since E70 C0 every writer of the floor is the primary's: the
+         * heartbeat's tick, the two functions that write the setting, and the step a GM's button opens, which on any
+         * other GM goes to the primary as "trial.gm". Read in trial-floor.mjs, comments blanked: each guard comes before
+         * what it guards. Red at e2085d7b: `writeFloor` asked `game.user.isGM` only, and `floorOnPrimary`, `floorStep`
+         * and `endFloorInStep` did not exist.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
+        const before = (body, guard, act) => body.search(guard) >= 0 && body.indexOf(act) > body.search(guard);
+        const tick = fnSource(src, "advanceIfDue"), write = fnSource(src, "writeFloor"), end = fnSource(src, "endFloorInStep");
+        const onPrimary = fnSource(src, "floorOnPrimary"), step = fnSource(src, "floorStep");
+        const read = {
+            tick: before(tick, /if \(!floor \|\| !isPrimaryGm\(\)\) return;/, "serialWrite(SEIZE_KEY"),
+            write: before(write, /if \(!isPrimaryGm\(\)\) return null;/, "game.settings.set("),
+            end: before(end, /if \(!isPrimaryGm\(\)\) return null;/, "game.settings.set("),
+            onPrimary: before(onPrimary, /if \(!isPrimaryGm\(\) \|\|/, "serialWrite(SEIZE_KEY"),
+            step: before(step, /if \(isPrimaryGm\(\)\) return floorOnPrimary\(/, "requestTrialGm(")
+        };
+        equal(JSON.stringify(read), JSON.stringify({ tick: true, write: true, end: true, onPrimary: true, step: true }),
+            "a writer of the floor no longer asks whether this is the primary GM before it writes, or a GM's button no longer goes to the primary");
+    }],
+
+    ["R1026 - the trial console's footer follows the floor's family, not its mode (E70 C1): trial-floor-ui.mjs `trialSignature` and `trialNextStep` read no mode (no `.mode`, no `restrictive`, no `FLOOR_MODES`), the signature reads `floorFamily(floor)`, and `trialButtons` draws none of the mode's buttons (Now, Back to the debate, +30 s, Re-point), which are the bar's", async () => {
+        /*
+         * E70 C1, 27.10.2026; E70-06 (S18-75). The console's footer is built once per window, and the window opens
+         * again whenever `trialSignature` changes; with the mode in it, every Objection and every rebuttal's end closed
+         * the console under the GM's pointer and opened a new one (tier 2 E70-T2 at f388d722). The buttons that depend
+         * on the mode are the bar's since E70 C1, inside the live region. Read in trial-floor-ui.mjs, comments blanked;
+         * the reader is shown a clean twin first, then the 1.2.79 signature with the mode. Red at f388d722: the
+         * signature read `floor?.mode` and `restrictive`, and `trialNextStep` answered "now" by `restrictive`.
+         */
+        const readOf = src => {
+            const sig = fnSource(src, "trialSignature"), next = fnSource(src, "trialNextStep"), buttons = fnSource(src, "trialButtons");
+            const modal = /\.mode\b|\brestrictive\b|FLOOR_MODES/;
+            return {
+                cut: [sig, next, buttons].every(body => body.length > 100),
+                signature: !modal.test(sig) && /\bfloorFamily\(floor\)/.test(sig),
+                next: !modal.test(next),
+                footer: !/action: "(?:now|debate|extend|repoint)"/.test(buttons)
+            };
+        };
+        const pad = "// " + "x".repeat(100) + "\n";
+        const twin = [
+            `function trialNextStep({ floor, running }) {\n${pad}    if (running && floor) return "closeDebate";\n    return "start";\n}`,
+            `function trialSignature(view) {\n${pad}    const { floor, running } = view;\n    return [running, floorFamily(floor)].join("|");\n}`,
+            `function trialButtons({ floor }) {\n${pad}    return [{ action: "closeDebate" }, { action: "close" }];\n}`
+        ].join("\n");
+        const all = { cut: true, signature: true, next: true, footer: true };
+        equal(JSON.stringify(readOf(twin)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const old = twin.replace("[running, floorFamily(floor)]", "[running, Boolean(floor), floor?.mode ?? \"-\"]")
+            .replace('return [{ action: "closeDebate" }', 'return [{ action: "now" }, { action: "closeDebate" }');
+        equal(JSON.stringify(readOf(old)), JSON.stringify({ ...all, signature: false, footer: false }),
+            "the reader misses the mode in a planted signature or a mode's button in a planted footer");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        equal(JSON.stringify(readOf(src)), JSON.stringify(all),
+            "the console's signature, next step or footer reads the floor's mode again, so the console reopens at every Objection (read: cut, signature, next, footer)");
+    }],
+
+    ["R1028 - an Overrule gives nothing back and reads the receipt (E70 C2, S18-77; TR25): trial-floor.mjs `overruleObjection` and `overruleInStep` and trial.mjs `markOverruled` name no refund and no write of a sheet; the step is the primary's in a Class Trial and asks `overruleTarget`; trial.mjs `seizeFloor` and `objectOnPrimary` keep the receipt (`keepReceipt`) after the price; and the log (`presentedThisChapter`) reads the overrule off the receipt, never off the card's flag", async () => {
+        /*
+         * E70 C2, 27.10.2026; E70-09, E70-10. "Koszt ma zostac" (TR25): the price an Objection paid is not given back by
+         * an Overrule of any kind - an action, Hope, a Burst - so no function on the Overrule's road may name a refund
+         * (`refundPrice`, `refundAction`) or write a student's sheet (`trustedWrite`, an actor's `update`); tier 2
+         * E70-T5 reads the action that stays. And the Overrule is the receipt the primary wrote from the price it took,
+         * never the card: a card's flag is its poster's, and a log that read it read whatever a card said. Read in the
+         * module's files, comments blanked; the reader is shown a clean twin first, then a refund and a log off the flag.
+         * Red at accb2ded: no such functions.
+         */
+        const readOf = (floorSrc, trialSrc) => {
+            const cut = name => topLevelFunction(floorSrc, name) ?? topLevelFunction(trialSrc, name) ?? "";
+            const road = ["overruleObjection", "overruleInStep", "markOverruled"].map(cut);
+            const step = cut("overruleInStep");
+            const kept = name => {
+                const body = cut(name);
+                return body.indexOf("payPrice(") >= 0 && body.indexOf("keepReceipt(") > body.indexOf("payPrice(");
+            };
+            const log = cut("presentedThisChapter");
+            return {
+                cut: road.every(body => body.length > 60) && log.length > 60,
+                nothingBack: road.every(body => !/\brefund\w*\s*\(|\btrustedWrite\s*\(|\bactor\.update\s*\(/.test(body)),
+                primary: /\bisPrimaryGm\(\)/.test(step) && /\binClassTrial\(\)/.test(step) && /\boverruleTarget\(/.test(step),
+                receipts: kept("seizeFloor") && kept("objectOnPrimary"),
+                logOffReceipt: /\bobjections\[m\.id\]\?\.overruled\b/.test(log) && !/TRIAL_FLAGS\.overruled|OVERRULED_FLAG/.test(log)
+            };
+        };
+        const pad = "// " + "x".repeat(80) + "\n";
+        const twinFloor = `export async function overruleObjection(messageId = null) {\n${pad}    return floorStep("overrule", { messageId });\n}\n`
+            + `export async function overruleInStep({ messageId = null } = {}) {\n${pad}    if (!isPrimaryGm() || !inClassTrial()) return null;\n    const judged = overruleTarget({});\n    return judged;\n}\n`;
+        const twinTrial = `async function seizeFloor(message) {\n${pad}    const receipt = await payPrice(actor, "objection");\n    await keepReceipt(message.id, opened, {});\n}\n`
+            + `export async function objectOnPrimary({ actorId }) {\n${pad}    const receipt = await payPrice(actor, "objection");\n    await keepReceipt(message.id, floor, {});\n}\n`
+            + `export async function markOverruled(messageId) {\n${pad}    await announce({ content: "" });\n}\n`
+            + `export function presentedThisChapter() {\n${pad}    return game.messages.map(m => ({ overruled: Boolean(objections[m.id]?.overruled) }));\n}\n`;
+        const all = { cut: true, nothingBack: true, primary: true, receipts: true, logOffReceipt: true };
+        equal(JSON.stringify(readOf(twinFloor, twinTrial)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = twinTrial.replace('await announce({ content: "" });', 'await refundPrice(actor, receipt, { quiet: true });')
+            .replace("Boolean(objections[m.id]?.overruled)", "Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.overruled))");
+        equal(JSON.stringify(readOf(twinFloor, planted)), JSON.stringify({ ...all, nothingBack: false, logOffReceipt: false }),
+            "the reader misses a planted refund on the Overrule's road or a log reading the card's flag");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        equal(JSON.stringify(readOf(await read("trial-floor.mjs"), await read("trial.mjs"))), JSON.stringify(all),
+            "the Overrule gives something back, is not the primary's judgement in a Class Trial, keeps no receipt after the price, or the log reads the card (read: cut, nothingBack, primary, receipts, logOffReceipt)");
     }],
 
     ["R993 - the doors' rules on the GM (E17 C1): movement-audit.mjs `auditMove` asks the judge's verdict (`ctx.ruleRefused`) once, after the walls and the floors, from a closure that reads no option of the update, and returns no clear or noted move without asking it; movement.mjs `noteGmPosition` hands it in and no other file names it; and a put-back (movement.mjs `sendBack`) still writes with the walls ignored", async () => {
@@ -15349,7 +15739,345 @@ const REGRESSIONS = [
         must(sources.has("movement-audit.mjs") && sources.has("movement.mjs"), "the audit's files are not served - this test reads nothing until they are");
         equal(JSON.stringify(readOf(sources)), "[]",
             "the doors' rules on the GM: asked twice, before the walls and floors, behind an option of the update, skipped on a clear or noted move, not handed in, named elsewhere, or a put-back that meets walls");
-    }]
+    }],
+    ["R1032 - the trial's fields live as long as the trial (E70 C3, amend (i)): vote.mjs `resetTrialProgress` blanks the question (`topic`), the vote's opening (`voteOpenedAt`), the debate again (`debateAgain`) and the trial's size (`trialSize`) and stamps `trialStartedAt` on the server's clock, and names none of the chapter's (`objections`, `keysCharged`); `openRound` stamps `voteOpenedAt` on `serverNow()`; trial-floor-ui.mjs `openDebate` writes the question after the floor opens", async () => {
+        /*
+         * E70 C3, 27.10.2026; E70-13, E70-14. The plan's amend (i): `topic`, `trialStartedAt`, `voteOpenedAt` are the
+         * trial's (a second trial in the chapter, D17, starts without the first one's), `objections` and `keysCharged`
+         * the chapter's. The vote's opening on the server's clock, as the trial's start (S18-80): `Date.now()` is each
+         * browser's own. And the question is written after `startFloor`, which enters the trial and blanks the record
+         * there (E10 C12's order: a length written first was eaten a moment later). Read in the module's files,
+         * comments blanked; the reader is shown a clean twin first, then one fault of each rule. Red at bf1a076b: no
+         * `topic`, `voteOpenedAt`, `debateAgain` or `trialSize` anywhere.
+         */
+        const readOf = (vote, ui) => {
+            // The reset's fields are written by its step on the primary since E70 fix p1-G2 (`resetInStep`), read with it.
+            const reset = (topLevelFunction(vote, "resetTrialProgress") ?? "") + (topLevelFunction(vote, "resetInStep") ?? "");
+            const round = topLevelFunction(vote, "openRound") ?? "";
+            const open = topLevelFunction(ui, "openDebate") ?? "";
+            const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+            return {
+                cut: [reset, round, open].every(body => body.length > 60),
+                trial: /\btopic: null\b/.test(reset) && /\bvoteOpenedAt: null\b/.test(reset) && /\bdebateAgain: false\b/.test(reset)
+                    && /\btrialSize: /.test(reset) && /\btrialStartedAt: serverNow\(\)/.test(reset),
+                chapter: !/\bobjections\b|\bkeysCharged\b/.test(reset),
+                vote: /\bvoteOpenedAt: [^,\n]*\bserverNow\(\)/.test(round) && !/voteOpenedAt: [^,\n]*Date\.now\(\)/.test(round),
+                order: at(open, /\bstartFloor\(/) >= 0 && at(open, /setTrialProgress\(\{[^}]*\btopic\b/) > at(open, /\bstartFloor\(/)
+            };
+        };
+        const pad = "// " + "x".repeat(80) + "\n";
+        const twinVote = `export async function resetTrialProgress() {\n${pad}    return setTrialProgress(now => ({ seconds, topic: null, voteOpenedAt: null, debateAgain: false, trialSize: 4, trialStartedAt: serverNow() }));\n}\n`
+            + `async function openRound(progress) {\n${pad}    await setTrialProgress(now => ({ vote: {}, voteOpenedAt: now.voteOpenedAt ?? serverNow() }));\n}\n`;
+        const twinUi = `export async function openDebate(options = {}) {\n${pad}    if (!(await startFloor({ seconds: budget }))) return null;\n    await setTrialProgress({ topic });\n}\n`;
+        const all = { cut: true, trial: true, chapter: true, vote: true, order: true };
+        equal(JSON.stringify(readOf(twinVote, twinUi)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = twinVote.replace("topic: null, ", "").replace("trialSize: 4,", "trialSize: 4, objections: {},")
+            .replace("now.voteOpenedAt ?? serverNow()", "Date.now()");
+        const early = `export async function openDebate(options = {}) {\n${pad}    await setTrialProgress({ topic });\n    if (!(await startFloor({ seconds: budget }))) return null;\n}\n`;
+        equal(JSON.stringify(readOf(planted, early)), JSON.stringify({ ...all, trial: false, chapter: false, vote: false, order: false }),
+            "the reader misses a planted lifetime, a chapter's field blanked, the vote on the browser's clock or the question written before the floor");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        equal(JSON.stringify(readOf(await read("vote.mjs"), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
+            "a trial's field outlives its trial, a chapter's dies with it, the vote opens on a browser's clock, or the question is written before the floor opens (read: cut, trial, chapter, vote, order)");
+    }],
+
+    ["R1033 - the sentence is carried out at the trial's end and nowhere else (E70 C4, S18-87; DC36): in vote.mjs only `carryOutSentence` (the step of `executeAtExit`) calls `killCharacter` or `publishDeath`, and mastermind.mjs calls neither; the verdict's steps hold no \"executions\" and its card needs the sentence; clock.mjs `reconcilePhase` asks `executeAtExit` after `endFloor` and before `followPhase`, trial-floor-ui.mjs `closeTrial` before its `setClock`, and the season's reset takes the sentence back (`clearSentence`) before its clock step's `setClock`", async () => {
+        /*
+         * E70 C4, 28.10.2026; E70-15 to E70-17. The owner's DC36: "token osoby na którą zagłosowano umiera po class
+         * trialu, gdy class trial się kończy, a nie w trakcie". The verdict's step "executions" (E10 C5) and the Final
+         * Trial's verdict (mastermind.mjs `applyFinalVerdict`) killed in the verdict; one function kills now, on the roads
+         * out of the trial, in the order the table meets them: the floor closes, the convicted die in the hall, then the
+         * living gather at school. A new kill in either file is a decision this test has to be changed for. Read in the
+         * module's files, comments blanked; the reader is shown a clean twin first, then one fault of each rule. Red at
+         * b776bf72: `executeSentenced` and `applyFinalVerdict` killed, the steps held "executions", nothing was asked
+         * at the exit.
+         */
+        const DECL = /^(?:export )?(?:async )?function ([\w$]+)\(/gm;
+        const killersIn = src => {
+            const decls = [...src.matchAll(DECL)].map(m => ({ name: m[1], at: m.index }));
+            const found = new Set();
+            for (const m of src.matchAll(/\b(?:killCharacter|publishDeath)\(/g)) found.add(decls.findLast(d => d.at <= m.index)?.name ?? "top level");
+            return [...found].sort();
+        };
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const readOf = ({ vote, mastermind, clock, ui, season }) => {
+            const steps = bodyOf(vote, "const VERDICT_STEPS = {", { until: "\n};" });
+            const needsOf = bodyOf(vote, "const VERDICT_NEEDS = {", { until: "};" });
+            const reconcile = topLevelFunction(clock, "reconcilePhase") ?? "";
+            const out = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+            const close = topLevelFunction(ui, "closeTrial") ?? "";
+            const reset = bodyOf(season, "clock: async () => {", { until: "\n        }" });
+            return {
+                cut: [reconcile, close].every(body => body.length > 60) && out.length > 40,
+                killers: [killersIn(vote), killersIn(mastermind)],
+                steps: !/"executions"/.test(steps) && /\bcard: "sentence"/.test(needsOf) && !/\bexecutions:/.test(needsOf),
+                reconcile: at(out, /\bendFloor\(/) >= 0 && at(out, /\bexecuteAtExit\(/) > at(out, /\bendFloor\(/)
+                    && at(reconcile, /\bfollowPhase\(/) > at(out, /\bexecuteAtExit\(/),
+                close: at(close, /\bexecuteAtExit\(/) >= 0 && at(close, /\bsetClock\(/) > at(close, /\bexecuteAtExit\(/),
+                reset: at(reset, /\bclearSentence\(/) >= 0 && at(reset, /\bsetClock\(/) > at(reset, /\bclearSentence\(/)
+            };
+        };
+        const pad = "    // " + "x".repeat(60) + "\n";
+        const twin = {
+            vote: "const VERDICT_STEPS = {\n    correct: [\"sentence\", \"card\"]\n};\nconst VERDICT_NEEDS = { card: \"sentence\" };\n"
+                + `async function carryOutSentence(chapter) {\n${pad}    await killCharacter(actor);\n    await publishDeath(actor);\n}\nasync function readSentence() {\n${pad}}\n`,
+            mastermind: `export async function applyFinalVerdict() {\n${pad}    await verdictStore.patch(RECORD, { finalSentenced: [id] });\n}\n`,
+            clock: `async function reconcilePhase(from, to) {\n    if (from === "classTrial") {\n${pad}        await endFloor();\n        await executeAtExit();\n    }\n`
+                + `    if (to === "classTrial") {\n${pad}    }\n    await followPhase(from, to);\n}\n`,
+            ui: `export async function closeTrial() {\n${pad}    await executeAtExit();\n    await setClock({ phase: "dailyLife" });\n}\n`,
+            season: `const steps = {\n        clock: async () => {\n            await clearSentence();\n            await setClock({ phase: "dailyLife" });\n        }\n};\n`
+        };
+        const all = { cut: true, killers: [["carryOutSentence"], []], steps: true, reconcile: true, close: true, reset: true };
+        equal(JSON.stringify(readOf(twin)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = {
+            vote: twin.vote.replace("[\"sentence\", \"card\"]", "[\"sentence\", \"executions\", \"card\"]").replace("{ card: \"sentence\" }", "{ card: \"executions\" }")
+                + `async function executeSentenced() {\n${pad}    await killCharacter(actor);\n}\n`,
+            mastermind: twin.mastermind.replace("    await verdictStore", "    await killCharacter(mastermind);\n    await verdictStore"),
+            clock: twin.clock.replace("        await executeAtExit();\n", "").replace("    await followPhase(from, to);\n", "    await followPhase(from, to);\n    await executeAtExit();\n"),
+            ui: twin.ui.replace("    await executeAtExit();\n", "").replace("\n}\n", "\n    await executeAtExit();\n}\n"),
+            season: twin.season.replace("            await clearSentence();\n", "")
+        };
+        equal(JSON.stringify(readOf(planted)), JSON.stringify({ cut: true, killers: [["carryOutSentence", "executeSentenced"], ["applyFinalVerdict"]],
+            steps: false, reconcile: false, close: false, reset: false }),
+            "the reader misses a planted kill in the verdict, a step of executions, an exit that asks too late or not at all, or a reset that keeps the sentence");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const real = { vote: await read("vote.mjs"), mastermind: await read("mastermind.mjs"), clock: await read("clock.mjs"),
+            ui: await read("trial-floor-ui.mjs"), season: await read("season-setup.mjs") };
+        equal(JSON.stringify(readOf(real)), JSON.stringify(all),
+            "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
+    }],
+    ["R1035 - the dead's microphones are the trial's alone (E70 C5, S18-78, S18-87; amend 6, answer 3 (b)): `permissions.BROADCAST_AUDIO` is written only by voice-tile.mjs `toggleBlock` (a GM's hand) and voice.mjs `blockForTrial` and `restoreTrialBlock`, the restore removes a key that was absent with `forcedDeletion()` and never `-=`; settings.mjs `isMutedDead` reads the trial's list and the phase; vote.mjs `trialParticipants` replaces `eligibleVoters` and asks `isMutedDead` and the Monocub flag; clock.mjs `reconcilePhase` settles the voices after the trial's record is blanked at the entry and before the sentence at the exit; gm-bridge.mjs \"trial.enter\" is a GM's request that carries nothing; gm-stores.mjs `trialMuteStore` is synced between the GMs and emptied by a reset", async () => {
+        /*
+         * E70 C5, 28.10.2026; E70-18, E70-20, E70-21. The harm: the module turning somebody's microphone off where the
+         * owner did not ask for it, keeping it off after the trial, or putting back over a GM's own block; and a list
+         * of the trial's dead that reaches the voice outside the trial. Read in the module's files, comments blanked; the
+         * writers' reader is shown a clean twin first, then a planted writer and a restore spelt with `-=`. Red at
+         * 9f40de9a: no `blockForTrial`, no `isMutedDead`, no `trialParticipants`, no "trial.enter".
+         */
+        const DECL = /^(?:export )?(?:async )?function ([\w$]+)\(/gm;
+        const writersIn = files => {
+            const found = new Set();
+            for (const [file, src] of Object.entries(files)) {
+                const decls = [...src.matchAll(DECL)].map(m => ({ name: m[1], at: m.index }));
+                // A write names the field as a key of the change, `"permissions.BROADCAST_AUDIO":`; a read does not.
+                for (const m of src.matchAll(/["'`]permissions\.BROADCAST_AUDIO["'`]\s*:/g)) {
+                    found.add(`${file}#${decls.findLast(d => d.at <= m.index)?.name ?? "top level"}`);
+                }
+            }
+            return [...found].sort();
+        };
+        const WRITERS = ["voice-tile.mjs#toggleBlock", "voice.mjs#blockForTrial", "voice.mjs#restoreTrialBlock"];
+        const twin = {
+            "voice-tile.mjs": `export async function toggleBlock(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": !allowed });\n}\n`,
+            "voice.mjs": `async function blockForTrial(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": false });\n}\nfunction grantOf(user) {\n    return user.permissions.BROADCAST_AUDIO;\n}\n`
+                + `async function restoreTrialBlock(user, row) {\n    const gone = forcedDeletion();\n    await user.update({ "permissions.BROADCAST_AUDIO": gone });\n}\n`
+        };
+        equal(JSON.stringify(writersIn(twin)), JSON.stringify(WRITERS), "the writers' reader does not read its clean twin as the three writers");
+        const planted = { ...twin, "hud.mjs": `export async function muteDead(user) {\n    await user.update({ "permissions.BROADCAST_AUDIO": false });\n}\n` };
+        equal(JSON.stringify(writersIn(planted)), JSON.stringify([...WRITERS, "hud.mjs#muteDead"].sort()), "the writers' reader misses a planted writer");
+
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const names = ["voice.mjs", "voice-tile.mjs", "vote.mjs", "clock.mjs", "gm-bridge.mjs", "gm-stores.mjs", "hud.mjs", "trial-floor.mjs", "trial.mjs",
+            "monocub.mjs", "chapter.mjs", "movement.mjs", "season-setup.mjs", "api.mjs", "settings.mjs"];
+        const real = Object.fromEntries(await Promise.all(names.map(async f => [f, await read(f)])));
+        must(Object.values(real).every(src => src.length > 1000), "a file of the census was not served - this test reads nothing until it is");
+        const writers = writersIn(real);
+        log(`R1035: BROADCAST_AUDIO written in ${writers.join("; ")}`);
+        equal(JSON.stringify(writers), JSON.stringify(WRITERS), "a microphone's block for everybody is written by a function this census does not name");
+
+        const restore = topLevelFunction(real["voice.mjs"], "restoreTrialBlock") ?? "";
+        const muted = topLevelFunction(real["settings.mjs"], "mutedDeadIds") ?? "";
+        const participants = topLevelFunction(real["vote.mjs"], "trialParticipants") ?? "";
+        const reconcile = topLevelFunction(real["clock.mjs"], "reconcilePhase") ?? "";
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const entry = reconcile.slice(Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+        const exit = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+        const row = bodyOf(real["gm-bridge.mjs"], "[ACTION_TRIAL_ENTER]: {", { until: "\n    },\n" });
+        const store = bodyOf(real["gm-stores.mjs"], "export const trialMuteStore = defineGmStore({", { until: "});" });
+        equal(JSON.stringify({
+            restore: [/\bforcedDeletion\(\)/.test(restore), /-=/.test(restore)],
+            muted: [/"classTrial"/.test(muted), /\bmutedDead\b/.test(muted)],
+            participants: [participants.length > 100, /\bisMutedDead\(/.test(participants), /\bFLAGS\.monocub\b|\bisMonocub\(/.test(participants),
+                Object.values(real).some(src => /\beligibleVoters\b/.test(src))],
+            entry: [at(entry, /\bresetTrialProgress\(/) >= 0 && at(entry, /\baskTrialVoices\(/) > at(entry, /\bresetTrialProgress\(/)],
+            exit: [at(exit, /\baskTrialVoices\(/) >= 0 && at(exit, /\bexecuteAtExit\(/) > at(exit, /\baskTrialVoices\(/)],
+            row: [/gmOnly\(/.test(row), /pick\(\{\s*\}\)/.test(row), /answer: "reply"/.test(row)],
+            store: [/\bsync: true\b/.test(store), /\bresetGroup: "trialProgress"/.test(store), /\bkind: "ledger"/.test(store)]
+        }), JSON.stringify({
+            restore: [true, false], muted: [true, true], participants: [true, true, true, false], entry: [true], exit: [true],
+            row: [true, true, true], store: [true, true, true]
+        }), "the trial's voices are not held to their rules (read: the restore's deletion and no -=; isMutedDead's phase and list; trialParticipants cut, asks the list and the Monocub flag, eligibleVoters left anywhere; reconcilePhase's entry after the reset, exit before the sentence; trial.enter's guard, payload and answer; the store's sync, reset and kind)");
+    }],
+    ["R1036 - the handbooks say what the trial's bar, Overrule, the debate's question, the execution at the trial's end and the dead's microphones do (E70 C6), in English and in Polish", async () => {
+        /*
+         * E70 C6, 28.10.2026; E70-26. E70 part 1 gave the GM a bar in every mode (C1), Overrule (C2), the debate's
+         * question and the debate again (C3), a verdict that kills nobody and an execution when the trial ends (C4),
+         * and the dead's microphones blocked for the trial (C5) - and the books said "the module mutes nobody", named
+         * a button the console no longer draws (End this mode now) and said the table learns an execution "with the
+         * verdict". As R321 does for the vote: each claim is a pair, what the code does, read from its function
+         * (`BAR_OPS`, `barRefusal`, floor-machine.mjs `nextFloor` and `debateAgain`, `overruleTarget`, vote.mjs
+         * `VERDICT_STEPS`, `trialParticipants`, clock.mjs `reconcilePhase`, trial-floor-ui.mjs `closeTrial`,
+         * `trialTime`), and the sentences that say it, one per handbook that says it; a code fact that changes fails
+         * here with its sentences, and a sentence rewritten without the code fails too. The stale sentences must be
+         * gone from both books. Each book and each file is asserted to have been read, so nothing passes on an empty
+         * read. Red at a40405b7 (the books before C6): every code fact true, every English sentence missing and all six
+         * English stale ones found (the test stops at the first language that fails). What a table makes of these words - the bar at 1366x768, Overrule with real people, a microphone going silent - is
+         * LIVE-E70-01 to LIVE-E70-06 (audit 9.2), not measured here.
+         */
+        const sources = new Map(await otherSources());
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const floorCode = code("trial-floor.mjs"), machine = code("floor-machine.mjs"), vote = code("vote.mjs");
+        const clock = code("clock.mjs"), floorUi = code("trial-floor-ui.mjs"), config = code("config.mjs"), voice = code("voice.mjs");
+        const next = fnSource(machine, "nextFloor"), reconcile = fnSource(clock, "reconcilePhase");
+        const facts = {
+            barOrder: /export const BAR_OPS = Object\.freeze\(\["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"\]\);/.test(floorCode)
+                && /if \(!running\) return "DRPG\.Floor\.bar\.notTrial";/.test(fnSource(floorCode, "barRefusal")),
+            skipNoTurn: /case "skip":\s*if \(floor\.mode === MODES\.debate\) return \{ refused: "DRPG\.Floor\.bar\.noTurn" \};/.test(next),
+            minusSkips: /if \(seconds < 0 && floor\.mode === MODES\.debate && left <= 0\) return \{ refused: "DRPG\.Floor\.bar\.noTime" \};/.test(next)
+                && /if \(seconds < 0 && floor\.mode !== MODES\.debate && Math\.max\(left, 0\) \+ seconds <= 0\) \{\s*return stepOn\(/.test(next),
+            plusFromNow: /const want = Math\.max\(Math\.max\(left, 0\) \+ seconds, 0\);/.test(next),
+            backRest: /seconds: seconds \?\? restOf\(floor\) \?\? floor\.seconds \?\? TRIAL\.speakSeconds,/.test(fnSource(machine, "debateAgain")),
+            overrule: /back\.startedAt = now - \(modeSecondsOf\(back\) - \(Number\(entry\.leftAtObjection\) \|\| 0\)\) \* 1000;/.test(next)
+                && /"DRPG\.Floor\.overrule\.onlyNewest"/.test(fnSource(machine, "overruleTarget")),
+            reopen: /return again \? \{ floor: null, cards, again: true \} : \{ floor: null, cards \};/.test(fnSource(machine, "ended"))
+                && typeof game.drpg?.reopenDebate === "function",
+            topic: /"DRPG\.Floor\.topic"/.test(fnSource(floorUi, "openDebate")),
+            budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
+            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*wrong: \["sentence", "card", "offers", "despair", "rule", "overflow"\]\s*\};/.test(vote),
+            atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
+            mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
+            api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
+                .every(name => typeof game.drpg?.[name] === "function")
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    barOrder: [/\*\*Skip\*\*, \*\*-30 s\*\*, \*\*\+30 s\*\*, \*\*Overrule\*\*, \*\*End this mode\*\*, \*\*Back to the debate\*\* and \*\*Re-point\*\*/, /outside a Class Trial every one refuses/],
+                    skipNoTurn: [/a debate has no turn to skip/],
+                    minusSkips: [/under 30 seconds left in an Objection or a rebuttal it is Skip, and a debate goes down to zero at most and is not closed/],
+                    plusFromNow: [/counted from now when the clock has already run out, and may take a mode past its usual length/],
+                    backRest: [/\*\*Back to the debate\*\* gives the debate the time it had left when the Objection cut in, not its whole budget/],
+                    overrule: [/\*\*Overrule\*\* takes back the newest Objection of this trial and no other/, /the floor goes back to whom or what it interrupted, with the time it had then/, /The price is never given back\./],
+                    reopen: [/the console's next step is \*\*Open the debate again\*\*: the same question and budget, no window \(`game\.drpg\.reopenDebate\(\)`\)/],
+                    topic: [/an optional \*Debate question\*, which the trial's card in the Event panel, the console and the debate's Objection and Present cards show/],
+                    budget: [/against 270 minutes for sixteen players/],
+                    noKill: [/The verdict kills nobody and ends nothing/],
+                    atExit: [/the sentence is carried out once, when the trial ends by any road/, /every road but the season reset carries out a sentence the verdict left waiting/],
+                    mutedDead: [/lists every dead student - a death nobody has found too, never a Monocub - and turns each one's player's microphone off for the trial/, /blocks the microphone of every dead student's player - a death nobody has found too/],
+                    api: [/`skipStep\(\)`, `adjustTime\(seconds\)`, `overruleObjection\(\)`, `endMode\(\)`, `returnToDebate\(\)` - and the older `advanceFloorNow\(\)`, `extendFloor\(\)` and `endFloor\(\)` stay/]
+                },
+                player: {
+                    overrule: [/The GM can also \*\*Overrule\*\* the newest Objection/, /what you paid stays paid, and the trial goes back to where it was, with the time it had then/],
+                    noKill: [/The verdict kills nobody: the sentence is carried out when the trial ends/],
+                    mutedDead: [/the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too/, /in a Class Trial your microphone is off like every dead student's, and you hold no ballot/]
+                },
+                stale: [/mutes nobody/, /does not mute anyone/, /\*\*End this mode now\*\*/, /the table learns it with the verdict/, /Silence is kept by the table, not by the software/, /the trial counts you among the living: you are sent a ballot/]
+            },
+            pl: {
+                gm: {
+                    barOrder: [/\*\*Pomiń\*\*, \*\*-30 s\*\*, \*\*\+30 s\*\*, \*\*Oddalenie\*\*, \*\*Zakończ ten tryb\*\*, \*\*Z powrotem do debaty\*\* i \*\*Przekieruj\*\*/, /poza Class Trial każdy odmawia/],
+                    skipNoTurn: [/debata nie ma tury do pominięcia/],
+                    minusSkips: [/gdy w Objection albo rebuttalu zostało mniej niż 30 sekund, działa jak Pomiń, a debatę zdejmuje najwyżej do zera i jej nie zamyka/],
+                    plusFromNow: [/liczone od teraz, gdy zegar już się skończył, i może przedłużyć tryb ponad jego zwykłą długość/],
+                    backRest: [/\*\*Z powrotem do debaty\*\* daje debacie czas, który jej został, gdy wcięło się Objection, a nie cały budżet/],
+                    overrule: [/\*\*Oddalenie\*\* cofa najnowsze Objection tej rozprawy i żadne inne/, /głos wraca do tego, komu albo czemu przerwało, z czasem, jaki wtedy miał/, /Koszt nigdy nie wraca\./],
+                    reopen: [/następnym krokiem konsoli jest \*\*Otwórz debatę ponownie\*\*: to samo pytanie i budżet, bez okna \(`game\.drpg\.reopenDebate\(\)`\)/],
+                    topic: [/z opcjonalnym \*Pytaniem debaty\*, które pokazują karta Class Trial w panelu zdarzeń, konsola oraz karty Objection i Przedstaw tej debaty/],
+                    budget: [/wobec 270 minut na szesnastu graczy/],
+                    noKill: [/Werdykt nikogo nie zabija i niczego nie kończy/],
+                    atExit: [/wyrok jest wykonywany raz, gdy rozprawa kończy się którąkolwiek drogą/, /każda droga oprócz resetu sezonu wykonuje wyrok, który zostawił werdykt/],
+                    mutedDead: [/wypisuje każdego zmarłego ucznia - także śmierć, której nikt nie znalazł, nigdy Monocuba - i na czas rozprawy wyłącza mikrofon jego gracza/, /blokuje mikrofon gracza każdego zmarłego ucznia - także śmierci, której nikt nie znalazł/],
+                    api: [/`skipStep\(\)`, `adjustTime\(seconds\)`, `overruleObjection\(\)`, `endMode\(\)`, `returnToDebate\(\)` - a starsze `advanceFloorNow\(\)`, `extendFloor\(\)` i `endFloor\(\)` zostają/]
+                },
+                player: {
+                    overrule: [/GM może też użyć przycisku \*\*Oddalenie\*\* wobec najnowszego Objection/, /to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała/],
+                    noKill: [/Werdykt nikogo nie zabija: wyrok jest wykonywany, gdy rozprawa się kończy/],
+                    mutedDead: [/moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł/, /w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania/]
+                },
+                stale: [/nikogo nie wycisza/, /\*\*Zakończ ten tryb teraz\*\*/, /stół dowiaduje się o niej z werdyktem/, /Ciszy pilnuje stół, nie oprogramowanie/, /rozprawa liczy cię wśród żywych: dostajesz kartę do głosowania/]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await lfText(res)).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks' Class Trial says what E70 part 1's code does not do, or an old sentence is back (each claim: [the code, ...its sentences]; stale: each old sentence found)`);
+        }
+    }],
+    ["R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes", async () => {
+        /*
+         * E70 fix p1-G1, 28.10.2026. Read in the module's files, comments blanked. The harms: a dead player's console
+         * that unset its own `deceased` taking itself off the list and its microphone back before the audit's put-back
+         * landed (SEC-2); an open incident's living victim named in world data and muted (SEC-1); a death nobody found
+         * presenting evidence to every screen (BEH-1); a Monocub's tile still saying "you may speak" through a debate
+         * (E70P1-R03). Red at 95bf1ffc: the document's flags, the incident's victim, `isDeceased` alone on Present, and
+         * no repaint on the trial's settings.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["voice.mjs", "vote.mjs", "trial.mjs", "sheet.mjs", "voice-tile.mjs"].map(async f => [f, await read(f)])));
+        must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
+        const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
+        const settle = fn("voice.mjs", "settleTrialVoices"), dead = fn("voice.mjs", "deadForTrial");
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const participants = fn("vote.mjs", "trialParticipants");
+        const register = fn("trial.mjs", "registerTrial"), tile = fn("voice-tile.mjs", "registerVoiceTile");
+        equal(JSON.stringify({
+            settle: [at(settle, /\bjudgedFor\(/) >= 0 && at(settle, /\bdeadForTrial\(flagsHeldNow\)/) > at(settle, /\bjudgedFor\(/), /\bmurderState\b/.test(settle)],
+            dead: [dead.length > 50, /\bincident\b|\bvictimId\b/.test(dead), /\bactor\.getFlag\(/.test(dead)],
+            participants: [/\bheld\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants), /\bactor\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants)],
+            present: ["presentDialog", "presentBullet"].map(name => /\bisMutedDead\(actor\)/.test(fn("trial.mjs", name))),
+            row: /\bisMutedDead\(app\.document\)/.test(fn("sheet.mjs", "addPresentButton")),
+            card: [/\bisMutedDead\(/.test(register), /refusePlayersCard\(message, "dead"\)/.test(register), /if \(!playersCard\)\s*showPopup\(/.test(register)],
+            tile: [/"updateSetting"/.test(tile), ["clock", "trialQueue", "trialProgress"].every(k => new RegExp(`SETTINGS\\.${k}\\b`).test(tile)), /\bpaintControls\(\)/.test(tile)]
+        }), JSON.stringify({
+            settle: [true, false], dead: [true, false, false], participants: [true, false], present: [true, true], row: true,
+            card: [true, true, true], tile: [true, true, true]
+        }), "the trial's dead are not read as the GMs hold them, a living victim is listed, a listed student presents, or the tile does not follow the trial (settle: judged before the held list, an incident read; deadForTrial: cut, an incident, the document's flags; trialParticipants: the held Monocub, the document's; Present: window, card; the sheet's row; the card hook: list, refusal, no popup; the tile: a setting hook, its three keys, a repaint)");
+    }],
+    ["R1041 - the sounds of E70 part 1, the HUD's line without the tile, the bar's Overrule and the Skip's words (E70 fix p1-G3; the review's E70P1-R15 = E70P1-R10, E70P1-R08, E70P1-R04, TXT-1): the trial's close card rings \"trialClose\" and a Final Trial's execution plays \"execution\" for every user; a rebuttal an Overrule brings back rings nothing of its own; hud.mjs asks `trialVoiceLine` only where no voice tile is drawn; the bar's Overrule button carries the card it names and its press hands it on; and \"nowMovedOn\" names no routing", async () => {
+        /*
+         * E70 fix p1-G3, 28.10.2026. E70-25 asked for each sound by test, and only the execution's card was read (E70-T7);
+         * the Overrule's card is tier 2's (the test "the console holds Enter ..."). Read in the module's files, comments
+         * blanked, and the language files. Red at d1f01644 on the HUD's line, the bar's card and the words.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["trial-floor-ui.mjs", "vote.mjs", "sfx.mjs", "hud.mjs"].map(async f => [f, await read(f)])));
+        must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
+        const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
+        const close = fn("trial-floor-ui.mjs", "closeTrial"), card = fn("vote.mjs", "postExecutionCard"), floor = fn("sfx.mjs", "onFloorChanged");
+        const time = fn("hud.mjs", "buildTimeRow"), bar = fn("trial-floor-ui.mjs", "trialBar"), console_ = fn("trial-floor-ui.mjs", "manageClassTrial");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const moved = [en.DRPG?.Floor?.nowMovedOn ?? "", pl.DRPG?.Floor?.nowMovedOn ?? ""];
+        equal(JSON.stringify({
+            close: /sfx: \{ key: "trialClose", gm: true \}/.test(close),
+            final: /playSfxForUsers\(game\.users\.map\(u => u\.id\), "execution"\)/.test(card),
+            rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
+            hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
+            bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
+            words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))
+        }), JSON.stringify({ close: true, final: true, rebuttal: true, hud: true, bar: true, words: [true, true] }),
+            "a sound of the trial, the HUD's line, the bar's Overrule or the Skip's words is not as E70 asks (the close's sound; the Final's; no rebuttal sound after an Overrule; the HUD's line where no tile is; the bar's card; the words EN, PL)");
+    }],
 ];
 
 

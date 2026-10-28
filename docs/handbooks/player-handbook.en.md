@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.89, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.90, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -81,7 +81,7 @@ The three phases:
 | Phase | What it is |
 |---|---|
 | **Daily Life** | You live inside a closed area. Two actions per time of day. Nobody has died yet this chapter - this is the part where you decide who you trust. |
-| **Investigation** | A body was found. Observe and Analyze to build Truth Bullets. What you fail to find, you will not have. |
+| **Investigation** | A body was found. Observe and Analyze to build Truth Bullets. What nobody finds costs Despair; at the trial Monokuma may reveal it. |
 | **Class Trial** | Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. |
 
 ### The Eclipse
@@ -623,6 +623,8 @@ Then the **clean-up**. Your Tamper tile now lists every trace in the room you ar
 | **Misleading trail** | 15 |
 | **Move the body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
 
+A misleading trail or a moved body that succeeds puts the Truth Bullet of the trace it left on your sheet at once, as if you had found it (*You know this trace: it is on your sheet.*); a failure, an erased trace and a reshaped one give you none, and a Reroll of that roll takes the Truth Bullet back.
+
 Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the misleading trail list Shadow, Hand and Head: the GM picks one from what you say you do. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment.
 
 > [!WARNING]
@@ -661,7 +663,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
 - The **body** can be searched: open the dead student's sheet and press *Take* on what they carried. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets a trace that somebody has been through the pockets (one per body, however many things leave it).
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
-- What you fail to find, you will not have at the trial.
+- A Key Remnant nobody finds costs Despair (below), and at the trial Monokuma may reveal it to everyone taking part as a Key Remnant found - its kind and its text, to Analyze as usual.
 
 > [!WARNING]
 > Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma - below the case's own count when it has fewer than four, so a case of three found whole owes nothing. Only what a living student holds counts as found.
@@ -672,35 +674,40 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items. In a trial Analyze only identifies Truth Bullets - no hint, no hidden stash, no passage; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living who took part to a room the GM picks. In the trial the module places your character's token in the hall and removes it afterwards; the GM chooses who takes part. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
+When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living who took part to a room the GM picks. In the trial the module places your character's token in the hall and removes it afterwards; the GM chooses who takes part. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**: the module turns a dead student's player's microphone off when the trial opens and gives it back when it ends - a death nobody has found too, so a microphone gone silent tells the table. Your voice tile says why. A Monocub speaks only in open discussion, while no mode runs, and listens in every mode, from the vote on and through a trial about their own death; the tile says which. A student the verdict sentences speaks until the trial ends.
 
-The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
+The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. Tick **Show it with my Analyze result** to show what your Analyze read; unticked, the card shows it as never analysed - no reading, no type it turned out to be. Everyone else taking part gets a copy on their sheet, as it was shown, for free and once. You are told when it has gone on the table. In a Class Trial a Truth Bullet has no Share: Present is how evidence changes hands.
 
-When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate you interrupt with **OBJECTION!**, the button on the HUD's trial row (the Present button on your sheet stays Present, free, all trial long). It is priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and paid when you press it:
+When the room is ready to argue, the GM opens the **Nonstop Debate**, with a question if the GM gives one, shown on the trial's card and on the debate's cards. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate you interrupt with **OBJECTION!**, the button on your voice tile (on the HUD's trial row when no voice tile is drawn; outside a Class Trial it is greyed, *Objection only in a Class Trial.*). It is priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and paid when you press it:
 
 | Mode | Who may speak | How long |
 |---|---|---|
 | Nonstop Debate | everyone | the GM's budget |
 | OBJECTION | the objector alone | 60 seconds |
 | Rebuttal | the objector and the person they named | 120 seconds, then the floor closes and the trial is back to open discussion |
+| Testimony | one participant at a time, in the order the GM set | 60 seconds a turn as offered; the GM may set 30 to 120 |
+| Panic Round | one participant at a time, in order | 15 seconds a turn (10 from 12 participants on) |
+| Closing Argument | the speaker the GM confirms or picks | 300 seconds |
 
-You do not choose whom you contradict: an Objection is aimed at whoever is speaking now, as the GM's voice room hears them (about a second of speech counts), or, when nobody is, at the last player who spoke in this trial - never a GM, a Monocub, a student whose death has been announced, yourself or another student of yours. The button names that person before you press it; if nobody has spoken yet, it says so and nothing is paid. Then you choose the Truth Bullet: **30 seconds**, counted down in the window. Until it is on the table the Objection's card says it is pending; the 60 seconds start when it is. Close the window or let the time run out and the Objection is withdrawn, its card says so, and what you paid is not given back. The GM can re-point a running Objection at somebody else. When the GM's browser has no voice room, the press asks you whom you contradict instead, whatever your own voice room is doing. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software. The GM's side decides whether an Objection takes the floor, and you are told what it cost when it does. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
+You do not choose whom you contradict: an Objection is aimed at whoever is speaking now, as the GM's voice room hears them (about a second of speech counts), or, when nobody is, at the last player who spoke in this trial - never a GM, a Monocub, a student whose death has been announced, yourself or another student of yours. The button names that person before you press it; if nobody has spoken yet, it says so and nothing is paid. Then you choose the Truth Bullet: **30 seconds**, counted down in the window. Until it is on the table the Objection's card says it is pending; the 60 seconds start when it is. Close the window or let the time run out and the Objection is withdrawn, its card says so, and what you paid is not given back. The GM can re-point a running Objection at somebody else. The GM can also **Overrule** the newest Objection - one pressed by mistake, or one that has nothing to do with what the speaker said: its card is stamped **Overruled by the GM**, what you paid stays paid, and the trial goes back to where it was, with the time it had then. The GM's bar can also skip a turn, take or give half a minute, end a mode or go back to the debate, and each of these is shown on screen (a card, or *GM: +30 s* on the trial's card). When the GM's browser has no voice room, the press asks you whom you contradict instead, whatever your own voice room is doing. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Who speaks in a mode is kept by the table; the module silences only the dead. The GM's side decides whether an Objection takes the floor, and you are told what it cost when it does. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
+
+The GM can also open three modes in which one person speaks at a time. In **Testimony** and a **Panic Round** everyone taking part speaks in turn: on your turn a window says *Your turn - n s*, with **Done** and **Pass**, and the screens name who speaks and who is next; if you are not connected when your turn comes, it passes. While somebody else speaks you listen: in Testimony you may object at the speaker, and only at them (the round then goes on at the next speaker); a Panic Round allows no Objection. In the **Closing Argument** you are asked whether you will sum up the case (**I'll sum up**, 30 seconds to say so); the GM confirms one of the volunteers or picks someone, and the speaker has 300 seconds. Anyone else may object at the speaker; after the exchange the GM decides who continues - the speaker, with the time they had left, or one who objected, with a new 300 seconds. A Closing comes once a trial and ends before the vote. In these three modes only the speaker presents evidence (*Only name can present right now.*).
 
 ### The vote
 
-Each living player receives a **ballot** - one per person, however many students you play; a student only a GM plays gets none. If you connect while a vote is open, your ballot comes as your browser loads. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote: it goes to the GMs' browsers alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means your browser keeps it and sends it when a GM connects. Close the ballot without voting and nothing is counted for you - ask the GM to send it again.
+Each living player receives a **ballot** - not a Monocub, and not the dead, a death nobody has found among them - one per person, however many students you play; a student only a GM plays gets none. If you connect while a vote is open, your ballot comes as your browser loads. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote: it goes to the GMs' browsers alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means your browser keeps it and sends it when a GM connects. Close the ballot without voting and nothing is counted for you - ask the GM to send it again.
 
 > [!IMPORTANT]
 > A conviction needs **more than half** of the ballots issued - for each name, when the vote asks for more than one. **A tie counts as a wrong vote** unless the table settles it.
 
 | Outcome | What happens |
 |---|---|
-| **Right** | The Blackened is executed. Every survivor takes a **Level Up** (pick 1). |
-| **Wrong** | The accused is executed. The Blackened stays anonymous and in play with a **Reinforced Level Up** (pick 3) and one new rule of their choosing, and every Monokuma fills their Despair pool. The Reinforced Level Up waits for the class's next one: its owner is told privately, and picks it together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if they die first. |
+| **Right** | The Blackened is executed when the trial ends. Every survivor takes a **Level Up** (pick 1). |
+| **Wrong** | The accused is executed when the trial ends. The Blackened stays anonymous and in play with a **Reinforced Level Up** (pick 3) and one new rule of their choosing, and every Monokuma fills their Despair pool. The Reinforced Level Up waits for the class's next one: its owner is told privately, and picks it together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if they die first. |
 
 A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name <ins>all of them</ins>.
 
-Everyone then sees one card, **THE VERDICT**: who was executed, or that nobody was, and whether the class got it right - it never names a Blackened the class missed. If it is your character, you are also told privately.
+Everyone then sees one card, **THE VERDICT**: who is sentenced, or that nobody is, and whether the class got it right - it never names a Blackened the class missed. The verdict kills nobody: the sentence is carried out when the trial ends, and everyone then sees **THE EXECUTION**. If it is your character, you are also told privately.
 
 ### Level Up
 
@@ -724,11 +731,11 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 ## 13. Death, and after
 
-- The dead take no actions and spend no Hope. You keep your sheet and your voice at the table.
+- The dead take no actions and spend no Hope. You keep your sheet and your voice at the table - in a Class Trial you listen (chapter 12).
 - Your voice after you die in an incident: while that incident runs you stay in the room you died in. Once it ends, or your body is found, or a living student from outside the incident walks in, you are moved: to the channel of the dead while nobody has been told of your death - the living do not hear you there and you do not hear them, only the other dead - and to the main room once your death is known. Outside an incident this happens at once. As a Monocub you talk as a Monocub.
 - Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found, as it was: the dead do not use, ready, throw away, put away or take out anything, and a Monocub's things are its body's too.
 - Going through a body's pockets: open its sheet while you stand in its room, alive, outside a Class Trial and an Eclipse, and press **Take** on a thing. Until the body is found, only those who know of the death can. A Take you cannot make is greyed, with the reason beside it.
-- If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the trial counts you among the living: you are sent a ballot, and a correct verdict's Level Up is yours too.
+- If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the table may take you for alive - but in a Class Trial your microphone is off like every dead student's, and you hold no ballot, so the table learns that somebody has died. A correct verdict's Level Up is still yours too.
 - The body stays where it fell and can be moved by the killer. The dead do not count as being in a room: no witnessing, no handovers.
 - The GM can end a chapter by revealing what every Truth Bullet really was, collecting them (Faint and Final Truth stay), and clearing the Faint traces.
 

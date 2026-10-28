@@ -29,14 +29,14 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
+import { isDeadForGm, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 // No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
-import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
+import { mastermindStore, doorCopy, mastermindUndecided, verdictStore } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -887,14 +887,20 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
     const executed = correct && !dead;
 
-    /* THE FINAL TRIAL'S EXECUTION IS NO BODY TO FIND (E11 fix r2-H1, 1.2.73; round 2's goal V2a,
-       S06-03). The verdict can be given after End the trial, and the death was recorded with the
-       clock's phase, Daily Life by then: two students walking past the Mastermind announced a body
-       found and held the game (seen by round 2's probe at bc20730). The trial's phase, as a chapter
-       verdict's execution passes it (vote.mjs `executeSentenced`, E11 fix r1-G1). Tier 2 "the Final
-       Trial's verdict given after End the trial is no body to find". */
+    /* THE MASTERMIND DIES WHEN THE TRIAL ENDS, AS ANY CONVICT (E70 C4, 28.10.2026; DC36, the plan's point (g)).
+       This killed the Mastermind in the verdict (E11 fix r2-H1 gave the death the trial's phase, so no walk past
+       the body found it). The sentence waits now for the trial's end (vote.mjs `executeAtExit`, which keeps that
+       phase), and lives in the GMs' store, never in the world's record, which every console reads and which
+       names nobody (the owner's Q2 answer, 27.10.2026; this file's header): `finalSentenced` under the verdict's
+       `at` (`finalAt`). A verdict given after End the trial is carried out at once, below. */
+    const at = Date.now();
     if (executed) {
-        await killCharacter(mastermind, { phase: "classTrial" });
+        try {
+            await verdictStore.whenHydrated();
+            await verdictStore.patch(RECORD, { finalAt: at, finalSentenced: [mastermind.id] });
+        } catch (err) {
+            error("Could not keep the Final Trial's sentence for the trial's end", err);
+        }
     }
 
     await announce({
@@ -920,7 +926,7 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
      * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
      * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
      * into the next season's first trial as well, since a reset's clock step merged over the flag
-     * (season-setup.mjs `wipeSeason`). Written after the kill and the cards, and before the Level
+     * (season-setup.mjs `wipeSeason`). Written after the sentence and the cards, and before the Level
      * Ups that waited, whose windows can stay open for minutes: `verdictApplied` closes the
      * ordinary verdict's button for that time too. The record names nobody - no `executedIds`, no
      * `correct` - because `trialProgress` is a world setting every client reads and the
@@ -933,11 +939,20 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
         const { setTrialProgress } = await import("./vote.mjs");
         await setTrialProgress({
             verdictApplied: true,
-            verdict: { stage: "done", final: true, by: game.user.id, at: Date.now(), done: [], failed: [] }
+            verdict: { stage: "done", final: true, by: game.user.id, at, done: [], failed: [], sentencePending: executed }
         });
         await setFinalTrial(false);
     } catch (err) {
         error("Could not record the Final Trial's verdict in the trial's progress", err);
+    }
+    // Given after End the trial: no exit is left to carry the sentence out, so it is carried out now (E70 C4).
+    if (executed && getClock().phase !== "classTrial") {
+        try {
+            const { executeAtExit } = await import("./vote.mjs");
+            await executeAtExit();
+        } catch (err) {
+            error("Could not carry out the Final Trial's sentence", err);
+        }
     }
 
     /*
@@ -946,11 +961,12 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
      * class's next correct one, and a season can end on the Final Trial before there is one:
      * the season's secrets are out here anyway, and a table that keeps advancement across
      * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
-     * of its own - and after the kill, which takes an executed Mastermind's.
+     * of its own - and never to a Mastermind sentenced to die (E70 C4: alive until the trial ends, whose
+     * kill drops their row).
      */
     try {
         const { runAdvancementBatch } = await import("./level-up.mjs");
-        await runAdvancementBatch(livingStudentsForGm(), null);
+        await runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null);
     } catch (err) {
         error("Could not open the Level Ups that waited for the Final Trial", err);
     }

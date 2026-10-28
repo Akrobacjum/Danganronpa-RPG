@@ -1051,6 +1051,43 @@ export function registerPopups() {
        with the opening's cards deleted and this hook absent, the killer's notice stayed, and
        after a second murder there were two. */
     Hooks.on("deleteChatMessage", onDeleteChatMessage);
+    Hooks.on("updateChatMessage", onUpdateChatMessage);
+}
+
+/**
+ * The card flag a GM sets on an Objection it overruled (E70 C2): trial.mjs `TRIAL_FLAGS.overruled` is this name. Here,
+ * not there, because trial.mjs imports this file and the close below reads it.
+ */
+export const OVERRULED_FLAG = "objectionOverruled";
+
+/** The stamp an overruled Objection's card carries, in the chat log and on the notice it leaves behind. */
+export function overruledStamp() {
+    const stamp = document.createElement("div");
+    stamp.className = "drpg-overruled-stamp";
+    stamp.textContent = game.i18n.localize("DRPG.Trial.overruledStamp");
+    return stamp;
+}
+
+/**
+ * AN OVERRULED OBJECTION LEAVES EVERY SCREEN (E70 C2, 27.10.2026; amend 5 (b), amend 1). OBJECTION! is a sticky card,
+ * closed only by its reader, so an Objection the GM overruled stayed in the middle of every screen arguing a point the
+ * trial had already put aside. When a GM's card gains the overruled mark, each of its cards here gets the stamp and is
+ * closed as by code - its notice history entry stays, unread, with the stamp in the snapshot it keeps of the card as
+ * shown (`watchCard`, R293). After the update's other listeners, so trial.mjs's redraw of the card's words in place
+ * cannot take the stamp off before the snapshot is kept. A player's card gains nothing here: the mark is a GM's.
+ */
+export function onUpdateChatMessage(message, change) {
+    const flags = change?.flags?.[MODULE_ID];
+    if (!flags || !(OVERRULED_FLAG in flags) || !message?.getFlag?.(MODULE_ID, OVERRULED_FLAG)) return;
+    if (!message.author?.isGM) return;
+    queueMicrotask(() => {
+        for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
+            if (card.dataset.drpgMessage !== message.id || card.classList.contains("leaving")) continue;
+            const body = card.querySelector(".drpg-popup-body");
+            if (body && !body.querySelector(".drpg-overruled-stamp")) body.append(overruledStamp());
+            card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "code" } }));
+        }
+    });
 }
 
 /**

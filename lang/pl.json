@@ -552,7 +552,10 @@
         "discussion": "Dyskusja",
         "debate": "Debata",
         "objection": "Objection",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Zeznanie",
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "trialTooltip": "Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
@@ -560,7 +563,8 @@
       "trialVersus": "kontra {who}",
       "controlFailed": "Ta operacja na zegarze nie doszła do końca. Powód podaje Dziennik debugowania w panelu GM-a.",
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
-      "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
+      "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a.",
+      "trialSpeaks": "Mówi {name}"
     },
     "Passage": {
       "why": {
@@ -1120,7 +1124,7 @@
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
       "whoWasAccused": "Kogo oskarżyło głosowanie?",
-      "verdictNote": "Trafnie: Mastermind zostaje stracony, a killing game dobiega końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie - stół widzi, że gra nigdy nie była tym, na co wyglądała.",
+      "verdictNote": "Trafnie: Mastermind zostaje stracony, gdy rozprawa się skończy, a killing game dobiega końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie - stół widzi, że gra nigdy nie była tym, na co wyglądała.",
       "correctlyNamed": "Wskazali Masterminda",
       "notCorrectlyNamed": "Nie wskazali",
       "defeatedBanner": "MASTERMIND POKONANY",
@@ -1155,7 +1159,7 @@
       "newTrialConfirm": "Ten rozdział ma już werdykt. Otworzyć nowy Class Trial? Drugi werdykt to kolejna egzekucja i kolejna runda Level Upów.",
       "newTrialRefused": "Ten rozdział ma już werdykt, więc Class Trial nie został otwarty ponownie. Drugi Class Trial otwiera Zacznij Class Trial, które najpierw pyta.",
       "eclipseFirst": "Trwa Eclipse, więc nic nie zostało otwarte. Najpierw zakończ Eclipse.",
-      "nowMovedOn": "Debata przesunęła się już dalej, zanim twoje Zakończ ten tryb teraz dotarło do głównego GM-a, więc niczego nie zmieniło. Naciśnij je ponownie, jeśli ten tryb wciąż ma się zakończyć.",
+      "nowMovedOn": "Tura już się zmieniła, więc Pomiń niczego nie zmieniło. Naciśnij je ponownie, jeśli ta tura wciąż ma się zakończyć.",
       "incidentTitle": "Incydent jest wciąż otwarty",
       "incidentOpen": "Incydent morderstwa jest wciąż otwarty. Jego Blackened trafiają do rejestru dopiero przy zamknięciu, a głosowanie i werdykt czytają rejestr. Zamknąć go teraz czy kontynuować przy otwartym?",
       "incidentKeep": "Kontynuuj przy otwartym",
@@ -1173,6 +1177,7 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+      "endTrialExecutes": "Zakończenie rozprawy wykonuje wyrok: {names}.",
       "endTrialScene": "Żyjący uczniowie, którzy brali udział, idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Uczeń bez zaznaczenia nie jest przenoszony. Tokeny zrobione przez moduł w sali rozpraw zostają usunięte, twoje ukryte.",
       "endTrialRoom": "Pokój",
       "endTrialMoves": {
@@ -1185,35 +1190,85 @@
       "lead": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial: faza się zmienia, stół dostaje ogłoszenie, a Class Trial otwiera się dyskusją.",
         "openDebate": "Class Trial jest w fazie dyskusji. Otwórz debatę, gdy pokój jest gotów się spierać; gdy spór się wyczerpie, wyślij karty z okna Głosowanie.",
+        "openAgain": "GM oddalił Objection po jego wymianie i Class Trial jest w fazie dyskusji. Otwórz debatę ponownie z czasem, który jej został, albo wyślij karty z okna Głosowanie.",
+        "reopen": "Wymiana zamknęła debatę i Class Trial jest w fazie dyskusji. Otwórz debatę ponownie z tym samym pytaniem i budżetem albo wyślij karty z okna Głosowanie.",
         "closeDebate": "Debata jest otwarta. Zamknij ją, gdy spór się wyczerpie, a potem wyślij karty z okna Głosowanie.",
-        "now": "Sprzeciw albo replika ma głos. Kończy się sam; Zakończ ten tryb teraz ucina go wcześniej.",
+        "now": "Sprzeciw albo replika ma głos. Kończy się sam; Pomiń na pasku ucina go wcześniej.",
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt, potem zakończ rozdział.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt, potem zakończ rozdział.",
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
-        "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału."
+        "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+        "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy.",
+        "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę.",
+        "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
         "objection": "OBJECTION",
-        "rebuttal": "Rebuttal"
+        "rebuttal": "Rebuttal",
+        "testimony": "Zeznanie",
+        "panic": "Panic Round",
+        "closing": "Closing Argument"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
       "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; OBJECTION! gracza przejmuje głos.",
       "holdingObjection": "{who} ma głos, objection wobec: {target} - {seconds} s. Nikt inny nie mówi; rebuttal następuje automatycznie.",
       "holdingObjectionPending": "{who} wnosi objection wobec: {target} i wybiera Truth Bullet - {seconds} s. Przy zerze zostanie wycofane.",
       "repoint": "Przekieruj",
+      "bar": {
+        "label": "Sterowanie GM-a",
+        "skip": "Pomiń",
+        "minus": "-30 s",
+        "plus": "+30 s",
+        "overrule": "Oddalenie",
+        "endMode": "Zakończ ten tryb",
+        "notTrial": "Tylko w trakcie Class Trialu.",
+        "noMode": "Nic nie trwa: najpierw otwórz debatę.",
+        "noTurn": "Debata nie ma tury do pominięcia: Zakończ ten tryb ją zamyka.",
+        "noTime": "Debacie nie zostało już czasu do odjęcia.",
+        "inDebate": "Debata już trwa.",
+        "noObjection": "Tylko w trakcie Objection.",
+        "noAdjust": "Zegara tego trybu nie da się przesunąć.",
+        "noOverrule": "Nie ma Objection do oddalenia.",
+        "inRound": "Runda nie ma debaty, do której można wrócić: Zakończ ten tryb ją kończy.",
+        "minusSeconds": "-{seconds} s",
+        "plusSeconds": "+{seconds} s",
+        "inClosing": "Closing Argument nie ma debaty, do której można wrócić: Zakończ ten tryb go kończy."
+      },
+      "gmStepTitle": "GM wkracza",
+      "turnSkipped": "Tura pominięta: {name}.",
+      "modeEnded": "GM kończy tryb {mode}.",
+      "gmNoteAdjust": "GM: {seconds} s",
+      "gmNoteBack": "GM: powrót do debaty",
+      "gmNoteOverrule": "GM: oddalenie",
+      "againAfterOverrule": "Otwórz debatę ponownie (zostało {seconds} s)",
+      "againSame": "Otwórz debatę ponownie",
+      "topic": "Pytanie debaty (opcjonalnie)",
+      "topicHint": "O czym jest ta debata? Na przykład: kto był w sali gimnastycznej po dziesiątej?",
+      "topicLine": "Pytanie: {topic}",
+      "trialTime": "Czas Class Trial: {used} z {budget} min (szacunkowo)",
+      "trialTimeNoBudget": "Czas Class Trial: {used} min (szacunkowo)",
+      "overrule": {
+        "title": "Oddalenie",
+        "card": "GM oddala Objection: {name}. Koszt zostaje, a rozprawa wraca tam, gdzie była: {state}.",
+        "cardOver": "GM oddala Objection: {name}. Koszt zostaje.",
+        "over": "Wymiana już się skończyła, więc nic więcej się nie zmienia.",
+        "onlyNewest": "Oddalić można tylko najnowsze Objection.",
+        "trialOver": "Ta rozprawa już się skończyła, więc jej Objection nie da się oddalić.",
+        "stateDebate": "Nonstop Debate, zostało {seconds} s",
+        "stateRebuttal": "Rebuttal: {who} i {target}, zostało {seconds} s"
+      },
       "repointTo": "Wymierz Objection w",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
-      "modeNote": "To kończy się samo. Przyciskami poniżej skróć to, dodaj pół minuty albo wróć od razu do otwartej debaty.",
-      "extend": "+30 sekund",
+      "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje pół minuty albo wraca od razu do otwartej debaty.",
+      "startBusy": "Debata nie może się zacząć, gdy głos ma runda albo Closing Argument. Najpierw zakończ ten tryb.",
       "sectionTrial": "Class Trial",
       "sectionDebate": "Debata",
       "sectionVote": "Głosowanie, werdykt, rozdział",
-      "endNow": "Zakończ ten tryb teraz",
       "openDebate": "Otwórz debatę",
       "closeDebate": "Zamknij debatę",
       "debateOpened": "Nonstop Debate otwarta. Przedstawienie Truth Bulleta to teraz Objection: zabiera głos.",
@@ -1227,6 +1282,7 @@
       "startTrialHall": "Każda przeglądarka przechodzi do {hall}; uczniowie zaznaczeni niżej dostają tam token, a koniec rozprawy go zabiera.",
       "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
       "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
+      "tableRuleVoices": "Mikrofony zmarłych są wyłączone do końca rozprawy, także tych, których ciał nikt nie znalazł. Monocub mówi tylko wtedy, gdy nie trwa żaden tryb, a od głosowania słucha. Skazani umierają, gdy rozprawa się kończy.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
       "trialBudget": {
         "one": "{n} uczeń ma na Class Trial akcje tej pory dnia.",
@@ -1234,7 +1290,78 @@
         "many": "{n} uczniów ma na Class Trial akcje tej pory dnia.",
         "other": "{n} uczniów ma na Class Trial akcje tej pory dnia."
       },
-      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
+      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty.",
+      "round": {
+        "passes": "{name} pasuje.",
+        "over": "Koniec: {mode}.",
+        "busy": "Runda nie może się zacząć, gdy głos ma Objection albo inna runda.",
+        "tooShort": "Tura nie może być krótsza, niż pozwala ta runda.",
+        "tooLong": "Tura nie może być dłuższa, niż pozwala ta runda.",
+        "tooShortSeconds": "Tura nie może być krótsza niż {min} s.",
+        "tooLongSeconds": "Tura nie może być dłuższa niż {max} s.",
+        "nobody": "Nikt nie może zabrać głosu: żaden gracz uczestnika nie jest połączony.",
+        "noTurn": "Teraz nie trwa żadna runda.",
+        "stale": "Runda poszła już dalej.",
+        "notSpeaker": "To nie jest tura tej postaci.",
+        "notDue": "Ta tura jeszcze się nie skończyła.",
+        "notStarted": "Runda się nie zaczęła.",
+        "startedLine": "Po {seconds} s, w tej kolejności: {names}."
+      },
+      "roundWindow": {
+        "intro": "Każdy uczestnik mówi po kolei. Zmień kolejność przed startem: pierwszy na liście mówi pierwszy.",
+        "seconds": "Sekundy na turę",
+        "range": "Od {min} do {max} s na turę.",
+        "length": "Runda: {length}, mówców: {n}.",
+        "draw": "Losuj ponownie",
+        "up": "W górę",
+        "start": "Zacznij",
+        "nobody": "Nikt teraz nie bierze udziału w rozprawie: runda potrzebuje żywego ucznia połączonego gracza."
+      },
+      "holdingRound": "{mode}: mówi {who} - {seconds} s. Następny: {next}.",
+      "holdingRoundLast": "{mode}: mówi {who} - {seconds} s, ostatnia tura.",
+      "startTestimony": "Zeznanie",
+      "startPanic": "Panic Round",
+      "endRound": "Zakończ rundę",
+      "closing": {
+        "opened": "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
+        "speaks": "Closing Argument wygłasza {name}.",
+        "continues": "{name} kontynuuje Closing Argument ({time}).",
+        "over": "Closing Argument dobiegł końca.",
+        "already": "Ta rozprawa miała już swój Closing Argument.",
+        "busy": "Closing Argument nie może się zacząć, gdy głos ma Objection albo runda.",
+        "notVolunteering": "Teraz nikt nie zgłasza się do Closing Argument.",
+        "noChoice": "Closing Argument nie czeka teraz na mówcę.",
+        "noDrawn": "Nikogo nie wylosowano: wybierz mówcę.",
+        "absent": "Ten gracz nie jest połączony: wybierz kogoś innego.",
+        "notParticipant": "Ta postać nie bierze udziału w tej rozprawie.",
+        "noDecision": "Teraz nie ma nic do zdecydowania.",
+        "notInExchange": "Dalej może mówić tylko mówca albo ktoś, kto zgłosił Objection w tej wymianie.",
+        "voteOpen": "Głosowanie się zaczęło: Closing Argument dobiegł końca.",
+        "nothingToResume": "Nikt nie ma już czasu w Closing Argument.",
+        "waitsForGm": "Closing Argument czeka na twój wybór, nie na zegar.",
+        "noTime": "To zakończyłoby czas mówcy: użyj Pomiń albo Zakończ ten tryb.",
+        "volunteers": "Zgłoszeni: {n}",
+        "confirming": "GM zatwierdza mówcę.",
+        "nobody": "Nikt się nie zgłosił. GM wybiera mówcę albo przechodzi do głosowania.",
+        "picking": "GM wybiera następnego mówcę.",
+        "deciding": "GM decyduje, kto kontynuuje Closing Argument.",
+        "notDone": "Closing Argument się nie zmienił.",
+        "resume": "Wznów Closing Argument: {name} ({time})",
+        "noVolunteers": "jeszcze nikt",
+        "gmVolunteers": "Closing Argument - {seconds} s na zgłoszenia. Zgłoszeni: {names}.",
+        "gmDrawn": "Wylosowano: {name}. Zgłoszeni: {names}.",
+        "confirm": "Zatwierdź",
+        "pickOther": "Wybierz kogoś innego",
+        "pick": "Wybierz mówcę",
+        "whoContinues": "Kto kontynuuje Closing Argument?",
+        "volunteered": "zgłosił(a) się",
+        "alreadySpoke": "Już mówił(a) w Closing Argument",
+        "pickLabel": "Kto wygłasza Closing Argument",
+        "holding": "Closing Argument: mówi {who} - zostało {seconds} s.",
+        "inExchange": "Objection w Closing Argument: po wymianie decydujesz, kto mówi dalej."
+      },
+      "startClosing": "Closing Argument",
+      "endClosing": "Zakończ Closing Argument"
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -1270,7 +1397,9 @@
       "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
       "trialDiscussionMeta": "Omówcie to - GM otworzy debatę",
       "trialObjectionFloor": "{who} ma głos",
-      "afterVerdict": "Werdykt zapadł"
+      "afterVerdict": "Werdykt zapadł",
+      "trialNext": "Następny: {name}",
+      "trialLastTurn": "Ostatnia tura"
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -1402,12 +1531,17 @@
       "verdictIntro": "Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
       "executed": "Kto zostaje stracony",
       "blackened": "Kto naprawdę jest Blackened",
-      "verdictNote": "Trafnie: Blackened zostaje stracony, ocaleni dostają Level Up. Błędnie, a remis liczy się jak błąd: stracony zostaje oskarżony, Blackened zostaje w grze z Reinforced Level Up i nową zasadą, a każdy Monokuma napełnia swój Despair.",
+      "verdictNote": "Trafnie: Blackened zostaje stracony, gdy rozprawa się skończy, a ocaleni dostają Level Up. Błędnie, a remis liczy się jak błąd: stracony, gdy rozprawa się skończy, zostaje oskarżony, Blackened zostaje w grze z Reinforced Level Up i nową zasadą, a każdy Monokuma napełnia swój Despair.",
       "gotItRight": "Trafili",
       "gotItWrong": "Pomylili się",
       "correctSummary": "Uczniowie wskazali Blackened.",
       "wrongSummary": "Uczniowie wskazali niewłaściwą osobę.",
       "wasExecuted": "Egzekucja: {name}.",
+      "executionPending": "Egzekucja, gdy rozprawa się skończy: {names}.",
+      "executionNow": "Wyrok zostaje wykonany teraz: {names}.",
+      "executionCardTitle": "EGZEKUCJA",
+      "executionFailed": "Nie udało się wykonać wyroku na: {names}. Moduł spróbuje ponownie przy następnej zmianie fazy i po przeładowaniu strony przez GM-a; jeśli znów się nie uda, oznacz śmierć w oknie graczy.",
+      "finalSentenceMissing": "Werdykt Final Trial czeka na wykonanie, ale ta przeglądarka nie wie, kogo skazano. Wczytaj tu kopię zapasową GM-ów albo wydaj werdykt Final jeszcze raz.",
       "levelUpGranted": {
         "one": "{n} ocalały dostał tu swój Level Up: {kind}.",
         "few": "{n} ocalałych dostało tu swój Level Up: {kind}.",
@@ -1579,6 +1713,7 @@
       "refundUnheld": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt MG nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
       "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
+      "authorsCopy": "Znasz ten ślad: jest na twojej karcie.",
       "trailNote": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",
       "trailFailed": "Nie zostało nic użytecznego.",
       "bodyMoved": "Ciało przeniesiono do: {room}.",
@@ -1903,6 +2038,7 @@
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",
       "foundBy": "Znalazł",
+      "revealedByMonokuma": "Ujawnione przez Monokumę",
       "tooThin": "Znaleziono tylko {found} Key Remnants. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
       "whoHasWhat": "Kto co ma",
       "student": "Uczeń",
@@ -2357,18 +2493,48 @@
       "objectionFailed": "Twoje Objection nie przeszło. Naciśnij OBJECTION! jeszcze raz albo powiedz GM-owi.",
       "logRefused": "odrzucone",
       "logWithdrawn": "wycofane",
+      "logOverruled": "oddalone przez GM-a",
+      "logNoTopic": "Bez pytania debaty",
+      "overruledStamp": "Objection oddalone przez GM-a",
       "objectionPaid": "Twoje Objection przejmuje głos. {what}",
       "objectionRefusedWhisper": "Twoje Objection nie przejęło głosu: {why} Nic ci nie zabrano, a karta jest oznaczona jako odrzucona.",
       "objectionNotYours": "To Objection wysłał ktoś, kto nie jest właścicielem postaci {name}, więc nikt nie przejął głosu.",
       "objectionNoItem": "To Objection nie wskazywało żadnego dowodu, więc nikt nie przejął głosu.",
       "deadCannotPresent": "{name} nie żyje, a zmarli nie przedstawiają dowodów i nie wnoszą Objection.",
+      "presentByButton": "Dowody przedstawia się przyciskiem Present na karcie postaci, a kartę publikuje przeglądarka MG. Ta karta nie powstała w ten sposób, więc nikomu jej nie pokazano.",
       "presented": "{name} trafia na stół.",
+      "presentOnly": "Teraz dowody może przedstawiać tylko {name}.",
+      "presentNobody": "Teraz nikt nie przedstawia dowodów.",
+      "presentWithAnalysis": "Pokaż z wynikiem mojego Analyze",
+      "presentWithoutNote": "Bez zaznaczenia karta i kopia każdego pokazują dowód jako nigdy nieanalizowany: bez odczytu i bez typu, jaki się okazał.",
+      "presentCopy": "{who} pokazuje {name}. Kopia, tak jak ją pokazano, jest teraz na twojej karcie.",
       "actionsLocked": "Class Trial trwa. Dostępne są tylko Analyze i Objection - oraz twoje Hope Calls.",
       "moveLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
       "callsLocked": "Class Trial trwa. Despair Calls czekają na jego koniec.",
       "objectionSelf": "Nie możesz wnieść objection wobec siebie.",
       "objectionRebuttalOutsider": "Rebuttal można wymierzyć tylko w dwójkę, która już ma głos.",
-      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole."
+      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole.",
+      "objectionOutside": "Objection tylko w trakcie Class Trial.",
+      "objectionNoneInMode": "Bez Objection w trybie {mode}.",
+      "objectionSpeakerOnly": "W trybie {mode} Objection można zgłosić tylko wobec osoby, która mówi.",
+      "turn": {
+        "title": "Twoja tura - {seconds} s",
+        "body": "{mode}: masz głos. Gotowe kończy twoją turę; Pasuję oddaje ją następnemu mówcy.",
+        "done": "Gotowe",
+        "pass": "Pasuję",
+        "keep": "Mówię dalej",
+        "closingPassEarly": "Pasuję w pierwszych 30 s oddaje wybór GM-owi; potem kończy Closing Argument.",
+        "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
+      },
+      "claim": {
+        "body": "Closing Argument: podsumujesz sprawę? {seconds} s na zgłoszenie; GM zatwierdza mówcę.",
+        "yes": "Podsumuję",
+        "no": "Nie ja",
+        "counted": "Zgłosiłeś(-aś) się do Closing Argument."
+      },
+      "objectionClosingNobody": "Teraz nikt nie mówi w Closing Argument.",
+      "objectionClosingSpeaker": "W Closing Argument Objection można zgłosić tylko wobec osoby, która mówi.",
+      "objectionClosingDecision": "Po wymianie GM decyduje, kto kontynuuje Closing Argument: mówca czy ktoś, kto zgłosił Objection."
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -3252,6 +3418,8 @@
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
         "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
+        "trial.enter": "Głosy Class Trial ustawiane przy jej otwarciu lub końcu",
+        "trial.record": "Zapis przebiegu Class Trial przez GM-a, wykonywany przez głównego GM-a",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
@@ -3267,13 +3435,17 @@
         "trial.evidence": "Twój Truth Bullet do Objection",
         "trial.withdraw": "Wycofanie Twojego Objection",
         "floor.repoint": "Przekierowanie Objection",
+        "trial.gm": "Zmiana przebiegu debaty przez GM-a, wykonywana przez głównego GM-a",
         "murder.openingAsk": "Twój rzut otwarcia",
         "murder.openingCancel": "Odwołanie rzutu otwarcia",
         "bridge.done": "Odpowiedź GM-a na twoją prośbę",
         "bridge.gmReady": "Powrót GM-a do stołu",
         "gm.call": "Pytanie do GM-a",
         "bridge.refused": "Odmowa GM-a na twoją prośbę",
-        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła"
+        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
+        "trial.turn": "Twoja tura w rundzie",
+        "trial.claim": "Zgłoszenie do Closing Argument",
+        "trial.present": "Przedstawienie Truth Bulletu"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -3915,6 +4087,7 @@
       "observeBusy": "GM wciąż opisuje, co znalazło to Observe. Przerzuć je, gdy wynik już będzie. Nic nie zostało wydane.",
       "diceChanged": "Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Przerzuć go za chwilę. Nic nie zostało wydane.",
       "trailStands": "Kości przepisano, ale podłożony ślad już leży w pokoju - przerzut go nie podniesie. Zapytaj GM-a, czy ma zniknąć.",
+      "authorsCopyBack": "Nowy rzut zabiera Truth Bullet śladu, który po tobie został.",
       "stealStands": "Kości przepisano, ale chwila nie. Twoja ręka już była w cudzej kieszeni, a odkładanie czegoś z powrotem właściciel by zobaczył.",
       "friskStands": "Kości przepisano, ale chwila nie. Cały pokój widział, jak poszło.",
       "rummageStands": "Kości przepisano, ale chwila nie. Ta osoba już wie, czy udało się dobrze przyjrzeć.",
@@ -4051,6 +4224,7 @@
       "mainRoom": "główny pokój",
       "deadRoom": "kanał zmarłych",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
+      "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -4072,6 +4246,7 @@
         "label": "Głos",
         "speaking": "Mówi",
         "nobody": "Nikt nie mówi",
+        "hasFloor": "ma głos",
         "state": {
           "connecting": "Łączenie",
           "disconnected": "Rozłączono",
@@ -4103,7 +4278,12 @@
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
         "connecting": "Trwa dołączanie do kanału głosowego.",
-        "connected": "Połączono z kanałem głosowym."
+        "connected": "Połączono z kanałem głosowym.",
+        "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
+        "cubSpeak": "Dyskusja: możesz mówić.",
+        "cubListen": "Tryb: {mode}. Słuchasz.",
+        "cubVote": "Głosowanie: słuchasz.",
+        "ownCase": "Słuchasz: to rozprawa w twojej sprawie."
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -5795,6 +5975,10 @@
           "label": "Rebuttal",
           "hint": "Zaczyna się Rebuttal: mówią tylko autor Objection i osoba, którą wskazał, dopóki głos nie wróci do wszystkich. Słyszy cały stół."
         },
+        "overrule": {
+          "label": "Oddalenie",
+          "hint": "GM oddala Objection: rozprawa wraca tam, gdzie była, koszt zostaje. Słyszy cały stół."
+        },
         "voteOpen": {
           "label": "Głosowanie się otwiera",
           "hint": "Słyszy cały stół."
@@ -5803,9 +5987,29 @@
           "label": "Werdykt",
           "hint": "Słyszy cały stół. Najbardziej uroczysty moment rozdziału i ostatni, który powinien być cichy."
         },
+        "execution": {
+          "label": "Egzekucja",
+          "hint": "Rozprawa się kończy i wyrok zostaje wykonany na osobie wskazanej w werdykcie. Słyszy cały stół."
+        },
+        "trialClose": {
+          "label": "Koniec rozprawy",
+          "hint": "Class Trial się kończy i wszyscy wracają do szkoły. Słyszy cały stół."
+        },
         "levelUp": {
           "label": "Level Up",
           "hint": "Słyszy ocalały, któremu się przytrafił. Jedyna nagroda w całej grze."
+        },
+        "panicStart": {
+          "label": "Panic Round",
+          "hint": "Zaczyna się Panic Round: wszyscy po kolei, po kilka sekund. Słyszy cały stół."
+        },
+        "closingStart": {
+          "label": "Closing Argument",
+          "hint": "Zaczyna się Closing Argument: kto podsumuje sprawę? Słyszy cały stół."
+        },
+        "keyReveal": {
+          "label": "Ujawnienie Monokumy",
+          "hint": "Monokuma ujawnia Key Remnant, którego nikt nie znalazł. Słyszy każdy uczestnik rozprawy."
         }
       }
     },
@@ -6011,6 +6215,8 @@
         "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
+        "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
+        "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
         "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
       },
       "row": {
@@ -6128,6 +6334,23 @@
       "restoredClamped": {"one": "{n} wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.", "few": "{n} wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "many": "{n} wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "other": "{n} wiersza miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą."},
       "moveTraces": "Przenieś je do rejestru",
       "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego śladu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
+    },
+    "Reveal": {
+      "section": "Brakujące Key Remnanty",
+      "left": "Do ujawnienia: {n}",
+      "button": "Ujawnij",
+      "noTrace": "nie ma go na mapie",
+      "title": "Ujawnienie Monokumy",
+      "intro": "Każdy uczestnik rozprawy dostaje {name} jako znaleziony Key Remnant. Analyze kosztuje tyle co zawsze.",
+      "textLabel": "Co czytają gracze",
+      "beyondPaid": "Za ten Key Remnant nie pobrano Despair. Ujawnić mimo to?",
+      "told": "Monokuma ujawnia Key Remnant, którego nie udało ci się znaleźć.",
+      "defaultName": "Key Remnant",
+      "notHydrated": "Plan Key Remnantów jeszcze się wczytuje. Spróbuj za chwilę.",
+      "notMissing": "Ten Key Remnant nie jest brakujący: ktoś go znalazł albo Monokuma już go ujawnił.",
+      "pastPaid": "Ujawniono już każdy Key Remnant, za który pobrano Despair. Potwierdź, aby ujawnić kolejny.",
+      "noText": "Najpierw wpisz, co przeczytają gracze na tym Key Remnancie.",
+      "notDone": "Key Remnant nie został ujawniony."
     }
   }
 }

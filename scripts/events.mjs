@@ -19,7 +19,7 @@
  * rows, so that theme stays exactly the look it was.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
@@ -27,7 +27,7 @@ import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor, locateActor } from "./movement.mjs";
-import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
     incidentWitness, isDeceased } from "./settings.mjs";
@@ -339,15 +339,18 @@ function afterVerdictCard(clock) {
         const progress = trialProgress();
         const verdict = progress.chapter === clock.chapter ? progress.verdict : null;
         if (!Array.isArray(verdict?.done) || !verdict.done.includes("card")) return null;
-        const executed = (verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        const executed = (verdict.sentenced ?? verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        // The sentence waits for the trial's end (E70 C4): executed once the execution is stamped, until then the
+        // card's own line (vote.mjs `postVerdictCard`).
+        const names = executed.map(actor => actor.name).join(", ");
         return {
             kind: "trial",
             title: game.i18n.localize("DRPG.Events.afterVerdict"),
             sub: game.i18n.localize(verdict.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong"),
             // `cardElement` writes text, not markup, so the names go in as they are.
-            meta: executed.length
-                ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
-                : game.i18n.localize("DRPG.Vote.nobodyExecuted")
+            meta: !executed.length ? game.i18n.localize("DRPG.Vote.nobodyExecuted")
+                : progress.executedAt ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
+                    : game.i18n.format("DRPG.Vote.executionPending", { names })
         };
     } catch {
         return null;
@@ -367,6 +370,33 @@ function afterVerdictCard(clock) {
  * `votesIn` and `pendingVoters` answer on that client alone. HOW anybody voted
  * is not here and is not anywhere: that is the one thing the guide keeps.
  */
+/*
+ * THE GM'S CHANGE OF THE CLOCK, TOLD FOR A FEW SECONDS (E70 C1, 27.10.2026; E70-07). -30 s, +30 s and Back to the
+ * debate change the numbers every screen counts, and a player who looks up to find the clock thirty seconds richer has
+ * nobody to ask why: the floor carries the GM's note (`gmNote`, floor-machine.mjs), and the trial's card says it -
+ * "GM: +30 s" - for `TRIAL.modes.gm.noteSeconds`, counted on this browser's own clock from the moment it first saw the
+ * note, so a browser that loads late or runs a minute off still shows it for the same ten seconds. Skip and End this
+ * mode are told in chat instead (trial-floor.mjs `postFloorCard`). The panel is drawn again when the note runs out.
+ */
+const notesSeen = new Map();
+let noteTimer = null;
+
+export function gmNoteText(floor) {
+    const note = floor?.gmNote;
+    if (!note?.key || !note.at) return null;
+    const id = `${note.key}|${note.at}`;
+    if (!notesSeen.has(id)) {
+        if (notesSeen.size > 20) notesSeen.clear();
+        notesSeen.set(id, Date.now());
+    }
+    const left = TRIAL.modes.gm.noteSeconds * 1000 - (Date.now() - notesSeen.get(id));
+    if (left <= 0) return null;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { noteTimer = null; renderEvents(); }, left + 50);
+    const seconds = Number(note.seconds) || 0;
+    return game.i18n.format(note.key, { seconds: seconds > 0 ? `+${seconds}` : String(seconds) });
+}
+
 export function trialCard(clock) {
     try {
         if (clock.phase !== "classTrial") return null;
@@ -385,10 +415,13 @@ export function trialCard(clock) {
             };
         }
 
-        const after = afterVerdictCard(clock);
+        /* THE FLOOR BEFORE THE VERDICT'S CARD (E70 fix p1-G3; the review's BEH-5 = E70P1-R13 = E70P1-R09 goal). Since E70
+           C4 a verdict ends nothing, and the GM can open a debate after it: the card after the verdict stood instead, so
+           the debate's question and "GM: +30 s" were shown nowhere for the rest of the trial. A running floor is the card. */
+        const floor = trialFloor();
+        const after = floor ? null : afterVerdictCard(clock);
         if (after) return after;
 
-        const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
         /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
@@ -398,7 +431,10 @@ export function trialCard(clock) {
            (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
            Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
            row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
-        let speaker = null;
+        /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
+           as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
+           drawn as text. An Objection and its rebuttal keep the speaker's name there. */
+        let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
         let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
             ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
         if (floor?.mode === FLOOR_MODES.objection) {
@@ -407,12 +443,25 @@ export function trialCard(clock) {
         } else if (floor?.mode === FLOOR_MODES.rebuttal) {
             speaker = floorTarget(floor)?.name ?? unknown;
             meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
+            /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
+               is the last turn, from the order frozen at the round's start. */
+            speaker = floorHolder(floor)?.name ?? unknown;
+            const order = floor.round?.order ?? [];
+            const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
+            meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
+                : game.i18n.localize("DRPG.Events.trialLastTurn");
+        } else if (floor?.mode === FLOOR_MODES.closing) {
+            // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
+            speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
+            meta = closingLine(floor) ?? meta;
         }
         return {
             kind: "trial",
             title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
             sub: speaker,
             meta,
+            note: gmNoteText(floor),
             // The debate's countdown, only while a floor is open: a trial in session
             // with nobody holding the floor has no clock running (see `paintTrialClock`).
             clock: Boolean(floor)

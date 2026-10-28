@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.89, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.90, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -81,7 +81,7 @@ Trzy fazy:
 | Faza | Czym jest |
 |---|---|
 | **Daily Life** | Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz. |
-| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nie znajdziesz, tego nie będziesz mieć. |
+| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trialu Monokuma może to ujawnić. |
 | **Class Trial** | Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. |
 
 ### Eclipse
@@ -623,6 +623,8 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 | **Mylny trop** | 15 |
 | **Przenieś ciało** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię; sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
 
+Udany fałszywy trop albo przeniesione ciało od razu kładzie na twój arkusz Truth Bullet śladu, który zostawiło, jakbyś go znalazł (*Znasz ten ślad: jest na twojej karcie.*); porażka, usunięty i przerobiony ślad nie dają żadnego, a Reroll tego rzutu zabiera Truth Bullet.
+
 Tej nocy, na własnej scenie, sprzątanie nie kosztuje akcji. Usuwanie, przerabianie i fałszywy trop wymieniają Shadow, Hand i Head: GM wybiera jedną na podstawie tego, co według ciebie robisz. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Świadkowie w pokoju oznaczają ten sam rzut maskowania Shadow-16 i to samo Sanity za przyłapanie - poza Przenieś ciało, które nie rzuca na maskowanie.
 
 > [!WARNING]
@@ -661,7 +663,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 - GMowie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
 - **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia i wciśnij *Weź* przy tym, co mieli przy sobie. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje ślad, że ktoś przeszedł przez kieszenie (jeden na ciało, ile by rzeczy z niego nie wyszło).
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
-- Czego nie znajdziesz, tego nie będziesz mieć w Class Trialu.
+- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trialu Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 
 > [!WARNING]
 > Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
@@ -672,35 +674,40 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty. W Class Trialu Analyze tylko identyfikuje Truth Bullety - bez wskazówki, bez ukrytej skrytki, bez przejścia; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
 
-Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących, którzy brali udział, do pokoju, który wybierze GM. Na czas rozprawy moduł stawia token twojej postaci w sali, a potem go usuwa; GM wybiera, kto bierze udział. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
+Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących, którzy brali udział, do pokoju, który wybierze GM. Na czas rozprawy moduł stawia token twojej postaci w sali, a potem go usuwa; GM wybiera, kto bierze udział. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**: moduł wyłącza mikrofon gracza zmarłego ucznia, gdy rozprawa się otwiera, i oddaje go, gdy się kończy - także przy śmierci, której nikt nie znalazł, więc mikrofon, który milknie, mówi o niej stołowi. Twój kafel głosu mówi dlaczego. Monocub mówi tylko w otwartej dyskusji, gdy nie trwa żaden tryb, a słucha w każdym trybie, od głosowania i przez całą rozprawę w sprawie własnej śmierci; kafel mówi, kiedy co. Uczeń skazany werdyktem mówi do końca rozprawy.
 
-Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
+Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Zaznacz **Pokaż z wynikiem mojego Analyze**, żeby pokazać, co odczytało twoje Analyze; bez zaznaczenia karta pokazuje dowód jako nigdy nieanalizowany - bez odczytu i bez typu, jaki się okazał. Każdy inny uczestnik dostaje na arkusz kopię tak, jak ją pokazano, za darmo i raz. Dowiadujesz się, kiedy trafił na stół. W Class Trialu Truth Bullet nie ma Udostępnij: dowody przechodzą z rąk do rąk przez Przedstaw.
 
-Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przerywasz przyciskiem **OBJECTION!** w wierszu rozprawy na HUD (przycisk Przedstaw na twoim arkuszu przez całą rozprawę zostaje Przedstaw, za darmo). Kosztuje jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - i płacisz w chwili naciśnięcia:
+Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**, z pytaniem, jeśli GM je poda, widocznym na karcie Class Trialu i na kartach debaty. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przerywasz przyciskiem **OBJECTION!** na swoim kaflu głosu (w wierszu rozprawy na HUD, gdy kafla głosu nie ma; poza Class Trialem jest wyszarzony, *Objection tylko w trakcie Class Trial.*). Kosztuje jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - i płacisz w chwili naciśnięcia:
 
 | Tryb | Kto mówi | Jak długo |
 |---|---|---|
 | Nonstop Debate | wszyscy | budżet GMa |
 | OBJECTION | tylko wnoszący | 60 sekund |
 | Rebuttal | wnoszący i osoba, którą wskazał | 120 sekund, potem głos się zamyka i Class Trial wraca do otwartej dyskusji |
+| Zeznanie | po jednym uczestniku, w kolejności ustalonej przez GMa | proponowane 60 sekund na turę; GM może ustawić od 30 do 120 |
+| Panic Round | po jednym uczestniku, po kolei | 15 sekund na turę (10 od 12 uczestników) |
+| Closing Argument | mówca, którego GM zatwierdzi albo wybierze | 300 sekund |
 
-Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz, tak jak słyszy go pokój głosowy GMa (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi - w ostatniego gracza, który mówił w tej rozprawie; nigdy w GMa, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Potem wybierasz Truth Bullet: **30 sekund**, odliczanych w oknie. Dopóki nie trafi na stół, karta Objection mówi, że czeka; 60 sekund zaczyna się, gdy trafi. Zamknij okno albo pozwól minąć czasowi, a Objection zostaje wycofane, jego karta to mówi, a to, co zapłaciłeś, nie wraca. GM może przekierować trwające Objection na kogoś innego. Gdy przeglądarka GMa nie ma pokoju głosowego, po naciśnięciu sam wybierasz, komu zaprzeczasz, cokolwiek dzieje się z twoim własnym pokojem głosowym. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie. O tym, czy Objection przejmuje głos, rozstrzyga strona GMa, a gdy przejmuje, dowiadujesz się, ile kosztowało. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
+Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz, tak jak słyszy go pokój głosowy GMa (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi - w ostatniego gracza, który mówił w tej rozprawie; nigdy w GMa, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Potem wybierasz Truth Bullet: **30 sekund**, odliczanych w oknie. Dopóki nie trafi na stół, karta Objection mówi, że czeka; 60 sekund zaczyna się, gdy trafi. Zamknij okno albo pozwól minąć czasowi, a Objection zostaje wycofane, jego karta to mówi, a to, co zapłaciłeś, nie wraca. GM może przekierować trwające Objection na kogoś innego. GM może też użyć przycisku **Oddalenie** wobec najnowszego Objection - naciśniętego przez pomyłkę albo niezwiązanego z tym, co mówi mówca: jego karta dostaje pieczątkę **Objection oddalone przez GM-a**, to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała. Pasek GMa może też pominąć turę, odjąć albo dodać pół minuty, zakończyć tryb albo wrócić do debaty, a każdą z tych rzeczy widać na ekranie (karta albo *GM: +30 s* na karcie Class Trialu). Gdy przeglądarka GMa nie ma pokoju głosowego, po naciśnięciu sam wybierasz, komu zaprzeczasz, cokolwiek dzieje się z twoim własnym pokojem głosowym. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Kto mówi w danym trybie, pilnuje stół; moduł wycisza tylko zmarłych. O tym, czy Objection przejmuje głos, rozstrzyga strona GMa, a gdy przejmuje, dowiadujesz się, ile kosztowało. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
+
+GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Zeznaniu** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura - n s*, z **Gotowe** i **Pasuję**, a ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przepada. Gdy mówi ktoś inny, słuchasz: w Zeznaniu możesz wnieść Objection w mówcę i tylko w niego (runda idzie potem dalej od następnego mówcy); Panic Round nie dopuszcza Objection. W **Closing Argument** jesteś pytany, czy podsumujesz sprawę (**Podsumuję**, 30 sekund na odpowiedź); GM zatwierdza jednego ze zgłoszonych albo wybiera kogoś, a mówca ma 300 sekund. Każdy inny może wnieść w mówcę Objection; po wymianie GM decyduje, kto mówi dalej - mówca, z czasem, który mu został, albo ktoś, kto wniósł Objection, z nowymi 300 sekundami. Closing jest raz na rozprawę i kończy się przed głosowaniem. W tych trzech trybach dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
 
 ### Głosowanie
 
-Każdy żyjący gracz dostaje **kartę do głosowania** - jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do przeglądarek GMów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał; *Żaden GM nie ma jeszcze twojego głosu* znaczy, że twoja przeglądarka go trzyma i wyśle, gdy połączy się GM. Zamknij kartę bez głosu, a nic nie zostanie za ciebie policzone - poproś GMa, żeby wysłał ją ponownie.
+Każdy żyjący gracz dostaje **kartę do głosowania** - nie Monocub i nie zmarli, także ci, których śmierci nikt nie znalazł - jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do przeglądarek GMów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał; *Żaden GM nie ma jeszcze twojego głosu* znaczy, że twoja przeglądarka go trzyma i wyśle, gdy połączy się GM. Zamknij kartę bez głosu, a nic nie zostanie za ciebie policzone - poproś GMa, żeby wysłał ją ponownie.
 
 > [!IMPORTANT]
 > Skazanie wymaga **więcej niż połowy** wydanych kart - dla każdego nazwiska, gdy głosowanie pyta o więcej niż jedno. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
 
 | Wynik | Co się dzieje |
 |---|---|
-| **Trafnie** | Blackened zostaje stracony. Każdy ocalały dostaje **Level Up** (wybierz 1). |
-| **Błędnie** | Stracony zostaje oskarżony. Blackened pozostaje anonimowy i w grze z **Reinforced Level Up** (wybierz 3) i jedną nową zasadą własnego wyboru, a każdy Monokuma napełnia pulę Despair. Reinforced Level Up czeka na następny Level Up klasy: jego właściciel dowiaduje się o tym prywatnie i wybiera go razem z Level Upem klasy, gdy głosowanie trafnie wskaże Blackened, albo przy werdykcie Final Trial. Przepada, jeśli wcześniej zginie. |
+| **Trafnie** | Blackened zostaje stracony, gdy rozprawa się kończy. Każdy ocalały dostaje **Level Up** (wybierz 1). |
+| **Błędnie** | Stracony zostaje oskarżony, gdy rozprawa się kończy. Blackened pozostaje anonimowy i w grze z **Reinforced Level Up** (wybierz 3) i jedną nową zasadą własnego wyboru, a każdy Monokuma napełnia pulę Despair. Reinforced Level Up czeka na następny Level Up klasy: jego właściciel dowiaduje się o tym prywatnie i wybiera go razem z Level Upem klasy, gdy głosowanie trafnie wskaże Blackened, albo przy werdykcie Final Trial. Przepada, jeśli wcześniej zginie. |
 
 Rozdział może wydać dwóch Blackened (zdrada zostawia dwa ciała); głosowanie musi wskazać <ins>wszystkich</ins>.
 
-Potem wszyscy widzą jedną kartę, **WERDYKT**: kto został stracony albo że nikt, i czy klasa trafiła - nigdy nie wymienia Blackened, którego klasa nie wskazała. Jeśli to twoja postać, dowiadujesz się o tym także prywatnie.
+Potem wszyscy widzą jedną kartę, **WERDYKT**: kto jest skazany albo że nikt, i czy klasa trafiła - nigdy nie wymienia Blackened, którego klasa nie wskazała. Werdykt nikogo nie zabija: wyrok jest wykonywany, gdy rozprawa się kończy, a wszyscy widzą wtedy **EGZEKUCJA**. Jeśli to twoja postać, dowiadujesz się o tym także prywatnie.
 
 ### Level Up
 
@@ -724,11 +731,11 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 ## 13. Śmierć i to, co po niej
 
-- Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole.
+- Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole - w Class Trial słuchasz (rozdział 12).
 - Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Gdy się skończy, gdy ktoś znajdzie twoje ciało albo gdy wejdzie tam żywy uczeń spoza incydentu, przechodzisz: do kanału zmarłych, dopóki nikomu nie powiedziano o twojej śmierci - żywi cię tam nie słyszą, a ty nie słyszysz ich, tylko innych zmarłych - a do pokoju głównego, gdy twoja śmierć jest znana. Poza incydentem dzieje się to od razu. Jako Monocub mówisz jak Monocub.
 - Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia, tak jak było: zmarli niczego nie używają, nie biorą do ręki, nie wyrzucają, nie chowają ani nie wyjmują, a rzeczy Monocuba też należą do jego ciała.
 - Przeszukanie ciała: otwórz jego arkusz, gdy stoisz w jego pokoju, żywy, poza Class Trial i Eclipse, i naciśnij **Weź** przy rzeczy. Dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Weź, którego nie możesz użyć, jest wyszarzone, z powodem obok.
-- Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu. Do tego czasu rozprawa liczy cię wśród żywych: dostajesz kartę do głosowania, a Level Up za trafny werdykt dostajesz i ty.
+- Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu. Do tego czasu stół może brać cię za żywego - ale w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania, więc stół dowiaduje się, że ktoś zginął. Level Up za trafny werdykt nadal dostajesz i ty.
 - Ciało zostaje tam, gdzie upadło, i zabójca może je przenieść. Zmarli nie liczą się jako obecni w pokoju: nie są świadkami, nie przekazują.
 - GM może zakończyć rozdział, ujawniając, czym naprawdę był każdy Truth Bullet, zbierając je (Faint i Final Truth zostają) i czyszcząc Faint ślady.
 

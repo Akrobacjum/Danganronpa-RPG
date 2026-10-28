@@ -543,6 +543,9 @@ function refresh(kind, data = {}) {
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             // A Truth Bullet's row on a sheet is Present only since 1.2.79 (E79 C16), so the floor moving
             // repaints no row; the OBJECTION! that took its place is the HUD's, redrawn above.
+            // The voice tile's microphone (E70 C5): the trial's list of the dead and a Monocub's line follow the floor
+            // and the record (voice.mjs `micHold`), and a client setting's or the user's own change does not come here.
+            run("voiceTile", () => import("./voice-tile.mjs").then(m => m.paintControls()));
             break;
 
         case SYNC.rules:

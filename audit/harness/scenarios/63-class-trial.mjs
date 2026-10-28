@@ -93,6 +93,10 @@
  *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes is withdrawn at once (fix
  *      r4-G2), the card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
  *      p1 for a name and lands, filled, at the student named.
+ *   Z  (run after Y; E70 C1, 27.10.2026) gm3, not the primary, presses the GM's bar by its game.drpg functions on an
+ *      Objection gm2 holds: gm2 and gm3 read one floor after each press, moved as the bar promises.
+ *   Q  (run after O; E70 C3, 27.10.2026) gm3 opens a debate with its question by game.drpg: gm2's floor holds it, and
+ *      p1 reads it on its Event card and on the debate's opening card.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -427,7 +431,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
 
     /* ------------------------------ G. a wrong verdict in the audit's window ------------------------------ */
 
-    begin("G", "a wrong verdict executes Botan while p2's forged death waits for the audit");
+    /* E70 C4 (DC36): the verdict sentences and the trial's end executes. G reads Botan sentenced and alive, the card's
+       line saying so; H's End the trial carries the sentence out. Before E70 C4 G read Botan executed by the verdict. */
+    begin("G", "a wrong verdict sentences Botan while p2's forged death waits for the audit");
     for (const c of [p1, p2, p3, p4]) await mark(c);
     const held = await gm2.eval(`${until} const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
         await A.sheetAuditIdle();
@@ -446,15 +452,17 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         await A.sheetAuditIdle();
         const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(botan.name) });
         const record = (await import("${repoUrl}/scripts/vote.mjs")).trialProgress();
-        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: record.verdictApplied, stage: record.verdict?.stage ?? null };`, { timeout: 60000 });
+        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: record.verdictApplied, stage: record.verdict?.stage ?? null,
+            sentenced: record.verdict?.sentenced ?? null };`, { timeout: 60000 });
     verdict("held: gm2 hears p2's forged death before the verdict reads it", held && wrong.heard, J({ held, wrong }));
-    verdict("the verdict waits for the audit, which puts the forged flag back, and executes Botan; its record reads \"done\" (C5)",
-        wrong.applied === true && wrong.dead === true && wrong.stage === "done" && Array.isArray(wrong.done) && wrong.done.includes(wrong.executed), J(wrong));
+    verdict("the verdict waits for the audit, which puts the forged flag back, and sentences Botan, alive until the trial ends; its record reads \"done\" (C5; E70 C4)",
+        wrong.applied === true && wrong.dead === false && wrong.stage === "done" && J(wrong.sentenced) === J([IDS.botan])
+            && Array.isArray(wrong.done) && !wrong.done.includes(wrong.executed), J(wrong));
     await settle(800);
     const verdictCards = [], namesChie = [];
     for (const c of [p1, p2, p3, p4]) {
         const read = await c.eval(`const words = [${text("DRPG.Vote.verdictCardTitle")}, ${text("DRPG.Vote.verdictWrong")},
-                game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(game.actors.get("${IDS.botan}")?.name ?? "-") })];
+                game.i18n.format("DRPG.Vote.executionPending", { names: foundry.utils.escapeHTML(game.actors.get("${IDS.botan}")?.name ?? "-") })];
             const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id));
             return { cards: fresh.filter(m => !m.whisper?.length && words.every(w => String(m.content ?? "").includes(w))).length,
                 chie: fresh.filter(m => { const s = String(m.content ?? "") + J(m.flags ?? {}); return s.includes("${IDS.chie}") || s.includes("Chie"); }).length };
@@ -462,7 +470,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         verdictCards.push(read.cards);
         if (c !== p3) namesChie.push(read.chie);
     }
-    verdict("every player holds the verdict's one public card: Botan executed, and the class got it wrong (C5)",
+    verdict("every player holds the verdict's one public card: Botan executed when the trial ends, and the class got it wrong (C5; E70 C4)",
         J(verdictCards) === J([1, 1, 1, 1]), J(verdictCards));
     verdict("nothing new on p1, p2 or p4 names Chie, the Blackened the wrong verdict spared", J(namesChie) === J([0, 0, 0]), J(namesChie));
 
@@ -479,6 +487,11 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const before = V.trialProgress();
         globalThis.__dialogAnswers.push(true);
         const ended = await UI.endClassTrial();
+        // E70 C4: End the trial carries G's sentence out - Botan dies now, of the execution, with its one card.
+        const botan = game.actors.get("${IDS.botan}");
+        const executed = { dead: game.drpg.isDeadForGm(botan), cause: botan.getFlag("${MOD}", "deceased")?.cause ?? null,
+            cards: game.messages.filter(m => m.getFlag("${MOD}", "executionCard")).length,
+            stamped: Number.isFinite(V.trialProgress().executedAt) };
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const start = async press => {
             const from = globalThis.__dialogLog.length, queued = globalThis.__dialogAnswers.length;
@@ -500,7 +513,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         let enter = null, yes = null;
         try { enter = await start("enter"); yes = await start("ok"); } finally { globalThis.__dialogWindows = was; }
         const after = V.trialProgress();
-        return { ended, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
+        return { ended, executed, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
             round: before.vote?.round ?? null, cleared: { vote: after.vote ?? null, voteClosed: after.voteClosed, tied: after.tied,
                 accused: after.accused ?? null, accusedIds: after.accusedIds ?? null, total: after.total ?? null } };`, { timeout: 60000 });
     verdict("the second Start asks first: the confirmation's first submit button, which Enter presses, is Cancel, the only default; Enter keeps Daily Life and the verdict (C11)",
@@ -514,6 +527,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("the second trial clears the vote, its count and the tie, and carries the round number on (C1, D17)",
         again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false
             && fresh.tied === false && J(fresh.accused) === J([]) && J(fresh.accusedIds) === J([]) && fresh.total === 0, J(again));
+    verdict("End the trial carries out G's sentence: Botan dies of the execution, with one execution card, and the record is stamped (E70 C4)",
+        again.ended === true && again.executed?.dead === true && again.executed.cause === "executed" && again.executed.cards === 1
+            && again.executed.stamped === true, J(again.executed));
 
     /* ------------------------------ J. the debate's clock on a machine a minute fast ------------------------------ */
 
@@ -574,17 +590,21 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "advance");
             if (at >= 0) q.splice(at, 1);
         }
+        // E70 C4: Chie lives until the trial's end, which this part carries out here (the trial stays open for J on).
+        const sentencedAlive = !game.drpg.isDeadForGm(game.actors.get("${IDS.chie}"));
+        await V.executeAtExit();
         const living = (await import("${repoUrl}/scripts/chapter.mjs")).livingStudents().map(a => a.id).sort();
         const S = await import("${repoUrl}/scripts/gm-stores.mjs"), L = await import("${repoUrl}/scripts/level-up.mjs");
         const { ownerIdsOf } = await import("${repoUrl}/scripts/utils.mjs");
         const offers = living.map(id => [L.offerList(S.offerStore.get(id)).length, ownerIdsOf(game.actors.get(id)).length > 0 ? 1 : 0]);
-        return { issued, counted, accused: r?.accusedIds ?? null, queues, pickers, rows, living, offers, done };`, { timeout: 90000 });
+        return { issued, counted, accused: r?.accusedIds ?? null, queues, pickers, rows, living, offers, done, sentencedAlive };`, { timeout: 90000 });
     // Every ballot answer not taken - B's too, where no ballot came - so none of them closes I's Level Up window.
     for (const c of [p1, p2, p3, p4]) await c.eval(`const q = globalThis.__dialogAnswers;
         for (let at = q.findIndex(f => f?.name === "ballot"); at >= 0; at = q.findIndex(f => f?.name === "ballot")) q.splice(at, 1);
         return true;`);
     verdict("the second vote names Chie, and the correct verdict opens one Level Up window for the class; the players pick, and each survivor a player owns holds one offer (C7)",
-        second.issued === second.counted && J(second.accused) === J([IDS.chie]) && second.living.length > 1
+        second.issued === second.counted && J(second.accused) === J([IDS.chie]) && second.living.length > 1 && second.sentencedAlive === true
+            && !second.living.includes(IDS.chie)
             && second.queues === 1 && second.pickers === 0 && J(second.rows) === J(second.living)
             && second.offers.every(([held, owned]) => held === owned) && second.living.includes(IDS.aiko), J(second));
     const picked = await p1.eval(`${until} const L = await import("${repoUrl}/scripts/level-up.mjs");
@@ -733,7 +753,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const aiko = game.actors.get("${IDS.aiko}");
         const kept = Boolean(await C.killCharacter(aiko, { secret: true, keepBullets: true }));
         await V.setTrialProgress({ verdictApplied: false, verdict: null, voteClosed: true, accused: [{ id: aiko.id, n: 2 }],
-            accusedIds: [aiko.id], total: 3, majority: 2, noMajority: false, tied: false });
+            accusedIds: [aiko.id], total: 3, majority: 2, noMajority: false, tied: false, executedAt: null, execution: null });
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const title = ${text("DRPG.Vote.verdictTitle")};
         const unfound = game.i18n.format("DRPG.Vote.unfoundDead", { names: aiko.name });
@@ -751,8 +771,11 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         } finally {
             globalThis.__dialogWindows = was;
         }
+        // E70 C4: the sentence waits for the trial's end, carried out here; her death is still the GMs' until then.
+        const heldAtVerdict = deathStore.has(aiko.id);
+        await V.executeAtExit();
         return { kept, read, name: aiko.name, hung: result === "hung", stage: V.trialProgress().verdict?.stage ?? null,
-            row: deathStore.has(aiko.id) };`, { timeout: 60000 });
+            heldAtVerdict, row: deathStore.has(aiko.id) };`, { timeout: 60000 });
     verdict("the verdict's window opens on Aiko, whose body nobody has found, offers her as a living student and tells gm2 whose death that is (fix r1-G4)",
         unseen.kept && unseen.read?.value === IDS.aiko && unseen.read?.disabled === false && unseen.read?.words === unseen.name
             && unseen.read?.told === true, J(unseen));
@@ -761,12 +784,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const dead = Boolean(await until(() => game.drpg.isDeceased(aiko), 5000));
         const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id) && !m.whisper?.length);
         const card = fresh.filter(m => String(m.content ?? "").includes(${text("DRPG.Vote.verdictCardTitle")}));
+        const executions = fresh.filter(m => String(m.content ?? "").includes(${text("DRPG.Vote.executionCardTitle")}));
         const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(aiko.name) });
-        return { dead, cards: card.length, executed: card.some(m => String(m.content).includes(executed)),
+        return { dead, cards: card.length, executed: executions.some(m => String(m.content).includes(executed)),
             nobody: card.some(m => String(m.content).includes(${text("DRPG.Vote.nobodyExecuted")})) };`, { timeout: 20000 });
     const errorsAfter = [await gm2.eval(`return globalThis.__errors.length;`), await p1.eval(`return globalThis.__errors.length;`)];
-    verdict("its wrong verdict executes Aiko: p1 holds the one card naming her executed and reads her dead, and gm2 holds no row of her death (fix r1-G4)",
-        !unseen.hung && unseen.stage === "done" && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
+    verdict("its wrong verdict executes Aiko when the trial ends: p1 holds the one verdict card, the execution's card naming her executed, and reads her dead, and gm2 holds no row of her death (fix r1-G4; E70 C4)",
+        !unseen.hung && unseen.stage === "done" && unseen.heldAtVerdict === true && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
             && J(errorsAfter) === J(errorsBefore), J({ unseen, onP1, errorsBefore, errorsAfter }));
 
     /* ------------------------------ V. a wrong verdict on a Blackened whose body nobody has found ------------------------------ */
@@ -815,6 +839,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        open, reads null; gm3 then loads again into that open vote and reads "none". Each read waits for the GM
        stores' hydration and states the ballots gm2 counts, so a ballot in is not read as the mark. */
     begin("W", "a GM there at the vote's open and one loaded into it read their copy of the ballots apart");
+    /* E70 C5 (1.2.90; TR30, E70-18): a death nobody has found holds no ballot any more - the trial's list of the dead
+       names Aiko (U) and Daichi (V), and at 9f40de9a+C5 gm2's openVote found nobody to hand one to (W1's `reopened`
+       null). Both are revived first, quietly, so the vote W reads has its ballots out; Y revives Aiko again as before. */
+    await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        for (const id of ["${IDS.aiko}", "${IDS.daichi}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        return true;`, { timeout: 60000 });
+    await settle(1000);
     await connect("gm3");
     await settle(1000);
     const copyOn = async () => ({ ...(await gm3.eval(`${until} ${V} const E = await import("${repoUrl}/scripts/gm-store.mjs");
@@ -1042,11 +1073,15 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     /* Fix r4-G3 (17.10.2026; review round 4's goal C16-11 = Q2): p1 presses OBJECTION! on its own trial row as a
        player does - focus for the preview hud.mjs draws from trial.mjs `objectionButtonState`, then a click - where
        until then this part called those two functions and the row's button was read by no scenario. `raised` is the
-       floor's Objection held by Aiko and filled, as p1 holds the floor. */
+       floor's Objection held by Aiko and filled, as p1 holds the floor.
+       E70 C11 (28.10.2026; the owner's B3 and Q-p2-4 of 27.10): OBJECTION! moved to the voice tile, and the trial row keeps
+       its own only where no tile is drawn - p1 holds a LiveKit Room here, so the tile stands and the press is the tile's;
+       `hud` reads that the row has none beside it. Before C11 the tile drew no OBJECTION! (E70-T13, red at b2dd974c). */
     const yPressed = await p1.eval(`${until} ${Fy}
         __liveKit.speak(["${IDS.p2}"]);
         await new Promise(r => setTimeout(r, 1200));
-        const button = await until(() => document.querySelector("#drpg-hud .drpg-hud-objection:not([aria-disabled='true'])"), 4000);
+        const button = await until(() => document.querySelector("#drpg-voice-tile .drpg-voice-objection:not([aria-disabled='true'])"), 4000);
+        const hud = Boolean(document.querySelector("#drpg-hud .drpg-hud-objection"));
         const named = button?.getAttribute("aria-label") ?? null;
         button?.dispatchEvent(new FocusEvent("focus"));
         const preview = button ? await until(() => button.getAttribute("aria-label") !== named && button.getAttribute("aria-label"), 4000) : null;
@@ -1054,7 +1089,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         button?.click();
         const raised = Boolean(button) && Boolean(await until(() => { const f = F.trialFloor();
             return f?.mode === "objection" && f.holderId === "${IDS.aiko}" && f.pending === false; }, 15000));
-        return { button: Boolean(button), preview: preview || "", raised };`, { timeout: 60000 });
+        return { button: Boolean(button), hud, preview: preview || "", raised };`, { timeout: 60000 });
     await settle(800);
     const yCard = await gm2.eval(`${Fy} const floor = F.trialFloor(); const m = floor?.messageId ? game.messages.get(floor.messageId) : null;
         return { mode: floor?.mode, holder: floor?.holderId, target: floor?.targetId, pending: floor?.pending, how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null,
@@ -1062,8 +1097,8 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const yOnP3 = id => p3.eval(`const cards = [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].filter(c => c.dataset.drpgMessage === "${id}");
         return { cards: cards.length, body: cards[0]?.querySelector(".drpg-popup-body")?.textContent.replace(/\\s+/g, " ").trim() ?? "" };`);
     const yFilledOnP3 = await yOnP3(yCard.id);
-    verdict("p1's button on its trial row names Botan, its press is aimed at Botan as now speaking (not chosen by p1), the bullet fills the card and p3 holds one card with it",
-        yPressed.raised === true && yPressed.preview.includes("Botan Kage") && yCard.mode === "objection" && yCard.holder === IDS.aiko && yCard.target === IDS.botan
+    verdict("p1's OBJECTION! on its voice tile (none on its trial row beside it) names Botan, its press is aimed at Botan as now speaking (not chosen by p1), the bullet fills the card and p3 holds one card with it",
+        yPressed.raised === true && yPressed.hud === false && yPressed.preview.includes("Botan Kage") && yCard.mode === "objection" && yCard.holder === IDS.aiko && yCard.target === IDS.botan
             && yCard.pending === false && yCard.how === "now" && yCard.item === ySetup.item && yCard.actions === 2
             && yFilledOnP3.cards === 1 && yFilledOnP3.body.includes("S63 Y the evidence"), J({ yPressed, yCard, yFilledOnP3 }));
     const yRepointed = await gm2.eval(`${Fy} globalThis.__dialogAnswers.push(async () => "${IDS.chie}");
@@ -1116,6 +1151,226 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             && yNamedCard.how === "named" && yNamedCard.item === ySetup.item && yNamedCard.actions === 2, J({ yNoRoom, yNamed, yNamedCard }));
     await gm2.eval(`${Fy} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63yClock); return true;`);
     await settle(500);
+    /* ------------------------------ Z. the GM's bar on another GM ------------------------------ */
+
+    /* E70 C1 (27.10.2026; E70-08, S18-76; the C0 gap "no scenario sends trial.gm from a second GM"). gm3, a GM that is
+       not the primary while gm2 is connected, presses each of the bar's buttons by its game.drpg function on an
+       Objection gm2 holds with 50 s left and a debate under it with 200 s: +30 s, -30 s, Skip, Back to the debate, End
+       this mode. After each, gm2's floor (the primary's) and gm3's read the same mode and the same seconds left within
+       2 s, and moved as the bar promises: 80 s, 50 s, the rebuttal, the debate with its 200 s, no floor. Red at
+       f388d722: no such functions on game.drpg. */
+    begin("Z", "the GM's bar on a GM that is not the primary: each button by its game.drpg function, the same floor on both");
+    const Fz = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    await gm2.eval(`${Fz} globalThis.__s63zClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63zClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialQueue", { active: true, mode: F.FLOOR_MODES.objection, holderId: "${IDS.aiko}", targetId: "${IDS.chie}",
+            seconds: 300, startedAt: U.serverNow() - 10000, pending: false, messageId: null,
+            before: [{ messageId: null, before: { mode: F.FLOOR_MODES.debate, holderId: null, targetId: null, seconds: 300 }, leftAtObjection: 200 }] });
+        return true;`);
+    await settle(800);
+    const zFloor = client => client.eval(`${Fz} const f = F.trialFloor(); return f ? [f.mode, F.secondsLeft(f)] : null;`);
+    const zPresses = [["plus", "game.drpg.adjustTime(30)"], ["minus", "game.drpg.adjustTime(-30)"], ["skip", "game.drpg.skipStep()"],
+        ["back", "game.drpg.returnToDebate()"], ["endMode", "game.drpg.endMode()"]];
+    const zRead = { primary: await gm3.eval(`${Fz} return U.isPrimaryGm();`) };
+    for (const [op, call] of zPresses) {
+        await gm3.eval(`if (typeof ${call.split("(")[0]} === "function") await ${call}; return true;`, { timeout: 30000 });
+        await settle(800);
+        zRead[op] = [await zFloor(gm2), await zFloor(gm3)];
+    }
+    await gm2.eval(`${Fz} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63zClock); return true;`);
+    await settle(500);
+    const zSame = ([a, b]) => (a === null && b === null) || (Boolean(a && b) && a[0] === b[0] && Math.abs(a[1] - b[1]) <= 2);
+    const zAt = ([a], mode, left) => (mode === null ? a === null : Boolean(a) && a[0] === mode && Math.abs(a[1] - left) <= 3);
+    verdict("gm3, not the primary, presses +30 s, -30 s, Skip, Back to the debate and End this mode by game.drpg: gm2 and gm3 read one floor after each, moved as the bar promises",
+        zRead.primary === false && zPresses.every(([op]) => zSame(zRead[op]))
+            && zAt(zRead.plus, "objection", 80) && zAt(zRead.minus, "objection", 50) && zAt(zRead.skip, "rebuttal", 120)
+            && zAt(zRead.back, "debate", 200) && zAt(zRead.endMode, null), J(zRead));
+
+    /* ------------------------------ O. Overrule from another GM ------------------------------ */
+
+    /* E70 C2 (27.10.2026; E70-12, S18-77; TR25, DB41; amend 5 (b)). gm3, not the primary, posts a GM's Objection card for
+       Aiko at Chie with a Truth Bullet gm2 made her, over a debate of 300 s gm2 (the primary) opened: gm2 takes the
+       floor, takes Aiko's action and keeps the receipt. OBJECTION! is on p3's and gm3's screens. gm3 presses Overrule
+       by game.drpg: by "trial.gm" gm2 gives the debate back with the seconds it had at the Objection, the price stays
+       (Aiko's actions as after the payment), the receipt and the card are marked, OBJECTION! is gone from p3's and
+       gm3's screens with p3's notice history keeping the card with the stamp, and the table's card of the Overrule
+       reached p3. Red at accb2ded: no game.drpg.overruleObjection. */
+    begin("O", "Overrule from a GM that is not the primary: the debate back with its time, the price kept, OBJECTION! closed everywhere and kept with its stamp");
+    const Fo = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");
+        const V = await import("${repoUrl}/scripts/vote.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const oSetup = await gm2.eval(`${Fo} const B = await import("${repoUrl}/scripts/truth-bullets.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        globalThis.__s63oClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63oClock, phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({ seconds: 300 });
+        const aiko = game.actors.get("${IDS.aiko}");
+        await aiko.setFlag("${MOD}", "freeActionGrants", 0);
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        const item = await B.createTruthBullet(aiko, { name: "S63 O bullet", realType: "neutral", visibility: "obvious" });
+        await A.sheetAuditIdle();
+        return { item: item?.id ?? null, primary: U.isPrimaryGm(), floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const oCard = await gm3.eval(`${Fo} const aiko = game.actors.get("${IDS.aiko}"), chie = game.actors.get("${IDS.chie}");
+        const m = await ChatMessage.create({ content: '<div class="drpg-evidence-card objection"><p>S63 O</p></div>', speaker: ChatMessage.getSpeaker({ actor: aiko }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: true, [T.TRIAL_FLAGS.presenter]: aiko.name,
+                [T.TRIAL_FLAGS.item]: "${oSetup.item}", [T.TRIAL_FLAGS.target]: chie.id, [T.TRIAL_FLAGS.targetName]: chie.name,
+                [T.TRIAL_FLAGS.chapter]: game.settings.get("${MOD}", "clock").chapter } } });
+        return m?.id ?? null;`, { timeout: 30000 });
+    await settle(1500);
+    const oOnScreen = client => client.eval(`return document.querySelectorAll('.drpg-popup[data-drpg-message="${oCard}"]').length;`);
+    const oPrimary = () => gm2.eval(`${Fo} const f = F.trialFloor(); const r = V.trialProgress().objections?.["${oCard}"] ?? null;
+        return { mode: f?.mode ?? null, left: f ? F.secondsLeft(f) : null, holder: f?.holderId ?? null, receipt: r,
+            actions: game.actors.get("${IDS.aiko}").system.resources.actions.value,
+            flag: Boolean(game.messages.get("${oCard}")?.getFlag("${MOD}", T.TRIAL_FLAGS.overruled)) };`);
+    const oBefore = { gm2: await oPrimary(), p3: await oOnScreen(p3), gm3: await oOnScreen(gm3), gm3Primary: await gm3.eval(`${Fo} return U.isPrimaryGm();`) };
+    await gm3.eval(`if (typeof game.drpg?.overruleObjection === "function") await game.drpg.overruleObjection(); return true;`, { timeout: 30000 });
+    await settle(2500);
+    const oAfter = { gm2: await oPrimary(), p3: await oOnScreen(p3), gm3: await oOnScreen(gm3),
+        kept: await p3.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+            return NH.noticeEntries().filter(e => e.messageId === "${oCard}").map(e => String(e.html ?? "")).join("\\n").includes(game.i18n.localize("DRPG.Trial.overruledStamp"));`),
+        told: await p3.eval(`const title = ">" + game.i18n.localize("DRPG.Floor.overrule.title") + "<";
+            return game.messages.contents.filter(m => String(m.content ?? "").includes(title)).length;`) };
+    await gm2.eval(`${Fo} if (F.trialFloor()) await F.endFloor();
+        try { await game.actors.get("${IDS.aiko}").items.get("${oSetup.item}")?.delete(); } catch { /* already gone */ }
+        await game.settings.set("${MOD}", "clock", globalThis.__s63oClock); return true;`, { timeout: 30000 });
+    await settle(500);
+    const oReceipt = oBefore.gm2.receipt;
+    verdict("gm3 overrules Aiko's Objection by game.drpg: gm2 gives the debate back with the seconds it had, the action stays paid, the receipt and the card marked, OBJECTION! gone from p3 and gm3, p3's history keeps it stamped, the table told",
+        oSetup.primary === true && oSetup.floor === "debate" && Boolean(oCard) && oBefore.gm3Primary === false
+            && oBefore.gm2.mode === "objection" && oBefore.gm2.holder === IDS.aiko && oBefore.gm2.actions === 2
+            && oReceipt?.objectorId === IDS.aiko && oReceipt?.paid?.pay === "action" && oReceipt?.mode === "debate" && oReceipt?.overruled === false
+            && oBefore.p3 === 1 && oBefore.gm3 === 1
+            && oAfter.gm2.mode === "debate" && Math.abs(oAfter.gm2.left - (oReceipt?.leftAtObjection ?? -999)) <= 4 && oAfter.gm2.actions === 2
+            && oAfter.gm2.receipt?.overruled === true && oAfter.gm2.flag === true && oAfter.p3 === 0 && oAfter.gm3 === 0
+            && oAfter.kept === true && oAfter.told === 1, J({ oSetup, oCard, oBefore, oAfter }));
+
+    /* ------------------------------ Q. the debate's question from another GM ------------------------------ */
+
+    /* E70 C3 (27.10.2026; E70-13, S18-70). gm3, not the primary, opens a debate of 300 s with a question by
+       game.drpg.openDebate({ seconds, topic }): by "trial.gm" (its `text`) gm2, the primary, writes the floor with the
+       question, and p1 reads it as the Event panel's trial card's subtitle (events.mjs `trialCard`, the card p1's panel
+       draws) and on the card that opens the debate. The trial record is a fresh one of the chapter for the part, and put
+       back after it: the verdict applied in H shows the verdict's card on the Event panel instead of the floor's
+       (events.mjs `afterVerdictCard`, the C1 gap). Red at bf1a076b: the floor held no question. */
+    begin("Q", "the debate's question from a GM that is not the primary: on the primary's floor, on p1's Event card and its opening card");
+    const Fq = `const F = await import("${repoUrl}/scripts/trial-floor.mjs");`;
+    const qText = "S63 Q: who left the gym unlocked?";
+    await gm2.eval(`${Fq} globalThis.__s63qClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        globalThis.__s63qProgress = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63qClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: globalThis.__s63qClock.chapter });
+        if (F.trialFloor()) await F.endFloor(); return true;`);
+    await settle(800);
+    await gm3.eval(`await game.drpg.openDebate({ seconds: 300, topic: ${JSON.stringify(qText)} }); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const qRead = {
+        gm3Primary: await gm3.eval(`const U = await import("${repoUrl}/scripts/utils.mjs"); return U.isPrimaryGm();`),
+        gm2: await gm2.eval(`${Fq} const f = F.trialFloor(); return f ? [f.mode, f.topic ?? null] : null;`),
+        p1: await p1.eval(`const ev = await import("${repoUrl}/scripts/events.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+            const card = ev.trialCard(getClock()); const line = game.i18n.format("DRPG.Floor.topicLine", { topic: ${JSON.stringify(qText)} });
+            return [card?.sub ?? null, game.messages.contents.filter(m => String(m.content ?? "").includes(line)).length];`)
+    };
+    await gm2.eval(`${Fq} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63qClock);
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s63qProgress); return true;`);
+    await settle(500);
+    verdict("gm3 opens a debate with its question by game.drpg: gm2's floor holds it, p1's Event card has it as its subtitle and p1 has the card that opens the debate with it",
+        qRead.gm3Primary === false && J(qRead.gm2) === J(["debate", qText]) && J(qRead.p1) === J([qText, 1]), J(qRead));
+
+    /* ------------------------------ R. the record's writes and the sentence on the primary ------------------------------ */
+
+    /* E70 fix p1-G2 (1.2.90; the review's SEC-4 = E70P1-R05, SEC-3, E70-01, E70-16). gm2 is the primary here, gm3 is not.
+       (1) gm3 writes the debate's question while gm2 writes the debate-again mark: gm3's own write of the setting (were it
+       made) is held 1.5 s, as a slow round trip holds it, and gm2's lands inside it. Both fields must stand. Until the
+       fix gm3 wrote in its own queue from the record it had read, and its write dropped gm2's field. (2) gm2 and gm3
+       end the trial together (`executeAtExit`, as End the trial asks it on each): Botan, sentenced, dies once - one
+       execution card, no failure, the record stamped. Until the fix each GM carried it out in its own browser. */
+    begin("R", "the record's writes and the sentence carried out on the primary, whichever GM asks");
+    const Vr = `const V = await import("${repoUrl}/scripts/vote.mjs");`;
+    await gm2.eval(`globalThis.__s63rClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        globalThis.__s63rProgress = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        globalThis.__s63rCards = new Set(game.messages.map(m => m.id));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63rClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: globalThis.__s63rClock.chapter });
+        return true;`);
+    await settle(800);
+    await gm3.eval(`const settings = game.settings, real = settings.set;
+        globalThis.__s63rHold = { real, held: 0 };
+        settings.set = async function (namespace, key, value, ...rest) {
+            if (namespace === "${MOD}" && key === "trialProgress") { globalThis.__s63rHold.held++; await new Promise(r => setTimeout(r, 1500)); }
+            return real.call(this, namespace, key, value, ...rest);
+        };
+        ${Vr} globalThis.__s63rWrite = V.setTrialProgress({ topic: "S63 R: the question" });
+        return true;`);
+    await settle(300);
+    await gm2.eval(`${Vr} await V.setTrialProgress({ debateAgain: true }); return true;`);
+    const rHeld = await gm3.eval(`await globalThis.__s63rWrite; const h = globalThis.__s63rHold; game.settings.set = h.real; return h.held;`, { timeout: 30000 });
+    await settle(800);
+    const rRecord = await gm2.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}; return [r.topic ?? null, r.debateAgain ?? null];`);
+    verdict("gm3's write of the question and gm2's debate-again mark, made within one round trip, both stand in the record - gm3 wrote nothing of its own",
+        J(rRecord) === J(["S63 R: the question", true]) && rHeld === 0, J({ rRecord, rHeld }));
+    await gm2.eval(`${Vr} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const botan = game.actors.get("${IDS.botan}"); if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        const chapter = globalThis.__s63rClock.chapter;
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(chapter), chapter, verdictApplied: true, executedAt: null, execution: null,
+            verdict: { stage: "done", correct: false, executedIds: ["${IDS.botan}"], sentenced: ["${IDS.botan}"], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] } });
+        return true;`);
+    await settle(800);
+    const rExit = c => c.eval(`${Vr} const out = await V.executeAtExit(); return out ? out.executed.length : null;`, { timeout: 60000 });
+    const rBoth = await Promise.all([rExit(gm2), rExit(gm3)]);
+    await settle(1500);
+    const rAfter = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const r = game.settings.get("${MOD}", "trialProgress") ?? {};
+        return { dead: C.isDeceased(game.actors.get("${IDS.botan}")), stamped: Number.isFinite(r.executedAt), failed: r.execution?.failed ?? null,
+            cards: game.messages.filter(m => !globalThis.__s63rCards.has(m.id) && m.getFlag("${MOD}", "executionCard")).length };`);
+    verdict("gm2 and gm3 ending the trial together carry Botan's sentence out once, on the primary: one execution card, no failure, the record stamped",
+        rAfter.dead && rAfter.stamped && J(rAfter.failed) === J([]) && rAfter.cards === 1, J({ rBoth, rAfter }));
+    await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const botan = game.actors.get("${IDS.botan}"); if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        for (const m of game.messages.filter(x => !globalThis.__s63rCards.has(x.id) && x.getFlag("${MOD}", "executionCard"))) await m.delete();
+        await game.settings.set("${MOD}", "clock", globalThis.__s63rClock);
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s63rProgress); return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* E70 fix p1-G3 (1.2.90; the review's E70P1-R09 = E70P1-R12 goal, E70-21 "a new primary survives"): the primary
+       (gm2) mutes p1 for the trial - Aiko dead and listed - and leaves mid-trial; gm3 becomes the primary and the trial's
+       end is written raw on it, as a console or Edit campaign writes it: gm3's own hook settles the voices from the GMs'
+       synced store, and p1's microphone is given back, the store empty. */
+    const permOf = `const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {};
+        return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null];`;
+    await gm3.eval(`globalThis.__s63r3 = { clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")),
+        progress: foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {}), perm: (() => { ${permOf} })() }; return true;`);
+    const r3Before = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const Vo = await import("${repoUrl}/scripts/voice.mjs");
+        const clock = game.settings.get("${MOD}", "clock");
+        await C.killCharacter(game.actors.get("${IDS.aiko}"), { secret: false, keepBullets: true });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: clock.chapter });
+        await game.settings.set("${MOD}", "clock", { ...clock, phase: "classTrial" });
+        const out = await Vo.settleTrialVoices();
+        return { blocked: out?.blocked ?? null };`, { timeout: 60000 });
+    await settle(1000);
+    const r3Held = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return { rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })() };`);
+    await disconnect("gm2");
+    await settle(1500);
+    const r3After = await gm3.eval(`${until} const U = await import("${repoUrl}/scripts/utils.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const primary = U.isPrimaryGm();
+        await game.settings.set("${MOD}", "clock", { ...game.settings.get("${MOD}", "clock"), phase: "dailyLife" });
+        const back = await until(() => { const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {}; return own.BROADCAST_AUDIO !== false || null; }, 8000);
+        return { primary, back: Boolean(back), rows: Object.keys(S.trialMuteStore.entries()), perm: (() => { ${permOf} })(),
+            list: Object.hasOwn(game.settings.get("${MOD}", "trialProgress") ?? {}, "mutedDead") };`, { timeout: 30000 });
+    verdict("the primary mutes p1 for the trial and leaves; gm3, the new primary, ends the trial and gives p1's microphone back from the GMs' store",
+        (r3Before.blocked ?? []).includes(p1.userId) && r3Held.rows.includes(p1.userId) && J(r3Held.perm) === J([true, false]) && r3After.primary && r3After.back
+            && r3After.rows.length === 0 && r3After.list === false, J({ r3Before, r3Held, r3After }));
+    await gm3.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const aiko = game.actors.get("${IDS.aiko}"); if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
+        const was = globalThis.__s63r3;
+        const own = (game.users.get("${p1.userId}")._source ?? {}).permissions ?? {};
+        if (JSON.stringify([Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]) !== JSON.stringify(was.perm)) {
+            const U = await import("${repoUrl}/scripts/utils.mjs");
+            await game.users.get("${p1.userId}").update({ "permissions.BROADCAST_AUDIO": was.perm[0] ? was.perm[1] : U.forcedDeletion() });
+        }
+        await game.settings.set("${MOD}", "clock", was.clock);
+        await game.settings.set("${MOD}", "trialProgress", was.progress); return true;`, { timeout: 60000 });
+    await connect("gm2");
+    await settle(1000);
+
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

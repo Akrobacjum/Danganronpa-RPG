@@ -41,15 +41,17 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, deathRecordFor, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, deathRecordFor, seasonEpoch, isMutedDead, mutedDeadIds } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, poolUserFor, studentActors } from "./monokuma.mjs";
+import { isMonocub, ownCaseOpen } from "./monocub.mjs";
+import { deathStore, trialMuteStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -221,6 +223,8 @@ async function passForSettledMove(doc, turn) {
 const WITNESS_WAIT_MS = 1500;
 
 export function registerVoice() {
+    // The trial's voices (E70 C5) are the primary's whether or not avclient-livekit is here: the block is Foundry's.
+    registerTrialVoices();
     Hooks.on("updateToken", (doc, changes) => {
         if (!followsVoice(doc)) return;
         // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
@@ -1106,8 +1110,12 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     account, so with two victims each hears the other: the module silences nobody there, and the microphone stays
  *     its owner's to open and mute, as a Monocub's in an Eclipse. Until the fix it was held, which froze it as it
  *     was - a muted victim could not speak to the other, an open one could not mute. A GM's block is named over it.
- *     Until A9's first trigger a dead student talks in the room they died in, and nothing is said (Q2); E67 adds
- *     "deadMuted".
+ *     Until A9's first trigger a dead student talks in the room they died in, and nothing is said (Q2);
+ *   - "deadMuted": HELD - in the Class Trial the voice character is on the trial's list of the dead (E70 C5; settings.mjs
+ *     `isMutedDead`), named before a GM's block, which the trial's own block is beside it (`settleTrialVoices`);
+ *   - "cubSpeak", "cubListen", "cubVote", "ownCase": a Monocub in the Class Trial (E70 C5; DC4, DC28, DC29, DC41) - it
+ *     speaks in the discussion and listens in a mode (`data.mode` names it) and from the vote on, and listens through a
+ *     trial about its own death: lines of information, never held (the design's P6), so the microphone stays its own.
  *
  * From this browser's own facts only - the room the primary GM sent it (`desiredRoom`), its own A/V state, its own
  * characters and the flags on them - and never from GmStore: on a player `isDeadForGm` and `pendingDeath` read the
@@ -1119,7 +1127,7 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  * and not external, and a renamed Room or `state` as offline.
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
-    canBroadcastAudio = broadcastAllowed(user), actors } = {}) {
+    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts() } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
@@ -1130,8 +1138,15 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     const voice = eclipse ? accountRow(user, { actors, eclipse: true, silenced: () => false })?.actor : null;
     const monocub = Boolean(voice && isDeceased(voice) && voice.getFlag?.(MODULE_ID, FLAGS.monocub));
     if (eclipse && !monocub) return { reason: "eclipse", held: true };
+    // THE TRIAL (E70 C5): the voice character as the trial ranks it, nobody located (`accountRow`, as `voiceTargets`).
+    const inTrial = !user.isGM && trial?.clock?.phase === "classTrial";
+    // An account with a living participant and a dead student speaks as the living one (E70 fix p1-G1; `accountRow`'s
+    // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
+    const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
+    if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
+    if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
     if (!user.isGM && room === DEAD_ROOM) return { reason: "deadAlone", held: false };
     return null;
 }
@@ -1143,8 +1158,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * a death kept secret).
  *   - "secretDead": the account's voice character is dead in the GMs' records and not on its sheet (`isDeadForGm`
  *     without `isDeceased`) - a block drawn on it would tell the table what the GMs keep.
- * E67 adds "deadMuted". The Eclipse, a lost connection and avclient-livekit's own window are the other browser's
- * facts and mean nothing here. `null` on a player's client, where `isDeadForGm` reads only that player's copy.
+ * Since E70 C5 also "deadMuted": in the Class Trial the account's voice character is on the trial's list (settings.mjs
+ * `isMutedDead`), whose block is the trial's to put back. The Eclipse, a lost connection and avclient-livekit's own
+ * window are the other browser's facts and mean nothing here. `null` on a player's client, where `isDeadForGm` reads only that player's copy.
  * The voice character is `voiceTargets`' (`voiceClaim`, `voiceRowFor`), asked without where anybody stands: outside
  * an Eclipse and the trial a living character outranks a dead one wherever either stands (CLAIM), so only whether
  * every character of the account is dead decides, and which one then is the lowest id; in an Eclipse and the trial
@@ -1153,8 +1169,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
     dead = isDeadForGm } = {}) {
     if (!game.user?.isGM || !user) return null;
-    const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead) });
+    const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
+    if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1163,15 +1180,287 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
  * One account's voice row, as `voiceTargets` builds and ranks it, from the characters whose voice is this account's
  * (`voiceUserOf`) - or the `actors` handed in - with nobody located (`micHold`, `moduleHoldsMic` say why that is the
  * same answer for their questions).
+ *
+ * In the trial, `listed` is the trial's list of the dead (settings.mjs `mutedDeadIds`): a character of the account not
+ * on it is asked before one on it (E70 fix p1-G1, 28.10.2026; the review's BEH-4 = E70P1-R01). Every row is the trial's
+ * claim there, so `voiceRowFor` took the lowest id, and a player who holds a dead student with the lower id and plays
+ * a living one now was muted as dead while `trialParticipants` handed them a ballot. Only an account whose every
+ * character is listed is the trial's to hold (`trialVoiceActorOf` asks the same).
  */
-function accountRow(user, { actors, eclipse = false, trial = false, silenced }) {
-    const mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+function accountRow(user, { actors, eclipse = false, trial = false, silenced, listed = null }) {
+    let mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+    if (trial && listed?.length) {
+        const free = mine.filter(actor => !listed.includes(actor.id));
+        if (free.length) mine = free;
+    }
     const rows = mine.map(actor => {
         const monokuma = isMonokuma(actor);
         return { actor, monokuma, user, ...voiceClaim({ user, monokuma, eclipse, trial,
             silenced: () => !monokuma && silenced(actor), locate: () => null }) };
     });
     return voiceRowFor(rows, user.id);
+}
+
+/* ==========================================================================
+ * THE CLASS TRIAL'S VOICES (E70 C5)
+ * ========================================================================== */
+
+/*
+ * WHO THE MODULE MUTES IN THE TRIAL, AND HOW (E70 C5, 28.10.2026; S18-78, S18-87; the owner's DC19, TR30 = 2 "Tak, ona
+ * też wyciszona", TR33 = 1; amend 6, answer 3 = (b), the minimal block). D8 put the dead in the trial's one room and left
+ * "the dead listen but do not speak" to the table. The owner wants it held, so the primary GM, after its deaths store
+ * has hydrated, writes the trial's list into the record (`mutedDead`, settings.mjs `isMutedDead`) - every ordinary dead
+ * student as the GMs hold it, a death nobody has found among them (and an open incident's victim once dead, amend 2;
+ * a living one never, E70 fix p1-G1), never a Monocub, a Monokuma or a convict (alive until the trial ends, DC36) - and
+ * turns Foundry's BROADCAST_AUDIO off for every player whose every character is listed. What the block found is a row of the GMs' `trialMuteStore`; a player a GM blocked by
+ * hand before (an explicit false) is left alone and recorded nowhere, so the exit can never put back over a GM's block.
+ * The exit puts back only a block the trial wrote and finds still standing: a grant the player had, or no grant at all
+ * (the key removed with `forcedDeletion()`, never `-=`; a Foundry with neither leaves the block and tells the GMs).
+ * One step of the record's key on the primary does the list and the blocks together (`settleTrialVoices`), asked at
+ * the entry and the exit (clock.mjs `reconcilePhase`, through the GMs' row "trial.enter" from another GM), and by this
+ * primary's own hooks while a trial's list stands: a death (`drpgDeathsChanged`, the flag), a new Monocub, and any
+ * write of the clock that leaves the trial (a raw restore, Edit campaign). Whether avclient-livekit stops sending
+ * without a reload when the permission goes false is LIVE-E70-04 (the shim only); that a player cannot write their own
+ * `permissions` on v14 is LIVE-E70-05 (Foundry's model, read, not run).
+ */
+
+/** The facts the trial's lines are read from on this browser, or null outside a Class Trial: the clock, the floor
+ *  (`active` only, as trial-floor.mjs `trialFloor` reads it), the stored record and the season. */
+export function trialFacts() {
+    const clock = getClock();
+    if (clock?.phase !== "classTrial") return null;
+    const floor = getSetting(SETTINGS.trialQueue) ?? {};
+    return { clock, floor: floor.active ? floor : null, record: getSetting(SETTINGS.trialProgress) ?? {}, epoch: seasonEpoch() };
+}
+
+/**
+ * A Monocub's voice in the trial (DC4 = TR22 = DC28 = 1; DC29 = DC41 = 1): "ownCase" while the trial is about its own
+ * death (monocub.mjs `ownCaseOpen`), "speak" in the discussion - no mode and no vote begun - and "listen" in a mode
+ * and from the vote's opening on. Pure over the facts `trialFacts` reads.
+ */
+export function cubVoice(actor, { clock, floor = null, record = {}, epoch } = {}) {
+    const own = record?.chapter === clock?.chapter ? record : {};
+    if (ownCaseOpen(actor, { clock, record: own, epoch })) return "ownCase";
+    const begun = Boolean(own.vote?.open || own.voteOpenedAt != null || own.voteClosed || own.verdictApplied);
+    return !floor && !begun ? "speak" : "listen";
+}
+
+/**
+ * THE TRIAL'S LINE OF WHO MAY SPEAK, WITHOUT THE TILE (E70 fix p1-G3, 28.10.2026; the review's E70P1-R08 = E70P1-R05
+ * goal; E70-22 "HUD and tile"). The tile says it (`micHold`), and only where a tile is drawn - and `micHold` answers the
+ * connection first, so a browser with no LiveKit never reached the trial's line at all. The HUD asks this where no
+ * tile is drawn (hud.mjs `buildTimeRow`), as Q-p2-4 keeps the HUD's OBJECTION! only there: the voice character as the
+ * trial ranks it, "deadMuted" for a student on the trial's list, a Monocub's line, else null. Never for a GM.
+ */
+export function trialVoiceLine({ user = game.user, actors, trial = trialFacts() } = {}) {
+    if (!user || user.isGM || trial?.clock?.phase !== "classTrial") return null;
+    const speaker = accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null;
+    if (!speaker) return null;
+    if (isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
+    return isMonocub(speaker) ? cubLine(speaker, trial) : null;
+}
+
+/** `micHold`'s line for a Monocub in the trial: information only, never held. */
+function cubLine(actor, trial) {
+    const voice = cubVoice(actor, trial);
+    if (voice === "ownCase") return { reason: "ownCase", held: false };
+    if (voice === "speak") return { reason: "cubSpeak", held: false };
+    if (!trial?.floor) return { reason: "cubVote", held: false };
+    const mode = trial.floor.mode === "discussion" ? "debate" : trial.floor.mode;
+    return { reason: "cubListen", held: false, data: { mode: game.i18n.localize(`DRPG.Hud.trial.${mode}`) } };
+}
+
+/**
+ * An account's voice character in the trial, whether or not it is connected: a character not on the trial's list
+ * (`listed`) before one on it, then the lowest actor id (`voiceRowFor`'s order when every claim is the trial's and
+ * nobody is located). So the trial holds an account only when every character it owns is listed (E70 fix p1-G1; the
+ * review's BEH-4 = E70P1-R01: a dead student with the lower id muted the living one its player plays now).
+ */
+export function trialVoiceActorOf(user, actors = game.actors, listed = []) {
+    if (!user || user.isGM) return null;
+    const off = new Set(listed ?? []);
+    let held = null;
+    for (const actor of actors ?? []) {
+        if (actor?.type !== "character" || isMonokuma(actor) || !actor.testUserPermission?.(user, "OWNER")) continue;
+        const free = !off.has(actor.id);
+        if (!held || (free && off.has(held.id)) || (free === !off.has(held.id) && actor.id < held.id)) held = actor;
+    }
+    return held;
+}
+
+/**
+ * The trial's dead as this primary holds them, sorted: every ordinary dead student, no Monocub - each read through
+ * `held`, the GMs' flags (sheet-audit.mjs `flagsHeldNow`, after `judgedFor`), and the GMs' deaths (`isDeadForGm`, a
+ * death nobody has found among them).
+ *
+ * AS THE GMS HOLD THEM (E70 fix p1-G1, 28.10.2026; the review's SEC-2). The list read the documents, which the
+ * student's owner can write: a dead, listed player who unset `deceased` (or set `monocub`) from the console was taken
+ * off the list by the settle that write scheduled, and given their microphone back, before the audit's put-back of the
+ * GM-only flag landed - or for good where it failed. vote.mjs `trialParticipants` closed the same hole for the ballot
+ * in E10 C2.
+ *
+ * NO LIVING VICTIM (E70 fix p1-G1; the review's SEC-1). An open incident's victim was listed by the incident's cast
+ * (amend 2). While the crisis runs that victim is alive (a Survive is one of its ends), and the list is world data
+ * every console reads in the trial (world-secrets.mjs): it named the incident's victim to every player, muted a living
+ * student and took away their OBJECTION!. A victim who has died is dead in the GMs' records (`isDeadForGm` reads the
+ * held death, `pendingDeath`), so amend 2's victim is listed by the rule every death is; a living one is not.
+ */
+function deadForTrial(held = actor => actor) {
+    const ids = new Set();
+    for (const actor of studentActors()) {
+        const flags = held(actor);
+        if (flags.getFlag(MODULE_ID, FLAGS.monocub)) continue;
+        if (isDeadForGm(flags)) ids.add(actor.id);
+    }
+    return [...ids].sort();
+}
+
+/** A user's own BROADCAST_AUDIO grant: `{ had, value }`, from the document's source. */
+function grantOf(user) {
+    const own = (user?._source ?? user)?.permissions ?? {};
+    return { had: Object.hasOwn(own, "BROADCAST_AUDIO"), value: own.BROADCAST_AUDIO ?? null };
+}
+
+/** The trial's block of one player: what it found kept first, then the write; a GM's own block is left alone. */
+async function blockForTrial(user) {
+    if (!isPrimaryGm()) return null;
+    const { had, value } = grantOf(user);
+    if (had && value === false) return "gm";
+    await trialMuteStore.patch(user.id, { had, value, wrote: true });
+    try {
+        await user.update({ "permissions.BROADCAST_AUDIO": false });
+    } catch (err) {
+        error(`Could not turn ${user.name}'s microphone off for the trial`, err);
+        await trialMuteStore.drop(user.id);
+        return null;
+    }
+    return "blocked";
+}
+
+/** The trial's block of one player put back, only while it stands as the trial wrote it; the row goes either way. */
+async function restoreTrialBlock(user, row) {
+    if (!isPrimaryGm()) return null;
+    const { had, value } = grantOf(user);
+    if (!had || value !== false) {
+        await trialMuteStore.drop(user.id);
+        return "changed";
+    }
+    let change;
+    if (row.had) change = { "permissions.BROADCAST_AUDIO": row.value };
+    else {
+        const gone = forcedDeletion();
+        if (!gone) {
+            await trialMuteStore.drop(user.id);
+            whisperToGms(`<p>${esc(game.i18n.format("DRPG.Voice.trialMuteLeft", { name: user.name }))}</p>`);
+            return "left";
+        }
+        change = { "permissions.BROADCAST_AUDIO": gone };
+    }
+    try {
+        await user.update(change);
+    } catch (err) {
+        error(`Could not give ${user.name}'s microphone back after the trial`, err);
+        return null;
+    }
+    await trialMuteStore.drop(user.id);
+    return "restored";
+}
+
+/**
+ * The trial's voices settled to the clock, on the primary GM, in one step of the record's key (vote.mjs
+ * `TRIAL_PROGRESS_KEY`): in a Class Trial the list written and every listed player blocked, a player no longer listed
+ * (a new Monocub) given back; outside one the list taken out of the record and every block the trial wrote given back.
+ * `release` gives everything back whatever the clock says (the season's reset, before its cut empties the store).
+ * Answers `{ list, blocked, restored }`, or null on another browser.
+ */
+export async function settleTrialVoices({ release = false } = {}) {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
+    await trialMuteStore.whenHydrated();
+    const vote = await import("./vote.mjs");
+    const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
+    return serialWrite(vote.TRIAL_PROGRESS_KEY, async () => {
+        // Every write queued on a student judged, then each read as the GMs hold it in one synchronous pass (SEC-2,
+        // `deadForTrial`). The wait holds up nothing that holds it up: no judgement waits for the record's key.
+        if (game.user?.isGM) await judgedFor(...studentActors().map(actor => actor.id));
+        const clock = getClock();
+        const inTrial = clock.phase === "classTrial" && !release;
+        const stored = getSetting(SETTINGS.trialProgress) ?? {};
+        const list = inTrial ? deadForTrial(flagsHeldNow) : null;
+        if (inTrial) {
+            /* THE STORED RECORD'S OWN CHAPTER (E70 fix p1-G1; the review's E70P1-R06). A clock moved to another chapter
+               inside the trial (Edit campaign, or the chapter's end, whose "clock" step runs before its "trial") left a
+               record of the old chapter, and the list written with no chapter started from that chapter's blank and
+               replaced the whole record - vote, verdict, sentence, receipts. Written into the record that stands. */
+            const own = stored.chapter ?? null;
+            const now = own === clock.chapter && Array.isArray(stored.mutedDead) ? stored.mutedDead : null;
+            if (own !== null && own !== clock.chapter) {
+                if (JSON.stringify(stored.mutedDead ?? null) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list }, { chapter: own });
+            } else if (JSON.stringify(now) !== JSON.stringify(list)) {
+                // The trial's size counted again with the first list, which the reset could not know (fix p1-G2; vote.mjs `trialSizeNow`).
+                await vote.writeTrialProgressInStep({ mutedDead: list, ...(now === null ? { trialSize: vote.trialSizeNow(list) } : {}) });
+            }
+        } else if (Object.hasOwn(stored, "mutedDead")) {
+            await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
+        }
+        const listed = new Set(list ?? []);
+        const out = { list, blocked: [], restored: [] };
+        for (const user of game.users) {
+            if (user.isGM) continue;
+            const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
+            const row = trialMuteStore.get(user.id);
+            if (voice && listed.has(voice.id)) {
+                if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
+            } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
+        }
+        for (const id of Object.keys(trialMuteStore.entries())) if (!game.users.has(id)) await trialMuteStore.drop(id);
+        if (out.blocked.length || out.restored.length) debug(`trial voices: ${listed.size} listed, ${out.blocked.length} blocked, ${out.restored.length} given back`);
+        return out;
+    });
+}
+
+/**
+ * Ask the primary GM to settle the trial's voices (the GMs' row "trial.enter"), or settle them here on the primary:
+ * the shape investigation.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.
+ */
+export async function askTrialVoices() {
+    if (!game.user?.isGM) return null;
+    const { bridgeRequest } = await import("./bridge-guards.mjs");
+    const res = await bridgeRequest("trial.enter", {}, { settle: "reply", onPrimary: true, local: () => settleTrialVoices() });
+    return res.ok ? res.value ?? null : null;
+}
+
+/*
+ * THIS PRIMARY'S OWN TRIGGERS (E70 C5). Only while a trial's list stands or the store holds a block, so a clock written
+ * raw into a trial - tier 2's fixtures, a console - blocks nobody until a road in asks: the list is written by the
+ * entry alone. A death, a Monocub's flag, a user's ownership and any write of the clock are coalesced into one settle.
+ */
+let settleTimer = null;
+function trialVoicesPending() {
+    const stored = getSetting(SETTINGS.trialProgress) ?? {};
+    return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0;
+}
+function scheduleTrialVoices() {
+    if (!isPrimaryGm() || !trialVoicesPending()) return;
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+        settleTimer = null;
+        settleTrialVoices().catch(err => error("Could not settle the trial's voices", err));
+    }, 250);
+}
+export function registerTrialVoices() {
+    Hooks.on("drpgDeathsChanged", scheduleTrialVoices);
+    Hooks.on("updateActor", (_actor, changes) => {
+        // Any of the module's flags (a death, a revival, a Monocub's) or the ownership; the settle reads what stands.
+        if (changes?.flags?.[MODULE_ID] || "ownership" in (changes ?? {})) scheduleTrialVoices();
+    });
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
+    });
+    Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
+    Hooks.once("ready", () => {
+        if (game.user?.isGM) trialMuteStore.whenHydrated().then(() => scheduleTrialVoices()).catch(() => {});
+    });
 }
 
 /** This browser's LiveKit Room, connected - the Room the voice tile (E78 C3) reads speakers from. */

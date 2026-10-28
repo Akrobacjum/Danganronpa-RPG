@@ -47,7 +47,7 @@ import { monokumas } from "./despair.mjs";
 import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
@@ -1464,6 +1464,14 @@ async function wipeSeason(plan) {
      * and when it cannot be written nothing is wiped, or a GM who was away would open
      * the world alone holding last season, and act on it.
      */
+    /* THE TRIAL'S MICROPHONES GIVEN BACK FIRST (E70 C5): the cut empties the store of what the trial's mute found
+       (gm-stores.mjs `trialMuteStore`, the trial's group), and a block nobody remembers is never put back. */
+    try {
+        const { settleTrialVoices } = await import("./voice.mjs");
+        await settleTrialVoices({ release: true });
+    } catch (err) {
+        error("Season reset: could not give the trial's muted microphones back", err);
+    }
     try {
         await setClock(resetCutPatch(plan, getClock(), gmStoreStamp()));
     } catch (err) {
@@ -1602,8 +1610,13 @@ async function wipeSeason(plan) {
             }
         },
 
-        trialFloor: emptied(SETTINGS.trialQueue, {}),
-        trialProgress: emptied(SETTINGS.trialProgress, {}),
+        // Each in a step of its key (E70 C0; tier 0 R991, R1020): the floor's (trial.mjs `SEIZE_KEY`) and the record's
+        // (vote.mjs `TRIAL_PROGRESS_KEY`), so a seizure, the heartbeat or a vote's step on its way is not written over
+        // with last season's floor or record after the reset. Written raw, as before: nothing is withdrawn or told.
+        trialFloor: () => import("./trial.mjs").then(m => serialWrite(m.SEIZE_KEY,
+            () => game.settings.set(MODULE_ID, SETTINGS.trialQueue, {}))),
+        trialProgress: () => import("./vote.mjs").then(m => serialWrite(m.TRIAL_PROGRESS_KEY,
+            () => game.settings.set(MODULE_ID, SETTINGS.trialProgress, {}))),
         // And the season's stamps of the bodies found (E11 C1), under the same tick: both say
         // what this season found, and its chapter 1 is not the next season's.
         bodyFound: each(emptied(SETTINGS.bodyFound, {}), emptied(SETTINGS.bodiesFound, {})),
@@ -1767,6 +1780,11 @@ async function wipeSeason(plan) {
          * kept out of the settings written whole, campaign name kept, because the name belongs to the table.
          */
         clock: async () => {
+            /* THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries
+               out its sentence (vote.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back,
+               in a season that is over. Taken back first, whichever groups were ticked. */
+            const { clearSentence } = await import("./vote.mjs");
+            await clearSentence();
             const clock = getClock();
             await setClock({
                 chapter: 1, day: 1, session: 1, timeOfDay: "morning",

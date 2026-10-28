@@ -826,7 +826,7 @@ export async function flagsAsHeld(actor) {
  * `flagsAsHeld` without its wait (E10 C2, 1.2.71), as `actorHeldNow` is `actorAsHeld`'s: for a GM's decision about
  * several students at once, which waits once for all of them (`judgedFor(...ids)`) and then reads each in one
  * synchronous pass - so no write is judged between two of the reads. The road: who is handed a ballot and whose
- * ballot counts (vote.mjs `eligibleVoters`, behind `studentsJudged` at the open, a player's ask and a cast). The mark is
+ * ballot counts (vote.mjs `trialParticipants`, behind `studentsJudged` at the open, a player's ask and a cast). The mark is
  * `heldMark`'s, whose rules are the ones `flagsAsHeld` read inline until C2 - the primary's, of a student, not a
  * Monokuma's - and its flags are taken in one step here, as they were there as the wait ended.
  */
