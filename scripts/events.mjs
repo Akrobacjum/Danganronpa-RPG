@@ -339,15 +339,18 @@ function afterVerdictCard(clock) {
         const progress = trialProgress();
         const verdict = progress.chapter === clock.chapter ? progress.verdict : null;
         if (!Array.isArray(verdict?.done) || !verdict.done.includes("card")) return null;
-        const executed = (verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        const executed = (verdict.sentenced ?? verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        // The sentence waits for the trial's end (E70 C4): executed once the execution is stamped, until then the
+        // card's own line (vote.mjs `postVerdictCard`).
+        const names = executed.map(actor => actor.name).join(", ");
         return {
             kind: "trial",
             title: game.i18n.localize("DRPG.Events.afterVerdict"),
             sub: game.i18n.localize(verdict.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong"),
             // `cardElement` writes text, not markup, so the names go in as they are.
-            meta: executed.length
-                ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
-                : game.i18n.localize("DRPG.Vote.nobodyExecuted")
+            meta: !executed.length ? game.i18n.localize("DRPG.Vote.nobodyExecuted")
+                : progress.executedAt ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
+                    : game.i18n.format("DRPG.Vote.executionPending", { names })
         };
     } catch {
         return null;

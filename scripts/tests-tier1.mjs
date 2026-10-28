@@ -6145,10 +6145,12 @@ const INVARIANTS = [
                 `the reason a waiting Reinforced gives has no ${lang} text`);
         }
         // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
-        // the pick cleared): its call is read, after the kill that takes an executed Mastermind's.
+        // the pick cleared): its call is read. Since E70 C4 the Mastermind dies when the trial ends, not in the
+        // verdict, so the batch leaves out a Mastermind it sentenced, whose kill drops their row (R1033).
         const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
-        const kill = finalVerdict.indexOf("killCharacter("), batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm(), null)");
-        ok(kill > 0 && batch > kill, "the Final Trial's verdict does not hand out what waited for the class (Q7), or does so before its kill");
+        const sentence = finalVerdict.indexOf("finalSentenced: [mastermind.id]"),
+            batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm().filter(actor => !(executed && actor.id === mastermind.id)), null)");
+        ok(sentence > 0 && batch > sentence, "the Final Trial's verdict does not hand out what waited for the class (Q7), or hands it to the Mastermind it sentenced");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
             stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
     }],

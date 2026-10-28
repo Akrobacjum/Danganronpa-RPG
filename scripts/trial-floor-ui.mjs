@@ -6,7 +6,7 @@
  * console for it, loaded only when they open it.
  */
 
-import { TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection
@@ -439,9 +439,14 @@ export async function endClassTrial() {
        closes the trial itself, its "end the Class Trial" box). A GM who pressed this one and said yes had a
        finished-looking table and an open chapter. It stays - a trial can end without a verdict - and is never
        the console's default; once the verdict is in, its question says so. */
-    const { trialProgress } = await import("./vote.mjs");
-    const notChapter = trialProgress().verdictApplied
-        ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}</p>` : "";
+    const { trialProgress, pendingSentence } = await import("./vote.mjs");
+    /* AND WHOM IT EXECUTES (E70 C4; DC36): the sentence is carried out as the trial ends, so its question names
+       them - a Final Trial's too, read off the GMs' store, on this GM's screen alone. */
+    const sentenced = await pendingSentence();
+    const notChapter = (trialProgress().verdictApplied
+        ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}</p>` : "")
+        + (sentenced.length ? `<p class="drpg-warning">${game.i18n.format("DRPG.Floor.endTrialExecutes", {
+            names: sentenced.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}</p>` : "");
 
     /* AND IT SAYS WHERE THE TABLE GOES (E13 C3b, 12.10.2026; the owner's answer f of 09.10). With a
        trial hall linked, leaving the trial takes the table out of the hall, and the students' tokens
@@ -531,6 +536,18 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
         return false;
     }
 
+    /* THE SENTENCE FIRST (E70 C4; DC36, the plan's point (g) road 1): the convicted die as the trial ends - here, in the
+       hall, before the phase moves and the living gather at school (trial-scene.mjs `followPhase`), in the trial's own
+       chapter, which the chapter's end has already moved the clock past (vote.mjs `executeAtExit`). Once: the phase
+       write's `reconcilePhase` asks again and finds it stamped. A throw is logged and ends nothing here: that road
+       tries it again. */
+    try {
+        const { executeAtExit } = await import("./vote.mjs");
+        await executeAtExit();
+    } catch (err) {
+        error("Could not carry out the trial's sentence as it ended", err);
+    }
+
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
         // is what makes ending a trial from the clock editor end it properly too.
@@ -554,7 +571,9 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
     }
 
     const { announce } = await import("./utils.mjs");
+    // With the trial's close's own sound (E70 C4; amend 0): the table goes back to school.
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "trialClose", gm: true } } },
         content: trialEventCard("DRPG.Floor.trialOver", game.i18n.localize("DRPG.Floor.trialClosed"))
     });
     return true;
@@ -680,6 +699,17 @@ export function trialNextStep({ floor, running, progress, afterwards, stopped, r
        debate it cut into, and the step is the same debate again - its question and its budget, no window. */
     if (progress.againAfterOverrule) return "openAgain";
     return progress.debateAgain ? "reopen" : "openDebate";
+}
+
+/**
+ * A verdict's sentence the trial's end has not yet carried out (E70 C4; DC36): the console's lead says the trial goes
+ * on and the sentence waits for its end. Read off the world's record, which names a Final Trial's convict nowhere
+ * (`sentencePending`).
+ */
+function sentenceWaits(progress) {
+    const verdict = progress?.verdict;
+    if (!verdict || progress.executedAt) return false;
+    return verdict.final ? Boolean(verdict.sentencePending) : (verdict.sentenced ?? []).length > 0;
 }
 
 /** The console's first line, by the next step: what the trial is waiting for, said once. */
@@ -867,7 +897,8 @@ function trialConsoleHtml(view) {
            and so does a verdict that stopped, which Finish the verdict below it answers. */
         const lead = `<p class="drpg-trial-lead">${running || !afterwards ? ""
             : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.format(TRIAL_LEADS[view.lead ?? next],
-                { name: esc(game.users.get(runner ?? "")?.name ?? "?") })}</p>`;
+                { name: esc(game.users.get(runner ?? "")?.name ?? "?") })}${
+                running && next === "chapterEnd" && sentenceWaits(progress) ? ` ${game.i18n.localize("DRPG.Floor.lead.sentenceWaits")}` : ""}</p>`;
         if (!running) {
             return `<div class="drpg-trial-console">
             ${lead}

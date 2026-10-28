@@ -2575,10 +2575,32 @@ async function withVerdictOpen(run) {
     const { trialProgress } = await import("./vote.mjs");
     const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
     try {
-        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter: getClock().chapter, verdictApplied: false,
+            executedAt: null, execution: null });
         return await run();
     } finally {
         await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+    }
+}
+
+/**
+ * A verdict given in a Class Trial, then the trial's end that carries its sentence out (E70 C4: vote.mjs
+ * `executeAtExit`, as End the trial asks it), over `withVerdictOpen`'s record. The clock is written raw around both,
+ * so no phase write runs its roads (the floor, the hall), and put back. Answers what `run` answered.
+ */
+async function withVerdictCarriedOut(run) {
+    const { executeAtExit } = await import("./vote.mjs");
+    const clock = foundry.utils.deepClone(getClock());
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+        return await withVerdictOpen(async () => {
+            const out = await run();
+            await executeAtExit();
+            await settle();
+            return out;
+        });
+    } finally {
+        await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
     }
 }
 
@@ -23300,7 +23322,9 @@ const SCENARIOS = [
         const esc = foundry.utils.escapeHTML;
         const from = new Set(game.messages.map(m => m.id));
         try {
-            const after = await withVerdictOpen(async () => {
+            /* E70 C4 (DC36): the verdict sentences in the trial, and the trial's end executes - its own card, with the
+               execution's sound, and the owner's note. */
+            const after = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null,
                     () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
                 await settle();
@@ -23311,12 +23335,17 @@ const SCENARIOS = [
             const cards = fresh.filter(m => said.get(m.id).includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
             const card = cards[0] ?? null, sfx = card?.getFlag(MODULE_ID, "sfx") ?? null;
             equal(stableJson([cards.length, card?.whisper?.length ?? null, card?.getFlag(MODULE_ID, "verdictCard") ?? null, sfx?.key ?? sfx, after.stage]),
-                stableJson([1, 0, getClock().chapter ?? null, "death", "done"]),
-                "the verdict is not one public card of the chapter with the death's sound, or did not finish (cards, whispered to, chapter, sound, stage)");
+                stableJson([1, 0, getClock().chapter ?? null, null, "done"]),
+                "the verdict is not one public card of the chapter without the death's sound, or did not finish (cards, whispered to, chapter, sound, stage)");
             const words = said.get(card?.id) ?? "";
-            ok(words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))
+            ok(words.includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) }))
                 && words.includes(game.i18n.localize("DRPG.Vote.verdictWrong")),
-                "the verdict's card does not say who was executed and that the class got it wrong");
+                "the verdict's card does not say who is executed when the trial ends and that the class got it wrong");
+            const executions = fresh.filter(m => m.getFlag(MODULE_ID, "executionCard"));
+            equal(stableJson([executions.length, executions[0]?.whisper?.length ?? null, executions[0]?.getFlag(MODULE_ID, "sfx")?.key ?? null,
+                said.get(executions[0]?.id)?.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) })) ?? false]),
+                stableJson([1, 0, "execution", true]),
+                "the trial's end did not post one public execution card with its sound naming the executed (cards, whispered to, sound, the line)");
             const told = fresh.filter(m => !m.whisper?.length)
                 .map(m => `${said.get(m.id)} ${JSON.stringify(m.flags ?? {})} ${JSON.stringify(m.speaker ?? {})}`);
             equal(stableJson(told.filter(text => text.includes(killer.id) || text.includes(killer.name)).length), "0",
@@ -24281,7 +24310,8 @@ const SCENARIOS = [
                 "the verdict window did not open on an accused whose body nobody has found, listed them dead or not to be "
                 + "picked, or did not tell the GM whose death that is (the select's value; the option disabled, its words; the "
                 + "GM's line; \"already dead\")");
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict(answer));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24289,12 +24319,13 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))),
                 cards.some(words => words.includes(game.i18n.localize("DRPG.Vote.nobodyExecuted"))),
                 isDeceased(accused), deathStore.has(accused.id), stage]),
             stableJson([1, true, false, true, false, "done"]),
             "the wrong verdict the window gave did not execute the accused whose body nobody had found, or the card and the "
-                + "sheet disagree (cards; the card names them executed; it says nobody was; the flag; the GMs' row; the stage)");
+                + "sheet disagree (verdict cards; the execution card names them executed; it says nobody was; the flag; the GMs' row; the stage)");
         } finally {
             await reviveCharacter(accused, { quiet: true });
             for (const id of answer?.blackenedIds ?? []) if (deferredOfferStore.has(id)) await deferredOfferStore.drop(id);
@@ -24320,7 +24351,8 @@ const SCENARIOS = [
         const from = new Set(game.messages.map(m => m.id));
         must(await killCharacter(killer, { secret: true, keepBullets: true }), `${killer.name}'s death was not kept by the GMs`);
         try {
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24328,10 +24360,11 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(killer.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(killer.name) }))),
                 isDeceased(killer), deathStore.has(killer.id), stage]),
             stableJson([1, true, true, false, "done"]),
-            "the right verdict's card and the sheet of the Blackened whose body nobody had found disagree (cards; the card "
+            "the right verdict's card and the sheet of the Blackened whose body nobody had found disagree (verdict cards; the execution card "
                 + "names them executed; the flag; the GMs' row; the stage)");
         } finally {
             await reviveCharacter(killer, { quiet: true });
@@ -24391,7 +24424,8 @@ const SCENARIOS = [
 
     ["an execution of an open incident's living victim is public", async () => {
         /*
-         * E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5. `executeSentenced` called `killCharacter(actor)`,
+         * E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5 (since E70 C4 the execution is the trial's end's,
+         * `withVerdictCarriedOut`, on its own card). `executeSentenced` called `killCharacter(actor)`,
          * which keeps the running incident's victim's death for the GMs by default, and C12's "keep" lets a trial run
          * beside an open incident (trial-floor-ui.mjs `incidentClosedFirst`): executing its victim, alive, wrote a death
          * the GMs held while the card said "executed". An incident opened on a living victim, its opening resolved as
@@ -24420,7 +24454,8 @@ const SCENARIOS = [
             await settle();
             must(M.murderState()?.active && M.murderState()?.victimId === victim.id && !isDeadForGm(victim),
                 "the incident is not open on a living victim - this would measure nothing");
-            const stage = await withVerdictOpen(async () => {
+            // E70 C4: executed when the trial ends, on its own card (`withVerdictCarriedOut`).
+            const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [victim.id], blackenedIds: [] }));
                 await settle();
                 return V.trialProgress().verdict?.stage ?? null;
@@ -24428,10 +24463,11 @@ const SCENARIOS = [
             const fresh = game.messages.filter(m => !from.has(m.id));
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
             const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
-            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
+            const executions = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.executionCardTitle")));
+            equal(stableJson([cards.length, executions.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(victim.name) }))),
                 isDeceased(victim), deathStore.has(victim.id), stage]),
             stableJson([1, true, true, false, "done"]),
-            "the execution of the open incident's living victim is not the table's (cards; the card names them executed; the flag; "
+            "the execution of the open incident's living victim is not the table's (verdict cards; the execution card names them executed; the flag; "
                 + "the GMs' row; the stage)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -39359,6 +39395,121 @@ const SCENARIOS = [
             + "(4) the debate again: the floor, its question, its budget and seconds, a length asked, the mark");
     }],
 
+    ["the verdict kills nobody and ends nothing; the convicted die once when the trial ends, in its own chapter; a verdict after End the trial is carried out at once; an old record reaches done; the season's reset takes the sentence back (E70-T7)", async () => {
+        /*
+         * E70 C4, 28.10.2026; E70-15 to E70-17 (S18-87; the owner's DC36: "token osoby na którą zagłosowano umiera po
+         * class trialu, gdy class trial się kończy, a nie w trakcie. Niech werdykt nie kończy automatycznie triala").
+         * Read on this primary, the clock and the record written raw (no phase write runs its roads), so the test holds
+         * in a trial and out of one. (1) In a Class Trial a right verdict sentences A: A lives, the phase stays, the
+         * record holds the sentence and the chapter's stamp, and the verdict's card says the execution waits for the
+         * trial's end, without the death's sound. (2) The chapter's end moves the clock on before it closes the trial:
+         * the exit (`executeAtExit`, as `closeTrial` and `reconcilePhase` ask it) executes A in the trial's chapter,
+         * in its phase, with the cause "executed", stamps the record of that chapter, and posts one execution card with
+         * its sound and one note to A's owner. (3) A second road kills nobody twice; nor does one after an exit whose
+         * stamp was lost half way. (4) A verdict given after End the trial carries its sentence out at once. (5) A
+         * record written before 1.2.90 - stopped, "executions" not done - reaches "done" on Finish and kills nobody in
+         * the trial. (6) The season's reset takes the sentence back, and the exit then executes nobody. Red at
+         * b776bf72: the verdict executed A at once. The clock, the floor, the record and the three students are put
+         * back.
+         */
+        needs(env.primaryGm(), "the sentence is read held on the primary GM (the sheet audit's mark)");
+        const [accused, late, other] = cast(3);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { deferredOfferStore, offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const esc = foundry.utils.escapeHTML;
+        must([accused, late, other].every(a => !isDeadForGm(a)), "one of the three students is dead before the verdict - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const fresh = () => game.messages.filter(m => !seen.has(m.id));
+        const executions = () => fresh().filter(m => m.getFlag(MODULE_ID, "executionCard"));
+        const { wordsOf } = await import("./secret.mjs");
+        // A whisper's words are read as its owner reads them (`wordsOf`), as "a wrong verdict's card names the executed" did.
+        const notes = async actor => (await Promise.all(fresh().filter(m => m.whisper?.length).map(m => wordsOf(m, 1000))))
+            .filter(words => String(words ?? "").includes(game.i18n.format("DRPG.Vote.executedNote", { name: esc(actor.name) }))).length;
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const blankRecord = chapter => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter,
+            verdictApplied: false, verdict: null, executedAt: null, execution: null });
+        const exit = (...a) => (typeof V.executeAtExit === "function" ? V.executeAtExit(...a) : null);
+        const read = {};
+        try {
+            ok(typeof V.executeAtExit === "function", "vote.mjs has no executeAtExit - nothing carries a sentence out when the trial ends");
+            const chapter = getClock().chapter;
+            await rawClock({ phase: "classTrial" });
+            await blankRecord(chapter);
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [accused.id], blackenedIds: [accused.id] }));
+            await settle();
+            const given = V.trialProgress();
+            const card = fresh().find(m => m.getFlag(MODULE_ID, "verdictAt") === given.verdict?.at) ?? null;
+            read.verdict = [isDeadForGm(accused), getClock().phase, given.verdict?.stage ?? null, given.verdict?.sentenced ?? null,
+                given.lastVerdictAt === given.verdict?.at,
+                String(card?.content ?? "").includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) })),
+                card?.getFlag(MODULE_ID, "sfx")?.key ?? null, executions().length];
+
+            await rawClock({ chapter: chapter + 1 });
+            await exit();
+            await settle();
+            const stored = getSetting(SETTINGS.trialProgress) ?? {};
+            const death = deathRecord(accused);
+            read.exit = [isDeceased(accused), death?.chapter ?? null, death?.phase ?? null, death?.cause ?? null, stored.chapter ?? null,
+                Number.isFinite(stored.executedAt), executions().length, executions()[0]?.getFlag(MODULE_ID, "sfx")?.key ?? null,
+                String(executions()[0]?.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) })),
+                (await notes(accused)) === 1];
+
+            await exit({ chapter });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...getSetting(SETTINGS.trialProgress), executedAt: null });
+            await exit({ chapter });
+            await settle();
+            read.once = [executions().length, Number.isFinite(getSetting(SETTINGS.trialProgress)?.executedAt)];
+
+            await rawClock({ chapter, phase: "dailyLife" });
+            await blankRecord(chapter);
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [late.id], blackenedIds: [late.id] }));
+            await settle();
+            read.after = [isDeceased(late), deathRecord(late)?.cause ?? null, Number.isFinite(V.trialProgress().executedAt), executions().length];
+
+            await rawClock({ phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                executedAt: null, execution: null, verdict: { stage: "applying", correct: true, executedIds: [other.id], by: "a GM who left",
+                    at: Date.now(), done: ["sentence", "levelUps", "overflow"], failed: [] } });
+            await withAdvanceWindows(() => null, () => V.finishVerdict());
+            await settle();
+            read.old = [V.trialProgress().verdict?.stage ?? null, isDeadForGm(other), executions().length];
+
+            if (typeof V.clearSentence === "function") await V.clearSentence();
+            await exit({ chapter });
+            await settle();
+            read.reset = [isDeadForGm(other), executions().length, V.trialProgress().verdict?.executedIds ?? null];
+        } finally {
+            for (const a of [accused, late, other]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            for (const a of studentActors()) {
+                if (offerStore.has(a.id)) await offerStore.drop(a.id);
+                if (deferredOfferStore.has(a.id)) await deferredOfferStore.drop(a.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        const chapter = clock.chapter;
+        equal(stableJson(read), stableJson({
+            verdict: [false, "classTrial", "done", [accused.id], true, true, null, 0],
+            exit: [true, chapter, "classTrial", "executed", chapter, true, 1, "execution", true, true],
+            once: [1, true],
+            after: [true, "executed", true, 2],
+            old: ["done", false, 2],
+            reset: [false, 2, []]
+        }), "(1) the verdict in a trial: A dead, the phase, the stage, the sentence, the chapter's stamp, the card's line, the card's sound, execution cards; "
+            + "(2) the exit after the clock moved on: A dead, the death's chapter, phase and cause, the record's chapter, its stamp, execution cards, their sound, their line, the owner's note; "
+            + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
+            + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
@@ -52651,6 +52802,8 @@ const SCENARIOS = [
          * another (`maybeBodyFound` on `updateToken`). Read: the executed record's phase, the discovery
          * cards since the walk, the hold, this chapter's stamps since the walk, the room each token read as
          * it arrived. The gather is the discovery's, after its stamp (`runDiscovery`): no stamp, no gather.
+         * E70 C4: the verdict kills nobody in a trial; given after End the trial, as here, its sentence is carried out at
+         * once (vote.mjs `runVerdict` -> `executeAtExit`, which keeps the trial's phase), so this still reads the kill.
          */
         needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
         needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
@@ -53805,6 +53958,8 @@ const SCENARIOS = [
          * convict the verdict executes after End the trial is no body to find" reads: the record's phase,
          * the discovery cards since the walk, the hold, this chapter's stamps since the walk, the room each
          * token read as it arrived.
+         * E70 C4: the Final verdict kills nobody in a trial; given after End the trial, as here, its sentence (kept in the
+         * GMs' `verdictStore`) is carried out at once (`executeAtExit`), so this still reads the kill.
          */
         needs(env.primaryGm(), "the watcher runs on the primary GM alone");
         needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");

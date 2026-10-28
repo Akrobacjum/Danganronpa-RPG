@@ -3404,8 +3404,9 @@ const REGRESSIONS = [
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
-        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's).
-        ok(/await markDeceased\(actor(?:, \{ phase \})?\)/.test(kill),
+        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's), and the
+        // cause and the trial's chapter since E70 C4 (an execution at the trial's end).
+        ok(/await markDeceased\(actor(?:, \{ phase(?:, cause, chapter)? \})?\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
@@ -7684,7 +7685,8 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
-            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
+            ["SHEET vote.mjs#carryOutSentence", "judged (C5, fix r1-G4; since E70 C4 at the trial's end, not in the verdict): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1); and `cause: \"executed\"`, in the trial's own chapter, once (`executedAt`) [1b.2]"],
+            ["SHEET vote.mjs#pendingSentence", "out of scope: a display on the GM's own End the trial question (GM gate); names the sentenced the table does not know dead (`isDeceased` of the document) and decides nothing - the execution reads them held (`carryOutSentence`) (E70 C4)"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
@@ -11163,14 +11165,15 @@ const REGRESSIONS = [
          * document's death; `postVerdictCard`, the one public card, reads no Blackened. Tier 2 drives
          * the card and a verdict that stops halfway ("a wrong verdict's card names the executed and
          * never the Blackened", "a verdict that stops halfway is finished by Finish the verdict"), and
-         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice.
+         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice. Since E70 C4 the
+         * executions are the trial's end's (`carryOutSentence`, the step of `executeAtExit`; R1033), read the same way.
          */
         const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
         ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
         equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
             "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
-        const execute = fnSource(vote, "executeSentenced"), card = fnSource(vote, "postVerdictCard");
-        ok(execute.length > 200 && card.length > 200, "executeSentenced or postVerdictCard is cut short - the reads below would measure nothing");
+        const execute = fnSource(vote, "carryOutSentence"), card = fnSource(vote, "postVerdictCard");
+        ok(execute.length > 200 && card.length > 200, "carryOutSentence or postVerdictCard is cut short - the reads below would measure nothing");
         const judged = execute.indexOf("judgedFor("), held = execute.indexOf("flagsHeldNow("), kill = execute.indexOf("killCharacter(");
         ok(judged > 0 && held > judged && kill > held,
             "an execution does not await the audit and read the student as the GMs hold them before `killCharacter`");
@@ -11769,7 +11772,7 @@ const REGRESSIONS = [
          * leaving can fall between (the batch's `onGiven` after the row's Level Up - read in the code, and
          * the sentence says so), a take-back refused while the Level Up is written (`takeBackOffer`),
          * Enter giving what the rows say (`askWhoPicks`), and a body nobody has found made the execution
-         * (`executeSentenced`). At the books before it the twelve sentences were missing.
+         * (`executeSentenced`; `carryOutSentence` since E70 C4). At the books before it the twelve sentences were missing.
          * E10 fix r2-G2 (10.10.2026; round 2's cor M1) moved Finish from the primary alone to the verdict's
          * runner (`verdictRunner`: its own GM while connected, otherwise the primary), which the console's
          * lead reads too (`trialNextStep`); the claim and both sentences say so now.
@@ -11807,7 +11810,8 @@ const REGRESSIONS = [
             majority: /return Math\.floor\(issued \/ 2\) \+ 1;/.test(fnSource(vote, "majorityOf")),
             nobodyFirst: /executedOptions = `<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(verdict),
             cancelFirst: cancelFirst.test(verdict),
-            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(card) && !/blackened/i.test(card),
+            // The owner's note moved to the execution's card at the trial's end in E70 C4 (`postExecutionCard`).
+            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(fnSource(vote, "postExecutionCard")) && !/blackened/i.test(card),
             oneWindow: [...batch.matchAll(/\baskWhoPicks\(/g)].length === 1
                 && /"DRPG\.Advance\.queueTitle"/.test(fnSource(levelUp, "askWhoPicks")),
             closeWindow: /!who \? \(playable \? "player" : null\)/.test(batch),
@@ -11827,7 +11831,7 @@ const REGRESSIONS = [
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
-            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor, \{ phase: "classTrial" \}\)/.test(fnSource(vote, "executeSentenced")),
+            unfoundExecuted: /isDeadForGm\(held\)\s*\? await publishDeath\(actor, \{ phase: "classTrial", cause: "executed" \}\)/.test(fnSource(vote, "carryOutSentence")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
@@ -15725,6 +15729,72 @@ const REGRESSIONS = [
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         equal(JSON.stringify(readOf(await read("vote.mjs"), await read("trial-floor-ui.mjs"))), JSON.stringify(all),
             "a trial's field outlives its trial, a chapter's dies with it, the vote opens on a browser's clock, or the question is written before the floor opens (read: cut, trial, chapter, vote, order)");
+    }],
+
+    ["R1033 - the sentence is carried out at the trial's end and nowhere else (E70 C4, S18-87; DC36): in vote.mjs only `carryOutSentence` (the step of `executeAtExit`) calls `killCharacter` or `publishDeath`, and mastermind.mjs calls neither; the verdict's steps hold no \"executions\" and its card needs the sentence; clock.mjs `reconcilePhase` asks `executeAtExit` after `endFloor` and before `followPhase`, trial-floor-ui.mjs `closeTrial` before its `setClock`, and the season's reset takes the sentence back (`clearSentence`) before its clock step's `setClock`", async () => {
+        /*
+         * E70 C4, 28.10.2026; E70-15 to E70-17. The owner's DC36: "token osoby na którą zagłosowano umiera po class
+         * trialu, gdy class trial się kończy, a nie w trakcie". The verdict's step "executions" (E10 C5) and the Final
+         * Trial's verdict (mastermind.mjs `applyFinalVerdict`) killed in the verdict; one function kills now, on the roads
+         * out of the trial, in the order the table meets them: the floor closes, the convicted die in the hall, then the
+         * living gather at school. A new kill in either file is a decision this test has to be changed for. Read in the
+         * module's files, comments blanked; the reader is shown a clean twin first, then one fault of each rule. Red at
+         * b776bf72: `executeSentenced` and `applyFinalVerdict` killed, the steps held "executions", nothing was asked
+         * at the exit.
+         */
+        const DECL = /^(?:export )?(?:async )?function ([\w$]+)\(/gm;
+        const killersIn = src => {
+            const decls = [...src.matchAll(DECL)].map(m => ({ name: m[1], at: m.index }));
+            const found = new Set();
+            for (const m of src.matchAll(/\b(?:killCharacter|publishDeath)\(/g)) found.add(decls.findLast(d => d.at <= m.index)?.name ?? "top level");
+            return [...found].sort();
+        };
+        const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };
+        const readOf = ({ vote, mastermind, clock, ui, season }) => {
+            const steps = bodyOf(vote, "const VERDICT_STEPS = {", { until: "\n};" });
+            const needsOf = bodyOf(vote, "const VERDICT_NEEDS = {", { until: "};" });
+            const reconcile = topLevelFunction(clock, "reconcilePhase") ?? "";
+            const out = reconcile.slice(0, Math.max(at(reconcile, /\bif \(to === "classTrial"\)/), 0));
+            const close = topLevelFunction(ui, "closeTrial") ?? "";
+            const reset = bodyOf(season, "clock: async () => {", { until: "\n        }" });
+            return {
+                cut: [reconcile, close].every(body => body.length > 60) && out.length > 40,
+                killers: [killersIn(vote), killersIn(mastermind)],
+                steps: !/"executions"/.test(steps) && /\bcard: "sentence"/.test(needsOf) && !/\bexecutions:/.test(needsOf),
+                reconcile: at(out, /\bendFloor\(/) >= 0 && at(out, /\bexecuteAtExit\(/) > at(out, /\bendFloor\(/)
+                    && at(reconcile, /\bfollowPhase\(/) > at(out, /\bexecuteAtExit\(/),
+                close: at(close, /\bexecuteAtExit\(/) >= 0 && at(close, /\bsetClock\(/) > at(close, /\bexecuteAtExit\(/),
+                reset: at(reset, /\bclearSentence\(/) >= 0 && at(reset, /\bsetClock\(/) > at(reset, /\bclearSentence\(/)
+            };
+        };
+        const pad = "    // " + "x".repeat(60) + "\n";
+        const twin = {
+            vote: "const VERDICT_STEPS = {\n    correct: [\"sentence\", \"card\"]\n};\nconst VERDICT_NEEDS = { card: \"sentence\" };\n"
+                + `async function carryOutSentence(chapter) {\n${pad}    await killCharacter(actor);\n    await publishDeath(actor);\n}\nasync function readSentence() {\n${pad}}\n`,
+            mastermind: `export async function applyFinalVerdict() {\n${pad}    await verdictStore.patch(RECORD, { finalSentenced: [id] });\n}\n`,
+            clock: `async function reconcilePhase(from, to) {\n    if (from === "classTrial") {\n${pad}        await endFloor();\n        await executeAtExit();\n    }\n`
+                + `    if (to === "classTrial") {\n${pad}    }\n    await followPhase(from, to);\n}\n`,
+            ui: `export async function closeTrial() {\n${pad}    await executeAtExit();\n    await setClock({ phase: "dailyLife" });\n}\n`,
+            season: `const steps = {\n        clock: async () => {\n            await clearSentence();\n            await setClock({ phase: "dailyLife" });\n        }\n};\n`
+        };
+        const all = { cut: true, killers: [["carryOutSentence"], []], steps: true, reconcile: true, close: true, reset: true };
+        equal(JSON.stringify(readOf(twin)), JSON.stringify(all), "the reader does not read its clean twin as clean");
+        const planted = {
+            vote: twin.vote.replace("[\"sentence\", \"card\"]", "[\"sentence\", \"executions\", \"card\"]").replace("{ card: \"sentence\" }", "{ card: \"executions\" }")
+                + `async function executeSentenced() {\n${pad}    await killCharacter(actor);\n}\n`,
+            mastermind: twin.mastermind.replace("    await verdictStore", "    await killCharacter(mastermind);\n    await verdictStore"),
+            clock: twin.clock.replace("        await executeAtExit();\n", "").replace("    await followPhase(from, to);\n", "    await followPhase(from, to);\n    await executeAtExit();\n"),
+            ui: twin.ui.replace("    await executeAtExit();\n", "").replace("\n}\n", "\n    await executeAtExit();\n}\n"),
+            season: twin.season.replace("            await clearSentence();\n", "")
+        };
+        equal(JSON.stringify(readOf(planted)), JSON.stringify({ cut: true, killers: [["carryOutSentence", "executeSentenced"], ["applyFinalVerdict"]],
+            steps: false, reconcile: false, close: false, reset: false }),
+            "the reader misses a planted kill in the verdict, a step of executions, an exit that asks too late or not at all, or a reset that keeps the sentence");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const real = { vote: await read("vote.mjs"), mastermind: await read("mastermind.mjs"), clock: await read("clock.mjs"),
+            ui: await read("trial-floor-ui.mjs"), season: await read("season-setup.mjs") };
+        equal(JSON.stringify(readOf(real)), JSON.stringify(all),
+            "the sentence is carried out somewhere other than the trial's end, the verdict still executes, or a road out of the trial asks for it too late or not at all (read: cut, [vote.mjs's killers, mastermind.mjs's], steps, reconcile, close, reset)");
     }],
 ];
 

@@ -1131,7 +1131,7 @@
       "verdictIntro": "Only you know whether the vote named the Mastermind. Say who was accused and pick the outcome.",
       "alreadyDeadNote": "The Mastermind died earlier this season. The same rule applies whoever was accused: reveal the truth, execute nobody new.",
       "whoWasAccused": "Who did the vote accuse?",
-      "verdictNote": "Correct: the Mastermind is executed and the killing game is over. Wrong, or already dead: nobody new is executed - the table is shown that the game was never what it looked like.",
+      "verdictNote": "Correct: the Mastermind is executed when the trial ends and the killing game is over. Wrong, or already dead: nobody new is executed - the table is shown that the game was never what it looked like.",
       "correctlyNamed": "They named the Mastermind",
       "notCorrectlyNamed": "They did not",
       "defeatedBanner": "THE MASTERMIND IS DEFEATED",
@@ -1186,6 +1186,7 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
+      "endTrialExecutes": "Ending the trial carries out the sentence: {names}.",
       "endTrialScene": "The living students who took part go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. A student left unticked is not moved. The tokens the module made in the trial hall are deleted, yours hidden.",
       "endTrialRoom": "Room",
       "endTrialMoves": {
@@ -1205,7 +1206,8 @@
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict, then end the chapter.",
         "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it, so that each of its steps is done once: ask {name}, then end the chapter.",
         "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
-        "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter."
+        "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
+        "sentenceWaits": "The trial goes on: the sentence is carried out when it ends."
       },
       "objectionNote": "You never move the debate for an objection: a player's OBJECTION! takes it, and the minute starts when their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
@@ -1439,12 +1441,16 @@
       "verdictIntro": "Only you know whether they got it right. Name who is executed and who the Blackened really was, then pick the outcome.",
       "executed": "Who is executed",
       "blackened": "Who the Blackened really is",
-      "verdictNote": "Right: the Blackened is executed, survivors Level Up. Wrong, and a tie counts as wrong: the accused is executed, the Blackened stays in play with a Reinforced Level Up and a new rule, and every Monokuma fills their Despair.",
+      "verdictNote": "Right: the Blackened is executed when the trial ends, survivors Level Up. Wrong, and a tie counts as wrong: the accused is executed when the trial ends, the Blackened stays in play with a Reinforced Level Up and a new rule, and every Monokuma fills their Despair.",
       "gotItRight": "They got it right",
       "gotItWrong": "They got it wrong",
       "correctSummary": "The students named the Blackened.",
       "wrongSummary": "The students named the wrong person.",
       "wasExecuted": "{name} has been executed.",
+      "executionPending": "Execution when the trial ends: {names}.",
+      "executionNow": "The sentence is carried out now: {names}.",
+      "executionCardTitle": "THE EXECUTION",
+      "executionFailed": "The sentence could not be carried out on {names}. If the verdict stands, mark the death in the Players window.",
       "levelUpGranted": {
         "one": "{n} survivor took their Level Up here: {kind}.",
         "other": "{n} survivors took their Level Up here: {kind}."

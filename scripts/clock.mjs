@@ -833,6 +833,17 @@ async function reconcilePhase(from, to) {
         } catch (err) {
             error("Could not close the debate floor after the phase changed", err);
         }
+        /* THE SENTENCE, ON EVERY ROAD OUT (E70 C4; DC36). After the floor and before the hall's move below, so the
+           executed die in the hall and do not gather at school. End the trial carried it out before its write
+           (trial-floor-ui.mjs `closeTrial`), and this finds it stamped; Edit campaign, `setClock` and any other
+           road out reach it here - in the trial's own chapter, which Edit campaign may move in this same write
+           (vote.mjs `executeAtExit` reads the record by its own chapter). */
+        try {
+            const { executeAtExit } = await import("./vote.mjs");
+            await executeAtExit();
+        } catch (err) {
+            error("Could not carry out the trial's sentence after the phase changed", err);
+        }
     }
 
     if (to === "classTrial") {

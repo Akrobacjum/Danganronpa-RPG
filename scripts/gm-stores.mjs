@@ -756,10 +756,13 @@ export const ballotStore = defineGmStore({
  * `applyVerdict`, read by `finishVerdict` when its `at` is the stopped verdict's. A GM store and
  * never the world's record, which every console reads and which C5 keeps free of a Blackened. Cut
  * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
+ * And the Final Trial's sentence (E70 C4; the owner's Q2 answer, 27.10.2026): `finalSentenced`, the Mastermind's
+ * id, under the Final verdict's `at` (`finalAt`), carried out at the trial's end (vote.mjs `executeAtExit`) - the
+ * world's record says only that it waits (`sentencePending`), as it names nobody (mastermind.mjs `applyFinalVerdict`).
  */
 export const verdictStore = defineGmStore({
     name: "verdict", key: SETTINGS.gmVerdict,
-    kind: "record", fields: ["at", "blackenedIds"], resetGroup: "trialProgress", backup: false, sync: true
+    kind: "record", fields: ["at", "blackenedIds", "finalAt", "finalSentenced"], resetGroup: "trialProgress", backup: false, sync: true
 });
 
 /**

@@ -138,7 +138,10 @@ export function trialProgress(chapter = getClock().chapter) {
         // E70 C3: the debate's question (the last one asked in this trial), the console's offer of the debate again
         // after its exchange ended it, the vote's first opening on the server's clock, and how many took part at the
         // trial's start (the clock's N/16) - each the trial's, blanked at its entry (`resetTrialProgress`).
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: 0
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: 0,
+        // E70 C4 (DC36; amend (i)): the stamp of the chapter's newest verdict (`readSentence`), kept for the chapter; the
+        // execution at the trial's end - its stamp on the server's clock and its own `{ done, failed }` - the trial's.
+        lastVerdictAt: null, executedAt: null, execution: null
     };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -190,11 +193,16 @@ export function setTrialProgress(patch = {}) {
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
 }
 
-async function writeTrialProgressInStep(patch) {
-    const before = trialProgress();
+async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
+    /* THE RECORD OF ITS OWN CHAPTER (E70 C4): the execution at the trial's end writes the record of the trial it ends,
+       which the chapter's end has already moved the clock past (chapter.mjs `CHAPTER_END_STEPS`: "clock" before
+       "trial") and Edit campaign moves in the same write as the phase. With `chapter`, the step writes only a record
+       stored for that chapter, and stamps it with that chapter, never the clock's. */
+    if (chapter !== null && trialProgressChapter() !== chapter) return null;
+    const before = trialProgress(chapter ?? getClock().chapter);
     const change = typeof patch === "function" ? patch(before) : patch;
     if (!change) return null;
-    const next = { ...before, ...change, chapter: getClock().chapter };
+    const next = { ...before, ...change, chapter: chapter ?? getClock().chapter };
     try {
         await game.settings.set(MODULE_ID, SETTINGS.trialProgress, next);
     } catch (err) {
@@ -225,7 +233,8 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
         vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
         trialStartedAt: serverNow(), againAfterOverrule: null,
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: eligibleVoters().length
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: eligibleVoters().length,
+        executedAt: null, execution: null
     }));
 }
 
@@ -1247,7 +1256,7 @@ export async function openVerdictDialog() {
        a wrong verdict then told every console nobody was executed (measured by the review's scenario 91,
        X2-X3). Such a death is not the table's yet, so it is not dead to the verdict: the student is a
        choice like any other, and this GM alone is told whose death is held (`unfoundLine`) and that
-       executing them makes it the execution (`executeSentenced`). */
+       executing them makes it the execution (`executeAtExit`, since E70 C4 at the trial's end). */
     await judgedFor(...students.map(a => a.id));
     const held = new Map(students.map(a => [a.id, flagsHeldNow(a)]));
     const dead = new Set(students.filter(a => isDeceased(held.get(a.id))).map(a => a.id));
@@ -1537,17 +1546,24 @@ async function keepVerdictBlackened(at, blackenedIds) {
 
 /*
  * A VERDICT'S STEPS, IN THE ORDER THE TABLE MEETS THEM (E10 C5). Who is executed, read and written
- * down before anybody dies; the executions; the card that tells the table, straight after them, so
- * the class reads the verdict while the GM is still in the Level Up windows; what the guide gives a
- * right verdict or a wrong one; and the overflow, on both. A step that needs another is not run
- * until that one is done (`VERDICT_NEEDS`): the card does not say a student was executed whose
- * execution failed.
+ * down; the card that tells the table, so the class reads the verdict while the GM is still in the
+ * Level Up windows; what the guide gives a right verdict or a wrong one; and the overflow, on both. A
+ * step that needs another is not run until that one is done (`VERDICT_NEEDS`).
+ *
+ * NO EXECUTION AMONG THEM (E70 C4, 28.10.2026; S18-87, the owner's DC36: "token osoby na którą zagłosowano
+ * umiera po class trialu, gdy class trial się kończy, a nie w trakcie. Niech werdykt nie kończy automatycznie
+ * triala"). The step "executions" killed the sentenced in the verdict; the sentence is written down now
+ * (`readSentence`: `verdict.sentenced`) and carried out once, when the trial ends (`executeAtExit`). The card
+ * needs the sentence, no longer the executions: left on "executions" it would never run, and the verdict would
+ * stand "applying" with Finish on the console. A record written before 1.2.90 that has not done "executions"
+ * reaches "done" without it, and its sentenced die at the exit like anybody's.
  */
 const VERDICT_STEPS = {
-    correct: ["sentence", "executions", "card", "levelUps", "overflow"],
-    wrong: ["sentence", "executions", "card", "offers", "despair", "rule", "overflow"]
+    correct: ["sentence", "card", "levelUps", "overflow"],
+    wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"]
 };
-const VERDICT_NEEDS = { executions: "sentence", card: "executions", levelUps: "sentence", offers: "sentence", rule: "sentence" };
+const VERDICT_NEEDS = { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence" };
+// "executions" stays named for a record from before 1.2.90 whose stopped steps still list it (`verdictStopped`).
 const VERDICT_STEP_LABELS = {
     sentence: "DRPG.Vote.verdictSteps.sentence", executions: "DRPG.Vote.verdictSteps.executions",
     card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
@@ -1586,6 +1602,11 @@ async function runVerdict(record, blackenedIds) {
         }
         context.record = { ...context.record, done: [...context.record.done, step] };
         await setTrialProgress({ verdict: context.record });
+        /* A VERDICT GIVEN AFTER THE TRIAL ENDED IS CARRIED OUT AT ONCE (E70 C4; the plan's point (g), road 3). The
+           console offers the verdict after End the trial (trial-floor-ui.mjs `trialNextStep`, E11 fix r1-G1), and
+           the exit that would execute it has already gone by: the sentence is carried out straight after the card
+           that tells it, before the Level Ups, which can keep their windows open for minutes. */
+        if (step === "card" && getClock().phase !== "classTrial") context.lines.push(...await executionLines());
     }
     const left = verdictSteps(record).filter(step => !context.record.done.includes(step));
     // Cleared before the last write, so the console that write redraws reads a verdict that stopped as stopped.
@@ -1628,7 +1649,7 @@ async function verdictReading(context) {
  * nobody had found was passed over - no Level Up window for them, measured on the harness - and every
  * console saw the class advance and one student not. A Level Up is a write every console reads: the
  * table's list, less whoever this verdict named for execution - one whose body nobody has found is
- * executed by making that death the table's (`executeSentenced`, fix r1-G4), and does not advance either.
+ * executed by making that death the table's (`executeAtExit`, fix r1-G4), and does not advance either.
  *
  * The killers of a wrong verdict: EVERY one who is still breathing, not just the first one named, and
  * not one this verdict executes. ALIVE AS THE TABLE KNOWS IT TOO (E10 fix r2-G3, 1.2.71; the round-2
@@ -1660,81 +1681,149 @@ function verdictHeld(record, blackenedIds) {
  * back. 63 G holds that window open. The list read held is the record's from here on, so a Finish
  * executes and names the same students, and does not take one this verdict killed before it stopped
  * for one the table knew dead before it.
+ *
+ * THE SENTENCE, AND THE CHAPTER'S STAMP (E70 C4; DC36, amend 4 (c)). The list is the sentence too
+ * (`verdict.sentenced`), carried out at the trial's end (`executeAtExit`), and the verdict's `at` is
+ * the chapter's newest (`lastVerdictAt`, which a second trial in the chapter keeps). Both public by
+ * design: the card says who, and the stamp is a time.
  */
 async function readSentence(context) {
     const { sentenced } = await verdictReading(context);
-    context.record = { ...context.record, executedIds: sentenced };
+    context.record = { ...context.record, executedIds: sentenced, sentenced: [...sentenced] };
+    await setTrialProgress({ lastVerdictAt: context.record.at ?? null });
 }
 
 /*
- * THE EXECUTIONS (E10 C5; plan 1b.2, H3). Each waits for the audit of that student and reads them held
- * again, and `killCharacter` is called with nothing awaited between that read and its own head check.
- * One the table knows dead - this verdict's own kill before it stopped, or one that died since it was
- * read - is passed over, not killed twice. A kill `killCharacter` refuses of a student the GMs hold
- * alive fails the step, for Finish the verdict.
+ * THE SENTENCE IS CARRIED OUT WHEN THE TRIAL ENDS, ONCE (E70 C4, 28.10.2026; S18-87, the owner's DC36;
+ * the plan's point (g)). The verdict killed the sentenced in its own steps ("executions", E10 C5) while
+ * the trial went on around them; it writes the sentence down now (`readSentence`), and this carries it
+ * out. Called on every road out of the trial - End the trial and the chapter end's "trial" step
+ * (trial-floor-ui.mjs `closeTrial`, before the phase moves and the living gather at school), and
+ * clock.mjs `reconcilePhase` leaving classTrial on any other road (Edit campaign, `setClock`), after
+ * the floor and before the hall's move - and straight after the card of a verdict given once the trial
+ * was over (`runVerdict`, a Final Trial's `applyFinalVerdict`).
  *
- * A BODY NOBODY HAS FOUND IS THE EXECUTION (E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the
- * owner's Q-E10-2 (a), 10.10.2026). Such a student was passed over as dead, and the card named them
- * executed all the same: every console read an execution before anybody had found the body, every
- * sheet read the student alive, and the GMs still held the death (the review's scenario 91, X4). The
- * verdict counts them living (`verdictHeld`, `openVerdictDialog`), so the held death is made the
- * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
- * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
- * publish fails the step. Published as the trial's (E11 C1, 1.2.73): the record keeps the kill's chapter,
- * day and time and takes the phase `classTrial`, so the body is an execution and no later walk past it
- * discovers it (chapter.mjs `bodiesToDiscover`; tier 2 "a body the verdict executed is not found again
- * after the trial - a death the GMs held included"). A living convict is killed with the same phase
- * (E11 fix r1-G1; round 1's cor COR-1): the console offers the verdict after End the trial
- * (trial-floor-ui.mjs `trialNextStep`), and the kill took the clock's Daily Life, so the next walk-in
- * announced the executed student as a body found, gathered the cast and held the chapter (measured by
- * the review at 0d860df; tier 2 "a living convict the verdict executes after End the trial is no body
- * to find").
+ * THE RECORD OF ITS OWN CHAPTER. The record is read by the chapter it is stored for
+ * (`trialProgressChapter()` and the stored setting), never `trialProgress()`, which answers a blank for
+ * any chapter but the clock's: the chapter end moves the clock before it closes the trial, and Edit
+ * campaign moves the chapter and the phase in one write. The death, its record's chapter and the
+ * execution's stamp are that chapter's.
  *
- * AN EXECUTION IS PUBLIC (E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5). `killCharacter`
- * keeps the running incident's victim's death for the GMs unless told otherwise, and C12's "keep" lets
- * a trial run beside an open incident whose victim is alive: executing that student wrote a death the
- * GMs held, the card said "executed" and every sheet read them alive. Measured on the harness (tier 2,
- * "an execution of an open incident's living victim is public"): at 474fa87 the GMs held the row and
- * the flag was not written.
+ * ONCE. `executedAt` (the server's clock) says the sentence is carried out, and every road reads it
+ * first; this browser's latch holds two roads of one exit (closeTrial, then its phase write) apart.
+ * Each sentenced student is read held after the audit of them (`judgedFor`, `flagsHeldNow`), as the
+ * verdict's step did: one the table knows dead - killed by an exit that stopped half way, or dead
+ * since - is passed over, not killed twice; the execution's own `{ done, failed }` is written after
+ * each, and the stamp only when nobody failed, so the next road finishes it.
+ *
+ * AN EXECUTION IS PUBLIC, AND NO BODY TO FIND (E10 fix r1-G4, fix r2-G3; E11 C1, fix r1-G1, all kept).
+ * A death the GMs hold is made the table's (`publishDeath`), any other killed with the death made
+ * public at once (`secret: false`), each in the Class Trial's phase - so no walk past the body
+ * discovers it (chapter.mjs `bodiesToDiscover`) - and with the cause "executed" (amend 4 (b)).
+ *
+ * A FINAL TRIAL'S SENTENCE IS THE GMS' (the owner's Q2 answer, 27.10.2026). The world's record says only
+ * that a Final verdict's sentence waits (`sentencePending`); who is in the GMs' store (gm-stores.mjs
+ * `verdictStore`, `finalSentenced` under the verdict's `finalAt`), as the Mastermind's identity is kept
+ * off the world (mastermind.mjs's header).
+ *
+ * Answers `{ executed, failed }` (the students' ids), or null when there is no sentence to carry out.
  */
-async function executeSentenced(context) {
-    for (const actor of context.record.executedIds.map(id => game.actors.get(id)).filter(Boolean)) {
+let executing = null;
+
+export function executeAtExit({ chapter = trialProgressChapter() } = {}) {
+    if (!game.user.isGM || chapter === null || chapter === undefined) return Promise.resolve(null);
+    if (executing) return executing;
+    executing = carryOutSentence(chapter).finally(() => { executing = null; });
+    return executing;
+}
+
+/** The ids a verdict of `record` sentenced, or null when it has not sentenced anybody yet. */
+async function sentenceOf(record) {
+    const verdict = record?.verdict;
+    if (!verdict) return null;
+    if (verdict.final) {
+        if (!verdict.sentencePending) return null;
+        await verdictStore.whenHydrated();
+        const kept = verdictStore.record();
+        return kept.finalAt === verdict.at && Array.isArray(kept.finalSentenced) ? [...kept.finalSentenced] : null;
+    }
+    if (!Array.isArray(verdict.done) || !verdict.done.includes("sentence")) return null;
+    return [...(verdict.sentenced ?? verdict.executedIds ?? [])];
+}
+
+async function carryOutSentence(chapter) {
+    if (trialProgressChapter() !== chapter) return null;
+    const record = trialProgress(chapter);
+    if (record.executedAt) return null;
+    const ids = await sentenceOf(record);
+    if (!ids) return null;
+    const done = [...(record.execution?.done ?? [])], failed = [], executed = [];
+    for (const actor of ids.map(id => game.actors.get(id)).filter(Boolean)) {
         await judgedFor(actor.id);
         const held = flagsHeldNow(actor);
         if (isDeceased(held)) continue;
-        const died = isDeadForGm(held) ? await publishDeath(actor, { phase: "classTrial" }) : await killCharacter(actor, { secret: false, phase: "classTrial" });
-        if (!died) throw new Error(`${actor.name} could not be executed`);
-        context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
-            name: foundry.utils.escapeHTML(actor.name)
-        }));
+        let died = null;
+        try {
+            died = isDeadForGm(held)
+                ? await publishDeath(actor, { phase: "classTrial", cause: "executed" })
+                : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter });
+        } catch (err) {
+            error(`${actor.name} could not be executed`, err);
+        }
+        if (died) {
+            executed.push(actor);
+            if (!done.includes(actor.id)) done.push(actor.id);
+        } else failed.push(actor.id);
+        await writeExecution(chapter, { execution: { done: [...done], failed: [...failed] } });
     }
+    if (!failed.length) await writeExecution(chapter, now => (now.executedAt ? null : { executedAt: serverNow() }));
+    if (executed.length) await postExecutionCard(executed, { final: Boolean(record.verdict?.final) });
+    if (failed.length) {
+        const names = failed.map(id => foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")).join(", ");
+        ui.notifications.error(game.i18n.format("DRPG.Vote.executionFailed", { names }));
+    }
+    log(`The sentence of chapter ${chapter}'s trial: ${executed.length} executed, ${failed.length} not.`);
+    return { executed: executed.map(actor => actor.id), failed };
 }
 
-/**
- * THE VERDICT, TOLD TO THE TABLE (E10 C5, 1.2.71; audit S06-06). The verdict was a whisper to the GMs,
- * and the executed's death card went to them alone too, so the one step of the trial with no public
- * card was its last; the executed's player was told nothing, and the Event panel went on saying
- * "Everyone has the floor". One public card now: who was executed and whether the class got it right,
- * with the death's sound when somebody was - and of the Blackened nothing, no name and no id, in its
- * words or its flags, so a wrong verdict gives nobody away. The executed's owner is told in the second
- * person beside it; a note that does not arrive is logged and does not stop the verdict. The card
- * carries the verdict's `at` (`verdictAt`), by which a Finish knows it was posted (`verdictCard`).
- * The Event panel reads the record (events.mjs `afterVerdictCard`).
+/** A write of the record of `chapter`'s trial, in a step of its key (E70 C0), stamped with that chapter. */
+function writeExecution(chapter, patch) {
+    return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch, { chapter }));
+}
+
+/** The sentence carried out, as lines for the verdict's summary to the GMs (`runVerdict`). */
+async function executionLines() {
+    const done = await executeAtExit();
+    return (done?.executed ?? []).map(id => game.i18n.format("DRPG.Vote.wasExecuted", {
+        name: foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")
+    }));
+}
+
+/*
+ * THE EXECUTION, TOLD TO THE TABLE (E70 C4; amend 0's sound rule). The verdict's card said who was
+ * executed, with the death's sound, and its owner was told in the second person (E10 C5); both come
+ * here, to the moment it happens, with the execution's own sound (`SFX_EVENTS.execution`). A Final
+ * Trial's execution posts no card of its own: its banner is the Mastermind's defeat, already told, and
+ * a card naming who died would name the Mastermind to every console.
  */
-export async function postVerdictCard(record) {
-    const executed = (record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+async function postExecutionCard(executed, { final = false } = {}) {
     const esc = foundry.utils.escapeHTML;
-    const lines = executed.length
-        ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) }))
-        : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
-    await announce({
-        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null, ...(executed.length ? { sfx: { key: "death", gm: true } } : {}) } },
-        content: `<div class="drpg-evidence-card">
-            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.verdictCardTitle")}</div>
-            ${lines.map(line => `<p>${line}</p>`).join("")}
-            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")}</p>
-        </div>`
-    });
+    try {
+        if (!final) {
+            await announce({
+                flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
+                content: `<div class="drpg-evidence-card">
+                    <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.executionCardTitle")}</div>
+                    ${executed.map(actor => `<p>${game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) })}</p>`).join("")}
+                </div>`
+            });
+        } else {
+            const { playSfxForUsers } = await import("./sfx.mjs");
+            await playSfxForUsers(game.users.map(u => u.id), "execution");
+        }
+    } catch (err) {
+        error("Could not tell the table of the execution", err);
+    }
     for (const actor of executed) {
         try {
             await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vote.executedNote", { name: esc(actor.name) })}</p>`);
@@ -1742,6 +1831,76 @@ export async function postVerdictCard(record) {
             error(`Could not tell ${actor.name}'s player of the execution`, err);
         }
     }
+}
+
+/**
+ * The students a verdict of this trial has sentenced and the trial's end has not yet executed, as the
+ * GM's End the trial question names them (trial-floor-ui.mjs `endClassTrial`). GM-side: a Final
+ * Trial's sentence is read off the GMs' store.
+ */
+export async function pendingSentence() {
+    if (!game.user.isGM) return [];
+    const chapter = trialProgressChapter();
+    if (chapter === null) return [];
+    const record = trialProgress(chapter);
+    if (record.executedAt) return [];
+    const ids = await sentenceOf(record) ?? [];
+    return ids.map(id => game.actors.get(id)).filter(actor => actor && !isDeceased(actor));
+}
+
+/*
+ * THE SEASON'S RESET TAKES THE SENTENCE BACK FIRST (E70 C4). Its clock step puts the phase back to Daily
+ * Life, and a trial left with a verdict would be ended by it - the sentence carried out on a student its
+ * "deaths" step had just brought back, in a season that is over. Called before that write
+ * (season-setup.mjs `wipeSeason`), whatever groups were ticked: the record of the trial's chapter loses
+ * its sentence, and a Final Trial's waits no longer.
+ */
+export async function clearSentence() {
+    if (!game.user.isGM) return null;
+    const chapter = trialProgressChapter();
+    if (chapter !== null) {
+        await writeExecution(chapter, now => (now.verdict
+            ? { verdict: { ...now.verdict, sentenced: [], executedIds: [], sentencePending: false } } : null));
+    }
+    try {
+        await verdictStore.whenHydrated();
+        if (verdictStore.record().finalSentenced?.length) await verdictStore.patch(RECORD, { finalSentenced: [] });
+    } catch (err) {
+        error("Could not take back the Final Trial's sentence", err);
+    }
+    return true;
+}
+
+/**
+ * THE VERDICT, TOLD TO THE TABLE (E10 C5, 1.2.71; audit S06-06). The verdict was a whisper to the GMs,
+ * and the executed's death card went to them alone too, so the one step of the trial with no public
+ * card was its last; the executed's player was told nothing, and the Event panel went on saying
+ * "Everyone has the floor". One public card now: who is sentenced and whether the class got it right -
+ * and of the Blackened nothing, no name and no id, in its words or its flags, so a wrong verdict gives
+ * nobody away. Since E70 C4 the execution has its own card, its sound and the owner's note, at the
+ * trial's end (`postExecutionCard`). The card
+ * carries the verdict's `at` (`verdictAt`), by which a Finish knows it was posted (`verdictCard`).
+ * The Event panel reads the record (events.mjs `afterVerdictCard`).
+ */
+export async function postVerdictCard(record) {
+    const executed = (record?.sentenced ?? record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+    const esc = foundry.utils.escapeHTML;
+    /* WHO WILL BE EXECUTED, AND WHEN (E70 C4; DC36). The card said "{name} has been executed." with the death's
+       sound; nobody dies at the verdict now. In the trial it says the sentence waits for the trial's end; a verdict
+       given after End the trial is carried out straight after this card (`runVerdict`), whose own card says so. The
+       death's sound and the owner's note went to that card (`postExecutionCard`). */
+    const names = executed.map(actor => esc(actor.name)).join(", ");
+    const lines = executed.length
+        ? [game.i18n.format(getClock().phase === "classTrial" ? "DRPG.Vote.executionPending" : "DRPG.Vote.executionNow", { names })]
+        : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
+    await announce({
+        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null } },
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.verdictCardTitle")}</div>
+            ${lines.map(line => `<p>${line}</p>`).join("")}
+            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")}</p>
+        </div>`
+    });
 }
 
 /*
@@ -1763,7 +1922,7 @@ function verdictCardPosted(record) {
 
 /*
  * A right verdict: everyone still alive advances - unchanged, and deliberately: a right answer levels
- * the table up. The Blackened have just been executed, so they are not in this list (`verdictHeld`),
+ * the table up. The Blackened are sentenced (and die when the trial ends, E70 C4), so they are not in this list (`verdictHeld`),
  * which is what keeps that honest even when there were two of them. A Reinforced Level Up a wrong
  * verdict left waiting (E05 C11) is picked here, with its owner's Standard, in the same row - see
  * `runAdvancementBatch`. The window not opening fails the step; a window the GM closes does not.
@@ -1869,7 +2028,7 @@ async function verdictOverflow() {
 
 /** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
 const VERDICT_STEP = {
-    sentence: readSentence, executions: executeSentenced, card: verdictCard,
+    sentence: readSentence, card: verdictCard,
     levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow
 };
 

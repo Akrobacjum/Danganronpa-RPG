@@ -431,7 +431,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
 
     /* ------------------------------ G. a wrong verdict in the audit's window ------------------------------ */
 
-    begin("G", "a wrong verdict executes Botan while p2's forged death waits for the audit");
+    /* E70 C4 (DC36): the verdict sentences and the trial's end executes. G reads Botan sentenced and alive, the card's
+       line saying so; H's End the trial carries the sentence out. Before E70 C4 G read Botan executed by the verdict. */
+    begin("G", "a wrong verdict sentences Botan while p2's forged death waits for the audit");
     for (const c of [p1, p2, p3, p4]) await mark(c);
     const held = await gm2.eval(`${until} const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
         await A.sheetAuditIdle();
@@ -450,15 +452,17 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         await A.sheetAuditIdle();
         const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(botan.name) });
         const record = (await import("${repoUrl}/scripts/vote.mjs")).trialProgress();
-        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: record.verdictApplied, stage: record.verdict?.stage ?? null };`, { timeout: 60000 });
+        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: record.verdictApplied, stage: record.verdict?.stage ?? null,
+            sentenced: record.verdict?.sentenced ?? null };`, { timeout: 60000 });
     verdict("held: gm2 hears p2's forged death before the verdict reads it", held && wrong.heard, J({ held, wrong }));
-    verdict("the verdict waits for the audit, which puts the forged flag back, and executes Botan; its record reads \"done\" (C5)",
-        wrong.applied === true && wrong.dead === true && wrong.stage === "done" && Array.isArray(wrong.done) && wrong.done.includes(wrong.executed), J(wrong));
+    verdict("the verdict waits for the audit, which puts the forged flag back, and sentences Botan, alive until the trial ends; its record reads \"done\" (C5; E70 C4)",
+        wrong.applied === true && wrong.dead === false && wrong.stage === "done" && J(wrong.sentenced) === J([IDS.botan])
+            && Array.isArray(wrong.done) && !wrong.done.includes(wrong.executed), J(wrong));
     await settle(800);
     const verdictCards = [], namesChie = [];
     for (const c of [p1, p2, p3, p4]) {
         const read = await c.eval(`const words = [${text("DRPG.Vote.verdictCardTitle")}, ${text("DRPG.Vote.verdictWrong")},
-                game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(game.actors.get("${IDS.botan}")?.name ?? "-") })];
+                game.i18n.format("DRPG.Vote.executionPending", { names: foundry.utils.escapeHTML(game.actors.get("${IDS.botan}")?.name ?? "-") })];
             const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id));
             return { cards: fresh.filter(m => !m.whisper?.length && words.every(w => String(m.content ?? "").includes(w))).length,
                 chie: fresh.filter(m => { const s = String(m.content ?? "") + J(m.flags ?? {}); return s.includes("${IDS.chie}") || s.includes("Chie"); }).length };
@@ -466,7 +470,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         verdictCards.push(read.cards);
         if (c !== p3) namesChie.push(read.chie);
     }
-    verdict("every player holds the verdict's one public card: Botan executed, and the class got it wrong (C5)",
+    verdict("every player holds the verdict's one public card: Botan executed when the trial ends, and the class got it wrong (C5; E70 C4)",
         J(verdictCards) === J([1, 1, 1, 1]), J(verdictCards));
     verdict("nothing new on p1, p2 or p4 names Chie, the Blackened the wrong verdict spared", J(namesChie) === J([0, 0, 0]), J(namesChie));
 
@@ -483,6 +487,11 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const before = V.trialProgress();
         globalThis.__dialogAnswers.push(true);
         const ended = await UI.endClassTrial();
+        // E70 C4: End the trial carries G's sentence out - Botan dies now, of the execution, with its one card.
+        const botan = game.actors.get("${IDS.botan}");
+        const executed = { dead: game.drpg.isDeadForGm(botan), cause: botan.getFlag("${MOD}", "deceased")?.cause ?? null,
+            cards: game.messages.filter(m => m.getFlag("${MOD}", "executionCard")).length,
+            stamped: Number.isFinite(V.trialProgress().executedAt) };
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const start = async press => {
             const from = globalThis.__dialogLog.length, queued = globalThis.__dialogAnswers.length;
@@ -504,7 +513,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         let enter = null, yes = null;
         try { enter = await start("enter"); yes = await start("ok"); } finally { globalThis.__dialogWindows = was; }
         const after = V.trialProgress();
-        return { ended, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
+        return { ended, executed, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
             round: before.vote?.round ?? null, cleared: { vote: after.vote ?? null, voteClosed: after.voteClosed, tied: after.tied,
                 accused: after.accused ?? null, accusedIds: after.accusedIds ?? null, total: after.total ?? null } };`, { timeout: 60000 });
     verdict("the second Start asks first: the confirmation's first submit button, which Enter presses, is Cancel, the only default; Enter keeps Daily Life and the verdict (C11)",
@@ -518,6 +527,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("the second trial clears the vote, its count and the tie, and carries the round number on (C1, D17)",
         again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false
             && fresh.tied === false && J(fresh.accused) === J([]) && J(fresh.accusedIds) === J([]) && fresh.total === 0, J(again));
+    verdict("End the trial carries out G's sentence: Botan dies of the execution, with one execution card, and the record is stamped (E70 C4)",
+        again.ended === true && again.executed?.dead === true && again.executed.cause === "executed" && again.executed.cards === 1
+            && again.executed.stamped === true, J(again.executed));
 
     /* ------------------------------ J. the debate's clock on a machine a minute fast ------------------------------ */
 
@@ -578,17 +590,21 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "advance");
             if (at >= 0) q.splice(at, 1);
         }
+        // E70 C4: Chie lives until the trial's end, which this part carries out here (the trial stays open for J on).
+        const sentencedAlive = !game.drpg.isDeadForGm(game.actors.get("${IDS.chie}"));
+        await V.executeAtExit();
         const living = (await import("${repoUrl}/scripts/chapter.mjs")).livingStudents().map(a => a.id).sort();
         const S = await import("${repoUrl}/scripts/gm-stores.mjs"), L = await import("${repoUrl}/scripts/level-up.mjs");
         const { ownerIdsOf } = await import("${repoUrl}/scripts/utils.mjs");
         const offers = living.map(id => [L.offerList(S.offerStore.get(id)).length, ownerIdsOf(game.actors.get(id)).length > 0 ? 1 : 0]);
-        return { issued, counted, accused: r?.accusedIds ?? null, queues, pickers, rows, living, offers, done };`, { timeout: 90000 });
+        return { issued, counted, accused: r?.accusedIds ?? null, queues, pickers, rows, living, offers, done, sentencedAlive };`, { timeout: 90000 });
     // Every ballot answer not taken - B's too, where no ballot came - so none of them closes I's Level Up window.
     for (const c of [p1, p2, p3, p4]) await c.eval(`const q = globalThis.__dialogAnswers;
         for (let at = q.findIndex(f => f?.name === "ballot"); at >= 0; at = q.findIndex(f => f?.name === "ballot")) q.splice(at, 1);
         return true;`);
     verdict("the second vote names Chie, and the correct verdict opens one Level Up window for the class; the players pick, and each survivor a player owns holds one offer (C7)",
-        second.issued === second.counted && J(second.accused) === J([IDS.chie]) && second.living.length > 1
+        second.issued === second.counted && J(second.accused) === J([IDS.chie]) && second.living.length > 1 && second.sentencedAlive === true
+            && !second.living.includes(IDS.chie)
             && second.queues === 1 && second.pickers === 0 && J(second.rows) === J(second.living)
             && second.offers.every(([held, owned]) => held === owned) && second.living.includes(IDS.aiko), J(second));
     const picked = await p1.eval(`${until} const L = await import("${repoUrl}/scripts/level-up.mjs");
@@ -737,7 +753,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const aiko = game.actors.get("${IDS.aiko}");
         const kept = Boolean(await C.killCharacter(aiko, { secret: true, keepBullets: true }));
         await V.setTrialProgress({ verdictApplied: false, verdict: null, voteClosed: true, accused: [{ id: aiko.id, n: 2 }],
-            accusedIds: [aiko.id], total: 3, majority: 2, noMajority: false, tied: false });
+            accusedIds: [aiko.id], total: 3, majority: 2, noMajority: false, tied: false, executedAt: null, execution: null });
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const title = ${text("DRPG.Vote.verdictTitle")};
         const unfound = game.i18n.format("DRPG.Vote.unfoundDead", { names: aiko.name });
@@ -755,8 +771,11 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         } finally {
             globalThis.__dialogWindows = was;
         }
+        // E70 C4: the sentence waits for the trial's end, carried out here; her death is still the GMs' until then.
+        const heldAtVerdict = deathStore.has(aiko.id);
+        await V.executeAtExit();
         return { kept, read, name: aiko.name, hung: result === "hung", stage: V.trialProgress().verdict?.stage ?? null,
-            row: deathStore.has(aiko.id) };`, { timeout: 60000 });
+            heldAtVerdict, row: deathStore.has(aiko.id) };`, { timeout: 60000 });
     verdict("the verdict's window opens on Aiko, whose body nobody has found, offers her as a living student and tells gm2 whose death that is (fix r1-G4)",
         unseen.kept && unseen.read?.value === IDS.aiko && unseen.read?.disabled === false && unseen.read?.words === unseen.name
             && unseen.read?.told === true, J(unseen));
@@ -765,12 +784,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const dead = Boolean(await until(() => game.drpg.isDeceased(aiko), 5000));
         const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id) && !m.whisper?.length);
         const card = fresh.filter(m => String(m.content ?? "").includes(${text("DRPG.Vote.verdictCardTitle")}));
+        const executions = fresh.filter(m => String(m.content ?? "").includes(${text("DRPG.Vote.executionCardTitle")}));
         const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(aiko.name) });
-        return { dead, cards: card.length, executed: card.some(m => String(m.content).includes(executed)),
+        return { dead, cards: card.length, executed: executions.some(m => String(m.content).includes(executed)),
             nobody: card.some(m => String(m.content).includes(${text("DRPG.Vote.nobodyExecuted")})) };`, { timeout: 20000 });
     const errorsAfter = [await gm2.eval(`return globalThis.__errors.length;`), await p1.eval(`return globalThis.__errors.length;`)];
-    verdict("its wrong verdict executes Aiko: p1 holds the one card naming her executed and reads her dead, and gm2 holds no row of her death (fix r1-G4)",
-        !unseen.hung && unseen.stage === "done" && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
+    verdict("its wrong verdict executes Aiko when the trial ends: p1 holds the one verdict card, the execution's card naming her executed, and reads her dead, and gm2 holds no row of her death (fix r1-G4; E70 C4)",
+        !unseen.hung && unseen.stage === "done" && unseen.heldAtVerdict === true && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
             && J(errorsAfter) === J(errorsBefore), J({ unseen, onP1, errorsBefore, errorsAfter }));
 
     /* ------------------------------ V. a wrong verdict on a Blackened whose body nobody has found ------------------------------ */

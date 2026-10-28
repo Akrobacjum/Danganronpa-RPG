@@ -1120,7 +1120,7 @@
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
       "whoWasAccused": "Kogo oskarżyło głosowanie?",
-      "verdictNote": "Trafnie: Mastermind zostaje stracony, a killing game dobiega końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie - stół widzi, że gra nigdy nie była tym, na co wyglądała.",
+      "verdictNote": "Trafnie: Mastermind zostaje stracony, gdy rozprawa się skończy, a killing game dobiega końca. Błędnie albo Mastermind już nie żyje: nikt nowy nie ginie - stół widzi, że gra nigdy nie była tym, na co wyglądała.",
       "correctlyNamed": "Wskazali Masterminda",
       "notCorrectlyNamed": "Nie wskazali",
       "defeatedBanner": "MASTERMIND POKONANY",
@@ -1173,6 +1173,7 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+      "endTrialExecutes": "Zakończenie rozprawy wykonuje wyrok: {names}.",
       "endTrialScene": "Żyjący uczniowie, którzy brali udział, idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Uczeń bez zaznaczenia nie jest przenoszony. Tokeny zrobione przez moduł w sali rozpraw zostają usunięte, twoje ukryte.",
       "endTrialRoom": "Pokój",
       "endTrialMoves": {
@@ -1194,7 +1195,8 @@
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt, potem zakończ rozdział.",
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
-        "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału."
+        "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+        "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
@@ -1441,12 +1443,16 @@
       "verdictIntro": "Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
       "executed": "Kto zostaje stracony",
       "blackened": "Kto naprawdę jest Blackened",
-      "verdictNote": "Trafnie: Blackened zostaje stracony, ocaleni dostają Level Up. Błędnie, a remis liczy się jak błąd: stracony zostaje oskarżony, Blackened zostaje w grze z Reinforced Level Up i nową zasadą, a każdy Monokuma napełnia swój Despair.",
+      "verdictNote": "Trafnie: Blackened zostaje stracony, gdy rozprawa się skończy, a ocaleni dostają Level Up. Błędnie, a remis liczy się jak błąd: stracony, gdy rozprawa się skończy, zostaje oskarżony, Blackened zostaje w grze z Reinforced Level Up i nową zasadą, a każdy Monokuma napełnia swój Despair.",
       "gotItRight": "Trafili",
       "gotItWrong": "Pomylili się",
       "correctSummary": "Uczniowie wskazali Blackened.",
       "wrongSummary": "Uczniowie wskazali niewłaściwą osobę.",
       "wasExecuted": "Egzekucja: {name}.",
+      "executionPending": "Egzekucja, gdy rozprawa się skończy: {names}.",
+      "executionNow": "Wyrok zostaje wykonany teraz: {names}.",
+      "executionCardTitle": "EGZEKUCJA",
+      "executionFailed": "Nie udało się wykonać wyroku na: {names}. Jeśli wyrok obowiązuje, oznacz śmierć w oknie graczy.",
       "levelUpGranted": {
         "one": "{n} ocalały dostał tu swój Level Up: {kind}.",
         "few": "{n} ocalałych dostało tu swój Level Up: {kind}.",
@@ -5849,6 +5855,14 @@
         "verdict": {
           "label": "Werdykt",
           "hint": "Słyszy cały stół. Najbardziej uroczysty moment rozdziału i ostatni, który powinien być cichy."
+        },
+        "execution": {
+          "label": "Egzekucja",
+          "hint": "Rozprawa się kończy i wyrok zostaje wykonany na osobie wskazanej w werdykcie. Słyszy cały stół."
+        },
+        "trialClose": {
+          "label": "Koniec rozprawy",
+          "hint": "Class Trial się kończy i wszyscy wracają do szkoły. Słyszy cały stół."
         },
         "levelUp": {
           "label": "Level Up",

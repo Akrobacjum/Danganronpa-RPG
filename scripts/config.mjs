@@ -4597,6 +4597,16 @@ export const SFX_EVENTS = {
         hint: "Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.",
         category: "incident"
     },
+    execution: {
+        label: "An execution",
+        hint: "The trial ends and the sentence is carried out on whoever the verdict named. Heard by the whole table.",
+        category: "incident"
+    },
+    trialClose: {
+        label: "The trial ends",
+        hint: "The Class Trial is over and everyone goes back to school. Heard by the whole table.",
+        category: "incident"
+    },
     levelUp: {
         label: "Level Up",
         hint: "Heard by the survivor it happened to. The only reward in the whole game.",

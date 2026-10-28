@@ -1772,6 +1772,11 @@ async function wipeSeason(plan) {
          * kept out of the settings written whole, campaign name kept, because the name belongs to the table.
          */
         clock: async () => {
+            /* THE SENTENCE BEFORE THE PHASE (E70 C4): this write leaves a running trial, and the way out of one carries
+               out its sentence (vote.mjs `executeAtExit`) - on a student the "deaths" step may just have brought back,
+               in a season that is over. Taken back first, whichever groups were ticked. */
+            const { clearSentence } = await import("./vote.mjs");
+            await clearSentence();
             const clock = getClock();
             await setClock({
                 chapter: 1, day: 1, session: 1, timeOfDay: "morning",
