@@ -880,8 +880,11 @@ function closingButton(op, label, actorId = null) {
         ? ` data-drpg-actor="${esc(actorId)}"` : ""}>${esc(label)}</button>`;
 }
 
-/** The Closing's lines and buttons on the console, or "" outside it. */
-function closingConsole({ floor, progress, running }) {
+/**
+ * The Closing's lines and buttons on the console, or "" outside it. Exported for the suite (E70 fix p2-G5; R1048), which
+ * hands in `names` - the GMs' volunteers and draw by name - rather than writing the GMs' store.
+ */
+export function closingConsole({ floor, progress, running, names = null }) {
     const closing = closingOf(floor);
     if (!running) return "";
     if (!floor) {
@@ -892,7 +895,7 @@ function closingConsole({ floor, progress, running }) {
         return `<div class="drpg-trial-bar" role="group">${closingButton("resume", label)}</div>`;
     }
     if (!closing || floor.mode !== FLOOR_MODES.closing) return "";
-    const names = closingNames();
+    names ??= closingNames();
     const list = arr => esc(arr.length ? listOf(arr) : game.i18n.localize("DRPG.Floor.closing.noVolunteers"));
     if (closing.phase === "volunteer") {
         return `<p>${game.i18n.format("DRPG.Floor.closing.gmVolunteers", { names: list(names.volunteers), seconds: Math.max(secondsLeft(floor), 0) })}</p>`;
@@ -957,10 +960,11 @@ async function pickClosingDialog() {
  * Reveal, pressed through the bar's one listener (`data-drpg-bar="reveal"`). Drawn while the trial runs and there is
  * something to say: a row to reveal, or a count left with nothing listed.
  */
-function revealConsole({ running }) {
+export function revealConsole({ running, rows = null, left = null }) {
     if (!running || !game.user.isGM) return "";
-    const rows = missingKeys();
-    const left = revealLeft(keyRevealRecord());
+    // `rows` and `left` the suite's (E70 fix p2-G5; R1048); the GMs' own by default.
+    rows ??= missingKeys();
+    left ??= revealLeft(keyRevealRecord());
     if (!rows.length && !left) return "";
     const line = row => `<li class="drpg-reveal-row">${esc(row.name || game.i18n.localize("DRPG.Reveal.defaultName"))}${row.hasTrace ? ""
         : ` <span class="notes">(${esc(game.i18n.localize("DRPG.Reveal.noTrace"))})</span>`} <button type="button" class="drpg-trial-bar-op"

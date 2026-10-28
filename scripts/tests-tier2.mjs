@@ -39979,7 +39979,9 @@ const SCENARIOS = [
                     globalThis.setInterval = realInterval;
                 }
                 read.over = [over, after?.holderId ?? null, (after?.round?.step ?? null) === (after ? overStep + 1 : null), again];
-                read.overWant = parts[2]?.actor.id ?? null;
+                // The next speaker as the started round's own order names it (E70 fix p2-G5; the review's P2R-09): the order
+                // past the GM's two is drawn at random, so with four players or more `parts[2]` was the holder half the time.
+                read.overWant = started?.round?.order?.[2] ?? null;
                 F.renderTrialFloor();
                 if (F.trialFloor()) await api.endMode();
                 await settle();
@@ -40107,7 +40109,11 @@ const SCENARIOS = [
                 await settle();
                 const drawn = S.closingClaimStore.get(RECORD)?.drawn ?? null;
                 read.draw = [F.trialFloor()?.closing?.phase ?? null, F.trialFloor()?.closing?.choice ?? null, [one.actor.id, two.actor.id].includes(drawn), worldClean()];
-                await api.confirmClosingSpeaker();
+                /* Confirm and the speaker's continue by the GMs' row "trial.gm" (E70 fix p2-G5; the review's E70P2-R03, E70-57's
+                   "the same on gm2"): this GM's own packet judged as a second GM's is, and a player's refused. */
+                const confirmForged = await judged({ action: "trial.gm", requestId: "E70T10GMCP", op: "closingConfirm" }, one.user.id);
+                const confirmRow = await judged({ action: "trial.gm", requestId: "E70T10GMC", op: "closingConfirm" }, game.user.id);
+                read.gmRow = [confirmForged, confirmRow];
                 await settle();
                 const speaker = F.trialFloor()?.holderId ?? null;
                 const objector = speaker === one.actor.id ? two.actor.id : one.actor.id;
@@ -40119,7 +40125,7 @@ const SCENARIOS = [
                 await settle();
                 const kept = F.trialFloor()?.closing?.left ?? null;
                 read.exchange = [wrong ?? null, Boolean(opened1), F.trialFloor()?.closing?.phase ?? null, Number(kept) > 250];
-                await api.continueClosing(speaker);
+                read.gmRow.push(await judged({ action: "trial.gm", requestId: "E70T10GMK", op: "closingContinue", actorId: speaker }, game.user.id));
                 await settle();
                 read.speakerOn = [F.trialFloor()?.holderId === speaker, Math.abs(F.secondsLeft() - kept) <= 2];
                 await F.openObjection(objector, speaker, {});
@@ -40158,6 +40164,7 @@ const SCENARIOS = [
             open: ["closing", "volunteer"],
             claims: [["bridge.done"], ["bridge.refused"], ["bridge.refused"], ["bridge.done"], 2, true, true],
             volunteerOver: true,
+            gmRow: [["bridge.refused"], ["bridge.done"], ["bridge.done"]],
             draw: ["choice", "confirm", true, true],
             confirm: ["speak", true, "chosen"],
             exchange: [null, true, "decide", true],

@@ -227,6 +227,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         decided === "decide" && deciding.hud === deciding.words.deciding && aikoOn.phase === "speak" && aikoOn.holder === IDS.aiko
             && continued, J({ decided, deciding, aikoOn, continued }));
 
+    /* The speaker's decision too (E70 fix p2-G5; the review's E70P2-R03; E70-54, E70-84 "both decisions"): Botan objects at
+       Aiko, the rebuttal is skipped, and the GM lets Aiko continue with the seconds she had - their m:ss on p3's card. */
+    const speakerAgain = await gmClosing(`await F.openObjection("${IDS.botan}", "${IDS.aiko}", {}); await F.openRebuttal(); await api.skipStep();
+        await new Promise(r => setTimeout(r, 500)); const left = F.trialFloor()?.closing?.left ?? null;
+        await api.continueClosing("${IDS.aiko}"); await new Promise(r => setTimeout(r, 300));
+        return { left, mode: F.trialFloor()?.mode ?? null, holder: F.trialFloor()?.holderId ?? null };`);
+    await settle(1200);
+    const restTime = Number.isFinite(speakerAgain.left) ? `${Math.floor(speakerAgain.left / 60)}:${String(speakerAgain.left % 60).padStart(2, "0")}` : null;
+    const restRead = await p3.eval(`const fresh = game.messages.filter(m => !globalThis.__s67m.has(m.id)).map(m => String(m.content ?? ""));
+        return fresh.some(t => t.includes(game.i18n.format("DRPG.Floor.closing.continues", { name: "Aiko Hoshino", time: ${J(restTime)} })));`);
+    verdict("Botan's Objection at Aiko, its rebuttal skipped: the GM lets Aiko continue with the seconds she had - their m:ss on p3's card",
+        speakerAgain.mode === "closing" && speakerAgain.holder === IDS.aiko && speakerAgain.left > 0 && speakerAgain.left < 300 && restRead,
+        J({ speakerAgain, restTime, restRead }));
+
     const overruled = await gmClosing(`await F.openObjection("${IDS.botan}", "${IDS.aiko}", {}); const at = F.trialFloor()?.before?.at(-1)?.leftAtObjection ?? null;
         await api.overruleObjection(); await new Promise(r => setTimeout(r, 300)); const f = F.trialFloor();
         return { mode: f?.mode ?? null, holder: f?.holderId ?? null, close: Math.abs(F.secondsLeft() - at) <= 2 };`);
@@ -240,7 +254,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const record = await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); const c = V.trialProgress().closing; return { done: c?.done ?? null, via: (c?.speakers ?? []).map(s => s.via) };`);
     verdict("Botan's Objection at Aiko overruled: Aiko again with her seconds; p1's Pass ends the Closing - every player told, the record done",
         overruled.mode === "closing" && overruled.holder === IDS.aiko && overruled.close && resigned.ok
-            && ended.every(e => J(e) === J([true, null])) && record.done === true && J(record.via) === J(["chosen", "objection"]), J({ overruled, resigned, ended, record }));
+            && ended.every(e => J(e) === J([true, null])) && record.done === true && J(record.via) === J(["chosen", "objection", "speaker"]), J({ overruled, resigned, ended, record }));
 
     const testimonyOverrule = await gmClosing(`await api.startTestimony({ seconds: 60, order: ${J(order)} });
         await F.openObjection("${IDS.chie}", "${IDS.aiko}", {}); await F.openRebuttal(); await api.overruleObjection();

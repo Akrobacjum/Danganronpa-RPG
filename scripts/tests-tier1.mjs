@@ -25504,6 +25504,66 @@ const INVARIANTS = [
             + "overrule on the Testimony turn, the Panic turn, the speaker], [start over Testimony, Panic, the volunteers, the choice, the speaker, the Closing's exchange, a debate], "
             + "[the volunteers' over: at 10 s, another step, within the grace, with no draw], [the speaker's window: Done, Pass, Keep speaking the default]");
     }],
+
+    ["R1048 - the GM's console for part 2's modes (E70 fix p2-G5): the Closing's lines and buttons in each phase - the volunteers by name, the draw with Confirm and Pick someone else, nobody, the decision with the speaker's rest and an objector's new 5:00, Resume with the last speaker's rest - Missing Key Remnants with its count and a Reveal per row, and a round's length in m:ss", async () => {
+        /*
+         * E70 fix p2-G5, 28.10.2026; the part 2 review's E70P2-R02: no test drew the console's part 2 UI, so a decision row
+         * that lost the objectors' buttons, a draw line gone or a Resume never offered passed every test. Read on built
+         * HTML at fixed floors (trial-floor-ui.mjs `closingConsole`, `revealConsole`, exported for this; the GMs' names and
+         * rows handed in, nothing written): (1) the volunteers' window names them; (2) the choice after a draw names the
+         * drawn and offers Confirm and Pick someone else; with nobody, Pick only; (3) the decision offers the speaker with
+         * the seconds they had and each other objector of the chain with 5:00; (4) the Closing over with time left offers
+         * Resume with it, and not once the vote opened; (5) nothing outside a running trial; (6) Missing Key Remnants: the
+         * count and one Reveal per row, the "no trace" mark; (7) `roundLength`. The window's own DOM (its live line, Up,
+         * Draw again; the pick window's "Already spoke") is LIVE-E70-07/09. Red at the fix's parent: neither builder was
+         * exported (the first assertion).
+         */
+        let U = null, T = null, listOf = null;
+        try { U = await import("./trial-floor-ui.mjs"); T = await import("./trial-modes.mjs"); ({ listOf } = await import("./utils.mjs")); } catch { U = null; }
+        ok(typeof U?.closingConsole === "function" && typeof U?.revealConsole === "function", "trial-floor-ui.mjs exports no closingConsole or revealConsole");
+        if (typeof U?.closingConsole !== "function" || typeof U?.revealConsole !== "function") return;
+        must(game.user.isGM, "the console is a GM's - this would measure nothing");
+        const A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
+        const base = { active: true, mode: "closing", holderId: null, targetId: null, seconds: 30, startedAt: Date.now(), pending: false, messageId: null, before: [], round: null };
+        const at = (phase, patch = {}) => ({ ...base, closing: { phase, step: 2, openedAt: 1, count: 2, ...patch } });
+        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
+        const names = { volunteers: ["R1048 Aiko", "R1048 Botan"], drawn: "R1048 Botan" };
+        const run = (floor, progress = {}, given = names) => U.closingConsole({ floor, progress, running: true, names: given });
+        const volunteer = run(at("volunteer"));
+        const drawn = run(at("choice", { choice: "confirm" }));
+        const nobody = run(at("choice", { choice: "none" }), {}, { volunteers: [], drawn: null });
+        const decide = run(at("decide", { speakerId: A, left: 200, chain: [D, E] }));
+        const resumeProgress = { closing: { done: true, speakers: [{ actorId: A, via: "chosen", messageId: null, leftAtEnd: 90 }] } };
+        const resume = run(null, resumeProgress);
+        const read = {
+            volunteer: ["R1048 Aiko", "R1048 Botan"].every(n => volunteer.includes(n)) && ops(volunteer).length === 0,
+            drawn: [drawn.includes(game.i18n.format("DRPG.Floor.closing.gmDrawn", { name: "R1048 Botan", names: listOf(names.volunteers) })),
+                drawn.includes("R1048 Botan"), ops(drawn).map(o => o[0])],
+            nobody: [nobody.includes(game.i18n.localize("DRPG.Floor.closing.nobody")), ops(nobody).map(o => o[0])],
+            decide: [decide.includes(game.i18n.localize("DRPG.Floor.closing.whoContinues")), ops(decide).map(o => [o[0], o[1], /\(([\d:]+)\)/.exec(o[2])?.[1] ?? null])],
+            resume: ops(resume).map(o => [o[0], o[2].includes("1:30")]),
+            afterVote: run(null, { ...resumeProgress, voteOpenedAt: 5 }),
+            notRunning: U.closingConsole({ floor: at("volunteer"), progress: {}, running: false, names })
+        };
+        const reveal = U.revealConsole({ running: true, rows: [{ id: "3", name: "R1048 Key", hasTrace: false }, { id: "s.t", name: "R1048 Trace", hasTrace: true }], left: 2 });
+        read.reveal = [reveal.includes(game.i18n.format("DRPG.Reveal.left", { n: 2 })), [...reveal.matchAll(/data-drpg-reveal="([^"]+)"/g)].map(m => m[1]),
+            (reveal.match(new RegExp(game.i18n.localize("DRPG.Reveal.noTrace").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length,
+            U.revealConsole({ running: true, rows: [], left: 0 }), U.revealConsole({ running: false, rows: [{ id: "3", name: "x", hasTrace: true }], left: 1 })];
+        read.length = [T.roundLength(60, 7), T.roundLength(45, 3), T.roundLength(15, 0)];
+        equal(stableJson(read), stableJson({
+            volunteer: true,
+            drawn: [true, true, ["confirm", "pick"]],
+            nobody: [true, ["pick"]],
+            decide: [true, [["continue", A, "3:20"], ["continue", D, "5:00"], ["continue", E, "5:00"]]],
+            resume: [["resume", true]],
+            afterVote: "",
+            notRunning: "",
+            reveal: [true, ["3", "s.t"], 1, "", ""],
+            length: ["7:00", "2:15", "0:00"]
+        }), "the console's part 2 rows are not the spec's [the volunteers named, no button; the draw's line, its name, its buttons; nobody: the line, the buttons; "
+            + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
+            + "nothing to say, outside a trial; roundLength]");
+    }],
 ];
 
 /**
