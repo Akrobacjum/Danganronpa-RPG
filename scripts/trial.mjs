@@ -865,13 +865,16 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         if (!inClassTrial()) return { refused: "no Class Trial is in session" };
         const { objectionOpen, mayObjectTo, openObjectionInStep, trialFloor } = await import("./trial-floor.mjs");
         if (!objectionOpen()) return { refused: "the trial's floor is not open to an objection now" };
-        if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
-        // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20).
+        // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20). The death
+        // before the price (E70 C5 fix-mutant): the price's own refusal of the dead (price.mjs `cannotPayAtAll`, on
+        // `isDeadForGm`) answered first and left this line unreachable - tier 2 E70-T8 read "that character is offered no
+        // Objection" for K and U, the same code (`cannotNow`) to the player, and mutant v1 survived it.
         const { itemsAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
         const { isDeceased, livingStudents } = await import("./chapter.mjs");
         if (isDeceased(await flagsAsHeld(actor))) return { refused: "a dead student does not object" };
         // E70 C5: nor one on the trial's list of the dead - a death nobody has found, which the flag does not show (TR30).
         if (isMutedDead(actor)) return { refused: "a dead student does not object" };
+        if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
         if (!(await itemsAsHeld(actor)).some(item => isTruthBullet(item))) return { refused: "that character holds no Truth Bullet" };
 
         const speakers = await import("./trial-speakers.mjs");

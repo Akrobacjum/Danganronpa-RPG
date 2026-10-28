@@ -39516,7 +39516,8 @@ const SCENARIOS = [
          * the entry, a death, a new Monocub and the exit settle them (voice.mjs `settleTrialVoices`, which clock.mjs
          * `reconcilePhase` and the primary's hooks ask), so the test holds in a trial and out of one. Three students
          * whose players are here: U dies and nobody finds the body, K dies in public and its player's microphone is
-         * blocked by a GM before the trial, A lives. (1) The entry lists U and K, blocks U's player and records what it
+         * blocked by a GM before the trial, A lives. (0) Neither K before the list nor U after it raises an Objection on a
+         * debate. (1) The entry lists U and K, blocks U's player and records what it
          * found, leaves K's player's block alone and records nothing for it, hands neither a ballot and tells who may
          * speak. (2) K made a Monocub leaves the list; its player's GM block stays. (3) A dies in the trial and joins.
          * (4) The exit takes the list out of the record, removes the key U's player did not have, puts A's player's own
@@ -39570,7 +39571,16 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter });
             await rawClock({ phase: "classTrial", eclipse: false });
+            /* The dead do not object, as the GMs hold the death (E10 C16) and by the trial's list (E70 C5): K, dead on the
+               document, before any list is written; U, whose death nobody has found, once the entry has listed it. On a
+               debate written raw, so the floor is open to an Objection and only the death refuses it. */
+            const T = await import("./trial.mjs");
+            const object = async p => (await T.objectOnPrimary({ actorId: p.actor.id, targetId: A.actor.id }))?.refused ?? "raised";
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { active: true, mode: "debate", startedAt: Date.now(), seconds: 300 });
+            read.object = [await object(K)];
             await settleNow();
+            read.object.push(await object(U));
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
             read.entry = { list: listNow(), u: perm(U.user), k: perm(K.user), a: perm(A.user), rows: rows(), voices: voices(),
                 ballot: [ballot().includes(A.actor.id), ballot().includes(U.actor.id), ballot().includes(K.actor.id)] };
 
@@ -39602,6 +39612,7 @@ const SCENARIOS = [
         }
         const ids = (...p) => p.map(x => x.actor.id).sort();
         equal(stableJson(read), stableJson({
+            object: ["a dead student does not object", "a dead student does not object"],
             entry: { list: ids(U, K), u: [true, false], k: [true, false], a: [true, true], rows: [U.user.id], voices: ["speak", "muted", "muted"],
                 ballot: [true, false, false] },
             monocub: { list: ids(U), k: [true, false], rows: [U.user.id], cub: true, voice: "listen" },
