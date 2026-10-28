@@ -1197,9 +1197,9 @@ function trialConsoleHtml(view) {
             ${topicLine}
             ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize(restrictive
                 ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
-            ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
+            ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p>${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
             ${closingConsole(view)}
-            ${!floor && running && progress.closing?.done ? `<p class="notes">${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
+            ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
 
             ${revealConsole(view)}
