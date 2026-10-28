@@ -1623,7 +1623,14 @@ async function settleCleanup(actor, bookmark, after, done) {
     // a flat threshold still cannot - see above.
     if (key !== "eraseTrace" && key !== "transformTrace") {
         done.push(game.i18n.localize("DRPG.Reroll.trailStands"));
-        return {};
+        /* THE AUTHOR'S COPY GOES BACK WITH THE DICE (E70 C12, 28.10.2026; the owner's B1). A success that left its
+           author's trace handed them its Truth Bullet (cleanup.mjs `authorsCopy`), noted on this row; the trace stays,
+           as said above, and the copy those dice bought is taken back - the new dice are scored for nothing here, so
+           they buy none (tier 2 E70-T14). */
+        if (!bookmark.authorsCopy) return {};
+        const { takeBackAuthorsCopy } = await import("./cleanup.mjs");
+        if (await takeBackAuthorsCopy(actor, bookmark.authorsCopy)) done.push(game.i18n.localize("DRPG.Reroll.authorsCopyBack"));
+        return { authorsCopy: null };
     }
 
     const { requestCleanup } = await import("./gm-bridge.mjs");

@@ -2676,6 +2676,20 @@ async function safewordRun(S, player, act, read) {
  * back, one a botched wipe left - with the bullet, and puts the Sanity back. `place` (E09 C9)
  * lays the trace elsewhere: `placeRemnant`'s own fields, over the anchor and the scene on screen.
  */
+/*
+ * THE AUTHOR'S COPY OF A TAMPER'S TRACE (E70 C12, 28.10.2026): a frame or a body moved that succeeds hands its author
+ * the trace's Truth Bullet (cleanup.mjs `authorsCopy`). A test that scores one for its own reading puts it back with
+ * its answer key: every bullet of a trace that `actor` holds and did not hold when `had` (the item ids then) was read.
+ */
+async function dropNewCopies(actor, had) {
+    const T = await import("./truth-bullets.mjs");
+    for (const item of actor.items.filter(i => !had.has(i.id) && T.secretOf(i.uuid)?.remnantId)) {
+        const uuid = item.uuid;
+        try { await item.delete(); } catch { /* already gone */ }
+        try { await T.dropSecret(uuid); } catch { /* none filed */ }
+    }
+}
+
 async function cleanupFixture(who, note, place = {}) {
     const cleanup = await import("./cleanup.mjs");
     const remnants = await import("./remnants.mjs");
@@ -6410,6 +6424,7 @@ const SCENARIOS = [
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const made = [];
+        const had = new Set(third.items.map(i => i.id));
         let trace = null;
         try {
             const mine = await inHand(killer, "cleaningTool", "SUITE C12 the killer's gloves");
@@ -6441,6 +6456,7 @@ const SCENARIOS = [
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             for (const actor of [killer, third]) if (S.usedToolStore?.has(actor.id)) await S.usedToolStore.drop(actor.id);
+            await dropNewCopies(third, had);
             for (const doc of [...made, trace]) {
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
@@ -26130,6 +26146,7 @@ const SCENARIOS = [
         const traces = () => game.scenes.contents.flatMap(s => remnants.remnantsOn(s));
         const before = new Set(traces().map(t => t.id));
         const seen = new Set(game.messages.contents.map(m => m.id));
+        const had = new Set(who.items.map(i => i.id));
         try {
             const result = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30,
                 withHope: true, viaAction: true, price: "action" });
@@ -26145,6 +26162,7 @@ const SCENARIOS = [
                 "a misleading trail named its band by the ledger's key, or the GMs' copy did not read the roll against its threshold "
                 + "(success, the player's line, the note, the GMs' copy)");
         } finally {
+            await dropNewCopies(who, had);
             for (const trace of traces().filter(t => !before.has(t.id))) {
                 try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
                 try { await trace.delete(); } catch { /* already gone */ }
@@ -40552,6 +40570,139 @@ const SCENARIOS = [
             + "(5) the plate's mark: the holder speaking in a trial (hidden, words), another holder, outside a trial");
     }],
 
+    ["a successful Tamper that leaves its author's trace gives the author that trace's Truth Bullet at once, none on a failure or a cover, and the Reroll takes it back (E70-T14)", async () => {
+        /*
+         * E70 C12, 28.10.2026; the owner's B1 (27.10, "autor dostaje Truth Bullet wlasnego sladu przy udanym Tamper, a nie
+         * przy porazce z Despair") and Q-p2-1 (none on any failure). A frame (cleanup.mjs `resolveStageSix`, "misleadingTrail",
+         * the Tamper tile's) and a body moved (Stage 6's own) left a trace their author had to find again by Observe like
+         * anybody else. A connected player's character, on rolls the GMs keep (`playerRollBookmark`): a frame that succeeds,
+         * a frame's Faint failure (the trail is still planted, hidden and faint), a Despair failure (nothing planted), a
+         * cover's success (an erase through the tile, `cleanupFixture`), then the same character as the killer of a fight
+         * carrying the body to the next room (every region's teleport answered as done: the harness's regions have none of
+         * their own). Each scored roll that planted something is rerolled on this GM for the player (`rerollOnGm`). Read,
+         * per road: the traces it left, the copies of them the author holds, the line on the author's card, the GMs' fact on
+         * the roll, and after its Reroll the copies left and the Reroll's line. Red at 220c0054 (28.10.2026): the frame's
+         * and the body's success each [true, 1, 0, false, false, 0, false] - the trace, and no copy, line or fact.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Tamper is a connected player's character's, in a named room");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const RR = await import("./reroll.mjs");
+        const Rm = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { locateActor, neighbouringRooms } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { player, actor: who, where } = await playerInRoom();
+        const scene = where.scene;
+        const known = game.i18n.localize("DRPG.Cleanup.authorsCopy");
+        const back = game.i18n.localize("DRPG.Reroll.authorsCopyBack");
+        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value };
+        const made = [];
+        const hook = Hooks.on("createToken", doc => { made.push(doc); });
+        const copiesOf = ids => who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? "")).length;
+        const regions = [...scene.regions];
+        const tokenOf = a => scene.tokens.find(t => t.actorId === a.id) ?? null;
+        let F = null, stand = null, C = null, victim = null, declared = null, self = null, body = null, bodyWas = null;
+        const reroll = async () => {
+            await trustedWrite(who, { "system.resources.hope.value": Math.max(4, who.system.resources.hope.value) }, { reason: "gmRuling" });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+            const out = await RR.rerollOnGm(who, player);
+            await settle();
+            stand.putBack(); stand = null;
+            return out;
+        };
+        const road = async (key, context, packet, { again = false } = {}) => {
+            F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context });
+            must(F.verdict, `the GMs kept no row of the ${key} roll - this would measure nothing`);
+            const at = made.length;
+            const res = await CL.resolveStageSix({ actorId: who.id, key, price: "stress", rollId: F.message.id, by: player.id, ...packet });
+            await settle();
+            const traces = made.slice(at).filter(d => d.parent?.tokens?.get(d.id)).map(d => d.id);
+            const read = [res?.success ?? null, traces.length, copiesOf(traces), (res?.done ?? []).includes(known),
+                typeof F.row()?.facts?.authorsCopy === "string"];
+            if (again) {
+                const out = await reroll();
+                read.push(copiesOf(traces), Array.isArray(out?.lines) && out.lines.includes(back));
+            }
+            await F.putBack(); F = null;
+            return read;
+        };
+        const read = {};
+        try {
+            const framed = (await CL.framingCandidates(who))[0];
+            must(framed, "nobody can be framed - this would measure nothing");
+            const frame = { key: "misleadingTrail", targetId: framed.id, viaAction: true, isCritical: false };
+            const ctx = { cleanupTarget: framed.id, cleanupVia: true };
+            read.frame = await road("misleadingTrail", ctx, { ...frame, total: 30, withHope: true }, { again: true });
+            read.faint = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: true }, { again: true });
+            read.despair = await road("misleadingTrail", ctx, { ...frame, total: 1, withHope: false });
+            C = await cleanupFixture(who, "SUITE E70-T14 a trace covered");
+            must(C.trace, "the fixture's trace was not placed - this would measure nothing");
+            const items = who.items.size, mark = C.mark();
+            const covered = await C.scrub(30);
+            await settle();
+            read.cover = [covered?.removed ?? null, C.since(mark).filter(id => scene.tokens.has(id) && id !== C.trace.id).length, who.items.size - items];
+            await C.putBack(); C = null;
+
+            victim = livingStudents().find(a => a.id !== who.id && tokenOf(a));
+            must(victim, "no second student stands on the scene to be the body - this would measure nothing");
+            const room = locateActor(who).room;
+            self = regions.find(r => r.name === room);
+            declared = neighbouringRooms(scene, room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
+            if (declared) await self.setFlag(MODULE_ID, "drpgNeighbours", declared);
+            const target = neighbouringRooms(scene, room).find(r => r !== room) ?? null;
+            must(target, `${room} connects to no room the body could be carried to - this would measure nothing`);
+            body = tokenOf(victim); bodyWas = { x: body.x, y: body.y };
+            await fightOpen(M, who, victim);
+            await turnFor(M, who, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: who.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            await body.update({ x: tokenOf(who).x, y: tokenOf(who).y });
+            must(CL.bodyIsHere(who), "the body does not lie in the killer's room - this would measure nothing");
+            for (const region of regions) region.teleportTokens = async () => {};
+            read.body = await road("moveBody", { cleanupTarget: target, cleanupVia: false },
+                { key: "moveBody", targetId: target, total: 30, isCritical: false, withHope: true }, { again: true });
+        } finally {
+            Hooks.off("createToken", hook);
+            stand?.putBack();
+            await F?.putBack();
+            await C?.putBack();
+            for (const region of regions) delete region.teleportTokens;
+            if (declared) await self.unsetFlag(MODULE_ID, "drpgNeighbours");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (victim && isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(who.id)) await S.usedToolStore.drop(who.id);
+            if (body && scene.tokens.has(body.id)) await body.update(bodyWas);
+            const ids = made.map(d => d.id);
+            for (const item of who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? ""))) {
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await T.dropSecret(uuid).catch(() => {});
+            }
+            for (const doc of made) {
+                const live = doc.parent?.tokens?.get(doc.id);
+                if (!live) continue;
+                await Rm.dropRemnantSecret(live).catch(() => {});
+                await live.delete().catch(() => {});
+            }
+            await who.update(had);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({
+            frame: [true, 1, 1, true, true, 0, true],
+            faint: [false, 1, 0, false, false, 0, false],
+            despair: [false, 0, 0, false, false],
+            cover: [true, 0, 0],
+            body: [true, 1, 1, true, true, 0, true]
+        }), "per road - success, traces left, the author's copies of them, the card's line, the GMs' fact on the roll, then after its "
+            + "Reroll the copies left and the Reroll's line: a frame's success, its Faint failure, a Despair failure, a cover's success "
+            + "(erased, traces left, items gained) and a body moved");
+    }],
+
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
         /*
          * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
@@ -44724,6 +44875,7 @@ const SCENARIOS = [
         const framed = (await CL.framingCandidates(who))[0];
         must(framed, "nobody can be framed - this would measure nothing");
         const made = [];
+        const had = new Set(who.items.map(i => i.id));
         const hook = Hooks.on("createToken", doc => { made.push(doc); });
         try {
             await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30, isCritical: false, withHope: true, viaAction: true });
@@ -44733,6 +44885,7 @@ const SCENARIOS = [
             equal(stableJson(trails[0].tiedToCrime), stableJson(null), "an innocent's misleading trail on a plain day was decided as the crime's (its tie)");
         } finally {
             Hooks.off("createToken", hook);
+            await dropNewCopies(who, had);
             for (const doc of made) {
                 const live = doc.parent?.tokens?.get(doc.id);
                 if (!live) continue;

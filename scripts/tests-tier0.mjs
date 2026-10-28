@@ -2459,8 +2459,9 @@ const REGRESSIONS = [
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
         const reroll = stripComments(new Map(await otherSources()).get("reroll.mjs") ?? "");
-        const replay = bodyOf(reroll, "async function settleCleanup");
-        ok(/price: bookmark\.cleanupPrice/.test(replay.slice(0, 2400)),
+        // The function whole (E70 C12 put the author's copy's take-back before the replay, past the 2400 characters read here before).
+        const replay = bodyOf(reroll, "async function settleCleanup", { until: "\n}\n" });
+        ok(/price: bookmark\.cleanupPrice/.test(replay),
             "a rerolled clean-up forgets which step it paid, so the GM charges it again");
     }],
 
@@ -7463,6 +7464,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
             ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
@@ -11579,14 +11581,16 @@ const REGRESSIONS = [
          * E09 fix r1-G2 adds the legacy migration, remnants.mjs `moveIntoLedger` (the round-1 reviews'
          * cor F4 = sec F9): its new row ran a token's tie through `Boolean(f("tiedToCrime"))`, a shape
          * the reader did not know, and its live row's fill took the token's raw `false`; both read
-         * `oldTokenTie` now, and the reader knows the call shape.
+         * `oldTokenTie` now, and the reader knows the call shape. E70 C12 (28.10.2026) moved Observe's copy out of
+         * `createFind` into observe.mjs `mintFindCopy`, which a successful Tamper's copy for its author takes too, so
+         * the reader reads the copy maker there.
          */
         const sources = new Map(await otherSources());
         const READS = [
             ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
             ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
             ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
-            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
+            ["observe.mjs", "mintFindCopy"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
         ];
         const FLAT = /\bBoolean\(\s*(?:[\w.?]*tiedToCrime|\w+\(\s*["']tiedToCrime["']\s*\))\s*\)/;
         // A token's flag passed on as it stands: the old `false` is a GM's "not tied" in the ledger.

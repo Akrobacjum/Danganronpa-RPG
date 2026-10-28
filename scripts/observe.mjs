@@ -1001,9 +1001,7 @@ async function createFind(actor, entry, isCritical) {
      * the box opens prefilled with what the trace is already called, so pressing
      * straight through keeps the name identical.
      */
-    const {
-        remnantPublicById, setRemnantPublicById, revealRemnantToFinderById
-    } = await import("./remnants.mjs");
+    const { remnantPublicById, setRemnantPublicById } = await import("./remnants.mjs");
 
     // A copy already held is no find (H84; `alreadyHeld` below): asked before the GM is asked to describe it.
     if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
@@ -1041,8 +1039,40 @@ async function createFind(actor, entry, isCritical) {
        either one's find was being made: `pendingTracesOf` holds a trace only then) both passed it and both made a bullet - tier 2 "H84-02 ...": 2 with this
        check taken out (mutant h8402-noRecheck, 27.10.2026), 1 here. The copy is read again and the bullet made in one step of `serialWrite` under the character's
        key, after the window: the step awaits the create and its secret, never a person. */
-    const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
+    const made = await mintFindCopy(actor, entry, {
         name: pub?.name || written?.name || fallbackName,
+        playerText: pub?.playerText ?? written?.playerText ?? "",
+        analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
+        img: pub?.img ?? null,
+        isCritical
+    });
+    if (made === HELD) return alreadyHeld(actor, entry);
+    const item = made;
+
+    if (!item) return null;
+
+    await whisperToOwner(actor, `
+        <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
+        <p><strong>${foundry.utils.escapeHTML(item.name)}</strong></p>
+        ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
+        ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
+        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
+
+    log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
+    return item;
+}
+
+/**
+ * A find's copy of the trace `entry` names (`{ tokenId, sceneId, room, data }`, `data` the GMs' row of it), made on
+ * the GM in the character's step (`observeFindKey`): none when a copy is held already (`HELD`), else the bullet,
+ * as the trace stands, and the trace revealed to its finder (`revealRemnantToFinder`; `tell` false keeps the GMs'
+ * "say what it is" whisper back). Observe's own (`createFind`) and, since E70 C12, the copy a successful Tamper
+ * hands the trace's author (cleanup.mjs `authorsCopy`): one road, so the two are the same bullet.
+ */
+export async function mintFindCopy(actor, entry, { name, playerText = "", analyzedText = "", img = null, isCritical = false, tell = true } = {}) {
+    const data = entry.data;
+    const made = await serialWrite(observeFindKey(actor.id), () => copiedRemnants(actor).has(entry.tokenId) ? HELD : createTruthBullet(actor, {
+        name,
         realType: data.type,
         /*
          * A critical identifies the category outright - guide, p. 30: "Truth
@@ -1063,13 +1093,13 @@ async function createFind(actor, entry, isCritical) {
         analyzed: isCritical ? true : null,
         visibility: data.visibility,
         faint: Boolean(data.faint),
-        playerText: pub?.playerText ?? written?.playerText ?? "",
+        playerText,
         // What analysis will say, filed with the bullet now so a later Head roll
         // pays out even if the trace itself is wiped before then. It reaches
         // this player's ITEM only on a critical, which identifies outright -
         // `createTruthBullet` is where that is decided, not here.
-        analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
-        img: pub?.img ?? null,
+        analyzedText,
+        img,
         gmNote: data.note ?? "",
         remnantId: entry.tokenId,
         sceneId: entry.sceneId,
@@ -1086,10 +1116,7 @@ async function createFind(actor, entry, isCritical) {
         // the death's tie back until the death is the table's").
         tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId })
     }));
-    if (made === HELD) return alreadyHeld(actor, entry);
-    const item = made;
-
-    if (!item) return null;
+    if (made === HELD || !made) return made ?? null;
 
     // The object is real now, not just a note in the GM's ledger - the first
     // person to copy it reveals the token it came from. See
@@ -1097,20 +1124,12 @@ async function createFind(actor, entry, isCritical) {
     // rather than forcing `visible`, and visibility.mjs for how it then stays
     // invisible to everyone who has not found it themselves.
     try {
-        await revealRemnantToFinderById(entry.sceneId, entry.tokenId);
+        const { revealRemnantToFinderById } = await import("./remnants.mjs");
+        await revealRemnantToFinderById(entry.sceneId, entry.tokenId, { tell });
     } catch (err) {
         error("Could not reveal the Remnant token to its finder", err);
     }
-
-    await whisperToOwner(actor, `
-        <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
-        <p><strong>${foundry.utils.escapeHTML(item.name)}</strong></p>
-        ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
-        ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
-        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
-
-    log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
-    return item;
+    return made;
 }
 
 /** `createFind`'s answer inside its step when the character holds a copy of the trace already. */

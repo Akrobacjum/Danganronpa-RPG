@@ -1033,7 +1033,9 @@ async function handleCleanup(payload, sender, ctx, prepared) {
             grant: payload.grant,
             // Who sent it, as below: a give-back the GMs' audit cannot check is not
             // made on a player's word (cleanup.mjs `paidBack`, fix r2-G8).
-            by: sender.id
+            by: sender.id,
+            // The roll the author's copy is noted on (cleanup.mjs `authorsCopy`, E70 C12): the bridge's `rolled` holds it.
+            rollId: payload.rollId ?? null
         });
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
@@ -4520,7 +4522,7 @@ export function requestCleanup({
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
-                price, grant
+                price, grant, rollId
             }))
     });
 }

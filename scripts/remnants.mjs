@@ -1388,9 +1388,9 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
     return tokenDoc ? setRemnantPublic(tokenDoc, patch) : null;
 }
 
-export async function revealRemnantToFinderById(sceneId, tokenId) {
+export async function revealRemnantToFinderById(sceneId, tokenId, options = {}) {
     const tokenDoc = tokenById(sceneId, tokenId);
-    return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
+    return tokenDoc ? revealRemnantToFinder(tokenDoc, options) : null;
 }
 
 /**

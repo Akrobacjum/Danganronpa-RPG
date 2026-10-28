@@ -69,7 +69,7 @@ import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
 import {
-    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
+    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic
 } from "./remnants.mjs";
 import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
 import { roomRegions } from "./rooms.mjs";
@@ -77,7 +77,7 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
 // is this module's only record of "they know this trace is there".
-import { copiedRemnants, bulletsOf, secretOf, heldCopiesOf } from "./truth-bullets.mjs";
+import { copiedRemnants, bulletsOf, secretOf, heldCopiesOf, dropSecret } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
@@ -2319,7 +2319,9 @@ export async function resolveStageSix({
     // it. Bounded here, like every other field that crossed a socket (T-1).
     price = null, grant = false,
     // Who sent it, as `resolveCleanup` is told: null for a GM's own (fix r2-G8, `paidBack`).
-    by = null
+    by = null,
+    // The roll it was thrown with, as `resolveCleanup`'s: the author's copy (`authorsCopy`) is noted on that roll's row.
+    rollId = null
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
@@ -2403,8 +2405,22 @@ export async function resolveStageSix({
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
-    if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
-    else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
+    const left = key === "misleadingTrail" ? await applyMisleadingTrail(actor, def, targetId, success, band, done)
+        : key === "moveBody" ? await applyMoveBody(actor, def, success, band, done, targetId) : null;
+
+    /*
+     * THE AUTHOR KNOWS WHAT THEY LEFT (E70 C12, 28.10.2026; the owner's B1 of 27.10, "autor dostaje Truth Bullet
+     * wlasnego sladu przy udanym Tamper", and Q-p2-1: none on any failure). A frame or a body carried off left a
+     * trace its author had to find again by Observe, like anybody else. A success that left one hands the author
+     * its copy at once, as a find makes it (`authorsCopy`); the Faint trail a frame's failure plants is a failure's
+     * and gives none, and a Despair failure leaves nothing to copy on either road (tier 2 E70-T14). Its id goes on
+     * the roll's row, so the Reroll that takes these dice back takes the copy with them (reroll.mjs `settleCleanup`).
+     */
+    const copy = success ? await authorsCopy(actor, left, done) : null;
+    if (copy) {
+        const rolls = await import("./action-rolls.mjs");
+        await rolls.noteFactOn(rolls.rollOfFact({ rollId, by, actorId: actor.id, actions: ["cleanup"] }), { authorsCopy: copy.id });
+    }
 
     const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
@@ -2446,7 +2462,7 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
     }
 
     const framed = game.actors.get(targetId ?? "");
-    await dropRemnant(actor, {
+    const left = await dropRemnant(actor, {
         type: def.remnantType ?? "prep",
         visibility,
         faint: success ? false : Boolean(def.failureFaint),
@@ -2479,6 +2495,7 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         // A character's name is its owner's to write (S05-05, S04-10).
         name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility
     }));
+    return left;
 }
 
 /**
@@ -2563,7 +2580,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
     done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
 
     const visibility = def.remnant?.[band] ?? "evident";
-    await dropRemnant(actor, {
+    const left = await dropRemnant(actor, {
         type: def.remnantType ?? "resolution",
         visibility,
         tiedToCrime: true,
@@ -2572,6 +2589,49 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
         note: game.i18n.format("DRPG.Cleanup.bodyNote", { name: victim.name, room })
     });
     done.push(game.i18n.format("DRPG.Cleanup.leftTrace", { visibility }));
+    return left;
+}
+
+/**
+ * The Truth Bullet of the trace a successful Tamper left (`left`, the token `dropRemnant` placed), on its author's
+ * sheet: made on the GM as Observe's find makes it (observe.mjs `mintFindCopy`) - not identified, the trace's own
+ * words or, while nobody has described it, the name an Observe of it would offer - with no "say what it is" for the
+ * GMs, whose card of the Tamper is going out now. None for a copy already held. Answers the bullet, or null.
+ */
+async function authorsCopy(actor, left, done) {
+    const data = left?.id ? remnantData(left) : null;
+    if (!data) return null;
+    const pub = remnantPublic(left);
+    const described = pub?.name && pub.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? pub.name : null;
+    const { mintFindCopy } = await import("./observe.mjs");
+    const item = await mintFindCopy(actor, { tokenId: left.id, sceneId: left.parent?.id ?? null, room: data.room ?? null, data }, {
+        name: described || data.subject || game.i18n.format("DRPG.Observe.defaultName", { room: data.room ?? "?" }),
+        playerText: pub?.playerText ?? "", analyzedText: pub?.analyzedText ?? "", img: pub?.img ?? null, tell: false
+    });
+    if (!item?.id) return null;
+    done.push(game.i18n.localize("DRPG.Cleanup.authorsCopy"));
+    log(`Stage 6: ${actor.name} holds a copy of the trace they left, as "${item.name}".`);
+    return item;
+}
+
+/**
+ * A Reroll of a frame or a body moved takes back the copy its first dice gave the author (`authorsCopy`; reroll.mjs
+ * `settleCleanup`, on the GM, with the id the roll's row holds): true when one was taken. The trace stays, as the
+ * Reroll's own line says.
+ */
+export async function takeBackAuthorsCopy(actor, itemId) {
+    if (!game.user.isGM) return false;
+    const item = actor?.items?.get(itemId ?? "");
+    if (!item) return false;
+    const uuid = item.uuid;
+    try {
+        await item.delete();
+        await dropSecret(uuid);
+        return true;
+    } catch (err) {
+        error("Could not take back the Truth Bullet a rerolled Tamper gave its author", err);
+        return false;
+    }
 }
 
 /* ==========================================================================
