@@ -25432,6 +25432,75 @@ const INVARIANTS = [
         }), "the floor's modes and their music are not the spec's [each mode of floor-machine.mjs MODES with its row and the state it plays; every row a "
             + "music state; no floor in the trial and outside it; the Closing's exchange - its mode, the Closing's phase kept under it, its music]");
     }],
+
+    ["R1047 - the floor's modes hold each other (E70 fix p2-G3): an Overrule on a round's own turn or the Closing's speaker names the newest receipt and moves no floor, a debate's start never replaces a round or the Closing, the volunteers' window called over from a participant's browser, and the speaker's window ends nothing on Enter", async () => {
+        /*
+         * E70 fix p2-G3, 28.10.2026; the part 2 review's P2R-02, BEH-3 (P2R-06, E70P2-R05), BEH-4 (P2R-07, E70P2-R04)
+         * and E70P2-R12. Read without a world at a fixed `now` on floors the machine itself builds: (1) Overrule on a
+         * Testimony turn and a Panic turn with nothing on the stack - floor-machine.mjs `overruleTarget` answered
+         * `{ during: true, messageId: null }`, and `nextFloor` "overrule" then called `debateAgain`, so the round was wiped
+         * for an open debate of the turn's seconds: now no receipt is "nothing to overrule", a receipt left from an earlier
+         * exchange is named with `during` false (the floor does not move), the machine refuses the row on the turn, and an
+         * exchange inside the round is still `during`; the Closing's speaker the same; (2) `start` - a debate - over a
+         * round, the Closing's volunteers, its speaker and an exchange inside the Closing: refused (it replaced the Closing
+         * without its record's `done`, so a second Closing could start), over a debate still a fresh debate; (3) the
+         * volunteers' window's `over` from a participant's browser: before its 30 s (but for the second's grace) refused,
+         * with another step stale, due with the caller's draw the choice "confirm", with none "none"; (4) the speaker's
+         * window (trial-prompt.mjs `promptTurn`): Done and Pass are not the default, "Keep speaking" is. Red at bd24d768
+         * (measured, the first assertion: the testimony turn's Overrule read during).
+         */
+        let M = null;
+        try { M = await import("./floor-machine.mjs"); } catch { M = null; }
+        ok(typeof M?.overruleTarget === "function" && typeof M?.nextFloor === "function", "floor-machine.mjs exports no overruleTarget or nextFloor");
+        if (typeof M?.overruleTarget !== "function" || typeof M?.nextFloor !== "function") return;
+        const NOW = 40_000_000, TS = 39_000_000, A = "speakerAAAAAAAAA", B = "otherBBBBBBBBBBB", Cc = "otherCCCCCCCCCCC";
+        const at = (floor, event, ctx = {}) => M.nextFloor(floor, event, { now: NOW, ...ctx });
+        const testimony = at(null, { type: "round", mode: "testimony", seconds: 60, order: [A, B, Cc] }).floor;
+        const panic = at(null, { type: "round", mode: "panic", seconds: 15, order: [A, B, Cc] }).floor;
+        const debate = at(null, { type: "start", seconds: 180 }).floor;
+        const volunteer = at(null, { type: "closing" }).floor;
+        must(testimony?.round && panic?.round && debate?.mode === "debate" && volunteer?.closing?.phase === "volunteer",
+            "the machine built no round, debate or Closing to read - this would measure nothing");
+        const choice = M.nextFloor(volunteer, { type: "due" }, { now: NOW + 30_000, drawn: A }).floor;
+        const speak = M.nextFloor(choice, { type: "confirm" }, { now: NOW + 31_000, drawn: A, participants: [A, B, Cc] }).floor;
+        const inRound = at(testimony, { type: "objection", holderId: B, targetId: A, pending: false, cardId: "cardROUNDROUNDRO" }).floor;
+        const inClosing = at(speak, { type: "objection", holderId: B, targetId: A, pending: false, cardId: "cardCLOSECLOSECL" }).floor;
+        must(speak?.closing?.phase === "speak" && inRound?.mode === "objection" && inClosing?.mode === "objection", "the speaker or an exchange was not built - this would measure nothing");
+        const receipts = { cardEARLIEREARLI: { objectorId: B, targetId: A, paid: "hope", trialStartedAt: TS, at: NOW - 60_000, overruled: false } };
+        const target = (floor, objections = {}) => {
+            const r = M.overruleTarget({ floor, objections, trialStartedAt: TS, running: true });
+            return r.refused ?? [r.messageId, r.during];
+        };
+        const refusedOr = r => r?.refused ?? r?.floor?.mode ?? null;
+        const read = {
+            overrule: [target(testimony), target(testimony, receipts), target(panic), target(panic, receipts), target(speak), target(speak, receipts),
+                target(inRound, receipts), refusedOr(at(testimony, { type: "overrule" })), refusedOr(at(panic, { type: "overrule" })), refusedOr(at(speak, { type: "overrule" }))],
+            start: [testimony, panic, volunteer, choice, speak, inClosing, debate].map(floor => refusedOr(at(floor, { type: "start", seconds: 180 }))),
+            volunteerOver: [
+                refusedOr(M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 10_000, drawn: A })),
+                refusedOr(M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step + 1 }, { now: NOW + 30_000, drawn: A })),
+                M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 29_500, drawn: A }).floor?.closing?.choice ?? null,
+                M.nextFloor(volunteer, { type: "over", step: volunteer.closing.step }, { now: NOW + 30_000, drawn: null }).floor?.closing?.choice ?? null
+            ]
+        };
+        const sources = await moduleSources();
+        const prompt = fnSource(stripComments(sources.get("trial-prompt.mjs") ?? ""), "promptTurn");
+        must(prompt.length > 400, "trial-prompt.mjs promptTurn is cut short or gone - this would measure nothing");
+        read.window = ["done", "pass", "keep"].map(action => {
+            const button = new RegExp(`\\{\\s*action:\\s*"${action}"[^}]*\\}`).exec(prompt)?.[0] ?? null;
+            return button === null ? null : /default:\s*true/.test(button);
+        });
+        equal(stableJson(read), stableJson({
+            overrule: ["DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false],
+                "DRPG.Floor.bar.noOverrule", ["cardEARLIEREARLI", false], ["cardROUNDROUNDRO", true],
+                "DRPG.Floor.bar.noOverrule", "DRPG.Floor.bar.noOverrule", "DRPG.Floor.bar.noOverrule"],
+            start: ["DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "DRPG.Floor.startBusy", "debate"],
+            volunteerOver: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.stale", "confirm", "none"],
+            window: [false, false, true]
+        }), "[overruleTarget on a Testimony turn, with an earlier receipt, a Panic turn, with one, the Closing's speaker, with one, an exchange in the round; the machine's "
+            + "overrule on the Testimony turn, the Panic turn, the speaker], [start over Testimony, Panic, the volunteers, the choice, the speaker, the Closing's exchange, a debate], "
+            + "[the volunteers' over: at 10 s, another step, within the grace, with no draw], [the speaker's window: Done, Pass, Keep speaking the default]");
+    }],
 ];
 
 /**

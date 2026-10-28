@@ -1277,6 +1277,7 @@
       "repointTo": "Aim the Objection at",
       "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
       "modeNote": "This runs out on its own. The bar below cuts it short (Skip), takes or gives half a minute, or drops straight back to the open debate.",
+      "startBusy": "A debate cannot open while a round or the Closing Argument holds the floor. End that mode first.",
       "sectionTrial": "The trial",
       "sectionDebate": "The debate",
       "sectionVote": "The vote, the verdict, the chapter",
@@ -2438,6 +2439,7 @@
         "body": "{mode}: you have the floor. Done ends your turn; Pass gives it to the next speaker.",
         "done": "Done",
         "pass": "Pass",
+        "keep": "Keep speaking",
         "closingPassEarly": "Pass in your first 30 s hands the choice back to the GM; after that it ends the Closing Argument.",
         "closingPass": "Pass ends the Closing Argument, as Done does."
       },

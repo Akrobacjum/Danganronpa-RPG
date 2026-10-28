@@ -304,8 +304,15 @@ export function drawOrder(ids = []) {
 export async function roundStepInStep(event) {
     if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
     const floor = trialFloor();
-    const result = nextFloor(floor, event, floorCtx(floor));
+    let result = nextFloor(floor, event, floorCtx(floor));
     if (result.refused) return { refused: result.refused };
+    /* The volunteers' window called over (E70 fix p2-G3): judged first with no draw, so an early or stale call draws
+       nothing, then drawn here as the heartbeat draws (`advanceFrom`) and judged again with it. */
+    if (event?.type === "over" && floor?.mode === FLOOR_MODES.closing && closingOf(floor)?.phase === "volunteer") {
+        const { drawInStep } = await import("./trial-modes.mjs");
+        result = nextFloor(floor, event, { ...floorCtx(floor), drawn: await drawInStep() });
+        if (result.refused) return { refused: result.refused };
+    }
     const written = await commitFloor(floor, result, event.type);
     return written ? { written } : { refused: "DRPG.Floor.round.stale" };
 }
@@ -592,6 +599,12 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
     }
 
     // The phase above on this GM, as before (its own key, CLOCK_KEY); the floor in the floor's step on the primary.
+    // A round or the Closing is ended first (E70 fix p2-G3; the machine's `start` refuses it on every road): told here.
+    const busy = nextFloor(trialFloor(), { type: "start", seconds }, { now: serverNow() }).refused;
+    if (busy) {
+        ui.notifications.warn(game.i18n.localize(busy));
+        return null;
+    }
     return floorStep("start", { seconds, text: typeof topic === "string" ? topic : null });
 }
 

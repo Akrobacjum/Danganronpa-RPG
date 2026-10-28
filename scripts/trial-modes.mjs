@@ -92,7 +92,14 @@ async function startRound(mode, { seconds = null, order = null } = {}) {
     }
     const written = await floorStep(mode, { seconds: turn, order: Array.isArray(order) ? order : null });
     if (!written?.round) {
-        if (written !== null) ui.notifications.warn(game.i18n.localize("DRPG.Floor.round.notStarted"));
+        /* A REFUSED START IS TOLD (E70 fix p2-G3; the review's E70P2-R10): the step answers null for the machine's refusal,
+           and this said nothing then. The two reasons this GM can read itself: the floor busy, nobody connected. */
+        const { trialFloor } = await import("./trial-floor.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const floor = trialFloor();
+        const why = floor && floor.mode !== MODES.debate ? "DRPG.Floor.round.busy"
+            : trialParticipants().length === 0 ? "DRPG.Floor.round.nobody" : "DRPG.Floor.round.notStarted";
+        ui.notifications.warn(game.i18n.localize(why));
         return null;
     }
     try {
@@ -145,7 +152,9 @@ export async function turnOnPrimary({ actorId, kind, step }, senderId = null) {
     if (!floorMod.inClassTrial()) return { refused: "no Class Trial is in session" };
     const floor = floorMod.trialFloor();
     // The Closing's speaker ends or passes their own stretch, and anyone taking part calls its time over (E70 C8).
-    const closing = floor?.mode === MODES.closing && closingOf(floor)?.phase === "speak" ? closingOf(floor) : null;
+    // The volunteers' window called over too (E70 fix p2-G3): its draw is made in the step (trial-floor.mjs `roundStepInStep`).
+    const phase = floor?.mode === MODES.closing ? closingOf(floor)?.phase : null;
+    const closing = phase === "speak" || (phase === "volunteer" && kind === "over") ? closingOf(floor) : null;
     if (!closing && (!floor?.round || !isRoundMode(floor.round.mode))) return { refused: "no round holds the floor now" };
     if (closing) {
         const { trialParticipants } = await import("./vote.mjs");

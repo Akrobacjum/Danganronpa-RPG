@@ -40042,7 +40042,7 @@ const SCENARIOS = [
          * floor, the record, the store and the cards are put back.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 2), "a Closing's draw and its exchange need two connected players' students");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor and the GMs' store - this would measure nothing");
         const F = await import("./trial-floor.mjs");
         const B = await import("./gm-bridge.mjs");
@@ -40088,7 +40088,22 @@ const SCENARIOS = [
                 const held = S.closingClaimStore.get(RECORD) ?? {};
                 read.claims = [c1, c1again, forged, c2, F.trialFloor()?.closing?.count ?? null, worldClean(),
                     [...(held.volunteers ?? [])].sort().join() === [one.actor.id, two.actor.id].sort().join()];
-                await api.skipStep();
+                /* The volunteers' 30 s run out with the primary's heartbeat held, as a GM's tab in the background holds it
+                   (E70 fix p2-G3; the review's BEH-4; S06-38): the participants' browsers call the window over
+                   (trial-prompt.mjs, "trial.turn" kind "over") and the draw is made in that step. Red at the fix's parent:
+                   the window stood until the GM's Skip. */
+                const realInterval = globalThis.setInterval;
+                globalThis.setInterval = () => 0;
+                try {
+                    F.renderTrialFloor();
+                    await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), startedAt: serverNow() - 31_000 });
+                    await settle();
+                    read.volunteerOver = Boolean(await until(() => F.trialFloor()?.closing?.phase === "choice" || null, 4000));
+                } finally {
+                    globalThis.setInterval = realInterval;
+                }
+                F.renderTrialFloor();
+                if (F.trialFloor()?.closing?.phase === "volunteer") await api.skipStep();
                 await settle();
                 const drawn = S.closingClaimStore.get(RECORD)?.drawn ?? null;
                 read.draw = [F.trialFloor()?.closing?.phase ?? null, F.trialFloor()?.closing?.choice ?? null, [one.actor.id, two.actor.id].includes(drawn), worldClean()];
@@ -40142,6 +40157,7 @@ const SCENARIOS = [
             api: ["function", "function", "function", "function", "function"],
             open: ["closing", "volunteer"],
             claims: [["bridge.done"], ["bridge.refused"], ["bridge.refused"], ["bridge.done"], 2, true, true],
+            volunteerOver: true,
             draw: ["choice", "confirm", true, true],
             confirm: ["speak", true, "chosen"],
             exchange: [null, true, "decide", true],

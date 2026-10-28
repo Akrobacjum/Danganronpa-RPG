@@ -21,7 +21,7 @@
  * "I'll sum up?" once ("trial.claim"; Not me is the default, so Enter volunteers nobody); its speaker gets the same
  * window as a round's, Done and Pass - Pass in a drawn or picked speaker's first 30 s hands the choice back to the GM,
  * later it ends the Closing (floor-machine.mjs) - and every participant's browser calls the speaker's time over as in a
- * round.
+ * round, and the volunteers' 30 s too (E70 fix p2-G3).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -126,9 +126,14 @@ async function promptTurn(floor) {
         window: { title: game.i18n.format("DRPG.Trial.turn.title", { seconds }) },
         classes: ["drpg-panel", WINDOW_CLASS],
         content: dialogContent(`<p>${game.i18n.format("DRPG.Trial.turn.body", { mode: foundry.utils.escapeHTML(mode) })}</p>${passLine}`),
+        /* NOTHING ENDS ON ENTER (E70 fix p2-G3; the review's E70P2-R12): Done was the default, so a speaker clearing the
+           window with Enter or Space while talking ended their own turn - and Back is refused in a round, and in the
+           Closing it ended the whole Closing Argument. "Keep speaking" is the default and closes the window alone; the
+           turn runs on its clock, the GM's bar still skips it. As the volunteers' window's "Not me". */
         buttons: [
-            { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done"), default: true },
-            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") }
+            { action: "done", label: game.i18n.localize("DRPG.Trial.turn.done") },
+            { action: "pass", label: game.i18n.localize("DRPG.Trial.turn.pass") },
+            { action: "keep", label: game.i18n.localize("DRPG.Trial.turn.keep"), default: true }
         ],
         // Closed as soon as the floor is no longer this turn: the round moved on without the speaker's press.
         render: (event, dialog) => {
@@ -152,8 +157,18 @@ async function tick() {
     try {
         const { trialFloor, msLeft } = await import("./trial-floor.mjs");
         const floor = trialFloor();
-        if (closingIn(floor, "volunteer")) {
+        const volunteering = closingIn(floor, "volunteer");
+        if (volunteering) {
             promptClaim(floor).catch(err => error("Could not open the Closing Argument's volunteer window", err));
+            /* The volunteers' 30 s called over as a turn's are (E70 fix p2-G3; the review's BEH-4; S06-38): the draw waited
+               for the primary's heartbeat, which a GM's tab in the background throttles. Once a window, from a participant. */
+            const key = `volunteer|${volunteering.openedAt ?? "-"}|${volunteering.step}`;
+            if (calledOver === key || msLeft(floor) > 0) return;
+            const mine = await myParticipant(floor);
+            if (!mine) return;
+            calledOver = key;
+            const { requestTurn } = await import("./gm-bridge.mjs");
+            await requestTurn({ actorId: mine, kind: "over", step: volunteering.step });
             return;
         }
         const key = turnKey(floor);

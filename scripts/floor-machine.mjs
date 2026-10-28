@@ -291,6 +291,15 @@ function closingOwnStep(floor, event, ctx, now) {
             cards: [{ key: "DRPG.Floor.turnSkipped", actorId: floor.holderId }], record: { leftAtEnd: Math.max(leftAt(floor, now), 0) } };
         return { refused: "DRPG.Floor.closing.waitsForGm" };
     }
+    /* THE VOLUNTEERS' WINDOW CALLED OVER FROM A PARTICIPANT'S BROWSER (E70 fix p2-G3; the review's BEH-4, P2R-07,
+       E70P2-R04; S06-38): as a round's turn, once its 30 s have run out on this clock but for the second's grace, for the
+       step it names; the draw is the caller's (`ctx.drawn`), made in the same step as the heartbeat's. */
+    if (type === "over" && phase === "volunteer") {
+        if (Number(event.step) !== Number(closing.step)) return { refused: "DRPG.Floor.round.stale" };
+        const grace = (Number(TRIAL.modes?.round?.graceSeconds) || 0) * 1000;
+        if (modeSecondsOf(floor) * 1000 - (now - (Number(floor.startedAt) || 0)) > grace) return { refused: "DRPG.Floor.round.notDue" };
+        return { floor: closingFloor(floor, "choice", now, { choice: ctx?.drawn ? "confirm" : "none" }), cards: [] };
+    }
     if (type === "done" || type === "pass" || type === "over" || type === "gone") {
         if (phase !== "speak") return { refused: "DRPG.Floor.round.noTurn" };
         if (type !== "gone" && Number(event.step) !== Number(closing.step)) return { refused: "DRPG.Floor.round.stale" };
@@ -430,7 +439,12 @@ function turnOf(floor) {
 export function overruleTarget({ floor = null, objections = {}, trialStartedAt = null, messageId = null, running = true } = {}) {
     if (!running) return { refused: "DRPG.Floor.overrule.trialOver" };
     const receipts = objections && typeof objections === "object" ? objections : {};
-    if (floor && floor.mode !== MODES.debate) {
+    /* DURING MEANS AN EXCHANGE (E70 fix p2-G3; the review's P2R-02): an Objection or its rebuttal, or anything with the
+       stack under it. A round's own turn and the Closing's own phases are no exchange - they were read as one, with no
+       card, and the machine's "overrule" below then wiped the round for an open debate - so they fall to the receipts:
+       the newest of this trial, overruled with the floor left as it is. */
+    const exchange = floor && (floor.mode === MODES.objection || floor.mode === MODES.rebuttal || stackOf(floor).length > 0);
+    if (exchange) {
         const top = stackOf(floor).at(-1)?.messageId ?? floor.messageId ?? null;
         if (messageId && messageId !== top) return { refused: "DRPG.Floor.overrule.onlyNewest" };
         return { messageId: top, receipt: (top && receipts[top]) || null, during: true };
@@ -460,6 +474,11 @@ export function nextFloor(floor, event = {}, ctx = {}) {
     const now = Number(ctx.now) || 0;
     const type = event?.type;
     if (type === "start") {
+        /* A DEBATE NEVER REPLACES A ROUND OR THE CLOSING (E70 fix p2-G3; the review's BEH-3, P2R-06, E70P2-R05): the API's
+           `startFloor` or another GM's "open" over a running Closing dropped it without its record's `done`, so the trial
+           could start a second Closing (E70-50); over a round it dropped the queue unannounced. Ended first, by its own
+           End this mode, then a debate opens. Over a debate or an exchange of one, a fresh debate as before. */
+        if (floor && (isRoundMode(floor.mode) || roundOf(floor) || closingOf(floor))) return { refused: "DRPG.Floor.startBusy" };
         return { floor: {
             active: true, mode: MODES.debate, holderId: null, targetId: null,
             seconds: Number(event.seconds) > 0 ? Number(event.seconds) : TRIAL.speakSeconds,
@@ -604,6 +623,8 @@ export function nextFloor(floor, event = {}, ctx = {}) {
             if (floor.mode === MODES.debate) return { refused: "DRPG.Floor.bar.noOverrule" };
             const note = { key: "DRPG.Floor.gmNoteOverrule", at: now };
             const stack = stackOf(floor);
+            // A round's own turn has no Objection on it (E70 fix p2-G3): nothing to take back, and no debate to open.
+            if (!stack.length && (isRoundMode(floor.mode) || floor.mode === MODES.closing)) return { refused: "DRPG.Floor.bar.noOverrule" };
             const entry = stack.at(-1);
             if (!entry?.before) return { floor: debateAgain(floor, null, now, note), cards: [] };
             const was = entry.before;

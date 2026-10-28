@@ -1265,6 +1265,7 @@
       "repointTo": "Wymierz Objection w",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
       "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje pół minuty albo wraca od razu do otwartej debaty.",
+      "startBusy": "Debata nie może się zacząć, gdy głos ma runda albo Closing Argument. Najpierw zakończ ten tryb.",
       "sectionTrial": "Class Trial",
       "sectionDebate": "Debata",
       "sectionVote": "Głosowanie, werdykt, rozdział",
@@ -2520,6 +2521,7 @@
         "body": "{mode}: masz głos. Gotowe kończy twoją turę; Pasuję oddaje ją następnemu mówcy.",
         "done": "Gotowe",
         "pass": "Pasuję",
+        "keep": "Mówię dalej",
         "closingPassEarly": "Pasuję w pierwszych 30 s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
       },
