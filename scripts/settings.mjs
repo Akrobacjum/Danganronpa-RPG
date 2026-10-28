@@ -2984,13 +2984,19 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1) and its `deathId` (fix r1-G1). */
+/**
+ * The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and
+ * season (E11 C1), its `deathId` (fix r1-G1) and the verdict before it (`sinceVerdict`, E70 fix p1-G3) - the fields
+ * chapter.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
+ * at df6f6fbd, 28.10.2026: "a Finishing Blow leaves the victim unflagged" read the published record with `sinceVerdict`
+ * and this one without).
+ */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
     return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null } : null;
+        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null, sinceVerdict: row.sinceVerdict ?? null } : null;
 }
 
 /*

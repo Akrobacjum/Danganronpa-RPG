@@ -45786,6 +45786,29 @@ const SCENARIOS = [
                 back: id => S.deferredOfferStore.get(id)?.chapter === 99 && S.deferredOfferStore.get(id)?.kind === "reinforced"
             },
             // The overflow's count, through its record (E05 C12): below any X, so nothing is armed by it.
+            // The trial's verdict and the Final Trial's sentence (E70 C4, fix p1-G2), through their store: under an `at` no
+            // trial record's verdict carries, so no Finish, sentence or retry reads them.
+            verdict: {
+                seed: async () => {
+                    await S.verdictStore.patch("record", { at: 1, blackenedIds: [holder.id], finalAt: 1, finalSentenced: [holder.id] });
+                    return holder.id;
+                },
+                gone: () => S.verdictStore.record().at === undefined,
+                back: id => stableJson([S.verdictStore.record().at, S.verdictStore.record().blackenedIds, S.verdictStore.record().finalSentenced])
+                    === stableJson([1, [id], [id]])
+            },
+            // What the trial's mute found (E70 C5), through its store: keyed by this GM's own user, which the settle of the
+            // trial's voices passes over (it blocks and gives back players only, and drops rows of users that are gone),
+            // and a row the trial did not write (`wrote: false`), so nothing is given back for it.
+            trialMute: {
+                seed: async () => {
+                    await S.trialMuteStore.patch(game.user.id, { had: true, value: true, wrote: false });
+                    return game.user.id;
+                },
+                gone: (report, id) => !S.trialMuteStore.has(id),
+                back: id => stableJson([S.trialMuteStore.get(id)?.had, S.trialMuteStore.get(id)?.value, S.trialMuteStore.get(id)?.wrote])
+                    === stableJson([true, true, false])
+            },
             overflow: {
                 seed: async () => {
                     await S.overflowStore.patch("record", { count: 3 });
