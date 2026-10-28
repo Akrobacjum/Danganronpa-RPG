@@ -103,10 +103,12 @@ export const FLOWS = Object.freeze([
     // the turn has run out - is asked of the primary through `trial.turn` (trial-prompt.mjs); 67 drives it from the players.
     // E70 C8 (1.2.90): a volunteer for the Closing Argument through `trial.claim` (trial-prompt.mjs); 67 from the players,
     // 30 a forged one.
+    // E70 C10 (1.2.90): a Present posted by the primary with its copies, through `trial.present` (trial.mjs `presentDialog`);
+    // tier 2 E70-T12 from a player's owner and from another's.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
-            "trial.claim"],
+            "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",

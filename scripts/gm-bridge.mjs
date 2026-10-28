@@ -77,6 +77,8 @@ const ACTION_TRIAL_GM = "trial.gm";
 const ACTION_TRIAL_TURN = "trial.turn";
 // A participant volunteering for the Closing Argument (E70 C8): the name kept by the GMs alone.
 const ACTION_TRIAL_CLAIM = "trial.claim";
+// A Present posted by the primary with a copy as shown to every other participant (E70 C10; trial.mjs `presentOnPrimary`).
+const ACTION_TRIAL_PRESENT = "trial.present";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 const ACTION_TRIAL_ENTER = "trial.enter";
 /** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
@@ -1815,7 +1817,8 @@ async function handleTrialObject(payload) {
 /** The run of `trial.evidence` (E79 C16): the Truth Bullet on the objector's own pending card (trial.mjs `evidenceOnPrimary`). */
 async function handleTrialEvidence(payload) {
     const { evidenceOnPrimary } = await import("./trial.mjs");
-    const out = await evidenceOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment });
+    const out = await evidenceOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment,
+        analysis: !payload.bare });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.reply ?? null };
 }
@@ -1862,6 +1865,15 @@ async function handleTrialTurn(payload, sender) {
 async function handleTrialClaim(payload) {
     const { volunteerOnPrimary } = await import("./trial-modes.mjs");
     const out = await volunteerOnPrimary({ actorId: payload.actorId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.present` (E70 C10): the card and the copies, judged on this primary (trial.mjs `presentOnPrimary`). */
+async function handleTrialPresent(payload) {
+    const { presentOnPrimary } = await import("./trial.mjs");
+    const out = await presentOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment,
+        analysis: !payload.bare });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.reply ?? null };
 }
@@ -2854,7 +2866,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_TRIAL_EVIDENCE]: {
         label: "DRPG.Bridge.what.trial.evidence",
         guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
-        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text }),
+        // `bare`: the card without the Analyze result (E70 C10; Q-p2-3); a packet without it shows the result, as before.
+        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
         run: handleTrialEvidence,
         answer: "reply",
         claims: {
@@ -2956,6 +2969,25 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id }),
         run: handleTrialClaim,
         answer: "reply"
+    },
+    /*
+     * A PRESENT, POSTED BY THE PRIMARY WITH ITS COPIES (E70 C10, 28.10.2026; S18-79, TR2 = 1, B2, B6, Q-p2-5). The
+     * owner of a student taking part shows one of their Truth Bullets, with or without its Analyze result; the primary
+     * posts the card as a GM and mints a copy as shown onto every other participant's sheet (trial.mjs
+     * `presentOnPrimary`, handover.mjs `mintCopy`): a Class Trial, the presenter alive as the GMs hold it, the mode's row
+     * (trial-floor.mjs `presentRefusal`), a bullet the character holds as the GMs hold it, one copy per person. "reply":
+     * the presenter's window says it went out. With no GM connected the bridge refuses it, as every row.
+     */
+    [ACTION_TRIAL_PRESENT]: {
+        label: "DRPG.Bridge.what.trial.present",
+        guards: [knownSender, owns("actorId", "sender does not own the character presenting")],
+        // `bare`: without the Analyze result (B2), so a packet that names nothing shows what the presenter knows.
+        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text, bare: as.bool }),
+        run: handleTrialPresent,
+        answer: "reply",
+        claims: {
+            itemId: "held by trial.mjs presentOnPrimary to a Truth Bullet the presenter holds as the GMs hold it (sheet-audit.mjs itemAsHeld), the card and the copies minted from it as the GMs hold it (bulletAsHeld)"
+        }
     },
     /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
@@ -3201,10 +3233,10 @@ export function requestObject({ actorId, targetId = null }) {
 }
 
 /** The Truth Bullet for the asker's pending Objection (E79 C16; trial.mjs `pickObjectionEvidence`). Its value is `{ item }`. */
-export function requestEvidence({ actorId, itemId, comment = "" }) {
-    return ask(ACTION_TRIAL_EVIDENCE, { actorId, itemId, comment }, {
+export function requestEvidence({ actorId, itemId, comment = "", analysis = true }) {
+    return ask(ACTION_TRIAL_EVIDENCE, { actorId, itemId, comment, bare: analysis === false }, {
         onPrimary: true,
-        local: () => import("./trial.mjs").then(m => m.evidenceOnPrimary({ actorId, itemId, comment })).then(out => {
+        local: () => import("./trial.mjs").then(m => m.evidenceOnPrimary({ actorId, itemId, comment, analysis })).then(out => {
             if (out?.refused) sayNotDone(ACTION_TRIAL_EVIDENCE, reasonOf(out.refused));
             return out?.reply ?? null;
         })
@@ -3256,6 +3288,20 @@ export function requestClaim({ actorId }) {
         onPrimary: true,
         local: () => import("./trial-modes.mjs").then(m => m.volunteerOnPrimary({ actorId })).then(out => {
             if (out?.refused) sayNotDone(ACTION_TRIAL_CLAIM, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/**
+ * A Present from this browser (E70 C10; trial.mjs `presentDialog`): the card and the copies, posted by the primary. Its
+ * value is `{ item, copies }`.
+ */
+export function requestPresent({ actorId, itemId, comment = "", analysis = true }) {
+    return ask(ACTION_TRIAL_PRESENT, { actorId, itemId, comment, bare: analysis === false }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.presentOnPrimary({ actorId, itemId, comment, analysis })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_PRESENT, reasonOf(out.refused));
             return out?.reply ?? null;
         })
     });

@@ -2499,6 +2499,11 @@
       "objectionNoItem": "To Objection nie wskazywało żadnego dowodu, więc nikt nie przejął głosu.",
       "deadCannotPresent": "{name} nie żyje, a zmarli nie przedstawiają dowodów i nie wnoszą Objection.",
       "presented": "{name} trafia na stół.",
+      "presentOnly": "Teraz dowody może przedstawiać tylko {name}.",
+      "presentNobody": "Teraz nikt nie przedstawia dowodów.",
+      "presentWithAnalysis": "Pokaż z wynikiem mojego Analyze",
+      "presentWithoutNote": "Bez zaznaczenia karta i kopia każdego pokazują dowód jako nigdy nieanalizowany: bez odczytu i bez typu, jaki się okazał.",
+      "presentCopy": "{who} pokazuje {name}. Kopia, tak jak ją pokazano, jest teraz na twojej karcie.",
       "actionsLocked": "Class Trial trwa. Dostępne są tylko Analyze i Objection - oraz twoje Hope Calls.",
       "moveLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
       "callsLocked": "Class Trial trwa. Despair Calls czekają na jego koniec.",
@@ -3433,7 +3438,8 @@
         "bridge.refused": "Odmowa GM-a na twoją prośbę",
         "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
         "trial.turn": "Twoja tura w rundzie",
-        "trial.claim": "Zgłoszenie do Closing Argument"
+        "trial.claim": "Zgłoszenie do Closing Argument",
+        "trial.present": "Przedstawienie Truth Bulletu"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",

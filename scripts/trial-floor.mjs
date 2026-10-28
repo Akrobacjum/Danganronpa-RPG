@@ -123,6 +123,25 @@ export function modeAllows(floor, kind, actorId = null) {
 }
 
 /**
+ * Why `actorId` may not present a Truth Bullet on `floor` now, by the mode's row (`modeAllows` "present"), or null (E70 C10,
+ * 28.10.2026; S18-79, TR2 = 1). The sheet's row draws its Present held with this line, the window refuses with it, and
+ * the primary judges "trial.present" by it (trial.mjs `presentOnPrimary`). In a mode with a speaker only the speaker
+ * presents ("Only {name} can present right now."), and where the row allows no Objection either (Panic Round) the line
+ * says so, since the button the others would reach for next is OBJECTION!; the Closing with nobody speaking in it - the
+ * volunteers, the GM's choice and decision - has nobody to present. `nameOf` is handed in by tier 1 R1045.
+ */
+export function presentRefusal(floor, actorId, { nameOf = id => game.actors.get(id ?? "")?.name ?? null } = {}) {
+    if (modeAllows(floor, "present", actorId)) return null;
+    const name = floor?.holderId ? nameOf(floor.holderId) : null;
+    if (!name) return game.i18n.localize("DRPG.Trial.presentNobody");
+    const only = game.i18n.format("DRPG.Trial.presentOnly", { name });
+    const rule = MODE_RULES[floor.mode];
+    return rule && rule.object === false
+        ? `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`) })}`
+        : only;
+}
+
+/**
  * The floor state, or `null` when the trial is not in session.
  *
  * MIGRATION LIVES HERE, in the one function every reader goes through. A world

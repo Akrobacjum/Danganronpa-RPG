@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
-import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
+import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
@@ -222,6 +222,38 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
 
     if (!isTruthBullet(item)) return null;
 
+    const minted = await mintCopy(from, to, item);
+    if (minted.refused) return { refused: minted.refused };
+    const { copy, data } = minted;
+    if (!copy) return null;
+
+    await whisperToOwner(to, `
+        <h3>${game.i18n.localize("DRPG.Handover.receivedBullet")}</h3>
+        <p>${game.i18n.format("DRPG.Handover.receivedBulletFrom", {
+            who: foundry.utils.escapeHTML(from.name),
+            name: foundry.utils.escapeHTML(data.name)
+        })}</p>
+        ${data.playerText ? `<p>${foundry.utils.escapeHTML(data.playerText)}</p>` : ""}`);
+
+    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.shared", {
+        name: foundry.utils.escapeHTML(data.name),
+        who: foundry.utils.escapeHTML(to.name)
+    })}</p>`);
+
+    log(`${from.name} shared the Truth Bullet "${data.name}" with ${to.name}.`);
+    return copy;
+}
+
+/**
+ * A copy of the Truth Bullet `item` of `from` minted onto `to`, on a GM's browser: Share's core (`shareBullet`), and
+ * Present's for every participant (trial.mjs `presentOnPrimary`; E70 C10, B6: "Present udostępnia kopie tak, jak zostały
+ * pokazane"). The room's gate is not asked here - Share asks it (`verify`), and a Present is made in the trial's hall,
+ * where everybody is. `analysis` false mints the copy as the bullet was before any Analyze (B2). `quiet` keeps the
+ * giver's whispers back (a Present tells its presenter once). Answers `{ copy, data }`, `{ refused }` while the answer
+ * keys are not open here, or `{ skipped: "noKey" | "held" | "failed", data }`.
+ */
+export async function mintCopy(from, to, item, { analysis = true, quiet = false } = {}) {
+    if (!game.user.isGM || !from || !to || !isTruthBullet(item)) return { skipped: "failed", data: null };
     /* NO ANSWER KEY, NO COPY (E04's fix round; the review's C-m17). The copy below was
        minted with `realType ?? "neutral"`: a bullet whose answer key this GM's browser
        lacks - lost, or a copy not arrived - was handed over as an explicit Neutral, a
@@ -241,10 +273,10 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     const data = truthBulletData(bulletAsHeld(item));
     const secret = secretOf(item.uuid);
     if (!secret.realType) {
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", {
+        if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", {
             name: foundry.utils.escapeHTML(data.name)
         })}</p>`);
-        return null;
+        return { skipped: "noKey", data };
     }
 
     // One trace, one copy per person - the same rule Observe enforces, applied
@@ -258,19 +290,21 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     if (secret.remnantId) {
         const { copiedRemnants } = await import("./truth-bullets.mjs");
         if (copiedRemnants(to).has(secret.remnantId)) {
-            await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
+            if (!quiet) await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
                 who: foundry.utils.escapeHTML(to.name),
                 name: foundry.utils.escapeHTML(data.name)
             })}</p>`);
-            return null;
+            return { skipped: "held", data };
         }
     }
 
     const copy = await createTruthBullet(to, {
         name: data.name,
         realType: secret.realType,
-        shownType: data.shownType,
-        analyzed: data.analyzed,
+        // Shown without the Analyze result (E70 C10; B2, B6): born as the bullet was before any Analyze - its
+        // unanalysed type, not read - with the reading kept in its secret for the receiver's own Analyze.
+        shownType: analysis ? data.shownType : unanalysedType(data.shownType),
+        analyzed: analysis ? data.analyzed : false,
         visibility: data.visibility,
         playerText: data.playerText,
         gmNote: secret.gmNote ?? "",
@@ -311,25 +345,10 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     });
 
     if (!copy) {
-        await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
-        return null;
+        if (!quiet) await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
+        return { skipped: "failed", data };
     }
-
-    await whisperToOwner(to, `
-        <h3>${game.i18n.localize("DRPG.Handover.receivedBullet")}</h3>
-        <p>${game.i18n.format("DRPG.Handover.receivedBulletFrom", {
-            who: foundry.utils.escapeHTML(from.name),
-            name: foundry.utils.escapeHTML(data.name)
-        })}</p>
-        ${data.playerText ? `<p>${foundry.utils.escapeHTML(data.playerText)}</p>` : ""}`);
-
-    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.shared", {
-        name: foundry.utils.escapeHTML(data.name),
-        who: foundry.utils.escapeHTML(to.name)
-    })}</p>`);
-
-    log(`${from.name} shared the Truth Bullet "${data.name}" with ${to.name}.`);
-    return copy;
+    return { copy, data };
 }
 
 /**

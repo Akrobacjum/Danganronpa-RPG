@@ -4613,6 +4613,12 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     cursor: not-allowed;
 }
 
+/* Present held by the mode's row (E70 C10): somebody else holds the floor; its tooltip names who. Both themes. */
+.drpg-row-button.drpg-row-present[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .drpg-row-button.is-broken:hover {
     background: rgba(var(--drpg-bone-rgb), 0.2);
 }

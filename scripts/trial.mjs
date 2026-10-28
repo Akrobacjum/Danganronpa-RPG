@@ -47,7 +47,7 @@
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
-import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
+import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
     whisperToOwner, serialWrite, serverNow, esc } from "./utils.mjs";
@@ -172,7 +172,19 @@ export async function presentDialog(actor, item) {
         return false;
     }
 
+    /* BY THE MODE'S ROW (E70 C10; TR2 = 1): in a mode with a speaker - Testimony, Panic Round, the Closing - only the
+       speaker presents; the row's line says who. A courtesy here, as the sheet's held button is: "trial.present" is
+       judged on the primary by the same rule (`presentOnPrimary`). */
+    const { presentRefusal, trialFloor } = await import("./trial-floor.mjs");
+    const held = presentRefusal(trialFloor(), actor.id);
+    if (held) {
+        ui.notifications.warn(held);
+        return false;
+    }
+
     const data = truthBulletData(item);
+    // With or without the Analyze result (E70 C10; B2): offered only for a bullet that shows something an Analyze gave.
+    const offer = analysisOffered(data);
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }) },
@@ -182,6 +194,7 @@ export async function presentDialog(actor, item) {
                 name: foundry.utils.escapeHTML(item.name),
                 type: foundry.utils.escapeHTML(data.shownLabel)
             })}</p>
+            ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
@@ -194,7 +207,8 @@ export async function presentDialog(actor, item) {
                 label: game.i18n.localize("DRPG.Trial.present"),
                 default: true,
                 callback: (e, b, d) => ({
-                    comment: d.element.querySelector("[name=comment]").value.trim()
+                    comment: d.element.querySelector("[name=comment]").value.trim(),
+                    analysis: analysisChosen(d.element)
                 })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -203,12 +217,32 @@ export async function presentDialog(actor, item) {
     });
 
     if (!choice || choice === "cancel") return false;
-    const posted = await presentBullet(actor, item, { comment: choice.comment });
+    /* THE PRIMARY POSTS IT AND HANDS OUT THE COPIES (E70 C10; B6): the card and a copy as shown to every other
+       participant, by "trial.present" - refused with the bridge's words when no GM is connected (Q-p2-5). */
+    const { requestPresent } = await import("./gm-bridge.mjs");
+    const res = await requestPresent({ actorId: actor.id, itemId: item.id, comment: choice.comment, analysis: choice.analysis });
+    const posted = Boolean(res.ok);
     /* SAID WHEN IT WENT OUT (E10 C16, 1.2.71; audit S03-27). The window closed and
        nothing else on the presenter's screen moved - the card lands in the chat
        and the evidence stage, and on a busy screen neither is where they look. */
     if (posted) ui.notifications.info(game.i18n.format("DRPG.Trial.presented", { name: item.name }));
     return posted;
+}
+
+/**
+ * The window's "with the Analyze result" box (E70 C10; B2, Q-p2-3), checked, or nothing where there is nothing to hide. Its
+ * note is a <div>: the Objection's picker finds its count as the form's first `p.notes`.
+ */
+function analysisChoice(offer) {
+    return offer ? `<label class="drpg-check"><input type="checkbox" name="analysis" checked>
+            ${game.i18n.localize("DRPG.Trial.presentWithAnalysis")}</label>
+            <div class="notes">${game.i18n.localize("DRPG.Trial.presentWithoutNote")}</div>` : "";
+}
+
+/** The box's answer: true unless it is there and unchecked. */
+function analysisChosen(element) {
+    const box = element?.querySelector?.("[name=analysis]") ?? null;
+    return box ? Boolean(box.checked) : true;
 }
 
 /*
@@ -249,6 +283,13 @@ export async function presentBullet(actor, item, {
     if (objection && !game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionByButton"));
         return false;
+    }
+    /* A PLAYER'S PRESENT IS THE PRIMARY'S CARD (E70 C10; B6): posted there with the copies, by "trial.present". The
+       API's road on a GM's browser below stays as it was: the card alone. */
+    if (!game.user.isGM) {
+        const { requestPresent } = await import("./gm-bridge.mjs");
+        const res = await requestPresent({ actorId: actor.id, itemId: item.id, comment, analysis: true });
+        return Boolean(res.ok);
     }
 
     const target = objection && targetId ? (game.actors.get(targetId) ?? null) : null;
@@ -315,8 +356,88 @@ export async function presentBullet(actor, item, {
     return true;
 }
 
+/**
+ * The run of "trial.present" on the primary GM (E70 C10, 28.10.2026; S18-79, TR2 = 1, B2, B6, Q-p2-5). The owner's
+ * session notes of 27.10: "Present udostępnia kopie tak, jak zostały pokazane, bez dodatkowego kosztu" - a Present put
+ * the evidence on every screen and left nobody holding it, so the table copied it by Share, one player at a time - and
+ * "gracz wybiera, czy pokazuje bullet z wynikiem Analyze, czy bez". So the card is posted here, as a GM, from the bullet
+ * as the GMs hold it (`bulletAsHeld`, `holderView`; without the analysis `unreadView`), and every other participant of
+ * the trial (vote.mjs `trialParticipants`: no Monocub, nobody on the trial's list of the dead) gets a copy as it was
+ * shown (handover.mjs `mintCopy`), free; none twice - one trace, one copy per person, and a bullet with no trace
+ * behind it by its name and words - and none of a bullet whose answer key this browser lacks, the presenter told.
+ * Refused: outside a Class Trial, a dead presenter as the GMs hold it or on the trial's list, a mode whose row lets
+ * somebody else present (trial-floor.mjs `modeAllows`), a bullet the character does not hold as the GMs hold it.
+ * One Present at a time (`PRESENT_KEY`), so two at once cannot both find nobody holding a copy.
+ *
+ * @param {{actorId: string, itemId: string, comment?: string, analysis?: boolean}} request
+ */
+export async function presentOnPrimary({ actorId, itemId, comment = "", analysis = true }) {
+    return serialWrite(PRESENT_KEY, async () => {
+        const actor = game.actors.get(actorId ?? "");
+        if (!actor) return { refused: "no such character" };
+        if (!inClassTrial()) return { refused: "no Class Trial is in session" };
+        const { isDeadForGm } = await import("./chapter.mjs");
+        if (isDeadForGm(actor) || isMutedDead(actor)) return { refused: "a dead student does not present" };
+        // The mode's row (`modeAllows` "present", the rule trial-floor.mjs `presentRefusal` words for the sheet and window).
+        const { modeAllows, trialFloor } = await import("./trial-floor.mjs");
+        const floor = trialFloor();
+        if (!modeAllows(floor, "present", actor.id)) return { refused: "that character may not present now" };
+        const { noteTooLong } = await import("./pre-session-note.mjs");
+        if (noteTooLong(comment)) return { refused: "the comment is longer than a player's words may be" };
+        const { itemAsHeld } = await import("./sheet-audit.mjs");
+        const held = itemId ? await itemAsHeld(actor, itemId) : null;
+        const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
+        const data = item ? truthBulletData(bulletAsHeld(item)) : null;
+        if (!data) return { refused: "that character holds no such Truth Bullet" };
+        const shown = analysis !== false;
+
+        try {
+            await announce({
+                content: buildCard(actor, holderView(data), { objection: false, comment: String(comment ?? "").trim(),
+                    topic: floor?.topic ?? null, analysis: shown }),
+                speaker: ChatMessage.getSpeaker({ actor }),
+                flags: { [MODULE_ID]: {
+                    [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: false, [TRIAL_FLAGS.presenter]: actor.name,
+                    [TRIAL_FLAGS.item]: item.id, [TRIAL_FLAGS.target]: null, [TRIAL_FLAGS.targetName]: null,
+                    [TRIAL_FLAGS.topic]: floor?.topic ?? null, [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                } }
+            });
+        } catch (err) {
+            error("Could not present the Truth Bullet", err);
+            return { refused: "the Present's card could not be posted" };
+        }
+
+        const { mintCopy } = await import("./handover.mjs");
+        const { trialParticipants } = await import("./vote.mjs");
+        const trace = secretOf(item.uuid).remnantId ?? null;
+        let copies = 0, noKey = false;
+        for (const { actor: to } of trialParticipants()) {
+            if (to.id === actor.id) continue;
+            // A bullet with no trace behind it (a GM's own) has no trace to count copies by: by its name and words.
+            if (!trace && to.items.some(other => isTruthBullet(other) && other.name === data.name
+                && (truthBulletData(other)?.playerText ?? "") === data.playerText)) continue;
+            const minted = await mintCopy(actor, to, item, { analysis: shown, quiet: true });
+            if (minted.refused) return { refused: minted.refused };
+            if (minted.skipped === "noKey") { noKey = true; break; }
+            if (!minted.copy) continue;
+            copies++;
+            await whisperToOwner(to, `<p>${esc(game.i18n.format("DRPG.Trial.presentCopy", { who: actor.name, name: data.name }))}</p>`);
+        }
+        if (noKey) {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+        }
+        log(`${actor.name} presented "${data.name}"${shown ? "" : " without its analysis"}; ${copies} cop${copies === 1 ? "y" : "ies"} handed out.`);
+        return { reply: { item: data.name, copies } };
+    });
+}
+
+/** One Present at a time on the primary (`presentOnPrimary`): a step of utils.mjs `serialWrite` under this key. */
+const PRESENT_KEY = "trial.present";
+
 /** The card itself. What the PRESENTER knows - see the note at the top. */
-function buildCard(actor, data, { objection, comment, target = null, topic = null }) {
+function buildCard(actor, data, { objection, comment, target = null, topic = null, analysis = true }) {
+    // Without the Analyze result (E70 C10; B2): the bullet as it was before any Analyze (`unreadView`).
+    if (analysis === false) data = unreadView(data);
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
     const badges = [
@@ -394,6 +515,31 @@ const HOLDER_FIELDS = Object.freeze(["name", "shownType", "shownLabel", "faint",
 /** `truthBulletData`'s answer cut to what its holder knows (`HOLDER_FIELDS`), on any browser. */
 export function holderView(data) {
     return data ? Object.fromEntries(HOLDER_FIELDS.map(key => [key, data[key]])) : null;
+}
+
+/**
+ * The holder's view of a bullet shown WITHOUT the Analyze result (E70 C10, 28.10.2026; B2, the owner's "'bez' ukrywa
+ * też zidentyfikowany typ"): what it showed before any Analyze - its unanalysed type (truth-bullets.mjs
+ * `unanalysedType`: a Key stays a Key, the rest Neutral), no reading, no Faint. A new object; the view handed in is not
+ * touched (R1045).
+ */
+export function unreadView(view) {
+    if (!view) return view;
+    const type = unanalysedType(view.shownType ?? "neutral");
+    return { ...view, shownType: type, shownLabel: TRUTH_BULLET_TYPES[type]?.label ?? type, faint: false,
+        identified: type !== "neutral", analyzedText: "" };
+}
+
+/**
+ * Whether a Present (or an Objection's Truth Bullet, Q-p2-3) offers to hide the Analyze result (E70 C10; B2): only for a
+ * bullet that shows something an Analyze gave - read, a reading, a type it did not show at pickup, or Faint. A bullet
+ * never analysed has nothing to hide, and the choice is not offered (R1045).
+ */
+export function analysisOffered(view) {
+    if (!view) return false;
+    const unread = unreadView(view);
+    return Boolean(view.analyzed) || Boolean(view.analyzedText) || view.shownType !== unread.shownType
+        || Boolean(view.faint && view.identified);
 }
 
 /**
@@ -998,9 +1144,9 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * and the heartbeat that are steps of it; the read, the fill and a put-back are one step now, through the floor's
  * in-step twins (`fillObjectionInStep`, and `unfill`'s `returnToDebateInStep`).
  *
- * @param {{actorId: string, itemId: string, comment?: string}} request
+ * @param {{actorId: string, itemId: string, comment?: string, analysis?: boolean}} request
  */
-export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
+export async function evidenceOnPrimary({ actorId, itemId, comment = "", analysis = true }) {
     return serialWrite(SEIZE_KEY, async () => {
         const actor = game.actors.get(actorId ?? "");
         if (!actor) return { refused: "no such character" };
@@ -1025,7 +1171,8 @@ export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
             await message.update({
                 content: buildCard(actor, holderView(data), {
                     objection: true, comment: String(comment ?? "").trim(), target: game.actors.get(floor.targetId) ?? null,
-                    topic: floor.topic ?? null
+                    // With or without the Analyze result, as a Present (E70 C10; Q-p2-3): the same card, no copies.
+                    topic: floor.topic ?? null, analysis: analysis !== false
                 }),
                 flags: { [MODULE_ID]: { [TRIAL_FLAGS.pending]: false, [TRIAL_FLAGS.item]: item.id } }
             });
@@ -1156,7 +1303,7 @@ export async function raiseObjection(actor) {
         if (pendingFor(trialFloor(), actor.id, raised.messageId)) await requestWithdraw({ actorId: actor.id, messageId: raised.messageId });
         return false;
     }
-    const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment });
+    const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment, analysis: pick.analysis });
     return filled.ok === true;
 }
 
@@ -1221,6 +1368,8 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
     const countLine = () => game.i18n.format("DRPG.Trial.objectionPickCount", { seconds: left() });
     // An Objection in the Closing Argument names the decision its exchange ends in (E70 C8; E70-53, TR24).
     const { closingOf } = await import("./floor-machine.mjs");
+    // The Present's choice, with or without the Analyze result (E70 C10; Q-p2-3), where any bullet offered has one to hide.
+    const offer = bullets.some(item => analysisOffered(truthBulletData(item)));
     const decisionLine = closingOf(trialFloor())
         // A <div>, not a <p class="notes">: the count below is found as the form's first `p.notes`.
         ? `<div class="notes drpg-objection-decision">${game.i18n.localize("DRPG.Trial.objectionClosingDecision")}</div>` : "";
@@ -1232,6 +1381,7 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             <label>${game.i18n.localize("DRPG.Trial.objectionPickLabel")}
                 <select name="item">${bullets.map(item =>
                     `<option value="${item.id}">${foundry.utils.escapeHTML(item.name)}</option>`).join("")}</select></label>
+            ${analysisChoice(offer)}
             <label>${game.i18n.localize("DRPG.Trial.comment")}
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
@@ -1245,7 +1395,8 @@ async function pickObjectionEvidence(actor, { target, messageId }) {
             { action: "evidence", label: game.i18n.localize("DRPG.Trial.objection"), default: true,
                 callback: (e, b, d) => ({
                     itemId: d.element.querySelector("[name=item]")?.value ?? "",
-                    comment: d.element.querySelector("[name=comment]")?.value.trim() ?? ""
+                    comment: d.element.querySelector("[name=comment]")?.value.trim() ?? "",
+                    analysis: analysisChosen(d.element)
                 }) },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],

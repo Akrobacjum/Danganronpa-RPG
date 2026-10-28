@@ -5946,6 +5946,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objClaimBotan, null) && objClaimBotan.logged.some(r => /sender does not own/.test(r)) && refusedAs(objClaimAiko, "cannotNow")
             && objClaimAiko.after.mode === "objection" && objClaimAiko.after.cards === objClaimAiko.before.cards && !objClaimStore.includes(ids.aiko),
         JSON.stringify({ objClaimBotan, objClaimAiko, objClaimStore }), { flow: "class-trial" });
+    /* E70 C10 (1.2.90): a Present (`trial.present`) forged from p1's console in Botan's name, with Botan's bullet - the
+       primary would post the card and hand every other participant a copy. Refused by ownership and told (the guard runs
+       before the run, so nothing is posted); the floor and the Objection's cards as they were. The legal road is the presenter's own (tier 2 E70-T12). */
+    const objPresent = await objSend(p1, "trial.present", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "", comment: "SEC" }, "SECOBJPRESENT");
+    check("SECURITY: p1's Present in Botan's name during Aiko's running Objection is refused (ownership) and told - the floor and its cards as they were",
+        refusedAs(objPresent, null) && objPresent.logged.some(r => /sender does not own/.test(r))
+            && objPresent.after.mode === "objection" && objPresent.after.cards === objPresent.before.cards,
+        JSON.stringify(objPresent), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

@@ -2119,7 +2119,8 @@ const REGRESSIONS = [
         const finders = topLevelFunction(inv, "findersByRemnant") ?? "";
         ok(/\blivingStudentsForGm\(/.test(finders) && !/\bstudentActors\(/.test(finders),
             "the planner's finders walk every student again, the dead for the GMs among them, while the fee counts the living");
-        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "shareBullet") ?? "";
+        // Share's copy is minted by `mintCopy` since E70 C10 (Present's copies take the same road).
+        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "mintCopy") ?? "";
         ok(/\bfoundIn:\s*secret\.chapter\b/.test(share),
             "a handover's copy is dated by the giver's item, which the giver writes, and not by the giver's answer key");
         const charge = topLevelFunction(inv, "chargeForUnfoundKeys") ?? "";
@@ -5698,6 +5699,8 @@ const REGRESSIONS = [
             turnOnPrimary: "refused",
             // E70 C8: a volunteer for the Closing Argument, judged on the primary (trial-modes.mjs).
             volunteerOnPrimary: "refused",
+            // E70 C10: a Present posted by the primary with its copies (trial.mjs).
+            presentOnPrimary: "refused",
             // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
             crossTunnel: "refused", crossingWhy: "returns",
             // E17 C3: "Refund last crossing", given back on the primary (movement.mjs), whose run passes its `{ refused }` on.
@@ -7690,6 +7693,15 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.turn#actorId", "judged (E70 C7): knownSender + owns(actorId); trial-modes.mjs `turnOnPrimary` holds it to the round's order on the floor the primary holds, and Done or Pass to its speaker (floor-machine.mjs `nextFloor`)"],
             ["PACKET gm-bridge.mjs#trial.turn#kind", "judged (E70 C7): `as.oneOf` done, pass, over; a step over is believed only once the turn has run out on the primary's clock (a second's grace), one per sender and step (`turnOnPrimary`)"],
             ["PACKET gm-bridge.mjs#trial.claim#actorId", "judged (E70 C8): knownSender + owns(actorId); trial-modes.mjs `volunteerOnPrimary` holds it, in one step of the floor's key, to the trial's participants as the primary holds them (`trialParticipants`), in the Closing's volunteers' window, once; the name goes to the GMs' store `closingClaimStore`, only the count to the floor"],
+            // E70 C9's two fields of the GMs' row (no row was written with them), and E70 C10's Present.
+            ["PACKET gm-bridge.mjs#trial.gm#slot", "judged (E70 C9): gmOnly; `as.text`, the row of `missingKeys()` a GM reveals, held by trial-modes.mjs `revealInStep` to a row of this chapter's plan nobody found, once"],
+            ["PACKET gm-bridge.mjs#trial.gm#beyondPaid", "judged (E70 C9): gmOnly; `as.bool`, a Reveal past the fee's count only when the GM confirmed it; within the count it changes nothing"],
+            ["PACKET gm-bridge.mjs#trial.evidence#bare", "judged (E70 C10; Q-p2-3): `as.bool`, the Objection's card without the Analyze result (trial.mjs `unreadView`): it can only take words off the card the primary builds from the bullet as the GMs hold it"],
+            ["PACKET gm-bridge.mjs#trial.present#actorId", "judged (E70 C10): knownSender + owns(actorId); trial.mjs `presentOnPrimary` holds it to a living student as the GMs hold it (`isDeadForGm`, `isMutedDead`) whom the mode's row lets present (trial-floor.mjs `presentRefusal`), in a Class Trial"],
+            ["PACKET gm-bridge.mjs#trial.present#itemId", "judged (E70 C10): a Truth Bullet the presenter holds as the GMs hold it (`itemAsHeld`); the card and the copies are built from `bulletAsHeld`, the copies by handover.mjs `mintCopy` (one per trace and person)"],
+            ["PACKET gm-bridge.mjs#trial.present#comment", "judged (E70 C10): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
+            ["PACKET gm-bridge.mjs#trial.present#bare", "judged (E70 C10; B2): `as.bool`, the card and the copies without the Analyze result (`unreadView`, `mintCopy`'s unanalysed type): it can only take a reading off what the presenter holds"],
+            ["SHEET trial.mjs#presentOnPrimary", "judged (E70 C10): `trial.present`'s run on the primary - the presenter's death as the GMs hold it (`isDeadForGm`) and the trial's list (`isMutedDead`), the bullet through `itemAsHeld`, before the card is posted; the copies to `trialParticipants` (held flags) but the presenter"],
             ["PACKET gm-bridge.mjs#trial.turn#step", "judged (E70 C7): `as.num`, compared by floor-machine.mjs `nextFloor` to the round's step on the floor the primary holds; any other moves nothing"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
@@ -12027,7 +12039,7 @@ const REGRESSIONS = [
         const writers = [
             ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
                 && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
-            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "shareBullet"))],
+            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "mintCopy"))],
             ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
@@ -13503,7 +13515,8 @@ const REGRESSIONS = [
         const builders = [...trialSrc.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1])
             .filter(name => /\bholderView\(|\btruthBulletData\(/.test(stripComments(fnSource(src("trial.mjs"), name))));
         equal(JSON.stringify([dataRead, builders.sort()]),
-            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "presentBullet", "presentDialog"]]),
+            // E70 C10: the primary's Present card (`presentOnPrimary`) and the Objection's picker's with-or-without choice.
+            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "pickObjectionEvidence", "presentBullet", "presentDialog", "presentOnPrimary"]]),
             "[what evidenceOnPrimary hands truthBulletData; the functions of trial.mjs that read a bullet's data or its holder's view]");
         ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
             "presentBullet refuses an Objection on a player's browser");

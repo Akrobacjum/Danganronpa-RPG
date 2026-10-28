@@ -2392,6 +2392,11 @@
       "objectionNoItem": "That Objection named no evidence, so the floor did not move.",
       "deadCannotPresent": "{name} is dead, and the dead neither present evidence nor object.",
       "presented": "{name} went on the table.",
+      "presentOnly": "Only {name} can present right now.",
+      "presentNobody": "Nobody presents evidence right now.",
+      "presentWithAnalysis": "Show it with my Analyze result",
+      "presentWithoutNote": "Unticked, the card and everybody's copy show it as never analysed: no reading, no type it turned out to be.",
+      "presentCopy": "{who} presented {name}. A copy, as it was shown, is now on your sheet.",
       "logEmpty": "Nothing has been presented this chapter yet.",
       "objectionTarget": "Who are you contradicting?",
       "objectionNobody": "There is nobody else left to object to.",
@@ -3309,7 +3314,8 @@
         "bridge.refused": "A GM's refusal of your request",
         "bridge.ack": "A GM's word that your request arrived",
         "trial.turn": "Your turn in the round",
-        "trial.claim": "Volunteering for the Closing Argument"
+        "trial.claim": "Volunteering for the Closing Argument",
+        "trial.present": "Presenting a Truth Bullet"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",

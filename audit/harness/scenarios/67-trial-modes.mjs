@@ -27,6 +27,10 @@
  *     console's row and its confirmation are tier 1 R1044's): Aiko's and Chie's players each hold one copy - typed Key,
  *     not read, open to Analyze in the trial (E16's one filter, amend 5 (c)) - Botan, dead with nobody told since D,
  *     none; nothing left to reveal, the Key found on the plan.
+ *   S (E70 C10, Present's copies; E70-70 to E70-72): p1 presents Aiko's analysed Truth Bullet from its own page
+ *     ("trial.present") without the Analyze result: one card, a GM's, without the reading, and Chie's player one copy
+ *     as shown (Neutral, not read; the reading on no other student's sheet), Botan - dead with nobody told since D -
+ *     none; then with the result: the second card reads it, and still one copy.
  * The canary's player scan runs after every phase (`canary.scan`) on a GM's Key Remnant plan planted at the start.
  *
  * What it cannot see: a round at a table of 14-15 people (LIVE-E70-07), a step over on a real server's latency
@@ -291,6 +295,44 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         }
         await S.keyPlanStore.dropMany([ch + ":11", ch + ":reveal"]);
         return true;`, { timeout: 60000 });
+    /* ------------------------------ S. Present's copies ------------------------------ */
+    begin("S", "Present: the card and a copy as shown to every other participant, from the presenter's own page");
+    const shown = { text: "S67 S the words on the presented bullet", reading: "S67 S the reading only the Analyze of Aiko gave" };
+    const made = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = await T.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "S67 S evidence", realType: "incident", shownType: "incident",
+            analyzed: true, playerText: ${J(shown.text)}, analyzedText: ${J(shown.reading)} });
+        return item?.id ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const present = (analysis) => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const res = await B.requestPresent({ actorId: "${IDS.aiko}", itemId: ${J(made)}, comment: "S67", analysis: ${analysis} });
+        return { ok: res.ok === true, copies: res.value?.copies ?? null };`, { timeout: 30000 });
+    const heldBy = client => client.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const mine = game.actors.filter(a => a.isOwner && a.type === "character" && a.id !== "${IDS.aiko}");
+        const copies = mine.flatMap(a => a.items.filter(i => T.isTruthBullet(i) && i.name === "S67 S evidence"));
+        const cards = game.messages.filter(m => m.content.includes(${J(shown.text)}));
+        return { n: copies.length, typed: copies.map(i => [T.truthBulletData(i).shownType, T.hasReading(i)]),
+            reads: JSON.stringify(game.actors.contents.filter(a => a.id !== "${IDS.aiko}").map(a => a.items.contents.map(i => [i.flags, i.system?.description ?? ""]))).includes(${J(shown.reading)}),
+            cards: cards.map(m => [m.author?.isGM === true, m.content.includes(${J(shown.reading)})]) };`);
+    const bare = await present(false);
+    await settle(1200);
+    const first = { p2: await heldBy(p2), p3: await heldBy(p3) };
+    verdict("p1 presents Aiko's analysed bullet without the Analyze result: one card, a GM's, without the reading; Chie's player holds one copy as shown - Neutral, not read, the reading nowhere on another student's sheet - and Botan, dead with nobody told, none",
+        made && bare.ok && bare.copies === 1 && first.p3.n === 1 && J(first.p3.typed) === J([["neutral", false]]) && !first.p3.reads
+            && J(first.p3.cards) === J([[true, false]]) && first.p2.n === 0, J({ made, bare, first }));
+    const full = await present(true);
+    await settle(1200);
+    const second = await heldBy(p3);
+    verdict("p1 presents it again with the Analyze result: the second card reads it, and Chie's player still holds one copy",
+        full.ok && full.copies === 0 && second.n === 1 && J(second.cards) === J([[true, false], [true, true]]), J({ full, second }));
+    await canary.scan({ phase: "S" });
+    await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        for (const a of game.actors) for (const i of a.items.filter(i => T.isTruthBullet(i) && i.name === "S67 S evidence")) {
+            const uuid = i.uuid; await i.delete(); await T.dropSecret(uuid);
+        }
+        const cards = game.messages.filter(m => m.content.includes(${J(shown.text)}) || m.content.includes("S67 S evidence")).map(m => m.id);
+        if (cards.length) await ChatMessage.deleteDocuments(cards);
+        return true;`, { timeout: 60000 });
+
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const botan = game.actors.get("${IDS.botan}");
         if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
         const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");

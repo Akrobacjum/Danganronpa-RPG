@@ -36613,6 +36613,14 @@ const SCENARIOS = [
             ui.notifications.info = ownInfo;
             for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
             try { await item?.delete(); } catch { /* already gone */ }
+            // The copies the window's Present handed the other participants (E70 C10, `presentOnPrimary`), and their answer keys.
+            for (const actor of game.actors) {
+                for (const copy of actor.items.filter(i => bullets.isTruthBullet(i) && i.name === "SUITE E10 C16 a toast")) {
+                    const uuid = copy.uuid;
+                    await copy.delete();
+                    await bullets.dropSecret(uuid);
+                }
+            }
             if (floorMod.trialFloor()) await floorMod.endFloor();
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await setClock(clock);
@@ -40298,6 +40306,141 @@ const SCENARIOS = [
             analyze: [true, false, true]
         }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM: the copies each, typed and read, "
             + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; (6) D past the count by the API and by the GMs' row, the copies, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
+    }],
+
+    ["Present on the primary by \"trial.present\": the card with or without the Analyze result, a copy as shown to every other participant, none twice, refused to somebody else's owner and outside the mode's row, and Share gone from the Truth Bullet's row in the trial (E70-T12)", async () => {
+        /*
+         * E70 C10, 28.10.2026; E70-70 to E70-73 (TR2 = 1, B2, B6, Q-p2-5). The harm, the owner's session notes of 27.10: a
+         * Present showed the bullet to everybody and left nobody holding it, so each player copied it by Share one by one;
+         * a player could not show evidence without the reading their Analyze bought; and during somebody's turn anybody
+         * could present. Read on this primary in a Class Trial with the participants as vote.mjs `trialParticipants` gives
+         * them; P presents, O is another participant. (1) "trial.present" from P's owner without the analysis: done, one
+         * card a GM authored with P's words and neither the reading nor the identified type nor Faint, one copy on every
+         * other participant typed as never analysed (Neutral, not read), none on P, each told; (2) again with the
+         * analysis: the card with the reading and the type, still one copy each; (3) the same packet from O's owner:
+         * refused, nothing posted; (4) in Testimony with O speaking: refused, nothing posted; (5) P's sheet's row in the
+         * trial: Present held with the row's reason while O speaks, no Share; outside the trial Share and no Present.
+         * Red at cbce376f: no "trial.present" (the bridge refuses an unknown action), the row drew Share in the trial.
+         * Everything is put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "Present's copies go to the other participants, two connected players' students");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which posts the card and mints the copies - this would measure nothing");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const V = await import("./vote.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await import("./trial-floor.mjs");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas?.scene;
+        must(scene, "no scene is on screen to place the bullet's trace on");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const judged = async (packet, from) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, packet, from, { send: (to, reply) => { if (reply?.action !== "bridge.ack") sent.push(reply?.action ?? null); } });
+            await sheetAuditIdle();
+            await settle();
+            return sent;
+        };
+        const words = { text: "E70T12 the words the players read", reading: "E70T12 the reading only an Analyze gives" };
+        let token = null, item = null, sheet = null;
+        const read = {};
+        const ofTrace = i => T.isTruthBullet(i) && token && T.secretOf(i.uuid).remnantId === token.id;
+        const cards = () => game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, TRIAL_FLAGS.present));
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (F.trialFloor()) await F.endFloor();
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} student(s) take part in a trial here - the copies need two`);
+            const [P, O] = parts;
+            const others = parts.slice(1);
+            token = await R.placeRemnant({ type: "incident", visibility: "evident", x: 340, y: 340, scene, chapter: Number(clock.chapter), note: "E70T12" });
+            must(token?.id, "the trace of the presented bullet was not placed");
+            item = await T.createTruthBullet(P.actor, { name: "E70T12 the presented bullet", realType: "incident", shownType: "incident", analyzed: true, faint: true,
+                playerText: words.text, analyzedText: words.reading, remnantId: token.id, sceneId: scene.id });
+            must(item && T.hasReading(item), "the presenter's analysed Truth Bullet was not made");
+            await settle();
+            const packet = (analysis, requestId) => ({ action: "trial.present", requestId, actorId: P.actor.id, itemId: item.id, comment: "E70T12", bare: !analysis });
+            const copies = () => others.map(o => o.actor.items.filter(ofTrace));
+            const cardOf = list => list.map(m => [Boolean(m.author?.isGM), m.content.includes(words.text), m.content.includes(words.reading),
+                /drpg-tb-badge type incident/.test(m.content), /drpg-tb-badge faint/.test(m.content)]);
+
+            /* (1) Without the analysis. */
+            const without = await judged(packet(false, "E70T12a"), P.user.id);
+            const first = copies();
+            read.without = [without, cardOf(cards()), first.map(list => list.length), P.actor.items.filter(ofTrace).length,
+                first.map(list => list[0] ? [T.truthBulletData(list[0]).shownType, T.hasReading(list[0]), T.truthBulletData(list[0]).analyzedText,
+                    T.truthBulletData(list[0]).playerText === words.text, T.secretOf(list[0].uuid).realType] : null),
+                others.every(o => game.messages.some(m => !seen.has(m.id) && (m.whisper ?? []).includes(o.user.id)))];
+
+            /* (2) With it: the card reads it, and nobody gets a second copy. */
+            const before = cards().length;
+            const withIt = await judged(packet(true, "E70T12b"), P.user.id);
+            read.withIt = [withIt, cardOf(cards().slice(before)), copies().map(list => list.length)];
+
+            /* (3) From somebody else's owner. */
+            const n3 = cards().length;
+            read.forged = [await judged(packet(true, "E70T12c"), O.user.id), cards().length - n3];
+
+            /* (4) Testimony, O speaking. */
+            await (await import("./trial-modes.mjs")).startTestimony({ seconds: 60, order: [O.actor.id, P.actor.id] });
+            await settle();
+            must(F.trialFloor()?.holderId === O.actor.id, "Testimony did not start with O speaking - the mode's row would measure nothing");
+            const n4 = cards().length;
+            read.mode = [await judged(packet(true, "E70T12d"), P.user.id), cards().length - n4, copies().map(list => list.length)];
+
+            /* (5) The row. */
+            sheet = drawnSheet(P.actor);
+            const row = () => sheet.element.querySelector(`[data-item-uuid="${item.uuid}"]`);
+            const present = () => row()?.querySelector(".drpg-row-present") ?? null;
+            const only = game.i18n.format("DRPG.Trial.presentOnly", { name: O.actor.name });
+            read.row = [Boolean(row()), Boolean(present()), present()?.getAttribute("aria-disabled") ?? null, present()?.dataset.tooltip === only,
+                Boolean(row()?.querySelector(".drpg-row-handover"))];
+            sheet.remove();
+            await F.endFloor();
+            await setClock({ ...clock, phase: "investigation" });
+            await settle();
+            sheet = drawnSheet(P.actor);
+            read.outside = [Boolean(row()), Boolean(present()), Boolean(row()?.querySelector(".drpg-row-handover"))];
+        } finally {
+            sheet?.remove();
+            for (const actor of game.actors) {
+                for (const held of actor.items.filter(i => ofTrace(i) || i.id === item?.id)) {
+                    const uuid = held.uuid;
+                    await held.delete();
+                    await T.dropSecret(uuid);
+                }
+            }
+            if (token && scene.tokens.has(token.id)) {
+                await R.dropRemnantSecret(token);
+                await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await sheetAuditIdle();
+            await settle();
+        }
+        const n = read.without ? read.without[2].length : 0;
+        equal(stableJson(read), stableJson({
+            without: [["bridge.done"], [[true, true, false, false, false]], Array(n).fill(1), 1, Array(n).fill(["neutral", false, "", true, "incident"]), true],
+            withIt: [["bridge.done"], [[true, true, true, true, true]], Array(n).fill(1)],
+            forged: [["bridge.refused"], 0],
+            mode: [["bridge.refused"], 0, Array(n).fill(1)],
+            row: [true, true, "true", true, false],
+            outside: [true, false, true]
+        }), "(1) without the analysis: the answer, the card (a GM's, the words, the reading, the type, Faint), the copies each, the presenter's own, each copy's type, reading and words and its answer key, each told; "
+            + "(2) with it: the answer, the card, still one copy each; (3) from another's owner: the answer, cards posted; (4) in Testimony with O speaking: the answer, cards posted, copies; "
+            + "(5) the row in the trial: drawn, Present, held, its reason, Share; outside the trial: drawn, Present, Share");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {

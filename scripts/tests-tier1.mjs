@@ -5649,7 +5649,8 @@ const INVARIANTS = [
         const waited = analyze.indexOf("await answerKeysRefusal()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
         ok(waited > 0 && read > waited && !/isHydrated\(\) && !secret\.realType/.test(analyze),
             "an Analyze reads the answer key, or decides it is missing, before the other GMs' copies have arrived");
-        const share = fnSource(src("handover.mjs"), "shareBullet");
+        // The copy is minted by `mintCopy` since E70 C10 (Share's and Present's).
+        const share = fnSource(src("handover.mjs"), "mintCopy");
         const shareWaited = share.indexOf("await answerKeysRefusal()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
         ok(shareWaited > 0 && refused > shareWaited && minted > refused && !/realType \?\? "neutral"/.test(share),
             "a handover mints a copy of a bullet whose answer key is missing, or decides before the copies arrive");
@@ -25338,6 +25339,63 @@ const INVARIANTS = [
             ]
         }), "the Reveal's count or its window is not the owner's rule [the two functions; what is left to reveal of three paid, as rows are revealed, past them, and of nothing; Enter's answer in a window within the count and past it; each window's buttons as [action, default, autofocus, destructive], the beyond-the-fee question, the GM's text box]");
 
+    }],
+
+    ["R1045 - Present by the mode's row, with or without the Analyze result (E70 C10, S18-79; TR2 = 1, B2, Q-p2-3): trial-floor.mjs `presentRefusal` - in a debate, an Objection and a Rebuttal everybody presents, in Testimony and the Closing only the speaker (\"Only {name} can present right now.\"), in Panic Round only the speaker and nobody objects, in the Closing with nobody speaking nobody - and trial.mjs `analysisOffered` and `unreadView`: the choice offered only for a bullet that shows something an Analyze gave, and without it the card's bullet as never analysed (no reading, no identified type, no Faint)", async () => {
+        /*
+         * E70 C10, 28.10.2026; E70-70, E70-71. The harm: during somebody's turn in Testimony every other player could still
+         * put evidence on every screen (the sheet's Present asked only for a Class Trial), and a player who wanted to show a
+         * Truth Bullet without the reading their Analyze bought had to show it all. Pure functions on hand-made floors and
+         * views; nothing is written, no world is read (the names are handed in). Red at cbce376f: no `presentRefusal`, no
+         * `analysisOffered`, no `unreadView`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const T = await import("./trial.mjs");
+        const read = { fns: [typeof F.presentRefusal, typeof T.analysisOffered, typeof T.unreadView] };
+        const names = { A: "R1045 Aoi", B: "R1045 Bo" };
+        const nameOf = id => names[id] ?? null;
+        if (typeof F.presentRefusal === "function") {
+            const floors = {
+                none: null,
+                debate: { active: true, mode: "debate", holderId: null },
+                objection: { active: true, mode: "objection", holderId: "A", targetId: "B" },
+                rebuttal: { active: true, mode: "rebuttal", holderId: "A", targetId: "B" },
+                testimony: { active: true, mode: "testimony", holderId: "A" },
+                panic: { active: true, mode: "panic", holderId: "A" },
+                closing: { active: true, mode: "closing", holderId: "A" },
+                volunteers: { active: true, mode: "closing", holderId: null }
+            };
+            read.matrix = Object.fromEntries(Object.entries(floors).map(([k, floor]) =>
+                [k, ["A", "B"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
+        }
+        const only = game.i18n.format("DRPG.Trial.presentOnly", { name: names.A });
+        const panic = `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize("DRPG.Floor.mode.panic") })}`;
+        const nobody = game.i18n.localize("DRPG.Trial.presentNobody");
+        const view = (over = {}) => ({ name: "R1045 bullet", shownType: "neutral", shownLabel: "Neutral", faint: false, identified: false,
+            visibilityLabel: "Obvious", chapter: 1, room: null, playerText: "R1045 the words", analyzedText: "", analyzed: false, ...over });
+        const analysed = view({ shownType: "incident", shownLabel: "Incident", faint: true, identified: true, analyzed: true, analyzedText: "R1045 the reading" });
+        const keyRead = view({ shownType: "key", shownLabel: "Key", identified: true, analyzed: true, analyzedText: "R1045 the Key's reading" });
+        const keyUnread = view({ shownType: "key", shownLabel: "Key", identified: true });
+        if (typeof T.analysisOffered === "function") {
+            read.offered = [view(), keyUnread, analysed, keyRead, view({ analyzed: true, identified: true })].map(v => T.analysisOffered(v));
+        }
+        if (typeof T.unreadView === "function") {
+            const cut = v => { const u = T.unreadView(v); return [u.shownType, u.analyzedText, u.faint, u.identified, u.playerText, u.name]; };
+            read.unread = [cut(analysed), cut(keyRead), cut(view())];
+            read.untouched = analysed.analyzedText === "R1045 the reading" && analysed.shownType === "incident";
+        }
+        equal(stableJson(read), stableJson({
+            fns: ["function", "function", "function"],
+            matrix: {
+                none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
+                testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
+            },
+            offered: [false, false, true, true, true],
+            unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
+                ["neutral", "", false, false, "R1045 the words", "R1045 bullet"]],
+            untouched: true
+        }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
+            + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
     }],
 ];
 

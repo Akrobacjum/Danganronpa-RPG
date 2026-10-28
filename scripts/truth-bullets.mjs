@@ -542,6 +542,16 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
 const READ_ON_ANALYZE = ["key", "final"];
 
 /**
+ * The type a bullet showing `shownType` showed before any Analyze (E70 C10; B2, the owner's "'bez' ukrywa też
+ * zidentyfikowany typ"): its own for a kind that names itself on pickup (`SELF_EVIDENT`), Neutral for the rest - the
+ * type a Present without the Analyze result draws, and a copy shown so is born with (trial.mjs `unreadView`, handover.mjs
+ * `mintCopy`).
+ */
+export function unanalysedType(shownType) {
+    return SELF_EVIDENT.includes(shownType) ? shownType : "neutral";
+}
+
+/**
  * Create a Truth Bullet on a character. The single path - the GM's dialog,
  * macro 03 and (from Stage 2) Observe all come through here, so there is one
  * place where a bullet's shape is decided.
