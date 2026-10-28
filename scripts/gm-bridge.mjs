@@ -75,6 +75,8 @@ const ACTION_FLOOR_REPOINT = "floor.repoint";
 const ACTION_TRIAL_GM = "trial.gm";
 /** GM -> primary GM: the trial's voices settled to the clock - its dead listed and muted, or given back (E70 C5; voice.mjs `askTrialVoices`). */
 const ACTION_TRIAL_ENTER = "trial.enter";
+/** GM -> primary GM: a write of the trial's record - a patch, the reset at the entry, the sentence carried out or taken back (E70 fix p1-G2; vote.mjs `recordOnPrimary`). */
+const ACTION_TRIAL_RECORD = "trial.record";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1754,6 +1756,12 @@ async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `trial.record` (E70 fix p1-G2): the record's write on this primary (vote.mjs `recordOnPrimary`), its answer or null. */
+async function handleTrialRecord(payload) {
+    const { recordOnPrimary } = await import("./vote.mjs");
+    return { reply: await recordOnPrimary(payload.op, { patch: payload.patch, seconds: payload.seconds, chapter: payload.chapter }) ?? null };
+}
+
 /** The run of `trial.enter` (E70 C5): the primary's own settle of the trial's voices (voice.mjs `settleTrialVoices`), its answer or null. */
 async function handleTrialEnter() {
     const { settleTrialVoices } = await import("./voice.mjs");
@@ -2696,6 +2704,25 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({}),
         run: handleTrialEnter,
         answer: "reply"
+    },
+    /*
+     * THE TRIAL'S RECORD, WRITTEN ON THE PRIMARY GM (E70 fix p1-G2, 28.10.2026; the review's SEC-3, SEC-4, E70-01, E70-16).
+     * The record is one world setting, and each GM wrote it in its own browser's queue from its own copy: a write of
+     * another GM and one of the primary landed over each other, and two GMs ending the trial carried the sentence out
+     * twice. Another GM's object patch, the reset at the entry, the execution and the season's taking back of the
+     * sentence are asked here (vote.mjs `setTrialProgress`, `resetTrialProgress`, `executeAtExit`, `clearSentence`) and
+     * run in the primary's one queue. A GM's request only: `patch` is held there to the record's own fields
+     * (`recordPatchOf`), never the trial's list of the dead or the receipts, which only the primary's own steps write.
+     */
+    [ACTION_TRIAL_RECORD]: {
+        label: "DRPG.Bridge.what.trial.record",
+        guards: [gmOnly("only a GM writes the trial's record")],
+        sanitize: pick({ op: as.oneOf("patch", "reset", "execute", "clearSentence"), patch: as.raw, seconds: as.num, chapter: as.num }),
+        run: handleTrialRecord,
+        answer: "reply",
+        claims: {
+            patch: "a GM's patch of the trial's record, held on the primary to the record's own fields (vote.mjs recordPatchOf, RECORD_FIELDS): never the chapter, the trial's list of the dead or the Objections' receipts; a GM's request only"
+        }
     },
     /*
      * THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17). The ballots are recorded

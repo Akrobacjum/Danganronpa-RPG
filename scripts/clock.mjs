@@ -855,6 +855,19 @@ async function reconcilePhase(from, to) {
         }
     }
 
+    /* A SENTENCE THAT COULD NOT BE CARRIED OUT, ASKED AGAIN (E70 fix p1-G2; the review's BEH-2) at every change of phase
+       outside the trial: the primary carries it out once (vote.mjs `executeAtExit`), and a record with nothing waiting
+       answers null. */
+    if (from !== "classTrial" && to !== "classTrial") {
+        try {
+            const { executeAtExit, trialProgressChapter, trialProgress } = await import("./vote.mjs");
+            const chapter = trialProgressChapter();
+            if (chapter !== null && trialProgress(chapter).execution?.failed?.length) await executeAtExit({ chapter });
+        } catch (err) {
+            error("Could not carry out a sentence that waited", err);
+        }
+    }
+
     if (to === "classTrial") {
         /*
          * THE TRIAL'S BUDGET (T-1), first: from the moment the phase moves the sheet

@@ -191,7 +191,59 @@ export const TRIAL_PROGRESS_KEY = "trial.progress";
  */
 export function setTrialProgress(patch = {}) {
     if (!game.user.isGM) return Promise.resolve(null);
+    if (typeof patch !== "function" && !isPrimaryGm()) return askRecord("patch", { patch }, () => recordOnPrimary("patch", { patch }));
     return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(patch));
+}
+
+/*
+ * THE RECORD'S WRITES OF ANOTHER GM, ON THE PRIMARY (E70 fix p1-G2, 28.10.2026; the review's SEC-4 = E70P1-R05 =
+ * E70P1-R03, E70-01). The record's key is one queue per browser: a GM that is not the primary wrote the verdict, the
+ * debate's question, the reset at the entry or the execution in its own queue, from its own copy of the record, while
+ * the primary wrote the trial's list or a receipt in its queue - and whichever write landed second dropped the other's
+ * field (a world setting is one value). Every such write is the primary's now: an object patch, the reset, the
+ * execution and the season's taking back of the sentence are asked of it by the GMs' row "trial.record", and run there
+ * in its one queue, each patch spread over the record as the primary's step finds it. A patch's fields are held to
+ * the record's own (`RECORD_FIELDS`): the list of the dead and the receipts are the primary's own steps', never a
+ * patch's. A function patch is a step's own (the vote's, the floor's, a receipt's), which run on the primary already.
+ * An answer that does not come (the primary left mid-request) writes the patch here, as before the fix, and says so in
+ * the log; the reset and the execution are not done twice that way.
+ */
+const RECORD_KEPT = new Set(["chapter", "mutedDead", "objections"]);
+export const RECORD_FIELDS = Object.freeze(Object.keys(trialProgress(0)).filter(key => !RECORD_KEPT.has(key)));
+
+/** A record patch of another GM, held to the record's own fields; null when it names none. */
+export function recordPatchOf(patch) {
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return null;
+    const out = Object.fromEntries(Object.entries(patch).filter(([key]) => RECORD_FIELDS.includes(key)));
+    return Object.keys(out).length ? out : null;
+}
+
+/** Ask the primary GM for one of the record's writes (the GMs' row "trial.record"), or run it here on the primary. */
+async function askRecord(op, fields, local) {
+    const res = await bridgeRequest("trial.record", { op, ...fields }, { settle: "reply", onPrimary: true, local });
+    if (res.ok) return res.value ?? null;
+    if (op === "patch" && !res.refused) {
+        warn(`The primary GM did not answer a write of the trial's record; written here: ${Object.keys(fields.patch ?? {}).join(", ")}`);
+        return serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(fields.patch));
+    }
+    return null;
+}
+
+/**
+ * The run of "trial.record" on the primary (gm-bridge.mjs `handleTrialRecord`), and this primary's own road: `patch`
+ * (held to `RECORD_FIELDS`), `reset` (`resetTrialProgress`'s fields), `execute` (`executeAtExit` of `chapter`) and
+ * `clearSentence`. Answers what the write answers, or null.
+ */
+export async function recordOnPrimary(op, { patch = null, seconds = TRIAL.speakSeconds, chapter = null } = {}) {
+    if (!game.user.isGM || !isPrimaryGm()) return null;
+    if (op === "patch") {
+        const held = recordPatchOf(patch);
+        return held ? serialWrite(TRIAL_PROGRESS_KEY, () => writeTrialProgressInStep(held)) : null;
+    }
+    if (op === "reset") return resetInStep(Number(seconds) || TRIAL.speakSeconds);
+    if (op === "execute") return startExecution(Number.isFinite(Number(chapter)) && chapter !== null ? Number(chapter) : trialProgressChapter());
+    if (op === "clearSentence") return clearSentenceHere();
+    return null;
 }
 
 export async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
@@ -218,6 +270,13 @@ export async function writeTrialProgressInStep(patch, { chapter = null } = {}) {
 /** A trial is starting: nothing has happened in it yet. */
 export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) {
     if (!game.user.isGM) return null;
+    // The primary's write, asked of it from any other GM (fix p1-G2, above `RECORD_FIELDS`).
+    if (!isPrimaryGm()) return askRecord("reset", { seconds }, () => resetInStep(seconds));
+    return resetInStep(seconds);
+}
+
+/** `resetTrialProgress`'s write, on the primary. */
+function resetInStep(seconds) {
     // `tied` goes with them: a trial re-opened in the same chapter must not
     // inherit the previous vote's tie and quietly default its verdict to wrong.
     //
@@ -237,9 +296,28 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
         seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
         vote: { ...blankVote(), round: now.vote.round }, accused: [], total: 0, accusedIds: [], verdict: null,
         trialStartedAt: serverNow(), againAfterOverrule: null,
-        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: trialParticipants().length,
+        topic: null, debateAgain: false, voteOpenedAt: null, trialSize: trialSizeNow(),
         executedAt: null, execution: null
     }));
+}
+
+/**
+ * THE TRIAL'S SIZE, N OF THE GUIDE'S 270 x N/16 (E70 fix p1-G2; the review's E70P1-R08 goal). It was the ballot's
+ * count at the entry (`trialParticipants`), which seats only CONNECTED players: a trial opened before the players had
+ * reconnected read "5 of 34 min" all trial. Every player account that holds a student who takes part, whatever its
+ * connection - no Monocub, nobody dead as the GMs hold the flag, nobody on the trial's list (`listed`, which the
+ * primary writes after the reset; its settle counts again then, voice.mjs `settleTrialVoices`). A number, and the list
+ * is public in the trial anyway (TR30).
+ */
+export function trialSizeNow(listed = []) {
+    const seated = new Set();
+    for (const actor of studentActors()) {
+        const held = flagsHeldNow(actor);
+        if (held.getFlag(MODULE_ID, FLAGS.monocub) || isDeceased(held) || listed.includes(actor.id)) continue;
+        const user = game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"));
+        if (user) seated.add(user.id);
+    }
+    return seated.size;
 }
 
 /* ==========================================================================
@@ -247,6 +325,10 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
  * ========================================================================== */
 
 export function registerVote() {
+    // A sentence that could not be carried out, asked again when this primary is ready (E70 fix p1-G2; `retrySentence`).
+    const retry = () => verdictStore.whenHydrated().then(() => retrySentence()).catch(err => error("Could not carry out a sentence that waited", err));
+    Hooks.on("drpgPrimaryReady", retry);
+    Hooks.once("ready", () => { if (game.user?.isGM) retry(); });
     // `senderId` is Foundry's own second argument - who actually emitted this. The one
     // packet left on this listener is a GM's, and it is taken from a GM alone.
     game.socket.on(SOCKET_EVENT, (payload, senderId) => {
@@ -1743,10 +1825,40 @@ let executing = null;
 
 export function executeAtExit({ chapter = trialProgressChapter() } = {}) {
     if (!game.user.isGM || chapter === null || chapter === undefined) return Promise.resolve(null);
+    /* ON THE PRIMARY, ONCE (E70 fix p1-G2; the review's SEC-3, E70-16). The sentence ran on whichever GM ended the
+       trial, and "once" was that browser's latch: two GMs pressing End the trial within a round trip each read no
+       `executedAt` and killed the convict twice, or the second wrote `failed` over the first's record. The primary
+       carries it out, under its latch, whoever asks. */
+    if (!isPrimaryGm()) return askRecord("execute", { chapter }, () => startExecution(chapter));
+    return startExecution(chapter);
+}
+
+/** The execution under this primary's latch. */
+function startExecution(chapter) {
+    if (chapter === null || chapter === undefined) return Promise.resolve(null);
     if (executing) return executing;
     executing = carryOutSentence(chapter).finally(() => { executing = null; });
     return executing;
 }
+
+/*
+ * A SENTENCE THAT COULD NOT BE CARRIED OUT IS TRIED AGAIN (E70 fix p1-G2; the review's BEH-2). A kill that threw left
+ * `execution.failed` and no `executedAt`, and nothing asked again once the phase had moved: the convict walked into
+ * Daily Life alive unless the GM remembered, and a death marked by hand carried neither the cause nor the trial's
+ * phase. The primary asks again when it is ready and at every later change of phase, while the record's sentence
+ * waits outside a trial (`pendingSentence`'s reading).
+ */
+export async function retrySentence() {
+    if (!game.user?.isGM || !isPrimaryGm() || getClock().phase === "classTrial") return null;
+    const chapter = trialProgressChapter();
+    if (chapter === null) return null;
+    const record = trialProgress(chapter);
+    if (record.executedAt || !record.execution?.failed?.length) return null;
+    return startExecution(chapter);
+}
+
+/** The Final verdicts (`at`) whose missing sentence this browser has told the GMs of, once each. */
+const missingSaid = new Set();
 
 /** The ids a verdict of `record` sentenced, or null when it has not sentenced anybody yet. */
 async function sentenceOf(record) {
@@ -1756,7 +1868,15 @@ async function sentenceOf(record) {
         if (!verdict.sentencePending) return null;
         await verdictStore.whenHydrated();
         const kept = verdictStore.record();
-        return kept.finalAt === verdict.at && Array.isArray(kept.finalSentenced) ? [...kept.finalSentenced] : null;
+        if (kept.finalAt === verdict.at && Array.isArray(kept.finalSentenced)) return [...kept.finalSentenced];
+        /* THE GMS' SENTENCE NOT HERE (E70 fix p1-G2; the review's E70P1-R10 = E70P1-R06 goal). The record says a Final
+           sentence waits and this GM's store holds none for it - another browser, cleared site data. Said to the GMs,
+           not passed over in silence: the store is backed up since the fix (gm-stores.mjs `verdictStore`). */
+        if (!missingSaid.has(verdict.at)) {
+            missingSaid.add(verdict.at);
+            whisperToGms(`<p>${game.i18n.localize("DRPG.Vote.finalSentenceMissing")}</p>`);
+        }
+        return null;
     }
     if (!Array.isArray(verdict.done) || !verdict.done.includes("sentence")) return null;
     return [...(verdict.sentenced ?? verdict.executedIds ?? [])];
@@ -1868,6 +1988,12 @@ export async function pendingSentence() {
  */
 export async function clearSentence() {
     if (!game.user.isGM) return null;
+    if (!isPrimaryGm()) return askRecord("clearSentence", {}, () => clearSentenceHere());
+    return clearSentenceHere();
+}
+
+/** `clearSentence`'s writes, on the primary. */
+async function clearSentenceHere() {
     const chapter = trialProgressChapter();
     if (chapter !== null) {
         await writeExecution(chapter, now => (now.verdict

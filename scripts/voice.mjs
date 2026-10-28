@@ -1381,7 +1381,10 @@ export async function settleTrialVoices({ release = false } = {}) {
             const now = own === clock.chapter && Array.isArray(stored.mutedDead) ? stored.mutedDead : null;
             if (own !== null && own !== clock.chapter) {
                 if (JSON.stringify(stored.mutedDead ?? null) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list }, { chapter: own });
-            } else if (JSON.stringify(now) !== JSON.stringify(list)) await vote.writeTrialProgressInStep({ mutedDead: list });
+            } else if (JSON.stringify(now) !== JSON.stringify(list)) {
+                // The trial's size counted again with the first list, which the reset could not know (fix p1-G2; vote.mjs `trialSizeNow`).
+                await vote.writeTrialProgressInStep({ mutedDead: list, ...(now === null ? { trialSize: vote.trialSizeNow(list) } : {}) });
+            }
         } else if (Object.hasOwn(stored, "mutedDead")) {
             await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
         }

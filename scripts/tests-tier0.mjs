@@ -7675,6 +7675,10 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.gm#actorId", "judged (E70 C0): gmOnly; the objector, held by `floorRefusal`/`targetRefusal` (`openObjectionInStep`) or by `pendingFor` (a fill, a withdrawal) to the floor the primary holds"],
             ["PACKET gm-bridge.mjs#trial.gm#targetId", "judged (E70 C0): gmOnly; held by `targetRefusal` to a student the floor lets the objector aim at (an Objection, a re-point)"],
             ["PACKET gm-bridge.mjs#trial.gm#messageId", "judged (E70 C0): gmOnly; held by `pendingFor` to the pending Objection's card on the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.record#op", "judged (E70 fix p1-G2): gmOnly; one of patch, reset, execute, clearSentence (`as.oneOf`), else nothing is run (vote.mjs `recordOnPrimary`)"],
+            ["PACKET gm-bridge.mjs#trial.record#patch", "judged (E70 fix p1-G2): gmOnly; held to the record's own fields (vote.mjs `recordPatchOf`, `RECORD_FIELDS`) - never the chapter, the trial's list of the dead or the receipts - and spread over the record in the primary's step"],
+            ["PACKET gm-bridge.mjs#trial.record#seconds", "judged (E70 fix p1-G2): gmOnly; `as.num`, the reset's speaking seconds, 0 read as `TRIAL.speakSeconds`"],
+            ["PACKET gm-bridge.mjs#trial.record#chapter", "judged (E70 fix p1-G2): gmOnly; `as.num`, the chapter whose stored record the execution reads (`carryOutSentence` reads only a record stored for it)"],
             ["PACKET gm-bridge.mjs#trial.enter#-", "judged (E70 C5): gmOnly; carries nothing (`pick({})`) - the primary's settle reads the clock, its deaths store after it has hydrated and the users on its side (voice.mjs `settleTrialVoices`)"],
             ["SHEET trial-floor.mjs#trialVoice", "out of scope as a judgement (E70 C5): who may speak in the trial, a display and the tile's line - the trial's public list (`isMutedDead`), the Monocub flag and `isDeceased` from the document; the module's one hold, the block, is the primary's (`settleTrialVoices`, on `isDeadForGm`) [E70-19]"],
             ["PACKET gm-bridge.mjs#trial.gm#text", "judged (E70 C3): gmOnly; the debate's question, read by the start alone and cut by floor-machine.mjs `topicOf` to a trimmed string of `TRIAL.modes.topicLength`; shown escaped"],
@@ -7684,6 +7688,7 @@ const REGRESSIONS = [
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
+            ["SHEET vote.mjs#trialSizeNow", "held (E70 fix p1-G2): the trial's size N, a count - `flagsHeldNow(actor)` once per student in one synchronous pass, the Monocub and the death as the GMs hold them, and the trial's list handed in; it writes nothing itself (the reset's step and the primary's settle write it) [1b.2]"],
             ["SHEET vote.mjs#trialParticipants", "judged (C2; `eligibleVoters` until E70 C5): `isDeceased(flagsHeldNow(actor))`, and since E70 C5 the trial's list of the dead (`isMutedDead`, the primary's after its deaths store hydrated) and no Monocub, in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
@@ -15713,7 +15718,8 @@ const REGRESSIONS = [
          * `topic`, `voteOpenedAt`, `debateAgain` or `trialSize` anywhere.
          */
         const readOf = (vote, ui) => {
-            const reset = topLevelFunction(vote, "resetTrialProgress") ?? "";
+            // The reset's fields are written by its step on the primary since E70 fix p1-G2 (`resetInStep`), read with it.
+            const reset = (topLevelFunction(vote, "resetTrialProgress") ?? "") + (topLevelFunction(vote, "resetInStep") ?? "");
             const round = topLevelFunction(vote, "openRound") ?? "";
             const open = topLevelFunction(ui, "openDebate") ?? "";
             const at = (body, re) => { const m = re.exec(body); return m ? m.index : -1; };

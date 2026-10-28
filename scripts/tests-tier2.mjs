@@ -39509,6 +39509,80 @@ const SCENARIOS = [
             + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
             + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
     }],
+    ["a sentence that could not be carried out is carried out when asked again and leaves no body to find, a Final sentence this browser does not hold is told to the GMs, and the trial's size counts every player of a student who takes part (E70 fix p1-G2)", async () => {
+        /*
+         * E70 fix p1-G2, 28.10.2026; the review's BEH-2, BEH-6 = E70P1-R16, E70P1-R10, E70P1-R08 (goal). Read on this
+         * primary, the clock and the record written raw. (1) An exit's kill failed: the record holds the sentence,
+         * `execution.failed` and no stamp, and the phase is Daily Life. Asked again (vote.mjs `retrySentence`, which the
+         * primary's ready and every later change of phase ask), A dies executed in the trial's phase, the record is
+         * stamped, and no walk past A finds a body (chapter.mjs `bodiesToDiscover`, the death's phase - E70-16's
+         * "discovery stamp" is the death record's phase, STATUS). (2) A Final verdict's sentence waits and this browser's
+         * GM store holds another verdict's: `pendingSentence` names nobody and the GMs are told, once; the store is backed
+         * up. (3) `trialSizeNow` counts each player account holding a student who takes part, connected or not. Red at
+         * 5ee86113: no `retrySentence`, no word, the store not backed up, no `trialSizeNow`.
+         */
+        needs(env.primaryGm(), "a sentence is carried out on the primary GM");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm, bodiesToDiscover } = await import("./chapter.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { verdictStore } = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(!isDeadForGm(A), "the student is dead before the test - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        await verdictStore.whenHydrated();
+        const kept = foundry.utils.deepClone(verdictStore.record());
+        const seen = new Set(game.messages.map(m => m.id));
+        const { wordsOf } = await import("./secret.mjs");
+        // A whisper's words are read as a GM reads them (`wordsOf`), as E70-T7 reads the owner's note.
+        const missing = async () => (await Promise.all(game.messages.filter(m => !seen.has(m.id)).map(m => wordsOf(m, 1000))))
+            .filter(words => String(words ?? "").includes(game.i18n.localize("DRPG.Vote.finalSentenceMissing"))).length;
+        const read = {};
+        try {
+            ok(typeof V.retrySentence === "function", "vote.mjs has no retrySentence - a sentence that failed is never carried out");
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [A.id], sentenced: [A.id], by: game.user.id, at: Date.now(),
+                    done: ["sentence", "card"], failed: [] }, executedAt: null, execution: { done: [], failed: [A.id] } });
+            if (typeof V.retrySentence === "function") await V.retrySentence();
+            await settle();
+            read.retry = [isDeceased(A), deathRecord(A)?.cause ?? null, deathRecord(A)?.phase ?? null,
+                Number.isFinite(getSetting(SETTINGS.trialProgress)?.executedAt), bodiesToDiscover({ actors: [A], held: flagsHeldNow }).length];
+
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", final: true, by: game.user.id, at: 4242, done: [], failed: [], sentencePending: true }, executedAt: null, execution: null });
+            await verdictStore.patch(RECORD, { finalAt: 4141, finalSentenced: [A.id] });
+            const named = [(await V.pendingSentence()).length, (await V.pendingSentence()).length];
+            await settle();
+            read.final = [named, await missing(), verdictStore.spec.backup === true];
+
+            const owners = new Set();
+            for (const a of studentActors()) {
+                const held = flagsHeldNow(a);
+                if (held.getFlag(MODULE_ID, "monocub") || isDeceased(held)) continue;
+                const u = game.users.find(x => !x.isGM && a.testUserPermission(x, "OWNER"));
+                if (u) owners.add(u.id);
+            }
+            read.size = typeof V.trialSizeNow === "function" ? [V.trialSizeNow() === owners.size, V.trialSizeNow() >= V.trialParticipants().length,
+                V.trialSizeNow([A.id]) <= owners.size] : null;
+        } finally {
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            retry: [true, "executed", "classTrial", true, 0],
+            final: [[0, 0], 1, true],
+            size: [true, true, true]
+        }), "(1) a failed sentence asked again: dead, the cause, the death's phase, the stamp, bodies to find; (2) a Final sentence not held here: named twice, the GMs told, the store backed up; (3) the trial's size: every player of a student who takes part, at least the ballot's, a listed student not counted");
+    }],
     ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
         /*
          * E70 C5, 28.10.2026; E70-18, E70-20, E70-21, E70-23 (the owner's TR30 = 2, DC19; amend 6, answer 3 (b)). Read on

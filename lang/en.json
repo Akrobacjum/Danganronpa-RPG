@@ -1451,7 +1451,8 @@
       "executionPending": "Execution when the trial ends: {names}.",
       "executionNow": "The sentence is carried out now: {names}.",
       "executionCardTitle": "THE EXECUTION",
-      "executionFailed": "The sentence could not be carried out on {names}. If the verdict stands, mark the death in the Players window.",
+      "executionFailed": "The sentence could not be carried out on {names}. It is tried again at the next change of phase and when the GM reloads; if it still fails, mark the death in the Players window.",
+      "finalSentenceMissing": "A Final Trial verdict waits to be carried out, but this browser does not hold who was sentenced. Load the GMs' backup on this browser, or give the Final verdict again.",
       "levelUpGranted": {
         "one": "{n} survivor took their Level Up here: {kind}.",
         "other": "{n} survivors took their Level Up here: {kind}."
@@ -3177,6 +3178,7 @@
         "audit.decide": "A GM's decision on a sheet change flagged to the GMs",
         "keys.charge": "The Key fee charged as a Class Trial opens",
         "trial.enter": "The Class Trial's voices settled as it opens or ends",
+        "trial.record": "A GM's write of the Class Trial's record, made by the primary GM",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "card.claim": "A GM's ruling on a card sent to the GMs",

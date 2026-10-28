@@ -5917,6 +5917,15 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         refusedAs(objTrialEnter, "gmOnly") && objTrialEnter.logged.some(r => /only a GM opens or ends a Class Trial/.test(r))
             && objTrialEnter.after.mode === "objection" && objTrialEnter.after.target === ids.chie && objTrialEnter.after.cards === objTrialEnter.before.cards,
         JSON.stringify(objTrialEnter), { flow: "class-trial" });
+    /* E70 fix p1-G2 (1.2.90; the review's SEC-4): a write of the trial's record asked of the primary (`trial.record`, a GM's
+       only), forged from p1's console as a patch of the question and the verdict. Refused gmOnly and told, logged on the
+       GM; the record's question as it was, the floor as it was. The legal road is a second GM's (63 R). */
+    const objTrialRecord = await objSend(p1, "trial.record", { op: "patch", patch: { topic: "SEC forged question", verdictApplied: true } }, "SECOBJTRIALRECORD");
+    const objRecordAfter = await gm.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}; return [r.topic ?? null, r.verdictApplied ?? null];`);
+    check("SECURITY: p1's write of the trial's record through the GMs' row (trial.record) is refused (gmOnly) and told - the record's question and verdict as they were",
+        refusedAs(objTrialRecord, "gmOnly") && objTrialRecord.logged.some(r => /only a GM writes the trial's record/.test(r))
+            && objRecordAfter[0] !== "SEC forged question" && objRecordAfter[1] !== true && objTrialRecord.after.mode === objTrialRecord.before.mode,
+        JSON.stringify({ objTrialRecord, objRecordAfter }), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

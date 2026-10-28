@@ -24955,6 +24955,26 @@ const INVARIANTS = [
             hold: [null, ["deadMuted", true], null]
         }), "an account's voice character in the trial is not its living one (voice: one listed, both listed, none listed, a GM; micHold the same three)");
     }],
+    ["R1039 - another GM's write of the trial's record is held to the record's own fields on the primary (E70 fix p1-G2; the review's SEC-4): vote.mjs `recordPatchOf` keeps a patch's fields of the record and drops the chapter, the trial's list of the dead, the receipts and anything else, and answers null for a patch that names none, a function or an array", async () => {
+        /*
+         * E70 fix p1-G2, 28.10.2026. A GM that is not the primary asks the primary for its write of the record ("trial.record",
+         * vote.mjs `recordOnPrimary`), which spreads the patch over the record its one queue finds. The list of the dead and
+         * the receipts are the primary's own steps' (the settle, `keepReceipt`), and the chapter the step's: a patch that
+         * named them would write over them. Read without a world. Red at 5ee86113: no `recordPatchOf`.
+         */
+        const V = await import("./vote.mjs");
+        ok(typeof V.recordPatchOf === "function", "vote.mjs has no recordPatchOf - another GM's patch is not held to anything");
+        if (typeof V.recordPatchOf !== "function") return;
+        equal(stableJson({
+            kept: V.recordPatchOf({ topic: "Q", seconds: 300, verdict: { stage: "done" }, lastVerdictAt: 5, mutedDead: ["x"], objections: { m: {} }, chapter: 9, sneaky: 1 }),
+            none: [V.recordPatchOf({ mutedDead: [] }), V.recordPatchOf(() => ({ topic: "Q" })), V.recordPatchOf(["topic"]), V.recordPatchOf(null)],
+            fields: ["topic", "seconds", "verdict", "verdictApplied", "lastVerdictAt", "executedAt", "trialSize"].every(f => V.RECORD_FIELDS.includes(f)),
+            kept2: ["chapter", "mutedDead", "objections"].some(f => V.RECORD_FIELDS.includes(f))
+        }), stableJson({
+            kept: { topic: "Q", seconds: 300, verdict: { stage: "done" }, lastVerdictAt: 5 },
+            none: [null, null, null, null], fields: true, kept2: false
+        }), "another GM's record patch is not held to the record's own fields (kept; patches that name none; the fields a patch may write; the primary's own)");
+    }],
 ];
 
 /**

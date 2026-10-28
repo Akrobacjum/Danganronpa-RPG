@@ -1272,6 +1272,60 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("gm3 opens a debate with its question by game.drpg: gm2's floor holds it, p1's Event card has it as its subtitle and p1 has the card that opens the debate with it",
         qRead.gm3Primary === false && J(qRead.gm2) === J(["debate", qText]) && J(qRead.p1) === J([qText, 1]), J(qRead));
 
+    /* ------------------------------ R. the record's writes and the sentence on the primary ------------------------------ */
+
+    /* E70 fix p1-G2 (1.2.90; the review's SEC-4 = E70P1-R05, SEC-3, E70-01, E70-16). gm2 is the primary here, gm3 is not.
+       (1) gm3 writes the debate's question while gm2 writes the debate-again mark: gm3's own write of the setting (were it
+       made) is held 1.5 s, as a slow round trip holds it, and gm2's lands inside it. Both fields must stand. Until the
+       fix gm3 wrote in its own queue from the record it had read, and its write dropped gm2's field. (2) gm2 and gm3
+       end the trial together (`executeAtExit`, as End the trial asks it on each): Botan, sentenced, dies once - one
+       execution card, no failure, the record stamped. Until the fix each GM carried it out in its own browser. */
+    begin("R", "the record's writes and the sentence carried out on the primary, whichever GM asks");
+    const Vr = `const V = await import("${repoUrl}/scripts/vote.mjs");`;
+    await gm2.eval(`globalThis.__s63rClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        globalThis.__s63rProgress = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        globalThis.__s63rCards = new Set(game.messages.map(m => m.id));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63rClock, phase: "classTrial" });
+        await game.settings.set("${MOD}", "trialProgress", { chapter: globalThis.__s63rClock.chapter });
+        return true;`);
+    await settle(800);
+    await gm3.eval(`const settings = game.settings, real = settings.set;
+        globalThis.__s63rHold = { real, held: 0 };
+        settings.set = async function (namespace, key, value, ...rest) {
+            if (namespace === "${MOD}" && key === "trialProgress") { globalThis.__s63rHold.held++; await new Promise(r => setTimeout(r, 1500)); }
+            return real.call(this, namespace, key, value, ...rest);
+        };
+        ${Vr} globalThis.__s63rWrite = V.setTrialProgress({ topic: "S63 R: the question" });
+        return true;`);
+    await settle(300);
+    await gm2.eval(`${Vr} await V.setTrialProgress({ debateAgain: true }); return true;`);
+    const rHeld = await gm3.eval(`await globalThis.__s63rWrite; const h = globalThis.__s63rHold; game.settings.set = h.real; return h.held;`, { timeout: 30000 });
+    await settle(800);
+    const rRecord = await gm2.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}; return [r.topic ?? null, r.debateAgain ?? null];`);
+    verdict("gm3's write of the question and gm2's debate-again mark, made within one round trip, both stand in the record - gm3 wrote nothing of its own",
+        J(rRecord) === J(["S63 R: the question", true]) && rHeld === 0, J({ rRecord, rHeld }));
+    await gm2.eval(`${Vr} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const botan = game.actors.get("${IDS.botan}"); if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        const chapter = globalThis.__s63rClock.chapter;
+        await game.settings.set("${MOD}", "trialProgress", { ...V.trialProgress(chapter), chapter, verdictApplied: true, executedAt: null, execution: null,
+            verdict: { stage: "done", correct: false, executedIds: ["${IDS.botan}"], sentenced: ["${IDS.botan}"], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] } });
+        return true;`);
+    await settle(800);
+    const rExit = c => c.eval(`${Vr} const out = await V.executeAtExit(); return out ? out.executed.length : null;`, { timeout: 60000 });
+    const rBoth = await Promise.all([rExit(gm2), rExit(gm3)]);
+    await settle(1500);
+    const rAfter = await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const r = game.settings.get("${MOD}", "trialProgress") ?? {};
+        return { dead: C.isDeceased(game.actors.get("${IDS.botan}")), stamped: Number.isFinite(r.executedAt), failed: r.execution?.failed ?? null,
+            cards: game.messages.filter(m => !globalThis.__s63rCards.has(m.id) && m.getFlag("${MOD}", "executionCard")).length };`);
+    verdict("gm2 and gm3 ending the trial together carry Botan's sentence out once, on the primary: one execution card, no failure, the record stamped",
+        rAfter.dead && rAfter.stamped && J(rAfter.failed) === J([]) && rAfter.cards === 1, J({ rBoth, rAfter }));
+    await gm2.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const botan = game.actors.get("${IDS.botan}"); if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        for (const m of game.messages.filter(x => !globalThis.__s63rCards.has(x.id) && x.getFlag("${MOD}", "executionCard"))) await m.delete();
+        await game.settings.set("${MOD}", "clock", globalThis.__s63rClock);
+        await game.settings.set("${MOD}", "trialProgress", globalThis.__s63rProgress); return true;`, { timeout: 60000 });
+    await settle(500);
+
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

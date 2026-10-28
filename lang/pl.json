@@ -1453,7 +1453,8 @@
       "executionPending": "Egzekucja, gdy rozprawa się skończy: {names}.",
       "executionNow": "Wyrok zostaje wykonany teraz: {names}.",
       "executionCardTitle": "EGZEKUCJA",
-      "executionFailed": "Nie udało się wykonać wyroku na: {names}. Jeśli wyrok obowiązuje, oznacz śmierć w oknie graczy.",
+      "executionFailed": "Nie udało się wykonać wyroku na: {names}. Moduł spróbuje ponownie przy następnej zmianie fazy i po przeładowaniu strony przez GM-a; jeśli znów się nie uda, oznacz śmierć w oknie graczy.",
+      "finalSentenceMissing": "Werdykt Final Trial czeka na wykonanie, ale ta przeglądarka nie wie, kogo skazano. Wczytaj tu kopię zapasową GM-ów albo wydaj werdykt Final jeszcze raz.",
       "levelUpGranted": {
         "one": "{n} ocalały dostał tu swój Level Up: {kind}.",
         "few": "{n} ocalałych dostało tu swój Level Up: {kind}.",
@@ -3302,6 +3303,7 @@
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
         "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
         "trial.enter": "Głosy Class Trial ustawiane przy jej otwarciu lub końcu",
+        "trial.record": "Zapis przebiegu Class Trial przez GM-a, wykonywany przez głównego GM-a",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
