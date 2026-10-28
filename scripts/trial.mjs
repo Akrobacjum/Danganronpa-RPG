@@ -390,6 +390,17 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
         const data = item ? truthBulletData(bulletAsHeld(item)) : null;
         if (!data) return { refused: "that character holds no such Truth Bullet" };
         const shown = analysis !== false;
+        /* NOTHING POSTED THAT CANNOT BE HANDED OUT (E70 fix p2-G4; the review's E70P2-R07): the answer keys not open on
+           this primary (a reload a moment ago) or the bullet's own key missing were found by the first copy, after the
+           card was on every screen - the presenter read "not done", pressed again, and a second card went out. Asked
+           first; a refusal posts nothing. */
+        const { answerKeysRefusal } = await import("./gm-stores.mjs");
+        const notOpen = await answerKeysRefusal();
+        if (notOpen) return { refused: notOpen };
+        if (!secretOf(item.uuid).realType) {
+            await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Handover.answerKeyMissing", { name: data.name }))}</p>`);
+            return { refused: "the answer key for that bullet is not on this GM's browser" };
+        }
 
         try {
             await announce({
@@ -411,7 +422,9 @@ export async function presentOnPrimary({ actorId, itemId, comment = "", analysis
         const { trialParticipants } = await import("./vote.mjs");
         const trace = secretOf(item.uuid).remnantId ?? null;
         let copies = 0, noKey = false;
-        for (const { actor: to } of trialParticipants()) {
+        // Every participant's student, connected or not (E70 fix p2-G4; the review's P2R-03): a player reloading now
+        // would otherwise never get the copy the rest of the table holds.
+        for (const { actor: to } of trialParticipants({ connected: false })) {
             if (to.id === actor.id) continue;
             // A bullet with no trace behind it (a GM's own) has no trace to count copies by: by its name and words.
             if (!trace && to.items.some(other => isTruthBullet(other) && other.name === data.name
@@ -521,13 +534,16 @@ export function holderView(data) {
  * The holder's view of a bullet shown WITHOUT the Analyze result (E70 C10, 28.10.2026; B2, the owner's "'bez' ukrywa
  * też zidentyfikowany typ"): what it showed before any Analyze - its unanalysed type (truth-bullets.mjs
  * `unanalysedType`: a Key stays a Key, the rest Neutral), no reading, no Faint. A new object; the view handed in is not
- * touched (R1045).
+ * touched (R1045). A Key keeps its Faint (E70 fix p2-G4; the review's BEH-1, P2R-05, E70P2-R06): it is born identified,
+ * so its Faint shows from the find on and no Analyze gave it - and every copy, a Key born identified too, shows it
+ * (truth-bullets.mjs `createTruthBullet`), so the card hid what each receiver's sheet then showed.
  */
 export function unreadView(view) {
     if (!view) return view;
     const type = unanalysedType(view.shownType ?? "neutral");
-    return { ...view, shownType: type, shownLabel: TRUTH_BULLET_TYPES[type]?.label ?? type, faint: false,
-        identified: type !== "neutral", analyzedText: "" };
+    const identified = type !== "neutral";
+    return { ...view, shownType: type, shownLabel: TRUTH_BULLET_TYPES[type]?.label ?? type, faint: identified && Boolean(view.faint),
+        identified, analyzedText: "" };
 }
 
 /**
@@ -539,7 +555,7 @@ export function analysisOffered(view) {
     if (!view) return false;
     const unread = unreadView(view);
     return Boolean(view.analyzed) || Boolean(view.analyzedText) || view.shownType !== unread.shownType
-        || Boolean(view.faint && view.identified);
+        || Boolean(view.faint && view.identified && !unread.faint);
 }
 
 /**

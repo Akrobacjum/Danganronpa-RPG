@@ -780,7 +780,7 @@ function sendBallots(voters, picks, round) {
  * a cast and an ask) - on another GM's browser, which holds no mark of its own, the document's,
  * as before.
  */
-export function trialParticipants() {
+export function trialParticipants({ connected = true } = {}) {
     const out = [];
     const seated = new Set();
     for (const actor of studentActors()) {
@@ -792,7 +792,9 @@ export function trialParticipants() {
         const held = flagsHeldNow(actor);
         if (held.getFlag(MODULE_ID, FLAGS.monocub)) continue;
         if (!TRIAL.deadCastBallots && (isDeceased(held) || isMutedDead(actor))) continue;
-        const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+        // `connected` false (E70 fix p2-G4): the student's player whether or not they are connected now - the copies a
+        // Reveal or a Present hands out, which a player reloading at that moment must still get.
+        const user = game.users.find(u => !u.isGM && (u.active || !connected) && actor.testUserPermission(u, "OWNER"));
         if (!user || seated.has(user.id)) continue;
         seated.add(user.id);
         out.push({ user, actor });

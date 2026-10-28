@@ -25376,12 +25376,15 @@ const INVARIANTS = [
         const analysed = view({ shownType: "incident", shownLabel: "Incident", faint: true, identified: true, analyzed: true, analyzedText: "R1045 the reading" });
         const keyRead = view({ shownType: "key", shownLabel: "Key", identified: true, analyzed: true, analyzedText: "R1045 the Key's reading" });
         const keyUnread = view({ shownType: "key", shownLabel: "Key", identified: true });
+        // A Faint Key never analysed (E70 fix p2-G4; the review's BEH-1): a Key is born identified and its Faint shows from
+        // the find on, so nothing of it is an Analyze's - kept without the result, and no choice offered for it.
+        const keyFaint = view({ shownType: "key", shownLabel: "Key", identified: true, faint: true });
         if (typeof T.analysisOffered === "function") {
-            read.offered = [view(), keyUnread, analysed, keyRead, view({ analyzed: true, identified: true })].map(v => T.analysisOffered(v));
+            read.offered = [view(), keyUnread, analysed, keyRead, view({ analyzed: true, identified: true }), keyFaint].map(v => T.analysisOffered(v));
         }
         if (typeof T.unreadView === "function") {
             const cut = v => { const u = T.unreadView(v); return [u.shownType, u.analyzedText, u.faint, u.identified, u.playerText, u.name]; };
-            read.unread = [cut(analysed), cut(keyRead), cut(view())];
+            read.unread = [cut(analysed), cut(keyRead), cut(view()), cut(keyFaint)];
             read.untouched = analysed.analyzedText === "R1045 the reading" && analysed.shownType === "incident";
         }
         equal(stableJson(read), stableJson({
@@ -25390,9 +25393,9 @@ const INVARIANTS = [
                 none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
                 testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
             },
-            offered: [false, false, true, true, true],
+            offered: [false, false, true, true, true, false],
             unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
-                ["neutral", "", false, false, "R1045 the words", "R1045 bullet"]],
+                ["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", true, true, "R1045 the words", "R1045 bullet"]],
             untouched: true
         }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
             + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");

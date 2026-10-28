@@ -2038,6 +2038,7 @@
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",
       "foundBy": "Znalazł",
+      "revealedByMonokuma": "Ujawnione przez Monokumę",
       "tooThin": "Znaleziono tylko {found} Key Remnants. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
       "whoHasWhat": "Kto co ma",
       "student": "Uczeń",

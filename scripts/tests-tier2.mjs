@@ -40260,7 +40260,17 @@ const SCENARIOS = [
 
                 /* (3) A by the GMs' row, from a player and from this GM. */
                 const forged = await judged({ action: "trial.gm", requestId: "E70T11P", op: "reveal", slot: "17" }, parts[0].user.id);
-                const done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
+                /* The second participant's player reloading at the Reveal (E70 fix p2-G4; the review's P2R-03, E70P2-R11): read
+                   as not connected for the Reveal's step. Their student is in the trial and gets the copy all the same - the
+                   slot leaves the list, so nothing would hand it over later. Red at the fix's parent: no copy for them. */
+                const away = parts[1].user;
+                Object.defineProperty(away, "active", { get: () => false, configurable: true });
+                let done = null;
+                try {
+                    done = await judged({ action: "trial.gm", requestId: "E70T11G", op: "reveal", slot: "17" }, game.user.id);
+                } finally {
+                    delete away.active;
+                }
                 await sheetAuditIdle();
                 await settle();
                 const copyA = parts.map(p => copiesOf(p.actor, ofA));
@@ -40288,6 +40298,12 @@ const SCENARIOS = [
                 read.revealC = [Boolean(c), parts.map(p => copiesOf(p.actor, saying(words.gm)).length),
                     parts.map(p => copiesOf(p.actor, saying(words.gm)).map(item => T.secretOf(item.uuid).realType)).flat(),
                     I.keyPlanStatus().entries[19]?.found ?? null, M.revealLeft(I.keyRevealRecord(chapter))];
+                /* The dashboard's Key tab names the Reveal (E70 fix p2-G4; the review's BEH-5, P2R-08, E70P2-R13): C, revealed
+                   with no trace, has copies with no trace behind them, so "Found by" read nobody; the plan's reveal row is the
+                   source, drawn as "Revealed by Monokuma". Red at the fix's parent: the row read "Found by: " and no more. */
+                const revealedWord = game.i18n.localize("DRPG.Investigation.revealedByMonokuma");
+                const tab = I.caseKeyRows({ plan: I.keyPlan(), status: I.keyPlanStatus(), placed: [], limit: null, roomOptionsFor: () => "", visOptionsFor: () => "" });
+                read.dashboard = [revealedWord !== "DRPG.Investigation.revealedByMonokuma", tab.split("<tr").filter(row => row.includes(revealedWord)).length];
 
                 /* (6) D, past the count. */
                 await S.keyPlanStore.patch(keys.D, { scale: "standard", name: "E70T11 D", text: words.D });
@@ -40341,10 +40357,11 @@ const SCENARIOS = [
             revealA: [["bridge.refused"], ["bridge.done"], Array(n).fill(1), Array(n).fill(["key", "key", true, false]), false, false, true, 1, true],
             again: [null, ["bridge.refused"], Array(n).fill(1)],
             revealC: [true, Array(n).fill(1), Array(n).fill("key"), true, 0],
+            dashboard: [true, 2],
             beyond: [null, ["bridge.refused"], Array(n).fill(0), true, Array(n).fill(1)],
             analyze: [true, false, true]
-        }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM: the copies each, typed and read, "
-            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; (6) D past the count by the API and by the GMs' row, the copies, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
+        }), "(1) the fee's count, its pools, asked twice; (2) the missing rows A, B, C, a participant holding A's words, the count; (3) A from a player and from this GM (the second participant's player away): the copies each, typed and read, "
+            + "the token hidden, A still missing, found on the plan, the count, each told; (4) A again; (5) C with the GM's words; the Key tab: the words exist, the rows reading Revealed by Monokuma (A and C); (6) D past the count by the API and by the GMs' row, the copies, then asked past it; (7) the copy offered to Analyze, the row shut, the filter's row");
     }],
 
     ["Present on the primary by \"trial.present\": the card with or without the Analyze result, a copy as shown to every other participant, none twice, refused to somebody else's owner and outside the mode's row, and Share gone from the Truth Bullet's row in the trial (E70-T12)", async () => {
@@ -40387,7 +40404,7 @@ const SCENARIOS = [
             return sent;
         };
         const words = { text: "E70T12 the words the players read", reading: "E70T12 the reading only an Analyze gives" };
-        let token = null, item = null, sheet = null;
+        let token = null, item = null, sheet = null, keyItem = null;
         const read = {};
         const ofTrace = i => T.isTruthBullet(i) && token && T.secretOf(i.uuid).remnantId === token.id;
         const cards = () => game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, TRIAL_FLAGS.present));
@@ -40439,6 +40456,26 @@ const SCENARIOS = [
             const n3 = cards().length;
             read.forged = [await judged(packet(true, "E70T12c"), O.user.id), cards().length - n3];
 
+            /* (3b) A Faint Key shown without the analysis, O's player away (E70 fix p2-G4; the review's BEH-1, P2R-05,
+               E70P2-R06, and P2R-03): a Key is born identified, so its Faint shows from the find on - no Analyze gave it -
+               and the card keeps it as the copy does (unreadView); the reading stays off both. O, reloading, gets the copy
+               all the same. Red at the fix's parent: the card hid Faint while every copy showed it, and O got none. */
+            keyItem = await T.createTruthBullet(P.actor, { name: "E70T12 the Faint Key", realType: "key", faint: true, analyzed: true,
+                playerText: "E70T12 the Key's words", analyzedText: "E70T12 the Key's reading" });
+            must(keyItem, "the presenter's Faint Key was not made");
+            await settle();
+            const nk = cards().length;
+            Object.defineProperty(O.user, "active", { get: () => false, configurable: true });
+            let keyAnswer = null;
+            try {
+                keyAnswer = await judged({ action: "trial.present", requestId: "E70T12k", actorId: P.actor.id, itemId: keyItem.id, comment: "", bare: true }, P.user.id);
+            } finally {
+                delete O.user.active;
+            }
+            read.faintKey = [keyAnswer, cards().slice(nk).map(m => [/drpg-tb-badge faint/.test(m.content), m.content.includes("E70T12 the Key's reading")]),
+                others.map(o => o.actor.items.filter(i => T.isTruthBullet(i) && i.name === "E70T12 the Faint Key")
+                    .map(i => [Boolean(T.truthBulletData(i).faint), T.truthBulletData(i).analyzedText]))];
+
             /* (4) Testimony, O speaking. */
             await (await import("./trial-modes.mjs")).startTestimony({ seconds: 60, order: [O.actor.id, P.actor.id] });
             await settle();
@@ -40462,7 +40499,7 @@ const SCENARIOS = [
         } finally {
             sheet?.remove();
             for (const actor of game.actors) {
-                for (const held of actor.items.filter(i => ofTrace(i) || i.id === item?.id)) {
+                for (const held of actor.items.filter(i => ofTrace(i) || i.id === item?.id || (T.isTruthBullet(i) && i.name === "E70T12 the Faint Key"))) {
                     const uuid = held.uuid;
                     await held.delete();
                     await T.dropSecret(uuid);
@@ -40487,11 +40524,12 @@ const SCENARIOS = [
             without: [["bridge.done"], [[true, true, false, false, false]], Array(n).fill(1), 1, Array(n).fill(["neutral", false, "", true, "incident"]), true],
             withIt: [["bridge.done"], [[true, true, true, true, true]], Array(n).fill(1)],
             forged: [["bridge.refused"], 0],
+            faintKey: [["bridge.done"], [[true, false]], Array(n).fill([[true, ""]])],
             mode: [["bridge.refused"], 0, Array(n).fill(1)],
             row: [true, true, "true", true, false],
             outside: [true, false, true]
         }), "(0) Share by the bridge in the trial: the answers [action, reason], O's copies; (1) without the analysis: the answer, the card (a GM's, the words, the reading, the type, Faint), the copies each, the presenter's own, each copy's type, reading and words and its answer key, each told; "
-            + "(2) with it: the answer, the card, still one copy each; (3) from another's owner: the answer, cards posted; (4) in Testimony with O speaking: the answer, cards posted, copies; "
+            + "(2) with it: the answer, the card, still one copy each; (3) from another's owner: the answer, cards posted; (3b) a Faint Key without the analysis, O away: the answer, the card [Faint, the reading], each copy [Faint, its reading]; (4) in Testimony with O speaking: the answer, cards posted, copies; "
             + "(5) the row in the trial: drawn, Present, held, its reason, Share; outside the trial: drawn, Present, Share");
     }],
 

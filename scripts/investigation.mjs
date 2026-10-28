@@ -1900,7 +1900,13 @@ export function caseKeyRows({ plan, status, placed, limit }) {
         const here = placed.find(r => r.token.id === entry.tokenId)?.data ?? null;
         const shows = keyRowShows(entry, placed);
         const context = traceContextLine(here);
-        const state = !entry.tokenId
+        /* REVEALED BY MONOKUMA (E70 fix p2-G4; the review's BEH-5, P2R-08, E70P2-R13): the plan's reveal row (keyPlanStatus
+           `revealed`) is the find's source; a slot with no trace has copies with no trace behind them, so "Found by" named
+           nobody, and a trace's finders read as if they had found it. */
+        const revealedBy = `<strong>${game.i18n.localize("DRPG.Investigation.revealedByMonokuma")}</strong>`;
+        const state = st?.revealed
+            ? `${revealedBy}${st.finders?.length ? ` · ${game.i18n.localize("DRPG.Investigation.foundBy")}: ${esc(st.finders.join(", "))}` : ""}`
+            : !entry.tokenId
             ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
             : !st.placed
                 ? `<strong>${game.i18n.localize(st.retyped ? "DRPG.Investigation.keyRetyped" : "DRPG.Investigation.tokenGone")}</strong>`

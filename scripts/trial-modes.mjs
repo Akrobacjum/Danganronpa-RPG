@@ -416,7 +416,9 @@ export async function revealInStep({ slot = null, text = "", beyondPaid = false 
     const data = tokenDoc ? remnantData(tokenDoc) : null;
     const name = row.name || game.i18n.localize("DRPG.Reveal.defaultName");
     let copies = 0;
-    for (const { actor } of trialParticipants()) {
+    /* Every participant's student, connected or not (E70 fix p2-G4; the review's P2R-03, E70P2-R11): the row is written
+       revealed below and leaves the list, so a player reloading at the Reveal would never get the copy. */
+    for (const { actor } of trialParticipants({ connected: false })) {
         // None twice (E70-63): a participant already holding a copy of the trace keeps theirs. In the character's
         // finds' queue (observe.mjs `observeFindKey`), so an Observe's find landing now is one copy with this.
         const made = await serialWrite(observeFindKey(actor.id), () => (row.tokenId && copiedRemnants(actor).has(row.tokenId)) ? null : createTruthBullet(actor, {
