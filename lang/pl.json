@@ -3705,6 +3705,7 @@
         "other": "{n} uczniów ma jeszcze akcje do wydania."
       },
       "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
+      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne w oknie Ustaw sezon: {step}.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
       "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
@@ -4699,6 +4700,9 @@
       "noNamedRegions": "Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
+      "campaignBlock": "Ta kampania",
+      "startHereTitle": "Od czego zacząć",
+      "startHereText": "Zacznij tutaj: panel GM-a > Ustaw sezon. Jego lista prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
       "fixedCursor": {
         "one": "Wyłączono udostępnianie kursora dla {n} roli.",
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",

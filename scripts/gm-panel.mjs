@@ -22,6 +22,7 @@ import { trialScene } from "./rooms.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, crossingStore } from "./gm-stores.mjs";
+import { firstOutstandingStep } from "./season-setup.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1181,7 +1182,7 @@ async function toggleEclipse() {
  *
  * @returns {{text: string, action: string|null}}
  */
-export function nextStep(clock) {
+export function nextStep(clock, { setupList } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -1330,6 +1331,25 @@ export function nextStep(clock) {
                 ? game.i18n.format("DRPG.Panel.nextBodyWaiting", { room: esc(room) })
                 : game.i18n.localize(findable.length ? "DRPG.Panel.nextBodyWaitingNoRoom" : "DRPG.Panel.nextBodyWaitingUnseen"),
             action: "bodyDialog"
+        };
+    }
+
+    /* A SEASON NOT SET UP YET (E20 C4, S10-57; Q-8). On a fresh world - no student, no room - the line below said
+       "Everyone has spent their actions. Start the Eclipse" with a Do it that started an Eclipse over nobody, on the
+       first screen a new GM opens. Until every required row of Set the season up holds, Daily Life's line names its
+       first row not done and opens that window (R1512). Read only here, where the line would otherwise count actions:
+       a murder, an Eclipse, a trial and a body come first. `setupList` is the checklist as `steps()` draws it, handed
+       in by R1512. */
+    let outstanding = null;
+    try {
+        outstanding = firstOutstandingStep(setupList);
+    } catch (err) {
+        error("Could not read Set the season up for the Next line", err);
+    }
+    if (outstanding) {
+        return {
+            text: game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${outstanding.key}`) }),
+            action: "seasonSetup"
         };
     }
 

@@ -626,10 +626,105 @@ function despairSplitEven() {
     return counts[0].n - counts[counts.length - 1].n <= 1;
 }
 
-/** Open the sheet of the first character a row is waiting on. */
-function openFirstSheet(names) {
+/**
+ * THE FIRST STEP (E20 C4, S10-57; Q-8): the first row a season still needs - neither optional nor done - or null
+ * once every required row holds. The GM panel's Next line names it until then (gm-panel.mjs `nextStep`), so a world
+ * with no cast is sent here and not to the Eclipse.
+ */
+export function firstOutstandingStep(list = steps()) {
+    return list.find(step => !step.done && !step.optional) ?? null;
+}
+
+/**
+ * Open the sheet of the first character a row is waiting on.
+ * Awaited since E20 C4 (S06-30): the checklist comes back once this resolves and raises what opened in the meantime
+ * (`raiseOpened`), so the sheet has to be on the page by then, not still rendering.
+ */
+async function openFirstSheet(names) {
     const first = studentActors().find(a => names.some(n => n.startsWith(a.name)));
-    first?.sheet?.render(true);
+    await first?.sheet?.render({ force: true });
+}
+
+/* ==========================================================================
+ * WHAT A ROW'S OPEN OPENED (E20 C4, S06-30)
+ * --------------------------------------------------------------------------
+ * A row's Open closes the checklist, opens its window and brings the checklist back, built fresh. A window that does
+ * not hold the errand until it closes - a character's sheet, or a window already open that `alreadyOpen` only raises -
+ * was left under the checklist that came back over it, and the Open looked like it did nothing. The windows the
+ * errand opened or raised are read against the stack taken before it, and raised again over the new checklist.
+ * Foundry's windows only (ApplicationV2); whether `position.zIndex` moves as read here is not measured on a real
+ * Foundry (the harness's windows carry none).
+ * ========================================================================== */
+
+const zOf = app => Number(app?.position?.zIndex) || 0;
+const standing = app => Boolean(app?.rendered && app.element?.isConnected);
+
+/** Every window on the page, by id, with how high it stands - taken before a row acts. */
+export function windowStack(apps = foundry.applications.instances.values()) {
+    const stack = new Map();
+    for (const app of apps) if (standing(app)) stack.set(app.id, zOf(app));
+    return stack;
+}
+
+/** The windows opened since `before`, or raised above where they stood then; never the checklist itself. */
+export function windowsOpenedSince(before, apps = foundry.applications.instances.values()) {
+    return [...apps].filter(app => standing(app) && !app.options?.classes?.includes("drpg-window-season")
+        && (!before.has(app.id) || zOf(app) > before.get(app.id)));
+}
+
+/** Bring those windows in front of the checklist that came back; answers them. */
+export function raiseOpened(before, apps = foundry.applications.instances.values()) {
+    const opened = windowsOpenedSince(before, apps);
+    for (const app of opened) {
+        try { app.bringToFront?.(); } catch (err) { error("Could not bring a window in front of Set the season up", err); }
+    }
+    return opened;
+}
+
+/**
+ * The campaign's three fields, in one block at the top of the window (E20 C4, S06-30): Save writes them, and a GM who
+ * presses it should have them in sight. The name field carries `autofocus`, so the window's own focusing lands on it
+ * rather than on the footer's Save (S01-19).
+ */
+export function campaignFieldsHtml(clock, word) {
+    return `<fieldset class="drpg-setup-campaign">
+            <legend>${esc(game.i18n.localize("DRPG.Season.campaignBlock"))}</legend>
+            <label>${esc(game.i18n.localize("DRPG.Season.campaignName"))}
+                <input type="text" name="campaignName" autofocus
+                       value="${esc(clock?.campaignName ?? "")}"
+                       placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
+            <label>${esc(game.i18n.localize("DRPG.Season.chapter"))}
+                <input type="number" name="chapter" min="1" max="${Math.max(CHAPTERS_PER_SEASON, Number(clock?.chapter) || 1)}"
+                       value="${Number(clock?.chapter) || 1}" /></label>
+            <!--
+              E15: the safeword, next to the campaign's name and not buried in a
+              settings menu. It is a decision a table makes once, at the same
+              moment it decides what the campaign is called - and a safety tool
+              filed under configuration is a safety tool nobody has read.
+            -->
+            <label>${esc(game.i18n.localize("DRPG.Season.safeword"))}
+                <input type="text" name="safeword"
+                       value="${esc(word ?? "")}"
+                       placeholder="${esc(DEFAULT_SAFEWORD)}" /></label>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Season.safewordNote"))}</p>
+        </fieldset>`;
+}
+
+/**
+ * THE WINDOW OPENS AT ITS TOP (E20 C4, S01-19). Save is the default button, and DialogV2 marks the default with
+ * `autofocus`; with the footer pinned across the scroll (utils.mjs `pinFooterAcrossScroll`), focusing it is the likely
+ * reason the window opened scrolled to the bottom (the audit's reading; not measured on a real Foundry here). Save
+ * stays the default for Enter; only its autofocus goes, the campaign name takes the focus without scrolling, and the
+ * content is put back at its top. Answers the field it focused.
+ */
+export function seasonOpening(root) {
+    if (!root) return null;
+    for (const button of root.querySelectorAll("footer [autofocus]")) button.removeAttribute("autofocus");
+    const first = root.querySelector('.drpg-setup-campaign input[name="campaignName"]');
+    try { first?.focus({ preventScroll: true }); } catch { /* a field that cannot take the focus still leaves the top in view */ }
+    const content = root.querySelector(".window-content");
+    if (content) content.scrollTop = 0;
+    return first ?? null;
 }
 
 /* ==========================================================================
@@ -753,6 +848,8 @@ function wireSetupSteps(dialog, onHandOff) {
             ev.preventDefault();
             const step = steps().find(s => s.key === button.dataset.step);
             if (!step) return;
+            // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
+            const before = windowStack();
             try {
                 if (button.dataset.undo && step.undo) {
                     const n = await step.undo();
@@ -789,12 +886,12 @@ function wireSetupSteps(dialog, onHandOff) {
              * the reopen. They are read here, BEFORE the close, and painted back.
              */
             const draft = readDraft(dialog.element);
-            onHandOff(handOff(dialog, () => openSeasonSetup({ draft })));
+            onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
         });
     }
 }
 
-export async function openSeasonSetup({ draft = null } = {}) {
+export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -827,25 +924,7 @@ export async function openSeasonSetup({ draft = null } = {}) {
                 ? "DRPG.Season.introOutstanding"
                 : "DRPG.Season.introReady", { n: outstanding }))}</p>
 
-            <label>${esc(game.i18n.localize("DRPG.Season.campaignName"))}
-                <input type="text" name="campaignName"
-                       value="${esc(clock.campaignName ?? "")}"
-                       placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
-            <label>${esc(game.i18n.localize("DRPG.Season.chapter"))}
-                <input type="number" name="chapter" min="1" max="${Math.max(CHAPTERS_PER_SEASON, Number(clock.chapter) || 1)}"
-                       value="${Number(clock.chapter) || 1}" /></label>
-
-            <!--
-              E15: the safeword, next to the campaign's name and not buried in a
-              settings menu. It is a decision a table makes once, at the same
-              moment it decides what the campaign is called - and a safety tool
-              filed under configuration is a safety tool nobody has read.
-            -->
-            <label>${esc(game.i18n.localize("DRPG.Season.safeword"))}
-                <input type="text" name="safeword"
-                       value="${esc(safeword())}"
-                       placeholder="${esc(DEFAULT_SAFEWORD)}" /></label>
-            <p class="notes">${esc(game.i18n.localize("DRPG.Season.safewordNote"))}</p>
+            ${campaignFieldsHtml(clock, safeword())}
 
             <ul class="drpg-setup-list">${rows}</ul>
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
@@ -882,6 +961,9 @@ export async function openSeasonSetup({ draft = null } = {}) {
              */
             wireRoomCheck(dialog);
             wireSetupSteps(dialog, trip => { roundTrip = trip; });
+            // At its top, on its first field (S01-19); then what a row's Open opened, in front of it (S06-30).
+            seasonOpening(dialog.element);
+            if (opened) raiseOpened(opened);
         },
         rejectClose: false
     });
@@ -906,6 +988,49 @@ export async function openSeasonSetup({ draft = null } = {}) {
 
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/* ==========================================================================
+ * START HERE (E20 C4, S01-61)
+ * --------------------------------------------------------------------------
+ * A GM who turns the module on sees a new look and a GM button, and nothing says that a season is built in Set the
+ * season up. On a world with no campaign name and no student, a GM is told so once, with a button that opens it.
+ * Once per browser (a client setting, `startHereShown`), marked when shown: a GM who closes it has read it.
+ * ========================================================================== */
+
+/** Whether "Start here" is due: a GM, no campaign name, no student, not told on this browser before. */
+export function startHereDue({ isGM, campaignName, students, shown }) {
+    return Boolean(isGM) && !String(campaignName ?? "").trim() && Number(students) === 0 && !shown;
+}
+
+/**
+ * At `ready`: tell a GM where to start when `startHereDue` says so. Answers whether it was told. Every input can be
+ * handed in (R1513 hands a settings stand-in and an `ask` that counts); the window itself is `askStartHere`.
+ */
+export async function offerStartHere({ user = game.user, clock = getClock(), roster = studentActors(), settings = game.settings,
+    ask = askStartHere } = {}) {
+    let shown = false;
+    try { shown = Boolean(settings.get(MODULE_ID, SETTINGS.startHereShown)); } catch { shown = false; }
+    if (!startHereDue({ isGM: user?.isGM, campaignName: clock?.campaignName, students: roster?.length ?? 0, shown })) return false;
+    try { await settings.set(MODULE_ID, SETTINGS.startHereShown, true); } catch (err) { error("Could not note that Start here was shown", err); }
+    // Not awaited: a window the GM reads while the rest of `ready` goes on.
+    try { Promise.resolve(ask()).catch(err => error("Could not say where to start", err)); } catch (err) { error("Could not say where to start", err); }
+    return true;
+}
+
+/** The notice: where to start, a button to Set the season up, and Close. */
+async function askStartHere() {
+    const answer = await DialogV2.wait({
+        classes: ["drpg-panel", "drpg-window-start-here"],
+        window: { title: game.i18n.localize("DRPG.Season.startHereTitle") },
+        content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Season.startHereText"))}</p>`),
+        buttons: [
+            { action: "open", label: game.i18n.localize("DRPG.Season.title"), default: true },
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+    if (answer === "open") await openSeasonSetup();
 }
 
 /**

@@ -25,6 +25,7 @@ import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
+import { offerStartHere } from "./season-setup.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
@@ -442,6 +443,8 @@ Hooks.once("ready", () => {
     safely("bedroom keys", issueMissingKeys);
     safely("the Remnant actor", reconcileRemnantActorOnLoad);
     safely("item table wording", refreshTableCopyOnLoad);
+    // Last: a GM on a world with no season yet is told once where to start (E20 C4, S01-61; season-setup.mjs).
+    offerStartHere().catch(err => error("Could not say where to start", err));
 });
 
 /**

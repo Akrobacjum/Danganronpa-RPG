@@ -3662,13 +3662,14 @@ const REGRESSIONS = [
         const season = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
         ok(/function readDraft\(/.test(season) && /function paintDraft\(/.test(season),
             "the window cannot carry what was typed across a reopen");
-        ok(/openSeasonSetup\(\{ draft = null \} = \{\}\)/.test(season),
+        // E20 C4 (S06-30) hands the opener the window stack too (`opened`), after the draft.
+        ok(/openSeasonSetup\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
             "the opener cannot be handed a draft");
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
         const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft \}\)\)/.test(rows),
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
             "the row still closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");

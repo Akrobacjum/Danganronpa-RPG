@@ -3567,6 +3567,7 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
+      "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
@@ -4591,7 +4592,10 @@
       },
       "noNamedRegions": "No scene has a named region yet: draw each room as a Scene Region first.",
       "safeword": "Safeword",
-      "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default."
+      "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
+      "campaignBlock": "This campaign",
+      "startHereTitle": "Where to start",
+      "startHereText": "Start here: GM panel > Set the season up. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {

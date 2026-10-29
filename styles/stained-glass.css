@@ -1628,6 +1628,12 @@ body.drpg-theme-stained-glass .drpg-panel small {
     text-transform: none;
     letter-spacing: 0;
 }
+/* Set the season up's hints in the glass's dim bone (E20 C4, S01-21): the panels' fine-print rule in danganronpa.css
+   sets `.notes` in `--drpg-dim` and outranks the line above, as the murder window's note did (danganronpa.css, "Their
+   fine print in the glass's own dim bone"). Which rule reaches the hint is R1515's; the contrast is not measured here. */
+body.drpg-theme-stained-glass .application.dialog.drpg-window-season .drpg-setup-step .drpg-setup-body .notes {
+    color: var(--drpg-sg-bone-dim);
+}
 /* the row a table marks as chosen, and the row under the cursor, in the brush's language */
 body.drpg-theme-stained-glass .drpg-panel table tbody tr.active td,
 body.drpg-theme-stained-glass .drpg-panel table tbody tr.selected td,

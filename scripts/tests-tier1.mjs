@@ -26094,6 +26094,198 @@ const INVARIANTS = [
         }), "a room picture's size or a room's differing pieces go unsaid [the limits; the large pictures and why (pixels, bytes); "
             + "the pictures whose size is unknown; those that do not load | Check rooms' pieces-differ rows: level, room, what differs]");
     }],
+    ["R1512 - the GM panel's Next line sends a season not set up to Season setup's first row not done, never to the Eclipse, until the required rows hold (E20 C4, E20-13; S10-57, Q-8)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S10-57): a GM new to the module opens the panel on a fresh world - no student,
+         * no room - and its Next line says "Everyone has spent their actions. Start the Eclipse" with a Do it that
+         * starts an Eclipse over nobody. Read: `nextStep` in Daily Life handed three checklists - the real one of an
+         * empty world (`steps()` with no cast and no scene), one whose first required row not done is "The cast
+         * exists" behind an optional row not done, and one whose required rows all hold - and the panel's lookup
+         * holding the Season setup tile the line's Do it names. Nothing is written. Red at the parent: no
+         * `firstOutstandingStep`, and the empty world's line was the Eclipse's.
+         */
+        let SS = null, GP = null;
+        try { [SS, GP] = await Promise.all([import("./season-setup.mjs"), import("./gm-panel.mjs")]); } catch { SS = null; }
+        ok(typeof SS?.firstOutstandingStep === "function", "season-setup.mjs exports no firstOutstandingStep");
+        const clock = { ...getClock(), phase: "dailyLife" };
+        const row = (key, done, optional = false) => ({ key, done, optional, missing: () => [] });
+        const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
+        const pending = [row("name", true), row("despairSplit", false, true), row("cast", false), row("resources", false)];
+        const held = [row("name", true), row("cast", true), row("despairSplit", false, true)];
+        const line = list => { const s = GP.nextStep(clock, { setupList: list }); return [s?.text ?? null, s?.action ?? null]; };
+        const emptyFirst = SS.firstOutstandingStep(empty);
+        const setupLine = key => [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${key}`) }), "seasonSetup"];
+        const sources = await moduleSources();
+        must(sources.get("gm-panel.mjs")?.length, "gm-panel.mjs is not among the module's sources - this would measure nothing");
+        const tile = /key:\s*"seasonSetup"/.test(stripComments(sources.get("gm-panel.mjs")));
+        const heldLine = line(held);
+        equal(stableJson({
+            empty: [emptyFirst ? [emptyFirst.done, Boolean(emptyFirst.optional)] : null, line(empty)[1], stableJson(line(empty)) === stableJson(setupLine(emptyFirst?.key))],
+            pending: line(pending), first: SS.firstOutstandingStep(pending)?.key ?? null,
+            held: [SS.firstOutstandingStep(held), heldLine[1] === "seasonSetup", heldLine[1] === "eclipse" || heldLine[1] === null],
+            tile
+        }), stableJson({
+            empty: [[false, false], "seasonSetup", true],
+            pending: setupLine("cast"), first: "cast",
+            held: [null, false, true],
+            tile: true
+        }), "a season not set up is sent to the Eclipse, or one set up is held at Season setup [the empty world: its first row not done (done, optional), "
+            + "the line's action, the line names that row | the first required row not done behind an optional one: the line, the row | every required "
+            + "row holding: no row, the setup line, a Daily Life line | the panel's Season setup tile]");
+    }],
+    ["R1513 - a GM's first start on a world with no campaign name and no student says once where to start, with a button to Season setup (E20 C4, E20-14; S01-61)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-61): a GM new to the module turns it on, sees the new look and a GM button,
+         * and nothing says that a season is built in Set the season up. Read: `offerStartHere` with a settings
+         * stand-in and an `ask` that counts, on a GM with an empty world twice, then with a cast, with a campaign name
+         * and as a player (the stand-in's store cleared before each); the client setting as registered; the ready
+         * hook's call. Nothing is written: the stand-in holds what the setting would. Red at the parent: no
+         * `offerStartHere`.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(typeof SS?.offerStartHere === "function", "season-setup.mjs exports no offerStartHere");
+        const store = new Map();
+        const settings = { get: (scope, key) => store.get(`${scope}.${key}`), set: async (scope, key, value) => { store.set(`${scope}.${key}`, value); return value; } };
+        let asked = 0;
+        const ask = async () => { asked++; };
+        const fx = await e20Fixture();
+        const offer = async (user, campaignName, roster) => {
+            const before = asked;
+            const answer = await SS.offerStartHere({ user, clock: { campaignName }, roster, settings, ask });
+            return [answer, asked - before];
+        };
+        const gm = { isGM: true }, player = { isGM: false };
+        const twice = [await offer(gm, "", []), await offer(gm, "", [])];
+        const kept = [...store.entries()];
+        store.clear();
+        const withCast = await offer(gm, "", [fx.actor("R1513a")]);
+        store.clear();
+        const named = await offer(gm, "R1513 season", []);
+        store.clear();
+        const asPlayer = await offer(player, "", []);
+        const registered = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.startHereShown}`) ?? null;
+        const sources = await moduleSources();
+        must(sources.get("module.mjs")?.length, "module.mjs is not among the module's sources - this would measure nothing");
+        const ready = bodyOf(stripComments(sources.get("module.mjs")), "Hooks.once(\"ready\"", { until: "\n});" });
+        equal(stableJson({
+            twice, kept, withCast, named, asPlayer,
+            registered: registered ? [registered.scope, registered.config, registered.default] : null,
+            ready: /offerStartHere\(/.test(ready)
+        }), stableJson({
+            twice: [[true, 1], [false, 0]], kept: [[`${MODULE_ID}.${SETTINGS.startHereShown}`, true]],
+            withCast: [false, 0], named: [false, 0], asPlayer: [false, 0],
+            registered: ["client", false, false],
+            ready: true
+        }), "a new GM is told where to start more than once, or told on a world in play [a GM on an empty world, twice: shown, asked; what the setting "
+            + "keeps | with a cast | with a campaign name | a player | the client setting: scope, in the settings window, default | the ready hook calls it]");
+    }],
+    ["R1514 - Set the season up opens at its top on its first field, the campaign fields in a block above the list, and a window a row's Open opened is brought in front of it (E20 C4, E20-15; S01-19, S06-30)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-19, S06-30): the window opened scrolled to the bottom - Save is the
+         * default button, autofocused in the pinned footer - so the campaign name and the safeword were out of sight
+         * and Save saved fields nobody saw; and a row's Open (a sheet, a window already open) showed nothing, because
+         * the checklist came back over what it had opened. Read: `seasonOpening` on a window of the suite's own,
+         * attached to the page for the focus and taken off again; `campaignFieldsHtml` drawn on a detached element;
+         * `windowsOpenedSince` and `raiseOpened` over stand-in windows (a new sheet, a window raised by the errand,
+         * one untouched, one closed, the checklist itself). Whether the window shows at its top at 1366x768 is not
+         * measured here (no layout). Nothing is written. Red at the parent: none of the four was exported.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(["seasonOpening", "campaignFieldsHtml", "windowStack", "windowsOpenedSince", "raiseOpened"].every(n => typeof SS?.[n] === "function"),
+            "season-setup.mjs exports no seasonOpening, campaignFieldsHtml, windowStack, windowsOpenedSince or raiseOpened");
+        const root = document.createElement("div");
+        root.className = "application dialog drpg-window-season";
+        root.innerHTML = `<section class="window-content"><form><p>R1514</p>${SS.campaignFieldsHtml({ campaignName: "R1514" }, "R1514word")}
+            <ul class="drpg-setup-list"><li><button type="button">R1514 row</button></li></ul></form></section>
+            <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1514 save</button></footer>`;
+        let opening = null;
+        document.body.append(root);
+        try {
+            opening = [SS.seasonOpening(root)?.name ?? null, document.activeElement?.name ?? null,
+                root.querySelector("footer [autofocus]") ? "footer" : null];
+        } finally {
+            root.remove();
+        }
+        const block = root.querySelector(".drpg-setup-campaign");
+        const fields = [...(block?.querySelectorAll("input[name]") ?? [])].map(i => [i.name, i.hasAttribute("autofocus")]);
+        const app = (id, z, classes = []) => ({ id, rendered: true, element: { isConnected: true }, position: { zIndex: z }, options: { classes },
+            raised: 0, bringToFront() { this.raised++; } });
+        const panel = app("r1514panel", 10), raisedOne = app("r1514old", 5), sheet = app("r1514sheet", 40),
+            season = app("r1514season", 50, ["drpg-window-season"]), gone = { ...app("r1514gone", 60), rendered: false };
+        const before = SS.windowStack([panel, raisedOne, gone]);
+        raisedOne.position.zIndex = 30;
+        const apps = [panel, raisedOne, sheet, season, gone];
+        const opened = SS.windowsOpenedSince(before, apps).map(a => a.id);
+        const raised = SS.raiseOpened(before, apps).map(a => a.id);
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const open = fnSource(src, "openSeasonSetup"), wire = fnSource(src, "wireSetupSteps");
+        equal(stableJson({
+            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("drpg-setup-list"),
+            opened, raised, counts: apps.map(a => a.raised),
+            wired: [/seasonOpening\(dialog\.element\)/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
+        }), stableJson({
+            opening: ["campaignName", "campaignName", null],
+            fields: [["campaignName", true], ["chapter", false], ["safeword", false]], blockFirst: true,
+            opened: ["r1514old", "r1514sheet"], raised: ["r1514old", "r1514sheet"], counts: [0, 1, 1, 0, 0],
+            wired: [true, true, true]
+        }), "Set the season up opens away from its top, or a row's Open stays behind it [the opening: focused, the page's focus, an autofocus left in "
+            + "the footer | the campaign block's fields, autofocus | the block before the list | the windows the errand opened or raised; raised; each "
+            + "window's raises | the window calls the opening and the raise, the row takes the stack before it acts]");
+    }],
+    ["R1515 - Set the season up reads left-aligned at the module's base size, its names line in the row's state, and a done row steps back by its title and mark, in both themes (E20 C4, E20-16; S01-21, S06-30, S12-20, Q-4)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-21, S06-30, S12-20): the hints were 13 px, dimmed and centred (the season
+         * window, `drpg-wide`, was left out of the "Left, not centred" rule), the line naming who a row waits on was
+         * 11 px in the alarm red even on a row that only waits, and a done row was 0.55 opacity whole - its hint and its
+         * button at about 2:1 (the audit's reading, not measured here). Read: the cascade of the module's sheets from
+         * their text (`styleCascade`), on a season window built on a body of its own, in both themes: the intro, a
+         * hint, a missing row's names line, a waiting row's, a done row and its title and mark, the window's content
+         * box; the hint's colour, each theme's dim. Contrast and the drawn sizes are not measured here (no layout). Red at the parent: the hint at
+         * text-sm and centred, the names line at text-xs in red on both rows, the done row at opacity 0.55.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-wide drpg-window-season"><section class="window-content">
+                <form class="dialog-form"><div class="dialog-content"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
+                <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
+                <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
+                    <div class="drpg-setup-missing">R1515</div></div></li>
+                <li class="drpg-setup-step optional waiting"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong>
+                    <div class="drpg-setup-missing">R1515</div></div></li>
+                </ul></div></form></section></div>`;
+            const q = s => body.querySelector(s);
+            const value = (el, names) => C.winner(el, names)?.value ?? null;
+            const hint = q(".r1515missing .notes"), done = q(".drpg-setup-step.done");
+            return {
+                intro: value(q(".r1515intro"), "text-align"),
+                hint: [value(hint, "font-size"), value(hint, "text-align"), value(hint, "color")],
+                names: [value(q(".r1515missing .drpg-setup-missing"), "font-size"), value(q(".r1515missing .drpg-setup-missing"), "color"),
+                    value(q(".waiting .drpg-setup-missing"), "color")],
+                done: [value(done, "opacity"), value(done.querySelector("strong"), "color"), value(done.querySelector(".drpg-setup-mark"), "opacity"),
+                    value(done.querySelector(".notes"), "font-size")],
+                scroll: [value(q(".window-content"), ["overflow-y", "overflow"]), value(q(".window-content"), "scrollbar-gutter")]
+            };
+        };
+        const themes = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
+        const want = (hintColour) => ({
+            intro: "left",
+            hint: ["var(--drpg-text-base)", "left", hintColour],
+            names: ["var(--drpg-text-sm)", "var(--drpg-eye-light)", "var(--drpg-dim)"],
+            done: [null, "var(--drpg-dim)", "0.55", "var(--drpg-text-base)"],
+            scroll: ["auto", "stable"]
+        });
+        equal(stableJson(themes), stableJson([want("var(--drpg-dim)"), want("var(--drpg-sg-bone-dim)")]),
+            "Set the season up is small, centred or faded whole [Monokuma Legacy, Stained Glass: the intro's alignment | a hint's size, alignment, colour | the "
+            + "names line's size and colour on a missing row, its colour on a waiting row | a done row's opacity, its title's colour, its mark's opacity, "
+            + "its hint's size | the content box's overflow, its scrollbar gutter]");
+    }],
 ];
 
 /**

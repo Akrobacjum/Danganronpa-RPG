@@ -3427,10 +3427,17 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 
 /* A finished row steps back rather than disappearing: the list is also the
    record of what a season needs, and a list that shortens as you work loses
-   the half that explains why the rest matters. */
+   the half that explains why the rest matters.
+   By its title and its mark, not the whole row (E20 C4, S01-21, S12-20): at 0.55
+   opacity on the row its hint and its button went with it, read at about 2:1 in
+   the audit (not measured here). The hint stays readable; the title goes dim and
+   the tick quieter. */
 .drpg-setup-step.done {
-    opacity: 0.55;
     border-color: rgba(var(--drpg-line-rgb, 232, 227, 236), 0.12);
+}
+
+.drpg-setup-step.done .drpg-setup-body strong {
+    color: var(--drpg-dim);
 }
 
 .drpg-setup-mark {
@@ -3442,6 +3449,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 
 .drpg-setup-step.done .drpg-setup-mark {
     color: var(--drpg-gold);
+    opacity: 0.55;
 }
 
 .drpg-setup-body {
@@ -3449,12 +3457,43 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     min-width: 0;
 }
 
-/* Who the row is waiting on, in the colour of the thing that is missing. */
+/* Who the row is waiting on, in the colour of the row's state (E20 C4, S06-30,
+   S12-20; Q-4): the alarm's red beside the cross of a row a season needs, the
+   dim of the dash beside a row that is optional or waits for the cast. At
+   text-sm, not the 11 px floor: it is the line that says what to do. */
 .drpg-setup-missing {
     margin-top: 2px;
-    font-size: var(--drpg-text-xs, 0.7rem);
+    font-size: var(--drpg-text-sm);
     color: var(--drpg-eye-light);
     overflow-wrap: anywhere;
+}
+
+.drpg-setup-step:is(.optional, .waiting) .drpg-setup-missing {
+    color: var(--drpg-dim);
+}
+
+/* The hints at the module's base size (E20 C4, S01-21, S06-30; Q-4). Six classes:
+   the panels' fine-print rule (`.dialog-form .notes`, text-sm) holds five and the
+   elements of its three `:not()`s, so five classes alone would lose to it. */
+.application.dialog.drpg-window-season .drpg-setup-step .drpg-setup-body .notes {
+    font-size: var(--drpg-text-base);
+}
+
+/* The campaign's fields in one block above the list (E20 C4, S06-30): what Save
+   writes, in sight of the GM who presses it. */
+.drpg-setup-campaign {
+    margin: 8px 0;
+    padding: 6px 8px;
+    border: 1px solid var(--drpg-line);
+    border-radius: 3px;
+}
+
+/* A scrollbar in view while the list runs past the window (E20 C4, S01-19); the
+   gutter is kept so the rows do not shift when it appears. Drawn, not measured:
+   no layout here. */
+.application.dialog.drpg-window-season .window-content {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .drpg-setup-do {
@@ -5217,6 +5256,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the form and Create an item's captions came out centred in the stand-in of
    that commit's comment below, the captions beside their own boxes.
 
+   Set the season up joined it in E20 C4 (S12-20): its hints are a paragraph a row,
+   and centred they cost the start of every line, as here.
+
    `.drpg-room-guide` rides along because it carries the same kind of text -
    the how-to-draw-rooms block, which now lives in Season setup - and that
    window is `drpg-wide`, where the same measure would squeeze it just as badly.
@@ -5228,6 +5270,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    which is exactly the kind of win that vanishes the next time somebody moves a
    block. Measured: without it the paragraph computed to 672px, centred. */
 .application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
+.application.dialog.drpg-window-season :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-sound :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-window-tables :is(p, .notes):not(td):not(th):not(table *),
 .drpg-room-guide :is(p, .notes) {
