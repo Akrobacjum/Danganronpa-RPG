@@ -6,7 +6,9 @@ Claude Code binary), so the method, CLAUDE.md, .claude/rules and ~/.claude/agent
 Whether the credit counts these calls as Agent SDK is not documented: the first run is the test (see the Console usage).
 
 Run (from the lines-board folder):  python tools/line-b.py   (Windows: py tools\\line-b.py)
-Needs: Python 3.10+, `pip install claude-agent-sdk`, ANTHROPIC_API_KEY set in this terminal (never printed here).
+Needs: Python 3.10+, `pip install claude-agent-sdk keyring`. The key: ANTHROPIC_API_KEY if set in this terminal, else
+the one kept in the system's credential store (Windows Credential Manager, macOS Keychain) under "drpg-line-b". The
+first run without either asks for it with hidden input and keeps it there; `--forget-key` removes it. Never printed.
 Type a message and Enter. "exit" ends. A tool call the settings do not allow asks you: y = once, a = always for this
 tool (for Bash: for commands starting with the same word), n = no.
 """
@@ -42,9 +44,40 @@ async def ask(tool, data, _context):
     return PermissionResultDeny(message="The owner said no to this call.")
 
 
+SERVICE, ACCOUNT = "drpg-line-b", "anthropic"
+
+
+def load_key():
+    """The key into this process's environment (the SDK reads it there), from the terminal or the credential store."""
+    try:
+        import keyring
+    except ImportError:
+        keyring = None
+    if "--forget-key" in sys.argv:
+        if keyring:
+            try:
+                keyring.delete_password(SERVICE, ACCOUNT)
+                print("The kept key is removed from the credential store.")
+            except Exception:
+                print("No kept key to remove.")
+        sys.exit(0)
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return
+    kept = keyring.get_password(SERVICE, ACCOUNT) if keyring else None
+    if not kept:
+        if not keyring:
+            sys.exit("No key: set ANTHROPIC_API_KEY in this terminal, or `py -m pip install keyring` to keep it once.")
+        import getpass
+        kept = getpass.getpass("API key (hidden, kept in the system's credential store for the next runs): ").strip()
+        if not kept.startswith("sk-ant-"):
+            sys.exit("That does not look like an API key; nothing was kept.")
+        keyring.set_password(SERVICE, ACCOUNT, kept)
+        print("Kept. Next runs start without asking; `--forget-key` removes it.")
+    os.environ["ANTHROPIC_API_KEY"] = kept
+
+
 async def main():
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY is not set in this terminal.")
+    load_key()
     if not (REPO / ".git").exists():
         sys.exit(f"No clone at {REPO} (set DRPG_REPO to the Danganronpa-RPG folder).")
     os.environ.setdefault("LINE_B_HOME", str(KIT))
