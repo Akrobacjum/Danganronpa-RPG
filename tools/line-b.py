@@ -9,6 +9,8 @@ Run (from the lines-board folder):  python tools/line-b.py   (Windows: py tools\
 Needs: Python 3.10+, `pip install claude-agent-sdk keyring`. The key: ANTHROPIC_API_KEY if set in this terminal, else
 the one kept in the system's credential store (Windows Credential Manager, macOS Keychain) under "drpg-line-b". The
 first run without either asks for it with hidden input and keeps it there; `--forget-key` removes it. Never printed.
+Model and effort: the newest Opus at effort "high" unless `--model <alias or name>` / `--effort low|medium|high|xhigh|max`
+say otherwise (the model's own default effort is "medium"). The model that answers is printed with the first reply.
 Type a message and Enter. "exit" ends. A tool call the settings do not allow asks you: y = once, a = always for this
 tool (for Bash: for commands starting with the same word), n = no.
 """
@@ -47,6 +49,15 @@ async def ask(tool, data, _context):
 SERVICE, ACCOUNT = "drpg-line-b", "anthropic"
 
 
+def arg(flag, default):
+    """The value after `flag` on the command line, else the default."""
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return default
+
+
 def load_key():
     """The key into this process's environment (the SDK reads it there), from the terminal or the credential store."""
     try:
@@ -81,8 +92,12 @@ async def main():
     if not (REPO / ".git").exists():
         sys.exit(f"No clone at {REPO} (set DRPG_REPO to the Danganronpa-RPG folder).")
     os.environ.setdefault("LINE_B_HOME", str(KIT))
+    model, effort = arg("--model", "opus"), arg("--effort", "high")
+    if effort not in ("low", "medium", "high", "xhigh", "max"):
+        sys.exit(f"--effort must be low, medium, high, xhigh or max (got {effort}).")
     options = ClaudeAgentOptions(cwd=str(REPO), setting_sources=["user", "project", "local"],
-                                 permission_mode="acceptEdits", can_use_tool=ask)
+                                 permission_mode="acceptEdits", can_use_tool=ask, model=model, effort=effort)
+    seen_model = None
     spent = 0.0
     print(f"line B in {REPO}; kit {KIT}. Type 'exit' to end. Never type a key here: set it in PowerShell first.")
     async with ClaudeSDKClient(options=options) as client:
@@ -100,6 +115,9 @@ async def main():
             await client.query(line)
             async for msg in client.receive_response():
                 if isinstance(msg, AssistantMessage):
+                    if getattr(msg, "model", None) and msg.model != seen_model:
+                        seen_model = msg.model
+                        print(f"  [model: {seen_model}; effort asked: {effort}]")
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             print(block.text)
