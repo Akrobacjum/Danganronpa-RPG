@@ -74780,6 +74780,45 @@ const SCENARIOS = [
             + "[the grants after Next over a kept boundary, the actions not refilled again]}");
     }],
 
+    ["E20-T1 - Pre-season's Set them to Observer sets Observer on a student every player owned, and the audit no longer asks for a fix (E20 C2, E20-07; S11-19)", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S11-19): the audit named sheets "visible to all players - fix these" and offered
+         * no fix, so a GM had to find each in Configure Ownership. One student of the suite's cast is handed to every
+         * player as Owner - with the anonymity setting off, as a table that turned it off does, since with it on the
+         * module refuses the raise - then `auditAnonymity` (no chat) is read, its Set them to Observer pressed as drawn
+         * into a detached element (`wireAnonymityFix` on the world's actors), and the audit read again. The student's
+         * default level and the setting are put back.
+         */
+        needs(env.primaryGm());
+        const A = await import("./anonymity.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const [student] = cast(1);
+        const levelWas = student.ownership?.default ?? L.NONE;
+        const enforcedWas = game.settings.get(MODULE_ID, SETTINGS.enforceAnonymity);
+        const exposed = found => (found?.exposed ?? []).map(i => i.actor?.id).includes(student.id);
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.enforceAnonymity, false);
+            await student.update({ "ownership.default": L.OWNER });
+            await settle();
+            const before = await A.auditAnonymity({ toChat: false });
+            const root = document.createElement("div");
+            root.innerHTML = before?.body ?? "";
+            const wired = A.wireAnonymityFix?.(root) ?? null;
+            root.querySelector("[data-drpg-anon-fix]")?.click();
+            await wired?.done?.();
+            await settle();
+            const after = await A.auditAnonymity({ toChat: false });
+            read = [exposed(before), student.ownership?.default ?? null, exposed(after)];
+        } finally {
+            if ((student.ownership?.default ?? L.NONE) !== levelWas) await student.update({ "ownership.default": levelWas });
+            await game.settings.set(MODULE_ID, SETTINGS.enforceAnonymity, enforcedWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, L.OBSERVER, false]),
+            "[the student owned by every player under 'fix these', its default level after Set them to Observer, still under 'fix these' after]");
+    }],
+
     ...GRID
 ];
 

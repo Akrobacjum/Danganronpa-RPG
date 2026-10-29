@@ -12278,10 +12278,11 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 }
 
 /* The Pre-session checks report: fixed-width text in a window rather than a
-   whisper nobody scrolls back to. See `runPreSessionChecks`. */
+   whisper nobody scrolls back to. See `runPreSessionChecks`. No height of its
+   own (E20 C2, S01-20): a 16rem frame with its own scrollbar cut the CAST list
+   mid-line; R1509 reads both themes. How the window scrolls at a table's size
+   is not measured here. */
 .drpg-check-report {
-    max-height: 16rem;
-    overflow: auto;
     white-space: pre-wrap;
     font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
     font-size: var(--drpg-text-xs);

@@ -3763,12 +3763,31 @@
       "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
       "audit": {
         "title": "Sheet Anonymity Audit",
-        "clean": "Every character sheet is private. Nothing to fix.",
-        "exposed": "Visible to all players - fix these:",
+        "clean": "No sheet is open in full to every player. Nothing to fix.",
+        "exposed": "Owned by every player, so nothing on these sheets is hidden and every player reads them whole - fix these:",
+        "fix": "Set them to Observer",
+        "fixed": {"one": "{n} sheet set to Observer: every player can open it, its secrets hidden.", "other": "{n} sheets set to Observer: every player can open them, their secrets hidden."},
+        "closed": "Closed to the other players. Nothing to fix, but nobody can open these sheets, so nobody can loot the body when the character dies:",
         "assistants": "Owned by an Assistant GM. Assistants read every sheet in the world, which breaks anonymity - drop them to Player:",
         "shared": "Owned by more than one player:",
         "orphaned": "No player owner assigned - here is who does have access:",
         "nobody": "nobody at all"
+      },
+      "everyone": {
+        "none": "the other players cannot open the sheet",
+        "limited": "the other players see the name and portrait only",
+        "observer": "every player can open the sheet, its secrets hidden",
+        "owner": "every player owns the sheet and reads it whole"
+      },
+      "level": {
+        "none": "cannot open the sheet",
+        "limited": "sees the name and portrait only",
+        "observer": "can open the sheet, its secrets hidden",
+        "owner": "owns the sheet"
+      },
+      "role": {
+        "gm": "(GM)",
+        "assistant": "(Assistant GM)"
       },
       "reverted": "“{actor}” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner to their one player only."
     },
@@ -4292,6 +4311,25 @@
       "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark - turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves.",
+      "cast": {
+        "students": "Students (Monokumas excluded): {n}",
+        "starting": "Starting resources: {hp} Health, {stress} Sanity, {hope} Hope",
+        "noCast": "No students yet: create the cast first, then run these checks again.",
+        "row": "Health max {hp}, Sanity max {stress}",
+        "notSetUp": "not set up",
+        "pending": {"one": "{n} character still needs the starting resources.", "other": "{n} characters still need the starting resources."},
+        "fix": "To fix it: open the sheet and press the wand beside the name.",
+        "pendingWhy": "Until then each of them counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
+        "allSet": "Every character has the starting resources.",
+        "ultimate": "Everybody has an Ultimate",
+        "ultimateFix": "Set it on the sheet, under the name.",
+        "experiences": "Everybody has {n} experiences",
+        "experiencesFix": "Each at +2, agreed at character creation.",
+        "item": "Everybody carries their opening item",
+        "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from Give / take items.",
+        "pool": "Everybody is assigned to a Despair pool",
+        "poolFix": "Without one, Despair from their rolls has nowhere to go. Set it in the GM panel, under Despair Flow."
+      },
       "title": {
         "music": "Music diagnostics",
         "voice": "Voice plan",
@@ -4645,9 +4683,56 @@
       },
       "notRoom": {
         "problem": "Named, but not a room",
-        "passage": "It carries a {type} behaviour, so it is a passage, not a room: the fog draws no outline or reveal for it and no doorway leads into it.",
-        "player": "A player drew it, so it is never a room: the fog draws no outline or reveal for it and no doorway leads into it.",
-        "unmarked": "It is not marked as a room (Room Setup, the Doors tab, “This is a room”), so the fog draws no outline or reveal for it and no doorway leads into it."
+        "passage": "It carries a {type} behaviour: a passage.",
+        "player": "A player drew it.",
+        "unmarked": "Not marked as a room (Room Setup, the Doors tab, “This is a room”).",
+        "why": "The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it."
+      },
+      "uncoveredShare": "{pct}% of the map belongs to no room",
+      "check": {
+        "showOnMap": "Show on map",
+        "unnamed": {
+          "room": "(no name)",
+          "problem": "Region with no name",
+          "why": "Rooms are matched by name, so a region with none is not a room: it never counts as a neighbour, which is one quiet way to get a doorway that leads nowhere."
+        },
+        "defaultName": {
+          "problem": "Room still has the name Foundry gave it",
+          "why": "A room is its name: players read it on the map, and keys, stashes and Room Setup all name it. Give it the room's own name before play."
+        },
+        "noShape": {
+          "problem": "No geometry the fog can read",
+          "why": "The region exists but its shape came back empty: nothing about this room will be drawn."
+        },
+        "overlap": {
+          "title": "Rooms overlap",
+          "problem": "Overlaps \"{other}\"",
+          "fact": "About {squares} squares of floor belong to both rooms.",
+          "deep": "About {squares} squares of floor belong to both rooms, reaching {depth} squares in.",
+          "why": "Where two rooms overlap, one room's border runs across the other's floor with no wall near it, and the whole shared border reads as one doorway. Rooms should touch; a sliver thinner than a quarter square is ignored."
+        },
+        "adrift": {
+          "problem": "Border runs away from the walls",
+          "fact": "{squares} squares of border with no wall.",
+          "why": "A border drawn away from the wall it stands for turns that whole side of the room into a doorway: the wall is never found, so nothing closes it."
+        },
+        "sealed": {
+          "title": "No way out: walled all round",
+          "problem": "No way out",
+          "fact": "Every stretch of the border is walled.",
+          "why": "Nothing glows as a doorway. If the room is sealed on purpose, leave it; if not, the door is missing."
+        },
+        "isolated": {
+          "title": "No way out: no room beside it",
+          "problem": "No way out",
+          "fact": "No room within a square of the border.",
+          "why": "The next room is more than a square away, so the two never meet at a doorway. Rooms should touch along the edge they share."
+        },
+        "lattice": {
+          "problem": "Corners off the map's own lattice",
+          "fact": {"one": "{n} corner up to {px} px off.", "other": "{n} corners up to {px} px off."},
+          "why": "The rest of the map is drawn to a half-square lattice. Draw with snapping on: a corner a fraction of a square out cannot be seen by eye and is enough to make two rooms overlap or miss."
+        }
       }
     },
     "Rooms": {

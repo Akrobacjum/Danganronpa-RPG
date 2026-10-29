@@ -25743,11 +25743,11 @@ const INVARIANTS = [
             return [row?.done, row?.done ? [] : row?.missing?.()];
         };
         equal(stableJson({
-            pre: [line(full).slice(0, 4), line(half).slice(0, 4), line(full, errors).slice(0, 4), line(dark).slice(0, 4),
+            pre: [line(full).slice(0, 2), line(half).slice(0, 2), line(full, errors).slice(0, 2), line(dark).slice(0, 2),
                 line(full, errors).includes(U.plural("DRPG.Fog.lastCheckErrors", { n: 2 }))],
             rooms: [rooms(full), rooms(half), rooms(full, errors)]
         }), stableJson({
-            pre: ["ok  ", "!!  ", "!!  ", "!!  ", true],
+            pre: ["✓ ", "✗ ", "✗ ", "✗ ", true],
             rooms: [[true, []], [false, [game.i18n.format("DRPG.Season.roomsUncovered", { scene: half.name, pct: 50 })]],
                 [false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 2, scene: full.name })]]]
         }), "a scene is ok or ticked unchecked [Pre-season: covered, half, covered with two errors, on Foundry's vision, the errors named; "
@@ -25810,6 +25810,176 @@ const INVARIANTS = [
             rooms: [true, true]
         }), "Check rooms or the rooms row says nothing of what it checked [no scene: its rows; a scene with no room: its no-rooms rows; "
             + "the rooms row over three scenes: done, the line naming the judged scene and two scenes with rooms]");
+    }],
+    ["R1506 - the anonymity audit asks for a fix only above Observer (E20 C2, E20-07; S11-19, Q-6): a sheet every player owns is under \"fix these\", one open to every player as Observer is not, one closed to them is an info line (no loot from that body); the levels are words, never Foundry's names; Set them to Observer sets Observer on the exposed sheets alone and draws the audit again", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S11-19): the audit put every Observer character under "Visible to all players -
+         * fix these:" - the level the module sets on purpose so the redaction can run - listed raw API names ("default is
+         * OBSERVER"), and offered no fix; a GM either learnt to ignore it or "fixed" sheets the module then put back.
+         * Four characters of plain objects, read by `auditAnonymity` (no chat): owned by every player, Observer, closed
+         * (None), and Observer with no player owner. The Fix is pressed on the audit drawn into a detached element, its
+         * writes caught on the fixtures. Nothing is written to the world. Red at the parent: `auditAnonymity` read the
+         * world's actors and took no list, so none of the four was in any section, and no Fix existed.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let A = null;
+        try { A = await import("./anonymity.mjs"); } catch { A = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const written = [];
+        const open = fx.sheet("R1506open", L.OWNER, { owner: player.id, written });
+        const seen = fx.sheet("R1506seen", L.OBSERVER, { owner: player.id, written });
+        const closed = fx.sheet("R1506closed", L.NONE, { owner: player.id, written });
+        const loose = fx.sheet("R1506loose", L.OBSERVER, { written });
+        const actors = [open, seen, closed, loose];
+        const found = await A.auditAnonymity({ toChat: false, actors });
+        const names = list => (list ?? []).map(i => i.actor?.name);
+        const root = document.createElement("div");
+        root.innerHTML = found?.body ?? "";
+        const text = root.textContent;
+        const words = key => game.i18n.localize(key);
+        const wired = A.wireAnonymityFix?.(root, { actors }) ?? null;
+        const button = root.querySelector("[data-drpg-anon-fix]");
+        button?.click();
+        await wired?.done?.();
+        equal(stableJson({
+            exposed: names(found?.exposed), closed: names(found?.closed), orphaned: names(found?.orphaned),
+            words: [text.includes(words("DRPG.Anonymity.audit.exposed")), text.includes(`${open.name} - ${words("DRPG.Anonymity.everyone.owner")}`),
+                text.includes(`${closed.name} - ${words("DRPG.Anonymity.everyone.none")}`),
+                text.includes(`${player.name}: ${words("DRPG.Anonymity.level.observer")}`), /\b(OWNER|OBSERVER|LIMITED|NONE)\b/.test(text)],
+            fix: [Boolean(button), written, root.querySelector("[data-drpg-anon-fix]") === null, root.textContent.includes(words("DRPG.Anonymity.audit.exposed"))]
+        }), stableJson({
+            exposed: [open.name], closed: [closed.name], orphaned: [loose.name],
+            words: [true, true, true, true, false],
+            fix: [true, [[open.id, { "ownership.default": L.OBSERVER }]], true, false]
+        }), "the audit asks for the wrong fix or none [exposed, closed, no owner; the words: the exposed heading, the owned line, the closed line, "
+            + "the player's level in words, a Foundry level name; the fix: its button, the writes, the button gone and the heading gone after it]");
+    }],
+    ["R1507 - Pre-season checks and Check rooms speak the table's language and name no console command (E20 C2, E20-08; S01-23, S07-36): drawn with lang/pl.json's DRPG block, the cast report, the scene line, the anonymity audit and the room check's rows and legend hold none of a fixed list of English literals and no \"game.drpg.\"", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S01-23, S07-36): a Polish table's GM opened Pre-season checks and Check rooms and
+         * read them in English, with "or run game.drpg.initCharacter(actor) for each" - a console command - as the fix.
+         * Polish is lang/pl.json's DRPG block put in place of this browser's for the drawing alone and put back after
+         * (R902's way); the plural forms are chosen by the module's language setting, which this test does not write.
+         * Read: `diagnoseCharacters` (no chat) on a student below the starting numbers and on none, `diagnoseScenes` on
+         * a half-covered scene, `auditAnonymity` (no chat) on three sheets, `checkRegions` on a scene of three rooms with
+         * Foundry's names, a region with no name and a room with no shape, and `roomCheckHtml` over its rows - all
+         * fixtures of plain objects. The fix sentence of pl.json is looked for, so the swap is shown to have drawn
+         * Polish. Red at the parent: "Students (Monokumas excluded)", "Health max", "game.drpg." and the rest.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let Dg = null, F = null, FD = null, A = null;
+        try { [Dg, F, FD, A] = await Promise.all(["./diagnostics.mjs", "./fog.mjs", "./fog-diagnostics.mjs", "./anonymity.mjs"].map(p => import(p))); } catch { Dg = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const roster = [fx.actor("R1507a", { set: false }), fx.actor("R1507b")];
+        const half = fx.scene("R1507 half", [fx.region("R1507h", "R1507 Hall", { rect: [0, 0, 2000, 3000] })]);
+        const map = fx.scene("R1507 map", [fx.region("R1507r1", "Region", { rect: [0, 0, 400, 400] }), fx.region("R1507r2", "Region (2)", { rect: [1000, 0, 400, 400] }),
+            fx.region("R1507r3", "R1507 Lab", { rect: [2000, 0, 400, 400] }), fx.region("R1507u", "", { rect: [3000, 0, 400, 400] }), fx.region("R1507e", "R1507 Void")]);
+        const sheets = [fx.sheet("R1507open", L.OWNER, { owner: player.id }), fx.sheet("R1507closed", L.NONE, { owner: player.id }), fx.sheet("R1507loose", L.OBSERVER)];
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const own = game.i18n.translations;
+        let texts = [];
+        try {
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            const audit = document.createElement("div");
+            audit.innerHTML = (await A.auditAnonymity({ toChat: false, actors: sheets }))?.body ?? "";
+            const rows = F.checkRegions(map);
+            const check = document.createElement("div");
+            check.innerHTML = FD.roomCheckHtml?.(rows, map.id) ?? "";
+            texts = [Dg.diagnoseCharacters({ toChat: false, roster, assigned: {} }), Dg.diagnoseCharacters({ toChat: false, roster: [], assigned: {} }),
+                F.diagnoseScenes({ scenes: [half] }), audit.textContent, rows.map(r => `${r.problem} ${r.detail}`).join("\n"), check.textContent];
+        } finally {
+            game.i18n.translations = own;
+        }
+        const ENGLISH = ["Students (Monokumas excluded)", "Starting resources", "Health max", "not set up", "Everybody", "Fix:", "game.drpg.",
+            "No students yet", "belongs to no room", "default is", "(Assistant GM)", "Visible to all players", "Region with no name",
+            "Room still has the name", "No geometry", "Overlaps", "Border runs away", "No way out", "Corners off", "grid square", "Show on map", "falls back to"];
+        const found = texts.map(text => ENGLISH.filter(literal => String(text).includes(literal)));
+        equal(stableJson({ drawn: texts.map(t => String(t).trim().length > 0), polish: String(texts[0]).includes(pl.DRPG.Diagnostics?.cast?.fix ?? "\u0000"), found }),
+            stableJson({ drawn: [true, true, true, true, true, true], polish: true, found: [[], [], [], [], [], []] }),
+            "a report drawn in Polish holds English [each drawn, the Polish fix sentence in the cast report; the English literals in: the cast report, "
+            + "the cast report with no student, the scene line, the anonymity audit, the room check's rows, the room check as drawn]");
+    }],
+    ["R1508 - Check rooms says each explanation once, above the list, and every row is a short fact with Show on map (E20 C2, E20-09; S07-14): `roomCheckHtml` draws one legend entry per kind of finding and one row per finding with no coordinates; a row's Show on map pans the canvas to its point and marks it", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S07-14): on a school of eighteen rooms the check printed the same two-sentence
+         * explanation under every room, with raw coordinates ("(1840, 960)") a GM had no use for, and "the second way" a
+         * side turns into a doorway, which named a first way nobody had been told. Three rooms of plain objects with
+         * Foundry's own names, apart, on a scene with no walls - each draws the same kinds of finding - are read by
+         * `checkRegions`, drawn by `roomCheckHtml` into a detached element and wired by `wireShowOnMap` with a canvas of
+         * the test's own that records its pans and pings. Nothing is written. What the mark looks like on a real canvas
+         * is not measured here (a table's check; E20 C7 writes it into AUDIT 9.2). Red at the parent: no `roomCheckHtml`, no kinds on the rows.
+         */
+        let F = null, FD = null;
+        try { [F, FD] = await Promise.all(["./fog.mjs", "./fog-diagnostics.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const scene = fx.scene("R1508 school", [fx.region("R1508a", "Region", { rect: [0, 0, 400, 400] }),
+            fx.region("R1508b", "Region (2)", { rect: [1000, 0, 400, 400] }), fx.region("R1508c", "Region (3)", { rect: [2000, 0, 400, 400] })]);
+        const rows = F.checkRegions(scene);
+        const kinds = [...new Set(rows.map(r => r.kind).filter(Boolean))];
+        const root = document.createElement("div");
+        root.innerHTML = FD.roomCheckHtml?.(rows, scene.id) ?? "";
+        const text = root.textContent;
+        const why = kind => rows.find(r => r.kind === kind)?.why || " ";
+        const times = (hay, needle) => hay.split(needle).length - 1;
+        const pans = [], pings = [];
+        const board = { scene: { id: scene.id }, animatePan: o => { pans.push([o.x, o.y]); return Promise.resolve(true); }, ping: p => { pings.push([p.x, p.y]); return Promise.resolve(true); } };
+        FD.wireShowOnMap?.(root, { board, sceneId: scene.id });
+        const buttons = [...root.querySelectorAll("[data-drpg-show-at]")];
+        buttons[1]?.click();
+        await settle();
+        const second = rows.filter(r => r.at)[1]?.at ?? null;
+        equal(stableJson({
+            named: rows.filter(r => r.kind === "defaultName").map(r => r.room),
+            legend: [root.querySelectorAll("[data-drpg-legend] li").length, kinds.length, kinds.map(k => times(text, why(k)))],
+            rows: [root.querySelectorAll("tbody tr").length, buttons.length, buttons.map(b => b.dataset.drpgShowAt)],
+            words: [/\(\d+, \d+\)/.test(text), /second way/i.test(text)],
+            shown: [pans, pings]
+        }), stableJson({
+            named: ["Region", "Region (2)", "Region (3)"],
+            legend: [kinds.length, kinds.length, kinds.map(() => 1)],
+            rows: [rows.length, rows.filter(r => r.at).length, rows.filter(r => r.at).map(r => `${r.at.x},${r.at.y}`)],
+            words: [false, false],
+            shown: [[[second?.x, second?.y]], [[second?.x, second?.y]]]
+        }), "Check rooms repeats itself or shows nothing on the map [the rooms named by Foundry; the legend's entries, the kinds, each explanation's count in the text; "
+            + "the rows drawn, the buttons, their points; raw coordinates, 'the second way'; the second button: the pans, the pings]");
+    }],
+    ["R1509 - the CAST report is no fixed-height frame and starts with its fix (E20 C2, E20-10; S01-20): no rule of either theme gives the Pre-season report block a max-height or an overflow, and the cast report's \"Fix:\" sentence comes before the first student's line", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S01-20): the CAST section was a 16rem box with its own scrollbar inside the
+         * window's, and the sentence saying what to do sat at the bottom of it, under a cut line, out of sight. Read:
+         * the cascade of the module's sheets from their text (`styleCascade`), on a `pre.drpg-check-report` in a
+         * Pre-season window built on a body of its own, in both themes; and `diagnoseCharacters` (no chat) on two
+         * students of plain objects, one below the starting numbers. Whether the window scrolls whole at 1366x768 is
+         * not measured here (a table's check; E20 C7 writes it into AUDIT 9.2). Red at the parent: max-height 16rem and overflow auto; the fix after the list.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-panel drpg-wide"><section class="window-content"><div>
+                <h3>R1509</h3><pre class="drpg-check-report">R1509</pre></div></section></div>`;
+            const pre = body.querySelector("pre");
+            const value = names => C.winner(pre, names)?.value ?? null;
+            return [value("max-height"), value(["overflow", "overflow-y"])];
+        };
+        let Dg = null;
+        try { Dg = await import("./diagnostics.mjs"); } catch { Dg = null; }
+        const fx = await e20Fixture();
+        const roster = [fx.actor("R1509a"), fx.actor("R1509b", { set: false })];
+        const lines = Dg.diagnoseCharacters({ toChat: false, roster, assigned: {} }).split("\n");
+        const fixAt = lines.findIndex(l => l.includes(game.i18n.localize("DRPG.Diagnostics.cast.fix")));
+        const firstRow = lines.findIndex(l => l.includes(` ${roster[0].name} - `));
+        const okOverflow = v => v === null || v === "visible";
+        const frames = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
+        equal(stableJson({ frames: frames.map(([max, overflow]) => [max, okOverflow(overflow)]), fix: [fixAt >= 0, fixAt < firstRow] }),
+            stableJson({ frames: [[null, true], [null, true]], fix: [true, true] }),
+            "the CAST report is a frame of its own or hides its fix [Monokuma Legacy, Stained Glass: the max-height that wins, no overflow of its own; "
+            + "the fix sentence found, before the first student's line]");
     }],
 ];
 
@@ -26179,6 +26349,20 @@ async function e20Fixture() {
                     sceneRect: { x: 0, y: 0, width: 4000, height: 3000 } },
                 tokenVision: !ready, environment: { globalLight: { enabled: ready } }, fog: {}
             };
+        },
+        /* A character sheet for the anonymity audit (R1506, R1507): its default level, one player owner unless none, every
+           GM an owner as Foundry reads them; `update` writes onto the fixture and into `written`, never to the world. */
+        sheet(id, level, { owner = null, written = [] } = {}) {
+            const sheet = {
+                id, name: `${id} student`, type: "character", ownership: { default: level, ...(owner ? { [owner]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } : {}) },
+                getUserLevel: user => (user.isGM || user.id === owner ? CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER : sheet.ownership.default),
+                update: async data => {
+                    written.push([id, data]);
+                    if ("ownership.default" in data) sheet.ownership.default = data["ownership.default"];
+                    return sheet;
+                }
+            };
+            return sheet;
         },
         actor(id, { dead = false, set = true } = {}) {
             const resources = set ? { hitPoints: { max: STARTING.hp }, stress: { max: STARTING.stress } } : { hitPoints: { max: 0 }, stress: { max: 0 } };

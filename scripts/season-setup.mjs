@@ -725,7 +725,7 @@ function wireRoomCheck(dialog) {
     const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
     checkButton?.addEventListener("click", async ev => {
         ev.preventDefault();
-        const { checkRegions } = await import("./fog.mjs");
+        const [{ checkRegions }, { roomCheckHtml }] = await Promise.all([import("./fog.mjs"), import("./fog-diagnostics.mjs")]);
         const findings = checkRegions();
         // What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1).
         if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, findings.filter(f => f.level === "error").length);
@@ -734,16 +734,11 @@ function wireRoomCheck(dialog) {
                 esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
             return;
         }
-        const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
-        checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
-            findings.map(f => `<tr>
-                <td>${marks[f.level] ?? "\u00b7"}</td>
-                <td>${esc(f.room)}</td>
-                <td><strong>${esc(f.problem)}</strong><br>
-                    <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
-            </tr>`).join("")
-        }</tbody></table>`;
+        // Each explanation once, above the list, and a Show on map per row in place of raw coordinates (E20 C2, S07-14).
+        checkOut.innerHTML = roomCheckHtml(findings, canvas?.scene?.id ?? null);
     });
+    if (checkOut) import("./fog-diagnostics.mjs").then(({ wireShowOnMap }) => wireShowOnMap(checkOut))
+        .catch(err => error("Could not wire Show on map", err));
 }
 
 /**
@@ -923,7 +918,7 @@ export async function openSeasonSetup({ draft = null } = {}) {
  * answered where the button was.
  */
 async function runPreSessionChecks() {
-    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched }] = await Promise.all([
+    const [{ diagnoseCharacters }, { auditAnonymity, wireAnonymityFix }, { diagnoseScenes }, { videoUnwatched }] = await Promise.all([
         import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs")
     ]);
 
@@ -948,9 +943,11 @@ async function runPreSessionChecks() {
             <pre class="drpg-check-report">${foundry.utils.escapeHTML(scenes)}</pre>
             ${video}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
-            ${anon.body ?? ""}
+            <div data-drpg-anon>${anon.body ?? ""}</div>
         </div>`),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
+        render: (event, dialog) => wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]")),
         rejectClose: false
     });
 }

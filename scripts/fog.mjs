@@ -904,8 +904,10 @@ export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ??
             && (scene.fog?.mode === undefined || scene.fog.mode === off)
             && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
 
-        rows.push(`${ready ? "ok  " : "!!  "}${scene.name} - ${plural("DRPG.Vault.roomCensus", { n: census.count })}, `
-            + `${uncovered}% of the map belongs to no room`
+        // In the table's language, marked as the cast report marks its rows (E20 C2, S01-23): "ok" and "!!"
+        // and "% of the map belongs to no room" were English on a Polish table.
+        rows.push(`${ready ? "✓ " : "✗ "}${scene.name} - ${plural("DRPG.Vault.roomCensus", { n: census.count })}, `
+            + game.i18n.format("DRPG.Fog.uncoveredShare", { pct: uncovered })
             + (notRooms > 0 ? `; ${plural("DRPG.Fog.notRooms", { n: notRooms })}` : "")
             + (errors ? `; ${plural("DRPG.Fog.lastCheckErrors", { n: errors })}` : ""));
     }

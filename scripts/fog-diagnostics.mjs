@@ -23,7 +23,10 @@
  * tier-2 tests import `checkRegions` from fog.mjs) and `sceneUncoveredPercent`
  * (vault.mjs imports it from fog.mjs, and fog.mjs's `diagnoseScenes` calls it).
  * No other name here is read outside it, so none was exported for the move and
- * the module's API is the one it was. Nothing here imports fog.mjs back (R161
+ * the module's API is the one it was. E20 C2 added three that season-setup.mjs
+ * imports from here, the facade exporting nothing new: `roomCheckHtml`, the
+ * check drawn with its legend, and `wireShowOnMap` with `showOnMap`.
+ * Nothing here imports fog.mjs back (R161
  * would see the cycle). Below it are config.mjs (`MODULE_ID`), movement.mjs
  * (`boundsOf`), the rooms.mjs leaf (what a room is, E12 C2b), fog-geometry.mjs,
  * fog-doorways.mjs (the wall test, the openings, the `DOORWAY_*` numbers the
@@ -41,6 +44,7 @@ import {
 } from "./fog-doorways.mjs";
 import { roomOutline } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
+import { plural } from "./utils.mjs";
 
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {
@@ -278,25 +282,19 @@ function roomsToCheck(scene, add) {
     const pieces = new Map();
     for (const region of scene.regions ?? []) {
         if (!region.name) {
-            add("info", "(unnamed)", "Region with no name",
-                "Rooms are matched by name, so this one is not a room: it never counts as a "
-                + "neighbour, which is one quiet way to get a doorway that leads nowhere.",
-                pointOf(region));
+            add("info", game.i18n.localize("DRPG.Fog.check.unnamed.room"), finding("unnamed"), pointOf(region));
             continue;
         }
         if (!isRoomWith(region, players)) {
-            add("info", region.name, game.i18n.localize("DRPG.Fog.notRoom.problem"), notRoomWhy(region, players), pointOf(region));
+            add("info", region.name, { kind: "notRoom", problem: game.i18n.localize("DRPG.Fog.notRoom.problem"), detail: notRoomWhy(region, players),
+                why: game.i18n.localize("DRPG.Fog.notRoom.why") }, pointOf(region));
             continue;
         }
         if (foundryDefaultName(region.name)) {
-            add("warning", region.name, "Room still has the name Foundry gave it",
-                "A room is its name: players read it on the map, and keys, stashes and Room Setup all "
-                + "name it. Give it the room's own name before play.", pointOf(region));
+            add("warning", region.name, finding("defaultName"), pointOf(region));
         }
         if (!regionShapes(region, { x: 0, y: 0 }).length) {
-            add("error", region.name, "No geometry the fog can read",
-                "The region exists but its shape came back empty - nothing about this room "
-                + "will be drawn.", pointOf(region));
+            add("error", region.name, finding("noShape"), pointOf(region));
             continue;
         }
         if (!pieces.has(region.name)) pieces.set(region.name, []);
@@ -345,12 +343,8 @@ function overlapCheck(named, grid, add) {
             if (hit.area <= 0) continue;
             if (hit.depth !== null && hit.depth < tolerance) continue;
             const squares = hit.area / (grid * grid);
-            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
-                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms`
-                + (hit.depth !== null ? `, reaching ${(hit.depth / grid).toFixed(1)} square(s) in` : "")
-                + ". Where they overlap, one room's border runs across the other's floor with no "
-                + "wall anywhere near it, and the whole shared border reads as one doorway. "
-                + "Rooms should touch; a sliver thinner than a quarter square is ignored.",
+            add("error", named[i].region.name, finding("overlap", { other: named[j].region.name, squares: squares.toFixed(1),
+                depth: hit.depth !== null ? (hit.depth / grid).toFixed(1) : null }, hit.depth !== null ? "deep" : "fact"),
                 pointOf(named[i].region));
         }
     }
@@ -393,11 +387,7 @@ function adriftCheck(region, edges, walls, grid, add) {
         }
     }
     if (adrift > grid * ADRIFT_WARN_RUN) {
-        add("warning", region.name, "Border runs away from the walls",
-            `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
-            + "alongside them. A border drawn away from the wall it describes is the second "
-            + "way a whole side of a room turns into a doorway - the wall is never found, so "
-            + "nothing closes it.", adriftAt);
+        add("warning", region.name, finding("adrift", { squares: (adrift / grid).toFixed(1) }, "fact"), adriftAt);
     }
 }
 
@@ -434,14 +424,7 @@ function noWayOutCheck(scene, region, edges, grid, add, floor = null) {
             const my = e.ay + e.dy * 0.5;
             return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
         });
-        add("warning", region.name, "No way out",
-            anyNeighbour
-                ? "Every stretch of this room's border is walled, so nothing will glow as a "
-                  + "doorway. If that is deliberate, ignore it; if not, the door is missing."
-                : "No neighbouring room lies within reach of any part of this border - the "
-                  + "next region is more than a square away, so the two rooms never see each "
-                  + "other. Rooms should touch along the edge they share.",
-            pointOf(region));
+        add("warning", region.name, finding(anyNeighbour ? "sealed" : "isolated", {}, "fact"), pointOf(region));
     }
 }
 
@@ -470,11 +453,7 @@ function latticeCheck(region, polys, lattice, latticeOrigin, add) {
         }
     }
     if (off) {
-        add("info", region.name, "Corners off the map's own lattice",
-            `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
-            + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
-            + "fraction of a square out is invisible by eye and is enough to make two "
-            + "rooms overlap or miss.", pointOf(region));
+        add("info", region.name, finding("lattice", { n: off, px: Math.round(worst) }, "fact"), pointOf(region));
     }
 }
 
@@ -524,8 +503,10 @@ export function checkRegions(scene = canvas?.scene) {
     const grid = (scene === canvas?.scene ? canvas?.grid?.size : scene.grid?.size) ?? 100;
     const walls = Array.from(scene.walls ?? []);
     const findings = [];
-    const addOn = floor => (level, room, problem, detail, at = null) =>
-        findings.push({ level, room, floor: floor?.name || floor?.id || null, problem, detail, at });
+    // A row: how bad, the room, the finding (`finding`: its kind, title, short fact and the explanation the legend
+    // says once), and the point "Show on map" goes to.
+    const addOn = floor => (level, room, found, at = null) =>
+        findings.push({ level, room, floor: floor?.name || floor?.id || null, ...found, at });
     const add = addOn(null);
 
     const rooms = roomsToCheck(scene, add);
@@ -604,8 +585,75 @@ export function secretDoorRows(scene) {
     return secretDoorsOn(scene).map(wall => {
         const [x1, y1, x2, y2] = (wall.c ?? []).map(Number);
         const at = [x1, y1, x2, y2].every(Number.isFinite) ? { x: Math.round((x1 + x2) / 2), y: Math.round((y1 + y2) / 2) } : null;
-        return { level: "warning", room: "", floor: null, problem: game.i18n.localize("DRPG.Fog.secretDoor.problem"),
-            detail: game.i18n.localize("DRPG.Fog.secretDoor.detail"), at };
+        // The explanation once, in the legend (E20 C2, S07-14): a map of six secret doors printed it six times.
+        return { level: "warning", room: "", floor: null, kind: "secretDoor", problem: game.i18n.localize("DRPG.Fog.secretDoor.problem"),
+            detail: "", why: game.i18n.localize("DRPG.Fog.secretDoor.detail"), at };
+    });
+}
+
+/**
+ * One finding of the map check in the GM's language (E20 C2, 29.10.2026; audit S01-23, S07-14, S07-36): its
+ * `kind`, its title (`problem`), a short fact about this room (`detail`, from the key `fact` names, plural when
+ * `data.n` is a count) and the explanation of the kind (`why`), which `roomCheckHtml` says once above the list.
+ * Until then each row carried the whole two-sentence explanation, in English, with raw coordinates after it.
+ */
+function finding(kind, data = {}, fact = null) {
+    const key = `DRPG.Fog.check.${kind}`;
+    const detail = !fact ? "" : Number.isFinite(data.n) ? plural(`${key}.${fact}`, data) : game.i18n.format(`${key}.${fact}`, data);
+    // A kind whose title names this room's neighbour (an overlap) or shares its words with another (no way out) has a
+    // title of its own for the legend.
+    const title = game.i18n.has(`${key}.title`) ? game.i18n.localize(`${key}.title`) : undefined;
+    return { kind, problem: game.i18n.format(`${key}.problem`, data), detail, why: game.i18n.localize(`${key}.why`), ...(title ? { title } : {}) };
+}
+
+/**
+ * Check rooms' findings as the Season setup window draws them (E20 C2, S07-14): the explanation of each kind
+ * once, as a legend above the list, in the order the kinds first appear; then one row a finding - its mark,
+ * its room, its title and short fact, and a Show on map that carries its point (`wireShowOnMap`). Pure over
+ * its rows; `sceneId` is the scene they were read on.
+ */
+export function roomCheckHtml(findings, sceneId = null) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const legend = new Map();
+    for (const f of findings ?? []) if (f.kind && f.why && !legend.has(f.kind)) legend.set(f.kind, f);
+    const marks = { error: "✕", warning: "!", info: "·" };
+    const show = esc(game.i18n.localize("DRPG.Fog.check.showOnMap"));
+    const head = legend.size ? `<ul class="drpg-room-check-legend" data-drpg-legend>${[...legend.values()].map(f =>
+        `<li><strong>${esc(f.title ?? f.problem)}</strong> ${esc(f.why)}</li>`).join("")}</ul>` : "";
+    const rows = (findings ?? []).map(f => `<tr>
+            <td>${marks[f.level] ?? "·"}</td>
+            <td>${esc(f.room)}</td>
+            <td><strong>${esc(f.problem)}</strong>${f.detail ? `<br><small>${esc(f.detail)}</small>` : ""}</td>
+            <td>${f.at ? `<button type="button" class="drpg-mini-button" data-drpg-show-at="${Math.round(f.at.x)},${Math.round(f.at.y)}"${
+                sceneId ? ` data-drpg-scene="${esc(sceneId)}"` : ""}>${show}</button>` : ""}</td>
+        </tr>`).join("");
+    return `${head}<table class="drpg-vault-table drpg-room-check-table"><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * Show on map (E20 C2, S07-14): the canvas pans to the finding's point and marks it with Foundry's ping, on
+ * this GM's screen alone. The scene the check read is put on the canvas first when another is there. `board`
+ * is the canvas unless handed in (R1508 hands one that records). Answers whether it panned. How the mark looks
+ * on a real canvas is not measured: a table's check, which E20 C7 writes into AUDIT 9.2.
+ */
+export async function showOnMap(at, { sceneId = null, board = canvas } = {}) {
+    if (!at || !board) return false;
+    if (sceneId && board.scene?.id !== sceneId) await game.scenes?.get(sceneId)?.view();
+    const point = { x: at.x, y: at.y };
+    board.ping?.(point);
+    await board.animatePan?.({ ...point, duration: 250 });
+    return true;
+}
+
+/** Wires every Show on map under `root` to `showOnMap` (R1508 hands its own `board`). */
+export function wireShowOnMap(root, { board = canvas, sceneId = null } = {}) {
+    root?.addEventListener("click", ev => {
+        const button = ev.target?.closest?.("[data-drpg-show-at]");
+        if (!button) return;
+        ev.preventDefault();
+        const [x, y] = button.dataset.drpgShowAt.split(",").map(Number);
+        if (![x, y].every(Number.isFinite)) return;
+        showOnMap({ x, y }, { sceneId: button.dataset.drpgScene || sceneId, board });
     });
 }
 

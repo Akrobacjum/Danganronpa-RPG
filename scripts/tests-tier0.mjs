@@ -12372,8 +12372,9 @@ const REGRESSIONS = [
         const rooms = code("rooms.mjs"), movement = code("movement.mjs"), fog = code("fog.mjs"), diag = code("fog-diagnostics.mjs");
         const { crossingCost } = await import("./movement.mjs");
         const onLevel = fnSource(rooms, "onLevel"), offer = fnSource(fog, "floorOffer"), check = fnSource(diag, "checkRegions");
-        const FINDINGS = ["Region with no name", "DRPG.Fog.notRoom.problem", "No geometry the fog can read", "Overlaps \"",
-            "Border runs away from the walls", "No way out", "Corners off the map's own lattice", "Room still has the name Foundry gave it"];
+        // Keyed since E20 C2 (S01-23): each finding by its kind, `finding("<kind>"` (fog-diagnostics.mjs), or its key.
+        const FINDINGS = ["finding(\"unnamed\"", "DRPG.Fog.notRoom.problem", "finding(\"noShape\"", "finding(\"overlap\"",
+            "finding(\"adrift\"", "\"sealed\" : \"isolated\"", "finding(\"lattice\"", "finding(\"defaultName\""];
         const facts = {
             levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel)
                 && /const id = level\?\.id \?\? level;/.test(onLevel) && /includedInLevel\(id\)/.test(onLevel) && /levels\.has\(id\)/.test(onLevel),

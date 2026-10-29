@@ -3915,12 +3915,31 @@
       "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",
       "audit": {
         "title": "Kontrola anonimowości arkuszy",
-        "clean": "Każdy arkusz postaci jest prywatny. Nie ma czego naprawiać.",
-        "exposed": "Widoczne dla wszystkich graczy - napraw te:",
+        "clean": "Żaden arkusz nie jest otwarty w całości dla każdego gracza. Nie ma czego naprawiać.",
+        "exposed": "Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte i każdy gracz czyta je w całości - napraw te:",
+        "fix": "Ustaw je na Obserwatora",
+        "fixed": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć, z ukrytymi sekretami.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami."},
+        "closed": "Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale nikt nie może otworzyć tych arkuszy, więc nikt nie przeszuka ciała, gdy postać zginie:",
         "assistants": "Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie, co łamie anonimowość - zdegraduj ich do Gracza:",
         "shared": "Należą do więcej niż jednego gracza:",
         "orphaned": "Bez przypisanego właściciela-gracza - oto kto ma dostęp:",
         "nobody": "zupełnie nikt"
+      },
+      "everyone": {
+        "none": "pozostali gracze nie mogą otworzyć arkusza",
+        "limited": "pozostali gracze widzą tylko imię i portret",
+        "observer": "każdy gracz może otworzyć arkusz, z ukrytymi sekretami",
+        "owner": "każdy gracz jest właścicielem arkusza i czyta go w całości"
+      },
+      "level": {
+        "none": "nie może otworzyć arkusza",
+        "limited": "widzi tylko imię i portret",
+        "observer": "może otworzyć arkusz, z ukrytymi sekretami",
+        "owner": "jest właścicielem arkusza"
+      },
+      "role": {
+        "gm": "(GM)",
+        "assistant": "(Asystent GM-a)"
       },
       "reverted": "„{actor}” był udostępniony każdemu graczowi jako Owner, więc wszyscy mogli czytać cały arkusz. Wrócił do Observer. Owner daj tylko jego jednemu graczowi."
     },
@@ -4464,6 +4483,25 @@
       "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne - wyłącz to rozszerzenie dla tej strony.",
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
       "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle.",
+      "cast": {
+        "students": "Uczniowie (bez Monokum): {n}",
+        "starting": "Zasoby na start: {hp} Health, {stress} Sanity, {hope} Hope",
+        "noCast": "Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.",
+        "row": "Health maks. {hp}, Sanity maks. {stress}",
+        "notSetUp": "nieprzygotowana",
+        "pending": {"one": "{n} postać nie ma jeszcze zasobów na start.", "few": "{n} postacie nie mają jeszcze zasobów na start.", "many": "{n} postaci nie ma jeszcze zasobów na start.", "other": "{n} postaci nie ma jeszcze zasobów na start."},
+        "fix": "Jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia.",
+        "pendingWhy": "Do tego czasu każda z nich liczy się jako Wounded i w Breakdown: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
+        "allSet": "Każda postać ma zasoby na start.",
+        "ultimate": "Każdy ma Ultimate",
+        "ultimateFix": "Ustaw je na arkuszu, pod imieniem.",
+        "experiences": "Każdy ma {n} doświadczenia",
+        "experiencesFix": "Każde na +2, ustalone przy tworzeniu postaci.",
+        "item": "Każdy nosi swój przedmiot startowy",
+        "itemFix": "Jeden przedmiot poziomu {tier} związany z jego Ultimate: rozdaj go w Daj / zabierz przedmioty.",
+        "pool": "Każdy jest przypisany do puli Despair",
+        "poolFix": "Bez niej Despair z jego rzutów nie ma dokąd trafić. Ustaw to w panelu GM-a, w Despair Flow."
+      },
       "title": {
         "music": "Diagnostyka muzyki",
         "voice": "Plan głosu",
@@ -4877,9 +4915,56 @@
       },
       "notRoom": {
         "problem": "Ma nazwę, ale nie jest pokojem",
-        "passage": "Ma zachowanie {type}, więc jest przejściem, nie pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
-        "player": "Narysował go gracz, więc nigdy nie jest pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
-        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”), więc mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi."
+        "passage": "Ma zachowanie {type}: to przejście.",
+        "player": "Narysował go gracz.",
+        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”).",
+        "why": "Mgła nie rysuje obrysu ani odsłonięcia dla regionu, który nie jest pokojem, i nie prowadzą do niego żadne drzwi."
+      },
+      "uncoveredShare": "{pct}% mapy nie należy do żadnego pokoju",
+      "check": {
+        "showOnMap": "Pokaż na mapie",
+        "unnamed": {
+          "room": "(bez nazwy)",
+          "problem": "Region bez nazwy",
+          "why": "Pokoje rozpoznaje się po nazwie, więc region bez niej nie jest pokojem: nigdy nie liczy się jako sąsiad, a to jeden z cichych sposobów na drzwi, które prowadzą donikąd."
+        },
+        "defaultName": {
+          "problem": "Pokój wciąż ma nazwę nadaną przez Foundry",
+          "why": "Pokój to jego nazwa: gracze czytają ją na mapie, a klucze, schowki i Ustawienia pokoi ją podają. Nadaj mu własną nazwę przed grą."
+        },
+        "noShape": {
+          "problem": "Brak kształtu, który mgła umie odczytać",
+          "why": "Region istnieje, ale jego kształt wrócił pusty: nic z tego pokoju nie zostanie narysowane."
+        },
+        "overlap": {
+          "title": "Pokoje na siebie nachodzą",
+          "problem": "Nachodzi na „{other}”",
+          "fact": "Około {squares} kratki podłogi należy do obu pokoi.",
+          "deep": "Około {squares} kratki podłogi należy do obu pokoi, sięgając {depth} kratki w głąb.",
+          "why": "Tam, gdzie dwa pokoje na siebie nachodzą, granica jednego biegnie przez podłogę drugiego bez ściany w pobliżu, a cała wspólna granica wygląda jak jedne drzwi. Pokoje powinny się stykać; pasek cieńszy niż ćwierć kratki jest pomijany."
+        },
+        "adrift": {
+          "problem": "Granica odbiega od ścian",
+          "fact": "{squares} kratki granicy bez ściany.",
+          "why": "Granica narysowana z dala od ściany, którą opisuje, zamienia cały ten bok pokoju w drzwi: ściana nie zostaje znaleziona, więc nic go nie zamyka."
+        },
+        "sealed": {
+          "title": "Brak wyjścia: ściany dookoła",
+          "problem": "Brak wyjścia",
+          "fact": "Każdy odcinek granicy ma ścianę.",
+          "why": "Nic nie świeci jako drzwi. Jeśli pokój jest zamknięty celowo, zostaw go; jeśli nie, brakuje drzwi."
+        },
+        "isolated": {
+          "title": "Brak wyjścia: żadnego pokoju obok",
+          "problem": "Brak wyjścia",
+          "fact": "Żaden pokój nie leży bliżej niż kratkę od granicy.",
+          "why": "Najbliższy pokój jest dalej niż kratkę, więc te dwa nigdy nie spotykają się w drzwiach. Pokoje powinny się stykać wzdłuż wspólnej krawędzi."
+        },
+        "lattice": {
+          "problem": "Narożniki poza siatką mapy",
+          "fact": {"one": "{n} narożnik przesunięty do {px} px.", "few": "{n} narożniki przesunięte do {px} px.", "many": "{n} narożników przesuniętych do {px} px.", "other": "{n} narożnika przesuniętego do {px} px."},
+          "why": "Reszta mapy jest narysowana na siatce co pół kratki. Rysuj z przyciąganiem: narożnik przesunięty o ułamek kratki jest niewidoczny gołym okiem, a wystarczy, żeby dwa pokoje na siebie nachodziły albo się mijały."
+        }
       }
     },
     "Rooms": {

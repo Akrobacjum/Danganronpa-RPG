@@ -50,7 +50,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, gmReport, isPrimaryGm, debug, error } from "./utils.mjs";
+import { whisperToGms, gmReport, isPrimaryGm, debug, error, plural } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -572,32 +572,47 @@ export function explainOwnership(actor) {
 /**
  * Inspect every character and report anything that leaks. Returns the findings
  * and, unless told otherwise, whispers a report to the GM who asked (`gmReport`, E06 C11).
+ *
+ * ONLY ABOVE OBSERVER IS A FIX (E20 C2, 29.10.2026; audit S11-19, the owner's Q-6). Until then every
+ * character above None was listed "Visible to all players - fix these", and Observer is the level this
+ * module sets on purpose (`onPreCreateActor`, the 1.1.21 migration): it renders the sheet so the
+ * redaction can run. A GM was told to undo the module's own work, in Foundry's API names ("default is
+ * OBSERVER"). Now "fix these" is the sheets every player owns, which the redaction never touches, with
+ * a Set them to Observer the on-screen copy carries (`wireAnonymityFix`); a sheet closed to the other
+ * players is an info line, since nobody can open it to loot the body; the levels are words.
+ * `actors` is every character unless handed in (R1506 hands its own).
  */
-export async function auditAnonymity({ toChat = true } = {}) {
+export async function auditAnonymity({ toChat = true, actors = game.actors } = {}) {
     const exposed = [];
+    const closed = [];
     const shared = [];
     const orphaned = [];
     const assistants = [];
 
-    for (const actor of game.actors) {
+    for (const actor of actors ?? []) {
         if (actor.type !== "character") continue;
 
         const info = explainOwnership(actor);
 
-        if (info.defaultLevel > NONE) exposed.push(info);
+        if (info.defaultLevel > OBSERVER) exposed.push(info);
+        else if (info.defaultLevel < OBSERVER) closed.push(info);
         if (info.assistantOwners.length) assistants.push(info);
         if (info.playerOwners.length > 1) shared.push(info);
         if (info.playerOwners.length === 0 && info.assistantOwners.length === 0) orphaned.push(info);
     }
 
-    const findings = { exposed, shared, orphaned, assistants };
+    const findings = { exposed, closed, shared, orphaned, assistants };
 
     const sections = [];
 
     if (exposed.length) {
         sections.push(section("DRPG.Anonymity.audit.exposed", exposed.map(i =>
-            `${escape(i.actor.name)} - default is <strong>${levelName(i.defaultLevel)}</strong>`
+            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone"))}`
         )));
+        // A button only where somebody can press it: a whispered copy is a chat card nothing wires.
+        if (!toChat) {
+            sections.push(`<p><button type="button" data-drpg-anon-fix>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
+        }
     }
 
     if (assistants.length) {
@@ -616,15 +631,18 @@ export async function auditAnonymity({ toChat = true } = {}) {
         sections.push(section("DRPG.Anonymity.audit.orphaned", orphaned.map(i => {
             // Say who *does* have access, so "no owner" is never a mystery.
             const others = i.entries.length
-                ? i.entries.map(e => `${escape(e.user.name)}: ${levelName(e.level)}${e.isFullGm ? " (GM)" : e.isAssistant ? " (Assistant GM)" : ""}`).join(", ")
+                ? i.entries.map(e => `${escape(e.user.name)}: ${escape(levelWords(e.level, "level"))}${e.isFullGm
+                    ? ` ${escape(game.i18n.localize("DRPG.Anonymity.role.gm"))}`
+                    : e.isAssistant ? ` ${escape(game.i18n.localize("DRPG.Anonymity.role.assistant"))}` : ""}`).join(", ")
                 : game.i18n.localize("DRPG.Anonymity.audit.nobody");
             return `${escape(i.actor.name)} - ${others}`;
         })));
     }
 
-    const body = sections.length
-        ? sections.join("")
-        : `<p>${game.i18n.localize("DRPG.Anonymity.audit.clean")}</p>`;
+    // Nothing to fix still says so when the only lines are the closed sheets' note below it.
+    const body = `${sections.length ? sections.join("") : `<p>✓ ${escape(game.i18n.localize("DRPG.Anonymity.audit.clean"))}</p>`}${
+        closed.length ? section("DRPG.Anonymity.audit.closed", closed.map(i =>
+            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone"))}`)) : ""}`;
 
     // The rendered body travels back with the findings, so a caller that puts
     // the answer on screen itself gets the same prose the whisper would have
@@ -637,8 +655,57 @@ export async function auditAnonymity({ toChat = true } = {}) {
     return findings;
 }
 
-function levelName(level) {
-    return Object.entries(CONST.DOCUMENT_OWNERSHIP_LEVELS).find(([, v]) => v === level)?.[0] ?? String(level);
+/**
+ * Set them to Observer: the sheets every player owns, back to the level the redaction runs at (E20 C2,
+ * S11-19). A GM's own write, as `lowerOwnership`'s is; lowering is never refused (`onPreUpdateActor`).
+ * Answers how many it set. `actors` is every character unless handed in (R1506).
+ */
+export async function fixExposed(actors = game.actors) {
+    if (!game.user?.isGM) return 0;
+    let set = 0;
+    for (const actor of actors ?? []) {
+        if (actor.type !== "character" || (actor.ownership?.default ?? NONE) <= OBSERVER) continue;
+        try {
+            await actor.update({ "ownership.default": OBSERVER });
+            set++;
+        } catch (err) {
+            error(`Could not set "${actor.name}" back to Observer`, err);
+        }
+    }
+    if (set) debug(`Set ${set} character(s) back to OBSERVER from the anonymity audit.`);
+    return set;
+}
+
+/**
+ * The on-screen audit's Set them to Observer (Pre-season checks): fix, say how many, and draw the audit
+ * again in place. Answers `{ done() }`, the last press's promise, for a caller that waits on it (R1506,
+ * E20-T1). `root` holds the audit's body, as `auditAnonymity({ toChat: false })` drew it.
+ */
+export function wireAnonymityFix(root, { actors = game.actors } = {}) {
+    let last = Promise.resolve();
+    root?.addEventListener("click", ev => {
+        const button = ev.target?.closest?.("[data-drpg-anon-fix]");
+        if (!button) return;
+        ev.preventDefault();
+        button.disabled = true;
+        last = (async () => {
+            const n = await fixExposed(actors);
+            ui.notifications?.info(plural("DRPG.Anonymity.audit.fixed", { n }));
+            const again = await auditAnonymity({ toChat: false, actors });
+            root.innerHTML = again.body ?? "";
+        })().catch(err => error("Could not set the sheets back to Observer", err));
+    });
+    return { done: () => last };
+}
+
+/**
+ * An ownership level in words (E20 C2, S11-19): `everyone` for the default, what every player gets;
+ * `level` for one user's. Foundry's own names (OBSERVER, ...) were what the audit printed until then.
+ */
+function levelWords(level, kind) {
+    const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+    const name = level >= L.OWNER ? "owner" : level >= L.OBSERVER ? "observer" : level >= L.LIMITED ? "limited" : "none";
+    return game.i18n.localize(`DRPG.Anonymity.${kind}.${name}`);
 }
 
 function section(labelKey, lines) {

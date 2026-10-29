@@ -17,7 +17,7 @@ import { studentActors } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, gmReport } from "./utils.mjs";
+import { isPrimaryGm, log, debug, gmReport, plural } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow } from "./private-rolls.mjs";
 
@@ -1256,21 +1256,26 @@ export function voiceDiagnosis() {
  * whole roster at once.
  */
 export function diagnoseCharacters({ toChat = true, roster = studentActors(), assigned = assignments() } = {}) {
+    /* IN THE TABLE'S LANGUAGE, NO CONSOLE COMMAND (E20 C2, 29.10.2026; audit S01-23, S07-36). Every line
+       here was an English literal on a Polish table, and the fix said "or run game.drpg.initCharacter(actor)
+       for each" - a console command, to a GM who has a wand on every sheet for it. */
+    const t = (key, data) => (data ? game.i18n.format(`DRPG.Diagnostics.cast.${key}`, data) : game.i18n.localize(`DRPG.Diagnostics.cast.${key}`));
     const lines = [];
 
-    lines.push(`Students (Monokumas excluded): ${roster.length}`);
-    lines.push(`Starting resources: ${STARTING.hp} Health, ${STARTING.stress} Sanity, ${STARTING.hope} Hope`);
+    lines.push(t("students", { n: roster.length }));
+    lines.push(t("starting", { hp: STARTING.hp, stress: STARTING.stress, hope: STARTING.hope }));
     lines.push("");
 
     /* NOTHING CHECKED IS NOTHING TICKED (E20 C1, S06-28). With no student every "Everybody ..." line
        below read ✓ over an empty list, as the checklist's rows did; the checklist says "waiting for the
        cast" now, and so does this. */
     if (!roster.length) {
-        lines.push("No students yet: create the cast first, then run these checks again.");
+        lines.push(t("noCast"));
         return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
     }
 
     const pending = [];
+    const rows = [];
     for (const actor of roster) {
         const hp = actor.system?.resources?.hitPoints?.max ?? 0;
         const stress = actor.system?.resources?.stress?.max ?? 0;
@@ -1278,21 +1283,20 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
         // starting numbers: a Level Up raises them (SEASON-01).
         const ok = !needsStartingResources(actor);
         if (!ok) pending.push(actor);
-        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} - Health max ${hp}, Sanity max ${stress}${
-            ok ? "" : "  ← not set up"}`);
+        rows.push(`   ${ok ? "✓" : "✗"} ${actor.name} - ${t("row", { hp, stress })}${ok ? "" : `  ← ${t("notSetUp")}`}`);
     }
 
-    lines.push("");
+    /* THE FIX FIRST (E20 C2, S01-20): it sat under the list, below the cut of a 16rem frame, so the CAST
+       section showed names and crosses and never what to do. The list follows it. */
     if (pending.length) {
-        lines.push(`${pending.length} character(s) still need their starting resources.`);
-        lines.push("Each of them counts as Wounded AND in Breakdown right now: one action");
-        lines.push("instead of two, and disadvantage forced onto every roll.");
-        lines.push("");
-        lines.push("Fix: open the sheet and press the wand button next to the name,");
-        lines.push("or run  game.drpg.initCharacter(actor)  for each.");
-    } else if (roster.length) {
-        lines.push("Every character has the starting resources.");
+        lines.push(plural("DRPG.Diagnostics.cast.pending", { n: pending.length }));
+        lines.push(t("fix"));
+        lines.push(t("pendingWhy"));
+    } else {
+        lines.push(t("allSet"));
     }
+    lines.push("");
+    lines.push(...rows);
 
     /*
      * The four things that are agreed before a season and then never thought
@@ -1332,7 +1336,7 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
            the checklist's row asks: set to nobody, or assigned by hand; the fallback is named. */
         if (!feedsNobody(actor, assigned) && !explicitPool(actor, assigned)) {
             const fallback = monokumaFor(actor);
-            unwatched.push(fallback ? `${actor.name} (falls back to ${fallback.name})` : actor.name);
+            unwatched.push(fallback ? game.i18n.format("DRPG.Season.fallsBackTo", { name: actor.name, pool: fallback.name }) : actor.name);
         }
     }
 
@@ -1346,14 +1350,10 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
         if (fix) lines.push(`   ${fix}`);
     };
 
-    roll("Everybody has an Ultimate", missingUltimate,
-        "Set it on the sheet, under the name.");
-    roll(`Everybody has ${STARTING.experiences} experiences`, missingExperiences,
-        "Two at +2 each, agreed at character creation.");
-    roll("Everybody carries their opening item", missingItem,
-        `One Tier ${STARTING.startingItemTier} item tied to their Ultimate - hand it out from Give / take items.`);
-    roll("Everybody is assigned to a Despair pool", unwatched,
-        "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
+    roll(t("ultimate"), missingUltimate, t("ultimateFix"));
+    roll(t("experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
+    roll(t("item"), missingItem, t("itemFix", { tier: STARTING.startingItemTier }));
+    roll(t("pool"), unwatched, t("poolFix"));
 
     return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
 }
