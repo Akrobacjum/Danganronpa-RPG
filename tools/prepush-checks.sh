@@ -15,10 +15,13 @@ while read -r lref lsha rref rsha; do
   [ "$rref" = "refs/heads/lines-board" ] && continue
   [ "$rref" = "$BRANCH" ] || fail "push only to $BRANCH (got $rref)"
   case "$lsha" in 0000000*) fail "no deletes";; esac
-  if [ "${rsha#0000000}" != "$rsha" ]; then range="$lsha --not --remotes"; else
+  if [ "${rsha#0000000}" = "$rsha" ]; then
     git merge-base --is-ancestor "$rsha" "$lsha" || fail "not a fast-forward of $rsha"
-    range="$rsha..$lsha"
   fi
+  # Only the commits no remote branch has yet (the owner, 29.10.2026: "Tak"). The range was "$rsha..$lsha", which also
+  # held line A's commits that a `git merge origin/main` brings in to these rules: tried 29.10 on rsha 12ff1b62^1,
+  # refused on 12ff1b62 itself ("0 Co-Authored-By lines" - a release merge), though main already has it.
+  range="$lsha --not --remotes"
   for c in $(git rev-list $range); do
     n=$(git grep -n -E 'Opus 5\.5|Sonnet 5\.5|claude-(opus|fable|sonnet)' "$c" | wc -l)
     [ "$n" -eq 0 ] || fail "$c: model identifier in the tree ($n)"
