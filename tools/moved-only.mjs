@@ -1530,7 +1530,11 @@ export function selfCheck(print = console.log) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "moved-only-"));
     try {
         const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
-        Object.assign(env, { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull, GIT_AUTHOR_NAME: "fixture", GIT_AUTHOR_EMAIL: "fixture@localhost",
+        // Not os.devNull on Windows: it is "\\.\nul" there, and git 2.52.0.windows.1 stops on it ("fatal: unable to
+        // access '\.\nul': Invalid argument"), so the planted pairs could not be judged and `check moves` read red on
+        // every Windows run (29.10.2026). "NUL" and "/dev/null" both let `git init` through there; Linux keeps os.devNull.
+        const noConfig = process.platform === "win32" ? "NUL" : os.devNull;
+        Object.assign(env, { GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: noConfig, GIT_AUTHOR_NAME: "fixture", GIT_AUTHOR_EMAIL: "fixture@localhost",
             GIT_COMMITTER_NAME: "fixture", GIT_COMMITTER_EMAIL: "fixture@localhost" });
         const git = gitRunner(dir, env);
         const commit = (files, parent) => {
