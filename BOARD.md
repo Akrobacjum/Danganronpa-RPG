@@ -61,7 +61,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - Proposal (section 5): 3 read-only agents; $ not read yet (the owner reads the Console).
 - B-C0: 0 agents (done by the orchestrator); $ not read yet.
 - E20 so far: spec (1 read-only agent); C1 1 drpg-impl agent (308k tokens, 5.5 h wall with quick and CI waits), about $12 by the owner.
-- E20 C2: 1 drpg-impl agent (229k tokens, 123 tool calls, 21.5 min wall); a fresh run, so C2's $ = the run's total in ../scratch/session-cost.log (its first line is written at the end of this turn; the orchestrator fills it in at the next turn).
+- E20 C2: $6.37 (session-cost.log 21:56:45, a fresh run), 1 drpg-impl agent (229k tokens, 123 tool calls, 21.5 min wall).
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
