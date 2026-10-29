@@ -27,8 +27,7 @@
 #     run are not re-checked by those steps: CI is.
 # Each run writes status.txt (one "<label> ok|RED" line a step) for the next run to read.
 # Portability (line B kit, 29.10.2026): macOS and Git Bash on Windows have no flock or timeout; run without them there.
-command -v flock >/dev/null 2>&1 || flock() { shift 2; "$@"; }
-command -v timeout >/dev/null 2>&1 || timeout() { shift; "$@"; }
+. "$(dirname "${BASH_SOURCE[0]}")/portable.sh"   # flock, timeout, reap_clients (29.10.2026)
 set -u
 WT=$(readlink -f "${1:?usage: quick.sh <worktree> [--own list] [--scen list] [--no-t01] [--glass]}"); shift
 OWN=""; SCEN=""; T01=1; GLASS=0
@@ -57,7 +56,7 @@ fi
 green_before() { [ -n "$PREV" ] && grep -qxF "$1 ok" "$PREV/status.txt"; }
 kept() { SUM+=("$1 ok earlier ($(basename "$PREV"))"); echo "$1 ok" >> "$OUT/status.txt"; echo "$1: kept green from $PREV"; }
 
-reap() { for p in $(ps -eo pid=,args= | awk -v w="$H/client-entry.mjs" 'index($0, w) && $2 ~ /node$/ {print $1}'); do kill "$p" 2>/dev/null; done; }
+reap() { reap_clients "$H"; }
 step() {  # step <label> <log> <command...>: run under the lock, record ok/RED and the log's last line
   local label=$1 log=$OUT/$2; shift 2
   flock -w 3600 "$LOCK" "$@" > "$log" 2>&1; local rc=$?

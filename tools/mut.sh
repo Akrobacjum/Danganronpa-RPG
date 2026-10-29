@@ -20,8 +20,7 @@
 # Exit 0 killed, 1 survived, 2 errored or usage.
 # Written 18.10.2026 for INFRA; first run owed on the first MARKED commit of E80 (not run yet).
 # Portability (line B kit, 29.10.2026): macOS and Git Bash on Windows have no flock or timeout; run without them there.
-command -v flock >/dev/null 2>&1 || flock() { shift 2; "$@"; }
-command -v timeout >/dev/null 2>&1 || timeout() { shift; "$@"; }
+. "$(dirname "${BASH_SOURCE[0]}")/portable.sh"   # flock, timeout, reap_clients (29.10.2026)
 set -u
 WT=$(readlink -f "${1:?usage: mut.sh <worktree> <defs.py> <label> <names> <kind> <arg> [regex]}")
 DEFS=$(readlink -f "${2:?defs.py}"); LABEL=${3:?label}; NAMES=${4:?names}; KIND=${5:?kind}; ARG=${6:-}; RE=${7:-}
@@ -56,7 +55,7 @@ case $KIND in
   cmd) (cd "$T" && flock -w 3600 "$LOCK" timeout 900 bash -c "$ARG") >> "$LOG" 2>&1 ;;
 esac
 RC=$?
-for p in $(ps -eo pid=,args= | awk -v w="$H/client-entry.mjs" 'index($0, w) && $2 ~ /node$/ {print $1}'); do kill "$p" 2>/dev/null; done
+reap_clients "$H"
 if [ $RC -eq 0 ]; then V=SURVIVED; E=1
 elif grep -E -q "$RE" "$LOG"; then V=KILLED; E=0
 else V=ERRORED; E=2; fi

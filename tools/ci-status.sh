@@ -12,8 +12,7 @@
 # serves only `gh api`, so every call below is a REST read. Tried on b101885 (CI run 39080388921, green).
 # CI_REPO (owner/name) and CI_WORKFLOW (the run's name, default "CI") override.
 # Portability (line B kit, 29.10.2026): macOS and Git Bash on Windows have no flock or timeout; run without them there.
-command -v flock >/dev/null 2>&1 || flock() { shift 2; "$@"; }
-command -v timeout >/dev/null 2>&1 || timeout() { shift; "$@"; }
+. "$(dirname "${BASH_SOURCE[0]}")/portable.sh"   # flock, timeout, reap_clients (29.10.2026)
 set -u
 WT=${1:?usage: ci-status.sh <worktree> <rev> [--wait]}
 REV=${2:?usage: ci-status.sh <worktree> <rev> [--wait]}
