@@ -51,7 +51,7 @@ async def main():
     options = ClaudeAgentOptions(cwd=str(REPO), setting_sources=["user", "project", "local"],
                                  permission_mode="acceptEdits", can_use_tool=ask)
     spent = 0.0
-    print(f"line B in {REPO}; kit {KIT}. Type 'exit' to end.")
+    print(f"line B in {REPO}; kit {KIT}. Type 'exit' to end. Never type a key here: set it in PowerShell first.")
     async with ClaudeSDKClient(options=options) as client:
         while True:
             line = (await asyncio.to_thread(input, "\nty> ")).strip()
@@ -59,6 +59,11 @@ async def main():
                 if line == "":
                     continue
                 break
+            if "sk-ant-" in line or "ANTHROPIC_API_KEY" in line:
+                # Typed here, a key would be sent to the model as a message (it happened on 29.10.2026). Set it in
+                # PowerShell before starting this program instead.
+                print("  [not sent: this looks like a key or its variable. Type 'exit', set the key in PowerShell, start again.]")
+                continue
             await client.query(line)
             async for msg in client.receive_response():
                 if isinstance(msg, AssistantMessage):
