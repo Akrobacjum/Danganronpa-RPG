@@ -8,6 +8,26 @@ Polish, gender-neutral forms, never the long dash, use "-") coordinates the two 
 Read this whole file first, then `BOARD.md`, then the repo's own `CLAUDE.md` and `docs/dev/METHOD.md` (they load or are
 linked in the repo; METHOD.md is how every stage has been built), then `method/METHOD-A-lite.md` here.
 
+## 0. Setup (do it yourself, once, and report each step's result to the owner)
+
+1. In the clone (HOME/Danganronpa-RPG): `git fetch origin`, `git switch claude/fervent-sagan-gme4vt-b` (create it
+   tracking origin if missing), `git merge origin/main` (it is an ancestor of main today, so this fast-forwards).
+2. `git worktree add ../lines-board lines-board` (tracking origin/lines-board). Set LINE_B_HOME to that folder for the
+   tools (export it in the shell you run them from).
+3. `cd audit/harness && npm ci` (jsdom, ESLint, Playwright without a browser). Then `npm run quick` must end green
+   (lint, the checks, the gate's self-test). Report its last lines and how long it took: that is this machine's speed.
+4. Install the pre-push hook: copy `tools/prepush-checks.sh` from the kit to `.git/hooks/pre-push` of the clone and make
+   it executable. It needs perl (Git for Windows and macOS have it).
+5. Copy `method/agents/*.md` from the kit into `~/.claude/agents/` (your user-level subagents), so the roles load in
+   this repo without changing the repo. Check with `/agents`.
+6. `gh auth status` (GitHub CLI). If gh is missing or logged out, tell the owner: CI can then be read on GitHub's
+   Actions tab instead, and `tools/ci-status.sh` will not work.
+7. Git identity for commits: use the owner's GitHub identity already configured; commits end with one
+   `Co-Authored-By` trailer for yourself.
+8. On Windows run the bash tools from Git Bash (Claude Code uses Git Bash for its shell when Git for Windows is
+   installed). Line endings: keep the repo's (`git config core.autocrlf false` in this clone), since CI has a job that
+   checks a CRLF checkout separately.
+
 ## 1. What is where
 
 | Thing | Where |
