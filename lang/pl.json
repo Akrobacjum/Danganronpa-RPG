@@ -3779,6 +3779,16 @@
       "stateUnchanged": "Nic się nie zmieniło.",
       "checksSetup": "Obsada",
       "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
+      "checksAvOff": "Audio/Wideo jest w tym świecie wyłączone, więc nie ma kafla głosu: włącz je w Konfiguracji ustawień, Rdzeń, Audio/Wideo, albo wyłącz kafel głosu w ustawieniach modułu.",
+      "checksAvVideoOnly": "Ten świat ma ustawione samo wideo: nikt nie wysyła dźwięku. Ustaw tryb A/V na sam dźwięk.",
+      "checksImages": "Zdjęcia pokoi",
+      "checksImagesMissing": "Te zdjęcia pokoi się nie wczytują - wybierz plik jeszcze raz w Ustawieniach pokoi: {rooms}",
+      "checksImagesLarge": "Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli - zmniejsz je do najwyżej {side} px na bok i {mb} MB: {rooms}",
+      "checksImagesUnknown": "Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: {rooms}",
+      "checksImagesWhere": "{room} ({scene})",
+      "checksImagesSized": "{rooms}: {size}",
+      "checksImagesPixels": "{width} x {height} px",
+      "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Kontrola przed sezonem",
       "nextFloorHeld": "{mode} - głos ma {who}.",
       "whoIsAlive": "Uczniowie",
@@ -4931,6 +4941,16 @@
         "defaultName": {
           "problem": "Pokój wciąż ma nazwę nadaną przez Foundry",
           "why": "Pokój to jego nazwa: gracze czytają ją na mapie, a klucze, schowki i Ustawienia pokoi ją podają. Nadaj mu własną nazwę przed grą."
+        },
+        "piecesDiffer": {
+          "problem": "Części tego pokoju są ustawione różnie",
+          "fact": "Różni się między częściami: {what}",
+          "why": "Pokój narysowany z kilku części czyta każde ustawienie z pierwszej części, która je ma, więc ustawienie innej części nie jest ustawieniem pokoju. W Ustawieniach pokoi zmień ustawienie pokoju, zastosuj, potem przywróć je i zastosuj: wszystkie części dostaną to samo. Wysokość ustaw w ustawieniach regionu każdej części.",
+          "field": {
+            "notShared": "Bez prywatności",
+            "owner": "czyja sypialnia",
+            "elevation": "wysokość"
+          }
         },
         "noShape": {
           "problem": "Brak kształtu, który mgła umie odczytać",

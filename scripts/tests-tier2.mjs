@@ -74818,6 +74818,55 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, L.OBSERVER, false]),
             "[the student owned by every player under 'fix these', its default level after Set them to Observer, still under 'fix these' after]");
     }],
+    ["E20-T2 - Pre-season checks on the suite's world name a room whose picture does not load and say the A/V rows the world's mode calls for (E20 C3, E20-11; amend 11.10)", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (amend 11.10): a room picture that does not load, or a voice tile that cannot
+         * stand, was found by a player at the table, not by the GM before it. Every piece of one room of the scene on
+         * screen is given a picture path of the module's that no file answers, the window's body (`preSessionReport`)
+         * is drawn from the world as it is, and the pieces' pictures are put back. Headless, the probe Image has no
+         * decode, so what names the picture here is the server's 404 to the HEAD request; a real browser's decode is
+         * R1510's stand-in, not measured here. The A/V rows are held to the world's own mode and tile setting, by the
+         * rows amend 11.10 names for each mode.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("sceneOnScreen", 1));
+        const [{ roomPieces }, { VAULT_FLAGS }, SS] = await Promise.all([import("./rooms.mjs"), import("./vault.mjs"), import("./season-setup.mjs")]);
+        const scene = canvas.scene;
+        const room = roomPieces(scene)[0]?.name ?? null;
+        ok(room, "the scene on screen has no room - the suite's world holds one, so this measured nothing");
+        if (!room) return;
+        const pieces = roomPieces(scene).filter(r => r.name === room);
+        const before = pieces.map(piece => [piece, piece.getFlag(MODULE_ID, VAULT_FLAGS.image)]);
+        const PATH = "modules/danganronpa-rpg/e20-t2-no-such-picture.webp";
+        let text = "", lines = [];
+        try {
+            for (const piece of pieces) await piece.setFlag(MODULE_ID, VAULT_FLAGS.image, PATH);
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = await SS.preSessionReport?.() ?? "";
+            text = root.textContent;
+            lines = [...root.querySelectorAll("p.drpg-check-report")].map(p => p.textContent);
+        } finally {
+            for (const [piece, was] of before) {
+                if (was === undefined || was === null) await piece.unsetFlag(MODULE_ID, VAULT_FLAGS.image);
+                else await piece.setFlag(MODULE_ID, VAULT_FLAGS.image, was);
+            }
+            await settle();
+        }
+        const { DISABLED = 0, VIDEO = 2 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const mode = game.webrtc?.mode ?? game.webrtc?.settings?.world?.mode ?? DISABLED;
+        const on = getSetting(SETTINGS.voiceTile) !== false;
+        const missing = game.i18n.localize("DRPG.Panel.checksImagesMissing").split("{rooms}")[0];
+        const named = game.i18n.format("DRPG.Panel.checksImagesWhere", { room, scene: scene.name });
+        equal(stableJson({
+            picture: [lines.some(line => line.startsWith(missing)), lines.some(line => line.startsWith(missing) && line.includes(named))],
+            voice: [text.includes(game.i18n.localize("DRPG.Panel.checksAvOff")), text.includes(game.i18n.localize("DRPG.Panel.checksAvVideoOnly"))]
+        }), stableJson({
+            picture: [true, true],
+            voice: [on && mode === DISABLED, on && mode === VIDEO]
+        }), "Pre-season checks on the suite's world [the pictures-that-do-not-load line, the room named | the A/V-off row, the video-only row, "
+            + `for mode ${mode} with the tile ${on ? "on" : "off"}]`);
+    }],
 
     ...GRID
 ];

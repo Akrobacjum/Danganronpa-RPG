@@ -45,6 +45,7 @@ import {
 import { roomOutline } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { plural } from "./utils.mjs";
+import { VAULT_FLAGS } from "./vault.mjs";
 
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {
@@ -319,6 +320,40 @@ function notRoomWhy(region, players) {
     return game.i18n.localize("DRPG.Fog.notRoom.unmarked");
 }
 
+/*
+ * ONE ROOM, PIECES THAT DISAGREE (E20 C3, 29.10.2026; E77 D5, the owner's Q-7). A room's flags are read over its
+ * pieces, the first that carries a value answering (rooms.mjs `flagOver`), and Room Setup writes them to every piece -
+ * but a piece drawn after the room was set up, or copied from another room, carries its own. Its No privacy or its
+ * bedroom's owner is then silently not the room's. Asked of No privacy, the owner and the height (`elevation`); the
+ * height only between pieces on the same floors, since a room drawn on two floors stands at two heights by design.
+ * One warning a room, at its first piece that differs from the first.
+ */
+function piecesDifferCheck(pieces, add) {
+    if (pieces.length < 2) return;
+    const flag = (region, key) => region.getFlag?.(MODULE_ID, key) || null;
+    const height = region => {
+        const e = region.elevation;
+        return e && typeof e === "object" ? `${e.bottom ?? ""}/${e.top ?? ""}` : String(e ?? "");
+    };
+    const floors = region => [...(region.levels ?? [])].map(String).sort().join(",");
+    const [first] = pieces;
+    const differs = { notShared: false, owner: false, elevation: false };
+    let at = null;
+    for (const piece of pieces.slice(1)) {
+        const here = {
+            notShared: Boolean(flag(piece, VAULT_FLAGS.notShared)) !== Boolean(flag(first, VAULT_FLAGS.notShared)),
+            owner: flag(piece, VAULT_FLAGS.owner) !== flag(first, VAULT_FLAGS.owner),
+            elevation: floors(piece) === floors(first) && height(piece) !== height(first)
+        };
+        for (const key of Object.keys(here)) differs[key] ||= here[key];
+        if (!at && Object.values(here).some(Boolean)) at = pointOf(piece);
+    }
+    const what = Object.keys(differs).filter(key => differs[key]);
+    if (!what.length) return;
+    const words = what.map(key => game.i18n.localize(`DRPG.Fog.check.piecesDiffer.field.${key}`)).join(", ");
+    add("warning", first.name, finding("piecesDiffer", { what: words }, "fact"), at);
+}
+
 /* ---- 1. overlapping rooms - the first cause on the list --------------- */
 /*
  * WITH A MARGIN, IN BOTH DIRECTIONS - and the margins are the engine's own,
@@ -510,6 +545,7 @@ export function checkRegions(scene = canvas?.scene) {
     const add = addOn(null);
 
     const rooms = roomsToCheck(scene, add);
+    for (const list of rooms) piecesDifferCheck(list, add);
     const named = asChecked(rooms);
     if (!roomPieces(scene).length) findings.push(said("DRPG.Fog.checkNoRooms.problem", "DRPG.Fog.checkNoRooms.detail"));
     // A scene that names one floor is checked as before: its every row would name the same floor.

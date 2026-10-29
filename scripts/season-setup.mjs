@@ -22,7 +22,7 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING, UNCOVERED_LIMIT_PCT
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
@@ -918,38 +918,85 @@ export async function openSeasonSetup({ draft = null } = {}) {
  * answered where the button was.
  */
 async function runPreSessionChecks() {
-    const [{ diagnoseCharacters }, { auditAnonymity, wireAnonymityFix }, { diagnoseScenes }, { videoUnwatched }] = await Promise.all([
-        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs")
+    const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
+    await DialogV2.wait({
+        classes: ["drpg-panel", "drpg-wide"],
+        window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
+        content: dialogContent(body),
+        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
+        render: (event, dialog) => wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]")),
+        rejectClose: false
+    });
+}
+
+/**
+ * The Pre-season checks window's body (E20 C3, from `runPreSessionChecks`, so the suite reads it without a window):
+ * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
+ * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
+ * request (R1510, R1511, E20-T2); each is the world's unless handed.
+ *
+ * @param {object} [options]
+ * @returns {Promise<string>} HTML
+ */
+export async function preSessionReport({ av = {}, scenes = game.scenes, head } = {}) {
+    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched, avOffForTile, videoWithoutAudio },
+        { checkRoomImages }] = await Promise.all([
+        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
     ]);
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
     const setup = diagnoseCharacters({ toChat: false });
     const anon = await auditAnonymity({ toChat: false });
     // A scene that has rooms but still uses Foundry's own vision renders as a
     // black screen for players on v14 and says nothing about why, so it belongs
     // on the list of things checked before anybody sits down.
-    const scenes = diagnoseScenes({ lastChecks: lastRoomChecks });
+    const sceneLines = diagnoseScenes({ lastChecks: lastRoomChecks });
     // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
-    // the voice tile stands in for the dock, which shows none of them. A row only when that is so.
-    const video = videoUnwatched() ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>
-            <p class="drpg-check-report">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Panel.checksAvVideo"))}</p>` : "";
+    // the voice tile stands in for the dock, which shows none of them. E20 C3 (amend 11.10): the two worlds where the
+    // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so.
+    const voice = [avOffForTile(av) && "DRPG.Panel.checksAvOff", videoWithoutAudio(av) && "DRPG.Panel.checksAvVideoOnly",
+        videoUnwatched(av) && "DRPG.Panel.checksAvVideo"].filter(Boolean);
+    const video = voice.length ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>
+            ${voice.map(key => `<p class="drpg-check-report">${esc(game.i18n.localize(key))}</p>`).join("")}` : "";
+    const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}) }), esc);
 
-    await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-wide"],
-        window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
-        content: dialogContent(`<div>
+    return `<div>
             <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
-            <pre class="drpg-check-report">${foundry.utils.escapeHTML(setup)}</pre>
+            <pre class="drpg-check-report">${esc(setup)}</pre>
             <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
-            <pre class="drpg-check-report">${foundry.utils.escapeHTML(scenes)}</pre>
+            <pre class="drpg-check-report">${esc(sceneLines)}</pre>
+            ${pictures}
             ${video}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
             <div data-drpg-anon>${anon.body ?? ""}</div>
-        </div>`),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
-        // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
-        render: (event, dialog) => wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]")),
-        rejectClose: false
-    });
+        </div>`;
+}
+
+/**
+ * Pre-season's room pictures (E20 C3; amend 11.10's decode row, E77 D5's size warning): those that do not load,
+ * those over `ROOM_IMAGE_LIMITS` with the size that is over, and those whose size the server did not give - one
+ * line each kind, nothing when no picture needs a word.
+ *
+ * @param {{missing: object[], large: object[], unknownSize: object[]}} found  room-tile.mjs `checkRoomImages`
+ * @param {function(*): string} esc
+ * @returns {string} HTML
+ */
+function roomImagesSection(found, esc) {
+    const where = entry => entry.rooms.map(r => game.i18n.format("DRPG.Panel.checksImagesWhere", r)).join(", ");
+    const listOf = list => list.map(where).join("; ");
+    const mb = bytes => new Intl.NumberFormat(game.i18n.lang || undefined, { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024));
+    const sized = entry => game.i18n.format("DRPG.Panel.checksImagesSized", { rooms: where(entry), size: [
+        entry.pixels && game.i18n.format("DRPG.Panel.checksImagesPixels", { width: entry.width, height: entry.height }),
+        entry.heavy && game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: mb(entry.bytes) })].filter(Boolean).join(", ") });
+    const lines = [
+        found.missing.length && game.i18n.format("DRPG.Panel.checksImagesMissing", { rooms: listOf(found.missing) }),
+        found.large.length && game.i18n.format("DRPG.Panel.checksImagesLarge", { side: ROOM_IMAGE_LIMITS.side,
+            mb: mb(ROOM_IMAGE_LIMITS.bytes), rooms: found.large.map(sized).join("; ") }),
+        found.unknownSize.length && game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) })
+    ].filter(Boolean);
+    return lines.length ? `<h3>${esc(game.i18n.localize("DRPG.Panel.checksImages"))}</h3>
+            ${lines.map(line => `<p class="drpg-check-report">${esc(line)}</p>`).join("")}` : "";
 }
 
 /* ==========================================================================

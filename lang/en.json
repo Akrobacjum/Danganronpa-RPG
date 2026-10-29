@@ -3632,6 +3632,16 @@
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Cast",
       "checksAvVideo": "This world sends video nobody watches: set the A/V mode to audio only.",
+      "checksAvOff": "Audio/Video is off in this world, so there is no voice tile: turn it on in Configure Settings, Core, Audio/Video, or switch the voice tile off in the module's settings.",
+      "checksAvVideoOnly": "This world is set to video only: nobody sends sound. Set the A/V mode to audio only.",
+      "checksImages": "Room pictures",
+      "checksImagesMissing": "These room pictures do not load - pick the file again in Room Setup: {rooms}",
+      "checksImagesLarge": "These room pictures are large and slow to load for every player - make them at most {side} px on a side and {mb} MB: {rooms}",
+      "checksImagesUnknown": "The file size of these room pictures could not be read: {rooms}",
+      "checksImagesWhere": "{room} ({scene})",
+      "checksImagesSized": "{rooms}: {size}",
+      "checksImagesPixels": "{width} x {height} px",
+      "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Pre-season checks",
       "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
@@ -4699,6 +4709,16 @@
         "defaultName": {
           "problem": "Room still has the name Foundry gave it",
           "why": "A room is its name: players read it on the map, and keys, stashes and Room Setup all name it. Give it the room's own name before play."
+        },
+        "piecesDiffer": {
+          "problem": "Pieces of this room are set up differently",
+          "fact": "Differs between pieces: {what}",
+          "why": "A room drawn in several pieces reads each setting from the first piece that has it, so another piece's setting is not the room's. In Room Setup change the room's setting, Apply, then set it back and Apply: that gives every piece the same. Set the height in each piece's region settings.",
+          "field": {
+            "notShared": "No privacy",
+            "owner": "whose bedroom",
+            "elevation": "height"
+          }
         },
         "noShape": {
           "problem": "No geometry the fog can read",

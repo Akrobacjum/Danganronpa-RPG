@@ -12908,7 +12908,7 @@ const INVARIANTS = [
              - `writeVoiceSetting` refuses any other key, a mode avclient-livekit does not have, and a value that is not
                a string;
              - `videoUnwatched`: true only in audio-and-video mode while the tile stands in for the dock; and
-               `runPreSessionChecks` asks it (season-setup.mjs, read in the source).
+               `preSessionReport` asks it (season-setup.mjs, read in the source; `runPreSessionChecks` until E20 C3).
            Red before C5: there was no voice-panel.mjs (by `ok`). */
         const P = await import("./voice-panel.mjs").catch(() => null);
         const T = await import("./voice-tile.mjs");
@@ -12944,7 +12944,8 @@ const INVARIANTS = [
         const video = [[AUDIO_VIDEO, true, true], [AUDIO, true, true], [VIDEO, true, true], [AUDIO_VIDEO, false, true], [AUDIO_VIDEO, true, false]]
             .map(([mode, available, on]) => T.videoUnwatched({ mode, available, on }));
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
-        const asks = /\bvideoUnwatched\(\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "runPreSessionChecks"));
+        // E20 C3: the report's body moved to `preSessionReport`, which hands the A/V facts in (R1510 reads the rows).
+        const asks = /\bvideoUnwatched\(/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "preSessionReport"));
         equal(JSON.stringify([controls, chosen, changed, unnamedRead, refusals, video, asks]), JSON.stringify([
             ["voice:audioSrc", "voice:audioSink", "voice:mode"], ["R542MIC2", "R542OUT1", "ptt", true],
             ["client.audioSrc=R542MIC1", "client.voice.mode=always"], [true, ["voice:mode"], "always"],
@@ -12953,7 +12954,7 @@ const INVARIANTS = [
         "[the Voice section's controls; the stored microphone, output and mode chosen and the key's line; a change of the microphone and of the mode "
             + "writes | before the browser names its microphones and with no output: the line, the controls, the mode | writeVoiceSetting: muteAll, a "
             + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
-            + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
+            + "with the tile; audio; video; no voice; the tile off | preSessionReport asks videoUnwatched]");
     }],
     ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room at once on an empty tile and a change of speaker after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
         /*
@@ -25981,6 +25982,118 @@ const INVARIANTS = [
             "the CAST report is a frame of its own or hides its fix [Monokuma Legacy, Stained Glass: the max-height that wins, no overflow of its own; "
             + "the fix sentence found, before the first student's line]");
     }],
+    ["R1510 - Pre-season checks keep the rows amend 11.10 asked for (E20 C3, E20-11): \"A/V is off: no voice tile\" with the tile on and A/V off, \"video-only: nobody sends sound\" in video mode, each only then, and a room picture that does not decode is named under the room pictures, each picture probed once", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (amend 11.10, A8): a GM with the voice tile switched on and Audio/Video off in
+         * Foundry, or in video-only mode, sat down to a session with no voice and no word why; a room picture that does
+         * not load showed players the tile's empty glass and the GM learnt of it only when a player pressed it. Read:
+         * the two predicates over the four A/V modes with the tile on and off, then `preSessionReport` (season-setup.mjs,
+         * the window's body) drawn on facts handed in - A/V off, then video-only - over a scene of plain objects with
+         * three rooms whose pictures are two paths, one that a stand-in Image fails to decode, and a HEAD stand-in. The
+         * stand-in Image goes on globalThis, as R505's does. Nothing is written. Red at the parent: no `avOffForTile`,
+         * no `videoWithoutAudio`, no `preSessionReport`.
+         */
+        let T = null, SS = null;
+        try { [T, SS] = await Promise.all([import("./voice-tile.mjs"), import("./season-setup.mjs")]); } catch { T = null; }
+        const { DISABLED = 0, AUDIO = 1, VIDEO = 2, AUDIO_VIDEO = 3 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const modes = [DISABLED, AUDIO, VIDEO, AUDIO_VIDEO];
+        const table = fn => typeof fn === "function" ? [true, false].map(on => modes.map(mode => fn({ mode, on }))) : null;
+        const fx = await e20Fixture();
+        const scene = fx.scene("R1510 school", [
+            fx.region("R1510a", "R1510 Hall", { rect: [0, 0, 1000, 1000], image: "worlds/suite/r1510-hall.webp" }),
+            fx.region("R1510b", "R1510 Gym", { rect: [1000, 0, 1000, 1000], image: "worlds/suite/r1510-gone.webp" }),
+            fx.region("R1510c", "R1510 Lab", { rect: [2000, 0, 1000, 1000], image: "worlds/suite/r1510-hall.webp" })]);
+        const probed = [];
+        const RealImage = globalThis.Image;
+        let reports = [];
+        try {
+            globalThis.Image = class {
+                set src(path) { probed.push(path); this.path = path; this.naturalWidth = 1200; this.naturalHeight = 800; }
+                async decode() { if (this.path.includes("gone")) throw new Error("R1510: the stand-in does not decode"); }
+            };
+            const head = async () => ({ status: 200, bytes: 400000 });
+            const draw = async av => {
+                const html = await SS?.preSessionReport?.({ av, scenes: [scene], head });
+                const root = document.createElement("div");
+                root.innerHTML = html ?? "";
+                return root.textContent;
+            };
+            reports = [await draw({ mode: DISABLED, on: true, available: false }), await draw({ mode: VIDEO, on: true, available: false })];
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const has = (text, key, data = null) => text.includes(data ? game.i18n.format(key, data) : game.i18n.localize(key));
+        const gone = game.i18n.format("DRPG.Panel.checksImagesWhere", { room: "R1510 Gym", scene: "R1510 school" });
+        const hall = game.i18n.format("DRPG.Panel.checksImagesWhere", { room: "R1510 Hall", scene: "R1510 school" });
+        const once = [...new Set(probed)];
+        equal(stableJson({
+            avOff: table(T?.avOffForTile), videoOnly: table(T?.videoWithoutAudio),
+            reports: reports.map(text => [has(text, "DRPG.Panel.checksAvOff"), has(text, "DRPG.Panel.checksAvVideoOnly"),
+                has(text, "DRPG.Panel.checksImagesMissing", { rooms: gone }), text.includes(hall)]),
+            probed: [once, probed.length]
+        }), stableJson({
+            avOff: [[true, false, false, false], [false, false, false, false]],
+            videoOnly: [[false, false, true, false], [false, false, false, false]],
+            reports: [[true, false, true, false], [false, true, true, false]],
+            probed: [["worlds/suite/r1510-gone.webp", "worlds/suite/r1510-hall.webp"], 4]
+        }), "Pre-season checks miss a row amend 11.10 keeps [A/V off with the tile on, then off; video-only with the tile on, then off - "
+            + "over disabled, audio, video, audio and video | the report with A/V off, then video-only: the A/V-off row, the video-only row, "
+            + "the Gym under pictures that do not load, the Hall named anywhere | the paths probed, and how many probes over two reports]");
+    }],
+    ["R1511 - a room picture over 4096 px on a side or 8 MB warns, a file whose size the server does not give is said so, and Check rooms warns when one room's pieces differ in No privacy, owner or height (E20 C3, E20-12; E77 D5, Q-7)", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (E77 D5): a 6000 px or 12 MB room picture loads slowly in every player's browser
+         * each time the tile shows it, and nothing told the GM; a room drawn in two pieces where only one carries No
+         * privacy or the bedroom's owner reads as the first piece says, so the GM's setting on the other was silently
+         * lost (the readers take the first piece that carries a value, rooms.mjs `flagOver`). Read: `checkRoomImages`
+         * (room-tile.mjs) over a scene of plain objects with four pictures - one 5000x3000, one 9 MB, one 1 MB and small,
+         * one the HEAD stand-in gives no length for - with stand-ins for Image and HEAD; then `checkRegions` on a scene
+         * with a Kitchen whose second piece differs in all three, a Hall of two equal pieces, and a Stair whose pieces on
+         * two floors stand at two heights. Nothing is written. Red at the parent: no `checkRoomImages`, no pieces row.
+         */
+        let RT = null, F = null, C = null;
+        try { [RT, F, C] = await Promise.all([import("./room-tile.mjs"), import("./fog.mjs"), import("./config.mjs")]); } catch { RT = null; }
+        const fx = await e20Fixture();
+        const MB = 1024 * 1024;
+        const sizes = { big: [5000, 3000, 2 * MB], heavy: [2000, 2000, 9 * MB], small: [1000, 1000, MB], nolength: [1000, 1000, null] };
+        const pictures = fx.scene("R1511 pictures", Object.keys(sizes).map((name, i) =>
+            fx.region(`R1511p${i}`, `R1511 ${name}`, { rect: [i * 1000, 0, 1000, 1000], image: `worlds/suite/r1511-${name}.webp` })));
+        const size = src => sizes[String(src).match(/r1511-(\w+)\.webp/)?.[1]] ?? [0, 0, null];
+        const RealImage = globalThis.Image;
+        let images = null;
+        try {
+            globalThis.Image = class {
+                set src(path) { [this.naturalWidth, this.naturalHeight] = size(path); }
+                async decode() {}
+            };
+            images = await RT?.checkRoomImages?.({ scenes: [pictures], head: async src => ({ status: 200, bytes: size(src)[2] }) });
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const roomsOf = list => (list ?? []).map(entry => entry.rooms.map(r => r.room)).flat().sort();
+        const pieces = fx.scene("R1511 pieces", [
+            fx.region("R1511k1", "R1511 Kitchen", { rect: [0, 0, 1000, 1000] }),
+            fx.region("R1511k2", "R1511 Kitchen", { rect: [1000, 0, 1000, 1000], notShared: true, owner: "R1511owner", elevation: { bottom: 10, top: 20 } }),
+            fx.region("R1511h1", "R1511 Hall", { rect: [0, 1000, 1000, 1000], owner: "R1511owner", elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511h2", "R1511 Hall", { rect: [1000, 1000, 1000, 1000], owner: "R1511owner", elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511s1", "R1511 Stair", { rect: [0, 2000, 1000, 1000], levels: ["R1511L1"], elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511s2", "R1511 Stair", { rect: [1000, 2000, 1000, 1000], levels: ["R1511L2"], elevation: { bottom: 10, top: 20 } })]);
+        const differ = F.checkRegions(pieces).filter(r => r.kind === "piecesDiffer").map(r => [r.level, r.room, r.detail]);
+        const what = game.i18n.format("DRPG.Fog.check.piecesDiffer.fact", { what: ["notShared", "owner", "elevation"]
+            .map(k => game.i18n.localize(`DRPG.Fog.check.piecesDiffer.field.${k}`)).join(", ") });
+        equal(stableJson({
+            limits: [C?.ROOM_IMAGE_LIMITS?.side, C?.ROOM_IMAGE_LIMITS?.bytes],
+            large: (images?.large ?? []).map(e => [e.rooms.map(r => r.room).join(), e.pixels, e.heavy]).sort(),
+            unknownSize: roomsOf(images?.unknownSize), missing: roomsOf(images?.missing),
+            differ
+        }), stableJson({
+            limits: [4096, 8 * MB],
+            large: [["R1511 big", true, false], ["R1511 heavy", false, true]],
+            unknownSize: ["R1511 nolength"], missing: [],
+            differ: [["warning", "R1511 Kitchen", what]]
+        }), "a room picture's size or a room's differing pieces go unsaid [the limits; the large pictures and why (pixels, bytes); "
+            + "the pictures whose size is unknown; those that do not load | Check rooms' pieces-differ rows: level, room, what differs]");
+    }],
 ];
 
 /**
@@ -26319,9 +26432,9 @@ function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
 }
 
 /**
- * E20 C1's fixtures (R1500-R1505): scenes, regions and students of plain objects, read by the module's readers and
- * never written. A region carries the room flag unless `room` is false, and the owner, No privacy and lock flags it is
- * handed; its shape is a rectangle `rect` ([x, y, width, height]) as raw shapes, or v14's `polygons` and `tree` (the
+ * E20 C1's fixtures (R1500-R1505; R1510, R1511 since C3): scenes, regions and students of plain objects, read by the
+ * module's readers and never written. A region carries the room flag unless `room` is false, and the owner, No privacy,
+ * lock and picture flags it is handed; its shape is a rectangle `rect` ([x, y, width, height]) as raw shapes, or v14's `polygons` and `tree` (the
  * `polygonTree` nodes) when handed. A scene is ready for room vision unless `ready` is false; its `dimensions` are a
  * 4000x3000 map with no padding unless handed. A student is a character with no Monokuma flag, dead with `dead`, and
  * at the starting resources unless `set` is false.
@@ -26331,11 +26444,14 @@ async function e20Fixture() {
         import("./vault.mjs"), import("./movement.mjs"), import("./rooms.mjs"), import("./config.mjs")]);
     const flagged = flags => (scope, key) => (scope === MODULE_ID ? flags[key] : undefined);
     return {
-        region(id, name, { room = true, owner = null, notShared = false, locked = false, rect = null, polygons = null, tree = null } = {}) {
+        region(id, name, { room = true, owner = null, notShared = false, locked = false, rect = null, polygons = null, tree = null,
+            image = null, elevation = undefined, levels = undefined } = {}) {
             const flags = { [ROOM_FLAG]: room ? true : undefined, [VAULT_FLAGS.owner]: owner ?? undefined,
-                [VAULT_FLAGS.notShared]: notShared || undefined, [ROOM_FLAGS.locked]: locked || undefined };
+                [VAULT_FLAGS.notShared]: notShared || undefined, [ROOM_FLAGS.locked]: locked || undefined, [VAULT_FLAGS.image]: image ?? undefined };
             return {
                 id, name, behaviors: [], getFlag: flagged(flags),
+                // E20 C3 (R1511): v14's `elevation` {bottom, top} and the floors a piece stands on, only when handed.
+                ...(elevation !== undefined ? { elevation } : {}), ...(levels ? { levels: new Set(levels) } : {}),
                 shapes: rect ? [{ type: "rectangle", x: rect[0], y: rect[1], width: rect[2], height: rect[3] }] : [],
                 ...(polygons ? { polygons: polygons.map(points => ({ points })) } : {}),
                 ...(tree ? { polygonTree: tree } : {})

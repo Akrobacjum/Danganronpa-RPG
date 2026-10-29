@@ -458,6 +458,15 @@ export const ROOMS_PER_PLAYER = 1.5;
  */
 export const UNCOVERED_LIMIT_PCT = 10;
 
+/**
+ * When a room picture is called large in Pre-season checks (E20 C3; E77 D5, the owner's Q-7 of 29.10.2026): more
+ * than `side` pixels on either side, or a file of more than `bytes` (8 MB taken as 8 MiB). Every player's browser
+ * fetches and decodes the picture each time the tile shows it; the two numbers are the owner's, not measured here
+ * against a browser's load time. `probeMs` bounds each picture's HEAD request and decode, so one server that does
+ * not answer keeps the window waiting no longer than that (a choice, not measured on a real server).
+ */
+export const ROOM_IMAGE_LIMITS = Object.freeze({ side: 4096, bytes: 8 * 1024 * 1024, probeMs: 8000 });
+
 /* ==========================================================================
  * ROOMS
  * ========================================================================== */

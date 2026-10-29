@@ -1037,7 +1037,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `diagnoseScenes()` | wymienia sceny z pokojami i czy każda jest gotowa |
 | `prepareScenes()` | naprawia je wszystkie |
 | `whyBlack()` | wymienia, co warstwa mgły ma na ekranie, gdy obraz jest zły |
-| `checkRegions()` | sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, nazwany region, który nie jest pokojem (i dlaczego), oraz narożniki poza siatką samej mapy; na scenie o kilku piętrach sprawdza każde piętro osobno i podaje je w kolumnie `floor` (kolumna `level` to waga ustalenia: error, warning albo info) |
+| `checkRegions()` | sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, pokój, którego części różnią się brakiem prywatności, właścicielem albo wysokością, nazwany region, który nie jest pokojem (i dlaczego), oraz narożniki poza siatką samej mapy; na scenie o kilku piętrach sprawdza każde piętro osobno i podaje je w kolumnie `floor` (kolumna `level` to waga ustalenia: error, warning albo info) |
 | `doorwayReport()` | tłumaczy każdy odcinek granicy bieżącego pokoju |
 | `fogPeek()` | chowa mgłę na kilka sekund |
 | `fogAnimations(false)` | wyłącza animację odsłaniania w trakcie sesji |
