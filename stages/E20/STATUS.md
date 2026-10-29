@@ -7,6 +7,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | --- | --- | --- |
 | C1 | 5ede9103 | QUICK GREEN at 60ef9a97+edits: lint/check/gate ok; prose ok; t01 ok; own(13) ok; scen 66 ok (logs /c/Users/chrob/quick-runs/60ef9a97-1811) |
 | C2 | 08b92cef | QUICK GREEN at 5ede9103+edits: lint/check/gate ok; prose ok; t01 ok earlier (5ede9103-474); own(3) ok; scen 12 ok earlier (5ede9103-474); scen 66 ok earlier (5ede9103-474) (logs /c/Users/chrob/quick-runs/5ede9103-1431); R387, R1502, R1503, R1506-R1509 by name after the lint fix: 8 passed, 0 failed |
+| C3 | 6ad88c5a | QUICK GREEN at 08b92cef+edits: lint/check/gate ok; prose ok; t01 ok; own(3) ok; scen 66 ok; scen 74 ok (logs /c/Users/chrob/quick-runs/08b92cef-425); R1510, R1511, R387, R503, R505, R542: 7 passed, 0 failed; E20-T1, E20-T2: 6 passed, 0 failed |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -40,3 +41,7 @@ All exported; R1500 reads the exports.
 - C2 gap: `diagnoseDespair` (console report) still English - the review
 - C2 gap: the anonymity audit still counts Monokuma like any character (unchanged behaviour) - the review
 - C2 note: Pre-season's scene marks are now check/cross signs instead of "ok"/"!!"; the room-check findings' English titles kept (scenario 66 reads them)
+- C3 gap: a real browser's image decode not measured (harness: a stand-in in R1510, the server's 404 in E20-T2) - C7 LIVE
+- C3 gap: the HEAD request's size on a real Foundry server / The Forge not measured (LIVE-E20-04); 8 s per picture is the implementer's choice; "8 MB" read as 8 MiB - C7 / the review
+- C3 gap (Q-7 reading, for the review): height compared only between pieces on the same floors; the trial hall's picture not checked (not a room)
+- C3 note: the GM handbooks' `checkRegions()` row (EN/PL) already names the new finding (R387 reads it); the new Pre-season rows still need C7's text

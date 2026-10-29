@@ -19,7 +19,7 @@ R numbers: line A R1049-R1499.
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
-| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef pushed (CI pending); paused before C3 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
+| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef (CI green), C3 6ad88c5a pushed (CI pending); C4 in work | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
