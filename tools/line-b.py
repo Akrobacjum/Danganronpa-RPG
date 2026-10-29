@@ -10,7 +10,8 @@ Run (from the lines-board folder):  python tools/line-b.py   (Windows: py tools\
   --forget-key        remove the key kept in the credential store
 Needs: Python 3.10+, `pip install claude-agent-sdk keyring`. The key: ANTHROPIC_API_KEY if set in this terminal, else
 the one kept in the system's credential store (Windows Credential Manager, macOS Keychain) under "drpg-line-b"; the
-first run without either asks for it with hidden input and keeps it there. Never printed, never sent as a message.
+first run without either reads it from the clipboard (copy it, press Enter), keeps it there and empties the clipboard.
+Never printed, never sent as a message.
 
 ONE READER OF THE KEYBOARD (fix of 29.10.2026). The first version read the keyboard in two places at once - the message
 prompt and the permission question - so when a subagent working in the background asked for a permission while the
@@ -77,6 +78,32 @@ async def ask(tool, data, _context):
     return PermissionResultDeny(message="The owner said no to this call.")
 
 
+def read_clipboard():
+    """The clipboard's text, by tkinter (in every python.org install) or else PowerShell's Get-Clipboard."""
+    try:
+        import tkinter
+        root = tkinter.Tk(); root.withdraw()
+        text = root.clipboard_get(); root.destroy()
+        return text.strip()
+    except Exception:
+        import subprocess
+        try:
+            out = subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Clipboard"], capture_output=True, text=True)
+            return out.stdout.strip()
+        except Exception:
+            return ""
+
+
+def write_clipboard(text):
+    """Empty the clipboard once the key is kept, so it is not pasted somewhere by mistake."""
+    try:
+        import tkinter
+        root = tkinter.Tk(); root.withdraw()
+        root.clipboard_clear(); root.clipboard_append(text); root.update(); root.destroy()
+    except Exception:
+        pass
+
+
 def load_key():
     """The key into this process's environment (the SDK reads it there), from the terminal or the credential store."""
     try:
@@ -97,10 +124,12 @@ def load_key():
     if not kept:
         if not keyring:
             sys.exit("No key: set ANTHROPIC_API_KEY in this terminal, or `py -m pip install keyring` to keep it once.")
-        import getpass
-        kept = getpass.getpass("API key (hidden, kept in the system's credential store for the next runs): ").strip()
+        # From the clipboard, not typed: Windows' hidden input (getpass) takes no paste (the owner, 29.10.2026).
+        input("Copy the API key (Ctrl+C in the Console page), then press Enter here: ")
+        kept = read_clipboard()
         if not kept.startswith("sk-ant-"):
-            sys.exit("That does not look like an API key; nothing was kept.")
+            sys.exit("The clipboard holds no API key (it should start with sk-ant-); nothing was kept.")
+        write_clipboard("")
         keyring.set_password(SERVICE, ACCOUNT, kept)
         say("Kept. Next runs start without asking; `--forget-key` removes it.")
     os.environ["ANTHROPIC_API_KEY"] = kept
