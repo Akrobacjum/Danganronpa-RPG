@@ -1180,17 +1180,21 @@ async function toggleEclipse() {
  * everything, an Eclipse is a window everyone is waiting inside, and the rest
  * follows the phase.
  *
+ * `incident` and `eclipse` are the world's unless handed: R1512 asks about Daily Life with neither,
+ * and the suite runs tier 1 with an incident open as well (01-runtests A1, where the world's
+ * incident answered first and R1512 read the incident's line on CI at e52a60ef).
+ *
  * @returns {{text: string, action: string|null}}
  */
-export function nextStep(clock, { setupList } = {}) {
+export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse() } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
-    if (game.drpg?.murderState?.()?.active) {
+    if (incident) {
         return { text: game.i18n.localize("DRPG.Panel.nextIncident"), action: "murder" };
     }
 
-    if (isEclipse()) {
+    if (eclipse) {
         return { text: game.i18n.localize("DRPG.Panel.nextEclipse"), action: "eclipse" };
     }
 

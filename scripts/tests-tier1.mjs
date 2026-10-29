@@ -26102,7 +26102,9 @@ const INVARIANTS = [
          * empty world (`steps()` with no cast and no scene), one whose first required row not done is "The cast
          * exists" behind an optional row not done, and one whose required rows all hold - and the panel's lookup
          * holding the Season setup tile the line's Do it names. Nothing is written. Red at the parent: no
-         * `firstOutstandingStep`, and the empty world's line was the Eclipse's.
+         * `firstOutstandingStep`, and the empty world's line was the Eclipse's. The line is asked with no incident
+         * and no Eclipse open, handed: the suite runs tier 1 with an incident open too (01-runtests A1), and there
+         * the world's incident answered first (red on CI at e52a60ef).
          */
         let SS = null, GP = null;
         try { [SS, GP] = await Promise.all([import("./season-setup.mjs"), import("./gm-panel.mjs")]); } catch { SS = null; }
@@ -26112,7 +26114,8 @@ const INVARIANTS = [
         const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
         const pending = [row("name", true), row("despairSplit", false, true), row("cast", false), row("resources", false)];
         const held = [row("name", true), row("cast", true), row("despairSplit", false, true)];
-        const line = list => { const s = GP.nextStep(clock, { setupList: list }); return [s?.text ?? null, s?.action ?? null]; };
+        const line = list => { const s = GP.nextStep(clock, { setupList: list, incident: false, eclipse: false });
+            return [s?.text ?? null, s?.action ?? null]; };
         const emptyFirst = SS.firstOutstandingStep(empty);
         const setupLine = key => [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${key}`) }), "seasonSetup"];
         const sources = await moduleSources();
