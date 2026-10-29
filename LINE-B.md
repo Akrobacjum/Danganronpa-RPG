@@ -134,6 +134,18 @@ Do this first, read-only, and report it to the owner in Polish (with your defaul
   run `--no-t01` and the changed tier-0/1 tests by name (`node run-tests.mjs --tier 1 --only "<name>"` in
   audit/harness), and say so: CI's shard 1 runs tiers 0-1 whole.
 
+
+## 6a. Cost lessons of E20 C1 (29.10.2026, measured)
+- C1's implementer agent used 308k tokens; the session's counter rose about $12 over C1. Most of it was the MAIN
+  conversation: every turn re-reads its whole context, and it was long (reports, the spec, logs pasted, polling loops).
+- So: the main conversation only coordinates. Each commit goes to one `drpg-impl` agent with a short brief; take back
+  only its short report. Never poll (no `sleep`/`until` loops) in the main conversation: let the agent block on its
+  own quick and CI, or ask the owner to tell you when CI is done. No `QUICK_FULL=1`.
+- Start each stage (and after any long detour) in a FRESH program run (without --continue): the state lives in
+  stages/<Eid>/STAGE.md, STATUS.md and BOARD.md, not in the conversation. Read only those to resume.
+- The session's cost is written after every turn to `../scratch/session-cost.log` ("<time> <$ so far>", per run of the
+  program): read its last line for BOARD's cost rows.
+
 ## 7. Talking to line A
 
 Only through the owner and BOARD.md. Keep BOARD.md short: per line, the stage in work, its state (SPEC, BUILD,

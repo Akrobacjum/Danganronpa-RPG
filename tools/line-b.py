@@ -79,6 +79,7 @@ DENY = [r"\brm\b", r"Remove-Item", r"\bdel\b", r"rmdir", r"--force\b", r"\bpush\
 CONTROL = {"do", "then", "else", "!", "(", "{", "time"}
 AUTO = "--ask" not in sys.argv
 LOG = KIT.parent / "scratch" / "auto-decisions.log"
+COST = KIT.parent / "scratch" / "session-cost.log"  # "<time>\t<this run's cost so far, $>" after every turn
 
 
 def first_words(command):
@@ -218,6 +219,13 @@ async def printer(client, effort):
             if isinstance(cost, (int, float)):
                 spent = cost
             say(f"  [{msg.subtype}; cost so far: ${spent:.2f}]" if spent else f"  [{msg.subtype}]")
+            # The agent cannot see this terminal: the session's cost goes to a file it can read (line B's BOARD rows).
+            try:
+                COST.parent.mkdir(parents=True, exist_ok=True)
+                with open(COST, "a", encoding="utf-8") as f:
+                    f.write(f"{__import__('datetime').datetime.now().isoformat(timespec='seconds')}\t{spent:.2f}\n")
+            except OSError:
+                pass
             if not questions:
                 say("\nty> (type a message and Enter)")
 
