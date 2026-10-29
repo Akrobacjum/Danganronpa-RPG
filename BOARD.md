@@ -68,7 +68,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
   origin/main` first - E66 renames names in sheet.mjs and the lang files, and building on top of the rename is far
   cheaper than merging beside it. E51 and E37 touch sheet.mjs only lightly; those merges line A resolves. Both E24 and
   E45 must be READY before line A starts E54 (far off: after E41, E42, E60, E44, ...). If line B finishes E52 before
-  E66 ships, take E60? No - E60 waits for E66 too. Then pause or take a small read-only job line A names.
+  E66 ships, it does not start E24 or E60 (E60 waits for E66 too): it asks on this board, and line A names the next job.
 - Merges: a merge commit line B makes itself (not a fast-forward) needs the one trailer too - write its message with it.
 - Each READY stage: line A merges claude/fervent-sagan-gme4vt-b into its branch (a merge commit) for the next train.
 
