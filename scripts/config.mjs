@@ -450,6 +450,14 @@ export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 }
  */
 export const ROOMS_PER_PLAYER = 1.5;
 
+/**
+ * How much of a scene's own rect may belong to no room before the room checks stop ticking it
+ * (E20 C1, S06-28), in percent: Pre-season checks' "ok" on a scene and the season checklist's
+ * "The map has rooms". Pre-season said "ok" beside 67% uncovered. A map drawn room by room to its
+ * walls leaves the walls' own strips between regions; 10 is a choice, not measured on a real map.
+ */
+export const UNCOVERED_LIMIT_PCT = 10;
+
 /* ==========================================================================
  * ROOMS
  * ========================================================================== */

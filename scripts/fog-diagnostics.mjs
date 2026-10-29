@@ -33,7 +33,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { boundsOf } from "./movement.mjs";
-import { regionShapes, inPolygons, polygonArea, piecesAsOne } from "./fog-geometry.mjs";
+import { regionShapes, inPolygons, polygonArea, piecesAsOne, regionAreaIn } from "./fog-geometry.mjs";
 import { roomPieces, playerRegionIds, isRoomWith, passageBehaviour, onLevel, floorsOf } from "./rooms.mjs";
 import {
     DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET, DOORWAY_WALL_NEAR, ADRIFT_WARN_RUN, wallAlongEdge, neighbourBeyond,
@@ -507,16 +507,21 @@ function latticeCheck(region, polys, lattice, latticeOrigin, add) {
  * the column on the harness's two floors; the overlap and the doorways are not measured
  * headless (the harness's polygons contain no point - E12 C2b).
  *
+ * @param {Scene|null} [scene] the scene on the canvas unless handed in (E20 C1: R1505 hands none, and one with no room).
  * @returns {Array<object>} one row per problem, worst first.
  */
-export function checkRegions() {
-    const scene = canvas?.scene;
+export function checkRegions(scene = canvas?.scene) {
+    /* NOTHING CHECKED IS NOT CLEAN (E20 C1, S07-33). With no scene this answered an empty list, which
+       the Season setup window printed as "Nothing to report - the rooms on this scene are clean"; a
+       scene with no room read the same. Each says what it is now, as a warning row. */
+    const said = (problem, detail) => ({ level: "warning", room: "", floor: null, problem: game.i18n.localize(problem),
+        detail: game.i18n.localize(detail), at: null });
     if (!scene) {
         console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
-        return [];
+        return [said("DRPG.Fog.checkNoScene.problem", "DRPG.Fog.checkNoScene.detail")];
     }
 
-    const grid = canvas?.grid?.size ?? 100;
+    const grid = (scene === canvas?.scene ? canvas?.grid?.size : scene.grid?.size) ?? 100;
     const walls = Array.from(scene.walls ?? []);
     const findings = [];
     const addOn = floor => (level, room, problem, detail, at = null) =>
@@ -525,6 +530,7 @@ export function checkRegions() {
 
     const rooms = roomsToCheck(scene, add);
     const named = asChecked(rooms);
+    if (!roomPieces(scene).length) findings.push(said("DRPG.Fog.checkNoRooms.problem", "DRPG.Fog.checkNoRooms.detail"));
     // A scene that names one floor is checked as before: its every row would name the same floor.
     const floors = floorsOf(scene).length > 1 ? floorsOf(scene) : [];
 
@@ -714,12 +720,20 @@ function overlapArea(a, b, grid) {
  * ========================================================================== */
 
 /**
- * Percentage of the scene's own rect NOT covered by any Region's polygons.
+ * Percentage of the scene's own rect NOT covered by any room's polygons.
  * A simple sum of areas, not a true union - two overlapping rooms would be
  * counted twice - which only ever makes the number an over-estimate of the
  * covered fraction, i.e. an UNDER-estimate of how much is missing. Good
  * enough for a warning line computed once when a GM opens a management
  * window; not something to spend a polygon-boolean library on.
+ *
+ * THE SCENE'S RECT, NOT THE CANVAS (E20 C1, S07-13). `dimensions.width` and
+ * `height` are the canvas, the padding round the map included, so a map
+ * covered wall to wall read about 56% "outside rooms" at Foundry's default
+ * padding of 0.25 (R1504: 4000x3000 in a 6000x4500 canvas), and a GM learnt to
+ * ignore the line. The rect is `sceneRect` (`sceneX`, `sceneY`, `sceneWidth`,
+ * `sceneHeight`); each polygon is cut to it, and a hole in a room is not floor
+ * (`regionAreaIn`).
  */
 export function sceneUncoveredPercent(scene = canvas?.scene) {
     if (!scene) return 0;
@@ -728,16 +742,23 @@ export function sceneUncoveredPercent(scene = canvas?.scene) {
     // regions against a rectangle belonging to somewhere else - which is
     // exactly the question `diagnoseScenes` asks, about every scene at once.
     const dims = scene.dimensions ?? canvas?.dimensions;
-    const total = (dims?.width ?? scene.width ?? 0) * (dims?.height ?? scene.height ?? 0);
-    if (!total) return 0;
+    const rect = sceneRectOf(dims, scene);
+    const total = rect.width * rect.height;
+    if (!(total > 0)) return 0;
 
     // Rooms only (E12 C2b): the floor of a named region that is no room belongs to no room.
     let covered = 0;
-    for (const region of roomPieces(scene)) {
-        for (const poly of region.polygons ?? []) {
-            covered += polygonArea(poly.points ?? []);
-        }
-    }
+    for (const region of roomPieces(scene)) covered += regionAreaIn(region, rect);
     const uncovered = Math.max(0, total - covered);
     return Math.round((uncovered / total) * 100);
+}
+
+/** The map's own rect inside the padded canvas: `sceneRect`, else its four numbers, else the scene's size at the origin. */
+function sceneRectOf(dims, scene) {
+    const r = dims?.sceneRect;
+    if (r && Number.isFinite(r.width) && Number.isFinite(r.height)) return { x: r.x ?? 0, y: r.y ?? 0, width: r.width, height: r.height };
+    if (Number.isFinite(dims?.sceneWidth) && Number.isFinite(dims?.sceneHeight)) {
+        return { x: dims.sceneX ?? 0, y: dims.sceneY ?? 0, width: dims.sceneWidth, height: dims.sceneHeight };
+    }
+    return { x: 0, y: 0, width: Number(scene?.width) || 0, height: Number(scene?.height) || 0 };
 }

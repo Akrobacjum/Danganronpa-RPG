@@ -43,6 +43,20 @@ export function studentActors() {
 }
 
 /**
+ * THE ONE COUNT OF STUDENTS (E20 C1, S07-38; the owner's Q-3, 29.10.2026: students = the living).
+ * The Doors tab counted the living (`isDeceased`), the season checklist every student, dead
+ * included, so one world read "3 living students" in one window and "Players: 4" in the other.
+ * `all` is every student; `living` those not dead as the GMs know it (`isDeadForGm`: a death the
+ * GMs keep counts, since only a GM's window asks); `count` is how many are living, the number every
+ * rooms-per-student line divides by. `actors` is the suite's to hand (R1500); otherwise the world's.
+ */
+export function studentCensus(actors = studentActors()) {
+    const all = [...actors].filter(a => !isMonokuma(a));
+    const living = all.filter(a => !isDeadForGm(a));
+    return { all, living, count: living.length };
+}
+
+/**
  * The students who still spend a budget: the living, and the dead who are
  * back as a Monocub. The one roster the panel's "Next" line, its table and
  * the status strip used to spell five ways (audit, hygiene).

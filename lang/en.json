@@ -2110,7 +2110,15 @@
       "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
       "bedroomsIntro": "Whose bedroom each room is. One student, one bedroom. Whether a stash is hidden is set on the Stashes tab.",
       "doorsIntro": "Which doors are locked right now, and which start a season locked. A season reset puts every door back to its start column.",
-      "roomRatio": "{open} shared rooms open for {living} living students: {per} each, against the {target} this season was built on. That is {want} rooms.",
+      "roomRatio": "{rooms}. Living students: {living} ({per} rooms each). This season was built on {target} per student, so this cast wants {want}.",
+      "roomCensus": {
+        "one": "{n} shared room (bedrooms and “No privacy” rooms left out, locked rooms counted)",
+        "other": "{n} shared rooms (bedrooms and “No privacy” rooms left out, locked rooms counted)"
+      },
+      "roomCensusLocked": {
+        "one": "{n} of them is locked.",
+        "other": "{n} of them are locked."
+      },
       "searchIntro": "What searching each room draws from, how many search tokens it has left, and what it is a sensible place to look for.",
       "room": "Room",
       "owner": "Whose bedroom",
@@ -2190,7 +2198,7 @@
       "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
       "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
+      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
       "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
@@ -4365,7 +4373,7 @@
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+      "hint.assignments": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",
       "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
       "step.liveKitSecret": "The voice server's secret is not in the world",
@@ -4522,7 +4530,18 @@
       "checkClean": "Nothing to report - the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
-      "roomCountLine": "Rooms: {rooms}. Players: {players}. The guide suggests around {want}.",
+      "waitingForCast": "Waiting for the cast: create the students first.",
+      "fallsBackTo": "{name} (falls back to {pool})",
+      "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
+      "roomsCheckErrors": {
+        "one": "The room check found {n} error on {scene}: fix it and check again.",
+        "other": "The room check found {n} errors on {scene}: fix them and check again."
+      },
+      "roomsJudged": {
+        "one": "Judged on {scene}. {n} scene holds rooms.",
+        "other": "Judged on {scene}. {n} scenes hold rooms."
+      },
+      "noNamedRegions": "No scene has a named region yet: draw each room as a Scene Region first.",
       "safeword": "Safeword",
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default."
     },
@@ -4607,6 +4626,18 @@
       "notRooms": {
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
+      },
+      "lastCheckErrors": {
+        "one": "the last room check found {n} error",
+        "other": "the last room check found {n} errors"
+      },
+      "checkNoScene": {
+        "problem": "No scene on the canvas",
+        "detail": "Open the scene you want checked, then check again."
+      },
+      "checkNoRooms": {
+        "problem": "No rooms on this scene",
+        "detail": "Tick “This is a room” for its regions in Room Setup (the Doors tab), then check again."
       },
       "secretDoor": {
         "problem": "A Foundry secret door",

@@ -11,10 +11,10 @@
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
-import { monokumas, getDespair, despairMax } from "./despair.mjs";
-import { monokumaFor, students, unassigned } from "./assignments.mjs";
+import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
+import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { listExperiences } from "./character.mjs";
+import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug, gmReport } from "./utils.mjs";
@@ -159,11 +159,13 @@ export function diagnoseDespair() {
     lines.push(`"Rolls grant Despair" setting: ${enabled ? "on" : "OFF ← nothing will be awarded"}`);
 
     const gms = monokumas();
-    lines.push(`Monokumas (full Gamemasters): ${gms.length ? gms.map(u => `${u.name} [${getDespair(u.id)}/${despairMax()}]`).join(", ") : "NONE ← no pools exist"}`);
+    lines.push(`Monokumas (Despair pools): ${gms.length ? gms.map(u => `${u.name} [${getDespair(u.id)}/${despairMax()}]`).join(", ") : "NONE ← no pools exist"}`);
 
-    const assistants = game.users.filter(u => u.role === CONST.USER_ROLES.ASSISTANT);
-    if (assistants.length) {
-        lines.push(`Assistant GMs (no pool by design): ${assistants.map(u => u.name).join(", ")}`);
+    // The Assistant GMs with no pool, as Despair Flow offers them one (E20 C1, S01-18): every Assistant GM
+    // was listed "no pool by design" here, one granted a pool too, beside the line above that named its pool.
+    const withoutPool = poolCandidates();
+    if (withoutPool.length) {
+        lines.push(`Assistant GMs without a pool (Despair Flow can grant one): ${withoutPool.map(u => u.name).join(", ")}`);
     }
 
     lines.push(`This client is the primary GM (the one that applies awards): ${isPrimaryGm() ? "yes" : "no"}`);
@@ -1253,20 +1255,28 @@ export function voiceDiagnosis() {
  * `injectInitButton` in sheet.mjs); this answers the same question for the
  * whole roster at once.
  */
-export function diagnoseCharacters({ toChat = true } = {}) {
+export function diagnoseCharacters({ toChat = true, roster = studentActors(), assigned = assignments() } = {}) {
     const lines = [];
-    const roster = studentActors();
 
     lines.push(`Students (Monokumas excluded): ${roster.length}`);
     lines.push(`Starting resources: ${STARTING.hp} Health, ${STARTING.stress} Sanity, ${STARTING.hope} Hope`);
     lines.push("");
 
+    /* NOTHING CHECKED IS NOTHING TICKED (E20 C1, S06-28). With no student every "Everybody ..." line
+       below read ✓ over an empty list, as the checklist's rows did; the checklist says "waiting for the
+       cast" now, and so does this. */
+    if (!roster.length) {
+        lines.push("No students yet: create the cast first, then run these checks again.");
+        return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
+    }
+
     const pending = [];
     for (const actor of roster) {
         const hp = actor.system?.resources?.hitPoints?.max ?? 0;
         const stress = actor.system?.resources?.stress?.max ?? 0;
-        // At least the starting numbers: a Level Up raises them (SEASON-01).
-        const ok = hp >= STARTING.hp && stress >= STARTING.stress;
+        // The checklist's own predicate (E20 C1, S01-18): this repeated it by hand. At least the
+        // starting numbers: a Level Up raises them (SEASON-01).
+        const ok = !needsStartingResources(actor);
         if (!ok) pending.push(actor);
         lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} - Health max ${hp}, Sanity max ${stress}${
             ok ? "" : "  ← not set up"}`);
@@ -1316,7 +1326,14 @@ export function diagnoseCharacters({ toChat = true } = {}) {
             carriable.includes(i.getFlag(MODULE_ID, "category")));
         if (!carried.length) missingItem.push(actor.name);
 
-        if (!monokumaFor(actor)) unwatched.push(actor.name);
+        /* THE CHECKLIST'S QUESTION (E20 C1, S01-18, S06-28). This asked `monokumaFor` alone, so a student
+           set to "- nobody -" on purpose - a ✓ on the checklist - read ✗ here with advice to undo it,
+           and a student nobody assigned read ✓ through the fallback to the first pool. Both now ask what
+           the checklist's row asks: set to nobody, or assigned by hand; the fallback is named. */
+        if (!feedsNobody(actor, assigned) && !explicitPool(actor, assigned)) {
+            const fallback = monokumaFor(actor);
+            unwatched.push(fallback ? `${actor.name} (falls back to ${fallback.name})` : actor.name);
+        }
     }
 
     const roll = (label, names, fix) => {

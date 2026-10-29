@@ -60322,7 +60322,10 @@ const SCENARIOS = [
                 };
                 await V.openRoomSetupDialog();
                 school = await scene("SUITE E13 C5 the school");
-                await school.createEmbeddedDocuments("Region", [region("SUITE E13 C5 a classroom", 0, true)]);
+                // Wall to wall since E20 C1: the rooms row also asks that at most UNCOVERED_LIMIT_PCT of the map is in no room.
+                const map = school.dimensions?.sceneRect ?? { x: 0, y: 0, width: 2000, height: 1000 };
+                await school.createEmbeddedDocuments("Region", [{ ...region("SUITE E13 C5 a classroom", 0, true),
+                    shapes: [{ type: "rectangle", x: map.x, y: map.y, width: map.width, height: map.height }] }]);
                 hall = await Scene.create({ name: "SUITE E13 C5 the hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
                     fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } },
                     flags: { "isometric-perspective": { isometricEnabled: true } } });

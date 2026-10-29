@@ -22,7 +22,7 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING, UNCOVERED_LIMIT_PCT
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
@@ -35,16 +35,19 @@ import {
 import { gmStoreStamp, whenGmStoresHydrated } from "./gm-store.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { studentActors, isMonokuma } from "./monokuma.mjs";
-import { monokumaFor, feedsNobody } from "./assignments.mjs";
+import { studentActors, isMonokuma, studentCensus } from "./monokuma.mjs";
+import { monokumaFor, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
-import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
+import { roomCensus, roomRatioLine, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 // A leaf: which named regions no GM has decided yet (E12 C1).
-import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene } from "./rooms.mjs";
+import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene,
+    namedRegions } from "./rooms.mjs";
+// How much of a map is in no room (E20 C1): fog.mjs never reaches back here.
+import { sceneUncoveredPercent } from "./fog.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite } from "./utils.mjs";
@@ -67,10 +70,15 @@ const DialogV2 = foundry.applications.api.DialogV2;
  */
 const GM_ROLES = [CONST.USER_ROLES.ASSISTANT, CONST.USER_ROLES.GAMEMASTER];
 
-/** Which GM roles currently broadcast their pointer. See the `cursor` step. */
+/**
+ * Which GM roles currently broadcast their pointer. See the `cursor` step. The roles in force
+ * (E20 C1, S06-28), as the `rulers` row reads them: this read the stored `SHOW_CURSOR ?? []`, so a
+ * world that never stored the permission - Foundry's default, every role's pointer shown - read
+ * as private and the row ticked.
+ */
 function gmRolesSharingCursor() {
     try {
-        const allowed = game.settings.get("core", "permissions")?.SHOW_CURSOR ?? [];
+        const allowed = cursorRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
         return GM_ROLES.filter(r => allowed.includes(r));
     } catch {
         // Unreadable permissions are not a finding - say nothing rather than
@@ -88,8 +96,18 @@ const PLAYER_ROLES = [CONST.USER_ROLES.PLAYER, CONST.USER_ROLES.TRUSTED];
  * the default this module assumes for v14, not read in v14's source (LIVE-E80-02).
  */
 export function rulerRoles(stored, inForce) {
-    const list = Array.isArray(stored?.SHOW_RULER) ? stored.SHOW_RULER
-        : Array.isArray(inForce?.SHOW_RULER) ? inForce.SHOW_RULER
+    return permissionRoles("SHOW_RULER", stored, inForce);
+}
+
+/** The roles that hold Foundry's SHOW_CURSOR, read as `rulerRoles` reads SHOW_RULER (E20 C1). Exported for R1501. */
+export function cursorRoles(stored, inForce) {
+    return permissionRoles("SHOW_CURSOR", stored, inForce);
+}
+
+/** One permission's roles, sorted: as `stored` names them, else as `inForce` does, else every role from Player up. */
+function permissionRoles(name, stored, inForce) {
+    const list = Array.isArray(stored?.[name]) ? stored[name]
+        : Array.isArray(inForce?.[name]) ? inForce[name]
             : Object.values(CONST.USER_ROLES).filter(role => role >= CONST.USER_ROLES.PLAYER);
     return [...new Set(list.map(Number))].sort((a, b) => a - b);
 }
@@ -182,7 +200,8 @@ async function fixResources() {
 async function fixCursorPermission() {
     const perms = foundry.utils.deepClone(
         game.settings.get("core", "permissions") ?? {});
-    const before = perms.SHOW_CURSOR ?? [];
+    // The roles in force (E20 C1): with nothing stored, the stored `?? []` took nothing off.
+    const before = cursorRoles(perms, permissionsInForce());
     const after = before.filter(r => !GM_ROLES.includes(r));
     if (after.length === before.length) return 0;
     perms.SHOW_CURSOR = after;
@@ -190,15 +209,18 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The shared-rooms-per-player line under the room count step, for the scene the step counts. */
-function roomCountLine(roster, scene) {
-    return `<div class="notes">${foundry.utils.escapeHTML(
-        game.i18n.format("DRPG.Season.roomCountLine", {
-            rooms: sharedRooms(scene).length,
-            players: roster.length,
-            want: roomsWantedFor(roster.length)
-        }))}</div>`;
+/** The rooms-per-student line under the room count step: the Doors tab's own sentence (vault.mjs `roomRatioLine`, E20 C1). */
+function roomCountLine(census, living) {
+    return `<div class="notes">${foundry.utils.escapeHTML(roomRatioLine(census, living))}</div>`;
 }
+
+/*
+ * THE LAST CHECK ROOMS, PER SCENE (E20 C1, S06-28). "The map has rooms" ticked, and Pre-season said
+ * "ok", after the Check rooms button had found three border errors on the same map. The button
+ * records how many errors it found on the scene it checked, in this browser until a reload; the
+ * rooms row and Pre-season's scene line read it. A scene never checked has no errors on record.
+ */
+const lastRoomChecks = new Map();
 
 /** The room guide and the Check rooms button under the rooms step. */
 function roomGuideHtml() {
@@ -219,21 +241,41 @@ function roomGuideHtml() {
  * `isPlaceScene`), and a floor drawn since the migration with nothing marked holds none, so it
  * would be the one left out.
  */
-function undecidedRegionNames() {
-    const found = Array.from(game.scenes ?? []).flatMap(scene => unmarkedRegions(scene).map(region => ({ scene, region })));
+function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
+    const found = scenes.flatMap(scene => unmarkedRegions(scene).map(region => ({ scene, region })));
     const several = new Set(found.map(({ scene }) => scene)).size > 1;
     return [...new Set(found.map(({ scene, region }) => several ? `${scene.name}: ${region.name}` : region.name))];
 }
 
-export function steps() {
-    const roster = studentActors();
+/**
+ * The checklist's rows. Every argument is the world's unless handed in (E20 C1: R1501, R1503 and
+ * R1505 hand an empty cast, scenes of plain objects, an assignment map and a record of room checks):
+ * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,
+ * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id.
+ */
+export function steps({ roster = studentActors(), scenes = Array.from(game.scenes ?? []), roomScene: judged,
+    assigned = assignments(), lastChecks = lastRoomChecks } = {}) {
     const clock = getClock();
     /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
        where every GM is taken for the trial since E13 C3, and which holds no room since C1 - was
        told the season had no rooms. On a scene that is no place they read the school (`homeScene`). */
-    const viewed = workingScene();
-    const roomScene = isPlaceScene(viewed) ? viewed : homeScene();
+    const viewed = judged === undefined ? workingScene() : null;
+    const roomScene = judged !== undefined ? judged : isPlaceScene(viewed) ? viewed : homeScene();
+    /* WAITING FOR THE CAST (E20 C1, S06-28). On an empty world every row over the students ticked:
+       `.every` on an empty list is true, so "Starting Health" and "Everybody has an Ultimate" read done
+       while only "The cast exists" was red. Those rows wait now - not done, no cross, no button - and
+       say so (`setupRows`). */
+    const waiting = roster.length === 0;
+    const census = roomCensus(roomScene);
+    const living = studentCensus(roster).count;
+    // The rooms row's facts (E20 C1, S06-28, S07-33): every scene with rooms counted, the judged one named.
+    const withRooms = scenes.filter(sceneHoldsRooms);
+    const uncovered = roomScene ? sceneUncoveredPercent(roomScene) : 0;
+    const checkErrors = roomScene ? (Number(lastChecks.get(roomScene.id)) || 0) : 0;
+    const anyNamed = scenes.some(scene => namedRegions(scene).length > 0);
+    const nobody = a => feedsNobody(a, assigned);
+    const byHand = a => explicitPool(a, assigned);
 
     return [
         {
@@ -269,7 +311,8 @@ export function steps() {
             key: "resources",
             // Below the starting numbers, not different from them - a Level Up raises
             // the maximum, and that is not a sheet waiting to be set up (SEASON-01).
-            done: roster.every(a => !needsStartingResources(a)),
+            waiting,
+            done: !waiting && roster.every(a => !needsStartingResources(a)),
             missing: () => roster.filter(needsStartingResources).map(a => a.name),
             // The one row that can finish itself: the guide's numbers are the
             // guide's numbers, and there is nothing to decide.
@@ -277,7 +320,8 @@ export function steps() {
         },
         {
             key: "ultimate",
-            done: roster.every(a => a.getFlag(MODULE_ID, "ultimate")),
+            waiting,
+            done: !waiting && roster.every(a => a.getFlag(MODULE_ID, "ultimate")),
             missing: () => roster.filter(a => !a.getFlag(MODULE_ID, "ultimate")).map(a => a.name),
             // An Ultimate is a sentence somebody writes, so this opens the sheet
             // rather than inventing one.
@@ -285,7 +329,8 @@ export function steps() {
         },
         {
             key: "experiences",
-            done: roster.every(a => listExperiences(a).length >= STARTING.experiences),
+            waiting,
+            done: !waiting && roster.every(a => listExperiences(a).length >= STARTING.experiences),
             missing: () => roster.filter(a => listExperiences(a).length < STARTING.experiences)
                 .map(a => `${a.name} (${listExperiences(a).length}/${STARTING.experiences})`),
             open: names => openFirstSheet(names)
@@ -298,7 +343,8 @@ export function steps() {
              * every student with a room passed this row carrying nothing else.
              * `carriableCategories` is the list without keys and bullets.
              */
-            done: roster.every(hasOpeningItem),
+            waiting,
+            done: !waiting && roster.every(hasOpeningItem),
             missing: () => roster.filter(a => !hasOpeningItem(a)).map(a => a.name),
             open: async () => (await import("./gm-items.mjs")).openItemManager()
         },
@@ -309,9 +355,16 @@ export function steps() {
                showed them as a red cross forever. Despair Flow no longer names the Mastermind
                as one (E05 C15, 27.09.2026; audit S03-03, S10-12): the division is a world
                setting every player's browser reads, so the one student left out stands out.
-               The row below says so when it has been done anyway. */
-            done: roster.every(a => feedsNobody(a) || monokumaFor(a)),
-            missing: () => roster.filter(a => !feedsNobody(a) && !monokumaFor(a)).map(a => a.name),
+               The row below says so when it has been done anyway.
+               ASSIGNED BY HAND (E20 C1, S06-28). `monokumaFor` falls back to the first pool, so this
+               ticked for every student the moment one pool existed; it asks the assignment itself
+               (`explicitPool`), as Pre-season checks do, and names the pool a student falls back to. */
+            waiting,
+            done: !waiting && roster.every(a => nobody(a) || byHand(a)),
+            missing: () => roster.filter(a => !nobody(a) && !byHand(a)).map(a => {
+                const fallback = monokumaFor(a);
+                return fallback ? game.i18n.format("DRPG.Season.fallsBackTo", { name: a.name, pool: fallback.name }) : a.name;
+            }),
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
         /* THE MASTERMIND OUT OF EVERY POOL (S03-03, S10-12). Only while it is true, and a
@@ -341,7 +394,8 @@ export function steps() {
              */
             key: "despairSplit",
             optional: true,
-            done: despairSplitEven(),
+            waiting,
+            done: !waiting && despairSplitEven(),
             missing: () => despairSplitCounts().map(p => `${p.name}: ${p.n}`),
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
@@ -391,17 +445,27 @@ export function steps() {
              * two answers Room Setup's own line prints, so the two screens can
              * no longer disagree about one map.
              */
-            done: sharedRooms(roomScene).length >= roomsWantedFor(roster.length),
+            /* ONE CENSUS (E20 C1, S07-38; Q-3): `roomCensus` against the living, the count the Doors
+               tab and Pre-season checks print; with no room it is not done, whatever the cast. */
+            waiting,
+            done: !waiting && census.count > 0 && census.count >= roomsWantedFor(living),
             missing: () => [],
-            extra: () => roomCountLine(roster, roomScene)
+            extra: () => roomCountLine(census, living)
         },
         {
             key: "rooms",
             /* A ROOM, NOT A REGION (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This was done
                on `regions.size`, so a scene holding only a Teleport, or a player's region, passed
-               it; it asks rooms.mjs now, the question the row's words ask. */
-            done: sceneHoldsRooms(roomScene),
-            missing: () => [],
+               it; it asks rooms.mjs now, the question the row's words ask.
+               CHECKED, NOT ONLY PRESENT (E20 C1, S06-28, S07-33): done when a scene holds rooms and the
+               scene it judges has at most `UNCOVERED_LIMIT_PCT` in no room and no error from its last
+               Check rooms; the line under it names that scene and counts every scene with rooms. */
+            done: withRooms.length > 0 && sceneHoldsRooms(roomScene) && uncovered <= UNCOVERED_LIMIT_PCT && !checkErrors,
+            missing: () => [
+                ...(roomScene && uncovered > UNCOVERED_LIMIT_PCT
+                    ? [game.i18n.format("DRPG.Season.roomsUncovered", { scene: roomScene.name, pct: uncovered })] : []),
+                ...(checkErrors ? [plural("DRPG.Season.roomsCheckErrors", { n: checkErrors, scene: roomScene.name })] : [])
+            ],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
             /*
              * THE GUIDE AND THE CHECK BELONG HERE, NOT IN ROOM SETUP.
@@ -416,7 +480,8 @@ export function steps() {
              * errand, and splitting them across two windows is how the second
              * half stops happening.
              */
-            extra: () => roomGuideHtml()
+            extra: () => `${withRooms.length ? `<div class="notes">${esc(plural("DRPG.Season.roomsJudged",
+                { n: withRooms.length, scene: roomScene?.name ?? "" }))}</div>` : ""}${roomGuideHtml()}`
         },
         {
             /*
@@ -426,8 +491,9 @@ export function steps() {
              * This row names them; the button opens Room Setup on the tab with the column.
              */
             key: "roomsMarked",
-            done: undecidedRegionNames().length === 0,
-            missing: undecidedRegionNames,
+            // With no named region there is nothing decided (E20 C1, S06-28): not done, and it says so.
+            done: anyNamed && undecidedRegionNames(scenes).length === 0,
+            missing: () => anyNamed ? undecidedRegionNames(scenes) : [game.i18n.localize("DRPG.Season.noNamedRegions")],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
         },
         {
@@ -599,10 +665,12 @@ function paintDraft(root, draft) {
     }
 }
 
-/** One line per step: the mark, the name and hint, what is missing, its extra, and a button when it can act. */
-function setupRows(list) {
+/** One line per step: the mark, the name and hint, what is missing, its extra, and a button when it can act. Exported for R1501. */
+export function setupRows(list) {
     return list.map(step => {
-        const names = step.done ? [] : step.missing();
+        // A row over the students with no student waits (E20 C1, S06-28): not done, no cross, no button.
+        const waits = Boolean(step.waiting) && !step.done;
+        const names = step.done ? [] : waits ? [game.i18n.localize("DRPG.Season.waitingForCast")] : step.missing();
         const detail = names.length
             ? `<div class="drpg-setup-missing">${esc(names.join(", "))}</div>`
             : "";
@@ -615,17 +683,17 @@ function setupRows(list) {
         const button = step.done
             ? (step.undo ? `<button type="button" class="drpg-setup-do" data-step="${step.key}" data-undo="1">${
                 esc(game.i18n.localize(step.undoKey))}</button>` : "")
-            : step.inline || !(step.fix || step.open)
+            : waits || step.inline || !(step.fix || step.open)
                 ? ""
                 : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
                     esc(game.i18n.localize(step.doKey ?? (step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt")))}</button>`;
 
         // An optional row that is not done is not a failure, so it gets neither
         // the cross nor the "outstanding" styling - a dash and its own note.
-        const mark = step.done ? "✓" : step.optional ? "–" : "✗";
+        const mark = step.done ? "✓" : step.optional || waits ? "\u2013" : "✗";
 
         return `<li class="drpg-setup-step${step.done ? " done" : ""}${
-            step.optional && !step.done ? " optional" : ""}">
+            (step.optional || waits) && !step.done ? " optional" : ""}${waits ? " waiting" : ""}">
             <span class="drpg-setup-mark">${mark}</span>
             <div class="drpg-setup-body">
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
@@ -659,6 +727,8 @@ function wireRoomCheck(dialog) {
         ev.preventDefault();
         const { checkRegions } = await import("./fog.mjs");
         const findings = checkRegions();
+        // What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1).
+        if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, findings.filter(f => f.level === "error").length);
         if (!findings.length) {
             checkOut.innerHTML = `<p class="notes">${
                 esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
@@ -862,7 +932,7 @@ async function runPreSessionChecks() {
     // A scene that has rooms but still uses Foundry's own vision renders as a
     // black screen for players on v14 and says nothing about why, so it belongs
     // on the list of things checked before anybody sits down.
-    const scenes = diagnoseScenes();
+    const scenes = diagnoseScenes({ lastChecks: lastRoomChecks });
     // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
     // the voice tile stands in for the dock, which shows none of them. A row only when that is so.
     const video = videoUnwatched() ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>

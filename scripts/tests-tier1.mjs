@@ -1923,7 +1923,8 @@ const INVARIANTS = [
         // The season checklist checks what it says it checks.
         const season = src("season-setup.mjs");
         ok(/some\(a => isMonokuma\(a\)\)/.test(season), "'At least one Monokuma' is satisfied by a GM account alone again");
-        ok(/feedsNobody\(a\) \|\| monokumaFor\(a\)/.test(season),
+        // Since E20 C1 the row asks the assignment by hand (`explicitPool`), not the fallback (`monokumaFor`).
+        ok(/nobody\(a\) \|\| byHand\(a\)/.test(season) && /const nobody = a => feedsNobody\(a, assigned\)/.test(season),
             "a student set to nobody on purpose is a red cross on the checklist again");
 
         // The killers still cleaning up are not the witnesses who find the body.
@@ -25564,6 +25565,252 @@ const INVARIANTS = [
             + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
             + "nothing to say, outside a trial; roundLength]");
     }],
+    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
+        /*
+         * E20 C1, 29.10.2026; the owner's Q-3. The harm (S07-38): one map read "17 shared rooms open for 3 living
+         * students" in the Doors tab (locked rooms left out, the living), "Rooms: 17. Players: 4" on the checklist
+         * (locked counted, the dead too) and "18 rooms" in Pre-season checks (every marked room, bedrooms included),
+         * and "The guide suggests" named a document a GM does not have. Here one scene of plain objects (three shared
+         * rooms, one of them locked, a bedroom, a No privacy corridor, a region nobody marked) and four students of
+         * the suite's own (one dead) are read by the three readers: the Doors tab's line drawn by `wireRoomRatio` off
+         * a form of the same rows, the checklist's roomCount row and Pre-season's `diagnoseScenes`. E20-24: the
+         * predicates E51's "First session" builds on are exported. Nothing is written. Red at the parent: none of
+         * the names was exported (the first assertion).
+         */
+        let V = null, M = null, SS = null, F = null, A = null, U = null;
+        try {
+            [V, M, SS, F, A, U] = await Promise.all(["./vault.mjs", "./monokuma.mjs", "./season-setup.mjs", "./fog.mjs", "./assignments.mjs", "./utils.mjs"].map(p => import(p)));
+        } catch { V = null; }
+        const exported = { roomCensus: typeof V?.roomCensus, roomCensusOf: typeof V?.roomCensusOf, roomRatioLine: typeof V?.roomRatioLine,
+            wireRoomRatio: typeof V?.wireRoomRatio, studentCensus: typeof M?.studentCensus, explicitPool: typeof A?.explicitPool,
+            sceneUncoveredPercent: typeof F?.sceneUncoveredPercent };
+        equal(stableJson(exported), stableJson(Object.fromEntries(Object.keys(exported).map(k => [k, "function"]))),
+            "E20's predicates are not all exported (E51's First session reads them)");
+        const fx = await e20Fixture();
+        const rows = [["R1500 Hall A", {}], ["R1500 Hall B", { locked: true }], ["R1500 Gym", {}], ["R1500 Dorm", { owner: "R1500owner" }],
+            ["R1500 Corridor", { notShared: true }], ["R1500 Shed", { room: false }]];
+        const scene = fx.scene("R1500 school", rows.map(([name, over], i) => fx.region(`R1500r${i}`, name, { ...over, rect: [i * 100, 0, 100, 100] })));
+        const students = [fx.actor("R1500a"), fx.actor("R1500b"), fx.actor("R1500c"), fx.actor("R1500d", { dead: true })];
+        const census = V.roomCensus(scene);
+        const people = M.studentCensus(students);
+
+        const box = document.createElement("div");
+        box.innerHTML = `<p data-drpg-ratio></p><form>${rows.map(([name, over]) => `
+            <input type="checkbox" name="isroom:${name}"${over.room === false ? "" : " checked"}>
+            <select name="owner:${name}"><option value=""></option><option value="R1500owner"${over.owner ? " selected" : ""}>o</option></select>
+            <input type="checkbox" name="notshared:${name}"${over.notShared ? " checked" : ""}>
+            <input type="checkbox" name="locked:${name}"${over.locked ? " checked" : ""}>`).join("")}</form>`;
+        V.wireRoomRatio({ element: box }, rows.map(([name]) => name), people.count);
+        const doors = box.querySelector("[data-drpg-ratio]").textContent;
+
+        const row = SS.steps({ roster: students, scenes: [scene], roomScene: scene, assigned: {}, lastChecks: new Map() }).find(r => r.key === "roomCount");
+        const notes = document.createElement("div");
+        notes.innerHTML = row?.extra?.() ?? "";
+        const checklist = notes.textContent.trim();
+        const phrase = U.plural("DRPG.Vault.roomCensus", { n: 3 });
+        const pre = F.diagnoseScenes({ scenes: [scene], lastChecks: new Map() });
+        const words = [game.i18n.localize("DRPG.Vault.roomRatio"), phrase, U.plural("DRPG.Vault.roomCensusLocked", { n: 1 })].join(" ");
+        equal(stableJson({
+            census: [census.count, census.rooms, census.locked, census.bedrooms, census.noPrivacy],
+            people: [people.all.length, people.count],
+            doors: [doors === V.roomRatioLine(census, 3), doors.includes(phrase)],
+            checklist: checklist === doors,
+            pre: pre.includes(`R1500 school - ${phrase}`),
+            words: /\bguide\b/i.test(words)
+        }), stableJson({
+            census: [3, ["R1500 Hall A", "R1500 Hall B", "R1500 Gym"], ["R1500 Hall B"], ["R1500 Dorm"], ["R1500 Corridor"]],
+            people: [4, 3],
+            doors: [true, true],
+            checklist: true,
+            pre: true,
+            words: false
+        }), "the three readers do not give one census [the rooms: count, counted, locked among them, bedrooms, No privacy; the students: all, living; "
+            + "the Doors tab's line: the shared sentence, the census phrase; the checklist's line is the Doors tab's; Pre-season's line names the census; 'the guide' in the words]");
+    }],
+    ["R1501 - a checklist row that checked nothing never ticks (E20 C1, E20-02; S06-28): with no student the rows over the students wait - not done, a dash, \"waiting for the cast\", no button; the rooms row is not done with no room, roomsMarked not with no named region; the cursor row reads the permissions in force; the Monokuma row asks the assignment by hand and names the pool a student falls back to", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S06-28): on an empty world "Starting Health", "Everybody has an Ultimate" and
+         * four more rows read done (`.every` on an empty list), roomCount wanted 0 rooms of 0 students, "Every named
+         * region is decided" ticked with none drawn, the cursor row ticked on a world that never stored SHOW_CURSOR
+         * (Foundry's default shows every pointer), and "Every student has a Monokuma watching" ticked for everybody once
+         * one pool existed (`monokumaFor` falls back to the first). `steps()` is handed an empty cast, no scene and an
+         * assignment map of the suite's own; the rows are drawn by `setupRows` on a detached element. Nothing is
+         * written. Red at the parent: neither `setupRows` nor `cursorRoles` was exported (the first assertion), and
+         * `steps` took no argument and read the world.
+         */
+        let SS = null, D = null, A = null, K = null;
+        try { [SS, D, A, K] = await Promise.all(["./season-setup.mjs", "./despair.mjs", "./assignments.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
+        ok(typeof SS?.setupRows === "function" && typeof SS?.cursorRoles === "function", "season-setup.mjs exports no setupRows or cursorRoles");
+        const DASH = String.fromCharCode(0x2013);
+        const over = ["resources", "ultimate", "experiences", "items", "assignments", "despairSplit", "roomCount"];
+        const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
+        const pick = key => empty.find(r => r.key === key);
+        const box = document.createElement("ul");
+        box.innerHTML = SS.setupRows(over.map(pick).filter(Boolean));
+        const drawn = [...box.querySelectorAll(".drpg-setup-step")].map(li => [li.querySelector(".drpg-setup-mark")?.textContent,
+            li.classList.contains("waiting"), li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
+        const R = CONST.USER_ROLES;
+        const cursor = [SS.cursorRoles({}, { SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
+            SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
+        const sources = await K.moduleSources();
+        must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "gmRolesSharingCursor"));
+        const pool = D.monokumas()[0] ?? null;
+        must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
+        const fx = await e20Fixture();
+        const loose = fx.actor("R1501loose"), byHand = fx.actor("R1501hand"), nobody = fx.actor("R1501nobody");
+        const watch = assigned => {
+            const row = SS.steps({ roster: [loose, byHand, nobody], scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
+            return [row?.done, row?.done ? [] : row?.missing?.()];
+        };
+        equal(stableJson({
+            waiting: over.map(k => [k, pick(k)?.done, Boolean(pick(k)?.waiting)]),
+            drawn,
+            rooms: [pick("rooms")?.done, pick("roomsMarked")?.done, pick("roomsMarked")?.missing?.()],
+            cursor, readsInForce,
+            watch: [watch({ [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA }),
+                watch({ [loose.id]: pool.id, [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA })]
+        }), stableJson({
+            waiting: over.map(k => [k, false, true]),
+            drawn: over.map(() => [DASH, true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
+            rooms: [false, false, [game.i18n.localize("DRPG.Season.noNamedRegions")]],
+            cursor: [[R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], [R.PLAYER]], readsInForce: true,
+            watch: [[false, [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })]], [true, []]]
+        }), "a row ticks having checked nothing [the rows over the students with no student: done, waiting; each drawn: mark, waiting, the line, a button; "
+            + "rooms and roomsMarked with no scene: done, done, the line; the cursor's roles: nothing stored, stored; the cursor row reads the permissions in force; "
+            + "the Monokuma row: one student on the fallback, all by hand or nobody]");
+    }],
+    ["R1502 - Pre-season's cast lines ask the checklist's predicates (E20 C1, E20-03; S01-18): `diagnoseCharacters` reads a student's resources by `needsStartingResources` and the Despair pool line by `feedsNobody` and `explicitPool`, so a student on \"- nobody -\" reads the same in both, a student nobody assigned is named with the pool they fall back to, and the Despair report calls no Assistant GM \"no pool by design\"", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S01-18): a GM who set the Mastermind to "- nobody -" was ticked by the checklist
+         * and told by Pre-season checks "Everybody is assigned to a Despair pool" was failed, with advice to undo it,
+         * while a student nobody assigned passed through the fallback; the resources were judged by a copy of the
+         * predicate; and the Despair report called an Assistant GM granted a pool "no pool by design". Three students
+         * of the suite's own (on nobody, nobody assigned and below the starting numbers, assigned by hand) and an
+         * assignment map are handed to `diagnoseCharacters` (no chat) and to the checklist's `steps`; the Despair
+         * report whispers, so its source is read. Nothing is written. Red at the parent: `diagnoseCharacters` read the
+         * world's cast, so the suite's students were in neither line.
+         */
+        let SS = null, Dg = null, D = null, A = null, C = null, K = null;
+        try { [SS, Dg, D, A, C, K] = await Promise.all(["./season-setup.mjs", "./diagnostics.mjs", "./despair.mjs", "./assignments.mjs", "./character.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
+        const pool = D.monokumas()[0] ?? null;
+        must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
+        const fx = await e20Fixture();
+        const nobody = fx.actor("R1502nobody"), loose = fx.actor("R1502loose", { set: false }), byHand = fx.actor("R1502hand");
+        const roster = [nobody, loose, byHand];
+        const assigned = { [nobody.id]: A.NO_MONOKUMA, [byHand.id]: pool.id };
+        const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned });
+        const lines = text.split("\n");
+        const marks = roster.map(a => lines.find(l => l.includes(` ${a.name} - `))?.trim().slice(0, 1) ?? null);
+        const poolLine = lines.find(l => l.includes("Everybody is assigned to a Despair pool")) ?? "";
+        const listed = /^\s*✗ .* - \d+: (.*)$/.exec(poolLine)?.[1]?.split(", ") ?? [];
+        const row = SS.steps({ roster, scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
+        const sources = await K.moduleSources();
+        must(sources.get("diagnostics.mjs")?.length, "diagnostics.mjs is not among the module's sources - this would measure nothing");
+        const despair = fnSource(stripComments(sources.get("diagnostics.mjs")), "diagnoseDespair");
+        equal(stableJson({
+            marks, predicate: roster.map(a => (C.needsStartingResources(a) ? "✗" : "✓")),
+            listed, checklist: row?.done ? [] : row?.missing?.() ?? null,
+            despair: [/\bpoolCandidates\(\)/.test(despair), /no pool by design/.test(despair)]
+        }), stableJson({
+            marks: ["✓", "✗", "✓"], predicate: ["✓", "✗", "✓"],
+            listed: [`${loose.name} (falls back to ${pool.name})`], checklist: [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })],
+            despair: [true, false]
+        }), "Pre-season's cast lines and the checklist read differently [each student's resources mark, the predicate's; Pre-season's unassigned, the checklist's; "
+            + "the Despair report asks poolCandidates, says 'no pool by design']");
+    }],
+    ["R1503 - Pre-season's \"ok\" on a scene and the checklist's rooms tick need the uncovered share at most UNCOVERED_LIMIT_PCT and no error from the scene's last room check (E20 C1, E20-04; S06-28)", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S06-28): Pre-season checks wrote "ok" beside 67% of a map in no room, and
+         * "The map has rooms" kept its tick after the room check had found three border errors - a GM trusts the
+         * tick. Scenes of plain objects ready for room vision: one covered wall to wall, one covered by half, the
+         * first again with two errors on its last room check (the record handed in, as the window hands its own),
+         * and one covered whole but still on Foundry's vision (the control). Each is read by `diagnoseScenes` and by
+         * the checklist's rooms row. Nothing is written. Red at the parent: config.mjs stated no limit (the first
+         * assertion), and `diagnoseScenes` and `steps` read the world's scenes.
+         */
+        let SS = null, F = null, U = null, CFG = null;
+        try { [SS, F, U, CFG] = await Promise.all(["./season-setup.mjs", "./fog.mjs", "./utils.mjs", "./config.mjs"].map(p => import(p))); } catch { SS = null; }
+        ok(Number.isFinite(CFG?.UNCOVERED_LIMIT_PCT), "config.mjs states no UNCOVERED_LIMIT_PCT");
+        const fx = await e20Fixture();
+        const full = fx.scene("R1503 full", [fx.region("R1503a", "R1503 Hall", { rect: [0, 0, 4000, 3000] })]);
+        const half = fx.scene("R1503 half", [fx.region("R1503b", "R1503 Hall", { rect: [0, 0, 2000, 3000] })]);
+        const dark = fx.scene("R1503 dark", [fx.region("R1503c", "R1503 Hall", { rect: [0, 0, 4000, 3000] })], { ready: false });
+        const errors = new Map([[full.id, 2]]);
+        const line = (scene, lastChecks = new Map()) => F.diagnoseScenes({ scenes: [scene], lastChecks });
+        const rooms = (scene, lastChecks = new Map()) => {
+            const row = SS.steps({ roster: [], scenes: [scene], roomScene: scene, assigned: {}, lastChecks }).find(r => r.key === "rooms");
+            return [row?.done, row?.done ? [] : row?.missing?.()];
+        };
+        equal(stableJson({
+            pre: [line(full).slice(0, 4), line(half).slice(0, 4), line(full, errors).slice(0, 4), line(dark).slice(0, 4),
+                line(full, errors).includes(U.plural("DRPG.Fog.lastCheckErrors", { n: 2 }))],
+            rooms: [rooms(full), rooms(half), rooms(full, errors)]
+        }), stableJson({
+            pre: ["ok  ", "!!  ", "!!  ", "!!  ", true],
+            rooms: [[true, []], [false, [game.i18n.format("DRPG.Season.roomsUncovered", { scene: half.name, pct: 50 })]],
+                [false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 2, scene: full.name })]]]
+        }), "a scene is ok or ticked unchecked [Pre-season: covered, half, covered with two errors, on Foundry's vision, the errors named; "
+            + "the rooms row: covered, half, covered with two errors]");
+    }],
+    ["R1504 - \"outside rooms\" over the scene's own rect (E20 C1, E20-05; S07-13): `sceneUncoveredPercent` measures against `sceneRect`, not the padded canvas, cuts each polygon to it and takes a room's hole off its floor - a 4000x3000 map covered wall to wall in a 6000x4500 canvas reads 0", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S07-13): the share was taken of the canvas, the padding included, so a map
+         * covered wall to wall read about 57% "outside rooms" in Room Setup and Pre-season checks, and a GM learnt to
+         * ignore the line; a hole in a room counted as floor. Scenes of plain objects at Foundry's default padding
+         * of 0.25 (the map 4000x3000 at 1000,750 in a 6000x4500 canvas), each region carrying `polygons` as v14's do:
+         * covered whole; covered by a region that runs from the padding on the left to the map's middle; covered by
+         * an outline with a 1000x1000 hole (the tree's hole node and, as v14's alias does, both in `polygons`).
+         * Nothing is written. Red at the parent: [56, 67, 52] - the canvas, the padding counted as cover, the hole
+         * counted as floor twice over.
+         */
+        let F = null;
+        try { F = await import("./fog.mjs"); } catch { F = null; }
+        ok(typeof F?.sceneUncoveredPercent === "function", "fog.mjs exports no sceneUncoveredPercent");
+        const fx = await e20Fixture();
+        const dims = { width: 6000, height: 4500, sceneX: 1000, sceneY: 750, sceneWidth: 4000, sceneHeight: 3000,
+            sceneRect: { x: 1000, y: 750, width: 4000, height: 3000 } };
+        const rect = (x, y, w, h) => [x, y, x + w, y, x + w, y + h, x, y + h];
+        const covered = fx.scene("R1504 covered", [fx.region("R1504a", "R1504 Hall", { polygons: [rect(1000, 750, 4000, 3000)] })], { dims });
+        const padded = fx.scene("R1504 padded", [fx.region("R1504b", "R1504 Hall", { polygons: [rect(0, 750, 3000, 3000)] })], { dims });
+        const outline = rect(1000, 750, 4000, 3000), hole = rect(2000, 1750, 1000, 1000);
+        const holed = fx.scene("R1504 holed", [fx.region("R1504c", "R1504 Hall", { polygons: [outline, hole],
+            tree: [{ points: outline, isHole: false }, { points: hole, isHole: true }] })], { dims });
+        equal(stableJson([F.sceneUncoveredPercent(covered), F.sceneUncoveredPercent(padded), F.sceneUncoveredPercent(holed)]), stableJson([0, 50, 8]),
+            "[a map covered wall to wall, a region half on the map and half in the padding, an outline with a 1000x1000 hole] - percent outside rooms");
+    }],
+    ["R1505 - Check rooms says what it checked (E20 C1, E20-06; S07-33): with no scene \"No scene on the canvas\", on a scene with no room \"No rooms on this scene\", never an empty list the window reads as clean; the rooms row names the scene it judged and counts every scene with rooms", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S07-33): on a new world with no scene the button answered an empty list, shown
+         * as "Nothing to report - the rooms on this scene are clean", and a scene holding only a region nobody marked
+         * read the same; a GM viewing the trial hall saw "The map has rooms" red though the school had eighteen.
+         * `checkRegions` is handed no scene, then a scene of plain objects with one named region nobody marked; the
+         * checklist's rooms row is read over three scenes, two with rooms, judging the first. Nothing is written. Red
+         * at the parent: `checkRegions` took no argument and read the scene on the canvas.
+         */
+        let F = null, SS = null, U = null;
+        try { [F, SS, U] = await Promise.all(["./fog.mjs", "./season-setup.mjs", "./utils.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const none = F.checkRegions(null);
+        const bare = fx.scene("R1505 bare", [fx.region("R1505a", "R1505 Shed", { room: false, rect: [0, 0, 400, 400] })]);
+        const unmarked = F.checkRegions(bare).map(r => [r.level, r.problem]);
+        const a = fx.scene("R1505 school", [fx.region("R1505b", "R1505 Hall", { rect: [0, 0, 4000, 3000] })]);
+        const b = fx.scene("R1505 annex", [fx.region("R1505c", "R1505 Lab", { rect: [0, 0, 4000, 3000] })]);
+        const row = SS.steps({ roster: [], scenes: [a, b, bare], roomScene: a, assigned: {}, lastChecks: new Map() }).find(r => r.key === "rooms");
+        const notes = document.createElement("div");
+        notes.innerHTML = row?.extra?.() ?? "";
+        const problem = key => game.i18n.localize(`DRPG.Fog.${key}.problem`);
+        equal(stableJson({
+            none: none.map(r => [r.level, r.problem]),
+            unmarked: unmarked.filter(([, p]) => p === problem("checkNoRooms")).length,
+            rooms: [row?.done, notes.textContent.includes(U.plural("DRPG.Season.roomsJudged", { n: 2, scene: a.name }))]
+        }), stableJson({
+            none: [["warning", problem("checkNoScene")]],
+            unmarked: 1,
+            rooms: [true, true]
+        }), "Check rooms or the rooms row says nothing of what it checked [no scene: its rows; a scene with no room: its no-rooms rows; "
+            + "the rooms row over three scenes: done, the line naming the judged scene and two scenes with rooms]");
+    }],
 ];
 
 /**
@@ -25898,6 +26145,46 @@ function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
             art: tile.querySelector(".drpg-voice-tile-art").style.getPropertyValue("background-image"),
             more: tile.querySelector(".drpg-voice-tile-more").textContent
         })
+    };
+}
+
+/**
+ * E20 C1's fixtures (R1500-R1505): scenes, regions and students of plain objects, read by the module's readers and
+ * never written. A region carries the room flag unless `room` is false, and the owner, No privacy and lock flags it is
+ * handed; its shape is a rectangle `rect` ([x, y, width, height]) as raw shapes, or v14's `polygons` and `tree` (the
+ * `polygonTree` nodes) when handed. A scene is ready for room vision unless `ready` is false; its `dimensions` are a
+ * 4000x3000 map with no padding unless handed. A student is a character with no Monokuma flag, dead with `dead`, and
+ * at the starting resources unless `set` is false.
+ */
+async function e20Fixture() {
+    const [{ VAULT_FLAGS }, { ROOM_FLAGS }, { ROOM_FLAG }, { STARTING }] = await Promise.all([
+        import("./vault.mjs"), import("./movement.mjs"), import("./rooms.mjs"), import("./config.mjs")]);
+    const flagged = flags => (scope, key) => (scope === MODULE_ID ? flags[key] : undefined);
+    return {
+        region(id, name, { room = true, owner = null, notShared = false, locked = false, rect = null, polygons = null, tree = null } = {}) {
+            const flags = { [ROOM_FLAG]: room ? true : undefined, [VAULT_FLAGS.owner]: owner ?? undefined,
+                [VAULT_FLAGS.notShared]: notShared || undefined, [ROOM_FLAGS.locked]: locked || undefined };
+            return {
+                id, name, behaviors: [], getFlag: flagged(flags),
+                shapes: rect ? [{ type: "rectangle", x: rect[0], y: rect[1], width: rect[2], height: rect[3] }] : [],
+                ...(polygons ? { polygons: polygons.map(points => ({ points })) } : {}),
+                ...(tree ? { polygonTree: tree } : {})
+            };
+        },
+        // Ready: Foundry's vision off and the light on; `fog` names no mode, which `diagnoseScenes` reads as off.
+        scene(name, regions, { ready = true, dims = null } = {}) {
+            return {
+                id: `e20${name.replace(/[^A-Za-z0-9]/g, "")}`.slice(0, 16), name, regions, walls: [], levels: [],
+                dimensions: dims ?? { width: 4000, height: 3000, sceneX: 0, sceneY: 0, sceneWidth: 4000, sceneHeight: 3000,
+                    sceneRect: { x: 0, y: 0, width: 4000, height: 3000 } },
+                tokenVision: !ready, environment: { globalLight: { enabled: ready } }, fog: {}
+            };
+        },
+        actor(id, { dead = false, set = true } = {}) {
+            const resources = set ? { hitPoints: { max: STARTING.hp }, stress: { max: STARTING.stress } } : { hitPoints: { max: 0 }, stress: { max: 0 } };
+            return { id, name: `${id} student`, type: "character", items: [], system: { resources, experiences: {} },
+                getFlag: flagged({ [FLAGS.deceased]: dead ? { chapter: 1 } : undefined }) };
+        }
     };
 }
 

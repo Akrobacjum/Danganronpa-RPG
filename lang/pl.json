@@ -2155,7 +2155,19 @@
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
       "bedroomsIntro": "Czyja jest każda sypialnia. Jeden uczeń, jedna sypialnia. Czy skrytka jest ukryta, ustawiasz na zakładce Skrytki.",
       "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
-      "roomRatio": "{open} wspólnych pokoi otwartych na {living} żyjących uczniów: {per} na głowę, wobec {target}, na których zbudowano ten sezon. To {want} pokoi.",
+      "roomRatio": "{rooms}. Żyjący uczniowie: {living} ({per} pokoju na głowę). Sezon zbudowano na {target} na ucznia, więc ta obsada potrzebuje {want}.",
+      "roomCensus": {
+        "one": "{n} wspólny pokój (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "few": "{n} wspólne pokoje (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "many": "{n} wspólnych pokoi (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "other": "{n} wspólnego pokoju (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)"
+      },
+      "roomCensusLocked": {
+        "one": "Zamknięte z nich: {n}.",
+        "few": "Zamknięte z nich: {n}.",
+        "many": "Zamknięte z nich: {n}.",
+        "other": "Zamknięte z nich: {n}."
+      },
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
       "room": "Pokój",
       "owner": "Czyja sypialnia",
@@ -2237,7 +2249,7 @@
       "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
       "notSharedColumn": "Bez prywatności",
       "notSharedHint": "Nie licz tego regionu do liczby pokoi na gracza. Nie zmienia żadnej zasady.",
-      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
+      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko liczbę pokoi - linię z proporcją powyżej, ten sam wiersz w Ustawieniach sezonu i Kontrolę przed sezonem; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
       "neighboursColumn": "Sąsiedzi",
       "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
       "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
@@ -4523,7 +4535,7 @@
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
         "experiences": "Pierwszy rzut, który chce doświadczenia, to moment, w którym zauważa się jego brak - i to w środku sceny.",
         "items": "Przedmiot startowy. Uczeń z pustą torbą nie ma czym szukać, nie ma co oddać i nie ma czym zabić.",
-        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
+        "assignments": "Despair z rzutów ucznia idzie do puli, do której GM przypisał go w Despair Flow; uczeń, którego nikt nie przypisał, trafia do pierwszej puli i jest tu wymieniony, dopóki nie zostanie przypisany. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
@@ -4621,7 +4633,22 @@
       "roomGuide": "Najpierw ściany, potem region na każdy pokój, rysowany do nich z włączonym przyciąganiem; pokój można narysować jako kilka regionów o jednej nazwie. Region jest pokojem dopiero wtedy, gdy GM zaznaczy przy nim „To jest pokój” w Ustawieniach pokoi (karta Drzwi): region, którego nikt nie zaznaczył, przejście (region, który teleportuje żeton albo zmienia jego poziom) i region narysowany przez gracza nie są pokojami i nigdy nie liczą się jako sąsiedzi. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
-      "roomCountLine": "Pokoje: {rooms}. Gracze: {players}. Podręcznik sugeruje około {want}.",
+      "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
+      "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
+      "roomsUncovered": "{pct}% sceny {scene} nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",
+      "roomsCheckErrors": {
+        "one": "Sprawdzenie pokoi znalazło {n} błąd na scenie {scene}: popraw go i sprawdź jeszcze raz.",
+        "few": "Sprawdzenie pokoi znalazło {n} błędy na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "many": "Sprawdzenie pokoi znalazło {n} błędów na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "other": "Sprawdzenie pokoi znalazło {n} błędu na scenie {scene}: popraw je i sprawdź jeszcze raz."
+      },
+      "roomsJudged": {
+        "one": "Oceniana scena: {scene}. Pokoje ma {n} scena.",
+        "few": "Oceniana scena: {scene}. Pokoje mają {n} sceny.",
+        "many": "Oceniana scena: {scene}. Pokoje ma {n} scen.",
+        "other": "Oceniana scena: {scene}. Pokoje ma {n} sceny."
+      },
+      "noNamedRegions": "Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
       "fixedCursor": {
@@ -4829,6 +4856,20 @@
         "few": "{n} nazwane regiony nie są pokojami",
         "many": "{n} nazwanych regionów nie jest pokojami",
         "other": "{n} nazwanego regionu nie jest pokojem"
+      },
+      "lastCheckErrors": {
+        "one": "ostatnie sprawdzenie pokoi znalazło {n} błąd",
+        "few": "ostatnie sprawdzenie pokoi znalazło {n} błędy",
+        "many": "ostatnie sprawdzenie pokoi znalazło {n} błędów",
+        "other": "ostatnie sprawdzenie pokoi znalazło {n} błędu"
+      },
+      "checkNoScene": {
+        "problem": "Na płótnie nie ma sceny",
+        "detail": "Otwórz scenę, którą chcesz sprawdzić, i sprawdź jeszcze raz."
+      },
+      "checkNoRooms": {
+        "problem": "Na tej scenie nie ma pokoi",
+        "detail": "Zaznacz „To jest pokój” przy jej regionach w Ustawieniach pokoi (karta Drzwi) i sprawdź jeszcze raz."
       },
       "secretDoor": {
         "problem": "Sekretne drzwi Foundry",
