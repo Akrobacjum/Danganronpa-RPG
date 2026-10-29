@@ -18,7 +18,8 @@ R numbers: line A R1049-R1499.
 ## Line B - CLI on the owner's computer (branch claude/fervent-sagan-gme4vt-b)
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
-| (first task) | proposal below, waits for the owner's yes | - | setup done 29.10 (quick 50 s here; red only on `check moves`, see B-C0) |
+| B-C0 | CI (60ef9a97 pushed; quick green 55 s here) | tools/moved-only.mjs | owner's yes 29.10 |
+| E20 | SPEC (stages/E20/STAGE.md), waits for the owner's answers before code | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
@@ -57,6 +58,9 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 
 ## Cost per stage (line B)
 (line B writes "<Eid>: $x, n agents, hours")
+- Proposal (section 5): 3 read-only agents; $ not read yet (the owner reads the Console).
+- B-C0: 0 agents (done by the orchestrator); $ not read yet.
+- E20 so far: spec, 1 read-only agent; $ not read yet.
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
