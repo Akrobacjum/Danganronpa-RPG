@@ -9,6 +9,8 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C2 | 08b92cef | QUICK GREEN at 5ede9103+edits: lint/check/gate ok; prose ok; t01 ok earlier (5ede9103-474); own(3) ok; scen 12 ok earlier (5ede9103-474); scen 66 ok earlier (5ede9103-474) (logs /c/Users/chrob/quick-runs/5ede9103-1431); R387, R1502, R1503, R1506-R1509 by name after the lint fix: 8 passed, 0 failed |
 | C3 | 6ad88c5a | QUICK GREEN at 08b92cef+edits: lint/check/gate ok; prose ok; t01 ok; own(3) ok; scen 66 ok; scen 74 ok (logs /c/Users/chrob/quick-runs/08b92cef-425); R1510, R1511, R387, R503, R505, R542: 7 passed, 0 failed; E20-T1, E20-T2: 6 passed, 0 failed |
 | C4 | e52a60ef | QUICK GREEN at 6ad88c5a+edits: lint/check/gate ok; prose ok; t01 ok; own(11) ok; scen 65 ok earlier (6ad88c5a-1778) (logs /c/Users/chrob/quick-runs/6ad88c5a-616); R1512-R1515 red first 1 passed 4 failed, after 5 passed 0 failed; R74's two patterns widened (the opener takes a second argument) |
+| C4 fix | fd6620aa | CI on e52a60ef red: R1512 failed in 01-runtests with an incident open (`nextStep` put the incident line first); `nextStep` takes optional `incident`/`eclipse`, R1512 passes both false; fd6620aa CI green (01-runtests not run locally: it hit the agent's 40-min bound) |
+| C5 | 984033fa | QUICK GREEN at fd6620aa+edits: lint/check/gate ok; prose ok; t01 ok; own(5) ok; scen 00 ok (logs /c/Users/chrob/quick-runs/fd6620aa-220); R1516, R1517 red first; 00-boot 31/33 before, 33/33 after (E20-T3 a real boot without Dice So Nice) |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -50,3 +52,9 @@ All exported; R1500 reads the exports.
 - C4 gap: opening at the top and the scroll at 1366x768 / 1920x1080 not measured (LIVE-E20-01) - C7
 - C4 gap: "bring to front" after a row's Open not measured against Foundry's real window stacking (the harness has none) - C7 / the review
 - C4 gap: the checklist's cost per redraw of the GM panel's Next line not measured - the review
+- C4 lesson: quick's t01 was green on e52a60ef and CI's 01-runtests red - a test that reads world state (an open incident) passes alone and fails in the whole run
+- C5 gap: a real v14 client without Dice So Nice not measured (LIVE-E20-02) - C7
+- C5 gap: the GM handbook's requirements table keeps the old Isometric/LiveKit wording - C7
+- C5 gap: a comment in gm-panel.mjs explains the GM's chrome stamp by a stylesheet left on the page (the stamp stays, R470) - the review
+- C5 note: no recommendations window at HEAD (removed 1.2.73); for S13-43 only the requirements window's counted intro was fixed
+- C5 question for the owner (default: as built): with no module language stored, the requirements window follows Foundry's language (the module's setting cannot change while the module is stopped); S01-63's English default waits for E66
