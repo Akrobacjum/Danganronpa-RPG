@@ -6,6 +6,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C | sha | QUICK |
 | --- | --- | --- |
 | C1 | 5ede9103 | QUICK GREEN at 60ef9a97+edits: lint/check/gate ok; prose ok; t01 ok; own(13) ok; scen 66 ok (logs /c/Users/chrob/quick-runs/60ef9a97-1811) |
+| C2 | 08b92cef | QUICK GREEN at 5ede9103+edits: lint/check/gate ok; prose ok; t01 ok earlier (5ede9103-474); own(3) ok; scen 12 ok earlier (5ede9103-474); scen 66 ok earlier (5ede9103-474) (logs /c/Users/chrob/quick-runs/5ede9103-1431); R387, R1502, R1503, R1506-R1509 by name after the lint fix: 8 passed, 0 failed |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -32,6 +33,10 @@ All exported; R1500 reads the exports.
 - C1 gap: UNCOVERED_LIMIT_PCT = 10 is a choice, not measured on a real map (a LIVE row for the owner's school map) - C7 (LIVE rows) / the owner
 - C1 gap: the Doors tab's "too many rooms" warning counts locked rooms (Q-3), so closing a wing no longer clears it - the review / the owner
 - C1 gap: the last Check rooms is kept per scene in the GM's browser only until a reload; console game.drpg.checkRegions() records none - the review
-- C1 gap: Pre-season's new English literals (no-cast line, "falls back to") wait for the report's keys - C2
-- C1 gap: registry's "Next free" now reads R1506 (line B's R1500-R1505 are the highest numbers); line A takes its own R1049+ by hand - the orchestrator
+- C1 gap: registry's "Next free" read R1506 (R1510 after C2) (line B's R1500-R1505 are the highest numbers); line A takes its own R1049+ by hand - the orchestrator
 - C1 gap: quick.sh on Git Bash: the flock shim shifts 2 for "flock -w N LOCK" (runs the lock path, exit 127) and ps -eo is cygwin-unsupported (reap does nothing); run with a PATH flock stand-in at /c/Users/chrob/qbin - the orchestrator (tools)
+- C2 gap: "Show on map" (pan and mark) not measured on a real canvas - C7 writes it to AUDIT 9.2 as B-E20-5
+- C2 gap: the Pre-season window's scroll at 1366x768 not measured - C7 (B-E20-1)
+- C2 gap: `diagnoseDespair` (console report) still English - the review
+- C2 gap: the anonymity audit still counts Monokuma like any character (unchanged behaviour) - the review
+- C2 note: Pre-season's scene marks are now check/cross signs instead of "ok"/"!!"; the room-check findings' English titles kept (scenario 66 reads them)

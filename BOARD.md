@@ -19,7 +19,7 @@ R numbers: line A R1049-R1499.
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
-| E20 | BUILD: C1 5ede9103 pushed (CI pending); paused by the owner before C2 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
+| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef pushed (CI pending); paused before C3 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
@@ -61,6 +61,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - Proposal (section 5): 3 read-only agents; $ not read yet (the owner reads the Console).
 - B-C0: 0 agents (done by the orchestrator); $ not read yet.
 - E20 so far: spec (1 read-only agent); C1 1 drpg-impl agent (308k tokens, 5.5 h wall with quick and CI waits), about $12 by the owner.
+- E20 C2: 1 drpg-impl agent (229k tokens, 123 tool calls, 21.5 min wall); a fresh run, so C2's $ = the run's total in ../scratch/session-cost.log (its first line is written at the end of this turn; the orchestrator fills it in at the next turn).
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
