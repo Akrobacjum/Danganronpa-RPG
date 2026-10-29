@@ -8,6 +8,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C1 | 5ede9103 | QUICK GREEN at 60ef9a97+edits: lint/check/gate ok; prose ok; t01 ok; own(13) ok; scen 66 ok (logs /c/Users/chrob/quick-runs/60ef9a97-1811) |
 | C2 | 08b92cef | QUICK GREEN at 5ede9103+edits: lint/check/gate ok; prose ok; t01 ok earlier (5ede9103-474); own(3) ok; scen 12 ok earlier (5ede9103-474); scen 66 ok earlier (5ede9103-474) (logs /c/Users/chrob/quick-runs/5ede9103-1431); R387, R1502, R1503, R1506-R1509 by name after the lint fix: 8 passed, 0 failed |
 | C3 | 6ad88c5a | QUICK GREEN at 08b92cef+edits: lint/check/gate ok; prose ok; t01 ok; own(3) ok; scen 66 ok; scen 74 ok (logs /c/Users/chrob/quick-runs/08b92cef-425); R1510, R1511, R387, R503, R505, R542: 7 passed, 0 failed; E20-T1, E20-T2: 6 passed, 0 failed |
+| C4 | e52a60ef | QUICK GREEN at 6ad88c5a+edits: lint/check/gate ok; prose ok; t01 ok; own(11) ok; scen 65 ok earlier (6ad88c5a-1778) (logs /c/Users/chrob/quick-runs/6ad88c5a-616); R1512-R1515 red first 1 passed 4 failed, after 5 passed 0 failed; R74's two patterns widened (the opener takes a second argument) |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -45,3 +46,7 @@ All exported; R1500 reads the exports.
 - C3 gap: the HEAD request's size on a real Foundry server / The Forge not measured (LIVE-E20-04); 8 s per picture is the implementer's choice; "8 MB" read as 8 MiB - C7 / the review
 - C3 gap (Q-7 reading, for the review): height compared only between pieces on the same floors; the trial hall's picture not checked (not a room)
 - C3 note: the GM handbooks' `checkRegions()` row (EN/PL) already names the new finding (R387 reads it); the new Pre-season rows still need C7's text
+- C4 question for the owner (default: as Q-8 says): a running world with a required Season setup row not done shows the setup line in Daily Life instead of "N students still have actions"
+- C4 gap: opening at the top and the scroll at 1366x768 / 1920x1080 not measured (LIVE-E20-01) - C7
+- C4 gap: "bring to front" after a row's Open not measured against Foundry's real window stacking (the harness has none) - C7 / the review
+- C4 gap: the checklist's cost per redraw of the GM panel's Next line not measured - the review
