@@ -258,6 +258,11 @@ async def main():
                 continue
             if not line:
                 continue
+            if line.lower() in ("y", "a", "n"):
+                # A late answer to a question already settled (by the auto rules or an earlier answer) is not a message:
+                # twice on 29.10.2026 a stray "a" reached the agent.
+                say("  [no permission question is open; this answer is ignored, not sent]")
+                continue
             if line in ("exit", "quit"):
                 break
             if "sk-ant-" in line or "ANTHROPIC_API_KEY" in line:
