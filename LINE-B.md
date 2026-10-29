@@ -1,8 +1,9 @@
 # LINE B - the brief for the second line of work (Claude Code CLI on the owner's computer)
 
 Written 29.10.2026 by line A (the cloud session that has built and shipped every stage so far, up to 1.2.90). You are
-line B: a second, parallel line of stages of the Danganronpa RPG module (Foundry v14, Daggerheart), run in Claude Code on
-the owner's own computer, billed to the owner's API credits. The owner (Dawid, Polish; writes to you in Polish, answer in
+line B: a second, parallel line of stages of the Danganronpa RPG module (Foundry v14, Daggerheart), run on the owner's
+own computer through the Claude Agent SDK (`tools/line-b.py`: the owner's promotional credit covers the Agent SDK and not
+the Claude Code CLI), billed to the owner's API credits. The owner (Dawid, Polish; writes to you in Polish, answer in
 Polish, gender-neutral forms, never the long dash, use "-") coordinates the two lines by hand. Line A keeps releasing.
 
 Read this whole file first, then `BOARD.md`, then the repo's own `CLAUDE.md` and `docs/dev/METHOD.md` (they load or are
