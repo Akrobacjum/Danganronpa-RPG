@@ -37,6 +37,7 @@ linked in the repo; METHOD.md is how every stage has been built), then `method/M
 | Line A's branch | `claude/fervent-sagan-gme4vt` (line A only; you never push there) |
 | YOUR branch | `claude/fervent-sagan-gme4vt-b` (yours alone; push fast-forward only) |
 | This kit and the board | branch `lines-board` (never merged into main): LINE-B.md, BOARD.md, plan.json, method/, tools/, examples/, stages/ |
+| The issues | `issues.json` here: the full text (title, where, problem, fix, effort) of every S##-## issue an unfinished stage names, 468 of them. |
 | The plan | `plan.json` here: every unfinished stage (goal, why, risk, verify, doneWhen, issues, the owner's amendments). Polish. "after" is the planned order, NOT a proven dependency. |
 | A model of a stage spec and its ledger | `examples/E70-p2/STAGE.md`, `examples/E70-p2/LEDGER.md` |
 | Agent roles | `method/agents/drpg-impl.md`, `drpg-review.md`, `drpg-fix.md`, `drpg-scribe.md` (`<tools>` in them = this kit's `tools/`) |
