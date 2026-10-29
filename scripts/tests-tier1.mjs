@@ -26289,6 +26289,112 @@ const INVARIANTS = [
             + "names line's size and colour on a missing row, its colour on a waiting row | a done row's opacity, its title's colour, its mark's opacity, "
             + "its hint's size | the content box's overflow, its scrollbar gutter]");
     }],
+    ["R1516 - a module that did not start leaves Foundry as it was: its stylesheets taken off the page, its import-time render hooks idle, and nothing held (E20 C5, E20-17; S01-41, D19)", async () => {
+        /*
+         * E20 C5, 29.10.2026. The harm (S01-41): a world missing Dice So Nice, Isometric Perspective or LiveKit stopped the
+         * module at `init`, but the module's six stylesheets stayed on the page (the hotbar, the scene navigation and the
+         * players list hidden, Foundry's windows restyled), and settings.mjs's render hooks, registered when the file is
+         * imported, read a setting nobody registered and threw on every window drawn - while the GM's window said
+         * "Nothing else in the module has started". Read: requirements.mjs `removeModuleStyles` over a fixture document
+         * of stand-in sheets (an inline sheet of imports - the module's two, another module's, a lookalike's - and a
+         * style rule; a linked sheet of the module's; two that refuse their rules, one of the module's), because jsdom
+         * parses no sheet in a document of the suite's own (probed 29.10.2026) and none is attached to this page;
+         * settings.mjs `settingsRegistered` over an empty settings map and this world's; with comments blanked, the
+         * render hooks' first statement, `init`'s branch that stops, and where the held settings start. How Foundry v14
+         * attaches module CSS at a table is not measured here; 00-boot reads a client that stopped. Nothing is written.
+         * Red at the parent: neither function was exported.
+         */
+        let R = null, S = null;
+        try { R = await import("./requirements.mjs"); S = await import("./settings.mjs"); } catch { R = null; }
+        const ours = file => `modules/${MODULE_ID}/styles/${file}`;
+        const node = () => ({ removed: 0, remove() { this.removed++; } });
+        const sheet = (href, rules) => ({ href, ownerNode: node(), cssRules: rules, deleteRule(i) { this.cssRules.splice(i, 1); } });
+        const imported = href => ({ href, styleSheet: { href: null, cssRules: [] } });
+        const refusing = href => ({ href, ownerNode: node(), get cssRules() { throw new Error("R1516: another origin's sheet"); } });
+        const inline = sheet(null, [imported(ours("r1516-a.css")), imported("modules/r1516-other/styles/other.css"),
+            imported(`modules/${MODULE_ID}-r1516/styles/lookalike.css`), imported(ours("r1516-b.css")), { selectorText: ".r1516" }]);
+        const linked = sheet(`https://r1516.example/${ours("r1516-c.css")}`, [{ selectorText: ".r1516-linked" }]);
+        const opaqueOurs = refusing(`https://r1516.example/${ours("r1516-d.css")}`), opaqueOther = refusing("https://r1516.example/other.css");
+        const rules = () => inline.cssRules.map(rule => rule.href ?? rule.selectorText);
+        const before = rules();
+        const removed = typeof R?.removeModuleStyles === "function"
+            ? R.removeModuleStyles({ styleSheets: [inline, linked, opaqueOurs, opaqueOther] }) : null;
+        const registered = typeof S?.settingsRegistered === "function"
+            ? [S.settingsRegistered(new Map()), S.settingsRegistered(game.settings.settings)] : null;
+
+        const sources = new Map(await otherSources());
+        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        const module = stripComments(sources.get("module.mjs") ?? "");
+        must(settings.length && module.length, "settings.mjs or module.mjs is not among the module's sources - this would measure nothing");
+        const firstLine = body => (body.match(/\{\s*([^\n]*)/)?.[1] ?? "").trim();
+        const init = bodyOf(module, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const setup = bodyOf(module, 'Hooks.once("setup"', { until: 'Hooks.once("ready"' });
+        const setupStop = setup.indexOf("if (!requirementsMet()) return;");
+        equal(stableJson({ before, removed, after: rules(), taken: [inline, linked, opaqueOurs, opaqueOther].map(s => s.ownerNode.removed), registered,
+            scale: firstLine(fnSource(settings, "scaleWindow")), config: firstLine(bodyOf(settings, 'Hooks.on("renderSettingsConfig"', { length: 400 })),
+            stopRemoves: /\bremoveModuleStyles\(\)/.test(bodyOf(init, "if (!requirementsMet())", { until: "return;" })),
+            held: [init.includes("registerEnforced"), setupStop >= 0 && setup.indexOf("registerEnforced") > setupStop, /\b(applyEnforced|holdRtcDock)\b/.test(module)] }),
+        stableJson({
+            before: [ours("r1516-a.css"), "modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ours("r1516-b.css"), ".r1516"],
+            removed: 4, after: ["modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ".r1516"], taken: [0, 1, 1, 0],
+            registered: [false, true], scale: "if (!settingsRegistered()) return;", config: "if (!settingsRegistered()) return;",
+            stopRemoves: true, held: [false, true, false]
+        }), "a module that stopped still styles Foundry or throws on its windows [the inline sheet's rules before | sheets and imports removed | "
+            + "its rules after | each sheet's element taken off: inline, linked, refusing ours, refusing another's | settings registered: none, this "
+            + "world's | scaleWindow's first line | the settings window hook's first line | init's stop takes the sheets off | the held settings: "
+            + "named in init, started after setup's stop, started anywhere else in module.mjs]");
+    }],
+    ["R1517 - the requirements window speaks the table's language, its reasons say what each module is for, and one missing module is not counted as two (E20 C5, E20-18; S01-45, S13-43, D19)", async () => {
+        /*
+         * E20 C5, 29.10.2026. The harm (S01-45, S13-43): the window a GM gets when a required module is missing read its
+         * reasons from module.json, in English only - Dice So Nice's "thrown in front of the table" against private
+         * rolls, Isometric Perspective's "academy maps" -, its intro said "one of them is not available" whatever the
+         * count, and a Polish table read all of it in English, because the module's language file is loaded by the
+         * module that did not start. Read: requirements.mjs `requirementsLanguage` over stored and core languages;
+         * `requirementsWords` fetching each language file the module serves; `requirementsContent` over rows for one,
+         * two and an unknown module; the served module.json's reasons against en.json's. Whether Foundry shows this at
+         * a real table is not measured here. Nothing is written. Red at the parent: none of the three was exported.
+         */
+        let R = null;
+        try { R = await import("./requirements.mjs"); } catch { R = null; }
+        const ready = ["requirementsLanguage", "requirementsWords", "requirementsContent"].every(n => typeof R?.[n] === "function");
+        const fetchJson = async path => { try { const res = await fetch(path); return res.ok ? await res.json() : null; } catch { return null; } };
+        const manifest = await fetchJson(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+        const files = { en: await fetchJson(`/modules/${MODULE_ID}/lang/en.json`), pl: await fetchJson(`/modules/${MODULE_ID}/lang/pl.json`) };
+        must(manifest && files.en && files.pl, "module.json or a language file did not load - this would measure nothing");
+        const requires = [...(manifest.relationships?.requires ?? [])];
+        const reason = (lang, id) => foundry.utils.getProperty(foundry.utils.expandObject(files[lang]), "DRPG.Requirements.reason")?.[id] ?? null;
+        const row = (id, state = "absent") => ({ id, title: id, state, reason: requires.find(e => e.id === id)?.reason ?? "" });
+        const out = { langs: null, pl: null, en: null, two: null, unknown: null };
+        if (ready) {
+            out.langs = [R.requirementsLanguage({ stored: null, core: "pl" }), R.requirementsLanguage({ stored: "en", core: "pl" }),
+                R.requirementsLanguage({ stored: null, core: "de" }), R.requirementsLanguage({ stored: "pl", core: "en" })];
+            const words = { en: await R.requirementsWords("en"), pl: await R.requirementsWords("pl") };
+            const pl = R.requirementsContent([row("dice-so-nice")], words.pl, "pl");
+            const en = R.requirementsContent([row("isometric-perspective", "disabled")], words.en, "en");
+            const two = R.requirementsContent([row("dice-so-nice"), row("avclient-livekit")], words.en, "en");
+            const unknown = R.requirementsContent([{ id: "r1517-mod", title: "R1517", state: "absent", reason: "R1517 manifest reason" }], words.en, "en");
+            const text = c => [c.title, c.intro, c.how, ...c.rows.flatMap(r => [r.state, r.reason])].join(" | ");
+            out.pl = { reason: pl.rows[0].reason === reason("pl", "dice-so-nice") && Boolean(reason("pl", "dice-so-nice")), state: pl.rows[0].state,
+                count: /(^|\P{L})(dwa|dwie|dwóch|2)(?!\p{L})/iu.test(text(pl)), english: /\b(the|not installed|needs)\b/.test(text(pl)) };
+            out.en = { reason: en.rows[0].reason, state: en.rows[0].state, count: /\b(two|2)\b/i.test(text(en)), promise: /academy|demo/i.test(text(en)) };
+            out.two = /\b2\b/.test(two.intro);
+            out.unknown = unknown.rows[0].reason;
+        }
+        equal(stableJson({ ready, ...out, manifest: requires.map(e => [e.id, e.reason === reason("en", e.id), Boolean(reason("pl", e.id))]),
+            d19: reason("en", "dice-so-nice") }), stableJson({
+            ready: true, langs: ["pl", "en", "en", "pl"],
+            pl: { reason: true, state: "niezainstalowany", count: false, english: false },
+            en: { reason: "Maps drawn for isometric play will look wrong on a flat grid.", state: "installed, but switched off", count: false, promise: false },
+            two: true, unknown: "R1517 manifest reason",
+            manifest: [["dice-so-nice", true, true], ["isometric-perspective", true, true], ["avclient-livekit", true, true]],
+            d19: "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table."
+        }), "the requirements window speaks English to a Polish table, promises what the module does not do, or counts wrong [the three exported | "
+            + "the language: stored none + Polish Foundry, stored English, stored none + a language the module lacks, stored Polish | Polish, Dice So "
+            + "Nice missing: its reason from pl.json, the state, a count of two, an English word | English, Isometric switched off: its reason, the "
+            + "state, a count of two, academy maps or a demo | two missing: the intro counts 2 | a module with no key: the manifest's reason | each "
+            + "required module: module.json's reason is en.json's, pl.json has one | Dice So Nice's reason in English]");
+    }],
 ];
 
 /**
@@ -26341,6 +26447,9 @@ const LITERAL_KEYS = [
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
+    // requirements.mjs `requirementsContent` (E20 C5): each required module's reason by its id, and the intro by its count.
+    ...["dice-so-nice", "isometric-perspective", "avclient-livekit"].map(id => `DRPG.Requirements.reason.${id}`),
+    "DRPG.Requirements.intro.one", "DRPG.Requirements.intro.other",
     // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons, and
     // the dead channel's (E19 C3).
     ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline", "deadAlone"].map(reason => `DRPG.Voice.held.${reason}`),

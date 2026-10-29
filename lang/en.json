@@ -3808,12 +3808,20 @@
     },
     "Requirements": {
       "title": "Danganronpa RPG is not running",
-      "intro": "This module needs the following, and one of them is not available. Nothing else in the module has started.",
+      "intro": {
+        "one": "Danganronpa RPG needs this module and has not started. Your world and Foundry are as they were without it.",
+        "other": "Danganronpa RPG needs these {n} modules and has not started. Your world and Foundry are as they were without it."
+      },
       "state": {
         "absent": "not installed",
         "disabled": "installed, but switched off"
       },
-      "how": "Install or enable them in Manage Modules - on the Forge, in the game's module list - then reload the world. Nothing has been changed here, so that is the whole of the repair.",
+      "reason": {
+        "dice-so-nice": "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table.",
+        "isometric-perspective": "Maps drawn for isometric play will look wrong on a flat grid.",
+        "avclient-livekit": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
+      },
+      "how": "Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world. That is the whole repair.",
       "understood": "Understood",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",

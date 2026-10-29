@@ -3289,6 +3289,17 @@ export async function clearBodyDiscovery() {
     return game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
 }
 
+/**
+ * Whether `registerSettings` has run on this browser (E20 C5; S01-41). This file's render hooks are
+ * registered when it is imported, and the module imports it even where it stops at its requirements
+ * check (module.mjs `init`): there no setting is registered, and a hook that reads one threw on every
+ * window drawn (00-boot's E20-T3 measured three, one per render hook). The theme's setting stands
+ * for the lot - `registerSettings` registers it with the rest, unguarded.
+ */
+export function settingsRegistered(settings = game.settings?.settings) {
+    return settings?.has?.(`${MODULE_ID}.${SETTINGS.theme}`) === true;
+}
+
 /** Convenience reader. */
 /**
  * The language this browser asked the module for: `en` or `pl`, `en` when the
@@ -3678,6 +3689,7 @@ export function applyTheme() {
    the user has dragged wider keeps that width until it is rendered again.
    `auto` is left alone: a window that measures itself is already right. */
 function scaleWindow(app, element) {
+    if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
      * THE BOX IS BOTH THEMES' NOW (W-2, Dawid 19.09).
@@ -3749,6 +3761,7 @@ Hooks.on("renderApplicationV2", scaleWindow);
 Hooks.on("renderApplication", scaleWindow);
 
 Hooks.on("renderSettingsConfig", (_app, element) => {
+    if (!settingsRegistered()) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
     const themeField = root.querySelector(`[name="${MODULE_ID}.${SETTINGS.theme}"]`);

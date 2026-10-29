@@ -104,7 +104,7 @@ import { registerApi } from "./api.mjs";
 import { registerEnforced } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
-    systemCompatibility } from "./requirements.mjs";
+    systemCompatibility, removeModuleStyles } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
@@ -149,17 +149,20 @@ Hooks.once("init", () => {
     // THREE MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
-    // Dice So Nice: every roll in this game is thrown in front of the table,
-    // and dice nobody can see are worse than an honest stop - the table would
-    // spend the evening working around symptoms rather than ticking one
-    // checkbox. Isometric Perspective and LiveKit joined it on 09.10.2026 (the
+    // Dice So Nice: every roll in this game is thrown as 3D dice, seen by the
+    // people allowed to see that roll (D19), and dice nobody can see are worse
+    // than an honest stop - the table would spend the evening working around
+    // symptoms rather than ticking one checkbox. Isometric Perspective and LiveKit joined it on 09.10.2026 (the
     // owner's amendment d, E13 C10): the academy is drawn isometric and its
     // rooms are voice rooms, and from 17.09 (M-1) they had only been
     // recommended. Required means installed and switched on (R442). Nothing is
     // written on this path, so enabling what is missing and reloading is the
-    // whole of the repair.
+    // whole of the repair. And nothing of the module's is left styling Foundry
+    // (E20 C5; S01-41): its stylesheets come off the page here, and the render
+    // hooks settings.mjs registers on import stand idle without its settings.
     if (!requirementsMet()) {
         log("Not starting: a required module is missing or disabled.");
+        removeModuleStyles();
         return;
     }
 

@@ -201,14 +201,16 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
        time: the hotbar as `ready` left it, then the navigation drawn and its render fired, then the Scenes tab drawn and
        the sidebar's render fired - `markGmChrome` stamps every element there is, so one hook fired before an element is
        read would answer for the others. Until the fix the chrome was registered after the check, and a GM there
-       computed all three hidden; since DZ5 only the Scenes tab is the GM's, the other two stay hidden. */
-    await connect("gmoff", { modulesOff: ["avclient-livekit"] });
-    await settle(300);
-    const stopped = await gmoff.eval(`const drawn = [];
+       computed all three hidden. Since E20 C5 (S01-41) a module that stops takes its stylesheets off the page
+       (requirements.mjs `removeModuleStyles`, R1516), so the GM there computes all three shown, as Foundry draws them,
+       and the page holds no import of the module's. */
+    const readStopped = `const drawn = [];
         const draw = (id, html) => { if (document.getElementById(id)) return; const t = document.createElement("template");
             t.innerHTML = html; drawn.push(t.content.firstElementChild); document.body.append(t.content.firstElementChild); };
         const shown = sel => getComputedStyle(document.querySelector(sel)).display !== "none";
-        const read = { stopped: !game.drpg && !game.settings.settings.has("danganronpa-rpg.theme"), gm: game.user.isGM, hotbar: shown("#hotbar") };
+        const ours = [...document.styleSheets].flatMap(sheet => [sheet.href ?? "", ...[...(sheet.cssRules ?? [])].map(rule => rule.href ?? "")])
+            .filter(href => href.includes("modules/danganronpa-rpg/")).length;
+        const read = { stopped: !game.drpg && !game.settings.settings.has("danganronpa-rpg.theme"), gm: game.user.isGM, sheets: ours, hotbar: shown("#hotbar") };
         draw("scene-navigation", '<nav id="scene-navigation"></nav>');
         Hooks.callAll("renderSceneNavigation");
         read.nav = shown("#scene-navigation");
@@ -216,10 +218,40 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         Hooks.callAll("renderSidebar");
         read.scenes = shown('#sidebar-tabs button[data-tab="scenes"]');
         drawn.forEach(el => el.remove());
+        return read;`;
+    await connect("gmoff", { modulesOff: ["avclient-livekit"] });
+    await settle(300);
+    const stopped = await gmoff.eval(readStopped);
+    await disconnect("gmoff");
+    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off sees the Scenes tab, the scene navigation and the hotbar as Foundry draws them",
+        stopped.stopped === true && stopped.gm === true && stopped.sheets === 0 && stopped.hotbar && stopped.nav && stopped.scenes, JSON.stringify(stopped));
+
+    /* E20-T3 (E20 C5, 29.10.2026; E20-17, D19; S01-41): the same GM joins again with Dice So Nice switched off. The
+       harm: the module stopped, but its stylesheets restyled Foundry and settings.mjs's render hooks, registered when
+       the file is imported, read a setting nobody registered and threw on every window drawn. Read after its `ready`:
+       no import of the module's left on the page; then a window's render fired as Foundry fires it (`renderApplicationV2`,
+       `renderApplication`, `renderSettingsConfig`, each with an element of its own, taken off again) and the errors the
+       client recorded since it booted - none. That headless Foundry's hooks are the harness's (lib/shim.mjs) is the
+       limit: a real v14 client without Dice So Nice is not measured here. */
+    await connect("gmoff", { modulesOff: ["dice-so-nice"] });
+    await settle(300);
+    const noDice = await gmoff.eval(`const read = { stopped: !game.drpg && !game.settings.settings.has("danganronpa-rpg.theme"),
+            dice: game.modules.get("dice-so-nice")?.active ?? null, booted: globalThis.__errors.length };
+        read.sheets = [...document.styleSheets].flatMap(sheet => [sheet.href ?? "", ...[...(sheet.cssRules ?? [])].map(rule => rule.href ?? "")])
+            .filter(href => href.includes("modules/danganronpa-rpg/")).length;
+        const before = globalThis.__errors.length;
+        for (const hook of ["renderApplicationV2", "renderApplication", "renderSettingsConfig"]) {
+            const element = document.createElement("div");
+            document.body.append(element);
+            const app = { options: { position: { width: 400, height: 300 } }, constructor: { DEFAULT_OPTIONS: {} }, setPosition() {} };
+            Hooks.callAll(hook, app, element);
+            element.remove();
+        }
+        read.thrown = globalThis.__errors.slice(before).map(e => e.where + ": " + e.message);
         return read;`);
     await disconnect("gmoff");
-    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off still shows the Scenes tab, and the scene navigation and the hotbar stay hidden",
-        stopped.stopped === true && stopped.gm === true && !stopped.hotbar && !stopped.nav && stopped.scenes, JSON.stringify(stopped));
+    check("E20-T3 - a GM whose world has Dice So Nice switched off: the module stops, leaves none of its stylesheets on the page, and a window drawn throws nothing",
+        noDice.stopped === true && noDice.dice === false && noDice.sheets === 0 && noDice.booted === 0 && noDice.thrown.length === 0, JSON.stringify(noDice));
 
     await settle(300);
 }

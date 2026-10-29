@@ -3960,12 +3960,22 @@
     },
     "Requirements": {
       "title": "Danganronpa RPG nie działa",
-      "intro": "Ten moduł wymaga poniższych, a jednego z nich brakuje. Nic innego w module nie wystartowało.",
+      "intro": {
+        "one": "Danganronpa RPG potrzebuje tego modułu i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
+        "few": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
+        "many": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
+        "other": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego."
+      },
       "state": {
         "absent": "niezainstalowany",
         "disabled": "zainstalowany, ale wyłączony"
       },
-      "how": "Zainstaluj albo włącz je w Zarządzaj modułami - na Forge w liście modułów gry - i przeładuj świat. Nic tu nie zmieniono, więc to cała naprawa.",
+      "reason": {
+        "dice-so-nice": "Każdy rzut pada jako kości 3D, które widzą tylko osoby uprawnione do tego rzutu, w jednym stylu kości, który GM ustawia dla całego stołu.",
+        "isometric-perspective": "Mapy rysowane do gry izometrycznej wyglądają źle na płaskiej siatce.",
+        "avclient-livekit": "Głos idzie za pokojami: słyszysz osoby z pokoju, w którym jest twoja postać, a przejście do innego pokoju zmienia, kto cię słyszy."
+      },
+      "how": "Zainstaluj albo włącz to, co jest na liście, w Zarządzaj modułami (na Forge: w liście modułów gry), potem przeładuj świat. To cała naprawa.",
       "understood": "Rozumiem",
       "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
       "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
