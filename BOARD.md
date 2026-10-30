@@ -19,7 +19,7 @@ R numbers: line A R1049-R1499.
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
-| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef (CI green), C3 6ad88c5a (CI green), C4 e52a60ef + fix fd6620aa (CI green), C5 984033fa (CI green), C6 de321dad (CI green), C7 689040ee pushed (CI pending); C1-C7 built; REVIEW done (20 findings, 18 distinct); FIX: group A c72c43ff (CI green), group B 04417f8f (CI pending); CLOSE in work | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
+| E20 | READY for line A's train: HEAD 04417f8f, CI green run 40999636058; LEDGER 23 answered, 1 open (E20-19: the one-time automations notice has no test), LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
@@ -69,6 +69,9 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 C7: $4.67 (01:27:15 $37.29 -> 01:41:38 $41.96), 1 drpg-impl agent (190k tokens, 101 tool calls, 14 min wall). C1-C7 about $49 ($12 + $37.17 + $4.67 - the C1 figure is the owner's).
 - E20 end review: $19.10 (01:47:00 $42.26 -> 03:49:58 $61.36, with the owner's answers and fix A's launch), 2 drpg-review agents (360k + 321k tokens; 23 min and 2 h wall).
 - E20 fix A: $10.76 (03:49:58 $61.36 -> 04:21:31 $72.12), 1 drpg-fix agent (310k tokens, 153 tool calls, 31 min wall).
+- E20 fix B: $10.52 (04:21:31 $72.12 -> 04:51:34 $82.64), 1 drpg-fix agent (297k tokens, 155 tool calls, 30 min wall).
+- E20 close: 1 drpg-scribe agent (115k tokens, 26 min wall); $ in the next turn's log line minus $82.64.
+- E20 total so far: about $95 (C1 $12 by the owner + this run's $82.64) + the close; 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
