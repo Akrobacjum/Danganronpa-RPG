@@ -1413,6 +1413,27 @@ const carriesValue = value => value !== undefined && value !== null && value !==
 
 export function registerRoomPieces() {
     Hooks.on("preUpdateRegion", (region, changes, options, userId) => clearSplitPiece(region, changes, userId));
+    Hooks.on("createScene", scene => bedroomsOfNewScene(scene));
+}
+
+/**
+ * A SCENE MADE WITH ITS BEDROOMS (E89 fix FG2, 30.10.2026; finding G7 of the goal review of 15c68d96). The clause
+ * `bedroomStashes` (migrate.mjs, E89 C8) gives every Bedroom without its owner's stash an open one once a world, so a
+ * scene exported before 1.2.91, or kept in a compendium, whose Bedroom carries the empty list the old Stashes tab wrote
+ * was never seeded when imported after the clause had run. A scene's creation - an import from a compendium, a copy, a
+ * script's - is an event, once a scene, so on the primary GM it runs the clause's seeding over that scene alone
+ * (migrate.mjs `seedBedroomStashes`), the GMs told which rooms were written. Never at a load and never on a later event
+ * of the scene (TRAP 76: a stash the GM removed stays removed). A copy of a scene whose stash a GM had removed on purpose
+ * gets it back on the copy; the report is how they see it. Not this road: a scene's data replaced by Import Data on an
+ * existing scene, which arrives as an update of it, not a creation (not read on v14). Answers the rows the seeding wrote
+ * (a promise), or null when this browser is not the primary or the scene has no such Bedroom.
+ */
+export function bedroomsOfNewScene(scene) {
+    if (!isPrimaryGm() || !scene || !bedroomStashGaps(scene).length) return null;
+    return import("./migrate.mjs").then(m => m.seedBedroomStashes([scene])).catch(err => {
+        error("Could not give the Bedrooms of a new scene their stashes", err);
+        return null;
+    });
 }
 
 /**

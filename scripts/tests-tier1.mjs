@@ -21925,6 +21925,59 @@ const INVARIANTS = [
             JSON.stringify([["Emptied", "Split"], ["Dock"], [true, []], false]),
             "[the gaps of the eight regions, of the second scene as a scene, [whether it read as the trial hall, its gaps], whether it is a scene again after]");
     }],
+    ["R1054 - a token given another actor, linked or unlinked, or other owners asks every verdict again (E89 fix FG2, SEC-1): which characters are the viewer's is part of every verdict, and none of those changes is a move", async () => {
+        /*
+         * E89 fix FG2, 30.10.2026; finding SEC-1 (security review of 15c68d96). Since C3 the memo of the viewer's rooms
+         * (`myRooms`) is dropped on an owned document's move alone, and `myRooms` reads which tokens the viewer owns
+         * (`token.isOwner`) and their actors' type as well as where they stand. An actor's ownership changing and a
+         * region of the scene on screen changing are new listeners (scenario 86, "fix FG2 SEC-1"); a token's own update
+         * can change the same without moving it: another actor on it (`actorId`), the link to its actor (`actorLink`),
+         * or an unlinked token's owners (`delta.ownership`; whether v14's delta carries `ownership` is not read here).
+         * `movePass` answers "all" for each, as it does for `hidden`. Plain stand-ins, writing nothing. Red at 15c68d96:
+         * the three rows read null (no move, so no pass).
+         */
+        const V = await import("./visibility.mjs");
+        must(typeof V.movePass === "function", "visibility.mjs exports no movePass - this would measure nothing");
+        const other = { isOwner: false }, player = { gm: false }, gm = { gm: true };
+        const rows = {
+            "another actor on the token": [V.movePass(other, { actorId: "SUITE1054actor" }, player), "all"],
+            "the token's link to its actor": [V.movePass(other, { actorLink: false }, player), "all"],
+            "an unlinked token's owners": [V.movePass(other, { delta: { ownership: { SUITE1054user: 3 } } }, player), "all"],
+            "another actor on the token, on a GM's browser": [V.movePass(other, { actorId: "SUITE1054actor" }, gm), "all"],
+            "an unlinked token's name, not its owners": [V.movePass(other, { delta: { name: "R1054" } }, player), null],
+            "a change that is no move": [V.movePass(other, { name: "R1054" }, player), null]
+        };
+        const got = Object.fromEntries(Object.entries(rows).map(([row, [pass]]) => [row, pass]));
+        const want = Object.fromEntries(Object.entries(rows).map(([row, [, pass]]) => [row, pass]));
+        equal(JSON.stringify(got), JSON.stringify(want), "movePass on stand-ins, row by row");
+    }],
+    ["R1055 - only a refresh of a token's visibility takes it off the list of the tokens this file hid (E89 fix FG2, SEC-2): a token hidden and then refreshed for its bars is still given back by the pass after sightRefresh, one refreshed for its visibility is not asked again", async () => {
+        /*
+         * E89 fix FG2, 30.10.2026; finding SEC-2 (security review of 15c68d96). The pass after `sightRefresh`
+         * (`sightPass`) flags `refreshVisibility` - the road that gives Foundry back a token this file hid - only on a
+         * token in `hiddenByUs`, and the `refreshToken` listener took a token off that list on ANY refresh, on the grounds
+         * that Foundry's refresh had had its say on `visible`. Only a refresh with `refreshVisibility` recomputes it: a
+         * token hidden here and then refreshed for its bars kept `visible` false, left the list, and the next pass, now
+         * entitled, did not flag it - stranded invisible. Through the listener's body (`refreshHeard`) and `sightPass` on
+         * two stand-ins, writing nothing: both hidden by a first pass, "bars" refreshed with `refreshBars`, "visibility"
+         * with `refreshVisibility`, then a second pass that hides neither. Red at 15c68d96: no `refreshHeard` (and, with
+         * the listener's body as it was, no stand-in flagged).
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const V = await import("./visibility.mjs");
+        must(canvas.ready, "the canvas is not ready - this would measure nothing");
+        must(typeof V.sightPass === "function" && typeof V.refreshHeard === "function", "visibility.mjs hands out no sightPass or refreshHeard");
+        const flagged = new Set();
+        const stand = name => ({ name, destroyed: false, visible: true, mesh: null, renderFlags: { set: flags => { if (flags?.refreshVisibility) flagged.add(name); } } });
+        const bars = stand("bars"), seen = stand("visibility");
+        V.sightPass([bars, seen], (token, hide) => hide(token));
+        const hidden = [bars.visible, seen.visible];
+        V.refreshHeard(bars, { refreshBars: true });
+        V.refreshHeard(seen, { refreshVisibility: true });
+        V.sightPass([bars, seen], () => {});
+        equal(JSON.stringify([hidden, [...flagged].sort()]), JSON.stringify([[false, false], ["bars"]]),
+            "[visible of the two after the first pass, the stand-ins the second pass flagged]");
+    }],
 
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
         /*

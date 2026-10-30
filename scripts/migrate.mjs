@@ -1028,18 +1028,8 @@ const CLAUSES = [
          */
         run: async () => {
             if (!isPrimaryGm()) return { notPrimary: true };      // a Bedroom's stash: the primary's, once a world
-            const { bedroomStashGaps, ensureBedroomStash, vaultOwnerOf } = await import("./vault.mjs");
-            const rows = [];
-            for (const scene of game.scenes ?? []) {
-                const rooms = [];
-                for (const room of bedroomStashGaps(scene)) {
-                    if (!await ensureBedroomStash(scene, room)) continue;
-                    rooms.push(`${room} (${game.actors.get(vaultOwnerOf(room, scene))?.name ?? "?"})`);
-                }
-                if (rooms.length) rows.push({ scene: scene.name, rooms });
-            }
+            const rows = await seedBedroomStashes(game.scenes ?? []);
             if (!rows.length) return null;
-            await gmReport(game.i18n.localize("DRPG.Rooms.stashesTitle"), bedroomStashesReportHtml(rows));
             return { scenes: rows.length, seeded: rows.reduce((n, row) => n + row.rooms.length, 0) };
         }
     }
@@ -1086,6 +1076,28 @@ function roomsReportHtml(rows) {
     ].filter(Boolean).map(line => `<li>${esc(line)}</li>`).join("");
     return `<p>${esc(game.i18n.localize("DRPG.Rooms.reportNote"))}</p>`
         + rows.map(row => `<p><strong>${esc(row.scene)}</strong></p><ul>${lines(row)}</ul>`).join("");
+}
+
+/**
+ * Each Bedroom of `scenes` whose owner has no stash in it given an open one (vault.mjs `bedroomStashGaps`,
+ * `ensureBedroomStash`), and the GMs told which, by scene and owner; answers the rows told, `{ scene, rooms }`, none
+ * when nothing was written. The clause `bedroomStashes` over every scene once a world, and since E89 fix FG2 (finding
+ * G7) vault.mjs `bedroomsOfNewScene` over a scene created after it ran - an import or a copy. The caller asks whether
+ * this browser is the primary.
+ */
+export async function seedBedroomStashes(scenes) {
+    const { bedroomStashGaps, ensureBedroomStash, vaultOwnerOf } = await import("./vault.mjs");
+    const rows = [];
+    for (const scene of scenes ?? []) {
+        const rooms = [];
+        for (const room of bedroomStashGaps(scene)) {
+            if (!await ensureBedroomStash(scene, room)) continue;
+            rooms.push(`${room} (${game.actors.get(vaultOwnerOf(room, scene))?.name ?? "?"})`);
+        }
+        if (rooms.length) rows.push({ scene: scene.name, rooms });
+    }
+    if (rows.length) await gmReport(game.i18n.localize("DRPG.Rooms.stashesTitle"), bedroomStashesReportHtml(rows));
+    return rows;
 }
 
 /** The report of `bedroomStashes`: per scene the Bedrooms given a stash, each with its owner. */

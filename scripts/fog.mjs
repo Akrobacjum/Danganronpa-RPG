@@ -4050,12 +4050,15 @@ async function onUpdateToken(tokenDoc, changes) {
 
 /** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
 async function reactToMove(tokenDoc) {
+    count("fog.reactToMove");
     // Local half: MY view depends on where MY characters are standing right
     // now, whoever moved. Repainting here is what makes a player's own
     // crossing light their new room up instantly, rather than waiting on the
     // primary GM's write and the setting sync that follows it.
     try {
         if (tokenDoc.actor?.isOwner) {
+            // E89 fix FG2 (G3): two walks of the viewer's tokens below, `myCurrentRooms` and `rememberMine`.
+            count("fog.reactToMove.walks", 2);
             const before = lastMineSignature;
             const after = signatureOf(myCurrentRooms());
             const changedRoom = before !== after;

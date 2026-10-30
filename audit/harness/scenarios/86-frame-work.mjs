@@ -75,6 +75,14 @@
  * as every other browser already did; her move into the Cafeteria and back still asks every token's (C2 narrows it). At
  * 6ae66c7f p1 paid a whole pass for each: applyAll.tokens 46 for the step and the drop, 138 for the path. The state
  * check runs after every event now, the Despair write, the clock and the ledger among them.
+ *
+ * E89 fix FG2 (30.10.2026; findings SEC-1, SEC-2, COR-3, G3 of the reviews of 15c68d96): the viewer's rooms changed with
+ * no token of theirs moving - a region updated, created or deleted, a scene's update carrying its regions, a Teleport put
+ * on a piece and taken off, the player regions' record, an actor's ownership - each read on p1 and p3 and followed by the
+ * state check (red at 15c68d96: Chie and the Dorm B students stayed off p1's screen after Dorm A was enlarged over them
+ * and stayed on it after it was put back); a token this file hid, refreshed for its bars and entitled by a change only
+ * sightRefresh reports, given back by the pass after it (red at 15c68d96: not given back); and the waits for a token at
+ * rest and the fog's reading of a move counted on "own move".
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -238,6 +246,13 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             Object.keys(clients).every(who => beyondRest(theme, own, who)), J(Object.fromEntries(Object.entries(own).map(([who, r]) => [who, r.moved]))));
         check(`${theme}: E89 C1 - Aiko's step inside Dorm A asks her own token's verdict alone on her player's browser as on every other: no whole pass, one refresh in each listener, one token walked the next frame (E89-04; at 6ae66c7f p1 ran a whole pass of 46)`,
             Object.keys(clients).every(who => oneRefresh(own, who)), moved(own));
+        /* E89 fix FG2 (30.10.2026; finding G3): the waits for a token at rest (movement.mjs `whenAtRest`: fog.mjs's on every
+           browser, visibility.mjs's on the mover's) and the fog's reading of a move (fog.mjs `reactToMove`, at the update
+           and again at rest; its walks of the viewer's tokens) are counted, so a row holds them. Recorded, not bounded. */
+        const waits = Object.fromEntries(Object.entries(own).map(([who, r]) => [who, ["movement.whenAtRest", "movement.whenAtRest.polls",
+            "fog.reactToMove", "fog.reactToMove.walks"].map(k => r.moved[k] ?? 0)]));
+        check(`${theme}: fix FG2 G3 - Aiko's step starts a wait for her at rest and the fog's reading of it on every browser, each counted`,
+            Object.values(waits).every(([rest, , reads]) => rest >= 1 && reads >= 1), J(waits));
         await stateHolds(theme, "an own move");
         /* E89 C0 (30.10.2026; E89-01, E89-02): the mover's own drag, frame by frame, on the harness's model of a
            preview and a slide (client-entry.mjs `__preview`, `__holdDrawn`, `__slideTo`; LIVE-E88-05, LIVE-E89-02/03).
@@ -442,7 +457,97 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     const M_BACK = mastermindWas.actorId ? `await M.setMastermind(game.actors.get(${J(mastermindWas.actorId)}), { room: ${J(mastermindWas.room)} });` : `await M.clearMastermind();`;
     await gm.eval(`const M = await import("${repoUrl}/scripts/mastermind.mjs"); ${M_BACK} return true;`);
     await settle(1200);
-    const planted = await p1.eval(`const t = canvas.tokens.get("TOKCHIE000000000"); const was = Boolean(t?.visible); if (t) t.visible = true; return { was, now: Boolean(t?.visible) };`);
+
+    /* E89 fix FG2 (30.10.2026; findings SEC-1, SEC-2, COR-3): the viewer's rooms change while none of their tokens moves.
+       Since C3 the memo of the viewer's rooms is dropped on an owned document's move alone, so the roads that change
+       those rooms otherwise are driven here, each read on p1 (Chie and the Dorm B students) and on p3 (Aiko) and followed
+       by the state check (which runs a whole pass, so each road starts from a screen drawn right):
+       - the GM enlarges Dorm A down over Dorm B (a region's update): Chie and the Dorm B students now stand in Dorm A
+         (`roomAt` takes the first name), so they come onto p1's screen and Aiko onto p3's;
+       - the GM records Dorm A among the regions a player drew (the setting `playerRegions`, which makes it no room): they
+         leave those screens, the leak direction; the record put back, they come back;
+       - Dorm A put back by the GM through the scene's own update (`changes.regions`, which fires no `updateRegion`):
+         they leave again;
+       - the GM draws a second piece of Dorm A over Dorm B (a region created): they come back; a Teleport behaviour on it
+         (no room): they leave; the behaviour deleted: they come back; the piece deleted: they leave;
+       - the GM gives p1 Chie's actor (an actor's ownership): Chie and the Dorm B students come onto p1's screen, and
+         leave it when the GM takes her back;
+       - on p1's browser alone the same enlargement written into the region's source (no hook: what a sightRefresh
+         reports and no document hook does - the floor on screen changing, LIVE-E12-02), Chie's bars refreshed (a
+         refresh that is not of her visibility, SEC-2), then `sightRefresh`: the pass after it gives Chie, hidden by this
+         file, back to Foundry (visibility.sightPass.flags >= 1, COR-3: the road m7 cuts), and hides her again when the
+         source is put back. */
+    const DORM_A = "REGDORMA00000000", DORM_A_WIDE = [{ type: "rectangle", x: 200, y: 200, width: 600, height: 1600 }];
+    const dormAWas = await gm.eval(`${ACADEMY} return academy.regions.get("${DORM_A}").toObject().shapes;`);
+    const playersWas = await gm.eval(`return game.settings.get("${MOD}", "playerRegions") ?? [];`);
+    const SEEN = `const inside = (d, [x, y, w, h]) => d.x >= x && d.x < x + w && d.y >= y && d.y < y + h;
+        const dormB = canvas.tokens.placeables.filter(t => !t.document.getFlag("${MOD}", "isRemnant") && t.actor?.type === "character"
+            && inside(t.document, ${J(ROOMS[1])}));`;
+    const seenNow = async () => ({
+        p1: await p1.eval(`${SEEN} return dormB.map(t => Boolean(t.visible));`),
+        p3: await p3.eval(`return Boolean(canvas.tokens.get("TOKAIKO000000000")?.visible);`)
+    });
+    const all = list => list.length > 1 && list.every(Boolean), none = list => list.length > 1 && !list.some(Boolean);
+    const roomRoad = { before: await seenNow() };
+    const roomStep = async (label, act) => {
+        const read = await measure("stainedGlass", label, act);
+        roomRoad[label] = { ...(await seenNow()), passes: ["p1", "p3"].map(who => read[who]?.moved?.["visibility.roomsChanged"] ?? 0) };
+        roads[label] = await stateHolds("stainedGlass", label);
+        return roomRoad[label];
+    };
+    const want = { "Dorm A enlarged": true, "Dorm A recorded as a player's region": false, "the record put back": true, "Dorm A put back": false,
+        "a piece of Dorm A drawn over Dorm B": true, "a Teleport on that piece": false, "the Teleport deleted": true, "the piece deleted": false };
+    await roomStep("Dorm A enlarged", () => gm.eval(`${ACADEMY} await academy.regions.get("${DORM_A}").update({ shapes: ${J(DORM_A_WIDE)} }); return true;`));
+    await roomStep("Dorm A recorded as a player's region", () => gm.eval(`await game.settings.set("${MOD}", "playerRegions", ${J([...playersWas, DORM_A])}); return true;`));
+    await roomStep("the record put back", () => gm.eval(`await game.settings.set("${MOD}", "playerRegions", ${J(playersWas)}); return true;`));
+    await roomStep("Dorm A put back", () => gm.eval(`${ACADEMY} await academy.update({ regions: [{ _id: "${DORM_A}", shapes: ${J(dormAWas)} }] }); return true;`));
+    let piece = null;
+    await roomStep("a piece of Dorm A drawn over Dorm B", async () => { piece = await gm.eval(`${ACADEMY}
+        const [r] = await academy.createEmbeddedDocuments("Region", [{ name: "Dorm A", shapes: [{ type: "rectangle", x: 200, y: 1200, width: 600, height: 600 }],
+            flags: { "${MOD}": { room: true } }, behaviors: [] }]); return r.id;`); });
+    roomRoad.piece = piece;
+    await roomStep("a Teleport on that piece", () => gm.eval(`${ACADEMY} const r = academy.regions.get(${J(piece)});
+        const [b] = await r.createEmbeddedDocuments("RegionBehavior", [{ name: "S86 teleport", type: "teleportToken", system: {} }]);
+        globalThis.__s86behaviour = b?.id ?? null; return true;`));
+    await roomStep("the Teleport deleted", () => gm.eval(`${ACADEMY} const r = academy.regions.get(${J(piece)});
+        await r.deleteEmbeddedDocuments("RegionBehavior", [globalThis.__s86behaviour]); return true;`));
+    await roomStep("the piece deleted", () => gm.eval(`${ACADEMY} await academy.deleteEmbeddedDocuments("Region", [${J(piece)}]); return true;`));
+    const roomsRight = Object.entries(want).map(([label, shown]) => [label, roomRoad[label]
+        && (shown ? all(roomRoad[label].p1) && roomRoad[label].p3 === true : none(roomRoad[label].p1) && roomRoad[label].p3 === false)
+        && roomRoad[label].passes.every(n => n >= 1)]);
+    check("fix FG2 SEC-1: Chie and the Dorm B students come onto Aiko's player's screen and Aiko onto Chie's player's exactly while Dorm B's ground reads as Dorm A - a region updated, created or deleted, a behaviour added or taken off, the player regions' record written - with none of their tokens moving, and a whole pass asked on both browsers each time",
+        none(roomRoad.before.p1) && roomRoad.before.p3 === false && roomsRight.every(([, right]) => right), J({ roomsRight, roomRoad }));
+    const ownRoad = { before: (await seenNow()).p1 };
+    await measure("stainedGlass", "an actor given by the GM", () => gm.eval(`
+        await game.actors.get("${IDS.chie}").update({ ownership: { ${IDS.p1}: 3 } }); return true;`));
+    ownRoad.given = (await seenNow()).p1;
+    roads.actorGiven = await stateHolds("stainedGlass", "Chie's actor given to Aiko's player");
+    await measure("stainedGlass", "an actor taken back by the GM", () => gm.eval(`
+        await game.actors.get("${IDS.chie}").update({ ownership: { ${IDS.p1}: 0 } }); return true;`));
+    ownRoad.taken = (await seenNow()).p1;
+    roads.actorTaken = await stateHolds("stainedGlass", "Chie's actor taken back from Aiko's player");
+    check("fix FG2 SEC-1: Chie's actor given to Aiko's player brings Chie and the Dorm B students onto that screen, and taken back takes them off again",
+        none(ownRoad.before) && all(ownRoad.given) && none(ownRoad.taken), J(ownRoad));
+    const sightRoad = await p1.eval(`${ACADEMY} ${SEEN} const C = await import("${repoUrl}/scripts/perf-counters.mjs");
+        const frames = async k => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); };
+        const region = academy.regions.get("${DORM_A}"), was = region.toObject().shapes, chie = canvas.tokens.get("TOKCHIE000000000");
+        const hidden = !chie.visible;
+        const b0 = C.snapshot();
+        region.updateSource({ shapes: ${J(DORM_A_WIDE)} });
+        chie.renderFlags.set({ refreshBars: true });
+        await frames(2);
+        Hooks.callAll("sightRefresh");
+        await frames(3);
+        const shown = Boolean(chie.visible), flags = C.delta(b0, C.snapshot())["visibility.sightPass.flags"] ?? 0;
+        region.updateSource({ shapes: was });
+        Hooks.callAll("sightRefresh");
+        await frames(3);
+        return { hidden, shown, flags, back: !chie.visible };`);
+    roads.sightRoad = await stateHolds("stainedGlass", "Dorm A enlarged on p1's browser alone, reported by sightRefresh, and put back");
+    check("fix FG2 COR-3, SEC-2: a token this file hid, entitled by a change only sightRefresh reports and refreshed meanwhile for its bars, is given back by the pass after sightRefresh (sightPass.flags >= 1) and hidden again when the change is put back",
+        sightRoad?.hidden === true && sightRoad.shown === true && sightRoad.flags >= 1 && sightRoad.back === true, J(sightRoad));
+
+    const planted =await p1.eval(`const t = canvas.tokens.get("TOKCHIE000000000"); const was = Boolean(t?.visible); if (t) t.visible = true; return { was, now: Boolean(t?.visible) };`);
     await botanStep();
     await botanStep();
     const chie = await p1.eval(`return Boolean(canvas.tokens.get("TOKCHIE000000000")?.visible);`);

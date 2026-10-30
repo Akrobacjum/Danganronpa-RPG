@@ -56720,6 +56720,94 @@ const SCENARIOS = [
             third: [["bedroomStashes"], true, 0]
         }), `[the stored lists of Kept, Emptied and Late before, after the clause, after the forced run, after the run on a GM that is not the primary], the clause's answer, the stamp, the report's card and words, the forced run and the run off the primary`);
     }],
+    ["a scene made or imported with a Bedroom whose owner has no stash gives that owner an open stash once, on the primary GM, and tells the GMs; a stash removed afterwards stays removed", async () => {
+        /*
+         * E89 fix FG2, 30.10.2026; finding G7 (goal review of 15c68d96). The migration clause `bedroomStashes` (E89 C8)
+         * runs once a world, so a scene exported from a world before 1.2.91 (or kept in a compendium) whose Bedroom still
+         * carries the empty list the old Stashes tab wrote, imported after the clause ran, had no stash for its owner
+         * until the GM ticked the cell. Now a scene's creation (`createScene`: an import from a compendium, a copy, one
+         * made by a script) runs the clause's seeding on that scene alone, on the primary GM (vault.mjs
+         * `bedroomsOfNewScene`), and the GMs are told which rooms were written - a copy of a scene whose stash a GM had
+         * removed on purpose gets it back, and the report is how they see it (TRAP 76 holds for every later event). A
+         * scene of the suite's own is made with its regions: Kept (A's, with A's stash hidden), Emptied (B's, an empty
+         * stored list) and Unticked (C's, no room, an empty list). Read: the stored lists after the creation, the report;
+         * then Emptied's stash taken away and the scene renamed (an event that is no creation); then the handler asked
+         * again on a GM that is not the primary (another GM put first in the user list for its synchronous start, as the
+         * migration's test does); then, the control, asked again on the primary. Red at 15c68d96: Emptied had none.
+         */
+        const [a, b, c] = cast(3);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const P = "SUITE E89 FG2 ", KEPT = `${P}Kept`, EMPTIED = `${P}Emptied`, UNTICKED = `${P}Unticked`;
+        const F = V.VAULT_FLAGS;
+        const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
+        const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
+        const FIRST = { id: "!suiteE89FG2Gm", name: "SUITE E89 FG2 first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const putBack = () => {
+            if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
+            if (ownFilter) users.filter = realFilter;
+            else delete users.filter;
+        };
+        const msgsBefore = new Set(game.messages.contents.map(m => m.id));
+        const region = (name, x, flags) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: flags }, behaviors: [] });
+        let reading = null;
+        await E.withGmStoreWorld(`suite-e89fg2-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const seen = new Set(msgsBefore);
+            const fresh = () => { const made = game.messages.contents.filter(m => !seen.has(m.id)); for (const m of made) seen.add(m.id); return made; };
+            const lists = () => [KEPT, EMPTIED, UNTICKED].map(room => V.stashesIn(room, scene).map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort());
+            const until = async (ok, ms = 4000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); };
+            try {
+                scene = await Scene.create({ name: `${P}scene`, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false, regions: [
+                    region(KEPT, 0, { [R.ROOM_FLAG]: true, [F.owner]: a.id, [F.stashes]: [{ actorId: a.id, concealed: true }] }),
+                    region(EMPTIED, 500, { [R.ROOM_FLAG]: true, [F.owner]: b.id, [F.stashes]: [] }),
+                    region(UNTICKED, 1000, { [R.ROOM_FLAG]: false, [F.owner]: c.id, [F.stashes]: [] })] });
+                await until(() => V.stashesIn(EMPTIED, scene).length > 0);
+                await settle();
+                const at = [lists()];
+                const cards = fresh();
+                const words = cards.length === 1 ? String(await wordsOf(cards[0], 2000) ?? "") : "";
+                await V.setStash(EMPTIED, b.id, { present: false, scene });
+                await scene.update({ name: `${P}scene renamed` });
+                await settle();
+                await new Promise(r => setTimeout(r, 500));
+                at.push(lists());
+                users.filter = function (fn, ...rest) {
+                    const found = realFilter.call(this, fn, ...rest);
+                    return fn(FIRST) ? [...found, FIRST] : found;
+                };
+                let offPrimary;
+                try {
+                    offPrimary = V.bedroomsOfNewScene?.(scene) ?? null;
+                } finally {
+                    putBack();
+                }
+                await offPrimary;
+                await settle();
+                at.push(lists());
+                const control = await V.bedroomsOfNewScene?.(scene);
+                await settle();
+                at.push(lists());
+                reading = {
+                    lists: at, cards: cards.length, named: [`${P}scene`, EMPTIED, b.name].map(text => words.includes(text)),
+                    keptNamed: words.includes(KEPT), untickedNamed: words.includes(UNTICKED),
+                    offPrimary: offPrimary ?? null, control: Array.isArray(control) ? control.length : control ?? null
+                };
+            } finally {
+                putBack();
+                await scene?.delete();
+                const posted = game.messages.filter(m => !msgsBefore.has(m.id)).map(m => m.id);
+                if (posted.length) await ChatMessage.deleteDocuments(posted);
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson({
+            lists: [[["A hidden"], ["B"], []], [["A hidden"], [], []], [["A hidden"], [], []], [["A hidden"], ["B"], []]],
+            cards: 1, named: [true, true, true], keptNamed: false, untickedNamed: false, offPrimary: null, control: 1
+        }), "[the stored lists of Kept, Emptied and Unticked after the scene's creation, after Emptied's stash removed and the scene renamed, after the handler on a GM that is not the primary, after it on the primary], the report's card and words, the handler's answers");
+    }],
 
     ["Room Setup writes a room's picture: a picture changed alone is saved on every piece of the room on the scene the window opened on, Remove writes none, a refused path is written nowhere and named, and a console's is read as none", async () => {
         /*
