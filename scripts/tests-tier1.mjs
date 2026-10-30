@@ -27658,7 +27658,10 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(ids.map(id => [id, true])), "an entry the module writes is not found on the suite's world, or has no row");
 
         const { SETTINGS } = await import("./settings.mjs");
-        const gone = { id: "r1546Gone", module: "isometric-perspective", key: "r1546NoSuchKey", value: false, toggle: SETTINGS.enforceIsoWelcome };
+        // A key of this run's own: enforced.mjs says a missing entry once a load (`saidMissing`), and scenario 01 runs
+        // tiers 0-1 twice in one page, so a fixed key was said by the first run and the second counted 0 (CI of 1de03286).
+        const goneKey = `r1546NoSuchKey${Date.now().toString(36)}`;
+        const gone = { id: "r1546Gone", module: "isometric-perspective", key: goneKey, value: false, toggle: SETTINGS.enforceIsoWelcome };
         const [goneRow] = mod.heldRows([gone], []);
         const goneAnswer = mod.runContract({ rows: goneRow ? [goneRow] : [] }).rows[0] ?? null;
         const said = watchLog();
@@ -27668,8 +27671,8 @@ const INVARIANTS = [
         } finally {
             said.stop();
         }
-        equal(stableJson([goneAnswer?.target ?? null, goneAnswer?.state ?? null, held, game.settings.settings.has("isometric-perspective.r1546NoSuchKey"),
-            said.count(/r1546NoSuchKey/)]), stableJson(["isometric-perspective.r1546NoSuchKey", "failed", [], false, 1]),
+        equal(stableJson([goneAnswer?.target ?? null, goneAnswer?.state ?? null, held, game.settings.settings.has(`isometric-perspective.${goneKey}`),
+            said.count(new RegExp(goneKey))]), stableJson([`isometric-perspective.${goneKey}`, "failed", [], false, 1]),
             "an entry that is gone is not [its row's target | failed | held nowhere | still not registered | said once]");
 
         const V = await import("./voice-tile.mjs");
