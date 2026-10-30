@@ -15,6 +15,7 @@ Base: 60ef9a97 (line B's branch). Spec: STAGE.md (answered 29.10.2026).
 | C7 | 689040ee | QUICK GREEN at de321dad+edits: lint/check/gate ok; prose ok; own(14) ok (logs /c/Users/chrob/quick-runs/de321dad-603); --no-t01 (only handbooks, the audit file, stages.json changed); first run red on R431 alone (Check rooms sentences inside the guide box), moved after it |
 | fix A | c72c43ff | QUICK GREEN at 689040ee+edits: lint/check/gate ok; prose ok; t01 ok; own(12) ok; scen 65 ok earlier (689040ee-1584); scen 66 ok earlier (689040ee-1584) (logs /c/Users/chrob/quick-runs/689040ee-735); Q-8 amended R1522, C-1/C-7 R1523, C-2 R1524, C-4 R1525, G-1 R1526, G-5 R1527, C-10 R1528, C-8=G-10 R1529, G-8 R1530 - each red at 689040ee on an assertion; R1512, R1514, R198 and a tier-2 report test adjusted |
 | fix B | 04417f8f | QUICK GREEN at c72c43ff+edits: lint/check/gate ok; prose ok; t01 ok; own(6) ok; scen 15 ok earlier (c72c43ff-1665); scen 12 ok earlier (c72c43ff-1665) (logs /c/Users/chrob/quick-runs/c72c43ff-228); owner's automations line + G-7 R1531 (R1518 widened), C-6 R1531 + E20-T6, C-9 E20-T6, G-2 R1532, G-6 R1533, G-3 R1534, G-4 R1508, C-5=G-9 R1535, C-3 R1536 - tier 1 8 failed and E20-T6 failed at c72c43ff, all pass after |
+| gaps | bc158f09 | QUICK GREEN at 04417f8f+edits: lint/check/gate ok; prose ok; own(2) ok (logs C:/Users/chrob/quick-runs/04417f8f-62), --no-t01 (tests only, tier 2); E20-T7 (E20-19's whisper), E20-T8 (C-7 by a call); each red under a break-check; CI green run 41008175457 |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -39,12 +40,11 @@ All exported; R1500 reads the exports.
 
 ## CI and the close (30.10.2026)
 - CI on 04417f8f: green, run 40999636058 (https://github.com/Akrobacjum/Danganronpa-RPG/actions/runs/40999636058): 19 jobs success, "crlf" skipped. This covers the scenario-65 rerun C6 left to CI.
-- LEDGER.md: ANSWERED 23, OPEN 1 (E20-19: the one-time chat notice of the automations' switch-off, scripts/states.mjs :176, has no test reading it), LIVE 0 rows (B-E20-1..7 not measured at a table). The 18 end-review findings are all fixed (LEDGER.md, second section).
+- LEDGER.md: ANSWERED 24, OPEN 0 (E20-19 since bc158f09, E20-T7), LIVE 0 rows (B-E20-1..7 not measured at a table). The 18 end-review findings are all fixed (LEDGER.md, second section).
 - Registry: next free R1537 (`node tools/registry.mjs --next` at 04417f8f); line B used R1500-R1536.
 
 ## Open
 Closed by the fixes and dropped from this list: C4's question on the Next line (answered by the owner, Q-8 amended, c72c43ff R1522); C5's language question (the owner: it stands); C3's Q-7 readings (8 MiB, 8 s, same floors: the owner: they stand); C3's "new Pre-season rows still need C7's text" and C5's "GM handbook's requirements table" (C7 689040ee, gm-handbook.en.md :32, :138-:139); C6's "scenario 65 not rerun" (CI above); C6's "worlds changed by an earlier version" for the automations and held player settings (04417f8f R1531, E20-T6); C7's "next free R1522" (now R1537); the C6 for C7 line (done in C7).
-- E20-19 test gap: nothing reads the automations' chat notice (`DRPG.GiveBack.automationOff`, scripts/states.mjs :176) - the orchestrator / line B's next fix
 - C1 gap: UNCOVERED_LIMIT_PCT = 10 is a choice, not measured on a real map - B-E20-7 / the owner
 - C1 gap: the Doors tab's "too many rooms" warning counts locked rooms (Q-3 stands), so closing a wing no longer clears it - the owner
 - C1 gap: the last Check rooms is kept per scene in the GM's browser only until a reload; console game.drpg.checkRegions() records none - the review

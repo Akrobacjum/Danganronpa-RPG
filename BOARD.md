@@ -19,7 +19,7 @@ R numbers: line A R1049-R1499.
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
-| E20 | READY for line A's train: HEAD 04417f8f, CI green run 40999636058; LEDGER 23 answered, 1 open (E20-19: the one-time automations notice has no test), LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
+| E20 | READY for line A's train: HEAD bc158f09, CI green run 41008175457; LEDGER 24 answered, 0 open, LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
@@ -71,6 +71,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 fix A: $10.76 (03:49:58 $61.36 -> 04:21:31 $72.12), 1 drpg-fix agent (310k tokens, 153 tool calls, 31 min wall).
 - E20 fix B: $10.52 (04:21:31 $72.12 -> 04:51:34 $82.64), 1 drpg-fix agent (297k tokens, 155 tool calls, 30 min wall).
 - E20 close: $2.12 (04:51:34 $82.64 -> 05:17:53 $84.76, with marking READY), 1 drpg-scribe agent (115k tokens, 26 min wall).
+- E20 gaps commit bc158f09 (E20-T7, E20-T8; the owner's yes 30.10): 1 drpg-fix agent (95k tokens, 25 min wall); $ = the next log line minus $85.67 (the log reached $86.35 at 06:16:13).
 - E20 total: about $97 (C1 $12 by the owner + this run's $84.76); 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
 
 
