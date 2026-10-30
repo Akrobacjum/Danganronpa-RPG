@@ -27658,10 +27658,12 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(ids.map(id => [id, true])), "an entry the module writes is not found on the suite's world, or has no row");
 
         const { SETTINGS } = await import("./settings.mjs");
-        // A key of this run's own: enforced.mjs says a missing entry once a load (`saidMissing`), and scenario 01 runs
-        // tiers 0-1 twice in one page, so a fixed key was said by the first run and the second counted 0 (CI of 1de03286).
-        const goneKey = `r1546NoSuchKey${Date.now().toString(36)}`;
-        const gone = { id: "r1546Gone", module: "isometric-perspective", key: goneKey, value: false, toggle: SETTINGS.enforceIsoWelcome };
+        // A row of this run's own: enforced.mjs says a missing entry once a load per row id (`saidMissing`), and
+        // scenario 01 runs tiers 0-1 three times in one page, so a fixed id was said by the first run and the later
+        // ones counted 0 (CI of 1de03286 and of 2c635111, which changed only the key).
+        const stamp = Date.now().toString(36);
+        const goneKey = `r1546NoSuchKey${stamp}`;
+        const gone = { id: `r1546Gone${stamp}`, module: "isometric-perspective", key: goneKey, value: false, toggle: SETTINGS.enforceIsoWelcome };
         const [goneRow] = mod.heldRows([gone], []);
         const goneAnswer = mod.runContract({ rows: goneRow ? [goneRow] : [] }).rows[0] ?? null;
         const said = watchLog();
