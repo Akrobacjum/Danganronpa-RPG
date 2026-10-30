@@ -20,7 +20,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
-import { roomOfToken, roomAt } from "./movement.mjs";
+import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
@@ -185,6 +185,19 @@ function reassertNextFrame(token) {
  * change of `hidden` (`revealRemnantToFinder`'s write, kept as it was). A GM's verdicts read no room at all
  * (`tokenShownTo` returns before them; a trace and a project leave a GM to Foundry), so on a GM's browser every move
  * is "one". `viewer` is `{ gm }`, this browser's by default, so the rule reads without a canvas (R1011).
+ *
+ * E89 C1 (30.10.2026; E89-04): a move of the viewer's own token asks every verdict again only when what those verdicts
+ * read of it changed - the set of rooms the viewer's characters stand in, and the lair (`tokenShownTo` reads nothing
+ * else a move can change; a trace reads no room, and a project's record of rooms stood in grows only by a room
+ * entered). Scenario 86 at 6ae66c7f, on the harness's model: one drop of Aiko's drag inside Dorm A cost her player's
+ * browser a whole pass (visibility.applyAll.tokens 46, refreshToken.visibility 86 against 21 on every other browser),
+ * one path of 3 updates three of them (applyAll.tokens 138). So the viewer hands signatures, not sets: `roomsBefore`/
+ * `lairBefore` as the screen was last drawn, `roomsAfter`/`lairAfter` read again after the move
+ * (`passForTokenUpdate`). Equal, and the move asks its own token's verdict ("one"); different, or nothing known
+ * before (no signatures, no whole pass yet), every token's ("all") - narrowed to the tokens a room change can touch
+ * in C2. Two owned characters are one set: one walking into a room the other stands in changes nothing. A room is a
+ * region's name (movement.mjs `roomAt`), so a step onto another floor into a room of the same name signs the same, as
+ * every verdict compares the same names. An Eclipse is read by no signature: it changes no verdict on a move.
  */
 export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }) {
     // `hidden` as well as a move: that is the write `revealRemnantToFinder`
@@ -193,7 +206,47 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     if (changes?.hidden !== undefined) return "all";
     // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
     if (!isMoveChange(changes)) return null;
-    return !viewer.gm && doc?.isOwner ? "all" : "one";
+    if (viewer.gm || !doc?.isOwner) return "one";
+    const sameRooms = viewer.roomsBefore != null && viewer.roomsBefore === viewer.roomsAfter;
+    const sameLair = (viewer.lairBefore ?? null) === (viewer.lairAfter ?? null);
+    return sameRooms && sameLair ? "one" : "all";
+}
+
+/**
+ * THE ROOMS THE SCREEN WAS LAST DRAWN FOR (E89 C1, 30.10.2026): `{ rooms, lair }` signed by `basisNow` at the last
+ * whole pass on a player's browser, null before the first and on a GM's. STAGE.md's C1 reads `myRooms()` before
+ * `forgetMyRooms()` for the "before"; that memo is not the screen's: the `refreshToken` listener drops it on every
+ * refresh of an owned token (a drag's preview refreshes once a frame: visibility.forget 42 on p1 over 86's drag at
+ * 6ae66c7f), and the next verdict rebuilds it from the documents - so at the drop it can already hold the moved
+ * token's new room, and before and after would read the same while every other token still shows the old rooms.
+ * Only a whole pass draws every token for one signature, so that is the one kept.
+ */
+let passBasis = null;
+
+function basisNow() {
+    return { rooms: JSON.stringify([...myRooms()].map(String).sort()), lair: myLairRoom() ?? null };
+}
+
+/** The move of one of this player's own tokens as `movePass` reads it: the memo dropped, the rooms read again. */
+function ownMoveViewer() {
+    forgetMyRooms();
+    const now = basisNow();
+    return { gm: false, roomsBefore: passBasis?.rooms ?? null, lairBefore: passBasis?.lair ?? null,
+        roomsAfter: now.rooms, lairAfter: now.lair };
+}
+
+/*
+ * And once more where the token comes to rest (movement.mjs `whenAtRest`; fog.mjs `onUpdateToken`'s note of the owner's
+ * report of 14.10.2026: on a v14 table the hook read the room before the drag ended). A pass of "one" read the rooms
+ * of the update; the rooms at rest are read again, and a whole pass asked if they are not the screen's. Not measured
+ * headless: the harness's update carries the final position, so this finds nothing to change there (LIVE-E89-03).
+ */
+function recheckAtRest(doc) {
+    whenAtRest(doc).then(() => {
+        if (!canvas?.ready || doc?.parent !== canvas.scene) return;
+        const viewer = ownMoveViewer();
+        if (viewer.roomsBefore !== viewer.roomsAfter || viewer.lairBefore !== viewer.lairAfter) applyAll();
+    }).catch(err => debug("Visibility: could not read a move at rest", err));
 }
 
 /**
@@ -204,7 +257,11 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
  * the scene on screen alone, so the camera is not read here: rooms.mjs CAMERA_READERS), and is asked nothing.
  */
 export function passForTokenUpdate(doc, changes) {
-    const pass = movePass(doc, changes);
+    // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
+    const gm = Boolean(game.user?.isGM);
+    const ownMove = !gm && Boolean(doc?.isOwner) && changes?.hidden === undefined && isMoveChange(changes);
+    const pass = movePass(doc, changes, ownMove ? ownMoveViewer() : { gm });
+    if (ownMove) recheckAtRest(doc);
     if (pass === "all") return applyAll();
     if (pass !== "one" || !canvas?.ready) return;
     const token = doc?.object;
@@ -546,6 +603,8 @@ function enforcing() {
 export function applyAll() {
     if (!canvas?.ready) return;
     forgetMyRooms();
+    // E89 C1: what this pass draws every token for, read once here (the verdicts below reuse the memo it fills).
+    passBasis = game.user?.isGM ? null : basisNow();
     const placeables = canvas.tokens?.placeables ?? [];
     count("visibility.applyAll");
     count("visibility.applyAll.tokens", placeables.length);

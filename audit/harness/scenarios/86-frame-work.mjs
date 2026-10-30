@@ -69,6 +69,12 @@
  * dropped), `visibility.myRooms.walk` (the viewer's rooms walked again), `visibility.applyAll.flags` (the refreshes a
  * whole pass asks), `visibility.sliding` (a sliding sprite tested against the viewer's rooms). Not modelled: a drag
  * onto a route movement.mjs refuses (its put-back is a second update) - a gap of C0.
+ *
+ * E89 C1 (30.10.2026; E89-04, E89-05): an own move inside the same rooms asks its own token. On Aiko's player's browser
+ * her step, her drag's drop and each update of her path inside Dorm A ask her own token's verdict alone (no whole pass),
+ * as every other browser already did; her move into the Cafeteria and back still asks every token's (C2 narrows it). At
+ * 6ae66c7f p1 paid a whole pass for each: applyAll.tokens 46 for the step and the drop, 138 for the path. The state
+ * check runs after every event now, the Despair write, the clock and the ledger among them.
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -206,9 +212,8 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             const t = academy.tokens.get("TOKAIKO000000000"); await t.update({ x: t.x + ${step} }, ${MOVE}); return true;`));
         check(`${theme}: an own move is counted on every browser`,
             Object.keys(clients).every(who => beyondRest(theme, own, who)), J(Object.fromEntries(Object.entries(own).map(([who, r]) => [who, r.moved]))));
-        check(`${theme}: C2 - Aiko's step asks every token's verdict on her player's browser and draws no ring whose frame did not change; the others pay her refresh alone (E88-06)`,
-            (own.p1.moved["visibility.applyAll"] ?? 0) >= 1 && (own.p1.moved["refreshToken.visibility"] ?? 0) >= 46 && drawn(own.p1.moved) === 0
-                && ["gm", "p2", "p3", "p4"].every(who => oneRefresh(own, who)), moved(own));
+        check(`${theme}: E89 C1 - Aiko's step inside Dorm A asks her own token's verdict alone on her player's browser as on every other: no whole pass, one refresh in each listener, one token walked the next frame (E89-04; at 6ae66c7f p1 ran a whole pass of 46)`,
+            Object.keys(clients).every(who => oneRefresh(own, who)), moved(own));
         await stateHolds(theme, "an own move");
         /* E89 C0 (30.10.2026; E89-01, E89-02): the mover's own drag, frame by frame, on the harness's model of a
            preview and a slide (client-entry.mjs `__preview`, `__holdDrawn`, `__slideTo`; LIVE-E88-05, LIVE-E89-02/03).
@@ -232,6 +237,14 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             await settle(300);
             await slideAll({});
         });
+        /* E89 C1: no whole pass on the mover, her own token asked, and each listener's refreshes at most `most`; at 6ae66c7f
+           a whole pass of 46 a drop and of 138 a path. The path's 3 updates are flushed in 1 or 2 frames, as on a watcher
+           (C0's rows: 1 and 2), so its bound is one refresh an update. */
+        const noWholePass = (read, most) => { const m = read.p1?.moved ?? {};
+            return !m["visibility.applyAll"] && !m["visibility.applyAll.tokens"] && (m["visibility.applyOne"] ?? 0) >= 1
+                && LISTENERS.every(k => (m[k] ?? 0) <= most); };
+        check(`${theme}: E89 C1 - Aiko's drag dropped inside Dorm A asks no whole pass on her player's browser, whose refreshes are a watcher's and the preview's ${SLIDE} frames (E89-04, on the model)`,
+            noWholePass(dragged, (dragged.p2?.moved?.["refreshToken.visibility"] ?? 0) + SLIDE), J({ p1: dragged.p1.moved, p2: dragged.p2.moved }));
         await stateHolds(theme, "an own drag");
         const pathLog = await measure(theme, "own path", async () => {
             await p1.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"), x0 = t.x, y = t.y;
@@ -248,6 +261,8 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             delete globalThis.__s86path; delete globalThis.__s86pathHook; return seen;`);
         check(`${theme}: E89 C0 - one drag delivered as 3 updates reaches the mover's browser with 2, 1 and 0 waypoints pending (the model, LIVE-E89-03)`,
             J(pathSeen) === J([2, 1, 0]), J({ pathSeen, p1: pathLog.p1.moved }));
+        check(`${theme}: E89 C1 - Aiko's path of 3 updates inside Dorm A asks no whole pass on her player's browser, whose refreshes are a watcher's (E89-04, on the model; at 6ae66c7f applyAll.tokens 138)`,
+            noWholePass(pathLog, 3), J({ p1: pathLog.p1.moved, p2: pathLog.p2.moved }));
         await stateHolds(theme, "an own path");
         await measure(theme, "own drag let go", () => drag(step, { drop: false }));
         await stateHolds(theme, "an own drag let go");
@@ -266,6 +281,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         const away = await stateHolds(theme, "Aiko moved into the Cafeteria");
         check(`${theme}: E89 C0 - Aiko in the Cafeteria: her player's browser shows Botan there, and the move is counted on every browser`,
             away.p1.botan === true && Object.keys(clients).every(who => beyondRest(theme, elsewhere, who)), J({ away, p1: elsewhere.p1.moved }));
+        /* E89 C1: a room entered asks every verdict at the update itself, not Aiko's alone with the rest left to the
+           re-read at rest (which, on the harness, finds the room changed and runs the whole pass a grace later). */
+        check(`${theme}: E89 C1 - Aiko's move into the Cafeteria asks every token's verdict on her player's browser at the update, none for her alone (E89-04)`,
+            (elsewhere.p1.moved["visibility.applyAll"] ?? 0) >= 1 && !elsewhere.p1.moved["visibility.applyOne"], J({ p1: elsewhere.p1.moved }));
         await gm.eval(`${ACADEMY} await academy.tokens.get("TOKAIKO000000000").update(${J(aikoAt)}, ${MOVE}); return true;`);
         await settle(1500);
         await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); const now = F.discoveredFor("${IDS.scene}", "${IDS.aiko}");
@@ -298,6 +317,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         check(`${theme}: C4 - a Despair write renders the Monokuma's sheet open on every browser and not the student's, and builds no status strip (E88-09)`,
             Object.keys(clients).every(who => J(sheets[who]) === J({ student: 0, monokuma: 1 }) && !pool[who].moved["playerStatus.render"]),
             J({ sheets, strip: Object.fromEntries(Object.entries(pool).map(([who, r]) => [who, r.moved["playerStatus.render"] ?? 0])) }));
+        await stateHolds(theme, "a Despair write");
         await gm.eval(`await game.drpg.setDespair(game.user.id, ${J(despair)}); return true;`);
         await settle(800);
         const clock = await measure(theme, "clock", () => gm.eval(`
@@ -309,12 +329,14 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             return true;`, { timeout: 60000 }));
         check(`${theme}: a move of the clock is counted on every browser`,
             Object.keys(clients).every(who => beyondRest(theme, clock, who)), J(Object.fromEntries(Object.entries(clock).map(([who, r]) => [who, r.moved]))));
+        await stateHolds(theme, "a move of the clock");
         await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); await C.setClock(globalThis.__s86clock); delete globalThis.__s86clock; return true;`, { timeout: 60000 });
         await settle(1200);
         const found = await measure(theme, "ledger", () => gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
             await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: [...${J(ledger)}, "Gym"], value: true }); return true;`));
         check(`${theme}: a discovery ledger write is counted on the GM's browser and on Aiko's player's`,
             ["gm", "p1"].every(who => beyondRest(theme, found, who)), J({ gm: found.gm.moved, p1: found.p1.moved }));
+        await stateHolds(theme, "a discovery ledger write");
         await gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
             await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: ${J(ledger)}, value: ${ledger.length > 0} }); return true;`);
         await settle(800);

@@ -21709,6 +21709,41 @@ const INVARIANTS = [
         equal(JSON.stringify([r1 - r0, at("utils.cssColour.read") - r1, first === again]), JSON.stringify([1, 1, true]),
             "[stylesheet reads for two asks, reads for one ask after the body's class was written, the same colour twice]");
     }],
+    ["R1049 - an own move inside the same rooms asks its own token (E89 C1): on a player's browser a move of the viewer's own token asks the whole visibility pass only when the rooms the viewer's characters stand in, or the lair, are not what the screen was last drawn for, or nothing is known of them", async () => {
+        /*
+         * E89 C1, 30.10.2026; E89-04. Scenario 86 at 6ae66c7f (E89 C0, on the harness's model): one drop of Aiko's drag
+         * inside Dorm A cost her player's browser a whole pass - visibility.applyAll.tokens 46, refreshToken.visibility 86
+         * against 21 on each other browser - and one path of 3 updates three of them (applyAll.tokens 138), because
+         * `movePass` answered "all" for every move of a token the viewer owns. A verdict reads the viewer's rooms and the
+         * lair among them, and nothing else a move of the viewer's own token can change, so the rule now compares
+         * signatures: `roomsBefore`/`lairBefore` as the screen was last drawn (the last whole pass), `roomsAfter`/
+         * `lairAfter` read again after the move. Plain stand-ins, writing nothing. Red at 6ae66c7f: the same-room row and
+         * the room-less row read "all".
+         */
+        const V = await import("./visibility.mjs");
+        must(typeof V.movePass === "function", "visibility.mjs exports no movePass - this would measure nothing");
+        const own = { isOwner: true }, other = { isOwner: false }, step = { x: 1 };
+        const sig = (...rooms) => JSON.stringify(rooms.sort());
+        const at = (roomsBefore, roomsAfter, lairBefore = null, lairAfter = null) => ({ gm: false, roomsBefore, roomsAfter, lairBefore, lairAfter });
+        const A = sig("Dorm A"), AC = sig("Dorm A", "Cafeteria");
+        const rows = {
+            "a GM's move": [V.movePass(own, step, { ...at(A, AC), gm: true }), "one"],
+            "another token's move": [V.movePass(other, step, at(A, AC)), "one"],
+            "own move, the same rooms": [V.movePass(own, step, at(A, A)), "one"],
+            "own move, no room before or after": [V.movePass(own, step, at(sig(), sig())), "one"],
+            "own move, a room entered": [V.movePass(own, step, at(A, AC)), "all"],
+            "own move, a room left": [V.movePass(own, step, at(AC, A)), "all"],
+            "own move, the same rooms with the lair now among them": [V.movePass(own, step, at(A, A, null, "Dorm A")), "all"],
+            "own move, nothing known before": [V.movePass(own, step, at(null, A)), "all"],
+            "own move, no signatures handed": [V.movePass(own, step, { gm: false }), "all"],
+            "a change of hidden": [V.movePass(other, { hidden: true, x: 1 }, at(A, A)), "all"],
+            "a change that is no move": [V.movePass(own, { name: "R1049" }, at(A, AC)), null]
+        };
+        const got = Object.fromEntries(Object.entries(rows).map(([row, [pass]]) => [row, pass]));
+        const want = Object.fromEntries(Object.entries(rows).map(([row, [, pass]]) => [row, pass]));
+        equal(JSON.stringify(got), JSON.stringify(want), "movePass on stand-ins, row by row");
+    }],
+
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
         /*
          * E88 C3, 27.10.2026; E88-08. The masked raster over the fog is two screen-sized TilingSprites drawn into a
