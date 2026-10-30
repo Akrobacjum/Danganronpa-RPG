@@ -263,6 +263,7 @@ function applyToToken(token) {
              */
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {
+                count("visibility.sliding");
                 const at = roomAt(token.x, token.y, token.document);
                 if (at && !myRooms().has(at)) hide(token);
             }
@@ -574,7 +575,10 @@ export function applyAll() {
          * Found by a verification pass on 16.09; three readers reached it
          * independently, which is why it is written down rather than fixed.
          */
-        token.renderFlags?.set?.({ refreshVisibility: true });
+        if (token.renderFlags?.set) {
+            token.renderFlags.set({ refreshVisibility: true });
+            count("visibility.applyAll.flags");
+        }
         applyToToken(token);
     }
 
@@ -612,6 +616,7 @@ let myRoomsCache = null;
 let myRemnantRefsCache = null;
 
 function forgetMyRooms() {
+    count("visibility.forget");
     myRoomsCache = null;
     myRemnantRefsCache = null;
     incidentEntitled = null;
@@ -619,6 +624,7 @@ function forgetMyRooms() {
 
 function myRooms() {
     if (myRoomsCache) return myRoomsCache;
+    count("visibility.myRooms.walk");
 
     const rooms = new Set();
     for (const token of canvas.tokens?.placeables ?? []) {

@@ -54,18 +54,36 @@
  * E88 C4 (27.10.2026; E88-09): a setting write renders what it changed. For the Despair write each browser holds two
  * stand-in sheets in `ui.windows` - Aiko's and a Monokuma's, counting their renders - and the write renders the
  * Monokuma's alone and builds no status strip (at 7baff238: both rendered, a strip on every browser).
+ *
+ * E89 C0 (30.10.2026; E89-01, E89-02): the mover's stopwatch. The owner's table lags while tokens move, and on every
+ * browser (Q-E89-1). Five more events in each theme, after "own move", each counted on all five browsers and followed
+ * by the state check:
+ *   own drag                    p1 drags Aiko's preview 20 frames, drops (one update), every browser slides her 20 frames
+ *   own path                    the same step as 3 updates, the first two with waypoints pending (`movement.pending`)
+ *   own drag let go             the preview's 20 frames and no update
+ *   sightRefresh during a move  an own step whose slide fires `sightRefresh` on every frame, on every browser
+ *   own move into another room  Aiko written into the Cafeteria by the GM, then put back where she stood, her ledger too
+ * The preview, the slide, the path's updates and `sightRefresh` during a move are the harness's model (client-entry.mjs
+ * `__preview`, `__slideTo`, `applyRemote`), not v14's: LIVE-E89-02 and LIVE-E89-03, in `environment.unconfirmed`. Every
+ * count they produce is on that model. Four counters read the mover's work: `visibility.forget` (the room memos
+ * dropped), `visibility.myRooms.walk` (the viewer's rooms walked again), `visibility.applyAll.flags` (the refreshes a
+ * whole pass asks), `visibility.sliding` (a sliding sprite tested against the viewer's rooms). Not modelled: a drag
+ * onto a route movement.mjs refuses (its put-back is a second update) - a gap of C0.
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
    by run-all's line, and 38.3 s and 41.9 s the next two. 126 s is three times the slowest. E88 fix G4 adds the other
    roads (an Eclipse, a bullet, a lair, the sweep's backstop): 83.1 s twice (27.10.2026, cluster's own line, under the
-   harness lock), so 250 s. */
-export const timeoutMs = 250000;
+   harness lock), so 250 s. E89 C0 adds five events a theme, each with its state check: 138.5 s and 129.9 s
+   (30.10.2026, run-all's line, under the harness lock), so 420 s. */
+export const timeoutMs = 420000;
 export const accounts = [{ who: "p4", id: "USERP4S860000000", name: "Player Four", role: 1, character: null, color: "#2a627f" }];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const MOVE = `{ teleport: true, movementAction: "displace", animate: false }`;
+// E89 C0: the frames of a drag's preview and of a slide, on the harness's model (client-entry.mjs `__slideTo`).
+const SLIDE = 20;
 /* Inside the six seeded rooms (lib/seed.mjs): Dorm A 200-800 x 200-800, Cafeteria 1200-2000 x 200-800, Dorm B
    200-800 x 1200-1800, Gym 1200-2000 x 1200-1800, Hall 2200-2800 x 200-800, Storage 2200-2800 x 1200-1800. */
 const ROOMS = [[1200, 200, 800, 600], [200, 1200, 600, 600], [1200, 1200, 800, 600], [2200, 200, 600, 600], [2200, 1200, 600, 600], [200, 200, 600, 600]];
@@ -192,6 +210,70 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
             (own.p1.moved["visibility.applyAll"] ?? 0) >= 1 && (own.p1.moved["refreshToken.visibility"] ?? 0) >= 46 && drawn(own.p1.moved) === 0
                 && ["gm", "p2", "p3", "p4"].every(who => oneRefresh(own, who)), moved(own));
         await stateHolds(theme, "an own move");
+        /* E89 C0 (30.10.2026; E89-01, E89-02): the mover's own drag, frame by frame, on the harness's model of a
+           preview and a slide (client-entry.mjs `__preview`, `__holdDrawn`, `__slideTo`; LIVE-E88-05, LIVE-E89-02/03).
+           Aiko is held where she stands on every browser, p1 drags her preview 20 frames, drops (the update), and every
+           browser slides her sprite 20 frames to her spot. Then the same drag delivered as a path of 3 updates (the
+           first two with waypoints pending), a drag let go of with no update, the same step with `sightRefresh` fired
+           each frame of the slide, and Aiko written into the Cafeteria by the GM (her player's browser pays it as an
+           own token's move; the GM's is the GM moving a player's token) and put back where she stood. */
+        const AIKO = `const aiko = canvas.tokens.get("TOKAIKO000000000");`;
+        const slideAll = opts => Promise.all(Object.values(clients).map(c => c.eval(`${AIKO} return aiko.__slideTo(${SLIDE}, ${J(opts)});`)));
+        const holdAll = () => Promise.all(Object.values(clients).map(c => c.eval(`${AIKO} aiko.__holdDrawn(); return true;`)));
+        const drag = (dx, { drop = true } = {}) => p1.eval(`${AIKO} ${ACADEMY}
+            const t = academy.tokens.get("TOKAIKO000000000"), preview = aiko.__preview(), x0 = t.x;
+            for (let k = 1; k <= ${SLIDE}; k++) { preview.__dragTo(x0 + ${dx} * k / ${SLIDE}, t.y); await new Promise(r => requestAnimationFrame(r)); }
+            await new Promise(r => requestAnimationFrame(r));
+            if (${drop}) await t.update({ x: x0 + ${dx} }, ${MOVE});
+            return true;`);
+        const dragged = await measure(theme, "own drag", async () => {
+            await holdAll();
+            await drag(step);
+            await settle(300);
+            await slideAll({});
+        });
+        await stateHolds(theme, "an own drag");
+        const pathLog = await measure(theme, "own path", async () => {
+            await p1.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"), x0 = t.x, y = t.y;
+                const seen = globalThis.__s86path = [];
+                globalThis.__s86pathHook = Hooks.on("updateToken", doc => { if (doc.id === t.id) seen.push(doc.movement?.pending?.waypoints?.length ?? 0); });
+                const xs = [x0 - ${step} * 0.3, x0 - ${step} * 0.6, x0 - ${step}];
+                for (let k = 0; k < 3; k++) {
+                    const waypoints = xs.slice(k + 1).map(x => ({ x, y }));
+                    await t.update({ x: xs[k] }, { ...${MOVE}, movement: { [t.id]: { pending: { waypoints } } } });
+                }
+                return true;`);
+        });
+        const pathSeen = await p1.eval(`Hooks.off("updateToken", globalThis.__s86pathHook); const seen = globalThis.__s86path;
+            delete globalThis.__s86path; delete globalThis.__s86pathHook; return seen;`);
+        check(`${theme}: E89 C0 - one drag delivered as 3 updates reaches the mover's browser with 2, 1 and 0 waypoints pending (the model, LIVE-E89-03)`,
+            J(pathSeen) === J([2, 1, 0]), J({ pathSeen, p1: pathLog.p1.moved }));
+        await stateHolds(theme, "an own path");
+        await measure(theme, "own drag let go", () => drag(step, { drop: false }));
+        await stateHolds(theme, "an own drag let go");
+        const aikoAt = await gm.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y };`);
+        const sight = await measure(theme, "sightRefresh during a move", async () => {
+            await holdAll();
+            await p1.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"); await t.update({ x: t.x + ${step} }, ${MOVE}); return true;`);
+            await settle(300);
+            await slideAll({ sightRefresh: true });
+        });
+        check(`${theme}: E89 C0 - sightRefresh fired on every frame of the slide is heard on every browser (the model, LIVE-E89-02)`,
+            Object.values(sight).every(r => (r.moved["visibility.sightRefresh"] ?? 0) >= SLIDE), moved(sight));
+        await stateHolds(theme, "a move with sightRefresh on every frame");
+        const elsewhere = await measure(theme, "own move into another room", () => gm.eval(`${ACADEMY}
+            await academy.tokens.get("TOKAIKO000000000").update({ x: 1300, y: 650 }, ${MOVE}); return true;`));
+        const away = await stateHolds(theme, "Aiko moved into the Cafeteria");
+        check(`${theme}: E89 C0 - Aiko in the Cafeteria: her player's browser shows Botan there, and the move is counted on every browser`,
+            away.p1.botan === true && Object.keys(clients).every(who => beyondRest(theme, elsewhere, who)), J({ away, p1: elsewhere.p1.moved }));
+        await gm.eval(`${ACADEMY} await academy.tokens.get("TOKAIKO000000000").update(${J(aikoAt)}, ${MOVE}); return true;`);
+        await settle(1500);
+        await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); const now = F.discoveredFor("${IDS.scene}", "${IDS.aiko}");
+            const extra = now.filter(r => !${J(ledger)}.includes(r));
+            if (extra.length) await F.setDiscovery(game.scenes.get("${IDS.scene}"), { actorId: "${IDS.aiko}", rooms: extra, value: false });
+            return extra;`);
+        await settle(800);
+        await stateHolds(theme, "Aiko put back in Dorm A");
         /* Botan walked by the GM into Dorm A, where Aiko stands alone, and back out: on p1's browser he comes on screen by
            his own refresh (the road `applyAll`'s note keeps: Foundry is asked again for a token this file hid) and goes off
            it the same way; every other token stays as it was everywhere. */

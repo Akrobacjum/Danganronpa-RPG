@@ -19,7 +19,12 @@
  *   ownRing.rebuilt | .skipped | .kept, remnantRing (the same)         a ring drawn again, a paint that drew none, a
  *                                                                       refresh that kept the drawing standing (E88 C2)
  *   visibility.applyAll, visibility.applyAll.tokens                     whole passes, and the tokens each flagged
+ *   visibility.applyAll.flags                                           the refreshes a whole pass asked of Foundry (E89 C0)
  *   visibility.applyOne                                                 a move that asked its own token alone (E88 C2)
+ *   visibility.forget, visibility.myRooms.walk                          the room memos dropped; the viewer's rooms walked
+ *                                                                       again over every placeable (E89 C0)
+ *   visibility.sliding                                                  a sprite still sliding to its spot, tested against
+ *                                                                       the viewer's rooms (MAP-02; E89 C0)
  *   visibility.applyToToken                                             one verdict carried to a sprite
  *   visibility.reassert, visibility.reassert.tokens                     next-frame walks, and the tokens walked
  *   visibility.myIncidentTrace, visibility.sightRefresh                 the D11 ask; Foundry's sight refresh heard

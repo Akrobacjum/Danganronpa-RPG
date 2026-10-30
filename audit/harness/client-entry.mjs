@@ -1140,8 +1140,17 @@ const canvas = {
                    with the flags. `visible` holds what the module last wrote until a refresh gives Foundry's answer back,
                    which is what makes `applyAll`'s flag the un-hide road it is at a table. Not modelled: a move's slide,
                    which at a table refreshes the moving token on every frame of it (a table measures that); the order
-                   of Foundry's own refresh steps inside one flush. */
+                   of Foundry's own refresh steps inside one flush.
+                   E89 C0 (30.10.2026; E89-01, E89-02): a slide and a drag's preview, both on the model, neither read in
+                   v14's source. `__holdDrawn()` keeps the sprite where it stands while its document moves on (Foundry
+                   draws the token at its old spot when the update lands); `__slideTo(frames)` then walks the drawn
+                   spot to the document's, one `refreshPosition` a frame, the last frame at rest - a slide refreshes the
+                   moving token every frame of it (LIVE-E88-05). `{ sightRefresh: true }` also fires `sightRefresh` each
+                   frame of it: whether v14 does during a move is LIVE-E89-02. `__preview()` is the drag's preview: a
+                   second object over the same token, owned like it, absent from `placeables`, refreshed by its own
+                   `__dragTo(x, y)` (LIVE-E89-02). */
                 let written;
+                let drawn = null;
                 const foundryVisible = () => !tokenDoc.hidden || game.user.isGM;
                 const asked = {};
                 let queued = false;
@@ -1161,7 +1170,44 @@ const canvas = {
                     document: tokenDoc,
                     get actor() { return tokenDoc.actor; },
                     get name() { return tokenDoc._source.name ?? tokenDoc.actor?.name ?? ""; },
-                    get x() { return tokenDoc.x; }, get y() { return tokenDoc.y; },
+                    get x() { return drawn ? drawn.x : tokenDoc.x; }, get y() { return drawn ? drawn.y : tokenDoc.y; },
+                    __holdDrawn() { drawn = { x: tokenDoc.x, y: tokenDoc.y }; return drawn; },
+                    async __slideTo(frames = 20, { sightRefresh = false } = {}) {
+                        const from = drawn ?? { x: tokenDoc.x, y: tokenDoc.y };
+                        for (let k = 1; k <= frames; k++) {
+                            drawn = k === frames ? null
+                                : { x: from.x + (tokenDoc.x - from.x) * k / frames, y: from.y + (tokenDoc.y - from.y) * k / frames };
+                            w.renderFlags.set({ refreshPosition: true });
+                            if (sightRefresh) hooks.callAll("sightRefresh");
+                            await new Promise(r => globalThis.requestAnimationFrame(r));
+                        }
+                        return frames;
+                    },
+                    __preview() {
+                        const at = { x: tokenDoc.x, y: tokenDoc.y };
+                        const doc = Object.create(tokenDoc, { x: { get: () => at.x }, y: { get: () => at.y }, isPreview: { value: true } });
+                        const asked = {};
+                        let due = false;
+                        const preview = Object.create(w, {
+                            document: { value: doc }, isPreview: { value: true }, _original: { value: w },
+                            x: { get: () => at.x }, y: { get: () => at.y },
+                            visible: { value: true, writable: true },
+                            mesh: { value: new PIXI.Sprite() }, children: { value: [] },
+                            renderFlags: { value: { set(flags) {
+                                for (const [key, on] of Object.entries(flags ?? {})) if (on) asked[key] = true;
+                                if (due) return;
+                                due = true;
+                                globalThis.requestAnimationFrame(() => {
+                                    due = false;
+                                    const f = { ...asked };
+                                    for (const key of Object.keys(asked)) delete asked[key];
+                                    hooks.callAll("refreshToken", preview, f);
+                                });
+                            } } },
+                            __dragTo: { value(x, y) { at.x = x; at.y = y; preview.renderFlags.set({ refreshPosition: true }); } }
+                        });
+                        return preview;
+                    },
                     get w() { return (tokenDoc.width ?? 1) * 100; }, get h() { return (tokenDoc.height ?? 1) * 100; },
                     get center() { return tokenDoc.center; },
                     // Foundry's PlaceableObject#isOwner, the document's (E88 C0): visibility.mjs asks it for the viewer's own
@@ -1694,6 +1740,11 @@ function applyRemote(msg) {
                 const doc = parent._collections[embKey]?.get(u._id);
                 if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
+                /* E89 C0 (30.10.2026; LIVE-E89-03): a token's `movement`, on the model - what the update's own `movement`
+                   option names for it (`{ pending: { waypoints } }`), the request and v14's record of the move not told
+                   apart; null for an update that names none. One dragged path is N updates, every one but the last with
+                   waypoints still pending: how many v14 delivers is LIVE-E89-03. */
+                if (msg.embeddedName === "Token") doc._drpgMovement = options.movement?.[u._id] ?? null;
                 // An item's own `effects` merge by id, and its collection follows them, as an actor's do (fix r2-H8; cluster.mjs).
                 for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).

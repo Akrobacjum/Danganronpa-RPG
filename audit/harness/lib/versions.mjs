@@ -68,7 +68,11 @@ export const UNCONFIRMED = [
     /* E88's (C0, 27.10.2026): a token's refresh as client-entry.mjs models it - render flags gathered and flushed once
        a token a frame, `refreshVisibility` giving Foundry's own `visible` back, one refresh for a move where v14 slides
        it frame by frame. Every canvas count scenario 86 and R1009 read stands on it. */
-    "LIVE-E88-05"
+    "LIVE-E88-05",
+    /* E89's (C0, 30.10.2026): a drag's preview refreshed each frame, and `sightRefresh` fired each frame of a slide when
+       scenario 86 asks it (client-entry.mjs `__preview`, `__slideTo`); one dragged path as N updates, the document's
+       `movement.pending.waypoints` taken from the update's option (client-entry.mjs `applyRemote`). */
+    "LIVE-E89-02", "LIVE-E89-03"
 ];
 
 function readJson(file) {
