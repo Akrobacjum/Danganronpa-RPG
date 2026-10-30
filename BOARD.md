@@ -20,7 +20,7 @@ R numbers: line A R1049-R1499.
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
 | E20 | READY for line A's train: HEAD bc158f09, CI green run 41008175457; LEDGER 24 answered, 0 open, LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
-| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 e785e582 pushed (CI pending); C2 (MARKED) in work | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
+| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 e785e582 (CI green), C2 4022cd83 pushed (CI pending); C3 in work | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
 
 R numbers: line B R1500-R1999.
 
@@ -75,6 +75,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 gaps commit bc158f09 (E20-T7, E20-T8; the owner's yes 30.10): 1 drpg-fix agent (95k tokens, 25 min wall); $3.70 (05:46:56 $85.67 -> 06:41:21 $89.37).
 - E20 total: about $101 (C1 $12 by the owner + this run's $89.37); 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
 - E52 spec: 1 agent (177k tokens, 64 tool calls, 9 min wall); $4.83 (06:41:21 $89.37 -> 06:59:04 $94.20).
+- E52 C1: $7.17 (06:59:04 $94.20 -> 07:32:16 $101.37), 1 drpg-impl agent (183k tokens, 100 tool calls, 25 min wall).
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
