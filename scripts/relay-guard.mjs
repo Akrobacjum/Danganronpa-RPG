@@ -309,7 +309,7 @@ function installBackstop(channel) {
     if (backstopOn) return;
     const sock = game.socket;
     if (typeof sock?.prependAny !== "function") return;
-    sock.prependAny((event, payload, senderId) => {
+    const backstop = (event, payload, senderId) => {
         // Steps aside for good once the wrapper is up (a later `ensureWrapped`
         // found the listener): judging a packet twice would apply it twice.
         if (wrapper || event !== channel) return;
@@ -319,7 +319,10 @@ function installBackstop(channel) {
             disarm(payload);
             error("The Daggerheart relay backstop failed; the packet was refused", err);
         }
-    });
+    };
+    // Marked, so the contract's relay row leaves it out of the catch-alls it reads (patches.mjs `relayAnyListeners`, E52 fix SEC-2).
+    backstop.__drpgRelayBackstop = true;
+    sock.prependAny(backstop);
     backstopOn = true;
     status.state = "backstop";
 }

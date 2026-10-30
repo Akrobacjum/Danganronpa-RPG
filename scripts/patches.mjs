@@ -45,7 +45,8 @@ import { ACTIONS_RESOURCE, MODULE_ID } from "./config.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import { rollDrawState } from "./roll-draw.mjs";
 import { visibleGetterOf } from "./fog.mjs";
-import { levelFailure } from "./rooms.mjs";
+import { levelFailure, whenLevelThrows } from "./rooms.mjs";
+import { foundryWindowsOn } from "./foundry-windows.mjs";
 import { ENFORCED, FOUNDRY_WRITES } from "./enforced.mjs";
 import { broadcastAudioKnown } from "./voice.mjs";
 import { firedAt, isPrimaryGm, markFired, plural, warn } from "./utils.mjs";
@@ -214,6 +215,12 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
  * to. Read once a load, on the first sheet of the system's own class (`watchSheetRenders`); the places sheet.mjs only
  * takes away (the item sheet's tabs, the editor and toggle buttons) are not here, since their absence leaves nothing
  * undrawn.
+ *
+ * OPTIONAL, A PLACE SHEET.MJS DRAWS WITHOUT (E52 fix round, line A, 30.10.2026; review G-1). Three places have their
+ * own road in sheet.mjs when missing: the equipment heading is found by its text (`findHeadingByText`), the loadout
+ * heading too, and the passages list goes at the sidebar's end with no Experience to follow (`injectKnownPassages`'s
+ * `host.append`). Until this round their absence failed the row and gave the GM a permanent notice saying a thing
+ * is not drawn that is. `optional` names that road; such a place is named in the row's note and fails nothing (R1548).
  */
 export const SHEET_ANCHORS = Object.freeze([
     { selector: ".window-content", what: "the window's body" },
@@ -229,11 +236,11 @@ export const SHEET_ANCHORS = Object.freeze([
     { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars" },
     { selector: "input.bar-input", what: "a bar's input" },
     { selector: "progress.progress-bar", what: "a bar's progress" },
-    { selector: ".equipment-section h3", what: "the equipment heading" },
-    { selector: ".loadout-section h3", what: "the loadout heading" },
+    { selector: ".equipment-section h3", what: "the equipment heading", optional: "found by its text instead" },
+    { selector: ".loadout-section h3", what: "the loadout heading", optional: "found by its text instead" },
     { selector: ".character-sidebar-sheet .equipment-section .items-sidebar-list", what: "the equipped list" },
     { selector: ".character-sidebar-sheet .shortcut-items-section", what: "the sidebar's shortcuts" },
-    { selector: ".experience-section", what: "the Experience" }
+    { selector: ".experience-section", what: "the Experience", optional: "the passages go at the sidebar's end instead" }
 ]);
 
 /* The first sheet of the system's class drawn in this load: `{ at, missing, of }`, null before. */
@@ -242,7 +249,9 @@ const sheetRead = { done: null };
 /** The sheet row's answer from a reading (`readSheetAnchors`): unknown before one, failed naming each missing place. */
 export function sheetAnchorsAnswer(read) {
     if (!read) return { present: null, ours: null, note: "no character sheet drawn on this browser yet in this load" };
-    if (read.missing.length) return { present: false, ours: null, note: `not on the sheet: ${read.missing.join(" | ")}` };
+    const optional = read.optional?.length ? `; not on it, and drawn without: ${read.optional.join(" | ")}` : "";
+    if (read.missing.length) return { present: false, ours: null, note: `not on the sheet: ${read.missing.join(" | ")}${optional}` };
+    if (optional) return { present: true, ours: null, note: `${read.of - read.optional.length} of ${read.of} places found on the first sheet${optional}` };
     return { present: true, ours: null, note: `all ${read.of} places found on the first sheet` };
 }
 /* Whether a character sheet class named CharacterSheet is registered (its render and close hooks carry the name);
@@ -548,7 +557,7 @@ export const PATCHES = [
         file: "fog.mjs",
         symbol: "registerDoorControls",
         why: "A player is shown only the door controls of rooms the fog leaves them, never a secret door's (E12 C13).",
-        when: "always, from setup",
+        when: "always, from init",
         fallback: "no class there, or one without isVisible: left as Foundry's, every door control shown as Foundry shows it, and the console says so",
         probe: () => {
             const Door = CONFIG.Canvas?.doorControlClass;
@@ -586,6 +595,10 @@ export const PATCHES = [
         why: "Opening the sidebar or changing its tab shows and places the Foundry tools window that holds it (E77 C5).",
         when: "only while Foundry's rails are in the module's windows",
         fallback: "no ui.sidebar, or no such method: not wrapped, and Foundry's own calls neither show nor place the Foundry tools window",
+        // E52 fix round (line A; review F1): `registerFoundryWindows` wraps the sidebar on a GM with the setting on
+        // and nowhere else, so a player and a GM with it off read "another function stands where the module's was"
+        // for a sidebar that is Foundry's own by design - a permanent false notice at every GM load. R1057.
+        inUse: () => game.user?.isGM === true && foundryWindowsOn(),
         probe: () => {
             const bar = globalThis.ui?.sidebar;
             return {
@@ -615,7 +628,7 @@ export const PATCHES = [
         symbol: "onLevel",
         why: "Whether a room is on the floor a token stands on, or the floor on screen, is Foundry's answer (E12).",
         when: "on a scene with floors",
-        fallback: "a region that cannot be asked, or whose answer throws, is on every floor, said once a load",
+        fallback: "a region that names no floor is on every floor; one whose answer throws is read by the floors it names, said once a load",
         probe: () => {
             const threw = levelFailure();
             if (threw) return { present: true, ours: null, state: "failed", note: threw.message };
@@ -1068,6 +1081,15 @@ function relayListeners() {
     return channel && typeof sock?.listeners === "function" ? [...sock.listeners(channel)] : [];
 }
 
+/* The socket's catch-all listeners (socket.io's `listenersAny`), which run before every channel's own; the relay
+   guard's backstop (relay-guard.mjs `installBackstop`, marked) left out. Empty where the socket cannot list them. */
+const BACKSTOP_MARK = "__drpgRelayBackstop";
+function relayAnyListeners() {
+    const sock = game.socket;
+    const any = typeof sock?.listenersAny === "function" ? sock.listenersAny() : [];
+    return Array.isArray(any) ? any.filter(fn => fn?.[BACKSTOP_MARK] !== true) : [];
+}
+
 /* What each of the guard's states other than "ok" and "idle" means for the row (relay-guard.mjs `ensureWrapped`). */
 const RELAY_FAILED = {
     changed: "Daggerheart's relay has cases the guard has not reviewed",
@@ -1081,13 +1103,22 @@ const RELAY_FAILED = {
  * The relay guard's row, read from its own state (E52-06): ok only while the guard wrapped a reviewed
  * listener AND is the first listener on the channel - one before it would act on a packet before the guard
  * judged it. Every other state of the guard is failed, its fallback the guard's own; "idle" (not looked at
- * yet) is unknown. Both inputs can be handed in (R1542).
+ * yet) is unknown. The inputs can be handed in (R1542).
+ *
+ * AND NO CATCH-ALL BEFORE IT (E52 fix round, line A; review SEC-2). socket.io's `onAny`/`prependAny` listeners
+ * run before every channel listener with the same packet - the guard's own backstop relies on it - so "first on
+ * the channel" was not first. A catch-all listener other than the backstop makes an ok guard unknown, not failed:
+ * such a listener may only read, and nothing here can tell. `any` is the socket's catch-alls, the backstop left out.
  */
-export function relayGuardRow(status = relayGuardStatus(), listeners = relayListeners()) {
+export function relayGuardRow(status = relayGuardStatus(), listeners = relayListeners(), any = relayAnyListeners()) {
     const state = status?.state;
     const at = listeners.findIndex(fn => fn?.[GUARD_MARK] === true);
     const present = state !== "notFound" && state !== "noApi";
     if (state === "ok") {
+        if (at === 0 && any.length) {
+            return { present, ours: true, state: "unknown",
+                note: `${any.length} catch-all listener(s) run before every listener of Daggerheart's channel, the guard's included` };
+        }
         if (at === 0) return { present, ours: true, state: "ok" };
         return { present, ours: false, state: "failed",
             note: at < 0 ? "the guard is not on Daggerheart's channel" : `${at} other listener(s) on Daggerheart's channel run before the guard` };
@@ -1185,13 +1216,19 @@ export function contractState() {
     return lastContract;
 }
 
-/* Whether this load's notice of a failed row was given. */
-const toldThisLoad = { done: false };
+/*
+ * The ids of the rows this load's notices have named. Until the E52 fix round (line A; review G-2, F3) one flag
+ * for the whole load, so a row that failed after the ready run - a missing sheet place once any row had been told,
+ * a Levels throw - was never in a notice; now each row is told once a load, a later one in a notice of its own.
+ */
+const toldThisLoad = new Set();
 
 /**
- * At ready, on the primary GM (module.mjs, after `requirementsMet`): run the contract, say the unknown rows in
- * the console as a warning, and tell a GM of the failed rows in one permanent notice, once a load - each row's
- * target, file:symbol and what the table gets instead. `told` and `notify` can be handed in (R1540, R1541).
+ * At ready, on the primary GM (module.mjs, after `requirementsMet`, through `announceAtReady`): run the contract,
+ * say the unknown rows in the console as a warning, and tell a GM of the failed rows in one permanent notice - each
+ * row's target, file:symbol and what the table gets instead. Run again when a row can fail later in the load (the
+ * first character sheet, `watchSheetRenders`; the first Levels throw, `announceLevelThrow`), it tells only the
+ * rows no notice of this load named. `told` (a Set of row ids) and `notify` can be handed in (R1540, R1541, R1056).
  */
 export function announceContract({ rows = PATCHES, told = toldThisLoad,
     notify = (text, options) => ui.notifications?.warn(text, options) } = {}) {
@@ -1202,13 +1239,39 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
     }
     if (contract.failed.length) {
         warn(`The contract: ${contract.failed.length} row(s) failed - ${contract.failed.map(r => `${line(r)}; instead: ${r.fallback}`).join(" | ")}`);
-        if (!told.done && game.user?.isGM) {
-            told.done = true;
-            notify(plural("DRPG.Contract.notice", { n: contract.failed.length,
-                rows: contract.failed.map(r => `${r.target} (${r.where}): ${r.instead}`).join("; ") }), { permanent: true });
+        const fresh = contract.failed.filter(r => !told.has(r.id));
+        if (fresh.length && game.user?.isGM) {
+            for (const r of fresh) told.add(r.id);
+            notify(plural("DRPG.Contract.notice", { n: fresh.length,
+                rows: fresh.map(r => `${r.target} (${r.where}): ${r.instead}`).join("; ") }), { permanent: true });
         }
     }
     return contract;
+}
+
+/** The first Levels throw of the load, on the primary GM: the contract again, so the GM is told of that row (rooms.mjs `whenLevelThrows`). */
+export function announceLevelThrow() {
+    return isPrimaryGm() ? announceContract() : null;
+}
+
+/* The ready road's run (`announceAtReady`): `{ at, contract }`, null until module.mjs's ready ran it. */
+let readyRun = null;
+
+/**
+ * module.mjs's ready, on the primary GM: hand rooms.mjs the call for a later Levels throw, and run the contract.
+ * The run is kept apart from `contractState` (which any run over the register replaces: R1542, the report), so
+ * E52-T1 reads that the ready road itself ran (E52 fix round, line A; review F2).
+ */
+export function announceAtReady() {
+    whenLevelThrows(announceLevelThrow);
+    const contract = announceContract();
+    readyRun = { at: contract.at, contract };
+    return readyRun;
+}
+
+/** The run module.mjs's ready made (`announceAtReady`), or null on a client where it did not run. */
+export function contractAtReady() {
+    return readyRun;
 }
 
 /* ==========================================================================
@@ -1220,18 +1283,22 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
  * Read once a load, on that render alone: nothing per frame.
  * ========================================================================== */
 
-/** Which of `anchors` the element lacks: `{ at, missing, of }`, or null when there is no element to read. */
+/**
+ * Which of `anchors` the element lacks: `{ at, missing, optional, of }` - `missing` the required places, `optional`
+ * the ones sheet.mjs draws without (`SHEET_ANCHORS`' note) - or null when there is no element to read.
+ */
 export function readSheetAnchors(element, anchors = SHEET_ANCHORS) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root?.querySelector) return null;
-    const missing = anchors.filter(anchor => {
+    const absent = anchors.filter(anchor => {
         try {
             return !root.querySelector(anchor.selector);
         } catch {
             return true;
         }
-    }).map(anchor => anchor.selector);
-    return { at: Date.now(), missing, of: anchors.length };
+    });
+    return { at: Date.now(), missing: absent.filter(a => !a.optional).map(a => a.selector),
+        optional: absent.filter(a => a.optional).map(a => `${a.selector} (${a.optional})`), of: anchors.length };
 }
 
 /* Whether `app` is a sheet of a character sheet class the world registered. */
@@ -1257,7 +1324,7 @@ let watchingSheets = false;
 /**
  * From module.mjs's ready, on every client: listen to the two sheet hooks of the register (their names read from
  * its rows), mark each fired, and read the first sheet's anchors; on the primary GM a missing one runs the contract
- * again, so a GM not told yet this load is told now.
+ * again, so the sheet row is told this load even when another row was told at ready (`toldThisLoad`, G-2).
  */
 export function watchSheetRenders() {
     if (watchingSheets) return false;

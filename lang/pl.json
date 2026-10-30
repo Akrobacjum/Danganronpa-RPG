@@ -6349,7 +6349,7 @@
         "actions-resource": "postać nie ma zasobu Akcji",
         "sidebar-calls": "własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry",
         "relay-guard": "prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu",
-        "region-included-in-level": "region, o którego piętro nie da się zapytać albo który odpowiada błędem, liczy się jako leżący na każdym piętrze",
+        "region-included-in-level": "region, który nie wskazuje żadnego piętra, liczy się jako leżący na każdym piętrze; region, który o swoje piętro odpowiada błędem, jest czytany według pięter, które wskazuje",
         "hook-duality-configured": "kość Free Critical nie jest ładowana",
         "hook-roll-dialog-render": "okno rzutu otwarcia nie jest oznaczone jako okno otwarcia",
         "hook-character-sheet-render": "karta postaci jest rysowana tak, jak rysuje ją Daggerheart",

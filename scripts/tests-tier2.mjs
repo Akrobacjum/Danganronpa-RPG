@@ -75597,9 +75597,17 @@ const SCENARIOS = [
         ok(typeof mod.runContract === "function" && typeof mod.contractState === "function", "patches.mjs has no runContract or contractState");
         const { runContract, contractState, PATCHES } = mod;
         const { applySelectionColour } = await import("./selection.mjs");
-        const atReady = contractState();
+        // The ready road's own run (E52 fix round, line A; review F2): `contractState` is replaced by any run over the
+        // register (R1542, the report), so it stayed set with module.mjs's call removed; `contractAtReady` is written by
+        // `announceAtReady` alone, and that road hands rooms.mjs the call for a later Levels throw (G-2). Red at
+        // 90bca290 with module.mjs's call removed in a scratch copy: passed; now failed.
+        const rooms = await import("./rooms.mjs");
+        const atReady = typeof mod.contractAtReady === "function" ? mod.contractAtReady()?.contract ?? null : null;
         ok(atReady !== null && Array.isArray(atReady?.rows) && atReady.rows.length === PATCHES.length,
             "the primary GM's ready did not run the contract over the whole register");
+        ok(typeof rooms.levelThrowListener === "function" && rooms.levelThrowListener() === mod.announceLevelThrow,
+            "the primary GM's ready did not hand rooms.mjs the call that tells a Levels throw met later in the load");
+        ok(contractState() !== null, "no contract over the register in this load, for the report to read");
         applySelectionColour();
         const contract = runContract();
         equal(contract.rows.length, PATCHES.length, "the contract did not read every row of the register");

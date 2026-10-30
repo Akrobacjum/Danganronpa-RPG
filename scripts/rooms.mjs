@@ -417,7 +417,8 @@ export function regionPatches(scene, changes) {
 /**
  * Whether a region is on this floor: no floor asked, a region on no floor in particular (every
  * floor), or one Foundry says it is on. A region that cannot be asked is on every floor - the
- * module's rule wherever it cannot read a map (movement.mjs `neighbouringRooms`).
+ * module's rule wherever it cannot read a map (movement.mjs `neighbouringRooms`) - and one whose
+ * answer throws is on the floors it names (E52 fix round, SEC-1: the note in the body).
  *
  * ASKED BY THE FLOOR'S ID, WHATEVER THE CALLER HOLDS (E12 fix r2-H1, 11.10.2026; early review
  * EARLY-C10-1). The rules hand in a token's level (an id), the fog `canvas.level` (a level), and
@@ -431,16 +432,29 @@ export function onLevel(region, level) {
     const id = level?.id ?? level;
     if (typeof region.includedInLevel === "function") {
         // E52 C2 (E52-08): a Foundry whose `includedInLevel` throws threw out of every reader of a floor, the
-        // fog's included. Such a region is on every floor, as one that cannot be asked; said once a load, and
-        // the contract's Levels row reads it (`levelFailure`).
+        // fog's included. Said once a load, and the contract's Levels row reads it (`levelFailure`).
+        //
+        // READ BY THE FLOORS IT NAMES, NOT ON EVERY FLOOR (E52 fix round, line A, 30.10.2026; review SEC-1).
+        // C2 answered true, as STAGE row E52-08 words it ("read as on every floor"); that put every floor's
+        // room pieces back in movement.mjs `piecesAt` and its bounds fallback - the road E12 C9 closed (audit
+        // S07-22) - so a token on f1 under a room of f2 stood in whichever name sorts first, and the bridge's
+        // room guards (bridge-guards.mjs `guardProjectRoom`, `guardSabotageRoom`) judged a Work or a Sabotage
+        // there that before C2 they refused. `region.levels` was read non-zero above, and it is what a region
+        // with no `includedInLevel` is read by (the line under this block): each region is drawn on the floors
+        // it names, so the fog still has no black screen. R1544. A departure from E52-08's words, in STATUS.
         try {
             return region.includedInLevel(id);
         } catch (err) {
             if (!levelThrew) {
                 levelThrew = { message: String(err?.message ?? err) };
-                console.warn(`${MODULE_ID} | Foundry's region includedInLevel threw (${levelThrew.message}): such a region is read as on every floor.`);
+                console.warn(`${MODULE_ID} | Foundry's region includedInLevel threw (${levelThrew.message}): such a region is read by the floors it names.`);
+                try {
+                    levelThrewAfter?.();
+                } catch (told) {
+                    console.error(`${MODULE_ID} | Could not tell the GM that includedInLevel threw`, told);
+                }
             }
-            return true;
+            return typeof region.levels.has === "function" ? region.levels.has(id) : true;
         }
     }
     return region.levels.has(id);
@@ -448,6 +462,25 @@ export function onLevel(region, level) {
 
 /* The first error `includedInLevel` threw this load, or null. */
 let levelThrew = null;
+
+/*
+ * What the load's first throw calls, or null (E52 fix round, line A; review G-2, F3): patches.mjs `announceAtReady`
+ * hands in its `announceLevelThrow` on the primary GM, so a throw met after ready - a scene with floors opened
+ * later - reaches the GM's notice as a row failed at ready does. Before ready it is null: the ready run reads it.
+ */
+let levelThrewAfter = null;
+
+/** Set what the load's first `includedInLevel` throw calls; answers the function that puts the one before back (R1544, R1056). */
+export function whenLevelThrows(fn) {
+    const live = levelThrewAfter;
+    levelThrewAfter = typeof fn === "function" ? fn : null;
+    return () => { levelThrewAfter = live; };
+}
+
+/** What the load's first throw calls now, or null; E52-T1 reads that the ready road set it. */
+export function levelThrowListener() {
+    return levelThrewAfter;
+}
 
 /** What `onLevel` met this load: `{ message }` once `includedInLevel` threw, else null. For patches.mjs's Levels row. */
 export function levelFailure() {

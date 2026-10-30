@@ -3132,8 +3132,14 @@ const INVARIANTS = [
         // Not a module bug when it fails - but every colour measurement in this
         // suite and every visual judgement at the table is worthless while it is
         // true, so it is worth saying out loud. See `detectPageTinting`.
+        //
+        // A NAMED ONE ONLY (E52 fix round, line A, 30.10.2026; review G-3). Since E52 C5 an unnamed big inline sheet
+        // (`named: false`) is a module's own as often as an extension's, and the module gives it a console line,
+        // not a notice; this test still failed on it, so a GM's runTests() at a table with such a module had one
+        // failure that was nobody's. Now the shape is said in the console, as `detectPageTinting`'s callers do.
         const tint = detectPageTinting();
-        ok(!tint, `${tint?.name} is restyling the page - ${tint?.evidence}`);
+        if (tint && !tint.named) console.info(`nothing is repainting the page: an unnamed stylesheet, not counted - ${tint.evidence}`);
+        ok(!tint?.named, `${tint?.name} is restyling the page - ${tint?.evidence}`);
     }],
 
     ["no Remnant token carries the answer key", () => {
@@ -27626,7 +27632,7 @@ const INVARIANTS = [
         const notices = [];
         const log = watchLog();
         try {
-            mod.announceContract({ rows: rows.filter(r => ["ours", "cannot-tell", "hook"].includes(r.id)), told: { done: false },
+            mod.announceContract({ rows: rows.filter(r => ["ours", "cannot-tell", "hook"].includes(r.id)), told: new Set(),
                 notify: text => notices.push(text) });
         } finally {
             log.stop();
@@ -27637,7 +27643,7 @@ const INVARIANTS = [
         // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
         const src = (await moduleSources()).get("module.mjs") ?? "";
         const ready = bodyOf(src, "Hooks.once(\"ready\", () => {", { until: "\n});" });
-        const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceContract(");
+        const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceAtReady(");
         ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
     }],
@@ -27663,7 +27669,7 @@ const INVARIANTS = [
             row("fine", () => ({ present: true, ours: true }))
         ];
         const notices = [];
-        const told = { done: false };
+        const told = new Set();
         const notify = (text, options) => notices.push([String(text), options ?? null]);
         mod.announceContract({ rows, told, notify });
         mod.announceContract({ rows, told, notify });
@@ -27721,12 +27727,34 @@ const INVARIANTS = [
             "patches.mjs has no relayGuardRow, rollDrawRow or runContract");
         const guard = Object.assign(function wrapped() { /* the guard's stand-in */ }, { __drpgRelayGuard: true });
         const other = function handleSocketEvent() { /* another listener */ };
-        const relay = (state, listeners) => mod.relayGuardRow({ state }, listeners)?.state ?? "no answer";
+        const relay = (state, listeners) => mod.relayGuardRow({ state }, listeners, [])?.state ?? "no answer";
         equal(stableJson([relay("ok", [guard]), relay("ok", [guard, other]), relay("ok", [other, guard]), relay("ok", [other]),
             relay("changed", [guard]), relay("unnamed", [guard]), relay("backstop", []), relay("notFound", []), relay("noApi", []), relay("idle", [])]),
             stableJson(["ok", "ok", "failed", "failed", "failed", "failed", "failed", "failed", "failed", "unknown"]),
             "the relay guard's row is not read from its own state [alone | first of two | second | not on the channel | unreviewed cases | "
             + "an unnamed listener | the backstop | not found | no socket to wrap | not looked yet]");
+        // E52 fix round (line A), 30.10.2026; review SEC-2: socket.io's catch-all listeners run before every channel
+        // listener, so the guard first on the channel is not first while another module's catch-all stands - unknown,
+        // not ok (it may only read). The guard's own backstop, marked, is not such a listener. Red at 90bca290: ok.
+        const foreign = function onAnyPacket() { /* another module's catch-all */ };
+        const backstop = Object.assign(function backstop() { /* the guard's backstop's stand-in */ }, { __drpgRelayBackstop: true });
+        must(game.socket, "no game.socket on this client");
+        const own = Object.getOwnPropertyDescriptor(game.socket, "listenersAny");
+        const caught = [];
+        try {
+            // The live default: the socket's own list, the backstop left out by its mark.
+            game.socket.listenersAny = () => [backstop];
+            caught.push(mod.relayGuardRow({ state: "ok" }, [guard])?.state ?? "no answer");
+            game.socket.listenersAny = () => [backstop, foreign];
+            const row = mod.relayGuardRow({ state: "ok" }, [guard]);
+            caught.push(row?.state ?? "no answer", /catch-all/.test(row?.note ?? ""));
+        } finally {
+            if (own) Object.defineProperty(game.socket, "listenersAny", own);
+            else delete game.socket.listenersAny;
+        }
+        caught.push(mod.relayGuardRow({ state: "ok" }, [guard], [foreign])?.state ?? "no answer", mod.relayGuardRow({ state: "changed" }, [guard], [foreign])?.state ?? "no answer");
+        equal(stableJson(caught), stableJson(["ok", "unknown", true, "unknown", "failed"]),
+            "a catch-all listener before the guard is not read [the backstop alone | another module's, live | named | handed in | an unreviewed guard stays failed]");
         const relayRow = mod.PATCHES.find(r => r.id === "relay-guard");
         ok(relayRow?.kind === "socket" && relayRow?.file === "relay-guard.mjs", "the register has no socket row for the relay guard in relay-guard.mjs");
 
@@ -27795,7 +27823,7 @@ const INVARIANTS = [
         equal(mod.runContract({ rows: [row] }).rows[0]?.state, "ok", "the door row is not ok on the suite's world");
     }],
 
-    ["R1544 - Levels: a region whose includedInLevel throws is on every floor, said once, and the contract's row fails", async () => {
+    ["R1544 - Levels: a region whose includedInLevel throws is read by the floors it names, said once, and the contract's row fails; a token on the lower of two such floors stands in the lower room", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-08, the plan's "verify". rooms.mjs `onLevel` fell back to
          * `region.levels` when Foundry's `includedInLevel` was absent, and called it unguarded when present - so
@@ -27803,29 +27831,152 @@ const INVARIANTS = [
          * screen). Now it is "on every floor", the module's rule wherever it cannot read a map, said once a
          * load, and the register's row reads the failure. A stand-in region, never in a scene; the load's
          * "said" put back after. Red before C2: onLevel threw the stand-in's own error.
+         *
+         * E52 fix round (line A), 30.10.2026; review SEC-1. "Every floor" put every floor's room pieces back
+         * in movement.mjs `piecesAt`, so a token on f1 under a room of f2 stood in whichever name sorts first
+         * and the bridge's room guards judged it there (a Work or a Sabotage on the room above). Now such a
+         * region is read by the floors it names (`region.levels`), as one with no `includedInLevel`. Red at
+         * 90bca290: the answers [true, true, true, false] and roomAt "R1544 Archive". The stand-in scene below
+         * is two overlapping room pieces, f1's "R1544 Kitchen" and f2's "R1544 Archive", whose testPoint holds
+         * every point (so the floor alone decides), and a token on f1; a scene of no role, never in the world.
          */
         const rooms = await import("./rooms.mjs");
         const mod = await import("./patches.mjs");
         const restore = typeof rooms.standInLevelFailure === "function" ? rooms.standInLevelFailure(null) : null;
+        // The load's first throw tells the primary GM (G-2): a stand-in hears it here, so no real notice is given.
+        const heard = [];
+        const unhear = typeof rooms.whenLevelThrows === "function" ? rooms.whenLevelThrows(() => heard.push("told")) : null;
         const broken = { levels: new Set(["R1544-a"]), includedInLevel() { throw new Error("R1544 Levels broke"); } };
         const asks = { levels: new Set(["R1544-a"]), includedInLevel: id => id === "R1544-a" };
         const read = (region, level) => { try { return rooms.onLevel(region, level); } catch (err) { return `throws: ${err?.message ?? err}`; } };
+        const movement = await import("./movement.mjs");
+        const { ROOM_FLAG } = await import("./rooms.mjs");
+        const read2 = fn => { try { return fn(); } catch (err) { return `throws: ${err?.message ?? err}`; } };
         const log = watchLog();
-        let answers, row;
+        let answers, row, floorRoom;
         try {
-            answers = [read(broken, "R1544-b"), read(broken, { id: "R1544-b" }), read(asks, "R1544-a"), read(asks, "R1544-b")];
+            answers = [read(broken, "R1544-b"), read(broken, { id: "R1544-b" }), read(asks, "R1544-a"), read(asks, "R1544-b"),
+                read(broken, "R1544-a")];
+            const piece = (id, name, floor) => ({
+                id, name, levels: new Set([floor]), behaviors: [], getFlag: (scope, key) => scope === MODULE_ID && key === ROOM_FLAG,
+                includedInLevel() { throw new Error("R1544 Levels broke"); }, testPoint: () => true
+            });
+            const scene = { id: "R1544-scene", grid: { size: 100 },
+                regions: new Set([piece("R1544-up", "R1544 Archive", "R1544-f2"), piece("R1544-down", "R1544 Kitchen", "R1544-f1")]) };
+            floorRoom = read2(() => movement.roomAt(0, 0, { parent: scene, level: "R1544-f1", width: 1, height: 1, elevation: 0 }));
             row = typeof mod.runContract === "function"
                 ? mod.runContract({ rows: mod.PATCHES.filter(r => r.id === "region-included-in-level") }).rows[0] ?? null : null;
         } finally {
             log.stop();
+            unhear?.();
             restore?.();
         }
-        equal(stableJson(answers), stableJson([true, true, true, false]),
-            "onLevel throws, or does not read a region whose includedInLevel throws as on every floor [throws | throws, a level | asks, on | asks, off]");
+        equal(stableJson(answers), stableJson([false, false, true, false, true]),
+            "onLevel throws, or does not read a region whose includedInLevel throws by the floors it names [throws, another floor | throws, a level | asks, on | asks, off | throws, its own floor]");
+        equal(floorRoom, "R1544 Kitchen", "a token on f1 under a room of f2, both regions throwing in includedInLevel, does not stand in f1's room");
         equal(log.count(/includedInLevel/), 1, "a throwing includedInLevel is not said exactly once");
         ok(typeof restore === "function", "rooms.mjs has no stand-in for the load's Levels failure, so this test would leave one behind");
         equal(stableJson([row?.state, /R1544 Levels broke/.test(row?.note ?? "")]), stableJson(["failed", true]),
             "the register's Levels row does not fail with the error includedInLevel threw");
+    }],
+    ["R1056 - a contract row failing after the ready run reaches the GM's notice: each row told once a load, a later one in a notice of its own, and the load's first Levels throw calls what the ready road handed rooms.mjs", async () => {
+        /*
+         * E52 fix round (line A), 30.10.2026; reviews G-2 and F3. `announceContract` kept one flag for the load,
+         * so once any row had been told at ready a missing sheet place (`watchSheetRenders` runs it again) was in no
+         * notice, and a Levels throw met after ready (a scene with floors opened later) ran nothing at all - a
+         * console line, and the GM's notice never named it. Now `told` is the set of row ids told this load, and
+         * rooms.mjs calls what `announceAtReady` hands it (`whenLevelThrows`) on the load's first throw. Here the
+         * set and the notices are the test's own, the Levels failure and its listener stood in and put back: no
+         * real notice is given and the load's state is as it was. Red at 90bca290: one notice for two failures
+         * (the second never told), no whenLevelThrows.
+         */
+        const mod = await import("./patches.mjs");
+        const rooms = await import("./rooms.mjs");
+        const row = (id, failing) => ({ id, kind: "override", target: `R1056 target ${id}`, owner: "foundry", file: "fog.mjs",
+            symbol: "registerDoorControls", why: "R1056", when: "always", fallback: `R1056 fallback ${id}`,
+            probe: () => (failing() ? { present: false, ours: null } : { present: true, ours: true }) });
+        const sheetRow = mod.PATCHES.find(r => r.id === "sheet-anchors");
+        const levelsRow = mod.PATCHES.find(r => r.id === "region-included-in-level");
+        must(sheetRow && levelsRow, "the register has no sheet-anchors or Levels row");
+        let sheetMissing = false;
+        const earlier = row("earlier", () => true);
+        const sheet = { ...sheetRow, probe: () => mod.sheetAnchorsAnswer(sheetMissing
+            ? { missing: [".window-content"], optional: [], of: mod.SHEET_ANCHORS.length } : { missing: [], optional: [], of: mod.SHEET_ANCHORS.length }) };
+        const told = new Set();
+        const notices = [];
+        const notify = text => notices.push(String(text));
+        mod.announceContract({ rows: [earlier, sheet], told, notify });
+        sheetMissing = true;
+        mod.announceContract({ rows: [earlier, sheet], told, notify });
+        mod.announceContract({ rows: [earlier, sheet], told, notify });
+        equal(stableJson([notices.length, notices.map(n => [n.includes("R1056 target earlier"), n.includes(sheetRow.target)])]),
+            stableJson([2, [[true, false], [false, true]]]),
+            "a row failing after an earlier row was told is not in a notice of its own, or a row was told twice [notices | each: the earlier row, the sheet]");
+
+        ok(typeof rooms.whenLevelThrows === "function", "rooms.mjs has no whenLevelThrows: a Levels throw after ready reaches no notice");
+        if (typeof rooms.whenLevelThrows !== "function") return;
+        const restore = rooms.standInLevelFailure(null);
+        const levelNotices = [];
+        const levelTold = new Set();
+        const unhear = rooms.whenLevelThrows(() => mod.announceContract({ rows: [levelsRow], told: levelTold, notify: text => levelNotices.push(String(text)) }));
+        const broken = { levels: new Set(["R1056-a"]), includedInLevel() { throw new Error("R1056 Levels broke"); } };
+        const log = watchLog();
+        let before;
+        try {
+            mod.announceContract({ rows: [levelsRow], told: levelTold, notify: text => levelNotices.push(String(text)) });
+            before = levelNotices.length;
+            rooms.onLevel(broken, "R1056-b");
+            rooms.onLevel(broken, "R1056-b");
+        } finally {
+            log.stop();
+            unhear();
+            restore();
+        }
+        equal(stableJson([before, levelNotices.length, levelNotices.every(n => n.includes(levelsRow.target))]), stableJson([0, 1, true]),
+            "the load's first Levels throw does not reach the GM's notice once, naming the Levels row [before the throw | after two throws | names it]");
+    }],
+    ["R1057 - the sidebar row is not in use where the module never wraps the sidebar: on a player, and on a GM with Foundry tool windows off; on a GM with them on an unwrapped sidebar still fails", async () => {
+        /*
+         * E52 fix round (line A), 30.10.2026; review F1. foundry-windows.mjs `registerFoundryWindows` wraps
+         * `ui.sidebar` only on a GM with the setting on, and the row had no `inUse`, so a player's report and a GM
+         * with the setting off read "another function stands where the module's was" - for that GM a permanent
+         * notice at every load, for a sidebar that is Foundry's own by design (measured by the review on p1).
+         * Here the user, the setting and the sidebar are stood in on this client and put back: a sidebar with
+         * Foundry's methods on its class and no mark, as a player's is. Red at 90bca290: [failed, failed, failed].
+         */
+        const mod = await import("./patches.mjs");
+        const row = mod.PATCHES.find(r => r.id === "sidebar-calls");
+        must(row, "the register has no sidebar-calls row");
+        const ownUser = Object.getOwnPropertyDescriptor(game, "user");
+        const ownSidebar = Object.getOwnPropertyDescriptor(ui, "sidebar");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get");
+        const realGet = game.settings.get;
+        const realUser = game.user;
+        const put = (target, key, own) => { if (own) Object.defineProperty(target, key, own); else delete target[key]; };
+        class FoundrySidebar { toggleExpanded() {} changeTab() {} }
+        let windowsOn = true;
+        const states = [];
+        try {
+            Object.defineProperty(ui, "sidebar", { value: new FoundrySidebar(), configurable: true, writable: true });
+            game.settings.get = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.foundryToolWindows) return windowsOn;
+                return realGet.call(this, scope, key, ...rest);
+            };
+            const as = isGM => Object.defineProperty(game, "user", {
+                value: Object.defineProperty(Object.create(realUser), "isGM", { value: isGM }), configurable: true, writable: true });
+            for (const [isGM, on] of [[false, true], [true, false], [true, true]]) {
+                as(isGM);
+                windowsOn = on;
+                const answer = mod.runContract({ rows: [row] }).rows[0];
+                states.push([answer?.state ?? null, /not in use/.test(answer?.note ?? "")]);
+            }
+        } finally {
+            put(game, "user", ownUser);
+            put(ui, "sidebar", ownSidebar);
+            put(game.settings, "get", ownGet);
+        }
+        equal(stableJson(states), stableJson([["ok", true], ["ok", true], ["failed", false]]),
+            "the sidebar row fails where the module never wraps the sidebar, or no longer fails where it should have [a player | a GM, windows off | a GM, windows on]");
     }],
     ["R1545 - a hook of another package is ok once its listener marked it fired in this load, unknown with the road that fires it until then, and every hook row's listener marks it", async () => {
         /*
@@ -27996,7 +28147,7 @@ const INVARIANTS = [
         equal(rowOf("scene-controls-activate")?.probe().present, true, "the scene controls' activate is not found on the suite's world, whose controls have it");
     }],
 
-    ["R1548 - the character sheet's places are read on the first sheet of the system's class, a missing one named and its row failed; the page's anchors are unknown until found, never failed on absence", async () => {
+    ["R1548 - the character sheet's places are read on the first sheet of the system's class, a missing one named and its row failed, a place sheet.mjs draws without named and not failed; the page's anchors are unknown until found, never failed on absence", async () => {
         /*
          * E52 C3, 30.10.2026; audit S17-50, E52-12 (Q-7). sheet.mjs lays the student's file into Daggerheart's sheet
          * by about twenty of its selectors, and a Daggerheart that renamed one left that part undrawn with no word.
@@ -28006,6 +28157,11 @@ const INVARIANTS = [
          * is named, the reading kept once, and the row built on it fails naming it; a render that is not the system's
          * class is not read. The page's anchors (a camera popped out, a speaker's audio, the theme) answer unknown
          * while not on the page, never failed. Red before C3: no SHEET_ANCHORS, no reading.
+         *
+         * E52 fix round (line A), 30.10.2026; review G-1. The Experience is one of three places sheet.mjs draws
+         * without (`optional` in SHEET_ANCHORS), so a sheet without it now reads whole, names it in the row's note
+         * and says nothing in the console; the equipped list, which nothing replaces, is the missing place read
+         * instead. Red at 90bca290: the Experience missing and the row failed.
          */
         const mod = await import("./patches.mjs");
         ok(Array.isArray(mod.SHEET_ANCHORS) && typeof mod.readSheetAnchors === "function" && typeof mod.noteSheetRender === "function"
@@ -28021,6 +28177,20 @@ const INVARIANTS = [
         must(mod.SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${mod.SHEET_ANCHORS.length} place(s) - this test would read nothing`);
         equal(stableJson(mod.readSheetAnchors(sheet)?.missing ?? null), "[]", "a sheet holding every place reads a place as missing");
         sheet.querySelector(".experience-section").remove();
+        const without = { done: null };
+        const quiet = watchLog();
+        let optional;
+        try {
+            optional = mod.noteSheetRender({}, sheet, { state: without, isSheet: () => true });
+        } finally {
+            quiet.stop();
+        }
+        const row = mod.PATCHES.find(r => r.id === "sheet-anchors");
+        const drawnWithout = mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(without.done) }] : [] }).rows[0] ?? null;
+        equal(stableJson([optional?.missing ?? null, quiet.count(/experience-section/), drawnWithout?.state ?? null, /\.experience-section/.test(drawnWithout?.note ?? "")]),
+            stableJson([[], 0, "ok", true]),
+            "a sheet without a place sheet.mjs draws without reads it as missing, says it, fails the row, or does not name it [missing | said | the row | named]");
+        sheet.querySelector(".items-sidebar-list").remove();
         const state = { done: null };
         const notTheClass = mod.noteSheetRender({}, sheet, { state, isSheet: () => false });
         const log = watchLog();
@@ -28031,11 +28201,11 @@ const INVARIANTS = [
         } finally {
             log.stop();
         }
-        equal(stableJson([notTheClass, first?.missing ?? null, second, log.count(/experience-section/)]), stableJson([null, [".experience-section"], null, 1]),
+        const list = ".character-sidebar-sheet .equipment-section .items-sidebar-list";
+        equal(stableJson([notTheClass, first?.missing ?? null, second, log.count(/items-sidebar-list/)]), stableJson([null, [list], null, 1]),
             "the first sheet of the system's class is not read once, naming its one missing place [another class | the first | the second | said]");
-        const row = mod.PATCHES.find(r => r.id === "sheet-anchors");
         const answer = mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(state.done) }] : [] }).rows[0] ?? null;
-        equal(stableJson([answer?.state ?? null, /\.experience-section/.test(answer?.note ?? "")]), stableJson(["failed", true]),
+        equal(stableJson([answer?.state ?? null, /items-sidebar-list/.test(answer?.note ?? "")]), stableJson(["failed", true]),
             "the register's sheet row does not fail naming the missing place");
         equal(mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(null) }] : [] }).rows[0]?.state, "unknown",
             "the sheet row before any sheet is drawn is not unknown");
@@ -28561,7 +28731,7 @@ const INVARIANTS = [
         const sentence = game.i18n.localize("DRPG.Contract.instead.door-controls");
         must(!sentence.startsWith("DRPG."), "no sentence for the door controls row in this language");
         const notices = [];
-        mod.announceContract({ rows: [failing], told: { done: false }, notify: text => notices.push(String(text)) });
+        mod.announceContract({ rows: [failing], told: new Set(), notify: text => notices.push(String(text)) });
         equal(stableJson([notices.length, notices[0]?.includes(sentence), notices[0]?.includes(real.fallback)]), stableJson([1, true, false]),
             "the notice does not give the row's sentence in the table's language, or still gives the register's English [notices | the sentence | the fallback]");
         const SS = await import("./season-setup.mjs");

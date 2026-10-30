@@ -852,6 +852,8 @@ const game = {
             return this;
         },
         prependAny(fn) { this._any.unshift(fn); return this; },
+        /* socket.io-client v4's list of the catch-alls, a copy (E52 fix round, SEC-2: the contract's relay row reads it). */
+        listenersAny() { return [...this._any]; },
         emit(channel, ...args) {
             // A player's faces for the GM's draw (E08+E28 C12a): see `relayedFaces` above.
             if (args[0]?.action === "roll.draw" && globalThis.__forceRoll && !game.user?.isGM) {

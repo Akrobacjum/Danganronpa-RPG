@@ -4978,7 +4978,7 @@
         "actions-resource": "a character has no Actions resource",
         "sidebar-calls": "Foundry's own calls neither show nor place the Foundry tools window",
         "relay-guard": "requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load",
-        "region-included-in-level": "a region that cannot be asked about its floor, or answers with an error, counts as being on every floor",
+        "region-included-in-level": "a region that names no floor counts as being on every floor; one that answers with an error about its floor is read by the floors it names",
         "hook-duality-configured": "a Free Critical's die is not loaded",
         "hook-roll-dialog-render": "the opening's roll window is not marked as the opening's",
         "hook-character-sheet-render": "the character sheet is drawn as Daggerheart draws it",

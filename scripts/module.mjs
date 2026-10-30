@@ -341,8 +341,9 @@ Hooks.once("ready", () => {
     import("./patches.mjs").then(m => m.watchSheetRenders()).catch(err => error("Could not watch the character sheet for the contract", err));
     // The contract with Foundry, Daggerheart and the modules (E52 C2): every row of the register probed once a load,
     // a failed one told to this GM. The import settles after every ready hook has run, the relay guard's own (which
-    // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world.
-    if (isPrimaryGm()) import("./patches.mjs").then(m => m.announceContract()).catch(err => error("Could not run the contract with Foundry and Daggerheart", err));
+    // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world. The road
+    // also hands rooms.mjs the call for a Levels throw met later in the load (E52 fix round, G-2).
+    if (isPrimaryGm()) import("./patches.mjs").then(m => m.announceAtReady()).catch(err => error("Could not run the contract with Foundry and Daggerheart", err));
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
     announceRollDraw().catch(err =>
         error("Could not say that rolls are not drawn by the GM", err));
