@@ -75071,6 +75071,178 @@ const SCENARIOS = [
         }), `[file permissions held: ${filesOn}] [the welcome already off: the value kept | an Assistant's Give back: the answer, the switch, the automations, `
             + "the parts still kept | a full GM's with the permissions refused: the answer, the switch, the automations, the parts still kept]");
     }],
+    ["E20-T7 - when the module switches Daggerheart's Vulnerable and Defeated automations off it tells the GMs once, in a private card to the GMs alone, in the words of lang/en.json and lang/pl.json (E20 C6, E20-19; S03-37)", async () => {
+        /*
+         * E20 fix round, 30.10.2026 (the ledger's E20-19: "the one-time GM notice instead of the log alone" was read in the
+         * code only). On the suite's world, as the module first finds it (the automations on, nothing kept, not given
+         * back): `suppressSystemAutomation` called as the primary GM's `ready` calls it, then again as the next `ready`
+         * finds the automations it switched off, then once more after Give back Foundry's settings. Read after each call:
+         * what it answered and the new cards whose words are `DRPG.GiveBack.automationOff`; of the one card, who it is
+         * whispered to (every GM, nobody else) and whether the document every browser receives carries the words (it holds
+         * secret.mjs's stub). Read off lang/en.json and lang/pl.json: the key in both, the card's words this language's
+         * file's sentence. A GM who turns the automations on again by hand is told again at the next start: the notice is
+         * once per switching off, which is what the code promises, not once per world. Put back as E20-T4 puts it back.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null, W = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); W = await import("./secret.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function" && typeof W?.wordsOf === "function",
+            "enforced.mjs giveBackFoundry, states.mjs suppressSystemAutomation or secret.mjs wordsOf is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function" || typeof W?.wordsOf !== "function") return;
+        const KEY = "DRPG.GiveBack.automationOff";
+        const text = html => { const box = document.createElement("div"); box.innerHTML = String(html ?? ""); return box.textContent.replace(/\s+/g, " ").trim(); };
+        const files = {};
+        for (const lang of ["en", "pl"]) {
+            const raw = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            files[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(raw))[KEY] ?? null;
+        }
+        const lang = game.i18n.lang === "pl" ? "pl" : "en";
+        const sentence = text(files[lang]);
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const gms = game.users.filter(u => u.isGM).map(u => u.id).sort();
+        const told = async (from, answer) => {
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const words = (await Promise.all(fresh.map(m => W.wordsOf(m, 2000)))).map(text);
+            const cards = fresh.filter((m, i) => words[i] === sentence);
+            return { answer, cards: cards.length,
+                to: cards.map(m => stableJson([...(m.whisper ?? [])].sort()) === stableJson(gms)),
+                bare: cards.map(m => W.isStub(m.content) && !text(m.content).includes(sentence)) };
+        };
+        const call = async () => {
+            const from = new Set(game.messages.map(m => m.id));
+            const answer = await S.suppressSystemAutomation();
+            await settle();
+            return told(from, answer);
+        };
+        let read = null;
+        try {
+            if (backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await settle();
+            const first = await call();
+            const again = await call();
+            await E.giveBackFoundry();
+            await settle();
+            const givenBack = await call();
+            read = { first, again, givenBack };
+        } finally {
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson({ ...read, lang: [typeof files.en === "string", typeof files.pl === "string", files.en !== files.pl, sentence.length > 0,
+            text(game.i18n.localize(KEY)) === sentence] }), stableJson({
+            first: { answer: true, cards: 1, to: [true], bare: [true] },
+            again: { answer: false, cards: 0, to: [], bare: [] },
+            givenBack: { answer: false, cards: 0, to: [], bare: [] },
+            lang: [true, true, true, true, true]
+        }), `[${lang}] [each call: its answer, the cards with the notice's words, each whispered to every GM and nobody else, each document without the words `
+            + "| the first switching off | the next start | after Give back] [the key in en.json, in pl.json, the two differ, the sentence not empty, this browser's text the file's]");
+    }],
+    ["E20-T8 - the Next line judges the rooms on the school, not on a side map on screen (E20 fix round, the correctness review's C-7)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-7): the rooms row judged the scene on screen, so a GM viewing a side map
+         * of two rooms was told by the Next line that the season was not set up. R1523 read the default list of
+         * `firstOutstandingStep` by a pattern over its source; this calls it. On scenes of the suite's own: a side map of
+         * 2000 x 1000 with one room of 200 x 200 (98 % in no room), on screen; a school wall to wall in one room, then a
+         * school with the side map's small room, each linked as the school in turn (the scene roles). Read with each:
+         * `firstOutstandingStep()` called as the GM panel calls it, the list it judged taken as it reads it (the one array
+         * with a rooms row it calls `find` on, caught for that synchronous call alone), that list's rooms row and what
+         * the uncovered share it names, and the Next line's step with every other row of that list taken as done (the
+         * world's other rows are the world's, as R1523 hands them done). The control: `steps()` with no scene given, as
+         * the checklist judges the map on screen, finds the rooms row not done. Put back: the roles, the camera, the
+         * scenes and any card.
+         */
+        needs(env.primaryGm());
+        const SS = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        ok(typeof SS.firstOutstandingStep === "function" && typeof SS.steps === "function" && typeof R.schoolScene === "function",
+            "season-setup.mjs firstOutstandingStep or steps, or rooms.mjs schoolScene, is missing");
+        if (typeof SS.firstOutstandingStep !== "function" || typeof SS.steps !== "function") return;
+        const KEY = SETTINGS.sceneRoles;
+        must(game.settings.settings.has(`${MODULE_ID}.${KEY}`), "the scene roles are not a setting - no school could be linked");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+        const viewing = canvas?.scene ?? null;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const made = [];
+        const scene = async (name, room) => {
+            const doc = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            made.push(doc);
+            const map = doc.dimensions?.sceneRect ?? { x: 0, y: 0, width: 2000, height: 1000 };
+            await doc.createEmbeddedDocuments("Region", [{ name: `${name} room`, behaviors: [], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } },
+                shapes: [{ type: "rectangle", x: map.x, y: map.y, width: room === "wall to wall" ? map.width : 200, height: room === "wall to wall" ? map.height : 200 }] }]);
+            return doc;
+        };
+        const judged = school => {
+            const realFind = Array.prototype.find;
+            let list = null, first = null;
+            Array.prototype.find = function (...args) {
+                if (list === null && Array.isArray(this) && realFind.call(this, step => step?.key === "rooms")) list = this;
+                return realFind.apply(this, args);
+            };
+            try { first = SS.firstOutstandingStep(); } finally { Array.prototype.find = realFind; }
+            const rooms = list?.find(step => step.key === "rooms") ?? null;
+            return {
+                caught: Boolean(rooms) && SS.firstOutstandingStep(list)?.key === (first?.key ?? undefined),
+                done: rooms?.done ?? null,
+                names: (rooms?.missing?.() ?? []).some(line => line.includes(school.name)),
+                next: list ? SS.firstOutstandingStep(list.map(step => (step.key === "rooms" ? step : { ...step, done: true })))?.key ?? null : "no list"
+            };
+        };
+        let read = null;
+        try {
+            const side = await scene("SUITE E20-T8 a side map", "small");
+            const covered = await scene("SUITE E20-T8 the school wall to wall", "wall to wall");
+            const bare = await scene("SUITE E20-T8 the school mostly no room", "small");
+            await side.view();
+            await settle();
+            must(canvas?.scene === side, "the camera did not move to the suite's side map - the scene on screen would be another");
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, school: covered.id });
+            await settle();
+            must(R.schoolScene() === covered, "the suite's school is not linked as the school");
+            const onScreen = SS.steps().find(step => step.key === "rooms")?.done ?? null;
+            const schoolCovered = judged(covered);
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, school: bare.id });
+            await settle();
+            must(R.schoolScene() === bare, "the suite's second school is not linked as the school");
+            const schoolUncovered = judged(bare);
+            read = { onScreen, schoolCovered, schoolUncovered };
+        } finally {
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            await viewing?.view();
+            for (const doc of made) await doc?.delete();
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            onScreen: false,
+            schoolCovered: { caught: true, done: true, names: false, next: null },
+            schoolUncovered: { caught: true, done: false, names: true, next: "rooms" }
+        }), "[the checklist's rooms row on the side map on screen | with the school wall to wall, then mostly in no room: the list the Next line judged "
+            + "caught, its rooms row done, its line naming the school, the Next line's step with every other row done]");
+    }],
     ...GRID
 ];
 
