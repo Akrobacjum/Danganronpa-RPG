@@ -14,6 +14,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C6 | de321dad | QUICK GREEN at 984033fa+edits: lint/check/gate ok; prose ok; t01 ok; own(7) ok; scen 15 ok; scen 65 ok earlier (984033fa-825, before the last two fixes - not rerun) (logs /c/Users/chrob/quick-runs/984033fa-1746); R1518-R1521 red first 1 passed 4 failed, after 5/0; E20-T4/T5 4 passed 2 failed, after 6/0 |
 | C7 | 689040ee | QUICK GREEN at de321dad+edits: lint/check/gate ok; prose ok; own(14) ok (logs /c/Users/chrob/quick-runs/de321dad-603); --no-t01 (only handbooks, the audit file, stages.json changed); first run red on R431 alone (Check rooms sentences inside the guide box), moved after it |
 | fix A | c72c43ff | QUICK GREEN at 689040ee+edits: lint/check/gate ok; prose ok; t01 ok; own(12) ok; scen 65 ok earlier (689040ee-1584); scen 66 ok earlier (689040ee-1584) (logs /c/Users/chrob/quick-runs/689040ee-735); Q-8 amended R1522, C-1/C-7 R1523, C-2 R1524, C-4 R1525, G-1 R1526, G-5 R1527, C-10 R1528, C-8=G-10 R1529, G-8 R1530 - each red at 689040ee on an assertion; R1512, R1514, R198 and a tier-2 report test adjusted |
+| fix B | 04417f8f | QUICK GREEN at c72c43ff+edits: lint/check/gate ok; prose ok; t01 ok; own(6) ok; scen 15 ok earlier (c72c43ff-1665); scen 12 ok earlier (c72c43ff-1665) (logs /c/Users/chrob/quick-runs/c72c43ff-228); owner's automations line + G-7 R1531 (R1518 widened), C-6 R1531 + E20-T6, C-9 E20-T6, G-2 R1532, G-6 R1533, G-3 R1534, G-4 R1508, C-5=G-9 R1535, C-3 R1536 - tier 1 8 failed and E20-T6 failed at c72c43ff, all pass after |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -73,3 +74,5 @@ All exported; R1500 reads the exports.
 - fix A reading: "the season started" = the clock past chapter 1, day 1, session 1, the first time of day (the owner's Q-8 words read by the fixer)
 - fix A gap: the restored scroll and focus of a round trip not measured on a real Foundry (no layout in the harness) - B-E20-1's table run
 - fix A gap: Room Setup's fog tab shows the worst floor's percentage without naming the floor
+- fix B note: C-9 also covers worlds an earlier version wrote to - a player setting already at the held value is kept as the player's own, Give back leaves it
+- fix B gap: the local mark and the floor switch on a real v14 canvas, and 3-at-a-time probes on a real server - added to AUDIT 9.2 B-E20-4, -5, -6
