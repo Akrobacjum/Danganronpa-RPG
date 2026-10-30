@@ -10,7 +10,8 @@
  */
 
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
-import { SETTINGS, getSetting, STALE_SILENCES, staleSilencesCleared } from "./settings.mjs";
+import { SETTINGS, STALE_SILENCES, staleSilencesCleared, pixelFontOn } from "./settings.mjs";
+import { glassOn } from "./motion.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
 import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
@@ -23,17 +24,6 @@ import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow } from "./private-rolls.mjs";
 
-/**
- * Why Dice So Nice might be rolling unskinned dice.
- *
- * Daggerheart assigns skins with
- *   `rollResult.dice[0].options = await getDiceSoNicePreset(...)`
- * and that helper looks the chosen skin up with
- *   `game.dice3d.DiceFactory.systems.get(type.system)`.
- * If the configured dice system is not installed, the lookup fails and the
- * dice fall back to plain defaults - exactly the "dice appear, skin doesn't"
- * symptom. This reports whether that is what is happening.
- */
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
  *
@@ -104,6 +94,17 @@ function rollAudienceLines(gm = game.user?.isGM === true) {
     return lines;
 }
 
+/**
+ * Why Dice So Nice might be rolling unskinned dice.
+ *
+ * Daggerheart assigns skins with
+ *   `rollResult.dice[0].options = await getDiceSoNicePreset(...)`
+ * and that helper looks the chosen skin up with
+ *   `game.dice3d.DiceFactory.systems.get(type.system)`.
+ * If the configured dice system is not installed, the lookup fails and the
+ * dice fall back to plain defaults - exactly the "dice appear, skin doesn't"
+ * symptom. This reports whether that is what is happening.
+ */
 export function diagnoseDice({ toChat = true, gm = game.user?.isGM === true } = {}) {
     const lines = [];
     const dsn = game.modules.get("dice-so-nice");
@@ -273,17 +274,26 @@ function findOurSheets(sheet, depth, found) {
  * Foundry already ships a dark theme and this module is drawn for it, so an
  * extension darkening it a second time can only make it wrong.
  *
- * @returns {{name: string, evidence: string}|null}
+ * ONLY DARK READER IS NAMED (E52 C5, audit S01-39). The shape alone - an inline
+ * sheet of 200 or more rules - is also what a module that writes its CSS inline
+ * looks like, and reading it as "an extension" put a permanent "turn the
+ * extension off" in front of every player of such a table at every login. So the
+ * shape is `named: false`: a console line and a line of `diagnoseStyles`, never a
+ * notice; and a sheet whose owner node names the system or an active module is
+ * not read at all. Only the top level's plain rules count, so a sheet that keeps
+ * its rules in a cascade layer is not "unlayered".
+ *
+ * @returns {{name: string, evidence: string, named: boolean}|null}
  */
 export function detectPageTinting() {
     const root = document.documentElement;
 
     if (root.dataset.darkreaderMode || root.dataset.darkreaderScheme) {
-        return { name: "Dark Reader", evidence: `<html data-darkreader-mode="${root.dataset.darkreaderMode ?? "?"}">` };
+        return { name: "Dark Reader", named: true, evidence: `<html data-darkreader-mode="${root.dataset.darkreaderMode ?? "?"}">` };
     }
     const styled = document.querySelector("style.darkreader, style[id^='dark-reader']");
     if (styled) {
-        return { name: "Dark Reader", evidence: `<style class="${styled.className || styled.id}">` };
+        return { name: "Dark Reader", named: true, evidence: `<style class="${styled.className || styled.id}">` };
     }
 
     // Nothing named, so look for the shape of the problem instead: a stylesheet
@@ -293,19 +303,47 @@ export function detectPageTinting() {
         if (sheet.href) continue;
         let rules;
         try {
-            rules = sheet.cssRules;
+            rules = Array.from(sheet.cssRules ?? []);
         } catch {
             continue;
         }
-        if (!rules || rules.length < 200) continue;
-        for (const rule of rules) {
-            if (rule.cssText?.includes("--darkreader-")) {
-                return { name: "Dark Reader", evidence: `an inline stylesheet of ${rules.length} rules` };
-            }
+        const unlayered = rules.filter(rule => !isLayerRule(rule));
+        if (unlayered.length < 200) continue;
+        if (unlayered.some(rule => rule.cssText?.includes("--darkreader-"))) {
+            return { name: "Dark Reader", named: true, evidence: `an inline stylesheet of ${unlayered.length} rules` };
         }
-        return { name: "an extension", evidence: `an unlayered inline stylesheet of ${rules.length} rules` };
+        if (packageOwning(sheet.ownerNode)) continue;
+        return { name: "an extension", named: false,
+            evidence: `an unlayered inline stylesheet of ${unlayered.length} rules (${ownerText(sheet.ownerNode)})` };
     }
     return null;
+}
+
+/** A `@layer` block or statement, or an `@import` into a layer: rules a cascade layer holds. */
+function isLayerRule(rule) {
+    const { CSSLayerBlockRule: Block, CSSLayerStatementRule: Statement, CSSImportRule: Import } = globalThis;
+    if (typeof Block === "function" && rule instanceof Block) return true;
+    if (typeof Statement === "function" && rule instanceof Statement) return true;
+    return typeof Import === "function" && rule instanceof Import && rule.layerName != null;
+}
+
+/** The id of the system or of an active module that an owner node's attributes name, or null. */
+function packageOwning(node) {
+    const ids = [game.system?.id, ...[...(game.modules?.values?.() ?? [])].filter(m => m.active).map(m => m.id)]
+        .filter(id => typeof id === "string" && id.length >= 3);
+    for (const attr of Array.from(node?.attributes ?? [])) {
+        const text = `${attr.name} ${attr.value}`;
+        const id = ids.find(one => text.includes(one));
+        if (id) return id;
+    }
+    return null;
+}
+
+function ownerText(node) {
+    if (!node?.tagName) return "no owner node";
+    const id = node.id ? `#${node.id}` : "";
+    const cls = typeof node.className === "string" && node.className.trim() ? `.${node.className.trim().split(/\s+/).join(".")}` : "";
+    return `<${node.tagName.toLowerCase()}${id}${cls}>`;
 }
 
 /**
@@ -319,14 +357,21 @@ export function detectPageTinting() {
 export function warnAboutPageTinting() {
     try {
         const tint = detectPageTinting();
-        if (!tint) return;
+        if (!tint) return null;
+        if (!tint.named) {
+            log(`No extension is named, but ${tint.evidence} is on this page; if colours look wrong, `
+                + "game.drpg.diagnoseStyles() starts with it.");
+            return tint;
+        }
         log(`${tint.name} is repainting this page - ${tint.evidence}`);
         ui.notifications.warn(
             game.i18n.format("DRPG.Diagnostics.pageTinted", { name: tint.name }),
             { permanent: true }
         );
+        return tint;
     } catch {
         // A warning that throws is worse than no warning.
+        return null;
     }
 }
 
@@ -535,6 +580,30 @@ function pixelFontLines(lines) {
     }
 }
 
+/**
+ * Stained Glass draws in its own two faces, VT323 and Special Elite (stained-glass.css's `@font-face` blocks), set
+ * through its `--drpg-font-*` tokens; the pixel-font setting does not apply under it (settings.mjs `pixelFontOn`).
+ * Before E52 C5 (audit S01-51) this report checked only the pixel face, so under the default theme it read a face
+ * nothing was drawn in and none of the ones that were.
+ */
+function glassFontLines(lines, root) {
+    lines.push("Theme: Stained Glass - its faces are VT323 and Special Elite; the pixel font setting does not apply.");
+    for (const family of ["VT323", "Special Elite"]) {
+        const faces = Array.from(document.fonts ?? []).filter(f => String(f.family).replace(/["']/g, "") === family);
+        lines.push(`@font-face "${family}": ${faces.length} (expected 2 - latin and latin-ext)`);
+        for (const face of faces) {
+            lines.push(`   status: ${face.status}${face.status === "error" ? "  ← THE FILE FAILED TO LOAD" : ""}, range: ${String(face.unicodeRange).slice(0, 34)}`);
+        }
+        const differs = rastersDiffer("A", family);
+        lines.push(`   "A" drawn in ${family}: ${differs === null ? "could not measure"
+            : differs ? "the real glyph" : "IDENTICAL TO THE FALLBACK  ← substituted, the face is not being used here"}`);
+    }
+    for (const token of ["--drpg-font-chrome", "--drpg-font-title", "--drpg-font-prose"]) {
+        const value = root.getPropertyValue(token).trim();
+        lines.push(`   ${token.padEnd(20)} ${value ? value.slice(0, 52) : "(EMPTY)  ← stained-glass.css's tokens are not on this page"}`);
+    }
+}
+
 function despairBarLines(lines, root) {
     const pip = document.querySelector("#drpg-despair .drpg-despair-pip");
     if (!pip) {
@@ -542,20 +611,20 @@ function despairBarLines(lines, root) {
     } else {
         const bar = document.querySelector("#drpg-despair");
         const before = getComputedStyle(pip, "::before");
-        const masked = bar.classList.contains("masked");
-        // Both states are masks - a skull for the GM, a question mark for a
-        // player - so the useful question is which one landed, and whether it
-        // landed at all. No mask plus a background is a solid square on screen.
+        // One mask on every client since D3 (despair.mjs `buildRow`: the count is
+        // public; only the overflow caption hides its number from a player), so
+        // the useful question is whether the skull landed at all. No mask plus a
+        // background is a solid square on screen.
         const mask = before.maskImage || before.webkitMaskImage || "none";
-        const wanted = root.getPropertyValue(masked ? "--drpg-pix-query" : "--drpg-pix-skull").trim();
-        lines.push(`Despair bar: ${bar.classList.length ? bar.className : "(no classes)"}${masked ? "  - this client sees question marks" : "  - this client sees skulls"}`);
+        const wanted = root.getPropertyValue("--drpg-pix-skull").trim();
+        lines.push(`Despair bar: ${bar.classList.length ? bar.className : "(no classes)"}`);
         lines.push(`   pip colour: ${getComputedStyle(pip).color}`);
         lines.push(`   ::before content: ${before.content}, background: ${before.backgroundColor}`);
         lines.push(`   ::before mask: ${mask.slice(0, 46)}`);
         if (mask === "none") {
             lines.push("   ← NO MASK. With a background colour set, that draws a filled square, not a glyph.");
         } else if (wanted && mask.replace(/\s+/g, "") !== wanted.replace(/\s+/g, "")) {
-            lines.push(`   ← the wrong mask for this state - expected the ${masked ? "question mark" : "skull"}.`);
+            lines.push("   ← not the skull mask the stylesheet sets.");
         }
         lines.push(...paintLines("pip", pip, "color"));
     }
@@ -578,12 +647,20 @@ function callIconLines(lines, root) {
     }
 }
 
-function resourceLines(lines) {
+/*
+ * A stylesheet or a face, with or without a query. The stylesheet asks for `pixel.woff2?v=2` and `pixel-ext.woff2?v=3`
+ * (danganronpa.css's `@font-face`), and the `/\.woff2$/` this replaced (E52 C5, audit S01-51) missed both, then said
+ * no face had been fetched at all.
+ */
+const STYLE_FILE = /\.(css|woff2)(\?|$)/;
+const FACE_FILE = /\.woff2(\?|$)/;
+
+function resourceLines(lines, glass = false) {
     const resources = (performance.getEntriesByType?.("resource") ?? [])
         .filter(r => r.name.includes(MODULE_ID));
     const origins = [...new Set(resources.map(r => { try { return new URL(r.name).origin; } catch { return "?"; } }))];
     lines.push(`Module files fetched: ${resources.length}, served from: ${origins.join(", ") || "(none)"}`);
-    for (const r of resources.filter(r => /\.css$|\.woff2$/.test(r.name))) {
+    for (const r of resources.filter(r => STYLE_FILE.test(r.name))) {
         // A 304 revalidation reports decoded 0 bytes and is perfectly healthy -
         // the body came from cache. Only the status code separates that from a
         // 404, so prefer it and stay quiet when the browser does not expose it.
@@ -595,13 +672,21 @@ function resourceLines(lines) {
             : "";
         lines.push(`   ${r.name.split("/").slice(-2).join("/")} - transferred ${r.transferSize}B, decoded ${r.decodedBodySize}B${verdict}`);
     }
-    if (!resources.some(r => /\.woff2$/.test(r.name))) {
-        lines.push("   no .woff2 was requested at all - either the font setting is off, or no text on screen");
-        lines.push("   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
+    if (!resources.some(r => FACE_FILE.test(r.name))) {
+        lines.push(glass
+            ? "   no .woff2 was requested at all - no text on screen is using VT323 or Special Elite yet."
+            : "   no .woff2 was requested at all - either the font setting is off, or no text on screen");
+        lines.push(glass
+            ? "   Open a window of this module and run this again."
+            : "   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
     }
 }
 
-export function diagnoseStyles({ toChat = true } = {}) {
+/**
+ * `game.drpg.diagnoseStyles()`: the page's stylesheets, the theme's tokens and faces, the Despair bar's paint and
+ * the files fetched, as one text. `glass` is the theme the face section reads (handed in by R1555).
+ */
+export function diagnoseStyles({ toChat = true, glass = glassOn() } = {}) {
     const lines = [];
 
     // ---- 1. The page itself -------------------------------------------------
@@ -609,7 +694,12 @@ export function diagnoseStyles({ toChat = true } = {}) {
     // repainting the page wins the cascade over everything in a layer, and this
     // module's entire stylesheet is in one.
     const tint = detectPageTinting();
-    if (tint) {
+    if (tint && !tint.named) {
+        lines.push(`?  ${tint.evidence} - no extension is named.`);
+        lines.push("   A module writing its CSS inline looks the same. If the colours below look wrong,");
+        lines.push("   an extension repainting the page is the first thing to rule out.");
+        lines.push("");
+    } else if (tint) {
         lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
         lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
         lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
@@ -627,9 +717,10 @@ export function diagnoseStyles({ toChat = true } = {}) {
 
     const root = themeTokenLines(lines);
 
-    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
+    // ---- 4. Did the theme's faces arrive, and do they carry their characters? ----
     lines.push("");
-    pixelFontLines(lines);
+    if (glass) glassFontLines(lines, root);
+    else pixelFontLines(lines);
 
     // ---- 5. The two things that were reported wrong ------------------------
     lines.push("");
@@ -650,9 +741,15 @@ export function diagnoseStyles({ toChat = true } = {}) {
 
     // ---- 6. What actually came over the wire -------------------------------
     lines.push("");
-    resourceLines(lines);
+    resourceLines(lines, glass);
 
     return report("Style diagnostics", lines, { toChat });
+}
+
+/** The version stamped in the stylesheet on this page (`--drpg-css-version`), or "" when it is not on the page. */
+export function stylesheetVersion() {
+    return getComputedStyle(document.documentElement)
+        .getPropertyValue("--drpg-css-version").trim().replace(/^["']|["']$/g, "");
 }
 
 /**
@@ -674,11 +771,6 @@ export function diagnoseStyles({ toChat = true } = {}) {
  * part of the cascade than it was written for, which is a worse bug than the
  * one it set out to solve, and a harder one to see.
  */
-export function stylesheetVersion() {
-    return getComputedStyle(document.documentElement)
-        .getPropertyValue("--drpg-css-version").trim().replace(/^["']|["']$/g, "");
-}
-
 export function verifyStylesheet() {
     const css = stylesheetVersion();
     const version = moduleVersion();
@@ -711,6 +803,13 @@ export function verifyStylesheet() {
 }
 
 /**
+ * The fixed-width faces this module draws in: the pixel face and its fallbacks (danganronpa.css `--drpg-font-pixel`)
+ * and Stained Glass's VT323 (stained-glass.css `--drpg-font-chrome`), which `/pixel|press start/` did not know
+ * (E52 C5, audit S01-51). Read by `diagnoseWindows` on a core window's label.
+ */
+export const FIXED_FACES = /pixel|press start|silkscreen|vt323/i;
+
+/**
  * Why is a Foundry config window cut off at the right edge?
  *
  * Open the window that is wrong - Token Config, Scene Config - and then:
@@ -736,16 +835,19 @@ export function diagnoseWindows({ toChat = true } = {}) {
 
     // The two settings that change how wide text is drawn, either of which can
     // differ between a local world and a hosted one without anybody meaning it.
-    let fontSize = "(unreadable)";
+    // v14's uiConfig keeps the text size as `fontScale`; the `fontSize` read here
+    // before E52 C5 (audit S01-51) answered "(unset)" on every v14 world.
+    let fontScale = "(unreadable)";
     let scale = "(unreadable)";
     try {
         const ui = game.settings.get("core", "uiConfig") ?? {};
-        fontSize = String(ui.fontSize ?? "(unset)");
+        fontScale = String(ui.fontScale ?? "(unset)");
         scale = String(ui.uiScale ?? "(unset)");
-    } catch { /* older core */ }
-    lines.push(`Core UI: fontSize ${fontSize}, uiScale ${scale}`);
-    lines.push(`Pixel font setting: ${
-        getSetting(SETTINGS.pixelFont) ? "ON" : "off"}, body.drpg-pixel-font: ${
+    } catch { /* older core, or no uiConfig on this page */ }
+    lines.push(`Core UI: fontScale ${fontScale}, uiScale ${scale}`);
+    // The face actually drawn: under Stained Glass the pixel setting is moot and
+    // the theme's VT323 is the fixed face (settings.mjs `pixelFontOn`).
+    lines.push(`Pixel face: ${pixelFontOn() ? "on" : glassOn() ? "off - Stained Glass draws in VT323" : "off"}, body.drpg-pixel-font: ${
         document.body.classList.contains("drpg-pixel-font") ? "present" : "absent"}`);
     lines.push("");
 
@@ -786,9 +888,9 @@ export function diagnoseWindows({ toChat = true } = {}) {
         const label = win.querySelector("label, .form-group > label, legend");
         if (label) {
             const ls = getComputedStyle(label);
-            const pixel = /pixel|press start/i.test(ls.fontFamily);
+            const fixed = FIXED_FACES.test(ls.fontFamily);
             lines.push(`   label font: ${ls.fontFamily.slice(0, 60)}${
-                pixel ? "   ← THE PIXEL FACE IS BEING APPLIED INSIDE A CORE WINDOW" : ""}`);
+                fixed ? "   ← A FIXED-WIDTH FACE OF THIS MODULE IS BEING APPLIED INSIDE A CORE WINDOW" : ""}`);
             lines.push(`   label width: ${Math.round(label.getBoundingClientRect().width)}px, `
                 + `white-space: ${ls.whiteSpace}`);
         }
@@ -818,10 +920,18 @@ export function diagnoseWindows({ toChat = true } = {}) {
  *     game.drpg.traceClicks()
  *
  * It watches for twenty seconds and then posts what it saw. Nothing is
- * intercepted - every listener is passive and in the capture phase, so this
- * cannot itself be the reason a click goes missing.
+ * intercepted - every listener is passive, so this cannot itself be the reason
+ * a click goes missing.
+ *
+ * TWO PHASES SINCE E52 C5 (audit S01-51). The capture listeners on the document
+ * hear a click before the control does, so a click the control's own listener
+ * stopped or cancelled read as one that worked. A passive listener on the
+ * window hears it again on its way back up: one that never comes back was
+ * stopped (stopPropagation), one that comes back cancelled was cancelled after
+ * the press (preventDefault). `toChat: false` posts no card and no notice;
+ * `onReport` is handed the text when the watch ends (R1556 reads both).
  */
-export function traceClicks({ seconds = 20 } = {}) {
+export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {}) {
     const lines = [];
     const t0 = performance.now();
     const at = () => `${String(Math.round(performance.now() - t0)).padStart(5)}ms`;
@@ -848,6 +958,15 @@ export function traceClicks({ seconds = 20 } = {}) {
     };
 
     let pressed = null;
+    let inFlight = null;
+    const cameBack = event => {
+        if (event !== inFlight?.event) return;
+        const { prevented } = inFlight;
+        inFlight = null;
+        if (event.defaultPrevented && !prevented) {
+            push("       ← it came back up cancelled: a listener on the way called preventDefault");
+        }
+    };
     const handlers = {
         pointerdown(event) {
             pressed = event.target;
@@ -873,6 +992,15 @@ export function traceClicks({ seconds = 20 } = {}) {
         click(event) {
             push(`CLICK  on ${name(event.target)}${
                 event.defaultPrevented ? "   ← already defaultPrevented before it got here" : ""}`);
+            const going = { event, prevented: event.defaultPrevented };
+            inFlight = going;
+            // Dispatch is synchronous, so by the next task the click has either
+            // come back up to the window or been stopped on the way.
+            setTimeout(() => {
+                if (inFlight !== going) return;
+                inFlight = null;
+                push("       ← it never came back up to the page: a listener on the way called stopPropagation");
+            }, 0);
         },
         change(event) {
             push(`CHANGE on ${name(event.target)} → ${
@@ -883,13 +1011,15 @@ export function traceClicks({ seconds = 20 } = {}) {
     for (const [type, fn] of Object.entries(handlers)) {
         document.addEventListener(type, fn, { capture: true, passive: true });
     }
+    window.addEventListener("click", cameBack, { passive: true });
 
-    ui.notifications.info(game.i18n.format("DRPG.Diagnostics.tracing", { seconds }));
+    if (toChat) ui.notifications.info(game.i18n.format("DRPG.Diagnostics.tracing", { seconds }));
 
     setTimeout(() => {
         for (const [type, fn] of Object.entries(handlers)) {
             document.removeEventListener(type, fn, { capture: true });
         }
+        window.removeEventListener("click", cameBack);
 
         const out = lines.map(l => l.n > 1 ? `${l.text}   × ${l.n}` : l.text);
 
@@ -911,28 +1041,13 @@ export function traceClicks({ seconds = 20 } = {}) {
         if (!out.length) out.push("Nothing happened while this was watching.");
         out.unshift(`Foundry ${game.version}, ${game.system.id} ${game.system.version}, `
             + `module v${moduleVersion()}, stylesheet v${stylesheetVersion() || "(none)"}`, "");
-        report("Click trace", out);
+        const text = report("Click trace", out, { toChat });
+        try { onReport?.(text); } catch (err) { debug("The click trace's reader threw", err); }
     }, seconds * 1000);
 
     return `Watching clicks for ${seconds} seconds.`;
 }
 
-/**
- * WHICH OF THIS MODULE'S FILES DID THE SERVER ACTUALLY UPDATE?
- *
- *     await game.drpg.fileSizes()
- *
- * Fetches each script and stylesheet straight from the host, bypassing the
- * browser cache, and reports the size of what came back. Sizes are not a
- * checksum and are not meant to be: paste the list, and the same list taken
- * from the working copy answers "is this file the one I edited" in one glance.
- *
- * It exists because the ordinary answers do not work on a hosted world. The
- * version is the host's record of an install, not a description of the files;
- * the stylesheet stamp covers one file out of eighty; and a deployment that
- * replaced some files and not others looks exactly like a deployment that
- * worked.
- */
 /**
  * Every script the module actually loads, crawled from its entry point.
  *
@@ -1001,6 +1116,22 @@ export async function loadedFiles() {
     ])];
 }
 
+/**
+ * WHICH OF THIS MODULE'S FILES DID THE SERVER ACTUALLY UPDATE?
+ *
+ *     await game.drpg.fileSizes()
+ *
+ * Fetches each script and stylesheet straight from the host, bypassing the
+ * browser cache, and reports the size of what came back. Sizes are not a
+ * checksum and are not meant to be: paste the list, and the same list taken
+ * from the working copy answers "is this file the one I edited" in one glance.
+ *
+ * It exists because the ordinary answers do not work on a hosted world. The
+ * version is the host's record of an install, not a description of the files;
+ * the stylesheet stamp covers one file out of eighty; and a deployment that
+ * replaced some files and not others looks exactly like a deployment that
+ * worked.
+ */
 export async function fileSizes() {
     const lines = [];
     const files = await loadedFiles();
@@ -1385,30 +1516,9 @@ function report(title, lines, { toChat = true } = {}) {
 }
 
 /**
- * What the theme costs this machine, measured on this machine.
- *
- * `game.drpg.perf()`.
- *
- * WHY THIS EXISTS AND WHY IT COULD NOT BE ANSWERED ANYWHERE ELSE. Every
- * performance claim this module makes was measured headlessly, and headless
- * Chromium composites a canvas in software: the curtain's pulse measured 117 ms
- * a frame at 1920 x 993 there and 21 ms on a phone-sized window, which says
- * something about how the cost SCALES and nothing at all about what a real
- * machine with a real GPU does with it. The only honest number comes from the
- * screen somebody is actually playing on, so the command that takes it lives
- * here rather than the number.
- *
- * The pulse is measured by holding it off and taking the frames again, which is
- * the one part of the theme that repaints on its own. Everything else here -
- * the curtain's cut, the module's own hot lookups - is timed by doing it.
- *
- * Nothing is left changed: the pulse goes back to whatever it was, including
- * off, and a curtain forced to recut settles on the next frame like any other.
- */
-/**
  * WHERE THE TIME ACTUALLY GOES, ON THE MACHINE SOMEBODY IS PLAYING ON.
  *
- * `perfReport` above prices things this module already suspects - the pulse,
+ * `perfReport`, below, prices things this module already suspects - the pulse,
  * the blur, a recut of the glass. This one does not guess: it asks the browser
  * to attribute every long frame's script time to the file and the function it
  * ran in, which is how the audit's own numbers were taken in the harness, and
@@ -1501,19 +1611,51 @@ export async function whySlow({ seconds = 15 } = {}) {
     return report;
 }
 
+/**
+ * The browser's beat in ms a frame, over `frames` frames after `warmup` frames that are not timed.
+ *
+ * Taken over `frames` frames rather than one: a single frame catches whatever else the tab was doing. THE WARM-UP
+ * (E52 C5, audit S01-51): `perfReport` holds the pulse and the blur by setting a class on the body, and the
+ * module's MutationObservers on the body's classes answer that change in the frames right after it; timed from the
+ * first frame, their restyle was counted as the pulse's or the blur's cost. Five frames is a choice, not a
+ * measurement: R1556 holds that the frames a warm-up skips are not counted, not how many a real browser needs.
+ * `raf` and `now` are handed in by R1556.
+ */
+export async function frameBeat({ frames = 60, warmup = 5, raf = cb => requestAnimationFrame(cb), now = () => performance.now() } = {}) {
+    for (let i = 0; i < warmup; i++) await new Promise(r => raf(r));
+    const t0 = now();
+    for (let i = 0; i < frames; i++) await new Promise(r => raf(r));
+    return (now() - t0) / frames;
+}
+
+/**
+ * What the theme costs this machine, measured on this machine.
+ *
+ * `game.drpg.perf()`.
+ *
+ * WHY THIS EXISTS AND WHY IT COULD NOT BE ANSWERED ANYWHERE ELSE. Every
+ * performance claim this module makes was measured headlessly, and headless
+ * Chromium composites a canvas in software: the curtain's pulse measured 117 ms
+ * a frame at 1920 x 993 there and 21 ms on a phone-sized window, which says
+ * something about how the cost SCALES and nothing at all about what a real
+ * machine with a real GPU does with it. The only honest number comes from the
+ * screen somebody is actually playing on, so the command that takes it lives
+ * here rather than the number.
+ *
+ * The pulse is measured by holding it off and taking the frames again, which is
+ * the one part of the theme that repaints on its own. Everything else here -
+ * the curtain's cut, the module's own hot lookups - is timed by doing it.
+ *
+ * Nothing is left changed: the pulse goes back to whatever it was, including
+ * off, and a curtain forced to recut settles on the next frame like any other.
+ */
 export async function perfReport({ frames = 60 } = {}) {
     const lines = [];
     const round = n => Math.round(n * 100) / 100;
 
-    /* The browser's own beat, which is the number everything else is a share of.
-       Taken over `frames` frames rather than one: a single frame catches whatever
-       else the tab was doing. */
-    const beat = async () => {
-        await new Promise(r => requestAnimationFrame(r));
-        const t0 = performance.now();
-        for (let i = 0; i < frames; i++) await new Promise(r => requestAnimationFrame(r));
-        return (performance.now() - t0) / frames;
-    };
+    /* The browser's own beat, which is the number everything else is a share of
+       (`frameBeat`, after a warm-up). */
+    const beat = () => frameBeat({ frames });
 
     lines.push(`Screen ${innerWidth} x ${innerHeight}, device pixel ratio ${devicePixelRatio}`);
     lines.push(`Frames averaged over ${frames}`);

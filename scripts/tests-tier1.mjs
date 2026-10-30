@@ -27960,6 +27960,178 @@ const INVARIANTS = [
         equal(stableJson([seen.includes("R1553 target gone"), seen.includes("R1553 fallback gone"), seen.includes(counted)]), stableJson([true, true, true]),
             "the failed row is not shown with its fallback, or the unread rows are not counted [failed target | its fallback | the count]");
     }],
+    ["R1554 - page tint: a permanent notice only for a named Dark Reader; an unnamed big inline sheet is a console line and a line of diagnoseStyles, and a sheet whose owner node names the system or a module is skipped (E52 C5, S01-39)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-39, E52-17. `detectPageTinting` read any inline sheet of 200 or more rules as
+         * "an extension", and `warnAboutPageTinting` put a permanent "turn the extension off" in front of every
+         * player at every login - a table with a module that writes its CSS inline was told to switch off an
+         * extension it does not run. Here three real <style> elements of 250 rules each go into this page one at a
+         * time and come out again: a plain one (no notice, a console line, a diagnoseStyles line), the same one
+         * with its owner node named after the system (skipped), and one carrying `--darkreader-` variables (the
+         * notice, permanent). `ui.notifications.warn` is stood in and put back.
+         * Red before C5: the plain sheet gave the permanent notice (one warn), and detect said nothing of a name.
+         */
+        const D = await import("./diagnostics.mjs");
+        must(D.detectPageTinting() === null, "this page already holds a sheet the detector reads - nothing here can be told apart");
+        const made = [];
+        const sheet = (text, attrs = {}) => {
+            const el = document.createElement("style");
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+            el.textContent = text;
+            document.head.append(el);
+            made.push(el);
+            return el;
+        };
+        const rules = (prefix, body) => Array.from({ length: 250 }, (_, i) => `.r1554-${prefix}-${i} { ${body(i)} }`).join("\n");
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const warned = [];
+        let plain, owned, named, plainWarns, styles;
+        try {
+            ui.notifications.warn = (text, options) => { warned.push([String(text), options?.permanent === true]); };
+            const a = sheet(rules("plain", i => `color: rgb(1, 2, ${i % 255});`));
+            plain = D.detectPageTinting();
+            D.warnAboutPageTinting();
+            plainWarns = warned.length;
+            styles = D.diagnoseStyles({ toChat: false });
+            a.remove();
+            const b = sheet(rules("owned", i => `color: rgb(3, 4, ${i % 255});`), { id: `${game.system?.id ?? "daggerheart"}-generated-styles` });
+            owned = D.detectPageTinting();
+            b.remove();
+            const c = sheet(rules("dr", () => "--darkreader-bg--r1554: #000;"));
+            named = D.detectPageTinting();
+            D.warnAboutPageTinting();
+            c.remove();
+        } finally {
+            for (const el of made) el.remove();
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else delete ui.notifications.warn;
+        }
+        equal(stableJson([plain?.named ?? null, plainWarns, String(styles ?? "").includes("inline stylesheet of 250 rules"),
+            /IS REPAINTING THIS PAGE/.test(String(styles ?? ""))]), stableJson([false, 0, true, false]),
+            "an unnamed inline sheet of 250 rules [detect's named | notices | diagnoseStyles names it | diagnoseStyles calls it a repaint]");
+        equal(owned, null, "a sheet whose owner node names the system is still read as a repainting extension");
+        equal(stableJson([named?.name ?? null, named?.named ?? null, warned.slice(plainWarns).map(([, permanent]) => permanent)]),
+            stableJson(["Dark Reader", true, [true]]), "a sheet carrying --darkreader- variables [name | named | the notices, permanent]");
+    }],
+    ["R1555 - diagnoseStyles and diagnoseWindows follow the code: the theme's own faces (VT323, Special Elite and their tokens under Stained Glass, DRPG Pixel under Monokuma Legacy), a fetched pixel.woff2?v=2 and a css?v= counted, fontScale read, VT323 known as a fixed face, and no masked Despair bar (E52 C5, S01-51)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-51, E52-18. The style report was written for the pixel font of Monokuma
+         * Legacy: under Stained Glass, the default theme, it checked no face the theme draws in; its resource filter
+         * `/\.woff2$/` missed the stylesheet's own `pixel.woff2?v=2` and then said "no .woff2 was requested at all";
+         * the window report read `fontSize`, a key v14's uiConfig no longer has, and knew no VT323; and the Despair
+         * bar's `masked` branch read a class the bar has not carried since D3 (despair.mjs removes it). Here the
+         * resource list is a stand-in (`performance.getEntriesByType`, put back), the theme is handed in, and the
+         * report's text is read.
+         * Red before C5: the woff2 with a query read as missing; no VT323 or Special Elite line; "fontSize".
+         */
+        const D = await import("./diagnostics.mjs");
+        const base = `${globalThis.location?.origin ?? "http://harness.invalid"}/modules/${MODULE_ID}`;
+        const fetched = [
+            { name: `${base}/fonts/pixel.woff2?v=2`, transferSize: 300, decodedBodySize: 12500, responseStatus: 200 },
+            { name: `${base}/styles/danganronpa.css?v=r1555`, transferSize: 300, decodedBodySize: 90000, responseStatus: 200 }
+        ];
+        const ownGet = Object.getOwnPropertyDescriptor(performance, "getEntriesByType");
+        let glass, legacy;
+        try {
+            performance.getEntriesByType = type => type === "resource" ? fetched : [];
+            glass = String(D.diagnoseStyles({ toChat: false, glass: true }));
+            legacy = String(D.diagnoseStyles({ toChat: false, glass: false }));
+        } finally {
+            if (ownGet) Object.defineProperty(performance, "getEntriesByType", ownGet);
+            else delete performance.getEntriesByType;
+        }
+        equal(stableJson([glass.includes("fonts/pixel.woff2?v=2"), glass.includes("styles/danganronpa.css?v=r1555"), glass.includes("no .woff2 was requested")]),
+            stableJson([true, true, false]), "the fetched files [pixel.woff2?v=2 listed | css?v= listed | told none was requested]");
+        equal(stableJson([glass.includes('@font-face "VT323"'), glass.includes('@font-face "Special Elite"'),
+            ["--drpg-font-chrome", "--drpg-font-title", "--drpg-font-prose"].filter(t => !glass.includes(t)), glass.includes('@font-face entries for "DRPG Pixel"')]),
+            stableJson([true, true, [], false]), "Stained Glass's faces [VT323 | Special Elite | tokens not read | reads the pixel face instead]");
+        equal(stableJson([legacy.includes('@font-face entries for "DRPG Pixel"'), legacy.includes('@font-face "VT323"')]), stableJson([true, false]),
+            "Monokuma Legacy's face [DRPG Pixel read | VT323 read]");
+
+        const windows = String(D.diagnoseWindows({ toChat: false }));
+        equal(stableJson([/Core UI: fontScale /.test(windows), /fontSize/.test(windows)]), stableJson([true, false]),
+            "the window report's core UI line [reads fontScale | reads fontSize]");
+        equal(stableJson(['"VT323", "Courier New", monospace', '"DRPG Pixel", "Press Start 2P", monospace', "Signika, sans-serif"]
+            .map(stack => D.FIXED_FACES instanceof RegExp ? D.FIXED_FACES.test(stack) : null)), stableJson([true, true, false]),
+            "FIXED_FACES does not tell the theme's fixed faces from Foundry's Signika [VT323 | DRPG Pixel | Signika]");
+        const src = new Map(await moduleSources()).get("diagnostics.mjs");
+        must(src, "diagnostics.mjs was not read");
+        const bar = stripComments(fnSource(src, "despairBarLines"));
+        equal(stableJson([bar.includes("masked"), bar.includes("--drpg-pix-query")]), stableJson([false, false]),
+            "despairBarLines still reads a masked Despair bar [masked | the question-mark mask]");
+    }],
+    ["R1556 - traceClicks hears a click cancelled on its way back up, perfReport warms up before it times frames, and each diagnostics JSDoc stands over its own function (E52 C5, S01-51)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-51, E52-18. traceClicks listened in the capture phase only, so a click a
+         * listener stopped (stopPropagation) or cancelled (preventDefault) after the capture read as a click that
+         * happened - the third shape its header promises to tell apart. perfReport timed the frames right after it
+         * set a body class, so the module's MutationObservers reacting to that class were counted as the pulse's
+         * or the blur's cost. And four JSDoc blocks stood over the wrong function (two stacked, perfReport's over
+         * whySlow, verifyStylesheet's over stylesheetVersion).
+         * Here: a real button that stops and cancels its click, traced for 0.3 s without a chat card (`toChat:
+         * false`, the text handed to `onReport`); `frameBeat` with a stand-in clock whose first three frames cost
+         * 100 ms (the observers) and the rest 10 ms; the file's JSDoc read with the kit.
+         * Red before C5: no report handed back (traceClicks returned a string and posted a card); no frameBeat; three
+         * JSDoc blocks stacked.
+         */
+        const D = await import("./diagnostics.mjs");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "r1556-swallow";
+        button.style.cssText = "position:fixed;left:-9999px;top:0;";
+        button.addEventListener("click", event => { event.stopPropagation(); event.preventDefault(); });
+        const calm = document.createElement("button");
+        calm.type = "button";
+        calm.className = "r1556-calm";
+        calm.style.cssText = "position:fixed;left:-9999px;top:0;";
+        document.body.append(button, calm);
+        let text = null;
+        try {
+            const got = new Promise(resolve => {
+                D.traceClicks({ seconds: 0.3, toChat: false, onReport: resolve });
+                setTimeout(() => resolve(null), 1500);
+            });
+            calm.click();
+            button.click();
+            text = await got;
+        } finally {
+            button.remove();
+            calm.remove();
+        }
+        const lines = String(text ?? "").split("\n");
+        const at = lines.findIndex(l => l.includes("CLICK") && l.includes("r1556-swallow"));
+        const calmAt = lines.findIndex(l => l.includes("CLICK") && l.includes("r1556-calm"));
+        equal(stableJson([typeof text, at >= 0, at >= 0 && /stopPropagation/.test(lines[at + 1] ?? ""),
+            calmAt >= 0 && /stopPropagation|preventDefault/.test(lines[calmAt + 1] ?? "")]), stableJson(["string", true, true, false]),
+            "the click trace [a report handed back | the swallowed click listed | told it never came back up | the calm click told so too]");
+
+        ok(typeof D.frameBeat === "function", "diagnostics.mjs has no frameBeat");
+        if (typeof D.frameBeat === "function") {
+            const clockFor = () => {
+                let clock = 0, calls = 0;
+                return { now: () => clock, raf: cb => { calls += 1; clock += calls <= 3 ? 100 : 10; cb(clock); } };
+            };
+            const warm = clockFor(), cold = clockFor(), byDefault = clockFor();
+            equal(stableJson([await D.frameBeat({ frames: 10, warmup: 5, ...warm }), await D.frameBeat({ frames: 10, warmup: 0, ...cold }),
+                await D.frameBeat({ frames: 10, ...byDefault })]), stableJson([10, 37, 10]),
+                "frameBeat's ms a frame [warmed up 5 | not warmed | the default warm-up]");
+        }
+        const src = new Map(await moduleSources()).get("diagnostics.mjs");
+        must(src, "diagnostics.mjs was not read");
+        equal((src.match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*\/\*\*/g) ?? []).length, 0, "a JSDoc block in diagnostics.mjs stands over another JSDoc block, not a function");
+        const docOver = marker => (bodyOf(src, marker, { back: 4000 }).match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*$/) ?? [""])[0];
+        equal(stableJson([
+            docOver("export function diagnoseDice(").includes("Dice So Nice might be rolling unskinned dice"),
+            docOver("function rollAudienceLines(").includes("WHO WAS ALLOWED TO WATCH"),
+            docOver("export async function fileSizes(").includes("game.drpg.fileSizes()"),
+            docOver("export async function loadedFiles(").includes("Every script the module actually loads"),
+            docOver("export async function perfReport(").includes("game.drpg.perf()"),
+            docOver("export async function whySlow(").includes("WHERE THE TIME ACTUALLY GOES"),
+            docOver("export function verifyStylesheet(").includes("Runs at load"),
+            fnSource(src, "perfReport").includes("frameBeat(")
+        ]), stableJson([true, true, true, true, true, true, true, true]),
+            "a JSDoc block over the wrong function [diagnoseDice | rollAudienceLines | fileSizes | loadedFiles | perfReport | whySlow | verifyStylesheet | perfReport times with frameBeat]");
+    }],
 ];
 
 /**
