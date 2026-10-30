@@ -10,6 +10,7 @@ Base: bc158f09 (line B's branch = main 12ff1b62 + E20). Spec: STAGE.md (the owne
 | C3 | 1de03286 | QUICK GREEN at 4022cd83+edits: lint/check/gate ok; prose ok; t01 ok; own(5) ok; scen 75 ok (logs /c/Users/chrob/quick-runs/4022cd83-207); R1545-R1548 (t1, E52-09..13), R1549 (t0, anchors) red first on assertions; with R38, R509, R534, R591, R807, R808, R1537, R1538, R1541, R539: 16 passed, 0 failed |
 | C3 fix | 2c635111, 5d16b968 | CI on 1de03286 red in suite 1/8 on R1546: scenario 01 runs tiers 0-1 three times in one page and enforced.mjs says a missing entry once per load per row id; 2c635111 (own key) still red, 5d16b968 (own id stamp) CI green; a temporary twice-in-one-page run: red on 2c635111, green on 5d16b968 |
 | C4 | d8e8f68b | QUICK GREEN at 5d16b968+edits: lint/check/gate ok; prose ok; t01 ok; own(12) ok; scen 66 ok (logs /c/Users/chrob/quick-runs/5d16b968-1556); R1550-R1553 (t1), E52-T2 (t2) red first on assertions (R1553 expected [20,0], measured [20,20]); with R1541: 10 passed, 0 failed |
+| C5 | 4f9edb60 | QUICK GREEN at d8e8f68b+edits: lint/check/gate ok; prose ok; t01 ok; own(6) ok; scen 13 ok (logs /c/Users/chrob/quick-runs/d8e8f68b-2270); R1554-R1556 (t1, E52-17, -18) red first on assertions; with "nothing is repainting the page": 5 passed, 0 failed |
 
 ## Open
 - C1 note: R1537's reader also found `ui.sidebar.toggleExpanded`/`changeTab` (foundry-windows.mjs) - a row added; hook rows added now with presence-only probes
@@ -33,3 +34,6 @@ Base: bc158f09 (line B's branch = main 12ff1b62 + E20). Spec: STAGE.md (the owne
 - C4 gap: R1551 stands a player in on the GM's client, so the fog part's read of the "discovery" store is left out; a real player's report not measured - the review
 - C4 gap: clearing `recommendsSilenced` assumes v14 keeps client settings in localStorage as "<module>.<key>" - not measured
 - C4 gap: the report block and the folded line in both themes at a table's size not measured; outside the file list: fog.mjs (`diagnoseFog` takes `gm`), music.mjs (`diagnoseMusic` takes `toChat`)
+- C5 gap: theme fonts, the click trace's bubble phase and the 5-frame warm-up not measured in a real browser; the warm-up length is a choice - C7 LIVE
+- C5 correction: 4f9edb60's message says the harness has "no document.fonts, no canvas"; it has a `document.fonts` stand-in holding no faces, and canvas was not checked - the review
+- C5 gap: the tier-1 test "nothing is repainting the page" still fails when an unnamed big inline sheet is on the page - the review
