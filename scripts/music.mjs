@@ -339,15 +339,21 @@ let playingPlaylist = null;
  * HOW LONG THE PRIMARY WAITS AFTER A MAPPING CHANGE (E50 C3; audit S11-34, Q-E50-3: 1500 ms). Any GM may write the
  * map, and only the primary plays: so the primary follows every write of it, from whichever GM, on the setting's
  * echo. A GM picking through several playlists in the Sound window writes at each pick, and the room should hear
- * only the last; one timer, restarted by each write, then the ordinary settle (`schedule`). The timer is this
- * browser's: a primary GM who leaves within it leaves the change to the next primary's `ready`, which applies the
- * state as the map holds it (on a real server: LIVE-E50-04).
+ * only the last; one timer, restarted by each write, then the ordinary settle (`schedule`).
+ *
+ * ARMED ON EVERY GM, AND DECIDED WHEN IT FIRES (E50 fix FG1; the review's F3). It was armed on the primary alone, and
+ * a primary GM who left within it took the change with it: the GM who became the primary had heard the echo while
+ * it was not, and armed nothing; its `ready` had run long before, and nothing here listens for the primary changing -
+ * so the state's new playlist waited for the next state change. Now every GM's browser keeps the timer and
+ * `schedule()` asks `enabled()` at the moment it fires, so the GM who is the primary then follows it, once; a GM who
+ * is not still runs no apply (87 C1 counts `music.apply`, in `runApply` behind that test). 87 C4 makes gm2 the
+ * primary within the settle; a real GM leaving a real server is LIVE-E50-04.
  */
 const MAP_SETTLE_MS = 1500;
 let mapTimer = null;
 
 function scheduleMapRefresh() {
-    if (!enabled()) return;
+    if (!game.user?.isGM) return;
     if (mapTimer) clearTimeout(mapTimer);
     mapTimer = setTimeout(() => {
         mapTimer = null;
@@ -400,7 +406,7 @@ export function registerMusic() {
             applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
         }
     });
-    Hooks.on("updateSetting", setting => {
+    Hooks.on("updateSetting", (setting, changes, options, userId) => {
         const key = setting?.key;
         /*
          * THE MURDER'S TWO KEYS ARE HANDLED SEPARATELY, and not by `schedule`.
@@ -432,7 +438,7 @@ export function registerMusic() {
             /* AND THE PRIMARY FOLLOWS IT, whoever wrote it (E50 C3; S11-34): the writer's own `schedule` did nothing on a
                GM who is not the primary. This browser's own writes are checked here too (`recheckMusicKeys`). */
             scheduleMapRefresh();
-            recheckMusicKeys();
+            recheckMusicKeys(userId);
             return;
         }
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
@@ -1555,11 +1561,26 @@ function soundPlaylistsPane(playlists, rows) {
  * a map the other's key is missing from, and the later one wins: so for a few seconds after its write this browser
  * keeps what it set, and when a write lands that put a key back as it was before (`recheckMusicKeys`, on the
  * setting's echo) writes that key again, once. A key another GM set to something else since is theirs, and kept.
+ *
+ * WHAT THE REPAIR CANNOT TELL APART (E50 fix FG1; the review's S1). A write that puts the key back is read by what
+ * it holds, and two writes can hold the same thing for different reasons:
+ *   - this browser's own user writing the map by any other road - a console, a macro, a test putting the world
+ *     back - is a deliberate write: `updateSetting`'s `userId` is this user's and the map is none of the ones
+ *     `writeMusicKeys` sent (`mapSent`), so the watch ends there and nothing is written again. Before this, the
+ *     repair wrote four keys back over E50-T1's own restore 66 ms after it (the security review's probe, 30.10.2026);
+ *   - another GM's write that takes the key out, or puts back its old playlist, within MAP_ECHO_MS of this browser's
+ *     change cannot be told from a write that GM made from a map read before this one landed (the race the repair
+ *     is for), so it is overruled once: the key comes back, one write, and that GM's next change of it stands
+ *     (`retry`). The GM handbook says so. A key that GM set to a third playlist is theirs, as above.
  */
 const MAP_ECHO_MS = 4000;
 const mapQueue = new Map();       // state key -> { value, onState, retry }, waiting for the next write
 const mapWritten = new Map();     // state key -> { value, before, until, retry, onState }, this browser's recent writes
+const mapSent = new Set();        // { text, until }: the maps writeMusicKeys sent, until their echo is heard
 let mapChain = Promise.resolve();
+
+/** A map as one string whatever the order of its keys: it is flat, a state key to a playlist id. */
+const mapText = map => JSON.stringify(Object.entries(map ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
 /**
  * Write one state's playlist into the map (an empty id takes the state out). `onState` hears "saving", then "saved"
@@ -1585,9 +1606,13 @@ async function writeMusicKeys() {
         if (value) next[key] = value;
         else delete next[key];
     }
+    // Before the write, as its echo may be heard before the write resolves.
+    const sent = { text: mapText(next), until: Date.now() + MAP_ECHO_MS };
+    mapSent.add(sent);
     try {
         await setSetting(SETTINGS.musicMap, next);
     } catch (err) {
+        mapSent.delete(sent);
         error("Could not save the music mapping", err);
         for (const [, { onState }] of batch) onState?.("failed");
         return;
@@ -1599,11 +1624,26 @@ async function writeMusicKeys() {
     }
 }
 
-/** On every write of the map: a key this browser wrote that a later write put back as it was is written again, once. */
-function recheckMusicKeys() {
-    if (!mapWritten.size) return;
+/**
+ * On every write of the map: a key this browser wrote that a later write put back as it was is written again, once.
+ * `userId` is the writer's (`updateSetting`'s fourth argument): this user's write that `writeMusicKeys` did not send
+ * ends the watch instead.
+ */
+function recheckMusicKeys(userId = null) {
     const now = Date.now();
     const map = musicMap();
+    for (const sent of [...mapSent]) if (now > sent.until) mapSent.delete(sent);
+    if (userId && userId === game.user?.id) {
+        const text = mapText(map);
+        const ours = [...mapSent].find(sent => sent.text === text);
+        if (ours) mapSent.delete(ours);
+        else {
+            if (mapWritten.size) debug("Music: this user wrote the map by another road; its recent rows are not written again.");
+            mapWritten.clear();
+            return;
+        }
+    }
+    if (!mapWritten.size) return;
     for (const [key, mine] of [...mapWritten]) {
         const value = map[key] ?? null;
         if (now > mine.until) mapWritten.delete(key);
@@ -1922,7 +1962,8 @@ export function diagnoseMusic({ toChat = true } = {}) {
     const winner = currentState();
 
     /* THE TABLE'S WORDS (E50 C3; E50-26, the plan's amendment of 05.10 B): the report is shown to a GM in a window, so
-       its lines are keys of DRPG.Music.diag; the console line below stays English. */
+       its lines are keys of DRPG.Music.diag. The console line below prints the same localized text; only its header,
+       "Music diagnostics", stays English. */
     const t = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
     const yes = on => t(on ? "DRPG.Music.diag.yes" : "DRPG.Music.diag.no");
     const cue = situationalPlaylist();

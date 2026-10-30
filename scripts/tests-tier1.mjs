@@ -23389,7 +23389,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ labels: Object.values(words), drawn: Object.values(words), back: C.TIMES_OF_DAY.map(t => saved[t]) }),
             "[the time rows' labels with the table swapped]; [the drawn rows' first cells]; [the labels with the table put back]");
     }],
-    ["R1069 - the Music slider shows and writes Foundry's own number: a position p is the volume inputToVolume(p) and a volume v the position volumeToInput(v), through Foundry's AudioHelper where it has them and Foundry's curve (x ** 1.5) where it does not, so 50 writes 0.3536 and 0.3536 shows 50; the Sound slider stays linear (E50 C3; S11-41, E50-25, LIVE-E50-03)", async () => {
+    ["R1069 - the Music slider shows and writes Foundry's own number: a position p is the volume inputToVolume(p) and a volume v the position volumeToInput(v), through Foundry's AudioHelper where it has them and Foundry's curve (x ** 1.5) where it does not, so the drawn slider moved to 50 writes 0.3536 and 0.3536 shows 50; the Sound slider stays linear (E50 C3, fix FG1; S11-41, E50-25, LIVE-E50-03)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-41. The Music slider wrote `core.globalPlaylistVolume` as the position it stood
          * at and showed `Math.round(volume * 100)`, where Foundry's own playlist slider shows and writes through
@@ -23398,6 +23398,10 @@ const INVARIANTS = [
          * curve of its own (its numbers must come back), none (the formula), and `game.settings.get`/`set` for the two
          * volumes (a read answers 0.3536 for the music and { sound: 0.25 } for the module's, a write is recorded and not
          * made), put back in `finally`. Red at C3's parent: no such functions, the slider at 35, and 0.5 written.
+         *
+         * E50 fix FG1 (the end review's F1 and G1): the write is read through the window's slider - `soundSlidersHtml`
+         * drawn, `wireSoundPanel` on it, each slider moved to 50 by an `input` event, as 87 C3 moves p1's - because the
+         * position is the slider's to turn into a volume; `setSfxVolume`, the macro API's, takes a volume (R1071).
          */
         const S = await import("./sfx.mjs");
         const r4 = n => (Number.isFinite(n) ? Math.round(n * 1e4) / 1e4 : null);
@@ -23424,9 +23428,16 @@ const INVARIANTS = [
             };
             const tpl = document.createElement("template");
             tpl.innerHTML = S.soundSlidersHtml();
-            read.shown = ["music", "sound"].map(key => tpl.content.querySelector(`input[name="vol:${key}"]`)?.value ?? null);
-            await S.setSfxVolume("music", 0.5);
-            await S.setSfxVolume("sound", 0.5);
+            const slider = key => tpl.content.querySelector(`input[name="vol:${key}"]`);
+            read.shown = ["music", "sound"].map(key => slider(key)?.value ?? null);
+            S.wireSoundPanel(tpl.content);
+            for (const key of ["music", "sound"]) {
+                const input = slider(key);
+                if (!input) continue;
+                input.value = "50";
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            await until(() => writes.length >= 2, 1000);
         } finally {
             if (hadGet) settings.get = realGet; else delete settings.get;
             if (hadSet) settings.set = realSet; else delete settings.set;
@@ -23437,7 +23448,50 @@ const INVARIANTS = [
             shown: ["50", "25"],
             writes: [["core.globalPlaylistVolume", 0.3536], [`${MODULE_ID}.${SETTINGS.sfxVolumes}`, { sound: 0.5 }]]
         }), "[the functions missing]; [position 0.5 to a volume and 0.3536 back, with no AudioHelper]; [the same through a stand-in "
-            + "AudioHelper]; [the Music and Sound sliders drawn at 0.3536 and 0.25]; [what the Music and Sound sliders write at 50]");
+            + "AudioHelper]; [the Music and Sound sliders drawn at 0.3536 and 0.25]; [what the drawn Music and Sound sliders write when moved to 50]");
+    }],
+    ["R1071 - setSfxVolume takes a volume for every slider, the Music one included, as before E50 C3: setSfxVolume(\"music\", 0.5) writes 0.5, and setSfxVolume(slider, sfxVolume(slider)) writes the volume it read, Music and Sound (E50 fix FG1; the end review's F1 and G1, tools/api-surface.json)", async () => {
+        /*
+         * E50 fix FG1, 30.10.2026. C3 made `game.drpg.setSfxVolume("music", x)` - the stable macro API
+         * (tools/api-surface.json) - take the slider's position and write x ** 1.5, while `sfxVolume("music")` still
+         * answered the volume: a macro saving and restoring the music turned 0.8 into 0.7155, and each round trip lowered
+         * it again. The same stand-ins as R1069 (a read answers 0.3536 for the music and { sound: 0.25 } for the module's,
+         * a write is recorded and not made), put back in `finally`; no AudioHelper is stood in, so a curve, if one were
+         * still applied here, is the harness's or Foundry's. Red at 8d509dc7: 0.5 wrote 0.3536 and the round trip 0.2103.
+         */
+        const S = await import("./sfx.mjs");
+        const r4 = n => (Number.isFinite(n) ? Math.round(n * 1e4) / 1e4 : null);
+        const settings = game.settings;
+        const hadGet = Object.prototype.hasOwnProperty.call(settings, "get"), hadSet = Object.prototype.hasOwnProperty.call(settings, "set");
+        const realGet = settings.get, realSet = settings.set;
+        const writes = [], readBack = [];
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === "core" && key === "globalPlaylistVolume") return 0.3536;
+                if (ns === MODULE_ID && key === SETTINGS.sfxVolumes) return { sound: 0.25 };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value) {
+                if ((ns === "core" && key === "globalPlaylistVolume") || (ns === MODULE_ID && key === SETTINGS.sfxVolumes)) {
+                    writes.push([`${ns}.${key}`, typeof value === "number" ? r4(value) : value]);
+                    return value;
+                }
+                throw new Error(`R1071 wrote ${ns}.${key}, which this test does not stand in`);
+            };
+            await S.setSfxVolume("music", 0.5);
+            for (const key of ["music", "sound"]) {
+                const volume = S.sfxVolume(key);
+                readBack.push(r4(volume));
+                await S.setSfxVolume(key, volume);
+            }
+        } finally {
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            if (hadSet) settings.set = realSet; else delete settings.set;
+        }
+        equal(stableJson({ readBack, writes }), stableJson({
+            readBack: [0.3536, 0.25],
+            writes: [["core.globalPlaylistVolume", 0.5], ["core.globalPlaylistVolume", 0.3536], [`${MODULE_ID}.${SETTINGS.sfxVolumes}`, { sound: 0.25 }]]
+        }), "[sfxVolume read for Music and Sound]; [what setSfxVolume(\"music\", 0.5) writes, then setSfxVolume(slider, sfxVolume(slider)) for Music and Sound]");
     }],
     ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
         /*

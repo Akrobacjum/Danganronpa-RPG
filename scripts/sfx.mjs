@@ -427,6 +427,15 @@ function volumeToSlider(slider, volume) {
 }
 
 /**
+ * The volume a slider's position means, 0-1: `volumeToSlider` the other way. The window's slider is the one place a
+ * position is turned into a volume (E50 fix FG1): `setSfxVolume`, the macro API's (tools/api-surface.json), takes a
+ * volume for every slider, as it did before E50 C3, so `setSfxVolume("music", sfxVolume("music"))` changes nothing.
+ */
+function sliderToVolume(slider, position) {
+    return SFX_SLIDERS[slider]?.proxiesFoundryMusic ? musicInputToVolume(position) : position;
+}
+
+/**
  * How loud a slider is on this browser, 0–1.
  *
  * `music` reads Foundry's setting instead of ours. Two independent music
@@ -442,14 +451,15 @@ export function sfxVolume(slider = "sound") {
 }
 
 /**
- * Move a slider to a position, 0-1. Client-scoped, so this is never an act on anybody else's ears. The Music slider's
- * position is written as Foundry's volume for it (`musicInputToVolume`, E50 C3); every other slider's is its volume.
+ * Set a slider's volume, 0-1. Client-scoped, so this is never an act on anybody else's ears. A volume for every
+ * slider, the Music one included (`sfxVolume` answers the same number): the slider's position is the window's to
+ * turn into a volume (`sliderToVolume`, in `wireSoundPanel`), not this API's (E50 fix FG1; C3 had made it a position).
  */
 export async function setSfxVolume(slider, value) {
     const level = clamp(Number(value) || 0, 0, 1);
 
     if (SFX_SLIDERS[slider]?.proxiesFoundryMusic) {
-        return game.settings.set("core", "globalPlaylistVolume", musicInputToVolume(level));
+        return game.settings.set("core", "globalPlaylistVolume", level);
     }
     if (!SFX_VOLUME_KEYS.includes(slider)) {
         error(`Asked to set an unknown volume slider "${slider}".`);
@@ -1434,7 +1444,7 @@ export function wireSoundPanel(root) {
         input.addEventListener("input", () => {
             const percent = Number(input.value);
             if (out) out.textContent = `${percent}%`;
-            setSfxVolume(key, percent / 100)
+            setSfxVolume(key, sliderToVolume(key, percent / 100))
                 .then(refreshSoundLauncher)
                 .catch(err => error(`Could not set the ${key} volume`, err));
         });

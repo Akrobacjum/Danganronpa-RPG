@@ -75636,7 +75636,7 @@ const SCENARIOS = [
         equal(stableJson(report.sections.filter(s => !String(text).includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
             "game.drpg.diagnose() does not answer the report's text");
     }],
-    ["E50-T1 - the Sound window saves as you go: no Apply on any tab and one Close on each, a mapping select's change writes its one key at once into the map read at that moment, its row says saved, a key another GM wrote meanwhile survives, two changes in one tick both land, and Close says nothing and leaves the map as written (E50 C3; D45, E50-20, E50-21)", async () => {
+    ["E50-T1 - the Sound window saves as you go: no Apply on any tab and one Close on each, a mapping select's change writes its one key at once into the map read at that moment, its row says saved, a key another GM wrote meanwhile survives, two changes in one tick both land, Close says nothing and leaves the map as written, and the GM's own write of the map a moment later stands (E50 C3, fix FG1; D45, E50-20, E50-21, S1)", async () => {
         /*
          * E50 C3, 30.10.2026; D45 (option 1) and audit S11-34. The Music tab waited for Apply, which wrote the whole map
          * as the window had drawn it - so a key another GM had written since the window opened was lost - and the
@@ -75684,7 +75684,9 @@ const SCENARIOS = [
                 Boolean(root()), root() === drawn];
             await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
             change(k3);
-            read.other = await until(() => map()[k3] === playlist.id, 3000) ? [map()[k2] === playlist.id, marker(k3)] : ["not written", map()[k3] ?? null];
+            // The marker as well as the map: it says saved when `setSetting` resolves, which may be after the echo (fix FG1).
+            read.other = await until(() => map()[k3] === playlist.id && marker(k3) === "saved", 3000)
+                ? [map()[k2] === playlist.id, marker(k3)] : ["not written", map()[k3] ?? null, marker(k3)];
             change(k4);
             change(k5);
             read.tick = await until(() => map()[k4] === playlist.id && map()[k5] === playlist.id && marker(k4) === "saved" && marker(k5) === "saved", 3000)
@@ -75702,16 +75704,23 @@ const SCENARIOS = [
             ui.notifications.info = realInfo;
             for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
             if (answer) await Promise.race([answer, wait(3000)]);
+            /* THE RESTORE STANDS (fix FG1; the security review's S1): this user's own write of the map, made within
+               MAP_ECHO_MS of the window's, is not overruled by the module's echo repair - read 800 ms after it, past
+               the 66 ms at which the repair wrote four of these keys back at 8d509dc7, and the map put back again if
+               it was not, so the world is left as found either way. */
             await setSetting(SETTINGS.musicMap, mapBefore);
+            await wait(800);
+            read.restored = stableJson(map()) === stableJson(mapBefore) ? true : Object.keys(map()).filter(key => !(key in mapBefore)).sort();
+            if (read.restored !== true) await setSetting(SETTINGS.musicMap, mapBefore);
             if (playlist) await playlist.delete();
             await settle();
         }
         equal(stableJson(read), stableJson({
             tabs: { play: ["close"], music: ["close"], effects: ["close"] }, save: 0,
-            first: [true, true, true], other: [true, "saved"], tick: true, sameWindow: true, closed: true, toasts: [], map: "as written"
+            first: [true, true, true], other: [true, "saved"], tick: true, sameWindow: true, closed: true, toasts: [], map: "as written", restored: true
         }), "[the footer's buttons on each tab]; [Apply buttons in the window]; [the first change stored with its row saying saved, the window open, "
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
-            + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]");
+            + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*

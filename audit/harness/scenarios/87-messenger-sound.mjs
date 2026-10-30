@@ -41,7 +41,15 @@
  *        on purpose), so gm2's write takes gm's row away: gm writes it again on the echo, and both rows are stored on
  *        both browsers (gm hears the writes gm, gm2, gm).
  *     C3 p1 sets its Music slider to 50: `core.globalPlaylistVolume` 0.3536, and 50 again when the window is drawn
- *        again. The map, the switch, the volume and the playlists are put back.
+ *        again.
+ *     C4 (fix FG1, F3) gm2 maps the current state to the second playlist while gm is the primary; once gm has heard
+ *        the echo, gm is stood in as gone on gm's page and gm2's (`_source.active`, as client-entry.mjs marks a user
+ *        who left), so gm2 is the primary when the settle ends: gm2 plays the new playlist with one `music.apply`, gm
+ *        with none. A real GM leaving a real server is LIVE-E50-04.
+ *     C5 (fix FG1, G8) a mapping onto a playlist named "Situational" (the world's, or one made) stored as before
+ *        1.2.93; `dropCueMappings()` with its defaults, as `ready` calls it, on gm2 and then on gm: gm2 drops nothing
+ *        and writes nothing, gm drops that key with one write (heard once on both), every other key kept.
+ *        The map, the switch, the volume and the playlists are put back.
  *
  *   D (E50 C4; E50-30, E50-31) - the murder music (E19 C5) on every account in the killing:
  *     D1 p1's Aiko kills p2's Botan (opened on gm, the opening roll held on p1 and ruled a success, as 13-murder-signals
@@ -65,7 +73,8 @@
  *
  * Red at 419d3b42 (E50 C1's parent) for part A, at cbe52a4e's module code (E50 C2's parent) for part B, at
  * 83ca7142's (E50 C3's parent) for part C and at 50d9e9c6's (E50 C4's parent) for parts E and S1, measured
- * 30.10.2026: see each commit's message. D and S2 are green there; their mutants are in C4's message.
+ * 30.10.2026: see each commit's message. D and S2 are green there; their mutants are in C4's message. C4 is red at
+ * 8d509dc7's module code and C5 is green there (it reads wiring C3 made): see fix FG1's message.
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -455,11 +464,68 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     check("C3: p1's Music slider at 50 writes Foundry's 0.3536 and reads 50 again when the window is drawn again (S11-41, E50-25)",
         c3.written === 0.3536 && c3.shown === "50", J(c3));
 
-    // Put back: the map, the switch, the playlists.
+    phase("C4: gm2 maps the current state again and is the primary before the settle ends");
+    const APPLIES = `const C = await import("${repoUrl}/scripts/perf-counters.mjs"); return C.snapshot()["music.apply"] ?? 0;`;
+    // gm stood in as gone on gm's page and gm2's (as client-entry.mjs marks a user who left), so gm2 is the primary on
+    // both: the music's one test of who drives is `isPrimaryGm()`, read when a timer fires.
+    const GM_HERE = here => `const u = game.users.get(${J(gm.userId)}); u._source.active = ${here};
+        const U = await import("${repoUrl}/scripts/utils.mjs"); return U.isPrimaryGm();`;
+    const c4Before = { gm: await gm.eval(APPLIES), gm2: await gm2.eval(APPLIES) };
+    const c4Write = await gm2.eval(`${MU} ${UNTIL} const at = Date.now();
+        await MU.saveMusicKey(${J(c1Setup.state)}, ${J(C2_PLAYLIST)});
+        return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), saved: Date.now() - at };`, { timeout: 60000 });
+    // The echo heard on gm, the primary when it arrived, before gm goes.
+    const c4Echo = await gm.eval(`${MU} ${UNTIL} return Boolean(await until(() => (ST.getSetting(ST.SETTINGS.musicMap) ?? {})[${J(c1Setup.state)}] === ${J(C2_PLAYLIST)}, 3000));`);
+    const c4Gone = { gm: await gm.eval(GM_HERE(false)), gm2: await gm2.eval(GM_HERE(false)) };
+    let c4 = null;
+    try {
+        c4 = await gm2.eval(`${UNTIL} const playing = await until(() => game.playlists.get(${J(C2_PLAYLIST)})?.playing, 1500 + 400 + 2500);
+            await new Promise(r => setTimeout(r, 800));
+            return { playing: Boolean(playing), old: game.playlists.get(${J(C1_PLAYLIST)})?.playing === true };`, { timeout: 60000 });
+    } finally {
+        c4Gone.back = { gm: await gm.eval(GM_HERE(true)), gm2: await gm2.eval(GM_HERE(true)) };
+    }
+    const c4Applies = { gm: (await gm.eval(APPLIES)) - c4Before.gm, gm2: (await gm2.eval(APPLIES)) - c4Before.gm2 };
+    check("C4: a mapping change made while gm is the primary is followed by gm2 when gm leaves within the settle: gm2, the primary when the timer ends, plays the state's new playlist with one apply, gm with none (F3, E50-22, LIVE-E50-04)",
+        c4Write.primary === false && c4Echo && c4Gone.gm === false && c4Gone.gm2 === true && c4?.playing === true
+            && c4Applies.gm2 === 1 && c4Applies.gm === 0 && c4Gone.back.gm === true && c4Gone.back.gm2 === false,
+        J({ c4Write, c4Echo, c4Gone, c4, c4Applies }));
+
+    phase("C5: a mapping onto the cue playlist stored before 1.2.93; the ready road's drop with the world's defaults on gm2, then on gm");
+    const [, , KC] = c1Setup.free;
+    const c5Setup = await gm.eval(`${MU} ${UNTIL} const C = await import("${repoUrl}/scripts/config.mjs");
+        const found = game.playlists.find(p => p.name.trim().toLowerCase() === C.SITUATIONAL_PLAYLIST.trim().toLowerCase()) ?? null;
+        const cue = found ?? await Playlist.create({ name: C.SITUATIONAL_PLAYLIST });
+        globalThis.__s87Cue = found ? null : cue.id;
+        await ST.setSetting(ST.SETTINGS.musicMap, { ...(ST.getSetting(ST.SETTINGS.musicMap) ?? {}), ${J(KC)}: cue.id });
+        return { cue: cue.id, made: !found, name: cue.name };`, { timeout: 60000 });
+    await settle(900);
+    const HEAR = `globalThis.__s87Heard = []; globalThis.__s87Hook = Hooks.on("updateSetting", (setting, changed, options, userId) => {
+        if (setting?.key === "danganronpa-rpg.musicMap") globalThis.__s87Heard.push(userId === ${J(gm.userId)} ? "gm" : userId === ${J(gm2.userId)} ? "gm2" : userId); }); return true;`;
+    const HEARD = `Hooks.off("updateSetting", globalThis.__s87Hook); const h = globalThis.__s87Heard; delete globalThis.__s87Heard; delete globalThis.__s87Hook; return h;`;
+    const c5Before = { gm: await gm.eval(MAP), gm2: await gm2.eval(MAP) };
+    for (const client of [gm, gm2]) await client.eval(HEAR);
+    const DROP = `${MU} return MU.dropCueMappings();`;
+    const c5Drop = { gm2: await gm2.eval(DROP, { timeout: 60000 }) };
+    await settle(600);
+    c5Drop.gm = await gm.eval(DROP, { timeout: 60000 });
+    await settle(900);
+    const c5Maps = { gm: await gm.eval(MAP), gm2: await gm2.eval(MAP) };
+    const c5Heard = { gm: await gm.eval(HEARD), gm2: await gm2.eval(HEARD) };
+    const withoutCue = map => { const next = { ...map }; delete next[KC]; return J(Object.entries(next).sort()); };
+    check("C5: the drop at ready with its defaults: gm2, not the primary, writes nothing; gm, the primary, takes the cue playlist's mapping out with one write, every other key kept on both browsers (Q-E50-1, E50-23, G8)",
+        Boolean(KC) && c5Before.gm[KC] === c5Setup.cue && c5Before.gm2[KC] === c5Setup.cue
+            && J(c5Drop.gm2) === J([]) && J(c5Drop.gm) === J([KC]) && !(KC in c5Maps.gm) && !(KC in c5Maps.gm2)
+            && J(Object.entries(c5Maps.gm).sort()) === withoutCue(c5Before.gm) && J(Object.entries(c5Maps.gm2).sort()) === withoutCue(c5Before.gm2)
+            && J(c5Heard.gm) === J(["gm"]) && J(c5Heard.gm2) === J(["gm"]),
+        J({ KC, c5Setup, c5Before, c5Drop, c5Maps, c5Heard }));
+
+    // Put back: the map, the switch, the playlists (the cue playlist when C5 made it).
     await gm.eval(`${MU} const was = globalThis.__s87Music; delete globalThis.__s87Music;
         await ST.setSetting(ST.SETTINGS.musicMap, was.map);
         await ST.setSetting(ST.SETTINGS.musicEnabled, was.on);
-        for (const id of ${J(c1Setup.made)}) { const p = game.playlists.get(id); if (p?.playing) await p.stopAll(); await p?.delete(); }
+        const cue = globalThis.__s87Cue; delete globalThis.__s87Cue;
+        for (const id of [...${J(c1Setup.made)}, ...(cue ? [cue] : [])]) { const p = game.playlists.get(id); if (p?.playing) await p.stopAll(); await p?.delete(); }
         return true;`, { timeout: 60000 });
     await settle(600);
 
