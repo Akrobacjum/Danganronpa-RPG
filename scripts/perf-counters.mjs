@@ -59,6 +59,10 @@
  *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that
  *                                                                       wore one already drawn, a light left on its live
  *                                                                       filter, a texture freed (fog-reveal.mjs, E88 C1)
+ *   messenger.threadStats, messenger.readMap                            a pass over every message for the threads' counts,
+ *                                                                       and a read of this browser's read map (messenger.mjs,
+ *                                                                       E50 C2: one each for a launcher and a roster drawn
+ *                                                                       together)
  */
 
 const counts = new Map();

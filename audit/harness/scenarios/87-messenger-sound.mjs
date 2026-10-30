@@ -20,7 +20,16 @@
  *     A0 the harness's models (`ui.activeWindow` set by a first render and `bringToFront`, cleared by a close; a page
  *        hidden by `__pageVisibility`) are listed as unconfirmed on v14 (LIVE-E50-01, LIVE-E50-02).
  *
- * Red at 419d3b42 (E50 C1's parent), measured 30.10.2026: see the commit's message.
+ *   B (E50 C2; E50-11, E50-13) - the counts and the GM's roster:
+ *     B1 gm, the primary, posts an ask in p1's thread from its own session, as the bridge does (`callGm` run on gm):
+ *        gm's badge, its roster row for p1 and its count say 1 more, and gm2's too; gm reads it in p1's window: 0 on
+ *        gm, still 1 on gm2. gm posts a second ask: 1 on gm; gm settles it (`settleCall`): 0 on gm, 2 on gm2; gm2
+ *        reads the thread: 0.
+ *     B2 the roster on gm and on gm2: three clicks inside leave it open, the outside click after them closes it,
+ *        two opens in a row leave one roster.
+ *
+ * Red at 419d3b42 (E50 C1's parent) for part A and at cbe52a4e's module code (E50 C2's parent) for part B, measured
+ * 30.10.2026: see each commit's message.
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -33,7 +42,9 @@ const WORDS = {
     a1: "S87 A1 a word while the Note tab shows",
     a2: "S87 A2 a question for the GM",
     a3: "S87 A3 a reply while the page is hidden",
-    a4: "S87 A4 words that must not be lost"
+    a4: "S87 A4 words that must not be lost",
+    b1: "S87 B1 an ask the primary posts",
+    b1b: "S87 B1 a second ask, settled"
 };
 
 export async function run({ gm, gm2, p1, check, phase, settle, environment, IDS, repoUrl }) {
@@ -201,4 +212,90 @@ export async function run({ gm, gm2, p1, check, phase, settle, environment, IDS,
 
     for (const client of [p1, gm2]) await client.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
     await settle(200);
+
+    /* ------------------------------ B1. the primary's own asks ------------------------------ */
+    phase("B1: gm, the primary, posts an ask in p1's thread from its own session; gm and gm2 count it", { flow: "messenger" });
+    // A GM's three readings of p1's thread: the count, the launcher's badge, and p1's row in the roster (opened, read, closed by an outside click).
+    const COUNTS = `${M} ${UNTIL}
+        const badge = Number(document.querySelector("#drpg-messenger-launcher .drpg-messenger-badge")?.textContent ?? 0);
+        A.openMessenger();
+        await until(() => document.getElementById("drpg-messenger-roster"), 2000);
+        const name = game.users.get("${P1}")?.name;
+        const row = [...document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")].find(li => li.querySelector(".drpg-messenger-roster-name")?.textContent === name);
+        const inRow = row ? Number(row.querySelector(".drpg-messenger-badge")?.textContent ?? 0) : null;
+        await new Promise(r => setTimeout(r, 50));
+        document.body.click();
+        await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+        for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+        return { unread: M.unreadCount("${P1}"), badge, row: inRow };`;
+    const counts = async () => ({ gm: await gm.eval(COUNTS), gm2: await gm2.eval(COUNTS) });
+    const ASK = words => `const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.callGm(game.actors.get("${IDS.aiko}"), { title: "S87 B1", request: ${J(words)} });`;
+    const ASK_HERE = words => `${M} ${UNTIL} const S = await import("${repoUrl}/scripts/secret.mjs");
+        const find = () => M.threadMessages("${P1}").find(m => S.cardFlag(m, M.MESSENGER_FLAGS.gmAsk) && S.contentOf(m).includes(${J(words)}));
+        await until(() => find()); return find()?.id ?? null;`;
+    const b1Before = await counts();
+    const b1Asked = await gm.eval(ASK(WORDS.b1), { timeout: 60000 });
+    const b1Card = { gm: await gm.eval(ASK_HERE(WORDS.b1), { timeout: 60000 }), gm2: await gm2.eval(ASK_HERE(WORDS.b1), { timeout: 60000 }) };
+    await settle(600);
+    const b1Author = await gm.eval(`return game.messages.get(${J(b1Card.gm)})?.author?.id ?? null;`);
+    const b1After = await counts();
+    const plusOne = (after, before) => after.unread === before.unread + 1 && after.badge === before.badge + 1 && after.row === (before.row ?? 0) + 1;
+    check("B1: an ask the primary posts in p1's thread from its own session is unread for it - its badge, its roster row and its count - and for gm2 (S11-45, E50-11)",
+        b1Asked === true && Boolean(b1Card.gm) && b1Card.gm === b1Card.gm2 && b1Author === gm.userId
+            && plusOne(b1After.gm, b1Before.gm) && plusOne(b1After.gm2, b1Before.gm2),
+        J({ b1Asked, b1Card, b1Author, b1Before, b1After }), { flow: "messenger" });
+    await gm.eval(OPEN);
+    await settle(400);
+    const b1Read = await counts();
+    check("B1: gm reads p1's thread: 0 on gm, the ask still unread on gm2",
+        b1Read.gm.unread === 0 && b1Read.gm2.unread === b1After.gm2.unread, J(b1Read), { flow: "messenger" });
+    await gm.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    await settle(200);
+    await gm.eval(ASK(WORDS.b1b), { timeout: 60000 });
+    const b1bId = await gm.eval(ASK_HERE(WORDS.b1b), { timeout: 60000 });
+    await gm2.eval(ASK_HERE(WORDS.b1b), { timeout: 60000 });
+    await settle(600);
+    const b1bOpen = { gm: await gm.eval(UNREAD), gm2: await gm2.eval(UNREAD) };
+    const b1bSettled = await gm.eval(`${M} ${UNTIL} const B = await import("${repoUrl}/scripts/gm-bridge.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        await B.settleCall(game.messages.get(${J(b1bId)}), "S87 B1 settled");
+        await until(() => S.cardFlag(game.messages.get(${J(b1bId)}), M.MESSENGER_FLAGS.settled)); return Boolean(S.cardFlag(game.messages.get(${J(b1bId)}), M.MESSENGER_FLAGS.settled));`, { timeout: 60000 });
+    await settle(600);
+    const b1bAfter = { gm: await gm.eval(UNREAD), gm2: await gm2.eval(UNREAD) };
+    check("B1: the primary's second ask counts on gm until it is settled, then not; on gm2 both asks are unread (E50-11)",
+        Boolean(b1bId) && b1bOpen.gm === 1 && b1bSettled === true && b1bAfter.gm === 0 && b1bAfter.gm2 === b1Read.gm2.unread + 1,
+        J({ b1bId, b1bOpen, b1bSettled, b1bAfter }), { flow: "messenger" });
+    await gm2.eval(OPEN);
+    await settle(400);
+    const b1bRead = await gm2.eval(UNREAD);
+    check("B1: gm2 reads p1's thread: 0 on gm2", b1bRead === 0, J({ b1bRead }), { flow: "messenger" });
+    await gm2.eval(`${M} await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    await settle(200);
+
+    /* ------------------------------ B2. one road to close the roster ------------------------------ */
+    phase("B2: the roster on gm and gm2 - clicks inside, the outside click, two opens", { flow: "messenger" });
+    const ROSTER = `${M} ${UNTIL}
+        const n = () => document.querySelectorAll("#drpg-messenger-roster").length;
+        try {
+            A.openMessenger();
+            await new Promise(r => setTimeout(r, 50));
+            const panel = document.getElementById("drpg-messenger-roster");
+            for (const target of [panel?.querySelector("h4"), panel, panel?.querySelector("h4")]) target?.click();
+            const inside = n() === 1 && !panel.classList.contains("leaving");
+            document.body.click();
+            const closed = await until(() => n() === 0, 2000);
+            A.openMessenger();
+            A.openMessenger();
+            const twice = n();
+            await new Promise(r => setTimeout(r, 50));
+            document.body.click();
+            const after = await until(() => n() === 0, 2000);
+            return { inside, closed: Boolean(closed), twice, after: Boolean(after) };
+        } finally {
+            for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+        }`;
+    const b2 = { gm: await gm.eval(ROSTER), gm2: await gm2.eval(ROSTER) };
+    const b2Want = J({ inside: true, closed: true, twice: 1, after: true });
+    check("B2: on gm and on gm2 the roster stays open through clicks inside, closes on the outside click after them, and two opens leave one (S11-44, E50-13)",
+        J(b2.gm) === b2Want && J(b2.gm2) === b2Want, J(b2), { flow: "messenger" });
 }

@@ -24,8 +24,8 @@ import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
-    threadUsers, isThreadUser, threadMessages, lastMessage,
-    unreadCount, totalUnread, markThreadRead, sendMessage
+    threadUsers, isThreadUser, threadMessages, threadStats,
+    totalUnread, markThreadRead, sendMessage
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
@@ -1402,9 +1402,8 @@ export function renderLauncher() {
         button.setAttribute("aria-label", launcherTooltip());
         button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
 
-        const unread = game.user.isGM
-            ? threadUsers().reduce((sum, u) => sum + unreadCount(u.id), 0)
-            : totalUnread();
+        // One count of every thread (messenger.mjs `threadStats`, E50 C2): a GM's every player's, a player's own.
+        const unread = totalUnread();
         if (unread > 0) {
             const badge = document.createElement("span");
             badge.className = "drpg-messenger-badge";
@@ -1435,12 +1434,24 @@ function launcherTooltip() {
 
 function toggleRoster(anchor) {
     const existing = document.getElementById("drpg-messenger-roster");
-    if (existing) {
+    // A roster on its way out is closed already: the click opens a new one (buildRoster takes the old one off at once).
+    if (existing && !existing.classList.contains("leaving")) {
         closeRoster(existing);
         return;
     }
     buildRoster(anchor);
 }
+
+/*
+ * ONE ROAD TO CLOSE THE ROSTER (E50 C2, 30.10.2026; audit S11-44, E50-13). The outside click was a document listener
+ * added `{ once: true }`, so the first click INSIDE the roster spent it - a click on the heading, on the space between
+ * rows - and from then on nothing closed the roster but its button; `openMessenger()` on a GM built a second roster
+ * beside an open one; and a row's click took the panel off the page itself, past the leaving class. Now the listener
+ * stays until `closeRoster` takes it away, a new roster takes an open one off first (at once, through `closeRoster`),
+ * and a row closes through `closeRoster`. R1066 and scenario 87 B2 measured the three at C2's parent: open after the
+ * outside click, three rosters after two opens, the row's panel gone with no leaving class.
+ */
+const rosterOutside = new WeakMap();
 
 /**
  * Take the roster off screen the way the popups leave - a beat out, then gone.
@@ -1449,7 +1460,13 @@ function toggleRoster(anchor) {
  * guarantee, because a `transitionend` that never fires - reduced motion, a
  * backgrounded tab - must not leave a dead roster blocking the next open.
  */
-function closeRoster(panel) {
+function closeRoster(panel, { instant = false } = {}) {
+    rosterOutside.get(panel)?.();
+    rosterOutside.delete(panel);
+    if (instant) {
+        panel.remove();
+        return;
+    }
     if (panel.classList.contains("leaving")) return;
     panel.classList.remove("visible");
     panel.classList.add("leaving");
@@ -1459,6 +1476,7 @@ function closeRoster(panel) {
 }
 
 function buildRoster(anchor) {
+    for (const old of document.querySelectorAll("#drpg-messenger-roster")) closeRoster(old, { instant: true });
     const panel = document.createElement("div");
     panel.id = "drpg-messenger-roster";
 
@@ -1474,8 +1492,9 @@ function buildRoster(anchor) {
         panel.append(empty);
     } else {
         const list = document.createElement("ul");
+        const stats = threadStats();
         for (const user of players.sort((a, b) => a.name.localeCompare(b.name))) {
-            list.append(rosterRow(user));
+            list.append(rosterRow(user, stats));
         }
         panel.append(list);
     }
@@ -1488,21 +1507,26 @@ function buildRoster(anchor) {
     // popups.
     requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("visible")));
 
-    // Close on an outside click, but not on the click that just opened it.
-    setTimeout(() => document.addEventListener("click", onOutsideClick, { once: true }), 0);
-    function onOutsideClick(event) {
-        if (panel.contains(event.target) || event.target === anchor) return;
+    // Close on an outside click, but not on the click that just opened it: armed after it, kept until closeRoster.
+    const onOutsideClick = event => {
+        if (panel.contains(event.target) || (anchor && anchor.contains(event.target))) return;
         closeRoster(panel);
-    }
+    };
+    const arm = setTimeout(() => document.addEventListener("click", onOutsideClick), 0);
+    rosterOutside.set(panel, () => {
+        clearTimeout(arm);
+        document.removeEventListener("click", onOutsideClick);
+    });
 }
 
-function rosterRow(user) {
+function rosterRow(user, stats = threadStats()) {
     const li = document.createElement("li");
     li.className = "drpg-messenger-roster-row";
 
-    const last = lastMessage(user.id);
+    const row = stats.get(user.id);
+    const last = row?.last ?? null;
     const preview = last ? stripHtml(contentOf(last)) : game.i18n.localize("DRPG.Messenger.rosterNoMessages");
-    const unread = unreadCount(user.id);
+    const unread = row?.unread ?? 0;
 
     const name = document.createElement("div");
     name.className = "drpg-messenger-roster-name";
@@ -1525,7 +1549,8 @@ function rosterRow(user) {
     }
 
     li.addEventListener("click", () => {
-        document.getElementById("drpg-messenger-roster")?.remove();
+        const panel = li.closest("#drpg-messenger-roster");
+        if (panel) closeRoster(panel);
         openMessenger(user.id);
     });
 

@@ -23142,6 +23142,178 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([[["R1063Bubble00002"], false], [[], true]]),
             "[the window's bubbles and whether it shows the empty notice, after the first deletion, then the second]");
     }],
+    ["R1064 - one count of the messenger's threads: threadStatsOf groups messages by thread in one pass into { count, unread, last } and answers what unreadCount and lastMessage answered at 419d3b42 on every stand-in row but a GM's own gmAsk card not settled, which counts for that GM until read (E50 C2; S11-45, S11-57, E50-10, E50-11)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-45 and S11-57 (E50-10, E50-11). The counts were `threadMessages` per thread -
+         * a walk of every message with a sort - once for the badge per thread and twice per roster row, and they
+         * dropped every message whose writer was the viewer, so the primary GM's own gmAsk cards (callGm posts them
+         * from that GM's session) were never unread on the one browser that has to answer them. The reference below
+         * is 419d3b42's `threadMessages`, `unreadCount` and `lastMessage` copied as they stood, over a list in place of
+         * `game.messages`. The stand-in world: four threads (one empty), a player's own and others' messages, a GM's
+         * own gmAsk cards settled and not, an own receipt (no gmAsk), a second GM's ask, two cards at one stamp, a
+         * veiled card with no thread on its document, a message of no thread, in no order; read by two GMs and two
+         * players, with no read map and with one. Every row must agree on count and last; on unread every row but a
+         * GM's own unsettled gmAsk card after its read stamp, which counts one more. Red at C2's parent: no export.
+         */
+        const M = await import("./messenger.mjs");
+        const S = await import("./secret.mjs");
+        const GM = "R1064GmUser00001", GM2 = "R1064GmUser00002", P = ["R1064Player00001", "R1064Player00002", "R1064Player00003", "R1064Player00004"];
+        const users = { [GM]: true, [GM2]: true, [P[0]]: false, [P[1]]: false, [P[2]]: false };
+        const card = (id, timestamp, author, flags) => ({ id, timestamp, author: { id: author, isGM: users[author] }, flags: { [MODULE_ID]: flags } });
+        const dm = thread => ({ thread, kind: "dm" }), ask = (thread, more = {}) => ({ thread, kind: "action", gmAsk: true, ...more });
+        const world = [
+            card("R1064Card0000003", 120, GM, ask(P[0])),
+            card("R1064Card0000001", 100, P[0], dm(P[0])),
+            card("R1064Card0000008", 140, P[2], dm(P[2])),
+            card("R1064Card0000005", 105, GM, ask(P[1], { settled: true })),
+            card("R1064Card0000010", 150, GM, { [S.SECRET_FLAG]: true, [S.VEILED_FLAG]: true }),
+            card("R1064Card0000002", 110, GM, dm(P[0])),
+            card("R1064Card0000009", 140, GM, dm(P[2])),
+            card("R1064Card0000006", 115, GM, { thread: P[1], kind: "action" }),
+            card("R1064Card0000011", 160, P[1], {}),
+            card("R1064Card0000004", 130, P[0], ask(P[0])),
+            card("R1064Card0000012", 138, GM2, ask(P[2])),
+            card("R1064Card0000007", 125, GM2, dm(P[1]))
+        ];
+        // 419d3b42's reading, copied: threadMessages(id), then unreadCount's filter and lastMessage's last.
+        const baseThread = id => world.filter(m => S.cardFlag(m, "thread") === id).sort((a, b) => a.timestamp - b.timestamp);
+        const baseUnread = (id, me, map) => { const since = map[id] ?? 0; return baseThread(id).filter(m => m.timestamp > since && S.cardWriter(m)?.id !== me).length; };
+        const baseLast = id => { const all = baseThread(id); return all[all.length - 1] ?? null; };
+        const read = [];
+        if (typeof M.threadStatsOf !== "function") read.push("no threadStatsOf");
+        else {
+            const maps = { none: {}, read: { [P[0]]: 120, [P[1]]: 110, [P[2]]: 130 } };
+            for (const me of [GM, GM2, P[0], P[2]]) for (const [mapName, map] of Object.entries(maps)) {
+                const stats = M.threadStatsOf(world, { me, readMap: map, isGM: users[me] });
+                for (const id of P) {
+                    const row = stats.get(id) ?? { count: 0, unread: 0, last: null };
+                    const base = { count: baseThread(id).length, unread: baseUnread(id, me, map), last: baseLast(id)?.id ?? null };
+                    if (row.count !== base.count || (row.last?.id ?? null) !== base.last) read.push(["count or last differs", me, mapName, id, base, { count: row.count, last: row.last?.id ?? null }]);
+                    if (row.unread !== base.unread) read.push([me, mapName, id, base.unread, row.unread]);
+                }
+            }
+        }
+        equal(stableJson(read), stableJson([[GM, "none", P[0], 2, 3], [GM2, "none", P[2], 2, 3], [GM2, "read", P[2], 2, 3]]),
+            "[every row where threadStatsOf and 419d3b42's reading differ: viewer, read map, thread, unread then and now - only a GM's own unsettled gmAsk after its read stamp; "
+            + "a settled one (GM, the second thread), an own receipt, a player's own ask and the veiled card read as they did]");
+    }],
+    ["R1065 - a GM's launcher and roster count the threads in one pass: one renderLauncher() and a roster of 8 rows and more walk game.messages once and read the read map once, and the counters messenger.threadStats and messenger.readMap move by one each (E50 C2; S11-57, E50-12)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-57 (E50-12). The badge summed `unreadCount` over the thread users - one walk of
+         * every message and one read of the read map per thread - and each roster row added `lastMessage` and
+         * `unreadCount`, two walks more: O(threads x messages) on every message that arrived. For one synchronous
+         * renderLauncher() and openMessenger() (a GM's roster) with eight stand-in players added to the thread users
+         * (game.users.filter stood in, the stand-ins added to what it answers), game.messages' `values` (the road
+         * every walk of a Collection takes, Foundry's and the harness's: its iterator, contents, filter) and
+         * game.settings.get of the read map are counted, all put back in `finally`, and the roster is closed again.
+         * Red at C2's parent: one walk per thread for the badge and two per row, a read per thread and per row.
+         */
+        must(game.user.isGM, "the launcher's count of every thread is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const C = await import("./perf-counters.mjs");
+        const msgs = game.messages, users = game.users, settings = game.settings;
+        const own = (obj, key) => [Object.prototype.hasOwnProperty.call(obj, key), obj[key]];
+        const [hadValues, realValues] = own(msgs, "values"), [hadFilter, realFilter] = own(users, "filter"), [hadGet, realGet] = own(settings, "get");
+        const stand = Array.from({ length: 8 }, (_, i) => ({ id: `R1065Player0000${i}`, name: `R1065 player ${i}`, isGM: false }));
+        let walks = 0, reads = 0, rows = 0, moved = {};
+        const before = C.snapshot();
+        try {
+            msgs.values = function (...a) { walks++; return realValues.apply(this, a); };
+            users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...stand.filter(fn)]; };
+            settings.get = function (scope, key, ...a) { if (scope === MODULE_ID && key === SETTINGS.messengerLastRead) reads++; return realGet.call(this, scope, key, ...a); };
+            A.renderLauncher();
+            A.openMessenger();
+            moved = C.delta(before, C.snapshot());
+            rows = document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row").length;
+        } finally {
+            if (hadValues) msgs.values = realValues; else delete msgs.values;
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            await wait(30);
+            document.body.click();
+            await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+            for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+        }
+        equal(stableJson({ walks, reads, threadStats: moved["messenger.threadStats"] ?? 0, readMap: moved["messenger.readMap"] ?? 0, rows: rows >= 8 }),
+            stableJson({ walks: 1, reads: 1, threadStats: 1, readMap: 1, rows: true }),
+            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the roster drew 8 rows or more (it drew ${rows})]`);
+    }],
+    ["R1066 - the GM's roster closes by one road: clicks inside it leave it open and the outside click after them still closes it, a second open leaves one roster, a row's click closes it through closeRoster, and no click listener of the roster's is left on the document (E50 C2; S11-44, E50-13)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-44 (E50-13). The outside click was a `{ once: true }` document listener, spent on
+         * the first click inside the roster, after which nothing closed it but the button; `openMessenger()` on a GM
+         * built a second roster beside an open one; a row's click took the panel off the page itself. Here, on a GM's
+         * page: the roster opened by openMessenger() with one stand-in player added to its rows (game.users.filter
+         * stood in for that call only), three clicks on its heading and its own box, then one on the body; two opens in
+         * a row; then the stand-in's row clicked (openMessenger answers "not a player" for an id no user has: no window
+         * opens, nothing is written; ui.notifications.warn stood in). document's add/removeEventListener are wrapped
+         * for the whole test to keep the click listeners added meanwhile that are still there. Everything is put back
+         * in `finally`. Red at C2's parent: open after the outside click, two rosters, the row's panel removed without
+         * the leaving class.
+         */
+        must(game.user.isGM, "the roster is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const users = game.users, doc = document;
+        const [hadFilter, realFilter] = [Object.prototype.hasOwnProperty.call(users, "filter"), users.filter];
+        const realAdd = doc.addEventListener, realRemove = doc.removeEventListener;
+        const kept = new Map();   // listener -> its stand-in, for the click listeners added while the test runs
+        const stand = { id: "R1066NoSuchUser1", name: "R1066 stand-in", isGM: false };
+        const open = () => {
+            users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...[stand].filter(fn)]; };
+            try { A.openMessenger(); } finally { if (hadFilter) users.filter = realFilter; else delete users.filter; }
+        };
+        const panels = () => doc.querySelectorAll("#drpg-messenger-roster");
+        const state = () => { const p = panels(); return p.length === 0 ? "closed" : p.length > 1 ? `${p.length} rosters` : p[0].classList.contains("leaving") ? "leaving" : "open"; };
+        const warns = [], realWarn = ui.notifications.warn;
+        const read = {};
+        doc.addEventListener = function (type, fn, options) {
+            if (type !== "click" || typeof fn !== "function") return realAdd.call(this, type, fn, options);
+            const once = typeof options === "object" && options?.once;
+            const proxy = function (event) { if (once) kept.delete(fn); return fn.call(this, event); };
+            kept.set(fn, proxy);
+            return realAdd.call(this, type, proxy, options);
+        };
+        doc.removeEventListener = function (type, fn, options) {
+            if (type === "click" && kept.has(fn)) { const proxy = kept.get(fn); kept.delete(fn); return realRemove.call(this, type, proxy, options); }
+            return realRemove.call(this, type, fn, options);
+        };
+        try {
+            open();
+            await wait(30);
+            const panel = panels()[0];
+            for (const target of [panel?.querySelector("h4"), panel, panel?.querySelector("h4")]) target?.click();
+            read.inside = state();
+            doc.body.click();
+            read.outside = state();
+            await until(() => panels().length === 0, 2000);
+            read.afterOutside = state();
+            open();
+            open();
+            read.twice = state();
+            await until(() => panels().length === 1 && !panels()[0].classList.contains("leaving"), 1000);
+            await wait(30);
+            const row = [...doc.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")].find(li => li.textContent.includes(stand.name));
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            row?.click();
+            read.row = [Boolean(row), state()];
+            await until(() => panels().length === 0, 2000);
+            read.afterRow = state();
+            read.warned = warns.includes(game.i18n.localize("DRPG.Messenger.notAPlayer"));
+            await wait(30);
+            read.left = kept.size;
+        } finally {
+            ui.notifications.warn = realWarn;
+            doc.addEventListener = realAdd;
+            doc.removeEventListener = realRemove;
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            for (const proxy of kept.values()) realRemove.call(doc, "click", proxy);
+            for (const left of panels()) left.remove();
+        }
+        equal(stableJson(read), stableJson({ inside: "open", outside: "leaving", afterOutside: "closed", twice: "open", row: [true, "leaving"], afterRow: "closed", warned: true, left: 0 }),
+            "[after three clicks inside; at the body's click, and after it; after two opens; a row clicked (found, then the roster), and after; whether openMessenger said 'not a player' for the stand-in; the roster's click listeners left on the document]");
+    }],
     ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
         /*
          * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie
