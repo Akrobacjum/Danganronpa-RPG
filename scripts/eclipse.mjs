@@ -97,8 +97,10 @@ export function movesUsed(actor) {
 }
 
 /**
- * Crossings this character has left. `null` means unlimited - a Morning or
- * Night Eclipse places freely, so there is no number to count down.
+ * Crossings this character has left. `null` means unlimited - an Eclipse in
+ * ECLIPSE_FREE_PLACEMENT (the Night Eclipse at this release) places freely, so
+ * there is no number to count down, unless the darkening gives it two
+ * (`eclipseAllowance`). `game.drpg.eclipseMovesLeft` (E52 C6, S18-90).
  */
 export function movesLeft(actor, clock = getClock()) {
     const allowance = eclipseAllowance(clock);

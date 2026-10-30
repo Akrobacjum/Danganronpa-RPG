@@ -1092,7 +1092,39 @@ export const DEFAULT_CLOCK = {
 /** The settings window's Give back Foundry's settings button: a menu's key, not a setting (E20 C6). */
 const GIVE_BACK_MENU = "giveBackFoundry";
 
+/**
+ * Silences a browser may still hold for windows the module no longer has (E52 C4, E52-16; S01-62): the
+ * recommended-modules window's, gone in E13 C10. Client settings live in the browser's storage under
+ * "<module>.<key>", and an unregistered key is never read or removed by Foundry.
+ */
+export const STALE_SILENCES = Object.freeze(["recommendsSilenced"]);
+
+/* What this load's start removed (`clearStaleSilences` from `registerSettings`), for the report. */
+let staleCleared = [];
+
+/** Remove each stale silence `storage` holds; answers the ids removed. `storage` is handed in by R1552. */
+export function clearStaleSilences(storage = globalThis.localStorage) {
+    const cleared = [];
+    for (const id of STALE_SILENCES) {
+        try {
+            const key = `${MODULE_ID}.${id}`;
+            if (storage?.getItem?.(key) === null || storage?.getItem?.(key) === undefined) continue;
+            storage.removeItem(key);
+            cleared.push(id);
+        } catch {
+            // A browser that refuses its storage keeps the old value, which nothing reads.
+        }
+    }
+    return cleared;
+}
+
+/** The stale silences this load's start removed. */
+export function staleSilencesCleared() {
+    return [...staleCleared];
+}
+
 export function registerSettings() {
+    staleCleared = clearStaleSilences();
     // The hint names the one roll this leaves public: the GM panel's "Public roll"
     // (`game.drpg.publicRoll`, E33 C12) - a GM's own `/r` goes to the GMs with it on.
     game.settings.register(MODULE_ID, SETTINGS.forcePrivateRolls, {
@@ -1241,8 +1273,9 @@ export function registerSettings() {
        hears about it again. Per browser (`scope: "client"`), and `config: false`:
        it is the checkbox in that window, not a dial anybody sets on purpose. The
        switch that silenced the recommended-modules window (`recommendsSilenced`,
-       M-1) went with that window in E13 C10; a browser that stored it keeps a
-       value no code reads any more (git grep, 12.10.2026). */
+       M-1) went with that window in E13 C10; since E52 C4 `clearStaleSilences`
+       removes the value a browser kept, and the report's silences part names
+       both (diagnostics.mjs `activeSilences`, where Show again lives). */
     game.settings.register(MODULE_ID, SETTINGS.systemWarningSilenced, {
         scope: "client",
         config: false,

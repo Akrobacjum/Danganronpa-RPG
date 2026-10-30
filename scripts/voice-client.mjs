@@ -42,7 +42,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { activeGmIds, primaryGmId, debug, error } from "./utils.mjs";
+import { activeGmIds, primaryGmId, debug, error, markFired } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 // E88 C6: each connect this page runs and the ms it took, for `fps()` and scenario 75 (perf-counters.mjs, a leaf).
 import { count } from "./perf-counters.mjs";
@@ -117,6 +117,7 @@ export function registerVoiceClient() {
     // yet - asking then would be asking into a reply nobody could receive. The
     // `ready` handler does the asking in that case.
     Hooks.on("liveKitClientInitialized", () => {
+        markFired("liveKitClientInitialized");
         // Every initialize builds a new Room, ours included: each is watched for a drop (E19 C2).
         watchForDrops();
         if (applying) return;               // our own reconnect - see `applying`

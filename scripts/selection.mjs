@@ -15,7 +15,14 @@
  *  - `ControlsLayer#drawSelect`, the drag rectangle, which has the orange written into
  *    its body. That method is replaced with the same two lines reading the config.
  * Left orange: a wall's highlight and the resize handle on a tile or drawing, both of
- * which have the number inside a private draw, and both GM tools.
+ * which have the number inside a private draw, and both GM tools. The door, light and
+ * sound icons keep Foundry's own border colour as well: they are Foundry's control
+ * icons, which read neither place above (the audit's reading, S01-50; not measured on
+ * a canvas here).
+ *
+ * Both are rows of the contract register (patches.mjs: "selection-drag-rectangle",
+ * "selection-controlled-colour"; S01-50), so `diagnosePatches()` names either when a
+ * Foundry update moves it.
  *
  * NOT THE HOVER COLOURS. Hovering a token that is not controlled shows its
  * disposition (friendly, hostile, party), which is information rather than chrome.
@@ -29,7 +36,12 @@
 import { debug } from "./utils.mjs";
 import { hourColour } from "./own-ring.mjs";
 
-/** Foundry's own, kept so a missing reading puts back what was there. */
+/**
+ * Foundry's own orange: what the drag rectangle draws when Foundry offers no
+ * `dispositionColors` at all. Not the controlled border's fallback: `hourColour`
+ * always answers (own-ring.mjs falls back to its own colour), so the border always
+ * takes the interface colour (S01-50; R1539).
+ */
 const FOUNDRY_CONTROLLED = 0xFF9829;
 
 /** Every placeable on screen that is showing a controlled border, asked to redraw it. */
@@ -46,7 +58,7 @@ export function applySelectionColour() {
     try {
         const colours = CONFIG?.Canvas?.dispositionColors;
         if (!colours) return;
-        const colour = hourColour() ?? FOUNDRY_CONTROLLED;
+        const colour = hourColour();
         if (colours.CONTROLLED === colour) return;
         colours.CONTROLLED = colour;
         if (canvas?.ready) refreshSelected();

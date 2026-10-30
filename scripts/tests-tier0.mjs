@@ -10,12 +10,13 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, env, world, equal, must, wait, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    apiKind, apiSurfaceProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -9409,6 +9410,9 @@ const REGRESSIONS = [
             ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],
             ["BLOCK voice.mjs#blockForTrial -> block", "the trial's block (E70 C5), on the primary in a step of the record's key (`settleTrialVoices`): only a player whose voice character is on the trial's list, never a GM, and never over a GM's explicit false, which it leaves and records nowhere; what it found kept in the GMs' `trialMuteStore` before the write (E70-T8, R1035)"],
             ["BLOCK voice.mjs#restoreTrialBlock -> block", "the trial's block given back (E70 C5), on the primary: only a block the trial wrote and finds standing, back to the grant it found or the key removed with `forcedDeletion()` (never `-=`), a block a GM changed meanwhile left as it is (E70-T8, R1035)"],
+            // E52 C3 (amend 05.10 C): the contract's reading of Foundry's permission entry, and the check both blocks ask first.
+            ["BLOCK voice.mjs#broadcastAudioKnown -> block", "a read (E52 C3): whether Foundry's `CONST.USER_PERMISSIONS` names the permission; writes nothing, and without it neither block writes (R1546)"],
+            ["BLOCK patches.mjs#PATCHES -> block", "a read (E52 C3): the contract's row of the permission entry, a presence probe through `broadcastAudioKnown` at ready and when asked; writes nothing (R1546)"],
             ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player, and whether the block holds against the blocked player's own browser (their own User document, or a microphone that publishes anyway), which decides the list's 'for everyone', are not measured here (LIVE-E78-06; R539)"],
             // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
@@ -16088,6 +16092,228 @@ const REGRESSIONS = [
             words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))
         }), JSON.stringify({ close: true, final: true, rebuttal: true, hud: true, bar: true, words: [true, true] }),
             "a sound of the trial, the HUD's line, the bar's Overrule or the Skip's words is not as E70 asks (the close's sound; the Final's; no rebuttal sound after an Overrule; the HUD's line where no tile is; the bar's card; the words EN, PL)");
+    }],
+    ["R1537 - every override of another package's prototype, class or CONFIG entry, and every hook of another package, is a row of the contract register", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S17-50 and S01-50. patches.mjs listed thirteen overrides, and
+         * selection.mjs replaced `ControlsLayer#drawSelect` and wrote `dispositionColors.CONTROLLED`,
+         * projects-ui.mjs wrapped Daggerheart's `_getCountdownContextOptions`, fog.mjs subclassed
+         * `CONFIG.Canvas.doorControlClass`, roll-draw.mjs swapped `CONFIG.Dice.randomUniform` and
+         * resources.mjs wrote into `CONFIG.DH.RESOURCE` without a row: `diagnosePatches()` said all was
+         * well while a Foundry or Daggerheart update could have moved any of them. Read off the source,
+         * every file the module loads but the suite's: an assignment whose object is a prototype (or a
+         * name `proto`), `CONFIG`, `foundry.`, `ui.`, `game.system`, or a local name declared from one of
+         * those (a copy made by `foundry.utils` is the module's own), and `Object.defineProperty` on such
+         * an object, each needs an override row naming its file whose target names the member (a member
+         * computed in brackets: the file alone). Every `Hooks.on`/`Hooks.once` with a literal name is the
+         * module's own (`drpg...`), on Foundry's list below, or a hook row of that name. Not read: a
+         * name held in a variable (`Hooks.on(hook, ...)`), an override reached through a parameter
+         * whose declaration is elsewhere, `Object.assign` into one of those objects. The reader is run
+         * first on a fixture with its faults planted. Red before C1: drawSelect,
+         * _getCountdownContextOptions, CONTROLLED, doorControlClass, roll-draw.mjs's randomUniform,
+         * resources.mjs's two tables, and eight hooks of Daggerheart's, Dice So Nice's and LiveKit's.
+         */
+        const { PATCHES, KINDS } = await import("./patches.mjs");
+        ok(Array.isArray(KINDS) && KINDS.includes("override") && KINDS.includes("hook"), "patches.mjs names no kinds of row, or not override and hook");
+        const FOREIGN = /^(?:globalThis\.)?(?:CONFIG|foundry|ui|game\.system)\b/;
+        const flat = text => text.replace(/\s+/g, "").replace(/\?\./g, ".");
+        const sites = (file, raw) => {
+            const code = blankComments(lf(raw)), blank = blankLiterals(code), out = { overrides: [], hooks: [] };
+            const decls = [...blank.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g)]
+                .map(m => ({ at: m.index, name: m[1], rhs: flat(m[2]) }));
+            const foreign = (obj, at) => {
+                if (/(?:^|\.)prototype$/.test(obj) || /(?:^|\.)(?:proto|\w+Proto)$/.test(obj)) return true;
+                if (FOREIGN.test(obj)) return true;
+                const decl = decls.filter(d => d.name === obj.split(".")[0] && d.at < at).pop();
+                return Boolean(decl) && !/^foundry\.utils\./.test(decl.rhs) && (FOREIGN.test(decl.rhs) || /\.prototype\b/.test(decl.rhs));
+            };
+            const ASSIGN = /(?<![\w$.\]])([A-Za-z_$][\w$]*(?:\s*\??\.\s*[A-Za-z_$][\w$]*)*)\s*(?:\??\.\s*([A-Za-z_$][\w$]*)|\[([^\]\n]+)\])\s*=(?![=>])/g;
+            for (const m of blank.matchAll(ASSIGN)) {
+                const obj = flat(m[1]);
+                if (obj.split(".")[0] === "this" || !foreign(obj, m.index)) continue;
+                out.overrides.push({ line: lineAt(code, m.index), member: m[2] ?? null, computed: m[2] === undefined });
+            }
+            for (const m of blank.matchAll(/\bObject\.defineProperty\(\s*([A-Za-z_$][\w$.]*)\s*,/g)) {
+                if (!foreign(flat(m[1]), m.index)) continue;
+                const name = code.slice(m.index + m[0].length).match(/^\s*["'`]([\w$]+)["'`]/)?.[1] ?? null;
+                out.overrides.push({ line: lineAt(code, m.index), member: name, computed: name === null });
+            }
+            for (const m of code.matchAll(/\bHooks\.(?:on|once)\(\s*(["'`])([^"'`$\n]+)\1/g)) {
+                if (blank.slice(m.index, m.index + 5) === "Hooks") out.hooks.push({ line: lineAt(code, m.index), name: m[2] });
+            }
+            return out;
+        };
+        const PLANTED = [
+            "Foo.prototype.bar = function () {};",
+            "const proto = Thing.prototype; proto.baz = x;",
+            "CONFIG.Canvas.someClass = class extends Base {};",
+            "const colours = CONFIG?.Canvas?.colours; colours.X = 1;",
+            "Object.defineProperty(proto, \"q\", { get() { return 1; } });",
+            "this.y = 1; game.drpg.z = 2; if (a.b == c) d.e = 3;",
+            "const copy = foundry.utils.deepClone(CONFIG.x); copy.w = 3;",
+            "// proto.v = 1 and Hooks.on(\"renderGone\", f)",
+            "const s = \"proto.u = 1\"; const t = (CONFIG.y === 2);",
+            "ui.notifications[level] = patched;",
+            "Hooks.on(\"renderFoo\", f); Hooks.once(\"drpgOwn\", g); Hooks.on(hook, h);"
+        ].join("\n");
+        const planted = sites("planted.mjs", PLANTED);
+        equal(JSON.stringify([planted.overrides.map(o => [o.line, o.member]), planted.hooks.map(h => [h.line, h.name])]),
+            JSON.stringify([[[1, "bar"], [2, "baz"], [3, "someClass"], [4, "X"], [10, null], [5, "q"]], [[11, "renderFoo"], [11, "drpgOwn"]]]),
+            "the reader does not see the planted overrides and hooks as they are - a prototype's member, a `proto` name's, CONFIG's, an alias of CONFIG's, a computed member, a defineProperty; none on this, game.drpg, a comparison, a copy, a comment or a string");
+
+        const words = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const files = row => String(row.file ?? "").split(/\s*,\s*/).filter(Boolean);
+        const overrides = PATCHES.filter(r => r.kind === "override"), hookRows = PATCHES.filter(r => r.kind === "hook");
+        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound"];
+        const APPS = ["ApplicationV2", "Application", "ActorSheetV2", "ItemSheetV2", "DocumentSheetV2", "DialogV2", "SceneControls", "CameraViews", "UserConfig",
+            "TokenHUD", "SettingsConfig", "FilePicker", "AVConfig", "DocumentOwnershipConfig", "ImagePopout", "Sidebar"];
+        /* Foundry's own hooks the module listens to: its lifecycle, the canvas, a document's events and an application's of
+           Foundry's own classes (the names are Foundry's `pre`/`create`/`update`/`delete` and `render`/`close`/`getHeaderControls`
+           with the class's name). A hook named after a Daggerheart class (CharacterSheet, D20RollDialog, DhCountdowns) is not. */
+        const FOUNDRY_HOOKS = new Set([
+            "init", "i18nInit", "setup", "ready", "canvasReady", "canvasPan", "canvasTearDown", "sightRefresh", "pauseGame", "userConnected",
+            "clientSettingChanged", "rtcSettingsChanged", "collapseSidebar", "refreshToken", "renderChatMessageHTML",
+            "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
+            ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
+            ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))
+        ]);
+        const sources = new Map(await otherSources());
+        const unregistered = [], strays = [], seen = { overrides: 0, hooks: 0 };
+        for (const [file, raw] of sources) {
+            const found = sites(file, raw);
+            seen.overrides += found.overrides.length;
+            seen.hooks += found.hooks.length;
+            for (const o of found.overrides) {
+                const row = overrides.find(r => files(r).includes(file) && (o.computed || new RegExp(`(?<![\\w$])${words(o.member)}(?![\\w$])`).test(r.target)));
+                if (!row) unregistered.push(`${file}:${o.line} ${o.member ?? "[computed]"}`);
+            }
+            for (const h of found.hooks) {
+                if (h.name.startsWith("drpg") || FOUNDRY_HOOKS.has(h.name)) continue;
+                if (!hookRows.some(r => r.target === h.name && files(r).includes(file))) unregistered.push(`${file}:${h.line} hook ${h.name}`);
+            }
+        }
+        for (const row of PATCHES) {
+            for (const file of files(row)) if (!sources.has(file)) strays.push(`${row.id} names ${file}, which the module does not load`);
+            if (row.kind === "hook") {
+                for (const file of files(row)) {
+                    if (sources.has(file) && !sites(file, sources.get(file)).hooks.some(h => h.name === row.target)) strays.push(`${row.id}: ${file} does not listen to ${row.target}`);
+                }
+            }
+        }
+        must(seen.overrides >= 15 && seen.hooks >= 100, `the reader found ${seen.overrides} override(s) and ${seen.hooks} hook(s) in the module - it would measure nothing`);
+        log(`R1537: ${seen.overrides} override site(s) and ${seen.hooks} hook listener(s) read; ${unregistered.length} without a row, ${strays.length} stale row(s)`);
+        equal(JSON.stringify(unregistered), "[]", "an override or another package's hook has no row of the register naming its file (patches.mjs PATCHES)");
+        equal(JSON.stringify(strays), "[]", "a row of the register names a file the module does not load, or a hook its file does not listen to");
+    }],
+    ["R1549 - every anchor of the contract register is a string literal of the file that uses it: each selector of SHEET_ANCHORS in sheet.mjs, each page anchor in its own file", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-12 (Q-7: SHEET_ANCHORS in patches.mjs, sheet.mjs untouched). A list
+         * of selectors beside the code that uses them is a second copy, true only while somebody keeps it so: a
+         * selector changed in sheet.mjs and not here would read a place the sheet no longer asks for, and the row
+         * would hold while the sheet broke. Read off the source, comments out: each SHEET_ANCHORS selector, and
+         * each `literals` entry of an anchor row, must be a whole string literal of the row's file; an anchor row
+         * has literals or is the sheet's. The reader runs first on a planted fixture. Red before C3: no
+         * SHEET_ANCHORS, no anchor row.
+         */
+        const { PATCHES, SHEET_ANCHORS } = await import("./patches.mjs");
+        // blankComments, not stripComments: the second blanks live code in sheet.mjs's tidySidebar (measured 30.10: both
+        // ".equipment-section h3" and ".loadout-section h3" gone from its output after a comment quoting "Equipment"/"Loadout").
+        const literalsOf = src => new Set(stringLiterals(blankComments(lf(src))).map(lit => lit.text));
+        const planted = literalsOf('const a = ".kept .selector"; // ".gone"\nconst b = `x ${".inner"}`;');
+        equal(JSON.stringify([".kept .selector", ".gone", ".inner"].map(text => planted.has(text))), JSON.stringify([true, false, true]),
+            "the reader does not see a literal as it is - a string, one in a comment, one inside a template's hole");
+        ok(Array.isArray(SHEET_ANCHORS) && SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${SHEET_ANCHORS?.length ?? "no"} place(s)`);
+        const sources = await moduleSources();
+        const sheet = literalsOf(sources.get("sheet.mjs") ?? "");
+        must(sheet.size > 500, `sheet.mjs reads as ${sheet.size} literal(s) - this test would read nothing`);
+        const selectors = (SHEET_ANCHORS ?? []).map(anchor => anchor.selector);
+        equal(new Set(selectors).size, selectors.length, "a selector is twice in SHEET_ANCHORS");
+        equal(JSON.stringify(selectors.filter(selector => !sheet.has(selector))), "[]", "a selector of SHEET_ANCHORS is not a string literal of sheet.mjs");
+        const anchors = PATCHES.filter(row => row.kind === "anchor");
+        must(anchors.length >= 5, `the register has ${anchors.length} anchor row(s)`);
+        equal(JSON.stringify(anchors.filter(row => row.id !== "sheet-anchors" && !(Array.isArray(row.literals) && row.literals.length)).map(row => row.id)), "[]",
+            "an anchor row names no literal of its file to be held to");
+        const strays = anchors.flatMap(row => {
+            const found = literalsOf(sources.get(row.file) ?? "");
+            return (row.literals ?? []).filter(text => !found.has(text)).map(text => `${row.id}: ${row.file} has no "${text}"`);
+        });
+        equal(JSON.stringify(strays), "[]", "an anchor row's literal is not a string literal of its file");
+    }],
+    ["R1559 - api.mjs imports each module once (E52 C6, S01-52)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-52, E52-20. api.mjs imported diagnostics.mjs, remnants.mjs and projects.mjs
+         * twice each, so a name added to one of the two lines and looked for in the other read as missing, and the
+         * file a macro author reads to find the surface told two stories about where a name came from. Read off the
+         * source with comments out: every static `import ... from "./x.mjs"`, counted per module. The reader runs
+         * on a planted fixture first. Red before C6: diagnostics.mjs, projects.mjs and remnants.mjs twice.
+         */
+        const twice = text => {
+            const counts = new Map();
+            for (const m of stripComments(String(text ?? "")).matchAll(/^[ \t]*import\b[^;]*?\bfrom\s*["']\.\/([\w-]+\.mjs)["']/gm)) {
+                counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+            }
+            return { seen: counts.size, twice: [...counts].filter(([, n]) => n > 1).map(([file, n]) => `${file} x${n}`).sort() };
+        };
+        equal(JSON.stringify(twice('import { a } from "./x.mjs";\nimport {\n    b\n} from "./x.mjs";\nimport { c } from "./y.mjs";\n// import { d } from "./y.mjs";\n')),
+            JSON.stringify({ seen: 2, twice: ["x.mjs x2"] }), "the reader does not count a module imported twice, or counts one in a comment");
+        const read = twice((await moduleSources()).get("api.mjs"));
+        must(read.seen >= 50, `api.mjs reads as importing ${read.seen} module(s) - this test would read nothing`);
+        equal(JSON.stringify(read.twice), "[]", "api.mjs imports a module on more than one line");
+    }],
+
+    ["R1560 - game.drpg is the surface tools/api-surface.json lists: each key with its kind, each alias on it and pointing at a key, nothing gone without an alias (E52 C6, S17-51, D25)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S17-51, E52-21 (amend 11.10 and 27.10: E70's names and its three older names;
+         * D25 as E52 reads it: a key leaves game.drpg only after at least one release as an alias). A macro is
+         * written against game.drpg, and a key renamed in a stage broke every macro that called it, with nothing
+         * in the suite to notice. The file lists every key with its kind, the aliases with their target, the stage
+         * or release they came in and the release they are kept until; its `$comment` says how a rename is recorded
+         * (line A's E66 follows it). The judge (tests-kit.mjs `apiSurfaceProblems`) runs on a planted surface
+         * first - a key removed with no alias, an alias to nothing, a removal before its release, an alias gone and
+         * not in removed, a key on the object the file lacks, a kind changed, one function under two names, an
+         * alias kept no release - and then on the live object. Red before C6: no tools/api-surface.json.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const STAGES = new Map([["E90", { id: "E90", planned: "2.0.0", version: null }]]);
+        const SURFACE = { keys: { a: "function", b: "object", c: "function" }, aliases: { old: { target: "a", since: "E90", keepUntil: "2.0.1" } }, removed: {} };
+        const LIVE = { a: "function", b: "object", c: "function", old: "function" };
+        const withOut = (table, name) => Object.fromEntries(Object.entries(table).filter(([key]) => key !== name));
+        const planted = [
+            ["agrees", { live: LIVE, surface: SURFACE }],
+            ["a key removed with no alias", { live: withOut(LIVE, "c"), surface: SURFACE }],
+            ["an alias to nothing", { live: LIVE, surface: { ...SURFACE, aliases: { old: { ...SURFACE.aliases.old, target: "gone" } } } }],
+            ["an alias removed before its release", { live: withOut(LIVE, "old"), surface: { ...SURFACE, aliases: {}, removed: { old: SURFACE.aliases.old } } }],
+            ["an alias gone and not in removed", { live: withOut(LIVE, "old"), surface: SURFACE }],
+            ["a key the file lacks", { live: { ...LIVE, d: "function" }, surface: SURFACE }],
+            ["a kind changed", { live: { ...LIVE, b: "function" }, surface: SURFACE }],
+            ["one function under two names", { live: LIVE, surface: SURFACE, same: [["a", "c"]] }],
+            ["an alias kept no release", { live: LIVE, surface: { ...SURFACE, aliases: { old: { ...SURFACE.aliases.old, keepUntil: "2.0.0" } } } }]
+        ];
+        equal(JSON.stringify(planted.map(([name, c]) => [name, apiSurfaceProblems({ version: "2.0.0", stages: STAGES, same: [], ...c }).length > 0])),
+            JSON.stringify(planted.map(([name], i) => [name, i > 0])), "the judge does not tell a surface that agrees from each planted fault");
+        const removedLater = apiSurfaceProblems({ live: withOut(LIVE, "old"), surface: { ...SURFACE, aliases: {}, removed: { old: SURFACE.aliases.old } }, version: "2.0.1", stages: STAGES });
+        equal(JSON.stringify(removedLater), "[]", "the judge refuses an alias removed once its release has come");
+
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(surface && typeof surface.keys === "object", "tools/api-surface.json is missing or lists no keys");
+        if (!surface) return;
+        // `suiteRolling` is the runner's own switch (tests.mjs sets it on game.drpg while a run lasts), not a key of the surface.
+        const live = Object.fromEntries(Object.entries(game.drpg ?? {}).filter(([key]) => key !== "suiteRolling").map(([key, value]) => [key, apiKind(value)]));
+        must(Object.keys(live).length >= 400, `game.drpg holds ${Object.keys(live).length} key(s) - this test would read nothing`);
+        const { DrpgApi } = await import("./api.mjs");
+        const functions = Object.entries(DrpgApi).filter(([, value]) => typeof value === "function");
+        const same = [];
+        functions.forEach(([a, fa], i) => functions.slice(i + 1).forEach(([b, fb]) => { if (fa === fb) same.push([a, b]); }));
+        const problems = apiSurfaceProblems({ live, same, surface, version: game.modules.get(MODULE_ID)?.version ?? "0", stages: (await stageLedger()) ?? new Map() });
+        equal(JSON.stringify(problems), "[]", "game.drpg and tools/api-surface.json disagree");
+        equal(JSON.stringify(["openNotices", "skipStep", "adjustTime", "endMode", "overruleObjection", "trialVoice", "migrate"].filter(key => surface.keys[key] !== "function")),
+            "[]", "a key E70, A7 or E52 names is not a function of the file's keys");
+        equal(JSON.stringify(["advanceFloorNow", "extendFloor", "endFloor", "migrate1_2_0"].map(key => surface.aliases?.[key]?.target ?? null)),
+            JSON.stringify(["skipStep", "adjustTime", "endMode", "migrate"]), "an older name is not the alias of the key that does its work now");
     }],
 ];
 

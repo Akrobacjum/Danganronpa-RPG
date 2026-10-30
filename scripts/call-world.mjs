@@ -354,8 +354,10 @@ export async function cancelGather() {
  * once from the setting's own `onChange` - and the two are merged by a 120ms
  * window that a slow client can miss. Clearing first makes the second pass find
  * nothing, which is the behaviour that matters; the cost is that a teleport
- * which throws leaves no order behind to retry, and a GM who wants it can call
- * one again for free with `game.drpg.gatherEveryone`.
+ * which throws leaves no order behind to retry. `gatherEveryone` places the
+ * cast by hand when the region's teleport throws (`fallbackGather`); past that
+ * a GM moves the tokens. `gatherEveryone` is not on `game.drpg` (R83; E52 C6:
+ * this comment named it there, S01-52).
  */
 export async function runPendingGather() {
     if (!game.user.isGM || !isPrimaryGm()) return null;

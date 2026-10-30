@@ -150,7 +150,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, forcedReplacement, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, error, forcedReplacement, forcedDeletion, markFired } from "./utils.mjs";
 import { stableJson, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { diceLookStore } from "./gm-stores.mjs";
 
@@ -239,7 +239,8 @@ export function registerDiceSync() {
     // The overlays wait for the other GMs' copies of the store, not for DSN: they are flags, read as they stand.
     if (gmStoresHydrated()) onStoresHydrated();
     else onGmStoresHydrated(onStoresHydrated);
-    const ready = () => { void sweep(); };
+    // Marked on either road (E52-09): a Dice So Nice already up when this runs fired its hook before it.
+    const ready = () => { markFired("diceSoNiceReady"); void sweep(); };
     if (game.dice3d) ready();
     else Hooks.once("diceSoNiceReady", ready);
 }

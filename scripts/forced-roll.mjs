@@ -48,7 +48,7 @@
  * nothing a person clicks can land inside the window that is left.
  */
 
-import { debug, error } from "./utils.mjs";
+import { debug, error, markFired } from "./utils.mjs";
 
 /**
  * The roll config key that says "this is the roll the Loaded Die was bought for".
@@ -132,7 +132,11 @@ const DRAW_OF = Object.freeze({ hope: 0, fear: 1 });
 const LOADED = 1;
 
 export function registerForcedRolls() {
-    Hooks.on("daggerheart.postDualityRollConfiguration", onConfigured);
+    // Marked first (E52-09; patches.mjs's hook row): the contract reads whether Daggerheart still fires it.
+    Hooks.on("daggerheart.postDualityRollConfiguration", (roll, config) => {
+        markFired("daggerheart.postDualityRollConfiguration");
+        onConfigured(roll, config);
+    });
 }
 
 /**

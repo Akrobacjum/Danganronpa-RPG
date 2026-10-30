@@ -22,7 +22,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { dialogContent, error, markFired, tableDialog, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
@@ -65,6 +65,7 @@ export function registerProjectsUi() {
  *     below is the control for wanting the space back.
  */
 function onRenderCountdowns(app, element) {
+    markFired("renderDhCountdowns");
     try {
         const root = element instanceof HTMLElement ? element : element?.[0];
         if (!root) return;
@@ -160,7 +161,8 @@ export function guardTrayRows(root) {
     return true;
 }
 
-const MENU_DONE = Symbol("drpgProjectRowMenu");
+/* Registered (`Symbol.for`), so the contract register's probe (patches.mjs, "countdown-row-menu") can read the mark. */
+const MENU_DONE = Symbol.for("drpgProjectRowMenu");
 
 /**
  * The tray's row menu, entries in 2.10.5's shape (`label`, `visible`, `onClick(event, target)`; v13's `name`,

@@ -49,7 +49,7 @@
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { locateActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
+import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG, markFired } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
@@ -1537,6 +1537,7 @@ export const REROLL_SHOWN = "drpgRerollShown";
  * read in 6.3.1: a message not animating resolves), so the GM's `toMessage` holds nothing.
  */
 function keepDiceToReaders(messageId, interception) {
+    markFired("diceSoNiceMessagePreProcess");
     if (!interception) return;
     const message = game.messages.get(messageId ?? "");
     if (isDrawnRoll(message)) return void (interception.willTrigger3DRoll = false);
