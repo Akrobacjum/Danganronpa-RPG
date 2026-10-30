@@ -7,7 +7,9 @@
  *
  *   A (E50 C1; E50-01 to E50-05) - the messenger window reads only what is in front of its reader:
  *     A1 gm2 opens p1's thread and goes to the Note tab; p1 writes; gm2's Note tab is drawn again: unread 1 on gm2
- *        and 1 on gm; gm2 goes to Chat: 0 on gm2, still 1 on gm.
+ *        and 1 on gm; gm2 goes to Chat: 0 on gm2, still 1 on gm. Then (fix FG2, G3), the window in front on Chat and the
+ *        page shown, p1 asks the GM through `callGm`: on gm2 the bubble is appended, no card is kept for it and it is
+ *        read at once; on gm, with no window, the card is kept and the count is one more.
  *     A2 gm2's window on Chat with another window in front of it; p1 asks the GM through `callGm`: the bubble is in
  *        gm2's window AND gm2 is shown the card, kept as the thread's (`source` "messenger", its `messageId`,
  *        `link.messenger` p1); gm2 brings the window forward: read.
@@ -23,8 +25,9 @@
  *   B (E50 C2; E50-11, E50-13) - the counts and the GM's roster:
  *     B1 gm, the primary, posts an ask in p1's thread from its own session, as the bridge does (`callGm` run on gm):
  *        gm's badge, its roster row for p1 and its count say 1 more, and gm2's too; gm reads it in p1's window: 0 on
- *        gm, still 1 on gm2. gm posts a second ask: 1 on gm; gm settles it (`settleCall`): 0 on gm, 2 on gm2; gm2
- *        reads the thread: 0.
+ *        gm, still 1 on gm2. gm posts a second ask: 1 on gm; gm settles it (`settleCall`): 0 on gm, 2 on gm2; and
+ *        (fix FG2, F2) the launcher's badge is the count on both before anything is opened, again after gm posts a
+ *        third ask and gm2 settles it (the settle reaching gm as new words alone); gm2 reads the thread: 0.
  *     B2 the roster on gm and on gm2: three clicks inside leave it open, the outside click after them closes it,
  *        two opens in a row leave one roster.
  *
@@ -57,6 +60,10 @@
  *        does), a murder playlist of 8 tracks: gm's, gm2's, p1's and p2's `murderMusicHere().track` the same; p3's
  *        Chie, elsewhere, plays none.
  *     D3 p1's band (`nowPlayingHere`) names the murder track during it, and nothing at Music 0.
+ *     D4 (fix FG2; F4, S2, G6) p1 writes to the GM in its window during the incident, where the primary posts it
+ *        (secret.mjs `askGm`): too long, then with gm and gm2 stood in as gone on p1's page - each says only its
+ *        refusal; then with gm holding the card.post packet past p1's `TIMING.ackMs` - "did not answer in time" and
+ *        "may not have been sent" (no "not sent"), and gm, released, posts it: the words stay in the field each time.
  *     D2 p2 moves its Music slider during it; the incident ends (`endMurder`): p2's volume is the moved one, every
  *        other browser keeps its 0.8, no browser's `musicDuckedFrom` changed, the track stopped everywhere.
  *   E (E50 C4; E50-32) - the Take on a body (anonymity.mjs `buildBodyLoot`), drawn into p1's page; Botan dead on a
@@ -66,6 +73,8 @@
  *        gate with that sentence, the Tool still on the body.
  *     E2 Aiko back; gm and gm2 stood in as gone on p1's page: no GM to ask - no "took" toast, "No GM is connected."
  *        once, the Take open again, nothing sent.
+ *     E4 (fix FG2, G4) p1's page answers no character of its own for the click's read: "no character" once, no
+ *        "took" toast, the Take open again, nothing sent.
  *     E3 the Take lands: the toast once, the Take stays shut, a second press sends nothing (one packet counted on gm).
  *   S (E50 C4; E50-33, flow "sound") - sfx.mjs's socket road, counted where `fire` hands a file to the audio layer
  *     (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
@@ -76,7 +85,8 @@
  * 83ca7142's (E50 C3's parent) for part C and at 50d9e9c6's (E50 C4's parent) for parts E and S1, measured
  * 30.10.2026: see each commit's message. D and S2 are green there; their mutants are in C4's message. C4 is red at
  * 8d509dc7's module code and C5 is green there (it reads wiring C3 made): see fix FG1's message; C4's stopped first
- * playlist is red at 422142bc's (fix FG1b's message).
+ * playlist is red at 422142bc's (fix FG1b's message). B1's badge and D4 are red at 0f2058bf's module code; A1's ask
+ * in front and E4 are green there and red on a planted fault each (fix FG2's message).
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -88,11 +98,13 @@ const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const WORDS = {
     a1: "S87 A1 a word while the Note tab shows",
+    a1b: "S87 A1 an ask while the window shows the thread",
     a2: "S87 A2 a question for the GM",
     a3: "S87 A3 a reply while the page is hidden",
     a4: "S87 A4 words that must not be lost",
     b1: "S87 B1 an ask the primary posts",
-    b1b: "S87 B1 a second ask, settled"
+    b1b: "S87 B1 a second ask, settled",
+    b1c: "S87 B1 a third ask, settled by gm2"
 };
 
 export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environment, IDS, repoUrl }) {
@@ -151,6 +163,23 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         a1Chat.window.tab === "chat" && a1Chat.unread.gm2 === 0 && a1Chat.unread.gm === 1
             && (a1Chat.window.bubbles ?? []).some(b => b.id === a1Sent),
         J(a1Chat), { flow: "messenger" });
+    /* E50-02's other half on a real window (fix FG2; the end review's G3): a window that shows the thread raises no card.
+       An ask, since a GM is shown a card for an ask alone; R297's stand-in has no `seesThread` and reads the fallback. */
+    const a1Asked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.callGm(game.actors.get("${IDS.aiko}"), { title: "S87 A1", request: ${J(WORDS.a1b)} });`, { timeout: 60000 });
+    const SEEN = wait => `${M} ${UNTIL} const S = await import("${repoUrl}/scripts/secret.mjs"); const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const ask = () => M.threadMessages("${P1}").find(m => S.cardFlag(m, M.MESSENGER_FLAGS.gmAsk) && S.contentOf(m).includes(${J(WORDS.a1b)}));
+        await until(() => ask() && ${wait});
+        const id = ask()?.id ?? null, app = A.DrpgMessengerApp.instances.get("${P1}") ?? null;
+        return { id, front: Boolean(app) && ui.activeWindow === app, tab: app?.tab ?? null, visible: document.visibilityState,
+            bubble: Boolean(id && document.querySelector('.drpg-messenger-bubble[data-message-id="' + id + '"]')),
+            kept: NH.noticeEntries().filter(e => e.messageId === id).length, unread: M.unreadCount("${P1}") };`;
+    const a1Seen = { gm2: await gm2.eval(SEEN(`document.querySelector('.drpg-messenger-bubble[data-message-id="' + ask().id + '"]')`), { timeout: 60000 }),
+        gm: await gm.eval(SEEN(`NH.noticeEntries().some(e => e.messageId === ask().id)`), { timeout: 60000 }) };
+    check("A1: with gm2's window in front on its Chat tab and the page shown, p1's ask is appended there, raises no card on gm2 and is read at once; on gm, with no window, it is shown as a card and counts one more (E50-02; fix FG2, G3)",
+        a1Asked === true && Boolean(a1Seen.gm2.id) && a1Seen.gm2.id === a1Seen.gm.id && a1Seen.gm2.front && a1Seen.gm2.tab === "chat" && a1Seen.gm2.visible === "visible"
+            && a1Seen.gm2.bubble && a1Seen.gm2.kept === 0 && a1Seen.gm2.unread === 0 && a1Seen.gm.kept === 1 && a1Seen.gm.unread === a1Chat.unread.gm + 1,
+        J({ a1Asked, a1Seen }), { flow: "messenger" });
 
     /* ------------------------------ A2. a window behind another ------------------------------ */
     phase("A2: gm2's window on Chat behind another window; p1 asks the GM", { flow: "messenger" });
@@ -160,7 +189,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         return await B.callGm(game.actors.get("${IDS.aiko}"), { title: "S87 A2", request: ${J(WORDS.a2)} });`, { timeout: 60000 });
     const a2 = await gm2.eval(`${M} ${UNTIL}
         const S = await import("${repoUrl}/scripts/secret.mjs");
-        const ask = () => M.threadMessages("${P1}").find(m => S.cardFlag(m, M.MESSENGER_FLAGS.gmAsk));
+        const ask = () => M.threadMessages("${P1}").find(m => S.cardFlag(m, M.MESSENGER_FLAGS.gmAsk) && S.contentOf(m).includes(${J(WORDS.a2)}));
         await until(() => ask() && document.querySelector('.drpg-messenger-bubble[data-message-id="' + ask().id + '"]'));
         const NH = await import("${repoUrl}/scripts/notice-history.mjs");
         await until(() => NH.noticeEntries().some(e => e.messageId === ask()?.id));
@@ -309,10 +338,30 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         await B.settleCall(game.messages.get(${J(b1bId)}), "S87 B1 settled");
         await until(() => S.cardFlag(game.messages.get(${J(b1bId)}), M.MESSENGER_FLAGS.settled)); return Boolean(S.cardFlag(game.messages.get(${J(b1bId)}), M.MESSENGER_FLAGS.settled));`, { timeout: 60000 });
     await settle(600);
+    // The launcher as it stands, before anything is opened (fix FG2; the end review's F2): its badge, and the count it should show.
+    const BADGE = `${M} return { badge: Number(document.querySelector("#drpg-messenger-launcher .drpg-messenger-badge")?.textContent ?? 0), total: M.totalUnread() };`;
+    const b1bBadge = { gm: await gm.eval(BADGE), gm2: await gm2.eval(BADGE) };
     const b1bAfter = { gm: await gm.eval(UNREAD), gm2: await gm2.eval(UNREAD) };
     check("B1: the primary's second ask counts on gm until it is settled, then not; on gm2 both asks are unread (E50-11)",
         Boolean(b1bId) && b1bOpen.gm === 1 && b1bSettled === true && b1bAfter.gm === 0 && b1bAfter.gm2 === b1Read.gm2.unread + 1,
         J({ b1bId, b1bOpen, b1bSettled, b1bAfter }), { flow: "messenger" });
+    // A third ask the primary posts, settled by gm2: the settle reaches gm as new words for the card alone (`updateSecret`).
+    await gm.eval(ASK(WORDS.b1c), { timeout: 60000 });
+    const b1cId = await gm.eval(ASK_HERE(WORDS.b1c), { timeout: 60000 });
+    await gm2.eval(ASK_HERE(WORDS.b1c), { timeout: 60000 });
+    await settle(600);
+    const b1cOpen = await gm.eval(BADGE);
+    const b1cSettled = await gm2.eval(`${M} const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return Boolean(await B.settleCall(game.messages.get(${J(b1cId)}), "S87 B1 settled by gm2"));`, { timeout: 60000 });
+    const b1cOnGm = await gm.eval(`${M} ${UNTIL} const S = await import("${repoUrl}/scripts/secret.mjs");
+        return await until(() => Boolean(S.cardFlag(game.messages.get(${J(b1cId)}), M.MESSENGER_FLAGS.settled)));`, { timeout: 60000 });
+    await settle(600);
+    const b1cBadge = { gm: await gm.eval(BADGE), gm2: await gm2.eval(BADGE) };
+    check("B1: a settled ask leaves the launcher's badge at the count, on the GM that settled it and on the other one, before anything is opened: gm's own, then gm2's settle of gm's third (E50-11; fix FG2, F2)",
+        b1bBadge.gm.badge === b1bBadge.gm.total && b1bBadge.gm2.badge === b1bBadge.gm2.total
+            && Boolean(b1cId) && b1cOpen.total === b1bBadge.gm.total + 1 && b1cOpen.badge === b1cOpen.total && b1cSettled && b1cOnGm
+            && b1cBadge.gm.total === b1bBadge.gm.total && b1cBadge.gm.badge === b1cBadge.gm.total && b1cBadge.gm2.badge === b1cBadge.gm2.total,
+        J({ b1bBadge, b1cId, b1cOpen, b1cSettled, b1cOnGm, b1cBadge }), { flow: "messenger" });
     await gm2.eval(OPEN);
     await settle(400);
     const b1bRead = await gm2.eval(UNREAD);
@@ -559,7 +608,10 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return { opened, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
     await settle(900);
-    const dHeld = await p1.eval(`delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
+    /* The opening roll reaches p1 when its invitation lands, which a fixed 900 ms missed once under load (fix FG2's quick
+       run, dHeld 0 with every browser on the same track): waited for, up to 4 s. */
+    const dHeld = await p1.eval(`${UNTIL} await until(() => (globalThis.__s87Held ?? []).length > 0, 4000);
+        delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
         for (const r of held) r(null); return held.length;`);
     const MURDER_HERE = wait => `${DMUSIC} const end = Date.now() + 4000;
         while (${wait ? "!M.murderMusicHere().playing" : "false"} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
@@ -585,6 +637,70 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
     check("D3: on p1 the band under the clock names the murder track during the incident, and nothing at Music 0 (E50-31)",
         d3.was === 0.8 && d3.during?.track === d1Track && d3.during?.playlist === "S87 D the murder playlist" && d3.silent === null,
         J({ d1Track, d3 }), { flow: "murder-incident" });
+
+    /* D4 (fix FG2; the end review's F4, S2, G6): during an incident a player's message is posted by the primary (secret.mjs
+       `askGm`), so a send can fail three ways that each say why already, and one of them - no answer in time - may have
+       been posted all the same. p1's window, its every toast, and the card.post packets gm is sent held while asked. */
+    phase("D4: p1 writes to the GM during the incident - too long, no GM, no answer in time", { flow: "messenger" });
+    const D4_WORDS = "S87 D4 a word to the GM in the killing";
+    const d4Open = await p1.eval(`${OPEN.replace("return Boolean(app?.rendered);", "")}
+        globalThis.__s87Says = []; globalThis.__s87SaysReal = {};
+        for (const kind of ["info", "warn", "error"]) {
+            const realFn = globalThis.__s87SaysReal[kind] = ui.notifications[kind];
+            ui.notifications[kind] = function (text, ...rest) { globalThis.__s87Says.push([kind, String(text)]); return realFn.call(this, text, ...rest); };
+        }
+        return { open: Boolean(app?.rendered), running: Boolean(game.settings.get("${MOD}", "murderState")?.active),
+            tooLong: game.i18n.format("DRPG.Secret.tooLong", { kb: 32 }), noGm: game.i18n.localize("DRPG.Bridge.why.noGm"),
+            noAnswer: game.i18n.localize("DRPG.Bridge.why.noAnswer"), failed: game.i18n.localize("DRPG.Messenger.sendFailed"),
+            unsure: game.i18n.localize("DRPG.Messenger.sendUnsure") };`, { timeout: 60000 });
+    const D4_SEND = words => `${M} ${UNTIL} const words = ${J(words)};
+        const app = A.DrpgMessengerApp.instances.get("${P1}");
+        const area = app.element.querySelector(".drpg-messenger-input textarea");
+        const from = globalThis.__s87Says.length;
+        area.value = words;
+        app.element.querySelector(".drpg-messenger-input").requestSubmit();
+        await new Promise(r => setTimeout(r, 50));
+        await until(() => !area.disabled, 20000);
+        await new Promise(r => setTimeout(r, 300));
+        return { field: area.value === words ? "kept" : area.value, disabled: area.disabled, toasts: globalThis.__s87Says.slice(from) };`;
+    const d4Long = await p1.eval(D4_SEND(`S87 D4 ${"x".repeat(33 * 1024)}`), { timeout: 60000 });
+    const d4NoGm = await p1.eval(`const gone = game.users.filter(u => u.isGM && u.active);
+        for (const u of gone) u._source.active = false;
+        try { return { gone: gone.length, ...(await (async () => { ${D4_SEND(D4_WORDS)} })()) }; }
+        finally { for (const u of gone) u._source.active = true; }`, { timeout: 60000 });
+    // Every card.post packet gm is sent, held until released: the answer misses p1's clock (TIMING.ackMs), the post does not.
+    await gm.eval(`const list = game.socket._handlers.get("module.${MOD}") ?? []; const real = [...list];
+        globalThis.__s87Card = { real, held: [], packets: 0 };
+        list.splice(0, list.length, ...real.map((fn, at) => function (packet, ...rest) {
+            const b = globalThis.__s87Card;
+            if (packet?.action === "card.post" && b) { if (at === 0) b.packets++; b.held.push(() => fn.call(this, packet, ...rest)); return undefined; }
+            return fn.call(this, packet, ...rest);
+        }));
+        return true;`);
+    const d4Late = await p1.eval(D4_SEND(D4_WORDS), { timeout: 60000 });
+    const ON_GM = `${M} const S = await import("${repoUrl}/scripts/secret.mjs");
+        return M.threadMessages("${P1}").filter(m => S.contentOf(m).includes(${J(D4_WORDS)})).map(m => m.id);`;
+    const d4Posted = await gm.eval(`${UNTIL} const b = globalThis.__s87Card; delete globalThis.__s87Card;
+        const list = game.socket._handlers.get("module.${MOD}"); if (list && b) list.splice(0, list.length, ...b.real);
+        const before = await (async () => { ${ON_GM} })();
+        for (const go of b?.held ?? []) await go();
+        await until(async () => (await (async () => { ${ON_GM} })()).length > before.length, 8000);
+        return { held: b?.packets ?? 0, before, after: await (async () => { ${ON_GM} })() };`, { timeout: 60000 });
+    const sayOnly = (toasts, ...texts) => toasts.length === texts.length && texts.every((t, i) => toasts[i]?.[1].includes(t));
+    check("D4: during the incident a send that already said why (too long, no GM) says nothing more; one whose answer did not come says it may not have been sent and to look first, and the primary posted it after all; the words stay in the field each time (E50-03; fix FG2, F4, S2, G6)",
+        d4Open.open && d4Open.running && d4Open.unsure !== "DRPG.Messenger.sendUnsure"
+            && d4Long.field === "kept" && sayOnly(d4Long.toasts, d4Open.tooLong)
+            && d4NoGm.gone === 2 && d4NoGm.field === "kept" && sayOnly(d4NoGm.toasts, d4Open.noGm)
+            && d4Late.field === "kept" && d4Late.disabled === false && sayOnly(d4Late.toasts, d4Open.noAnswer, d4Open.unsure)
+            && !d4Late.toasts.some(([, text]) => text === d4Open.failed)
+            && d4Posted.held === 1 && d4Posted.before.length === 0 && d4Posted.after.length === 1,
+        J({ d4Open, d4Long: { ...d4Long, toasts: d4Long.toasts.map(([k, t]) => [k, t.slice(0, 80)]) }, d4NoGm, d4Late, d4Posted }), { flow: "messenger" });
+    // Put back: p1's toasts and window, and the card the primary posted.
+    await p1.eval(`${M} for (const [kind, fn] of Object.entries(globalThis.__s87SaysReal ?? {})) ui.notifications[kind] = fn;
+        delete globalThis.__s87SaysReal; delete globalThis.__s87Says;
+        await A.DrpgMessengerApp.instances.get("${P1}")?.close(); return true;`);
+    await gm.eval(`const ids = await (async () => { ${ON_GM} })(); for (const id of ids) await game.messages.get(id)?.delete(); return ids.length;`, { timeout: 60000 });
+    await settle(600);
 
     phase("D2: p2 moves its Music slider during the incident; the incident ends", { flow: "murder-incident" });
     const d2Move = await p2.eval(`${MU} ${UNTIL} ${SOUND}
@@ -720,6 +836,34 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             && tookToasts(e2.toasts) === 0 && e2.toasts.filter(([, text]) => text.includes(WORDS_E.noGm)).length === 1
             && e2.flips.includes("open") && J(e2.take) === J([false, WORDS_E.open]) && e2.onBody === true && e2Gm.onBody === true && e2Gm.loots === 0,
         J({ e2Ready, e2, e2Gm }), { flow: "give-take-stash" });
+
+    /* E4 (fix FG2; the end review's G4): the Take with no character, as the player handbook says it ("or you play no
+       character - says only why, and opens again"). p1's page answers no character of its own for the one synchronous
+       read the click makes (anonymity.mjs `myCharacter`: `game.actors.filter`, then `game.user.character`), put back
+       before anything else runs; the list's taker, read when it was drawn, is still Aiko, so the gate opens it again. */
+    phase("E4: p1 presses Take while p1's page reads no character of its own", { flow: "give-take-stash" });
+    const e4Loots = await loots();
+    const e4 = await p1.eval(`${UNTIL} const user = game.user, actors = game.actors;
+        const hadFilter = Object.getOwnPropertyDescriptor(actors, "filter"), hadChar = Object.getOwnPropertyDescriptor(user, "character");
+        let was = null;
+        Object.defineProperty(actors, "filter", { configurable: true, writable: true, value: () => [] });
+        Object.defineProperty(user, "character", { configurable: true, get: () => null });
+        try { was = (() => { ${CLICK} })(); }
+        finally {
+            if (hadFilter) Object.defineProperty(actors, "filter", hadFilter); else delete actors.filter;
+            if (hadChar) Object.defineProperty(user, "character", hadChar); else delete user.character;
+        }
+        ${TAKE}
+        await until(() => take && !take.disabled && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
+        await new Promise(r => setTimeout(r, 300));
+        return { was, taken: take?.dataset.drpgTaken ?? null, ownAgain: Boolean(user.character), ...(await (async () => { ${AFTER} })()) };`, { timeout: 60000 });
+    const e4Gm = { loots: (await loots()) - e4Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
+    const NO_CHARACTER = await p1.eval(`return game.i18n.localize("DRPG.Loot.noCharacter");`);
+    check("E4: a Take with no character of the viewer's own says only why, once, shows no \"took\" toast, and opens again; nothing reached the primary (E50-32; fix FG2, G4)",
+        J(e4.was) === J([false, WORDS_E.open]) && NO_CHARACTER !== "DRPG.Loot.noCharacter" && J(e4.toasts) === J([["warn", NO_CHARACTER]])
+            && e4.flips.includes("shut") && e4.flips.includes("open") && J(e4.take) === J([false, WORDS_E.open]) && e4.taken === null && e4.ownAgain
+            && e4.onBody === true && e4Gm.onBody === true && e4Gm.loots === 0,
+        J({ e4, e4Gm }), { flow: "give-take-stash" });
 
     phase("E3: p1 presses Take, and again", { flow: "give-take-stash" });
     const e3Loots = await loots();

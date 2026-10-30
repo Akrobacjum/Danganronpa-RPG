@@ -1069,17 +1069,26 @@ function incidentRuns() {
  *                                     with the words, never on the document.
  * @param {object}   [data.flags]      Split (`splitFlags`): the document keeps its
  *                                     own, the rest go with the words as `meta`.
+ * @param {object}   [opts.outcome]    Filled on the way to a null, for a caller that tells
+ *                                     the writer (E50 fix FG2; the end review's F4, S2):
+ *                                     `told` when this browser has said why already (too
+ *                                     long; the bridge's refusal, its `noGm`, its `noAnswer`),
+ *                                     `maybePosted` when the card may be on the table all the
+ *                                     same (no answer in time, or an id and no card in time,
+ *                                     from the primary; a card made here whose words were not
+ *                                     kept). Neither: nothing was posted and nothing said.
  * @returns {Promise<ChatMessage|null>}
  */
-export async function postSecret(data = {}) {
-    return post(data);
+export async function postSecret(data = {}, { outcome = null } = {}) {
+    return post(data, { outcome });
 }
 
 /**
  * `postSecret`, and `postAsked`'s card with `clean`: each reader's copy of the words is
  * cleaned as it is cut (`cleanCardHtml`), since its readers keep a GM's words as written.
  */
-async function post(data, { clean = false } = {}) {
+async function post(data, { clean = false, outcome = null } = {}) {
+    const said = typeof outcome === "object" && outcome ? outcome : {};
     const { veiled: asked = false, summary: rawSummary = null, ...rest } = data ?? {};
     const veiled = Boolean(asked) || incidentVeils(rest);
     const summary = plainSummary(rawSummary);
@@ -1099,9 +1108,10 @@ async function post(data, { clean = false } = {}) {
        posts nothing. */
     if (!game.user.isGM && packetBytes(html, meta) > MAX_PLAYER_BYTES) {
         ui.notifications?.warn(game.i18n.format("DRPG.Secret.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
+        said.told = true;
         return null;
     }
-    if (!game.user.isGM && incidentRuns()) return askGm({ ...rest, whisper: recipients, veiled: Boolean(asked), summary: rawSummary });
+    if (!game.user.isGM && incidentRuns()) return askGm({ ...rest, whisper: recipients, veiled: Boolean(asked), summary: rawSummary }, said);
     const message = await ChatMessage.create({
         ...rest,
         ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
@@ -1110,6 +1120,8 @@ async function post(data, { clean = false } = {}) {
         flags
     });
     if (!message) return null;
+    // The card is on the table from here: a throw below leaves it there, its words maybe nowhere.
+    said.maybePosted = true;
 
     const at = message.timestamp ?? Date.now();
     const pin = pinned(rest.flags);
@@ -1158,11 +1170,15 @@ async function post(data, { clean = false } = {}) {
  * its id, and this browser waits for the document and, when it reads the card, its words - what
  * follows the card finds both, as it did. Asked of every player, in the cast or not, as the
  * veil is. Nothing is posted with no GM connected - the player is told (the bridge's `noGm`),
- * and no GM would have read the words either - nor on a refusal, which the bridge tells, nor
- * when no answer comes. A card with no whisper list is public and is not this file's
- * (utils.mjs `privately`).
+ * and no GM would have read the words either - nor on a refusal, which the bridge tells. When
+ * no answer comes in time (`TIMING.ackMs`), or the id comes and the card does not reach this
+ * browser within `messageArrives`, the answer is null as well, and the primary may have posted
+ * it all the same: a late request is dropped here, not its run there (bridge-guards.mjs). So
+ * `said`, `postSecret`'s outcome, keeps which: `told` where the bridge said why, `maybePosted`
+ * where the card may be there (E50 fix FG2; the end review's F4, S2; 87 D4). A card with no
+ * whisper list is public and is not this file's (utils.mjs `privately`).
  */
-async function askGm(card) {
+async function askGm(card, said = {}) {
     const { requestCardPost } = await import("./gm-bridge.mjs");
     const actorId = card.speaker?.actor;
     const own = card.flags?.[MODULE_ID];
@@ -1172,10 +1188,20 @@ async function askGm(card) {
         flags: own && typeof own === "object" ? own : null,
         summary: card.summary ?? null
     });
-    const id = res.ok ? res.value?.id : null;
+    if (!res.ok) {
+        // Every failure of the bridge's has been said by now (`sayNotDone`; card.post is not quiet).
+        said.told = true;
+        if (res.reason === "noAnswer") said.maybePosted = true;
+        return null;
+    }
+    const id = res.value?.id;
     if (typeof id !== "string") return null;
     const message = game.messages.get(id) ?? await messageArrives(id);
-    if (message && card.whisper.includes(game.user.id)) await wordsOf(message);
+    if (!message) {
+        said.maybePosted = true;
+        return null;
+    }
+    if (card.whisper.includes(game.user.id)) await wordsOf(message);
     return message;
 }
 

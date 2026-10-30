@@ -4209,6 +4209,7 @@
       "rosterNoMessages": "No messages yet.",
       "noMessagesYet": "No messages yet - say hello.",
       "sendFailed": "Your message was not sent. It is still in the box - try again.",
+      "sendUnsure": "Your message may not have been sent. It is still in the box - look at the thread before you send it again.",
       "placeholder": "Write a message…",
       "send": "Send",
       "openChat": "Open GM Chat",

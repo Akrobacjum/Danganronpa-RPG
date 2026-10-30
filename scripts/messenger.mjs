@@ -158,7 +158,7 @@ export function threadStatsOf(messages, { me = null, readMap = {}, isGM = false 
 /*
  * THE COUNT, ONCE A RENDER. `threadStats()` is `threadStatsOf` over `game.messages` with this browser's read map,
  * kept until the task that asked for it ends (a microtask drops it) and dropped at once on a message created, changed
- * or deleted and on `drpgMessengerRead` (a read stamp written here, or by another tab of this browser that says so). A
+ * or deleted and on `drpgMessengerRead` (a read stamp written on this browser: `markThreadRead` is its one caller). A
  * launcher drawn and a roster built in one go share one pass; anything later counts again, so a card whose words (and
  * with them a veiled card's thread or its `settled`) land after its document is read as it stands then, without a hook
  * of its own. Counted: `messenger.threadStats` a pass, `messenger.readMap` a read of the map (perf-counters.mjs).
@@ -235,8 +235,10 @@ export function totalUnread() {
  * Send free text into a player's thread. Called from the messenger window -
  * either the player themself, or any GM, may call this. The whisper target
  * is always the full roster, so there is only ever one copy of the message.
+ * `outcome`: filled on the way to a null, as `postSecret` fills it (secret.mjs;
+ * E50 fix FG2), for the window to say what is known of a send that failed.
  */
-export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } = {}) {
+export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, outcome = null } = {}) {
     const body = String(text ?? "").trim();
     if (!body) return null;
     if (!isThreadUser(playerUserId)) {
@@ -245,7 +247,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
     }
 
     const esc = foundry.utils.escapeHTML(body).replace(/\n/g, "<br>");
-    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind);
+    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind, false, false, null, outcome);
 }
 
 /*
@@ -271,7 +273,7 @@ export async function postToThread(playerUserId, html, { kind = THREAD_KIND.acti
     return createThreadMessage(playerUserId, html, kind, gmAsk, veiled, rid);
 }
 
-async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null, outcome = null) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
 
     // The SENDER's sound, and it is deliberately not carried on the message:
@@ -306,7 +308,7 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
                     ...(rid ? { rid } : {})
                 }
             }
-        });
+        }, { outcome });
     } catch (err) {
         error("Messenger: could not send.", err);
         return null;

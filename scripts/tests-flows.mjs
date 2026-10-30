@@ -130,9 +130,10 @@ export const FLOWS = Object.freeze([
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity", "87-messenger-sound"], status: "partial", stage: "E39" },
     // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
     // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.
     // E80 fix r1-G4 (19.10.2026; the review's goal-P2-18 and goal-P2-20): 40-flow drives it in three players' browsers -
@@ -189,8 +190,9 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts
     // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound reads the read state, the counts and a failed send.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
-        entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals", "87-messenger-sound"], status: "covered", stage: "<=1.2.50" },
     // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, gm-bridge.mjs
     // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim; 30-security's 4b2e forges
     // p2's take and done of p1's card (E18 fix e1-G2).
@@ -221,9 +223,11 @@ export const FLOWS = Object.freeze([
     // C4) has p3's page throw Chie's opening, take a Finishing Blow and clean up a trace in Stage 6, each drawn on the
     // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
     // it was gm-rolls-total's, which 83's other phases keep.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part D plays the murder music on four accounts.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity"],
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity",
+            "87-messenger-sound"],
         suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },

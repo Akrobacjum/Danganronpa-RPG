@@ -23105,6 +23105,58 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([["kept", false, 1], ["kept", false, 1], ["empty", false, 0], true]),
             "[the field after a send answered null, one that threw, one that landed: its words, whether it is still disabled, the sendFailed toasts; whether sendFailed has words in this language]");
     }],
+    ["R1072 - a failed send says what is known, once: nothing said and nothing posted is \"not sent\"; a refusal that said why already (too long, no GM, the GM's refusal) adds nothing; one that may have been posted (no answer in time, an id with no card, a card made and its words not kept) says it may not have been sent and to look first (E50 fix FG2; the end review's F4, S2, G6)", async () => {
+        /*
+         * E50 fix FG2, 30.10.2026; the end review's F4, S2 and G6. Every null from the send was "Your message was not
+         * sent ... try again": stacked on a refusal that had said why (`DRPG.Secret.tooLong`, the bridge's `noGm`), and
+         * said where the primary may have posted it (secret.mjs `askGm`: an answer past `TIMING.ackMs`, or its id and
+         * no card within `messageArrives`), so a second Send posted it twice. The send is handed an outcome to fill
+         * (`told`, `maybePosted`; messenger.mjs `sendMessage`, secret.mjs `postSecret`). A stand-in window as R1062's,
+         * its `send` answering null four times, each filling the outcome as one road does, then a message; the toasts
+         * of every kind after each, `ui.notifications` stood in and put back. Red at 0f2058bf: the handler handed no
+         * outcome and said `sendFailed` every time.
+         */
+        const M = await import("./messenger-app.mjs");
+        const failed = game.i18n.localize("DRPG.Messenger.sendFailed"), unsure = game.i18n.localize("DRPG.Messenger.sendUnsure");
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="drpg-messenger-log"></div><form class="drpg-messenger-input"><textarea name="text"></textarea><button type="submit"></button></form>`;
+        const roads = [{}, { told: true }, { maybePosted: true }, { told: true, maybePosted: true }, null];
+        const app = Object.create(M.DrpgMessengerApp.prototype, {
+            element: { value: root }, playerUserId: { value: "R1072NoSuchUser1" }, rendered: { value: false },
+            tab: { value: "chat", writable: true },
+            send: { value: async (_text, outcome) => {
+                const road = roads.shift();
+                if (road === null) return { id: "R1072SentMessage" };
+                if (outcome && typeof outcome === "object") Object.assign(outcome, road);
+                return null;
+            } }
+        });
+        const area = root.querySelector("textarea"), form = root.querySelector("form");
+        const toasts = [], real = {};
+        const read = [];
+        for (const kind of ["info", "warn", "error"]) {
+            real[kind] = ui.notifications[kind];
+            ui.notifications[kind] = text => { toasts.push(String(text) === failed ? "failed" : String(text) === unsure ? "unsure" : `${kind}: ${text}`); };
+        }
+        try {
+            M.DrpgMessengerApp.prototype._onRender.call(app, {}, {});
+            for (const i of [0, 1, 2, 3, 4]) {
+                const words = `R1072 words ${i}`;
+                area.value = words;
+                const before = toasts.length;
+                form.dispatchEvent(new Event("submit", { cancelable: true }));
+                await until(() => !area.disabled, 1000);
+                await settle();
+                read.push([area.value === words ? "kept" : area.value === "" ? "empty" : area.value, area.disabled, toasts.slice(before)]);
+            }
+        } finally {
+            for (const [kind, fn] of Object.entries(real)) ui.notifications[kind] = fn;
+        }
+        read.push(unsure !== "DRPG.Messenger.sendUnsure" && unsure !== failed);
+        equal(stableJson(read), stableJson([["kept", false, ["failed"]], ["kept", false, []], ["kept", false, ["unsure"]], ["kept", false, ["unsure"]],
+            ["empty", false, []], true]),
+            "[the field after a send that said nothing and posted nothing, one that said why, one that may have posted, one that said why and may have posted, one that landed: its words, whether it is still disabled, the toasts; whether sendUnsure has words of its own in this language]");
+    }],
     ["R1063 - a deleted message leaves an open messenger window, and the last one gone puts the empty notice back (E50 C1; S11-35, E50-04)", async () => {
         /*
          * E50 C1, 30.10.2026; audit S11-35 (E50-04). `registerMessenger` hooked creation and edits only, so a card

@@ -40,6 +40,11 @@ export function registerMessengerUi() {
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
+    /* A card that changed: a settled ask no longer counts for the GM that posted it (messenger.mjs `threadStatsOf`, E50
+       C2), and a settle reaches a browser as this hook alone - new words through `updateSecret` (secret.mjs `remember`),
+       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). An open
+       roster keeps the rows it was drawn with, as it does for a message or a read. */
+    Hooks.on("drpgMessengerEdited", () => renderLauncher());
     Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
     /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
        was hidden (E50 C1, E50-01). What v14 does with `ui.activeWindow` meanwhile is LIVE-E50-02. */
@@ -376,6 +381,12 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
          * and `createThreadMessage` logs a failure and answers null - so a message that never left was gone from the
          * screen as well, and nothing said so. The field is held while the send runs and emptied only once the
          * message is there; on null or a throw the words stay, the field comes back, and the writer is told once.
+         *
+         * TOLD WHAT IS KNOWN, AND ONCE (E50 fix FG2; the end review's F4, S2, G6). "Not sent" was said of every null,
+         * after a refusal that had said why (too long, no GM) and where the primary may have posted it during an
+         * incident (secret.mjs `askGm`: no answer in time, or an id and no card in time), so Send again posted it
+         * twice. The send fills `outcome` (`postSecret`'s): may have been posted - say so, and to look at the thread
+         * first; said already - nothing more; neither - not sent. A throw is not sent.
          */
         form?.addEventListener("submit", async event => {
             event.preventDefault();
@@ -383,8 +394,9 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
             if (!text.trim() || textarea.disabled) return;
             textarea.disabled = true;
             let sent = null;
+            const outcome = {};
             try {
-                sent = await this.send(text);
+                sent = await this.send(text, outcome);
             } catch (err) {
                 error("Messenger: could not send.", err);
                 sent = null;
@@ -392,7 +404,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
                 textarea.disabled = false;
             }
             if (sent) textarea.value = "";
-            else ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
+            else if (outcome.maybePosted) ui.notifications.warn(game.i18n.localize("DRPG.Messenger.sendUnsure"));
+            else if (!outcome.told) ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
             textarea.focus();
         });
 
@@ -408,9 +421,9 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         textarea?.focus();
     }
 
-    /** The send behind the Send button: the thread's own message, answered, or null when it did not go. */
-    async send(text) {
-        return sendMessage(this.playerUserId, text);
+    /** The send behind the Send button: the thread's own message, answered, or null when it did not go (`outcome` says what is known). */
+    async send(text, outcome = null) {
+        return sendMessage(this.playerUserId, text, { outcome });
     }
 
     /*
