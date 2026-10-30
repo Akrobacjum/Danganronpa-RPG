@@ -828,7 +828,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        after the trial would not. Read here: on p1 in the trial the list is there and names only students the GMs hold
        dead (an open incident's living victim was listed until the fix, SEC-1); the GM ends the trial; on p1 the list is
        gone, and the world scan after it finds nothing outside known-leaks.json. The disclosure itself, a death nobody has
-       found on that list in the trial, is known-leaks.json's TR30 (closes E67), measured in 67-trial-modes' phase D, where
+       found on that list in the trial, is known-leaks.json's TR30 (closes E72 (part A, formerly E67)), measured in 67-trial-modes' phase D, where
        the list holds such a death; here every death on it has been found (E70 C13). */
     phase("after the trial");
     const listOnP1 = () => p1.eval(`const r = game.settings.get("${MOD}", "trialProgress") ?? {}, c = game.settings.get("${MOD}", "clock") ?? {};

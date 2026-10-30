@@ -5084,8 +5084,8 @@ async function askCardClaim(messageId, step) {
  * or had, is not ruled: this GM is told who, and null is answered without `work` running.
  *
  * The one road for every ruling on a card: the card's buttons (messenger-app.mjs `wireCallActions`)
- * today, and the cards E67 (the gmAsk card's 'Give 1/2'), E68 (the trait card) and E72 (Accept and
- * Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
+ * today, and the cards E72 (part A, formerly E67: the gmAsk card's 'Give 1/2'), E68 (the trait card)
+ * and E72 (Accept and Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
  *
  * @param {ChatMessage} message  The card.
  * @param {() => Promise<object|null>} work  The ruling, run on this GM's browser.

@@ -2985,7 +2985,8 @@ export const MONOCUB = {
      * picker (labelled `DRPG.Monocub.<choice>`), `cost` the actions and `hopeCost`
      * the Hope the Monocub's browser pays before the GM throws. A second ability is
      * one row here and one resolver there; the fields the 1.4.0 rework adds
-     * (phases, caps, a GM-side payment) are E67's.
+     * (phases, caps, a GM-side payment) are those of
+     * E72 (part A, formerly E67).
      */
     abilities: {
         meddle: {

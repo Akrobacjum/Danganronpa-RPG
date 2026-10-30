@@ -12211,7 +12211,7 @@ const INVARIANTS = [
         /*
          * E78 C2, 13.10.2026; the A9 design's R390 (T2; the E78 plan's D2 gave it this number), its data clauses - E78 C4
          * adds the button's. The owner's answers Q1 (grey and struck through only when the MODULE holds the microphone),
-         * Q2 (a dead student talks in the room they died in until E19 and E67 say otherwise), Q4 (the GM's block is never
+         * Q2 (a dead student talks in the room they died in until E19 and E72 (part A, formerly E67) say otherwise), Q4 (the GM's block is never
          * offered on a microphone the module holds, nor for a death kept secret) and Q15 (a GM's block is its own state,
          * a Monocub's too). Asked of plain users and actors, every fact handed in, so it reads no document and writes
          * nothing (tier 1):
@@ -19806,7 +19806,7 @@ const INVARIANTS = [
          * nobody had found, and the voice tile named them (known-leaks A9-K3, measured by 75 E at E78 C7). Read here
          * on plain objects, nothing written and nothing sent: voice.mjs `placeVoices` - the decision `voiceTargets`
          * makes - for each case of A9's list, with the incident's facts handed in (`participantIds` of the state, the
-         * cast held or not, the discoveries, E67's `silencedDead`); `sendInPasses` over a ledger of the test's own
+         * cast held or not, the discoveries, the `silencedDead` of E72 (part A, formerly E67)); `sendInPasses` over a ledger of the test's own
          * (`createVoiceLedger`, its socket and timers the test's), where the witness's room waits for the victim's own
          * `voice.applied` (`onVoiceSocket` handed that ledger): one from the witness's account naming the victim
          * releases nothing, the victim's does, and with no answer the wait ends after 1500 ms; the same pass on a
@@ -19847,7 +19847,7 @@ const INVARIANTS = [
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
         /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
-           or not, the bodies found, E67's silenced; the answer each account gets, and the witnesses' waits. */
+           or not, the bodies found, the silenced of E72 (part A, formerly E67); the answer each account gets, and the witnesses' waits. */
         const place = async ({ cast = ["victim", "killer", "witness", "bystander"], dead = ["victim"], deceased = [], where = {},
             state = running, hydrated = true, found = [], silenced = null, reverse = false } = {}) => {
             const flagged = name => (deceased.includes(name) ? { ...A[name], getFlag: (s, k) => (s === MODULE_ID && k === FLAGS.deceased ? { chapter: 1 } : A[name].getFlag(s, k)) } : A[name]);
@@ -20002,7 +20002,7 @@ const INVARIANTS = [
     ["R831 - in the dead channel the microphone stays its owner's: the reason is a line beside an open or muted button, a click mutes and unmutes, and a GM's block is named over it (E19-16; E19 fix r1-G1)", async () => {
         /*
          * E19 fix r1-G1, 19.10.2026; the review's E19-C3-1. The dead channel is one room for every death kept secret
-         * until E67's channel per account, so with two victims each hears the other (R815's "two victims, after").
+         * until the channel per account of E72 (part A, formerly E67), so with two victims each hears the other (R815's "two victims, after").
          * Until the fix voice.mjs `micHold` answered { reason: "deadAlone", held: true } there, `micState` made that
          * "held", and in "held" `toggleOwnMic` writes nothing: a victim who had muted could not speak to the other, one
          * who had not could not mute, and the tile drew the microphone grey and struck. Asked here on plain facts, as

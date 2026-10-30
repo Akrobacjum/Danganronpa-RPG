@@ -23,7 +23,7 @@
  *   D (E70 C7, the undiscovered dead): Botan killed with nobody told, the trial's voices settled on the primary (the
  *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn. D2 reads Botan on the
  *     trial's list of the dead in p1's world data while nothing else there says he is dead: known-leaks.json TR30,
- *     red on purpose until E67 (E70 C13).
+ *     red on purpose until E72 (part A, formerly E67) (E70 C13).
  *   R (E70 C9, Monokuma's Reveal; E70-60 to E70-64): a Key Remnant the GM wrote into this chapter's plan and never
  *     placed, with the fee's count set to one; no player holds or reads its words; the GM reveals it from the API (the
  *     console's row and its confirmation are tier 1 R1044's): Aiko's and Chie's players each hold one copy - typed Key,
@@ -282,7 +282,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        The list (trialProgress.mutedDead, voice.mjs `settleTrialVoices`) is world data every browser holds, so in the trial
        p1's browser reads Botan on it while nothing else of p1's world says he is dead: public on purpose while the trial
        runs (world-secrets.mjs lifts its rule only then; 72-canary reads it gone after the trial), and a known leak until
-       E67 keeps the list in the GMs' store (known-leaks.json TR30). Red on purpose: it passes the day the list stops
+       E72 (part A, formerly E67) keeps the list in the GMs' store (known-leaks.json TR30). Red on purpose: it passes the day the list stops
        naming him on a player's browser, and then the entry goes. */
     const listOnP1 = await p1.eval(`const r = game.settings.get("danganronpa-rpg", "trialProgress") ?? {}, c = game.settings.get("danganronpa-rpg", "clock") ?? {};
         const b = game.actors.get("${IDS.botan}");

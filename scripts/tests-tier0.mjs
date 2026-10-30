@@ -14562,7 +14562,8 @@ const REGRESSIONS = [
          * primary rules a card, so its row asks `gmOnly` first and takes the card's id and the step, nothing else; a
          * `claims` line says who judges the id (the claim reads the card and the GMs' row of it on the primary).
          * `claimCard` is the one export later stages call for their own cards (E67, E68, E72): its doc comment names
-         * them. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
+         * them. E50 C0, 30.10.2026: E67's part became E72 part A; the doc says "E72 (part A, formerly E67: ...)", so
+         * the three names are still read there. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
          * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
          * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
          * ruling runs. Read in the module's files with comments and literals blanked.

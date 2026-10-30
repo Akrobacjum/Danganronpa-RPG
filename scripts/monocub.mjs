@@ -236,7 +236,7 @@ export function isCrimeSilenced(actor) {
  * (`cubAbilityDialog`), one bridge action (`monocub.ability`, gm-bridge.mjs) and
  * one GM-side run (`cubAbilityOnGm`). A second ability is one row and one
  * resolver; the fields the 1.4.0 rework adds (phases, caps, a GM-side payment)
- * are E67's. R301 holds every row to these tables.
+ * are those of E72 (part A, formerly E67). R301 holds every row to these tables.
  *
  * The Despair-to-Hope exchange itself lives in despair.mjs: a Mastermind
  * needs the exact same trade (see mastermind.mjs), and duplicating a function
