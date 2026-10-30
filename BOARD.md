@@ -20,7 +20,7 @@ R numbers: line A R1049-R1499.
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
 | E20 | READY for line A's train: HEAD bc158f09, CI green run 41008175457; LEDGER 24 answered, 0 open, LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
-| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 in work | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
+| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 e785e582 pushed (CI pending); C2 (MARKED) in work | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
 
 R numbers: line B R1500-R1999.
 
