@@ -3884,8 +3884,8 @@
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",
       "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
-      "newerSystemPatches": "These places the module changes in the system were not found where they used to be, so what they do is not happening:",
-      "newerSystemAllPatches": "Every place the module changes in the system was found where it expected it. That is a good sign, not a guarantee.",
+      "newerSystemPatches": "These places in the system that the module changes or relies on were not found where they used to be, so what the module does there is not happening:",
+      "newerSystemAllPatches": "Every place in the system that the module changes or relies on was found where it expected it. That is a good sign, not a guarantee.",
       "newerSystemSilence": "Do not mention {found} again on this computer",
       "newerSystemNotice": "{system} {found} is newer than {verified}, the version Danganronpa RPG was verified on. It loads, but some features may misbehave."
     },

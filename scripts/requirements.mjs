@@ -299,7 +299,8 @@ export async function newerSystemFindings({
     try {
         const { diagnosePatches } = await import("./patches.mjs");
         missing = diagnosePatches()
-            .filter(row => row.owner === game.system?.id && !row.present)
+            // `present: null` is a probe that cannot tell (a hook's class not registered yet): not named as missing.
+            .filter(row => row.owner === game.system?.id && row.present === false)
             .map(row => row.target);
     } catch (err) {
         error("Could not probe the patches against this Daggerheart", err);

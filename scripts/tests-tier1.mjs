@@ -27244,6 +27244,77 @@ const INVARIANTS = [
         }), "a slow room picture is called missing, or all are probed at once [missing | not checked in time | large (pixels, bytes) | size unknown | "
             + "the most HEAD requests at once | the limit | Pre-season's line for the late ones]");
     }],
+    ["R1538 - the contract register: every row whole, of a kind from the list, the thirteen overrides kept, and diagnosePatches reading it", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S17-50, E52-01. One register of every reach into Foundry's, Daggerheart's
+         * or another module's code, each row `{ id, kind, target, owner, file, why, when, probe, fallback }`:
+         * the kinds are Q-3's seven, the fallback says what the table gets when the probe fails, and the
+         * thirteen rows of 1.2.90 stay (R130, R217, the passages tests and scenario 76 find them). The header
+         * named a count ("Thirteen places"; "Eight" in S01-50's day), wrong by the next override. Red before C1:
+         * no KINDS, no id, kind or fallback on any row.
+         */
+        const mod = await import("./patches.mjs");
+        const { PATCHES, KINDS, diagnosePatches } = mod;
+        ok(Array.isArray(KINDS), "patches.mjs exports no list of the kinds a row may be");
+        equal(JSON.stringify(KINDS), JSON.stringify(["override", "hook", "setting-entry", "flag", "socket", "anchor", "call"]),
+            "the kinds of a row are not Q-3's seven");
+        const text = value => typeof value === "string" && value.trim().length > 0;
+        const broken = PATCHES.filter(row => !(text(row.id) && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.id) && KINDS?.includes(row.kind)
+            && ["target", "owner", "file", "why", "when", "fallback"].every(key => text(row[key])) && typeof row.probe === "function"))
+            .map(row => row.id ?? row.target);
+        equal(JSON.stringify(broken), "[]", "a row of the register is not whole (an id of lower-case words, a kind from the list, target, owner, file, why, when, fallback, a probe)");
+        const ids = PATCHES.map(row => row.id);
+        equal(new Set(ids).size, ids.length, "two rows of the register share an id");
+        const KEPT = ["DualityRoll.addDualityResourceUpdates", "D20RollDialog.prototype._prepareContext", "DualityRoll.build", "CONFIG.Dice.randomUniform",
+            "InterfaceCanvasGroup.prototype.createScrollingText", "ApplicationV2.prototype.close", "ApplicationV2.prototype._awaitTransition",
+            "ui.notifications.info and .warn", "Token _refreshState (Isometric Perspective's own override)", "the chat log's notify",
+            "ChatMessage.prototype.isContentVisible", "render, as an own property on each open character sheet", "CONFIG.Canvas.polygonBackends.move._identifyEdges"];
+        equal(JSON.stringify(KEPT.filter(target => !PATCHES.some(row => row.target === target && row.kind === "override"))), "[]",
+            "an override row of 1.2.90 left the register, or is no longer an override");
+        const src = (await moduleSources()).get("patches.mjs") ?? "";
+        const header = bodyOf(src, "/**", { until: "*/" });
+        ok(!/\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|thirty|\d+)\s+(?:places|rows|overrides)\b/i.test(header),
+            "patches.mjs's header names a fixed count of places, which the next row makes wrong");
+        const rows = diagnosePatches();
+        equal(JSON.stringify(rows.map(r => [r.id, r.kind, typeof r.fallback === "string" && r.fallback.length > 0])),
+            JSON.stringify(PATCHES.map(r => [r.id, r.kind, true])), "diagnosePatches does not answer one row per register row, with its id, kind and fallback");
+    }],
+
+    ["R1539 - the selection's drag rectangle and colour, the countdown tray's row menu and the door controls are rows, each ours on the suite's world", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S01-50, E52-02. Four overrides the register lacked: selection.mjs's
+         * `ControlsLayer#drawSelect` and `CONFIG.Canvas.dispositionColors.CONTROLLED`, projects-ui.mjs's
+         * `_getCountdownContextOptions` (its mark is now `Symbol.for`, so a probe can read it), fog.mjs's
+         * `CONFIG.Canvas.doorControlClass`. Each probe asked on this world must find the target and the
+         * module's own there. The colour is written first by the module's own `applySelectionColour`, so a
+         * theme or an hour another test left mid-change does not decide it. selection.mjs said Foundry's
+         * orange came back on "a missing reading"; `hourColour` always answers (own-ring.mjs's fallback), so
+         * the controlled border never took it there and that `?? FOUNDRY_CONTROLLED` is gone. Red before C1:
+         * none of the four rows.
+         */
+        const { PATCHES } = await import("./patches.mjs");
+        const { applySelectionColour } = await import("./selection.mjs");
+        const { hourColour } = await import("./own-ring.mjs");
+        applySelectionColour();
+        const TARGETS = ["ControlsLayer.prototype.drawSelect", "CONFIG.Canvas.dispositionColors.CONTROLLED",
+            "DhCountdowns.prototype._getCountdownContextOptions", "CONFIG.Canvas.doorControlClass"];
+        const read = target => {
+            const row = PATCHES.find(r => r.target === target && r.kind === "override");
+            if (!row) return "no row";
+            try {
+                const { present, ours } = row.probe();
+                return [present, ours];
+            } catch (err) {
+                return `throws: ${err?.message ?? err}`;
+            }
+        };
+        equal(JSON.stringify(TARGETS.map(read)), JSON.stringify(TARGETS.map(() => [true, true])),
+            `a row is missing, or its probe does not find the target and the module's own there [${TARGETS.join(" | ")}]`);
+        const src = (await moduleSources()).get("selection.mjs") ?? "";
+        equal(typeof hourColour(), "number", "the interface colour has no answer here, so Foundry's orange would be a live fallback after all");
+        ok(!fnSource(src, "applySelectionColour").includes("FOUNDRY_CONTROLLED"), "the controlled border still falls back to Foundry's orange on a reading that always answers");
+        ok(/door/i.test(bodyOf(src, "/**", { until: "*/" })), "selection.mjs's header does not say which of Foundry's icons keep Foundry's colour");
+    }],
 ];
 
 /**

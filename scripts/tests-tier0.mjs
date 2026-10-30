@@ -10,7 +10,7 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, env, world, equal, must, wait, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    ok, needs, env, world, equal, must, wait, lf, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
@@ -16082,6 +16082,118 @@ const REGRESSIONS = [
             words: moved.map(t => t.length > 20 && !/primary|główn/i.test(t))
         }), JSON.stringify({ close: true, final: true, rebuttal: true, hud: true, bar: true, words: [true, true] }),
             "a sound of the trial, the HUD's line, the bar's Overrule or the Skip's words is not as E70 asks (the close's sound; the Final's; no rebuttal sound after an Overrule; the HUD's line where no tile is; the bar's card; the words EN, PL)");
+    }],
+    ["R1537 - every override of another package's prototype, class or CONFIG entry, and every hook of another package, is a row of the contract register", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S17-50 and S01-50. patches.mjs listed thirteen overrides, and
+         * selection.mjs replaced `ControlsLayer#drawSelect` and wrote `dispositionColors.CONTROLLED`,
+         * projects-ui.mjs wrapped Daggerheart's `_getCountdownContextOptions`, fog.mjs subclassed
+         * `CONFIG.Canvas.doorControlClass`, roll-draw.mjs swapped `CONFIG.Dice.randomUniform` and
+         * resources.mjs wrote into `CONFIG.DH.RESOURCE` without a row: `diagnosePatches()` said all was
+         * well while a Foundry or Daggerheart update could have moved any of them. Read off the source,
+         * every file the module loads but the suite's: an assignment whose object is a prototype (or a
+         * name `proto`), `CONFIG`, `foundry.`, `ui.`, `game.system`, or a local name declared from one of
+         * those (a copy made by `foundry.utils` is the module's own), and `Object.defineProperty` on such
+         * an object, each needs an override row naming its file whose target names the member (a member
+         * computed in brackets: the file alone). Every `Hooks.on`/`Hooks.once` with a literal name is the
+         * module's own (`drpg...`), on Foundry's list below, or a hook row of that name. Not read: a
+         * name held in a variable (`Hooks.on(hook, ...)`), an override reached through a parameter
+         * whose declaration is elsewhere, `Object.assign` into one of those objects. The reader is run
+         * first on a fixture with its faults planted. Red before C1: drawSelect,
+         * _getCountdownContextOptions, CONTROLLED, doorControlClass, roll-draw.mjs's randomUniform,
+         * resources.mjs's two tables, and eight hooks of Daggerheart's, Dice So Nice's and LiveKit's.
+         */
+        const { PATCHES, KINDS } = await import("./patches.mjs");
+        ok(Array.isArray(KINDS) && KINDS.includes("override") && KINDS.includes("hook"), "patches.mjs names no kinds of row, or not override and hook");
+        const FOREIGN = /^(?:globalThis\.)?(?:CONFIG|foundry|ui|game\.system)\b/;
+        const flat = text => text.replace(/\s+/g, "").replace(/\?\./g, ".");
+        const sites = (file, raw) => {
+            const code = blankComments(lf(raw)), blank = blankLiterals(code), out = { overrides: [], hooks: [] };
+            const decls = [...blank.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g)]
+                .map(m => ({ at: m.index, name: m[1], rhs: flat(m[2]) }));
+            const foreign = (obj, at) => {
+                if (/(?:^|\.)prototype$/.test(obj) || /(?:^|\.)(?:proto|\w+Proto)$/.test(obj)) return true;
+                if (FOREIGN.test(obj)) return true;
+                const decl = decls.filter(d => d.name === obj.split(".")[0] && d.at < at).pop();
+                return Boolean(decl) && !/^foundry\.utils\./.test(decl.rhs) && (FOREIGN.test(decl.rhs) || /\.prototype\b/.test(decl.rhs));
+            };
+            const ASSIGN = /(?<![\w$.\]])([A-Za-z_$][\w$]*(?:\s*\??\.\s*[A-Za-z_$][\w$]*)*)\s*(?:\??\.\s*([A-Za-z_$][\w$]*)|\[([^\]\n]+)\])\s*=(?![=>])/g;
+            for (const m of blank.matchAll(ASSIGN)) {
+                const obj = flat(m[1]);
+                if (obj.split(".")[0] === "this" || !foreign(obj, m.index)) continue;
+                out.overrides.push({ line: lineAt(code, m.index), member: m[2] ?? null, computed: m[2] === undefined });
+            }
+            for (const m of blank.matchAll(/\bObject\.defineProperty\(\s*([A-Za-z_$][\w$.]*)\s*,/g)) {
+                if (!foreign(flat(m[1]), m.index)) continue;
+                const name = code.slice(m.index + m[0].length).match(/^\s*["'`]([\w$]+)["'`]/)?.[1] ?? null;
+                out.overrides.push({ line: lineAt(code, m.index), member: name, computed: name === null });
+            }
+            for (const m of code.matchAll(/\bHooks\.(?:on|once)\(\s*(["'`])([^"'`$\n]+)\1/g)) {
+                if (blank.slice(m.index, m.index + 5) === "Hooks") out.hooks.push({ line: lineAt(code, m.index), name: m[2] });
+            }
+            return out;
+        };
+        const PLANTED = [
+            "Foo.prototype.bar = function () {};",
+            "const proto = Thing.prototype; proto.baz = x;",
+            "CONFIG.Canvas.someClass = class extends Base {};",
+            "const colours = CONFIG?.Canvas?.colours; colours.X = 1;",
+            "Object.defineProperty(proto, \"q\", { get() { return 1; } });",
+            "this.y = 1; game.drpg.z = 2; if (a.b == c) d.e = 3;",
+            "const copy = foundry.utils.deepClone(CONFIG.x); copy.w = 3;",
+            "// proto.v = 1 and Hooks.on(\"renderGone\", f)",
+            "const s = \"proto.u = 1\"; const t = (CONFIG.y === 2);",
+            "ui.notifications[level] = patched;",
+            "Hooks.on(\"renderFoo\", f); Hooks.once(\"drpgOwn\", g); Hooks.on(hook, h);"
+        ].join("\n");
+        const planted = sites("planted.mjs", PLANTED);
+        equal(JSON.stringify([planted.overrides.map(o => [o.line, o.member]), planted.hooks.map(h => [h.line, h.name])]),
+            JSON.stringify([[[1, "bar"], [2, "baz"], [3, "someClass"], [4, "X"], [10, null], [5, "q"]], [[11, "renderFoo"], [11, "drpgOwn"]]]),
+            "the reader does not see the planted overrides and hooks as they are - a prototype's member, a `proto` name's, CONFIG's, an alias of CONFIG's, a computed member, a defineProperty; none on this, game.drpg, a comparison, a copy, a comment or a string");
+
+        const words = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const files = row => String(row.file ?? "").split(/\s*,\s*/).filter(Boolean);
+        const overrides = PATCHES.filter(r => r.kind === "override"), hookRows = PATCHES.filter(r => r.kind === "hook");
+        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound"];
+        const APPS = ["ApplicationV2", "Application", "ActorSheetV2", "ItemSheetV2", "DocumentSheetV2", "DialogV2", "SceneControls", "CameraViews", "UserConfig",
+            "TokenHUD", "SettingsConfig", "FilePicker", "AVConfig", "DocumentOwnershipConfig", "ImagePopout", "Sidebar"];
+        /* Foundry's own hooks the module listens to: its lifecycle, the canvas, a document's events and an application's of
+           Foundry's own classes (the names are Foundry's `pre`/`create`/`update`/`delete` and `render`/`close`/`getHeaderControls`
+           with the class's name). A hook named after a Daggerheart class (CharacterSheet, D20RollDialog, DhCountdowns) is not. */
+        const FOUNDRY_HOOKS = new Set([
+            "init", "i18nInit", "setup", "ready", "canvasReady", "canvasPan", "canvasTearDown", "sightRefresh", "pauseGame", "userConnected",
+            "clientSettingChanged", "rtcSettingsChanged", "collapseSidebar", "refreshToken", "renderChatMessageHTML",
+            "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
+            ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
+            ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))
+        ]);
+        const sources = new Map(await otherSources());
+        const unregistered = [], strays = [], seen = { overrides: 0, hooks: 0 };
+        for (const [file, raw] of sources) {
+            const found = sites(file, raw);
+            seen.overrides += found.overrides.length;
+            seen.hooks += found.hooks.length;
+            for (const o of found.overrides) {
+                const row = overrides.find(r => files(r).includes(file) && (o.computed || new RegExp(`(?<![\\w$])${words(o.member)}(?![\\w$])`).test(r.target)));
+                if (!row) unregistered.push(`${file}:${o.line} ${o.member ?? "[computed]"}`);
+            }
+            for (const h of found.hooks) {
+                if (h.name.startsWith("drpg") || FOUNDRY_HOOKS.has(h.name)) continue;
+                if (!hookRows.some(r => r.target === h.name && files(r).includes(file))) unregistered.push(`${file}:${h.line} hook ${h.name}`);
+            }
+        }
+        for (const row of PATCHES) {
+            for (const file of files(row)) if (!sources.has(file)) strays.push(`${row.id} names ${file}, which the module does not load`);
+            if (row.kind === "hook") {
+                for (const file of files(row)) {
+                    if (sources.has(file) && !sites(file, sources.get(file)).hooks.some(h => h.name === row.target)) strays.push(`${row.id}: ${file} does not listen to ${row.target}`);
+                }
+            }
+        }
+        must(seen.overrides >= 15 && seen.hooks >= 100, `the reader found ${seen.overrides} override(s) and ${seen.hooks} hook(s) in the module - it would measure nothing`);
+        log(`R1537: ${seen.overrides} override site(s) and ${seen.hooks} hook listener(s) read; ${unregistered.length} without a row, ${strays.length} stale row(s)`);
+        equal(JSON.stringify(unregistered), "[]", "an override or another package's hook has no row of the register naming its file (patches.mjs PATCHES)");
+        equal(JSON.stringify(strays), "[]", "a row of the register names a file the module does not load, or a hook its file does not listen to");
     }],
 ];
 

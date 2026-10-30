@@ -160,7 +160,8 @@ export function guardTrayRows(root) {
     return true;
 }
 
-const MENU_DONE = Symbol("drpgProjectRowMenu");
+/* Registered (`Symbol.for`), so the contract register's probe (patches.mjs, "countdown-row-menu") can read the mark. */
+const MENU_DONE = Symbol.for("drpgProjectRowMenu");
 
 /**
  * The tray's row menu, entries in 2.10.5's shape (`label`, `visible`, `onClick(event, target)`; v13's `name`,

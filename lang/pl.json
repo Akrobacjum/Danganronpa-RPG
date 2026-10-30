@@ -4044,8 +4044,8 @@
       "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
       "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
       "newerSystemIntro": "Ten świat działa na {system} {found}. Danganronpa RPG był zweryfikowany na {verified}. Ładuje się mimo to i większość modułu tego nie zauważy - ale okno rzutu, karta postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak {system} jest zbudowany w środku, a nowsza wersja może to zmienić bez słowa. Jeśli coś działa źle, wspomnij o tym najpierw, zgłaszając problem.",
-      "newerSystemPatches": "Tych miejsc, które moduł zmienia w systemie, nie znaleziono tam, gdzie były, więc to, co robią, się nie dzieje:",
-      "newerSystemAllPatches": "Każde miejsce, które moduł zmienia w systemie, znalazło się tam, gdzie oczekiwał. To dobry znak, nie gwarancja.",
+      "newerSystemPatches": "Tych miejsc w systemie, które moduł zmienia albo na których polega, nie znaleziono tam, gdzie były, więc to, co moduł w nich robi, się nie dzieje:",
+      "newerSystemAllPatches": "Każde miejsce w systemie, które moduł zmienia albo na którym polega, znalazło się tam, gdzie oczekiwał. To dobry znak, nie gwarancja.",
       "newerSystemSilence": "Nie wspominaj o {found} więcej na tym komputerze",
       "newerSystemNotice": "{system} {found} jest nowszy niż {verified}, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle."
     },
