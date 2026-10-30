@@ -2,7 +2,7 @@
   "id": "danganronpa-rpg",
   "title": "Danganronpa RPG",
   "description": "Turns the Daggerheart system (Foundryborne) into the Danganronpa RPG System: renamed traits, Despair instead of Fear, forced private rolls, a time-of-day action economy, per-room search tokens, Remnants on the map and Truth Bullets in the inventory.",
-  "version": "1.2.90",
+  "version": "1.2.91",
   "compatibility": {
     "minimum": "14.364",
     "verified": "14.365"
@@ -28,19 +28,19 @@
         "id": "dice-so-nice",
         "type": "module",
         "manifest": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/module/module.json",
-        "reason": "Every roll in this game is thrown in front of the table. Dice So Nice is how they are seen."
+        "reason": "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table."
       },
       {
         "id": "isometric-perspective",
         "type": "module",
         "manifest": "https://github.com/arlosmolten/isometric-perspective/releases/latest/download/module.json",
-        "reason": "The academy maps are drawn isometric. Isometric Perspective lays the scenes, tokens and Remnants out the way the art was made; on a square grid they land where the art was never made for them."
+        "reason": "Maps drawn for isometric play will look wrong on a flat grid."
       },
       {
         "id": "avclient-livekit",
         "type": "module",
         "manifest": "https://github.com/bekriebel/fvtt-module-avclient-livekit/releases/latest/download/module.json",
-        "reason": "Voice that follows the rooms: regions become LiveKit breakout rooms, and moving between rooms moves who can hear you."
+        "reason": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
       }
     ]
   },

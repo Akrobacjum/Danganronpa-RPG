@@ -52,6 +52,19 @@ function step(input, direction) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+/**
+ * What the - and + of a number field say (E20 C6, 30.10.2026; S01-48): "One fewer" and "One more" at a step of 1 (or
+ * none, or "any"), and the step itself otherwise - the debate length moves by 10, and its buttons said "One more".
+ * The step is read as `step()` above reads it.
+ */
+export function stepLabels(input) {
+    const size = Number(input?.step);
+    if (!Number.isFinite(size) || size <= 0 || size === 1) {
+        return { down: game.i18n.localize("DRPG.Look.stepDown"), up: game.i18n.localize("DRPG.Look.stepUp") };
+    }
+    return { down: game.i18n.format("DRPG.Look.stepDownBy", { n: size }), up: game.i18n.format("DRPG.Look.stepUpBy", { n: size }) };
+}
+
 function pixButton(glyph, label) {
     const button = document.createElement("button");
     button.type = "button";
@@ -70,8 +83,9 @@ function dressNumberField(input) {
     const wrap = document.createElement("span");
     wrap.className = "drpg-stepper";
     input.replaceWith(wrap);
-    const minus = pixButton("minus", game.i18n.localize("DRPG.Look.stepDown"));
-    const plus = pixButton("plus", game.i18n.localize("DRPG.Look.stepUp"));
+    const labels = stepLabels(input);
+    const minus = pixButton("minus", labels.down);
+    const plus = pixButton("plus", labels.up);
     wrap.append(minus, input, plus);
 
     /*

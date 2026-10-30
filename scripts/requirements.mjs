@@ -23,10 +23,15 @@
  * browser offer to install them and what the Forge shows beside the entry - so
  * a second copy in this file would be a second thing to keep in step, and the
  * one people edit would be the wrong one. This reads the manifest back.
+ * The WORDS the window says about each one are the language files' since E20 C5
+ * (`DRPG.Requirements.reason.<id>`; S01-45): the manifest's English `reason` is
+ * Foundry's to show in its module browser, and here only the fallback for a
+ * module the files do not name.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
+import { LANGUAGES } from "./i18n.mjs";
 import { error, esc} from "./utils.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
@@ -92,33 +97,34 @@ export async function announceMissingRequirements() {
     error(`Not starting: required modules unavailable - ${
         missing.map(m => `${m.id} (${m.state})`).join(", ")}.`);
 
+    const lang = requirementsLanguage();
+    const text = requirementsContent(missing, await requirementsWords(lang), lang);
+
     if (!game.user.isGM) {
-        ui.notifications.error(
-            game.i18n.format("DRPG.Requirements.playerNotice", { modules: names }),
-            { permanent: true });
+        ui.notifications.error(text.notice(names), { permanent: true });
         return;
     }
 
-    const rows = missing.map(m => `
+    const rows = text.rows.map(m => `
         <li>
             <strong>${esc(m.title)}</strong>
-            <span class="notes">${game.i18n.localize(`DRPG.Requirements.state.${m.state}`)}</span>
+            <span class="notes">${esc(m.state)}</span>
             ${m.reason ? `<div class="notes">${esc(m.reason)}</div>` : ""}
         </li>`).join("");
 
     try {
         const DialogV2 = foundry.applications.api.DialogV2;
         await DialogV2.wait({
-            window: { title: game.i18n.localize("DRPG.Requirements.title") },
+            window: { title: text.title },
             classes: ["drpg-panel"],
             content: `<div class="drpg-requirements">
-                <p>${game.i18n.localize("DRPG.Requirements.intro")}</p>
+                <p>${esc(text.intro)}</p>
                 <ul>${rows}</ul>
-                <p class="notes">${game.i18n.localize("DRPG.Requirements.how")}</p>
+                <p class="notes">${esc(text.how)}</p>
             </div>`,
             buttons: [{
                 action: "ok",
-                label: game.i18n.localize("DRPG.Requirements.understood"),
+                label: text.understood,
                 default: true
             }],
             rejectClose: false
@@ -126,10 +132,135 @@ export async function announceMissingRequirements() {
     } catch (err) {
         // Whatever happens to the window, the GM still gets told.
         error("Could not show the missing-requirements window", err);
-        ui.notifications.error(
-            game.i18n.format("DRPG.Requirements.playerNotice", { modules: names }),
-            { permanent: true });
+        ui.notifications.error(text.notice(names), { permanent: true });
     }
+}
+
+
+/* ==========================================================================
+ * A MODULE THAT DID NOT START (E20 C5, 29.10.2026; S01-41, S01-45, S13-43; D19)
+ * ========================================================================== */
+
+/** Where Foundry serves this module's files from; a lookalike id with a suffix does not match. */
+const OUR_FILES = `modules/${MODULE_ID}/`;
+
+/**
+ * Take this module's stylesheets off the page: a sheet whose own address is the module's (a
+ * `<link>`) loses its element, and an `@import` of the module's inside another sheet (Foundry's
+ * inline sheet of module imports, as the harness attaches them: lib/css.mjs) is deleted from it.
+ * Another module's imports and a sheet that refuses its rules (another origin) stay.
+ *
+ * Called by `init` where the module stops (module.mjs): until then its six sheets hid the hotbar,
+ * the scene navigation and the players list and restyled Foundry's windows for a module that was
+ * not running (S01-41; 00-boot read 6 imports left and the hotbar hidden). Answers how many it took
+ * off; never throws - a stop that cannot tidy up still stops. How Foundry v14 attaches module CSS
+ * at a table is not measured here.
+ */
+export function removeModuleStyles(doc = globalThis.document) {
+    let removed = 0;
+    try {
+        for (const sheet of [...(doc?.styleSheets ?? [])]) {
+            if (String(sheet?.href ?? "").includes(OUR_FILES)) {
+                sheet.ownerNode?.remove?.();
+                removed++;
+                continue;
+            }
+            let rules = null;
+            try {
+                rules = sheet?.cssRules ?? null;
+            } catch {
+                continue;   // another origin's sheet keeps its rules to itself, and none of them is ours
+            }
+            for (let i = (rules?.length ?? 0) - 1; i >= 0; i--) {
+                if (!String(rules[i]?.href ?? "").includes(OUR_FILES)) continue;
+                try {
+                    sheet.deleteRule(i);
+                    removed++;
+                } catch (err) {
+                    error("Could not take a stylesheet of the module off the page", err);
+                }
+            }
+        }
+    } catch (err) {
+        error("Could not read the page's stylesheets", err);
+    }
+    return removed;
+}
+
+/**
+ * The language the requirements window speaks: this browser's own choice of the module's language
+ * where one is stored (the client setting, read raw - it is not registered when the module stops),
+ * else Foundry's own language where the module ships it, else English. The module's setting cannot
+ * be changed while the module is stopped, so Foundry's language is the one a table can pick then.
+ */
+export function requirementsLanguage({ stored = storedLanguage(), core = game.i18n?.lang } = {}) {
+    if (Object.hasOwn(LANGUAGES, stored ?? "")) return stored;
+    return Object.hasOwn(LANGUAGES, core ?? "") ? core : "en";
+}
+
+function storedLanguage() {
+    try {
+        return JSON.parse(globalThis.localStorage?.getItem(`${MODULE_ID}.${SETTINGS.language}`) ?? "null");
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The window's words in one language, `DRPG.Requirements` of the module's own file, fetched: the
+ * module's language is merged by `registerLanguage`, which a stopped module never runs. Null when
+ * the file does not load; the window then says Foundry's English.
+ */
+export async function requirementsWords(lang = requirementsLanguage()) {
+    const path = `modules/${MODULE_ID}/lang/${lang}.json`;
+    try {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+        const words = foundry.utils.expandObject(await response.json())?.DRPG?.Requirements;
+        return words && typeof words === "object" ? words : null;
+    } catch (err) {
+        error(`Could not load the ${lang} words of the requirements window`, err);
+        return null;
+    }
+}
+
+/**
+ * What the window and the players' notice say about `missing` (rows of `missingRequirements`),
+ * from `words` (`requirementsWords`) and, for a key they lack, Foundry's own translations. Each
+ * module's reason is `reason.<id>`, the manifest's only where neither holds one; the intro is
+ * counted by the language's plural rule, so one module is never "one of them" or "two".
+ */
+export function requirementsContent(missing, words = null, lang = "en") {
+    const own = key => {
+        const value = foundry.utils.getProperty(words ?? {}, key);
+        return typeof value === "string" ? value : null;
+    };
+    const fill = (text, data) => Object.entries(data).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, String(v)), text);
+    const say = (key, data = {}) => {
+        const value = own(key);
+        return value !== null ? fill(value, data) : game.i18n.format(`DRPG.Requirements.${key}`, data);
+    };
+    const has = key => own(key) !== null || game.i18n.has(`DRPG.Requirements.${key}`);
+    const n = missing.length;
+    let form = n === 1 ? "one" : "other";
+    try {
+        form = new Intl.PluralRules(lang).select(n);
+    } catch {
+        // an unknown tag: English's one/other above
+    }
+    return {
+        title: say("title"),
+        intro: say(`intro.${has(`intro.${form}`) ? form : "other"}`, { n }),
+        rows: missing.map(m => ({
+            id: m.id,
+            title: m.title,
+            state: say(`state.${m.state}`),
+            reason: has(`reason.${m.id}`) ? say(`reason.${m.id}`) : (m.reason ?? "")
+        })),
+        how: say("how"),
+        understood: say("understood"),
+        notice: modules => say("playerNotice", { modules })
+    };
 }
 
 

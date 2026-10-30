@@ -65,7 +65,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { warn, error, isPrimaryGm, whisperToGms } from "./utils.mjs";
+import { warn, error, isPrimaryGm, whisperToGms, esc, dialogContent, tableDialog } from "./utils.mjs";
 
 /**
  * @typedef {object} EnforcedRow
@@ -154,8 +154,10 @@ export function entryOf(row) {
     return entry;
 }
 
-/** Whether the world wants this row held. Unreadable (too early, or unregistered) reads as the default: on. */
+/** Whether the world wants this row held. Unreadable (too early, or unregistered) reads as the default: on. Never
+    once a GM gave Foundry's settings back (E20 C6): every row lets go, whatever its own switch says. */
 function wanted(row) {
+    if (foundryGivenBack()) return false;
     try {
         return game.settings.get(MODULE_ID, row.toggle) !== false;
     } catch {
@@ -231,12 +233,19 @@ export async function applyEnforced(rows = ENFORCED) {
             if (!entry) continue;
             if (!wanted(row)) {
                 unhide(row, entry);
+                if (foundryGivenBack()) await giveBackClientRow(row, entry);
                 continue;
             }
-            // The value first: it is the promise to the table; the hidden box is a courtesy.
-            if (game.settings.get(row.module, row.key) !== row.value) {
-                await game.settings.set(row.module, row.key, row.value);
-            }
+            // The value first: it is the promise to the table; the hidden box is a courtesy. What this browser had
+            // is read before the first write and kept (E20 C6), for Give back Foundry's settings - kept behind the
+            // write, not before it: waiting on the record first, the welcome was held after Isometric Perspective
+            // read it at `ready` on the players' browsers (15-held, 30.10.2026). Kept even when no write is needed (E20 fix
+            // round, the correctness review's C-9): a player who had the value already chose it, and Give back wrote the
+            // setting's registered default over that choice.
+            const was = game.settings.get(row.module, row.key);
+            const keeping = keepClientOriginal(row, was);
+            if (was !== row.value) await game.settings.set(row.module, row.key, row.value);
+            await keeping;
             held.push(row.id);
             hide(row, entry);
         } catch (err) {
@@ -552,6 +561,7 @@ function holdPermissions(row, { tell = false, first = false } = {}) {
         const inForce = permissionsInForce();
         const held = heldPermissions(stored, inForce, row);
         if (row.permissions.every(name => sameRoles(stored[name], held[name]))) return true;
+        await keepOriginal("permissions", permissionsOriginal(stored, row));
         await game.settings.set("core", "permissions", held);
         if (tell) await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesPutBack")}</p>`);
         else if (first) {
@@ -632,6 +642,350 @@ export function closeUnaskedUserConfig(app, options = {}, {
     if (activation?.isActive !== false) return false;
     app.close?.({ animate: false });
     return true;
+}
+
+/* ==========================================================================
+ * GIVE BACK FOUNDRY'S SETTINGS (E20 C6, 30.10.2026; S03-37, Q-5)
+ * --------------------------------------------------------------------------
+ * The module writes settings that are not its own at every start: Daggerheart's Vulnerable and Defeated automations
+ * (states.mjs `suppressSystemAutomation`), the file permissions, Isometric Perspective's welcome and LiveKit's
+ * separate window (the rows above), and the scenes with rooms (fog.mjs `applySceneVisionMode`, which keeps their
+ * own values on each scene and gives them back when "Rooms decide what players can see" goes off). Until E20 none of
+ * the settings kept what it found, and the only word of the automations was the log. Now each writer keeps the value
+ * it found before its first write - the world's in `foundryBefore`, this browser's in `foundryBeforeClient` - and a
+ * GM's Give back Foundry's settings (the module's settings window) writes them back once and stops every writer
+ * (`foundryGivenBack`), until a GM holds them again. Disabling the module runs no code, so the GM handbook asks for
+ * the button first.
+ * ========================================================================== */
+
+/** What the module changes in Foundry, for the window and the handbook; literal keys, so the language check reads each. */
+export const FOUNDRY_WRITES = [
+    { id: "automation", text: "DRPG.GiveBack.what.automation" },
+    { id: "playerFiles", text: "DRPG.GiveBack.what.playerFiles" },
+    { id: "isoWelcome", text: "DRPG.GiveBack.what.isoWelcome" },
+    { id: "dhWelcome", text: "DRPG.GiveBack.what.dhWelcome" },
+    { id: "liveKitInFoundry", text: "DRPG.GiveBack.what.liveKitInFoundry" },
+    { id: "rtcDock", text: "DRPG.GiveBack.what.rtcDock" },
+    { id: "sceneVision", text: "DRPG.GiveBack.what.sceneVision" },
+    /* The one dice look (dice-sync.mjs, E20 fix round, the goal review's G-7): forced on every player and Assistant GM
+       while "One dice look for the table" is on, as that setting says, and not given back by this window - the looks
+       it replaced were never kept, so the row says so instead. */
+    { id: "diceLook", text: "DRPG.GiveBack.what.diceLook" }
+];
+
+/** The parts of the world's kept record Give back writes back, in the order it writes them. */
+const WORLD_PARTS = ["automation", "permissions"];
+
+/** Whether a GM gave Foundry's settings back; unreadable (too early) reads as no. */
+export function foundryGivenBack() {
+    try {
+        return getSetting(SETTINGS.foundryGivenBack) === true;
+    } catch {
+        return false;
+    }
+}
+
+/** `record` with `value` kept under `key`, unless a value is kept there already or there is none. Pure. */
+export function keptOriginal(record, key, value) {
+    const had = record && typeof record === "object" ? record : {};
+    if (Object.prototype.hasOwnProperty.call(had, key) || value === undefined) return had;
+    return { ...had, [key]: foundry.utils.deepClone(value) };
+}
+
+/** The row's permissions as stored before a hold: each one's roles, or null where the stored value names none. Pure. */
+export function permissionsOriginal(stored, row = ENFORCED.find(r => r.kind === "permissions")) {
+    return Object.fromEntries(row.permissions.map(name => [name, Array.isArray(stored?.[name]) ? [...stored[name]] : null]));
+}
+
+/** `stored` with the row's permissions as `kept` has them: a list written back, a null taken out (Foundry's default). Pure. */
+export function permissionsGivenBack(stored, kept, row = ENFORCED.find(r => r.kind === "permissions")) {
+    const out = foundry.utils.deepClone(stored ?? {});
+    for (const name of row.permissions) {
+        if (!kept || !Object.prototype.hasOwnProperty.call(kept, name)) continue;
+        if (Array.isArray(kept[name])) out[name] = [...kept[name]];
+        else delete out[name];
+    }
+    return out;
+}
+
+/** What a client setting goes back to: the value kept, else the setting's registered default, else null. Pure. */
+export function clientOriginalFor(record, key, entry) {
+    if (record && Object.prototype.hasOwnProperty.call(record, key)) return record[key];
+    return entry && entry.default !== undefined ? entry.default : null;
+}
+
+/* The keys this browser has given back already, inside its record: given back once, then left alone, so a value its
+   owner sets afterwards is theirs. */
+const GIVEN = "@given";
+
+/**
+ * One client row given back (pure): what to write (undefined for nothing) and the record after - the key's kept
+ * value dropped and the key listed as given back. A key given back already writes nothing.
+ */
+export function clientGiveBack(record, key, entry, now) {
+    const had = record && typeof record === "object" ? record : {};
+    const given = Array.isArray(had[GIVEN]) ? had[GIVEN] : [];
+    if (given.includes(key)) return { write: undefined, record: had };
+    const value = clientOriginalFor(had, key, entry);
+    const rest = { ...had };
+    delete rest[key];
+    return { write: value !== null && value !== undefined && value !== now ? value : undefined, record: { ...rest, [GIVEN]: [...given, key] } };
+}
+
+const worldOriginals = {
+    get: () => { try { return getSetting(SETTINGS.foundryBefore) ?? {}; } catch { return {}; } },
+    set: value => game.settings.set(MODULE_ID, SETTINGS.foundryBefore, value)
+};
+const clientOriginals = {
+    get: () => { try { return getSetting(SETTINGS.foundryBeforeClient) ?? {}; } catch { return {}; } },
+    set: value => game.settings.set(MODULE_ID, SETTINGS.foundryBeforeClient, value)
+};
+
+/* One read-and-write of the kept values at a time: the automations and the permissions are both kept at `ready`, and
+   two reads of the same record would each save over the other's part. */
+let originalsQueue = Promise.resolve();
+
+function queued(store, change) {
+    const run = originalsQueue.then(async () => {
+        const was = store.get();
+        const next = change(was);
+        if (next !== was) await store.set(next);
+        return next;
+    });
+    originalsQueue = run.catch(() => null);
+    return run;
+}
+
+/** Keep the world's value of `part` before the module's first write (a GM: a world setting). */
+export function keepOriginal(part, value) {
+    if (!game.user?.isGM) return Promise.resolve(null);
+    return queued(worldOriginals, was => keptOriginal(was, part, value));
+}
+
+/** Keep this browser's value of a client row (`now`, read before the first write), and forget that it was given back. */
+function keepClientOriginal(row, now) {
+    return queued(clientOriginals, was => {
+        const given = Array.isArray(was?.[GIVEN]) ? was[GIVEN] : [];
+        const base = given.includes(fullKey(row)) ? { ...was, [GIVEN]: given.filter(k => k !== fullKey(row)) } : was;
+        return keptOriginal(base, fullKey(row), now);
+    });
+}
+
+/** A client row let go after Give back: its kept value (or its default) written once. */
+async function giveBackClientRow(row, entry) {
+    let now;
+    try { now = game.settings.get(row.module, row.key); } catch { return; }
+    let write;
+    await queued(clientOriginals, was => {
+        const out = clientGiveBack(was, fullKey(row), entry, now);
+        write = out.write;
+        return out.record;
+    });
+    if (write !== undefined) await game.settings.set(row.module, row.key, write);
+}
+
+/* The switch's change and its re-hold, one at a time on each browser. */
+let givenBackChain = Promise.resolve();
+
+/**
+ * The given-back switch changed (its `onChange`, on every browser): the rows let go or are held again, and on the
+ * primary GM, held again, Daggerheart's automations are switched off again. Answers when this browser is done.
+ */
+export function onGivenBackChanged() {
+    givenBackChain = givenBackChain.then(async () => {
+        await applyEnforced();
+        if (!foundryGivenBack() && isPrimaryGm()) await (await import("./states.mjs")).suppressSystemAutomation();
+    }).catch(err => error("Could not give back or hold Foundry's settings", err));
+    return givenBackChain;
+}
+
+/**
+ * Who may press Give back (E20 fix round, the correctness review's C-6): a full Gamemaster. Foundry lets only a full
+ * Gamemaster write `core.permissions`, and an Assistant GM's Give back wrote the switch and the automations and then
+ * threw on the permissions - half done. Pure over the user handed in.
+ */
+export function canGiveBack(user = game.user) {
+    return Boolean(user?.isGM) && Number(user?.role) >= CONST.USER_ROLES.GAMEMASTER;
+}
+
+/** The world's kept record after Give back wrote `written` (the parts it gave back): those parts dropped, every other kept. Pure. */
+export function keptAfterGiveBack(kept, written) {
+    const out = { ...(kept && typeof kept === "object" ? kept : {}) };
+    for (const part of written ?? []) delete out[part];
+    return out;
+}
+
+/** One part of the world's kept record given back; answers true when it is as kept now (written or already so). Throws on a refused write. */
+async function giveBackPart(part, kept) {
+    if (part === "automation") {
+        const done = await (await import("./states.mjs")).giveBackAutomation(kept.automation ?? null);
+        if (done === null) throw new Error("Daggerheart's Automation setting refused the write");
+        return true;
+    }
+    const row = ENFORCED.find(r => r.kind === "permissions");
+    const stored = game.settings.get("core", "permissions") ?? {};
+    const back = permissionsGivenBack(stored, kept.permissions, row);
+    if (JSON.stringify(back) !== JSON.stringify(stored)) await game.settings.set("core", "permissions", back);
+    return true;
+}
+
+/**
+ * Give back Foundry's settings (a full Gamemaster, `canGiveBack`): the switch first, so no writer runs again, then the
+ * world's kept values - Daggerheart's automations (states.mjs `giveBackAutomation`) and the file permissions - and this
+ * browser's rows. Every other browser gives back its own rows from the switch's `onChange`. File permissions with
+ * nothing kept are left as they are: Foundry v14's own defaults for them are not read here (LIVE-E79-11), and the
+ * window says so.
+ *
+ * EACH PART ON ITS OWN (E20 fix round, the correctness review's C-6). A part whose write is refused does not stop the
+ * other, and stays in the kept record - only the parts written are forgotten (`keptAfterGiveBack`) - so the window
+ * offers Give them back again for what is left (`giveBackFacts`'s `retry`) and says which part was left.
+ *
+ * @param {object} [options]
+ * @param {User} [options.user]  who presses it; this browser's user unless handed in (E20-T6 hands an Assistant GM)
+ * @returns {Promise<{given: string[], failed: string[]}|null>} null for anyone but a full Gamemaster, nothing written
+ */
+export async function giveBackFoundry({ user = game.user } = {}) {
+    if (!canGiveBack(user)) return null;
+    await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, true);
+    const kept = worldOriginals.get();
+    const given = [], failed = [];
+    for (const part of WORLD_PARTS) {
+        if (part !== "automation" && !kept[part]) continue;
+        try {
+            if (await giveBackPart(part, kept)) given.push(part);
+        } catch (err) {
+            failed.push(part);
+            error(`Could not give back ${part === "automation" ? "Daggerheart's automations" : "the file permissions"}; it stays kept`, err);
+        }
+    }
+    await queued(worldOriginals, was => {
+        const next = keptAfterGiveBack(was, given);
+        return Object.keys(next).length === Object.keys(was ?? {}).length ? was : next;
+    });
+    await onGivenBackChanged();
+    return { given, failed };
+}
+
+/** Let the module hold its settings again (a GM): the switch off; each browser's `onChange` holds them. */
+export async function holdFoundryAgain() {
+    if (!game.user?.isGM) return null;
+    await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
+    await onGivenBackChanged();
+    return true;
+}
+
+/**
+ * What the window says and offers (E20 fix round), from the world's kept record, the switch, the user and whether the
+ * file permissions' row is wanted - each the world's unless handed in (R1531). Pure over what it is handed.
+ * - `filesStay`: Give back would leave the file permissions as they are (none kept while the row holds them);
+ * - `automationUnknown` (the owner's answer of 30.10): no value of Daggerheart's automations from before the module is
+ *   kept - a world an earlier version switched them off in - so Give back sets Daggerheart's defaults, and says the
+ *   values from before the module are not known;
+ * - `fullGm`: this user may press Give back (`canGiveBack`, C-6); an Assistant GM reads that a full Gamemaster does;
+ * - `retry`: given back, but a part's write was refused and its value is still kept - Give them back is offered again.
+ */
+export function giveBackFacts({ kept = worldOriginals.get(), givenBack = foundryGivenBack(), user = game.user,
+    filesWanted = wanted(ENFORCED.find(r => r.kind === "permissions")) } = {}) {
+    const record = kept && typeof kept === "object" ? kept : {};
+    return {
+        givenBack,
+        filesStay: !givenBack && !record.permissions && filesWanted,
+        automationUnknown: !givenBack && !record.automation,
+        fullGm: canGiveBack(user),
+        retry: givenBack && WORLD_PARTS.some(part => Boolean(record[part]))
+    };
+}
+
+/**
+ * The window's body: what the module changes, the given-back line while it is true, a line about the file
+ * permissions while Give back would leave them as they are, a line that the automations' values from before the
+ * module are not known when none is kept (the owner, 30.10), a full Gamemaster's line for an Assistant GM, and what
+ * to do before switching the module off.
+ */
+export function giveBackContent({ givenBack = foundryGivenBack(), filesStay = false, automationUnknown = false, fullGm = true } = {}) {
+    const t = key => esc(game.i18n.localize(key));
+    return `<p>${t("DRPG.GiveBack.intro")}</p>
+        <ul class="drpg-give-back-list">${FOUNDRY_WRITES.map(w => `<li>${t(w.text)}</li>`).join("")}</ul>
+        ${givenBack ? `<p class="drpg-give-back-state"><strong>${t("DRPG.GiveBack.givenBackState")}</strong></p>` : ""}
+        ${!givenBack && automationUnknown ? `<p class="notes">${t("DRPG.GiveBack.automationUnknown")}</p>` : ""}
+        ${!givenBack && filesStay ? `<p class="notes">${t("DRPG.GiveBack.filesStay")}</p>` : ""}
+        ${fullGm ? "" : `<p class="notes">${t("DRPG.GiveBack.fullGmOnly")}</p>`}
+        <p class="notes">${t("DRPG.GiveBack.beforeOff")}</p>`;
+}
+
+/** What Give back answered, said: done, or the parts left kept for another try (C-6). */
+function sayGivenBack(result) {
+    if (!result) return;
+    if (!result.failed?.length) {
+        ui.notifications.info(game.i18n.localize("DRPG.GiveBack.done"));
+        return;
+    }
+    const parts = result.failed.map(part => game.i18n.localize(`DRPG.GiveBack.part.${part === "automation" ? "automation" : "permissions"}`));
+    ui.notifications.warn(game.i18n.format("DRPG.GiveBack.partly", { parts: parts.join(", ") }));
+}
+
+/**
+ * The settings window's Give back Foundry's settings: a GM's window with Give them back or Hold them again - Give them
+ * back only for a full Gamemaster (C-6), and offered again beside Hold them again while a part's value is still kept.
+ */
+export async function openGiveBackFoundry() {
+    if (!game.user?.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+    const facts = giveBackFacts();
+    const give = { action: "give", label: game.i18n.localize("DRPG.GiveBack.giveBack") };
+    const hold = { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain") };
+    const offered = facts.givenBack ? [...(facts.retry && facts.fullGm ? [give] : []), hold] : facts.fullGm ? [give] : [];
+    const choice = await tableDialog({
+        window: { title: game.i18n.localize("DRPG.GiveBack.title") },
+        classes: ["drpg-panel", "drpg-window-give-back"],
+        content: dialogContent(`<form>${giveBackContent(facts)}</form>`),
+        buttons: [...offered, { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        rejectClose: false
+    });
+    try {
+        if (choice === "give") sayGivenBack(await giveBackFoundry());
+        else if (choice === "hold") {
+            await holdFoundryAgain();
+            ui.notifications.info(game.i18n.localize("DRPG.GiveBack.heldAgain"));
+        }
+    } catch (err) {
+        error("Could not give back or hold Foundry's settings", err);
+        ui.notifications.warn(game.i18n.localize("DRPG.GiveBack.failed"));
+    }
+    return choice;
+}
+
+/**
+ * AFTER GIVE BACK, SWITCHED OFF AND ON AGAIN (E20 fix round, the goal review's G-2). The given-back switch is a world
+ * setting and outlives the module's switch: a GM who gave the settings back before switching the module off found it
+ * holding nothing when it ran again, and nothing said so. At each start while the switch is on a GM is asked, with
+ * Hold them again; Season setup has a row (`foundryHeld`) and Pre-season checks a line for it. Every input can be
+ * handed in (R1532); answers whether the GM was asked.
+ */
+export async function offerHoldAgain({ user = game.user, givenBack = foundryGivenBack(), ask = askHoldAgain, hold = holdFoundryAgain } = {}) {
+    if (!user?.isGM || !givenBack) return false;
+    const choice = await ask();
+    if (choice === "hold") {
+        await hold();
+        ui.notifications?.info(game.i18n.localize("DRPG.GiveBack.heldAgain"));
+    }
+    return true;
+}
+
+/** The question `offerHoldAgain` asks: Hold them again, or Not now. */
+async function askHoldAgain() {
+    return tableDialog({
+        window: { title: game.i18n.localize("DRPG.GiveBack.title") },
+        classes: ["drpg-panel", "drpg-window-give-back"],
+        content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.GiveBack.heldNothing"))}</p>`),
+        buttons: [
+            { action: "hold", label: game.i18n.localize("DRPG.GiveBack.holdAgain"), default: true },
+            { action: "close", label: game.i18n.localize("DRPG.GiveBack.notNow") }
+        ],
+        rejectClose: false
+    });
 }
 
 /** Called from module.mjs's `setup` hook. */

@@ -907,6 +907,45 @@ export async function setStash(room, actorId, { present = undefined, concealed =
     return list;
 }
 
+/*
+ * A BEDROOM HAS ITS OWNER'S STASH (E89 C7, 30.10.2026; E89-22; the owner's report of 30.10: a Bedroom made no stash
+ * by itself and the GM had to make one by hand). Until 1.2.91 one road seeded it - Room Setup's Apply, when a row's
+ * owner changed - and three did not: `setVaultRoom` from the console, a room marked after its owner was given, and
+ * (through the Stashes tab, `applyStashMatrix`) a stash read by its owner and never stored. Called on an event only,
+ * never on every Apply (TRAP 76: a stash the GM removed on the Stashes tab stays removed): `setVaultRoom` when the
+ * owner changes, Room Setup when a room's mark goes from none to marked, and C8's migration clause once a world.
+ * Writes nothing when the room is no marked room (`setStash` refuses those), has no owner, or the owner is no actor;
+ * and nothing when the owner's stash is stored already. A stash read by its owner with no stored list (the pre-E11
+ * shape) is written as stored, concealment kept, so a later write of the list cannot lose it. Answers the list written,
+ * or null.
+ */
+export async function ensureBedroomStash(scene, room) {
+    if (!game.user?.isGM || !scene || !room) return null;
+    const pieces = roomRegions(scene, room);
+    if (!pieces.length) return null;
+    const owner = vaultOwnerOf(room, scene);
+    if (!owner || !game.actors?.get(owner)) return null;
+    const has = stashIn(room, owner, scene);
+    const stored = pieces.every(piece => Array.isArray(piece.getFlag(MODULE_ID, VAULT_FLAGS.stashes)));
+    if (has && stored) return null;
+    return setStash(room, owner, has ? { scene } : { concealed: false, scene });
+}
+
+/**
+ * The Bedrooms of this scene whose owner has no stash in them, by name: a marked room whose owner is an actor of this
+ * world and is not on its list (`stashesIn`, so a room with no stored list counts its owner's). The trial hall holds
+ * no room (`roomPieces`), so none of it. Read by the clause `bedroomStashes` (E89 C8) and by R1053.
+ */
+export function bedroomStashGaps(scene) {
+    const gaps = [];
+    for (const [name, pieces] of piecesByName(scene)) {
+        const owner = flagOver(pieces, VAULT_FLAGS.owner);
+        if (!owner || !game.actors?.get(owner)) continue;
+        if (!stashesOver(pieces).some(entry => entry.actorId === owner)) gaps.push(name);
+    }
+    return gaps.sort((x, y) => x.localeCompare(y));
+}
+
 /**
  * Every finder's note about one stash, gone - the stash of that owner in that room ON THAT
  * SCENE. A note is keyed `sceneId::room::ownerId` (`foundKey`); this matched the end of the key
@@ -1186,13 +1225,57 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
  * two answers, and neither of them was the guide's.
  */
 export function sharedRooms(scene) {
-    const out = [];
-    for (const [name, pieces] of piecesByName(scene)) {
-        if (flagOver(pieces, VAULT_FLAGS.owner)) continue;
-        if (flagOver(pieces, VAULT_FLAGS.notShared)) continue;
-        out.push(name);
+    return roomCensus(scene).rooms;
+}
+
+/*
+ * ONE CENSUS, THREE READERS (E20 C1, S07-38; the owner's Q-3, 29.10.2026). The Doors tab left
+ * locked rooms out and counted the living, the season checklist counted locked rooms and every
+ * student, and Pre-season checks counted every marked room, bedrooms included: one map read
+ * "17", "17" and "18" with three different cast sizes beside them. The rule is stated once here:
+ * a room counts when a GM marked it, nobody owns it (a bedroom) and it is not "No privacy";
+ * a locked room counts (the owner's answer), and is listed apart so a window can say how many
+ * of them are shut. `roomCensusOf` takes the rows, so the Doors tab applies the rule to the boxes
+ * on screen and `roomCensus` to the flags; `roomRatioLine` is the one sentence both print.
+ */
+
+/** The census of rows `{ name, room, owner, notShared, locked }`: `rooms` (the count), `locked` among them, `bedrooms`, `noPrivacy`. */
+export function roomCensusOf(rows) {
+    const out = { rooms: [], locked: [], bedrooms: [], noPrivacy: [] };
+    for (const row of rows ?? []) {
+        if (!row?.room) continue;
+        if (row.owner) out.bedrooms.push(row.name);
+        else if (row.notShared) out.noPrivacy.push(row.name);
+        else {
+            out.rooms.push(row.name);
+            if (row.locked) out.locked.push(row.name);
+        }
     }
-    return out;
+    return { ...out, count: out.rooms.length };
+}
+
+/** The census of this scene's rooms as their flags stand (see above); every piece of a room read as one (`flagOver`). */
+export function roomCensus(scene) {
+    return roomCensusOf([...piecesByName(scene)].map(([name, pieces]) => ({
+        name,
+        room: true,
+        owner: flagOver(pieces, VAULT_FLAGS.owner),
+        notShared: flagOver(pieces, VAULT_FLAGS.notShared),
+        locked: flagOver(pieces, ROOM_FLAGS.locked)
+    })));
+}
+
+/** The rooms-per-student sentence of the Doors tab and the season checklist: a census against the living students. */
+export function roomRatioLine(census, living) {
+    const want = roomsWantedFor(living);
+    const line = game.i18n.format("DRPG.Vault.roomRatio", {
+        rooms: plural("DRPG.Vault.roomCensus", { n: census.count }),
+        living,
+        per: living ? (census.count / living).toFixed(1) : "-",
+        target: ROOMS_PER_PLAYER,
+        want
+    });
+    return census.locked.length ? `${line} ${plural("DRPG.Vault.roomCensusLocked", { n: census.locked.length })}` : line;
 }
 
 /**
@@ -1266,7 +1349,23 @@ export async function setVaultRoom(room, {
     }
     if (!Object.keys(update).length) return null;
 
+    /* AN OWNER CHANGE KEEPS THE ROOM'S STASHES AND GIVES THE NEW OWNER ONE (E89 C7, 30.10.2026; E89-20, E89-22,
+       Q-E89-5). A room with no stored list reads its owner as its one stash (`stashesOn`), so the owner written
+       below would take the old owner's stash with it and leave what they had stashed there in no stash at all: the
+       list as read now is written first (`setStash` writes the whole list it reads, so one call on its first entry
+       stores it). After the write the
+       new owner is given an open stash when they have none (`ensureBedroomStash`) - from the console too, which
+       seeded nothing until 1.2.91 (the tier-2 "a Bedroom set up the usual way ...", red at 55ed2e36 on that road). */
+    const ownerMoves = owner !== undefined && (ownerBefore ?? null) !== (owner || null);
+    if (ownerMoves) {
+        const pieces = roomRegions(scene, room);
+        if (pieces.some(piece => !Array.isArray(piece.getFlag(MODULE_ID, VAULT_FLAGS.stashes)))) {
+            const [first] = stashesOver(pieces);
+            if (first) await setStash(room, first.actorId, { scene });
+        }
+    }
     await updateRoom(scene, room, update);
+    if (ownerMoves) await ensureBedroomStash(scene, room);
     if (owner !== undefined && ownerBefore && ownerBefore !== (owner || null)) {
         await takeOldOwnersKeys([{ room, from: ownerBefore, to: owner || null }]);
     }
@@ -1314,6 +1413,27 @@ const carriesValue = value => value !== undefined && value !== null && value !==
 
 export function registerRoomPieces() {
     Hooks.on("preUpdateRegion", (region, changes, options, userId) => clearSplitPiece(region, changes, userId));
+    Hooks.on("createScene", scene => bedroomsOfNewScene(scene));
+}
+
+/**
+ * A SCENE MADE WITH ITS BEDROOMS (E89 fix FG2, 30.10.2026; finding G7 of the goal review of 15c68d96). The clause
+ * `bedroomStashes` (migrate.mjs, E89 C8) gives every Bedroom without its owner's stash an open one once a world, so a
+ * scene exported before 1.2.91, or kept in a compendium, whose Bedroom carries the empty list the old Stashes tab wrote
+ * was never seeded when imported after the clause had run. A scene's creation - an import from a compendium, a copy, a
+ * script's - is an event, once a scene, so on the primary GM it runs the clause's seeding over that scene alone
+ * (migrate.mjs `seedBedroomStashes`), the GMs told which rooms were written. Never at a load and never on a later event
+ * of the scene (TRAP 76: a stash the GM removed stays removed). A copy of a scene whose stash a GM had removed on purpose
+ * gets it back on the copy; the report is how they see it. Not this road: a scene's data replaced by Import Data on an
+ * existing scene, which arrives as an update of it, not a creation (not read on v14). Answers the rows the seeding wrote
+ * (a promise), or null when this browser is not the primary or the scene has no such Bedroom.
+ */
+export function bedroomsOfNewScene(scene) {
+    if (!isPrimaryGm() || !scene || !bedroomStashGaps(scene).length) return null;
+    return import("./migrate.mjs").then(m => m.seedBedroomStashes([scene])).catch(err => {
+        error("Could not give the Bedrooms of a new scene their stashes", err);
+        return null;
+    });
 }
 
 /**
@@ -2677,7 +2797,7 @@ function stashMatrixRows(rooms, students, scene) {
             // assigned the room (the legend above the table says so, E12 C15).
             const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
             return `<td class="drpg-stash-cell${own}">
-                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" />
+                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" data-drpg-drawn="${state}" />
                 <button type="button" class="drpg-stash-toggle"
                     data-drpg-stash="${escRoom}:${actor.id}"
                     title="${foundry.utils.escapeHTML(
@@ -2775,14 +2895,16 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
          * never decided, leaves the box reading what the GM decided of the rest.
          */
         const possible = pieces.length > 0;
-        const isRoomNow = pieces.length && pieces.every(roomDecided)
-            ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        const decided = pieces.length > 0 && pieces.every(roomDecided);
+        const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart.
+        const undecidedMark = possible && !decided ? " data-drpg-undecided" : "";
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
             owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
-                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
+                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
@@ -3029,20 +3151,15 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
             }
         }
     }
-    // Room -> the stashes the GM left in it. Empty cells are
-    // simply absent, which is what "no stash" means.
+    // Room -> every stash cell as the GM left it (`state`) beside the state it was drawn in (`drawn`, E89 C7):
+    // "" no stash, "open" or "hidden". `applyStashMatrix` acts on a cell whose two differ, and on no other.
     const stashMatrix = {};
     for (const room of rooms) {
-        stashMatrix[room] = students
-            .map(actor => ({
-                actorId: actor.id,
-                state: pick(`stash:${room}:${actor.id}`)?.value ?? ""
-            }))
-            .filter(entry => entry.state)
-            .map(entry => ({
-                actorId: entry.actorId,
-                concealed: entry.state === "hidden"
-            }));
+        stashMatrix[room] = students.flatMap(actor => {
+            const cell = pick(`stash:${room}:${actor.id}`);
+            if (!cell) return [];
+            return [{ actorId: actor.id, state: cell.value ?? "", drawn: cell.getAttribute("data-drpg-drawn") ?? "" }];
+        });
     }
     return { rooms: roomRows, fogChanges, stashes: stashMatrix };
 }
@@ -3057,15 +3174,19 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
  * witnesses to anything.
  *
  * Deliberately not a mechanic - the GM closes wings by hand, which is
- * what the locks below are for. This is the number they need while
- * doing it, and it follows the boxes as they are ticked rather than
- * reporting the state the window opened in.
+ * what the locks below are for. The line follows the boxes as they are
+ * ticked rather than reporting the state the window opened in.
  *
- * Bedrooms are left out of the count because G-36 counts shared
- * rooms: a bedroom belongs to one person whether or not anybody else
- * can get into it.
+ * ONE CENSUS (E20 C1; the owner's Q-3, 29.10.2026). The count is
+ * `roomCensusOf`'s, the rule the checklist and Pre-season checks read off
+ * the flags: marked, no owner, not "No privacy", and a locked room
+ * counted - this line used to drop it, so a locked room and a dead
+ * student made it disagree with the checklist about one map. How many
+ * of the counted rooms are locked is said after the ratio, so closing a
+ * wing still shows here. Exported for R1500, which reads it on a form of
+ * its own.
  */
-function wireRoomRatio(dialog, rooms, living) {
+export function wireRoomRatio(dialog, rooms, living) {
     const ratio = dialog.element.querySelector("[data-drpg-ratio]");
     if (ratio) {
         const paintRatio = () => {
@@ -3073,38 +3194,38 @@ function wireRoomRatio(dialog, rooms, living) {
             /*
              * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
              *
-             * Both exclusions are columns the GM is looking at right
-             * now - the owner on the Bedrooms tab, "Counts as a room"
-             * on this one - so the line has to follow the ticks rather
-             * than the saved state, exactly as it already followed the
-             * locks. `sharedRooms()` is the same rule read from the
-             * flags, and is what the season checklist uses; this is
-             * that rule applied to what is on screen.
+             * Every column the census asks is one the GM is looking at
+             * right now - the owner on the Bedrooms tab, "This is a room",
+             * "No privacy" and the lock on this one - so the line follows
+             * the ticks rather than the saved state.
              */
-            const ticked = (prefix, room) =>
-                Boolean(form?.querySelector(
-                    `[name="${CSS.escape(`${prefix}:${room}`)}"]`)?.checked);
-            const ownedNow = room => Boolean(form?.querySelector(
-                `[name="${CSS.escape(`owner:${room}`)}"]`)?.value);
-
-            const open = rooms.filter(room =>
-                !ownedNow(room)
-                && !ticked("notshared", room)
-                && !ticked("locked", room));
-            const want = roomsWantedFor(living);
-            ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
-                open: open.length,
-                living,
-                per: living ? (open.length / living).toFixed(1) : "?",
-                target: ROOMS_PER_PLAYER,
-                want
-            });
-            ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
+            const field = (prefix, room) => form?.querySelector(`[name="${CSS.escape(`${prefix}:${room}`)}"]`);
+            const ticked = (prefix, room) => Boolean(field(prefix, room)?.checked);
+            /* A box drawn off is a name no piece of which may be a room (`roomCells`). A box nobody decided yet is ticked
+               as a suggestion (`data-drpg-undecided`), and counted only once the GM has changed it in this window: on a
+               fresh map every named region read as a room here, 12 against the checklist's 0 (E20 fix round, the
+               correctness review's C-10). The suggestions are said apart, after the ratio. */
+            const box = room => field("isroom", room);
+            const open = room => Boolean(box(room) && !box(room).disabled && box(room).checked);
+            const suggested = room => open(room) && box(room).hasAttribute("data-drpg-undecided") && !changed.has(room);
+            const census = roomCensusOf(rooms.map(room => ({
+                name: room,
+                room: open(room) && !suggested(room),
+                owner: field("owner", room)?.value ?? "",
+                notShared: ticked("notshared", room),
+                locked: ticked("locked", room)
+            })));
+            const pending = rooms.filter(suggested).length;
+            ratio.textContent = pending ? `${roomRatioLine(census, living)} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
+                : roomRatioLine(census, living);
+            ratio.classList.toggle("drpg-warning", living > 0 && census.count > roomsWantedFor(living));
         };
+        const changed = new Set();
         dialog.element.addEventListener("change", ev => {
             const name = String(ev.target?.name ?? "");
+            if (name.startsWith("isroom:")) changed.add(name.slice("isroom:".length));
             if (name.startsWith("locked:") || name.startsWith("notshared:")
-                || name.startsWith("owner:")) paintRatio();
+                || name.startsWith("owner:") || name.startsWith("isroom:")) paintRatio();
         });
         paintRatio();
     }
@@ -3459,8 +3580,15 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.notShared}`]: row.notShared });
         }
 
-        // Nothing announced: whether a region is a room is the GM's map, not news.
-        if (!roomSettled) await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
+        // Nothing announced: whether a region is a room is the GM's map, not news. A name that was no room and is one
+        // now gives its owner a stash (E89 C7, E89-22): an owner given while it was unmarked was refused one, since
+        // `setStash` writes rooms only. Only on that change, so a piece drawn and marked onto a standing room puts
+        // back no stash the GM removed (TRAP 76).
+        if (!roomSettled) {
+            const wasRoom = roomRegions(scene, row.room).length > 0;
+            await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
+            if (row.isRoom === true && !wasRoom) await ensureBedroomStash(scene, row.room);
+        }
 
         // Nothing announced: a door on the GM's map is learnt by walking through it. A name that
         // is no room of this scene is kept as typed and the GM told: it connects nothing, and the
@@ -3511,32 +3639,39 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
  * with the count, and the GM is told whose things and how many. The cell
  * snaps back on the next open because the form is redrawn from the flags.
  */
+/*
+ * THE CELLS THE GM CHANGED, AND NO OTHER (E89 C7, 30.10.2026; E89-21). Until 1.2.91 this compared the cells as
+ * drawn when the window opened with the room as it stood after this Apply's rows were written, so a stash the rows
+ * brought into being - a room marked in this Apply whose owner was given before, read as the owner's stash because
+ * it held no stored list - was absent from the cells and read as one the GM had removed: `stashes: []` was written
+ * and nothing put it back (the tier-2 "a Bedroom set up the usual way ...", red at 55ed2e36 on that road), and a
+ * stash another GM wrote while this window was open was removed the same way. Now a cell acts only where the GM
+ * left it other than it was drawn (`state` beside `drawn`, `readRoomSetupForm`), against the room as it is now.
+ */
 async function applyStashMatrix(stashes, scene) {
     const changed = new Set();
-    for (const [room, wanted] of Object.entries(stashes)) {
-        const current = stashesIn(room, scene);
-        const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
-
-        for (const entry of current) {
-            if (keep.has(entry.actorId)) continue;
-            const owner = game.actors.get(entry.actorId);
-            const held = owner ? stashItemsIn(owner, room, scene).length : 0;
-            if (held) {
-                ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
-                    name: owner?.name ?? "?", room, n: held
-                }));
-                keep.set(entry.actorId, entry);      // refused: leave it alone
+    for (const [room, cells] of Object.entries(stashes)) {
+        for (const { actorId, state, drawn } of cells) {
+            if (state === drawn) continue;
+            const now = stashIn(room, actorId, scene);
+            if (!state) {
+                if (!now) continue;
+                const owner = game.actors.get(actorId);
+                const held = owner ? stashItemsIn(owner, room, scene).length : 0;
+                if (held) {
+                    ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
+                        name: owner?.name ?? "?", room, n: held
+                    }));
+                    continue;      // refused: leave it alone
+                }
+                // Counted only when written (E12 fix r1-G1; review EARLY-C4-1): a cell of a name no
+                // room carries - a Teleport's - wrote nothing and was counted a changed room.
+                if (await setStash(room, actorId, { present: false, scene })) changed.add(room);
                 continue;
             }
-            // Counted only when written (E12 fix r1-G1; review EARLY-C4-1): a cell of a name no
-            // room carries - a Teleport's - wrote nothing and was counted a changed room.
-            if (await setStash(room, entry.actorId, { present: false, scene })) changed.add(room);
-        }
-
-        for (const entry of keep.values()) {
-            const was = current.find(e => e.actorId === entry.actorId);
-            if (was && was.concealed === entry.concealed) continue;
-            if (await setStash(room, entry.actorId, { concealed: entry.concealed, scene })) changed.add(room);
+            const concealed = state === "hidden";
+            if (now && now.concealed === concealed) continue;
+            if (await setStash(room, actorId, { concealed, scene })) changed.add(room);
         }
     }
     return changed;
@@ -3557,9 +3692,8 @@ async function applyStashMatrix(stashes, scene) {
  */
 async function seedOwnerStashes(ownerMoved, scene) {
     const changed = new Set();
-    for (const { room, owner } of ownerMoved) {
-        if (stashIn(room, owner, scene)) continue;
-        if (await setStash(room, owner, { concealed: false, scene })) changed.add(room);
+    for (const { room } of ownerMoved) {
+        if (await ensureBedroomStash(scene, room)) changed.add(room);
     }
     return changed;
 }
@@ -3608,13 +3742,13 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const scenesTab = await import("./trial-scene.mjs");
     const passagesTab = await import("./passages-tab.mjs");
 
-    const { studentActors } = await import("./monokuma.mjs");
+    const { studentActors, studentCensus } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
     const { discoveredFor, applyDiscoveryChanges, sceneUncoveredPercent } =
         await import("./fog.mjs");
     const students = studentActors();
-    const { isDeceased } = await import("./chapter.mjs");
-    const living = students.filter(a => !isDeceased(a)).length;
+    // The living as the checklist counts them (E20 C1, `studentCensus`): `isDeceased` here missed a death the GMs keep.
+    const living = studentCensus(students).count;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
     // rolls and are never a room's stock - see `roomStockTables` in tables.mjs:
     // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar

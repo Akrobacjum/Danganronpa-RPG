@@ -60,6 +60,8 @@ import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
 import { eclipseMoveStore, crossingStore } from "./gm-stores.mjs";
+// E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
+import { count } from "./perf-counters.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -216,8 +218,11 @@ function stillMoving(tokenDoc) {
 
 /** Resolves once the token stands still (`stillMoving`), or after `AT_REST_MAX_MS`, then `AT_REST_GRACE_MS` more. */
 export async function whenAtRest(tokenDoc) {
+    // E89 fix FG2 (G3): each wait and each poll counted (perf-counters.mjs), so scenario 86's rows hold them.
+    count("movement.whenAtRest");
     const until = Date.now() + AT_REST_MAX_MS;
     while (tokenDoc && stillMoving(tokenDoc) && Date.now() < until) {
+        count("movement.whenAtRest.polls");
         const animation = tokenDoc.object?.movementAnimationPromise;
         if (animation) await Promise.race([Promise.resolve(animation).catch(() => null), pause(until - Date.now())]);
         await pause(AT_REST_POLL_MS);

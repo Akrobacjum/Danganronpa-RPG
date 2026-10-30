@@ -1531,6 +1531,41 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   if (q.get("card")) document.getElementById("drpg-popups").insertAdjacentHTML("afterbegin", '<div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div>');
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
+  /* `?gmp=1` (E89 C5): the GM Panel's window, the smallest copy of what gm-panel.mjs `openGmPanel` builds - the
+     classes it gives DialogV2, one section as `buildSections` writes it with four of its tiles (Students and Projects
+     plain, Murder a GM route, the season's reset a GM route and destructive, as PANEL_SECTIONS marks them), the version
+     line and the Close button - so glass-sweep `--edges` reads the tiles' borders where the owner saw them drop (Q-E89-2).
+     The panel's standing block and the section's other tiles are left out. On top (`z-index: 100`), as Foundry stacks an
+     open window over the interface: without it the curtain's panes lay over the tiles at 1920x1080 and the probe read
+     the pane (30.10.2026). Off by default: nothing else here reads it. */
+  if (q.get("gmp")) {
+    const tile = (key, icon, label, cls = "") => `<button type="button" class="drpg-gmp-button${cls}" data-drpg-run="${key}"><i class="fa-solid ${icon}" inert></i><span>${label}</span></button>`;
+    document.querySelector(".application.drpg-panel").insertAdjacentHTML("afterend", `<div class="application dialog drpg-panel drpg-gm-panel-window drpg-window-panel" style="left:60px;top:110px;width:440px;z-index:100"><header class="window-header"><h1 class="window-title">Danganronpa - GM Panel</h1><button class="header-control" data-action="close">x</button></header>
+  <section class="window-content"><div class="drpg-gm-panel"><div class="drpg-gmp-sections"><details class="drpg-gmp-section in-season" data-drpg-key="now" open><summary>Right now</summary><div class="drpg-gmp-grid">${
+      tile("whoIsAlive", "fa-heart-pulse", "Students")}${tile("projects", "fa-list-check", "Projects")}${tile("murder", "fa-skull", "Murder", " drpg-gm-route")}${tile("seasonReset", "fa-trash-arrow-up", "Reset the season", " drpg-gm-route drpg-destructive")
+    }</div></details></div><p class="drpg-gmp-version">Danganronpa RPG v1.2.91</p></div><footer class="form-footer"><button type="button" data-action="close" class="default">Close</button></footer></section></div>`);
+  }
+  /* `?msgr=1` (E89 fix FG1, the review's G4): a conversation window, the smallest copy of what messenger-app.mjs
+     `DrpgMessengerApp` renders - the class ApplicationV2 gives it, the participants line, the Chat and Note tabs, one
+     bubble and the send form - so glass-sweep `--edges` reads its header band and the send button, which wears the
+     same cut as the GM Panel's tiles (stained-glass.css, the shared button rule). At the right, under the clock; only
+     when asked, since at the small sizes it lies over the despair bar and the panel the other selectors read. */
+  if (q.get("msgr")) {
+    document.querySelector(".application.drpg-panel").insertAdjacentHTML("afterend", `<div class="application drpg-messenger" style="left:calc(100vw - 460px);top:150px;width:420px;z-index:100"><header class="window-header"><i class="window-icon fa-solid fa-comments" inert></i><h1 class="window-title">Messenger - Kaede</h1><button class="header-control" data-action="close">x</button></header>
+  <section class="window-content"><div class="drpg-messenger-body"><div class="drpg-messenger-participants">Kaede, Monokuma</div><nav class="drpg-messenger-tabs"><button type="button" class="drpg-messenger-tab active" data-drpg-tab="chat">Chat</button><button type="button" class="drpg-messenger-tab" data-drpg-tab="note">Note</button></nav><div class="drpg-messenger-log"><div class="drpg-messenger-bubble gm"><div class="drpg-messenger-author">Monokuma</div><div class="drpg-messenger-text">The Library is open until night.</div></div></div><form class="drpg-messenger-input"><textarea name="text" rows="1" placeholder="Write"></textarea><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane" inert></i></button></form></div></section></div>`);
+  }
+  /* `?mover=1` (E89 C5), or `__mover.start()`: the board redrawn on every frame with a bright block crossing it, as
+     Foundry's ticker redraws its canvas under the windows, so every layer with a backdrop filter is repainted from a
+     board that changed. Off by default. */
+  {
+    const board = document.getElementById("board"), g = board.getContext("2d");
+    let on = false, x = 0;
+    const tick = () => { if (!on) return; g.clearRect(0, 0, board.width, board.height);
+      g.fillStyle = "#f2e9d8"; g.fillRect((x * 3) % board.width - 40, 20, 80, 260); g.fillStyle = "#d4246a"; g.fillRect(board.width - (x * 2) % board.width, 90, 50, 120);
+      x++; requestAnimationFrame(tick); };
+    window.__mover = { start() { if (!on) { on = true; requestAnimationFrame(tick); } }, stop() { on = false; } };
+    if (q.get("mover")) window.__mover.start();
+  }
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   /* `?windows=off` (E77 fix r2-H2): the world switch `foundryToolWindows` off, so registerFoundryWindows below builds
      nothing and Foundry's rails stay in its columns, as a GM's page loads with the switch off. */
@@ -1580,4 +1615,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   const win = document.querySelector(".application.drpg-panel");
   m.dressWindow({ element: win });
   chrome.dressChrome?.(win);
+  const gmp = document.querySelector(".application.drpg-gm-panel-window");
+  if (gmp) { m.dressWindow({ element: gmp }); chrome.dressChrome?.(gmp); }
+  const msgr = document.querySelector(".application.drpg-messenger");
+  if (msgr) { m.dressWindow({ element: msgr }); chrome.dressChrome?.(msgr); }
 </script></body></html>

@@ -578,6 +578,8 @@ export function buildDocumentClasses(ctx) {
         get height() { return this._source.height ?? 1; }
         get texture() { return this._source.texture ?? {}; }
         get disposition() { return this._source.disposition ?? 0; }
+        // E89 C0: v14's `TokenDocument#movement`, on the model (client-entry.mjs `applyRemote` writes it; LIVE-E89-03).
+        get movement() { return this._drpgMovement ?? null; }
         /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
            token of the seed, so no scenario before 66 moves. See `LevelList` below. */
         get level() { return this._source.level ?? null; }

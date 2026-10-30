@@ -174,6 +174,17 @@ export const SETTINGS = {
      */
     voicePeerMutes: "voicePeerMutes",
     rtcDockBefore: "rtcDockBefore",
+    /**
+     * What the module found in Foundry's and other packages' settings before its first write there (E20 C6, S03-37,
+     * Q-5): `foundryBefore` the world's (Daggerheart's automations, the file permissions; world, `config: false`, no
+     * secret - Foundry's own values), `foundryBeforeClient` this browser's (the held client settings, by full key),
+     * `foundryGivenBack` true once a GM pressed Give back Foundry's settings, after which the module writes none of
+     * them until a GM holds them again (enforced.mjs `giveBackFoundry`). The settings window's button is a menu,
+     * registered beside them under its own key (`GIVE_BACK_MENU`), not a setting.
+     */
+    foundryBefore: "foundryBefore",
+    foundryBeforeClient: "foundryBeforeClient",
+    foundryGivenBack: "foundryGivenBack",
     /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
@@ -487,6 +498,8 @@ export const SETTINGS = {
     gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
+    startHereShown: "startHereShown",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
     readableRolls: "readableRolls",
     /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
@@ -1076,6 +1089,9 @@ export const DEFAULT_CLOCK = {
     resetCuts: Object.freeze({})
 };
 
+/** The settings window's Give back Foundry's settings button: a menu's key, not a setting (E20 C6). */
+const GIVE_BACK_MENU = "giveBackFoundry";
+
 export function registerSettings() {
     // The hint names the one roll this leaves public: the GM panel's "Public roll"
     // (`game.drpg.publicRoll`, E33 C12) - a GM's own `/r` goes to the GMs with it on.
@@ -1468,6 +1484,47 @@ export function registerSettings() {
         default: {}
     });
 
+    game.settings.register(MODULE_ID, SETTINGS.foundryBefore, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.foundryBeforeClient, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.foundryGivenBack, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.onGivenBackChanged())
+            .catch(err => console.error("danganronpa-rpg | Could not give back or hold Foundry's settings", err))
+    });
+    /* The settings window's button. Foundry renders the menu's class; this one opens the module's own window instead
+       (enforced.mjs `openGiveBackFoundry`). How v14's settings window constructs and renders a menu's class is not
+       measured here: the harness's `registerMenu` is a no-op. */
+    const Base = foundry.applications?.api?.ApplicationV2 ?? class {};
+    class GiveBackFoundryMenu extends Base {
+        render() {
+            import("./enforced.mjs").then(m => m.openGiveBackFoundry())
+                .catch(err => console.error("danganronpa-rpg | Could not open Give back Foundry's settings", err));
+            return this;
+        }
+    }
+    game.settings.registerMenu?.(MODULE_ID, GIVE_BACK_MENU, {
+        name: "DRPG.GiveBack.menuName",
+        label: "DRPG.GiveBack.menuLabel",
+        hint: "DRPG.GiveBack.menuHint",
+        icon: "fa-solid fa-rotate-left",
+        type: GiveBackFoundryMenu,
+        restricted: true
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.musicEnabled, {
         name: "DRPG.Settings.musicEnabled.name",
         hint: "DRPG.Settings.musicEnabled.hint",
@@ -1851,6 +1908,14 @@ export function registerSettings() {
         config: false,
         type: String,
         default: ""
+    });
+    /* "Start here" told to this browser's GM once (E20 C4, S01-61; season-setup.mjs `offerStartHere`): per browser,
+       like the warnings above, and not a dial anybody sets on purpose. */
+    game.settings.register(MODULE_ID, SETTINGS.startHereShown, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
     });
 
     /* The roller's own drawn rolls, so a reload still lets them read what they rolled
@@ -3279,6 +3344,17 @@ export async function clearBodyDiscovery() {
     return game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
 }
 
+/**
+ * Whether `registerSettings` has run on this browser (E20 C5; S01-41). This file's render hooks are
+ * registered when it is imported, and the module imports it even where it stops at its requirements
+ * check (module.mjs `init`): there no setting is registered, and a hook that reads one threw on every
+ * window drawn (00-boot's E20-T3 measured three, one per render hook). The theme's setting stands
+ * for the lot - `registerSettings` registers it with the rest, unguarded.
+ */
+export function settingsRegistered(settings = game.settings?.settings) {
+    return settings?.has?.(`${MODULE_ID}.${SETTINGS.theme}`) === true;
+}
+
 /** Convenience reader. */
 /**
  * The language this browser asked the module for: `en` or `pl`, `en` when the
@@ -3668,6 +3744,7 @@ export function applyTheme() {
    the user has dragged wider keeps that width until it is rendered again.
    `auto` is left alone: a window that measures itself is already right. */
 function scaleWindow(app, element) {
+    if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
      * THE BOX IS BOTH THEMES' NOW (W-2, Dawid 19.09).
@@ -3739,6 +3816,7 @@ Hooks.on("renderApplicationV2", scaleWindow);
 Hooks.on("renderApplication", scaleWindow);
 
 Hooks.on("renderSettingsConfig", (_app, element) => {
+    if (!settingsRegistered()) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
     const themeField = root.querySelector(`[name="${MODULE_ID}.${SETTINGS.theme}"]`);

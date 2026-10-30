@@ -19,7 +19,17 @@
  *   ownRing.rebuilt | .skipped | .kept, remnantRing (the same)         a ring drawn again, a paint that drew none, a
  *                                                                       refresh that kept the drawing standing (E88 C2)
  *   visibility.applyAll, visibility.applyAll.tokens                     whole passes, and the tokens each flagged
+ *   visibility.applyAll.flags                                           the refreshes a whole pass asked of Foundry (E89 C0)
  *   visibility.applyOne                                                 a move that asked its own token alone (E88 C2)
+ *   visibility.applyRooms, visibility.applyRooms.tokens                 an own move into other rooms, and the tokens it asked (E89 C2)
+ *   visibility.sightPass, .sightPass.tokens, .sightPass.flags           the next frame's pass for `sightRefresh`, the tokens
+ *                                                                       it judged, and the hidden ones it flagged (E89 C4)
+ *   visibility.roomsChanged                                             a road that changes the viewer's rooms with no
+ *                                                                       token of theirs moving, heard (E89 fix FG2)
+ *   visibility.forget, visibility.myRooms.walk                          the room memos dropped; the viewer's rooms walked
+ *                                                                       again over every placeable (E89 C0)
+ *   visibility.sliding                                                  a sprite still sliding to its spot, tested against
+ *                                                                       the viewer's rooms (MAP-02; E89 C0)
  *   visibility.applyToToken                                             one verdict carried to a sprite
  *   visibility.reassert, visibility.reassert.tokens                     next-frame walks, and the tokens walked
  *   visibility.myIncidentTrace, visibility.sightRefresh                 the D11 ask; Foundry's sight refresh heard
@@ -28,6 +38,12 @@
  *   utils.cssColour, utils.cssColour.read                               a canvas colour asked; read off the stylesheet
  *                                                                       (kept until the body changes since E88 C2)
  *   fog.repaintFog, fog.buildFogTexture, fog.driftTick                  a repaint asked, a texture built, a drift frame
+ *   fog.reactToMove, fog.reactToMove.walks                              the fog's reading of a move (at the update and again
+ *                                                                       at rest), and its walks of the viewer's tokens for
+ *                                                                       their rooms (E89 fix FG2)
+ *   movement.whenAtRest, movement.whenAtRest.polls                      a wait for a token at rest started (fog.mjs, and
+ *                                                                       visibility.mjs and movement.mjs on their roads), and
+ *                                                                       its polls (E89 fix FG2)
  *   fog.held.raster | .backdrop | .live | .freed                        a layer drawn into its picture, a frame that drew
  *                                                                       a held layer live (its picture out of date), a
  *                                                                       picture freed (fog.mjs, E88 C3)

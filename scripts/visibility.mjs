@@ -20,7 +20,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
-import { roomOfToken, roomAt } from "./movement.mjs";
+import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
@@ -40,17 +40,12 @@ export function registerVisibility() {
     // its own vision logic on every refresh, so setting it from `sightRefresh`
     // alone was immediately overwritten - which is why standing at a gap in a
     // wall still showed the room beyond.
-    Hooks.on("refreshToken", token => {
+    Hooks.on("refreshToken", (token, flags) => {
         count("refreshToken.visibility");
-        // One of ours moved: where WE are may have changed, so the memo of our
-        // own rooms is no longer good. Somebody else's refresh cannot change it.
-        if (token?.isOwner) forgetMyRooms();
-        applyToToken(token);
-        // …and again after this frame's refresh has finished, this token among the ones refreshed in it. See below.
-        reassertNextFrame(token);
+        refreshHeard(token, flags);
     });
 
-    Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); applyAll(); });
+    Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); sightPassNextFrame(); });
     Hooks.on("canvasReady", () => applyAll());
     Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
@@ -66,6 +61,85 @@ export function registerVisibility() {
     // And since E05 C13 the other half of that pair: which trace a bullet came from is the
     // owner's copy of the GMs' rows, and it can arrive after the bullet does.
     Hooks.on("drpgBulletRefsChanged", () => applyAll());
+
+    /* E89 fix FG2 (30.10.2026; finding SEC-1): where the viewer's characters stand, read as rooms, and which characters
+       are the viewer's, change on these with no token of theirs moving - see `roomsChangedOn` and `wholePassSoon`. */
+    Hooks.on("createRegion", region => roomsChangedOn(region?.parent));
+    Hooks.on("updateRegion", region => roomsChangedOn(region?.parent));
+    Hooks.on("deleteRegion", region => roomsChangedOn(region?.parent));
+    Hooks.on("createRegionBehavior", behavior => roomsChangedOn(behavior?.parent?.parent));
+    Hooks.on("deleteRegionBehavior", behavior => roomsChangedOn(behavior?.parent?.parent));
+    Hooks.on("updateScene", (scene, changes) => { if (changes?.regions !== undefined) roomsChangedOn(scene); });
+    Hooks.on("updateActor", (actor, changes) => { if (changes?.ownership !== undefined) wholePassSoon(); });
+    Hooks.on("createSetting", setting => { if (ROOM_SETTINGS.has(setting?.key)) wholePassSoon(); });
+    Hooks.on("updateSetting", setting => { if (ROOM_SETTINGS.has(setting?.key)) wholePassSoon(); });
+}
+
+/**
+ * The `refreshToken` listener's body, a function of its own so R1055 reads it on stand-ins (E89 fix FG2).
+ *
+ * NO MEMO IS DROPPED HERE (E89 C3, 30.10.2026; E89-07). This used to drop the memo of our rooms on every refresh of a
+ * token we own, and a drag's preview and a slide refresh once a frame: scenario 86 at e9e41f58 (on the harness's model)
+ * counted visibility.forget 43 on the mover's browser and 21 on the GM's (who owns every token) over one 20-frame drag.
+ * `myRooms` reads the documents' positions, never a sprite's, so a refresh cannot change its answer.
+ *
+ * WHAT CAN, CORRECTED (E89 fix FG2, 30.10.2026; finding SEC-1 of the review of 15c68d96). C3's note named an owned
+ * document's move (`passForTokenUpdate`), a token created or deleted, a bullet and its refs and the scene's own events
+ * (each through `applyAll`), and left out two roads that change the answer with no token of the viewer's moving: which
+ * characters are the viewer's (an actor's `ownership`; on a token another actor, its link, an unlinked token's
+ * `delta.ownership` - `movePass`), and which regions are rooms and where they lie (a region created, updated or deleted,
+ * a passage behaviour added or taken off, a scene's update carrying its regions, the player regions' record and the
+ * scene roles - `roomsChangedOn`, `wholePassSoon`). Through either, a "one" pass read the old rooms and kept a token on
+ * screen that a whole pass hides (scenario 86 at 15c68d96, "fix FG2 SEC-1": Chie and the Dorm B students stayed on
+ * Aiko's player's screen after Dorm A was put back). Each of them now runs a whole pass. `sightPass` still drops the
+ * memo on every pass: its note says why.
+ *
+ * ONLY A REFRESH OF ITS VISIBILITY TAKES A TOKEN OFF `hiddenByUs` (E89 fix FG2; finding SEC-2). C4 took it off on every
+ * refresh, on the grounds that Foundry's refresh had had its say on `visible`; Foundry's documented render flags give
+ * `visible` back in a refresh that carries `refreshVisibility` (read from those flags, not from v14's source; the
+ * harness's model alike, client-entry.mjs `flush`). A token hidden here and then
+ * refreshed for its bars kept `visible` false and left the list, and the pass after the next sightRefresh, its verdict
+ * no longer to hide it, did not flag it: stranded invisible until its own move (R1055; scenario 86, "fix FG2 COR-3,
+ * SEC-2").
+ */
+export function refreshHeard(token, flags) {
+    if (flags?.refreshVisibility) hiddenByUs.delete(token);
+    applyToToken(token);
+    // …and again after this frame's refresh has finished, this token among the ones refreshed in it. See below.
+    reassertNextFrame(token);
+}
+
+/* The settings that change which regions are rooms (rooms.mjs `playerRegionIds`, `isTrialScene`), by their keys. */
+const ROOM_SETTINGS = new Set([`${MODULE_ID}.${SETTINGS.playerRegions}`, `${MODULE_ID}.${SETTINGS.sceneRoles}`]);
+
+/**
+ * A change of the rooms on `scene` (E89 fix FG2; finding SEC-1): a whole pass when it is the scene on screen - the only
+ * one whose tokens this browser draws, so the camera is read here only to skip a scene not drawn (rooms.mjs
+ * CAMERA_READERS) - and nothing otherwise.
+ */
+function roomsChangedOn(scene) {
+    if (!scene || scene !== canvas?.scene) return;
+    wholePassSoon();
+}
+
+/*
+ * ONE WHOLE PASS FOR A BATCH (E89 fix FG2). Room Setup's Apply writes every region of a scene in one update, which is
+ * one hook per region in the same tick (fog.mjs `repaintRoomScene`'s note), so the memo is dropped at once - a verdict
+ * asked before the pass reads the rooms again - and the pass runs once, in a microtask after the hooks of that tick and
+ * before the next frame is drawn. A GM's verdicts read no room (`tokenShownTo` returns before them; a trace and a
+ * project leave a GM to Foundry), so a GM's browser asks none. Counted `visibility.roomsChanged`.
+ */
+let wholePassQueued = false;
+function wholePassSoon() {
+    if (game.user?.isGM) return;
+    count("visibility.roomsChanged");
+    forgetMyRooms();
+    if (wholePassQueued) return;
+    wholePassQueued = true;
+    queueMicrotask(() => {
+        wholePassQueued = false;
+        applyAll();
+    });
 }
 
 /* THE VISION CLIP THAT USED TO LIVE HERE IS GONE, ON PURPOSE.
@@ -185,15 +259,139 @@ function reassertNextFrame(token) {
  * change of `hidden` (`revealRemnantToFinder`'s write, kept as it was). A GM's verdicts read no room at all
  * (`tokenShownTo` returns before them; a trace and a project leave a GM to Foundry), so on a GM's browser every move
  * is "one". `viewer` is `{ gm }`, this browser's by default, so the rule reads without a canvas (R1011).
+ *
+ * E89 C1 (30.10.2026; E89-04): a move of the viewer's own token asks every verdict again only when what those verdicts
+ * read of it changed - the set of rooms the viewer's characters stand in, and the lair (`tokenShownTo` reads nothing
+ * else a move can change; a trace reads no room, and a project's record of rooms stood in grows only by a room
+ * entered). Scenario 86 at 6ae66c7f, on the harness's model: one drop of Aiko's drag inside Dorm A cost her player's
+ * browser a whole pass (visibility.applyAll.tokens 46, refreshToken.visibility 86 against 21 on every other browser),
+ * one path of 3 updates three of them (applyAll.tokens 138). So the viewer hands signatures, not sets: `roomsBefore`/
+ * `lairBefore` as the screen was last drawn, `roomsAfter`/`lairAfter` read again after the move
+ * (`passForTokenUpdate`). Equal, and the move asks its own token's verdict ("one"); different, or nothing known
+ * before (no signatures, no whole pass yet), every token's ("all"; "rooms" since C2, below). Two owned characters are one set: one walking into a room the other stands in changes nothing. A room is a
+ * region's name (movement.mjs `roomAt`), so a step onto another floor into a room of the same name signs the same, as
+ * every verdict compares the same names. An Eclipse is read by no signature: it changes no verdict on a move.
+ *
+ * E89 C2 (30.10.2026; E89-06): different signatures, both known, are "rooms" - the tokens a room change can touch
+ * (`roomChangeTokens`), not every token. Scenario 86 at 6bee0e69, on the harness's model: Aiko's move into the
+ * Cafeteria cost her player's browser two whole passes (visibility.applyAll.tokens 92: the update's, and the one
+ * sync.mjs `SYNC.fog` runs when the ledger records a room entered the first time - the GM's browser runs that one
+ * too, and it is the road that shows a public project found there). At C2 the update asks 5 tokens there
+ * (visibility.applyRooms.tokens 5) and the ledger's pass stays (applyAll.tokens 46). Nothing known before stays "all".
  */
 export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }) {
     // `hidden` as well as a move: that is the write `revealRemnantToFinder`
     // makes, and it is the one moment a Remnant's visibility actually needs
     // recomputing for everyone who is not the finder.
     if (changes?.hidden !== undefined) return "all";
+    // E89 fix FG2 (SEC-1; R1054): which characters are the viewer's, changed on the token itself with no move - another
+    // actor on it, its link to one, an unlinked token's owners (v14's delta carrying `ownership` is not read here).
+    if (changes?.actorId !== undefined || changes?.actorLink !== undefined || changes?.delta?.ownership !== undefined) return "all";
     // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
     if (!isMoveChange(changes)) return null;
-    return !viewer.gm && doc?.isOwner ? "all" : "one";
+    if (viewer.gm || !doc?.isOwner) return "one";
+    const sameRooms = viewer.roomsBefore != null && viewer.roomsBefore === viewer.roomsAfter;
+    const sameLair = (viewer.lairBefore ?? null) === (viewer.lairAfter ?? null);
+    if (sameRooms && sameLair) return "one";
+    return viewer.roomsBefore != null ? "rooms" : "all";
+}
+
+/**
+ * THE TOKENS A CHANGE OF THE VIEWER'S ROOMS CAN SHOW OR HIDE (E89 C2, 30.10.2026; E89-06). `before` and `after` are
+ * `{ rooms, lair }` (rooms any iterable of names), `tokens` the placeables; the answer is the tokens among them whose
+ * verdict may differ between the two, read off what each verdict reads (`tokenShownTo`, `applyToProjectToken`,
+ * `applyToRemnantToken`):
+ * - a character standing in a room of one side and not the other (`room && viewer.rooms.has(room)` turns);
+ * - a character in no room when one side has no room and the other has (`!viewer.rooms.size && !room` turns);
+ * - every character when the watchtower turns (`viewer.lair && viewer.rooms.has(viewer.lair)`);
+ * - a project token in a room of one side and not the other. STAGE.md names the rooms entered alone (a public
+ *   project's record of rooms stood in grows); the rooms left are asked as well, because `hasStoodIn` also reads
+ *   where the viewer's tokens stand now, and a narrower pass may never leave a token shown that a whole pass hides;
+ * - never a Remnant: its verdict reads the viewer's bullets and the incident's cast, no room.
+ * The viewer's own characters read "show" on either side and are in the answer only by these rules (the caller adds
+ * the moved one). Everything else reads nothing a move changes. `roomOf` is `roomOfToken` unless the suite hands its
+ * stand-ins' (R1050): this reads no canvas and writes nothing.
+ */
+export function roomChangeTokens(before, after, tokens, roomOf = roomOfToken) {
+    const was = new Set(before?.rooms ?? []), now = new Set(after?.rooms ?? []);
+    const turned = new Set([...was].filter(room => !now.has(room)).concat([...now].filter(room => !was.has(room))));
+    const watch = (rooms, lair) => Boolean(lair) && rooms.has(lair);
+    const lairFlip = watch(was, before?.lair ?? null) !== watch(now, after?.lair ?? null);
+    const emptied = (was.size === 0) !== (now.size === 0);
+    const asked = [];
+    for (const token of tokens ?? []) {
+        const doc = token?.document;
+        if (!doc) continue;
+        if (doc.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) continue;
+        if (projectIdOf(doc)) {
+            const room = roomOf(doc);
+            if (room && turned.has(room)) asked.push(token);
+            continue;
+        }
+        if ((token.actor ?? doc.actor)?.type !== "character") continue;
+        const room = roomOf(doc) ?? null;
+        if (lairFlip || (room ? turned.has(room) : emptied)) asked.push(token);
+    }
+    return asked;
+}
+
+/**
+ * THE ROOMS THE SCREEN WAS LAST DRAWN FOR (E89 C1, 30.10.2026): `{ rooms, lair }` signed by `basisNow` at the last
+ * whole pass on a player's browser, null before the first and on a GM's. STAGE.md's C1 reads `myRooms()` before
+ * `forgetMyRooms()` for the "before"; that memo is not the screen's: the `refreshToken` listener dropped it (until C3) on every
+ * refresh of an owned token (a drag's preview refreshes once a frame: visibility.forget 42 on p1 over 86's drag at
+ * 6ae66c7f), and the next verdict rebuilds it from the documents - so at the drop it can already hold the moved
+ * token's new room, and before and after would read the same while every other token still shows the old rooms.
+ * Only a whole pass draws every token for one signature, so that is the one kept.
+ */
+let passBasis = null;
+
+function basisNow() {
+    const list = [...myRooms()].map(String).sort();
+    return { rooms: JSON.stringify(list), lair: myLairRoom() ?? null, list };
+}
+
+/** The move of one of this player's own tokens as `movePass` reads it: the memo dropped, the rooms read again. */
+function ownMoveViewer() {
+    forgetMyRooms();
+    const now = basisNow();
+    return { gm: false, roomsBefore: passBasis?.rooms ?? null, lairBefore: passBasis?.lair ?? null,
+        roomsAfter: now.rooms, lairAfter: now.lair, before: passBasis, after: now };
+}
+
+/*
+ * "rooms" (E89 C2): the tokens `roomChangeTokens` names, and the moved one, each flagged and asked as `applyAll` asks
+ * its own (the flag is the un-hide road), the memo already dropped and read again by `ownMoveViewer` as `applyAll`
+ * drops it. Those are every token whose verdict differs between the two signatures, so the screen is now drawn for
+ * the new rooms: they become the basis the next move compares against (and the re-read at rest finds nothing to do).
+ */
+function applyRooms(doc, before, after) {
+    if (!canvas?.ready) return;
+    const asked = new Set(roomChangeTokens({ rooms: before.list, lair: before.lair }, { rooms: after.list, lair: after.lair },
+        canvas.tokens?.placeables ?? []));
+    if (doc?.object) asked.add(doc.object);
+    passBasis = after;
+    count("visibility.applyRooms");
+    count("visibility.applyRooms.tokens", asked.size);
+    for (const token of asked) {
+        if (token.destroyed) continue;
+        token.renderFlags?.set?.({ refreshVisibility: true });
+        applyToToken(token);
+    }
+}
+
+/*
+ * And once more where the token comes to rest (movement.mjs `whenAtRest`; fog.mjs `onUpdateToken`'s note of the owner's
+ * report of 14.10.2026: on a v14 table the hook read the room before the drag ended). A pass of "one" read the rooms
+ * of the update; the rooms at rest are read again, and a whole pass asked if they are not the screen's. Not measured
+ * headless: the harness's update carries the final position, so this finds nothing to change there (LIVE-E89-03).
+ */
+function recheckAtRest(doc) {
+    whenAtRest(doc).then(() => {
+        if (!canvas?.ready || doc?.parent !== canvas.scene) return;
+        const viewer = ownMoveViewer();
+        if (viewer.roomsBefore !== viewer.roomsAfter || viewer.lairBefore !== viewer.lairAfter) applyAll();
+    }).catch(err => debug("Visibility: could not read a move at rest", err));
 }
 
 /**
@@ -204,8 +402,18 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
  * the scene on screen alone, so the camera is not read here: rooms.mjs CAMERA_READERS), and is asked nothing.
  */
 export function passForTokenUpdate(doc, changes) {
-    const pass = movePass(doc, changes);
+    // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
+    const gm = Boolean(game.user?.isGM);
+    const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
+    const ownMove = !gm && ownedMove && changes?.hidden === undefined;
+    // E89 C3: where WE stand moved with the document - the memo goes here, not on the sprite's refreshes (see the
+    // `refreshToken` listener). The player's own move drops it in `ownMoveViewer`; every other owned move here.
+    if (ownedMove && !ownMove) forgetMyRooms();
+    const viewer = ownMove ? ownMoveViewer() : { gm };
+    const pass = movePass(doc, changes, viewer);
+    if (ownMove) recheckAtRest(doc);
     if (pass === "all") return applyAll();
+    if (pass === "rooms") return applyRooms(doc, viewer.before, viewer.after);
     if (pass !== "one" || !canvas?.ready) return;
     const token = doc?.object;
     if (!token || token.destroyed) return;
@@ -263,6 +471,7 @@ function applyToToken(token) {
              */
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {
+                count("visibility.sliding");
                 const at = roomAt(token.x, token.y, token.document);
                 if (at && !myRooms().has(at)) hide(token);
             }
@@ -428,7 +637,7 @@ function applyToRemnantToken(token) {
  * client legitimately holds: they are in it.
  */
 /* Whether this viewer is one of the live incident's cast whom its traces show to, read once for a frame's or a pass's
-   verdicts (E88 C2): null until read; dropped by `forgetMyRooms` (each `applyAll`, each refresh of an own token) and
+   verdicts (E88 C2): null until read; dropped by `forgetMyRooms` (each `applyAll`, each move of an own token) and
    after each next-frame walk. It reads no token: each trace asked the same three settings and the same actors walk. */
 let incidentEntitled = null;
 
@@ -477,6 +686,7 @@ function inTheIncident() {
 }
 
 function hide(token) {
+    hiddenByUs.add(token);
     token.visible = false;
     if (token.mesh) token.mesh.visible = false;
     // Nameplates, bars and the target marker are separate display objects.
@@ -501,6 +711,7 @@ function hide(token) {
  */
 function show(token) {
     if (token.document?.hidden) return;
+    hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;
 }
@@ -537,6 +748,63 @@ function enforcing() {
     }
 }
 
+/*
+ * `sightRefresh`: ONE VERDICT PASS ON THE NEXT FRAME, AND THE UN-HIDE ROAD ONLY WHERE IT IS NEEDED (E89 C4,
+ * 30.10.2026; E89-08). The hook ran `applyAll` each time it fired, and `applyAll` asks Foundry to refresh every token:
+ * scenario 86 at e9e41f58, with `sightRefresh` fired on each of a slide's 20 frames (the harness's model; whether v14
+ * fires it per frame is LIVE-E89-02), counted visibility.applyAll.tokens 920 on every browser and refreshToken.visibility
+ * 921, and on the GM's remnantIcons.apply 600 and utils.cssColour 681 from those refreshes. Every hook of a frame now
+ * asks one pass, run on the next frame, which reads each token's verdict as `applyAll` does (so a token a whole pass
+ * would hide is hidden by it) and flags `refreshVisibility` only on a token this file hid (`hiddenByUs`: written by
+ * `hide`, cleared by `show` and by the token's own refresh of its visibility, where Foundry has just written
+ * `visible` again - since E89 fix FG2 that refresh alone, `refreshHeard`) whose
+ * verdict is no longer to hide it - the flag is the road that gives such a token back to Foundry (see `applyAll`'s
+ * note), and a token this file did not hide has nothing to be given back. `judge` is the verdict; the stand-ins of
+ * R1052 hand their own, which is passed `hide`.
+ *
+ * THE MEMO IS STILL DROPPED ON EVERY PASS (E89 fix FG2, 30.10.2026; finding G2). Scenario 86 at c2fd2931, sightRefresh
+ * on each of a slide's 20 frames (the model): p1 visibility.forget 22 and myRooms.walk 22. Since the fix the roads that
+ * change the viewer's rooms by a document or a setting run a whole pass of their own (`refreshHeard`'s note), so a
+ * sightRefresh adds nothing to those. It is kept for what changes the answer with no hook this file hears: the floor on
+ * screen (v14's token layer may hold that floor alone, and `myRooms` walks `canvas.tokens.placeables`; LIVE-E12-02), a
+ * user's role, and what v14 holds that the harness does not model. A pass that kept it would read the rooms of before
+ * such a change and leave a token shown that a whole pass hides; scenario 86's "fix FG2 COR-3" drives one such change
+ * (a region's source written on one browser alone, reported by sightRefresh only). Secrecy before the counter: one walk
+ * of the placeables a pass, 22 per 20 frames, kept.
+ */
+const hiddenByUs = new WeakSet();
+let pendingSight = 0;
+
+function sightPassNextFrame() {
+    if (pendingSight) return;
+    pendingSight = requestAnimationFrame(() => {
+        pendingSight = 0;
+        try {
+            sightPass();
+        } catch (err) {
+            debug("Visibility: the pass after sightRefresh failed", err);
+        }
+    });
+}
+
+export function sightPass(placeables = canvas?.tokens?.placeables ?? [], judge = applyToToken) {
+    if (!canvas?.ready) return;
+    forgetMyRooms();
+    passBasis = game.user?.isGM ? null : basisNow();
+    count("visibility.sightPass");
+    count("visibility.sightPass.tokens", placeables.length);
+    for (const token of placeables) {
+        if (!token || token.destroyed) continue;
+        const was = hiddenByUs.has(token);
+        hiddenByUs.delete(token);
+        judge(token, hide);
+        if (was && !hiddenByUs.has(token) && token.renderFlags?.set) {
+            token.renderFlags.set({ refreshVisibility: true });
+            count("visibility.sightPass.flags");
+        }
+    }
+}
+
 /**
  * Recompute who is visible. Applied as a render-time override rather than a
  * document change, so nothing is written to the scene and the GM's view is
@@ -545,6 +813,8 @@ function enforcing() {
 export function applyAll() {
     if (!canvas?.ready) return;
     forgetMyRooms();
+    // E89 C1: what this pass draws every token for, read once here (the verdicts below reuse the memo it fills).
+    passBasis = game.user?.isGM ? null : basisNow();
     const placeables = canvas.tokens?.placeables ?? [];
     count("visibility.applyAll");
     count("visibility.applyAll.tokens", placeables.length);
@@ -574,7 +844,10 @@ export function applyAll() {
          * Found by a verification pass on 16.09; three readers reached it
          * independently, which is why it is written down rather than fixed.
          */
-        token.renderFlags?.set?.({ refreshVisibility: true });
+        if (token.renderFlags?.set) {
+            token.renderFlags.set({ refreshVisibility: true });
+            count("visibility.applyAll.flags");
+        }
         applyToToken(token);
     }
 
@@ -612,6 +885,7 @@ let myRoomsCache = null;
 let myRemnantRefsCache = null;
 
 function forgetMyRooms() {
+    count("visibility.forget");
     myRoomsCache = null;
     myRemnantRefsCache = null;
     incidentEntitled = null;
@@ -619,6 +893,7 @@ function forgetMyRooms() {
 
 function myRooms() {
     if (myRoomsCache) return myRoomsCache;
+    count("visibility.myRooms.walk");
 
     const rooms = new Set();
     for (const token of canvas.tokens?.placeables ?? []) {

@@ -11,13 +11,13 @@
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
-import { monokumas, getDespair, despairMax } from "./despair.mjs";
-import { monokumaFor, students, unassigned } from "./assignments.mjs";
-import { studentActors } from "./monokuma.mjs";
-import { listExperiences } from "./character.mjs";
+import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
+import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
+import { studentActors, studentCensus } from "./monokuma.mjs";
+import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, gmReport } from "./utils.mjs";
+import { isPrimaryGm, log, debug, gmReport, plural } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow } from "./private-rolls.mjs";
 
@@ -159,11 +159,13 @@ export function diagnoseDespair() {
     lines.push(`"Rolls grant Despair" setting: ${enabled ? "on" : "OFF ← nothing will be awarded"}`);
 
     const gms = monokumas();
-    lines.push(`Monokumas (full Gamemasters): ${gms.length ? gms.map(u => `${u.name} [${getDespair(u.id)}/${despairMax()}]`).join(", ") : "NONE ← no pools exist"}`);
+    lines.push(`Monokumas (Despair pools): ${gms.length ? gms.map(u => `${u.name} [${getDespair(u.id)}/${despairMax()}]`).join(", ") : "NONE ← no pools exist"}`);
 
-    const assistants = game.users.filter(u => u.role === CONST.USER_ROLES.ASSISTANT);
-    if (assistants.length) {
-        lines.push(`Assistant GMs (no pool by design): ${assistants.map(u => u.name).join(", ")}`);
+    // The Assistant GMs with no pool, as Despair Flow offers them one (E20 C1, S01-18): every Assistant GM
+    // was listed "no pool by design" here, one granted a pool too, beside the line above that named its pool.
+    const withoutPool = poolCandidates();
+    if (withoutPool.length) {
+        lines.push(`Assistant GMs without a pool (Despair Flow can grant one): ${withoutPool.map(u => u.name).join(", ")}`);
     }
 
     lines.push(`This client is the primary GM (the one that applies awards): ${isPrimaryGm() ? "yes" : "no"}`);
@@ -1253,36 +1255,51 @@ export function voiceDiagnosis() {
  * `injectInitButton` in sheet.mjs); this answers the same question for the
  * whole roster at once.
  */
-export function diagnoseCharacters({ toChat = true } = {}) {
+export function diagnoseCharacters({ toChat = true, roster = studentActors(), assigned = assignments() } = {}) {
+    /* IN THE TABLE'S LANGUAGE, NO CONSOLE COMMAND (E20 C2, 29.10.2026; audit S01-23, S07-36). Every line
+       here was an English literal on a Polish table, and the fix said "or run game.drpg.initCharacter(actor)
+       for each" - a console command, to a GM who has a wand on every sheet for it. */
+    const t = (key, data) => (data ? game.i18n.format(`DRPG.Diagnostics.cast.${key}`, data) : game.i18n.localize(`DRPG.Diagnostics.cast.${key}`));
     const lines = [];
-    const roster = studentActors();
 
-    lines.push(`Students (Monokumas excluded): ${roster.length}`);
-    lines.push(`Starting resources: ${STARTING.hp} Health, ${STARTING.stress} Sanity, ${STARTING.hope} Hope`);
+    /* ALL AND LIVING, BY THE CHECKLIST'S COUNT (E20 fix round, the goal review's G-5). This line counted the dead as
+       "Students (Monokumas excluded): 4" while the checklist and the Doors tab said "Living students: 3": both now. */
+    const census = studentCensus(roster);
+    lines.push(t("students", { all: census.all.length, living: census.count }));
+    lines.push(t("starting", { hp: STARTING.hp, stress: STARTING.stress, hope: STARTING.hope }));
     lines.push("");
 
+    /* NOTHING CHECKED IS NOTHING TICKED (E20 C1, S06-28). With no student every "Everybody ..." line
+       below read ✓ over an empty list, as the checklist's rows did; the checklist says "waiting for the
+       cast" now, and so does this. */
+    if (!roster.length) {
+        lines.push(t("noCast"));
+        return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
+    }
+
     const pending = [];
+    const rows = [];
     for (const actor of roster) {
         const hp = actor.system?.resources?.hitPoints?.max ?? 0;
         const stress = actor.system?.resources?.stress?.max ?? 0;
-        // At least the starting numbers: a Level Up raises them (SEASON-01).
-        const ok = hp >= STARTING.hp && stress >= STARTING.stress;
+        // The checklist's own predicate (E20 C1, S01-18): this repeated it by hand. At least the
+        // starting numbers: a Level Up raises them (SEASON-01).
+        const ok = !needsStartingResources(actor);
         if (!ok) pending.push(actor);
-        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} - Health max ${hp}, Sanity max ${stress}${
-            ok ? "" : "  ← not set up"}`);
+        rows.push(`   ${ok ? "✓" : "✗"} ${actor.name} - ${t("row", { hp, stress })}${ok ? "" : `  ← ${t("notSetUp")}`}`);
     }
 
-    lines.push("");
+    /* THE FIX FIRST (E20 C2, S01-20): it sat under the list, below the cut of a 16rem frame, so the CAST
+       section showed names and crosses and never what to do. The list follows it. */
     if (pending.length) {
-        lines.push(`${pending.length} character(s) still need their starting resources.`);
-        lines.push("Each of them counts as Wounded AND in Breakdown right now: one action");
-        lines.push("instead of two, and disadvantage forced onto every roll.");
-        lines.push("");
-        lines.push("Fix: open the sheet and press the wand button next to the name,");
-        lines.push("or run  game.drpg.initCharacter(actor)  for each.");
-    } else if (roster.length) {
-        lines.push("Every character has the starting resources.");
+        lines.push(plural("DRPG.Diagnostics.cast.pending", { n: pending.length }));
+        lines.push(t("fix"));
+        lines.push(t("pendingWhy"));
+    } else {
+        lines.push(t("allSet"));
     }
+    lines.push("");
+    lines.push(...rows);
 
     /*
      * The four things that are agreed before a season and then never thought
@@ -1316,7 +1333,14 @@ export function diagnoseCharacters({ toChat = true } = {}) {
             carriable.includes(i.getFlag(MODULE_ID, "category")));
         if (!carried.length) missingItem.push(actor.name);
 
-        if (!monokumaFor(actor)) unwatched.push(actor.name);
+        /* THE CHECKLIST'S QUESTION (E20 C1, S01-18, S06-28). This asked `monokumaFor` alone, so a student
+           set to "- nobody -" on purpose - a ✓ on the checklist - read ✗ here with advice to undo it,
+           and a student nobody assigned read ✓ through the fallback to the first pool. Both now ask what
+           the checklist's row asks: set to nobody, or assigned by hand; the fallback is named. */
+        if (!feedsNobody(actor, assigned) && !explicitPool(actor, assigned)) {
+            const fallback = monokumaFor(actor);
+            unwatched.push(fallback ? game.i18n.format("DRPG.Season.fallsBackTo", { name: actor.name, pool: fallback.name }) : actor.name);
+        }
     }
 
     const roll = (label, names, fix) => {
@@ -1329,14 +1353,10 @@ export function diagnoseCharacters({ toChat = true } = {}) {
         if (fix) lines.push(`   ${fix}`);
     };
 
-    roll("Everybody has an Ultimate", missingUltimate,
-        "Set it on the sheet, under the name.");
-    roll(`Everybody has ${STARTING.experiences} experiences`, missingExperiences,
-        "Two at +2 each, agreed at character creation.");
-    roll("Everybody carries their opening item", missingItem,
-        `One Tier ${STARTING.startingItemTier} item tied to their Ultimate - hand it out from Give / take items.`);
-    roll("Everybody is assigned to a Despair pool", unwatched,
-        "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
+    roll(t("ultimate"), missingUltimate, t("ultimateFix"));
+    roll(t("experiences", { n: STARTING.experiences }), missingExperiences, t("experiencesFix"));
+    roll(t("item"), missingItem, t("itemFix", { tier: STARTING.startingItemTier }));
+    roll(t("pool"), unwatched, t("poolFix"));
 
     return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
 }

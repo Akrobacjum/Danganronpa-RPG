@@ -25,6 +25,7 @@ import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
+import { offerStartHere } from "./season-setup.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
@@ -100,10 +101,10 @@ import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
-import { registerEnforced } from "./enforced.mjs";
+import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
-    systemCompatibility } from "./requirements.mjs";
+    systemCompatibility, removeModuleStyles } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
@@ -148,17 +149,20 @@ Hooks.once("init", () => {
     // THREE MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
-    // Dice So Nice: every roll in this game is thrown in front of the table,
-    // and dice nobody can see are worse than an honest stop - the table would
-    // spend the evening working around symptoms rather than ticking one
-    // checkbox. Isometric Perspective and LiveKit joined it on 09.10.2026 (the
+    // Dice So Nice: every roll in this game is thrown as 3D dice, seen by the
+    // people allowed to see that roll (D19), and dice nobody can see are worse
+    // than an honest stop - the table would spend the evening working around
+    // symptoms rather than ticking one checkbox. Isometric Perspective and LiveKit joined it on 09.10.2026 (the
     // owner's amendment d, E13 C10): the academy is drawn isometric and its
     // rooms are voice rooms, and from 17.09 (M-1) they had only been
     // recommended. Required means installed and switched on (R442). Nothing is
     // written on this path, so enabling what is missing and reloading is the
-    // whole of the repair.
+    // whole of the repair. And nothing of the module's is left styling Foundry
+    // (E20 C5; S01-41): its stylesheets come off the page here, and the render
+    // hooks settings.mjs registers on import stand idle without its settings.
     if (!requirementsMet()) {
         log("Not starting: a required module is missing or disabled.");
+        removeModuleStyles();
         return;
     }
 
@@ -442,6 +446,11 @@ Hooks.once("ready", () => {
     safely("bedroom keys", issueMissingKeys);
     safely("the Remnant actor", reconcileRemnantActorOnLoad);
     safely("item table wording", refreshTableCopyOnLoad);
+    // Last: a GM on a world with no season yet is told once where to start (E20 C4, S01-61; season-setup.mjs).
+    offerStartHere().catch(err => error("Could not say where to start", err));
+    // While Foundry's settings are given back, a GM is asked at each start whether the module holds them again (E20 fix
+    // round, the goal review's G-2): the switch outlives switching the module off and on, and nothing else said so.
+    offerHoldAgain().catch(err => error("Could not ask to hold Foundry's settings again", err));
 });
 
 /**

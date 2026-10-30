@@ -1010,6 +1010,28 @@ const CLAUSES = [
             const { trimOverflowRules } = await import("./overflow.mjs");
             return await trimOverflowRules();
         }
+    },
+    {
+        key: "bedroomStashes",
+        since: "1.2.91",
+        /*
+         * A STASH FOR EVERY BEDROOM THAT HAS NONE (E89 C8, 1.2.91; E89-23, the owner's answer Q-E89-4 of 30.10.2026).
+         * Until 1.2.91 Room Setup's Stashes tab wrote an empty list over a room marked after its owner was given, and
+         * `setVaultRoom` from the console seeded nothing (E89 C7 fixes both roads), so a world played before it can
+         * hold Bedrooms whose owner has no stash. Once, on the primary, over every scene (the trial hall holds no room,
+         * `bedroomStashGaps`): each Bedroom whose owner, an actor of this world, has no stash in it is given an open
+         * one (`ensureBedroomStash`, which writes through `setStash`). A migration and not a sweep at every load: the
+         * empty list the bug left is also what a stash the GM removed on purpose leaves, and a sweep would put that
+         * back at every load (TRAP 76); stamped with this version, this runs once, and the report to the primary names
+         * every room it wrote, by scene and owner, so a GM can remove again a stash they had removed. A world with none
+         * says nothing. A second run, forced, finds none and writes nothing.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };      // a Bedroom's stash: the primary's, once a world
+            const rows = await seedBedroomStashes(game.scenes ?? []);
+            if (!rows.length) return null;
+            return { scenes: rows.length, seeded: rows.reduce((n, row) => n + row.rooms.length, 0) };
+        }
     }
 ];
 
@@ -1054,6 +1076,35 @@ function roomsReportHtml(rows) {
     ].filter(Boolean).map(line => `<li>${esc(line)}</li>`).join("");
     return `<p>${esc(game.i18n.localize("DRPG.Rooms.reportNote"))}</p>`
         + rows.map(row => `<p><strong>${esc(row.scene)}</strong></p><ul>${lines(row)}</ul>`).join("");
+}
+
+/**
+ * Each Bedroom of `scenes` whose owner has no stash in it given an open one (vault.mjs `bedroomStashGaps`,
+ * `ensureBedroomStash`), and the GMs told which, by scene and owner; answers the rows told, `{ scene, rooms }`, none
+ * when nothing was written. The clause `bedroomStashes` over every scene once a world, and since E89 fix FG2 (finding
+ * G7) vault.mjs `bedroomsOfNewScene` over a scene created after it ran - an import or a copy. The caller asks whether
+ * this browser is the primary.
+ */
+export async function seedBedroomStashes(scenes) {
+    const { bedroomStashGaps, ensureBedroomStash, vaultOwnerOf } = await import("./vault.mjs");
+    const rows = [];
+    for (const scene of scenes ?? []) {
+        const rooms = [];
+        for (const room of bedroomStashGaps(scene)) {
+            if (!await ensureBedroomStash(scene, room)) continue;
+            rooms.push(`${room} (${game.actors.get(vaultOwnerOf(room, scene))?.name ?? "?"})`);
+        }
+        if (rooms.length) rows.push({ scene: scene.name, rooms });
+    }
+    if (rows.length) await gmReport(game.i18n.localize("DRPG.Rooms.stashesTitle"), bedroomStashesReportHtml(rows));
+    return rows;
+}
+
+/** The report of `bedroomStashes`: per scene the Bedrooms given a stash, each with its owner. */
+function bedroomStashesReportHtml(rows) {
+    return `<p>${esc(game.i18n.localize("DRPG.Rooms.stashesNote"))}</p>`
+        + rows.map(row => `<p><strong>${esc(row.scene)}</strong></p><ul><li>${
+            esc(plural("DRPG.Rooms.stashesGiven", { n: row.rooms.length, names: row.rooms.join(", ") }))}</li></ul>`).join("");
 }
 
 /**

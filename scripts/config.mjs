@@ -450,6 +450,25 @@ export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 }
  */
 export const ROOMS_PER_PLAYER = 1.5;
 
+/**
+ * How much of a scene's own rect may belong to no room before the room checks stop ticking it
+ * (E20 C1, S06-28), in percent: Pre-season checks' "ok" on a scene and the season checklist's
+ * "The map has rooms". Pre-season said "ok" beside 67% uncovered. A map drawn room by room to its
+ * walls leaves the walls' own strips between regions; 10 is a choice, not measured on a real map.
+ */
+export const UNCOVERED_LIMIT_PCT = 10;
+
+/**
+ * When a room picture is called large in Pre-season checks (E20 C3; E77 D5, the owner's Q-7 of 29.10.2026): more
+ * than `side` pixels on either side, or a file of more than `bytes` (8 MB taken as 8 MiB). Every player's browser
+ * fetches and decodes the picture each time the tile shows it; the two numbers are the owner's, not measured here
+ * against a browser's load time. `probeMs` bounds each picture's HEAD request and decode, so one server that does
+ * not answer keeps the window waiting no longer than that (a choice, not measured on a real server).
+ */
+/* `atOnce` (E20 fix round, the correctness review's C-3): how many room pictures Pre-season checks probes at a time -
+   every picture at once shared one connection, and a slow line read them all as missing. Not measured on a real server. */
+export const ROOM_IMAGE_LIMITS = Object.freeze({ side: 4096, bytes: 8 * 1024 * 1024, probeMs: 8000, atOnce: 3 });
+
 /* ==========================================================================
  * ROOMS
  * ========================================================================== */

@@ -58,7 +58,7 @@
  * holds that it is written once.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID, FLAGS, UNCOVERED_LIMIT_PCT } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
@@ -82,7 +82,9 @@ import {
     revealLinePositions, drawRevealFrame, flashOutline, ensurePixelFont, fadeRoomOutline, seamWidth,
     rezoomRoomOutline, recolourRoomOutline
 } from "./fog-reveal.mjs";
-import { sceneUncoveredPercent } from "./fog-diagnostics.mjs";
+import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
+// The one census of rooms (E20 C1): vault.mjs reaches fog.mjs by no static import, so this makes no cycle (R161).
+import { roomCensus } from "./vault.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 export { seamWidth, rezoomRoomOutline } from "./fog-reveal.mjs";
@@ -875,25 +877,41 @@ async function restoreScenes() {
 /**
  * One line per scene with rooms: is it ready for players, and how much of it
  * belongs to no room. Text, for the GM's pre-session checks.
+ *
+ * "ok" ONLY FOR WHAT WAS CHECKED (E20 C1, S06-28, S07-38). It read "ok" beside 67% of a map in no
+ * room and after the room check had found errors, and counted every marked room, bedrooms included,
+ * where the checklist and the Doors tab count shared rooms. The rooms are `roomCensus`'s now, in the
+ * one wording that says what is left out; "ok" also needs the uncovered share at most
+ * `UNCOVERED_LIMIT_PCT` and the scene's last room check (`lastChecks`, a scene's id to its errors,
+ * handed in by the Season setup window that ran it) without an error. `scenes` is the world's unless
+ * handed in (R1503 hands scenes of plain objects).
  */
-export function diagnoseScenes() {
+export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ?? [] } = {}) {
     const rows = [];
-    for (const scene of game.scenes ?? []) {
+    for (const scene of scenes) {
         // Rooms, once each however many pieces they are drawn in, and apart from them the
         // named regions that are no room (E12 C2b): until 1.2.74 every named region was
         // counted a room here, which is how a Teleport went unnoticed in the count.
-        const rooms = roomNames(scene).length;
-        if (!rooms) continue;
+        if (!roomNames(scene).length) continue;
+        const census = roomCensus(scene);
         const notRooms = namedRegions(scene).length - roomPieces(scene).length;
+        // The worst floor's share, named on a scene of several (E20 fix round, C-4); the last room check's problems (G-1).
+        const { pct: uncovered, floor } = sceneUncoveredShare(scene);
+        const errors = Number(lastChecks.get(scene.id)) || 0;
 
         const off = fogDisabledValue();
         const ready = scene.tokenVision === false
             && scene.environment?.globalLight?.enabled === true
-            && (scene.fog?.mode === undefined || scene.fog.mode === off);
+            && (scene.fog?.mode === undefined || scene.fog.mode === off)
+            && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
 
-        rows.push(`${ready ? "ok  " : "!!  "}${scene.name} - ${rooms} rooms, `
-            + `${sceneUncoveredPercent(scene)}% of the map belongs to no room`
-            + (notRooms > 0 ? `; ${plural("DRPG.Fog.notRooms", { n: notRooms })}` : ""));
+        // In the table's language, marked as the cast report marks its rows (E20 C2, S01-23): "ok" and "!!"
+        // and "% of the map belongs to no room" were English on a Polish table.
+        rows.push(`${ready ? "✓ " : "✗ "}${scene.name} - ${plural("DRPG.Vault.roomCensus", { n: census.count })}, `
+            + (floor ? game.i18n.format("DRPG.Fog.uncoveredShareFloor", { pct: uncovered, floor })
+                : game.i18n.format("DRPG.Fog.uncoveredShare", { pct: uncovered }))
+            + (notRooms > 0 ? `; ${plural("DRPG.Fog.notRooms", { n: notRooms })}` : "")
+            + (errors ? `; ${plural("DRPG.Fog.lastCheckErrors", { n: errors })}` : ""));
     }
 
     if (!rows.length) return game.i18n.localize("DRPG.Fog.noRoomScenes");
@@ -4032,12 +4050,15 @@ async function onUpdateToken(tokenDoc, changes) {
 
 /** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
 async function reactToMove(tokenDoc) {
+    count("fog.reactToMove");
     // Local half: MY view depends on where MY characters are standing right
     // now, whoever moved. Repainting here is what makes a player's own
     // crossing light their new room up instantly, rather than waiting on the
     // primary GM's write and the setting sync that follows it.
     try {
         if (tokenDoc.actor?.isOwner) {
+            // E89 fix FG2 (G3): two walks of the viewer's tokens below, `myCurrentRooms` and `rememberMine`.
+            count("fog.reactToMove.walks", 2);
             const before = lastMineSignature;
             const after = signatureOf(myCurrentRooms());
             const changedRoom = before !== after;
