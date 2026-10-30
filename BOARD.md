@@ -3,14 +3,15 @@
 Updated 30.10.2026 by line A (and line B for its own sections).
 
 ## Shipped (line A writes this)
+- 1.2.91 (30.10.2026, main e1f40428, PR #38, latest): E89 and E20.
 - 1.2.90 (28.10.2026, main 12ff1b62): E70 parts 1 and 2. Every stage before it: see plan.json "done".
 
 ## Line A - cloud session (branch claude/fervent-sagan-gme4vt)
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
-| E89 | closed (da0690b1); release 1.2.91 with E20: PR #38, CI on 4616d1d1 running | visibility.mjs, movement.mjs, fog*.mjs, glass/CSS, rooms/vault (Bedroom stash) | release 1.2.91 |
-| E52 | TAKEN OVER by line A (the owner, 30.10): end review (correctness, goal, security on C2) on 03e73d82 running, then fix round and close on line A's branch after a merge of 03e73d82 | as line B's row | line B: do not push to the B branch for E52; read this row first |
-| E65 | waits for the owner (the pilot, DB23) and the text of topic B's guidelines (O1-O18, X1-X21, M1-M10, N1-N8, 60 pairs), not found in this session's files | lint, tools, docs (text guidelines, glossary) | not docs only |
+| E89 | shipped in 1.2.91 with E20 | visibility.mjs, movement.mjs, fog*.mjs, glass/CSS, rooms/vault (Bedroom stash) | release 1.2.91 |
+| E52 | TAKEN OVER by line A (the owner, 30.10): reviewed, fix round 2074a829, closed; merged into line A as 9855cde2 on main e1f40428; release 1.2.92 alone: PR #39, CI and CRLF on 419d3b42 running | as line B's row | line B: do not push to the B branch for E52; read this row first |
+| E65 | waits for the owner (the pilot, DB23) ; the text of topic B's guidelines is lost (the owner, 30.10): DB1-DB41 stand, O/X/M/N wording and the 60 pairs get rebuilt and marked for the pilot | lint, tools, docs (text guidelines, glossary) | not docs only |
 | E66 | then | i18n across many files, one rename of names | conflicts with almost anything in flight |
 | E50, E51, E37 | then | messenger, popup, sound, music; action windows, Calls, map, HUD, panel; clock, Eclipse, sync | |
 
