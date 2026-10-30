@@ -22,7 +22,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { dialogContent, error, markFired, tableDialog, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
@@ -65,6 +65,7 @@ export function registerProjectsUi() {
  *     below is the control for wanting the space back.
  */
 function onRenderCountdowns(app, element) {
+    markFired("renderDhCountdowns");
     try {
         const root = element instanceof HTMLElement ? element : element?.[0];
         if (!root) return;

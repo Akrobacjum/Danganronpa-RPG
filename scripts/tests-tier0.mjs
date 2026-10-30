@@ -9403,6 +9403,9 @@ const REGRESSIONS = [
             ["BLOCK voice.mjs#grantOf -> block", "a read (E70 C5): the user's own grant off its source, `{ had, value }`, for the trial's block and its restore; writes nothing"],
             ["BLOCK voice.mjs#blockForTrial -> block", "the trial's block (E70 C5), on the primary in a step of the record's key (`settleTrialVoices`): only a player whose voice character is on the trial's list, never a GM, and never over a GM's explicit false, which it leaves and records nowhere; what it found kept in the GMs' `trialMuteStore` before the write (E70-T8, R1035)"],
             ["BLOCK voice.mjs#restoreTrialBlock -> block", "the trial's block given back (E70 C5), on the primary: only a block the trial wrote and finds standing, back to the grant it found or the key removed with `forcedDeletion()` (never `-=`), a block a GM changed meanwhile left as it is (E70-T8, R1035)"],
+            // E52 C3 (amend 05.10 C): the contract's reading of Foundry's permission entry, and the check both blocks ask first.
+            ["BLOCK voice.mjs#broadcastAudioKnown -> block", "a read (E52 C3): whether Foundry's `CONST.USER_PERMISSIONS` names the permission; writes nothing, and without it neither block writes (R1546)"],
+            ["BLOCK patches.mjs#PATCHES -> block", "a read (E52 C3): the contract's row of the permission entry, a presence probe through `broadcastAudioKnown` at ready and when asked; writes nothing (R1546)"],
             ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player, and whether the block holds against the blocked player's own browser (their own User document, or a microphone that publishes anyway), which decides the list's 'for everyone', are not measured here (LIVE-E78-06; R539)"],
             // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
@@ -16194,6 +16197,40 @@ const REGRESSIONS = [
         log(`R1537: ${seen.overrides} override site(s) and ${seen.hooks} hook listener(s) read; ${unregistered.length} without a row, ${strays.length} stale row(s)`);
         equal(JSON.stringify(unregistered), "[]", "an override or another package's hook has no row of the register naming its file (patches.mjs PATCHES)");
         equal(JSON.stringify(strays), "[]", "a row of the register names a file the module does not load, or a hook its file does not listen to");
+    }],
+    ["R1549 - every anchor of the contract register is a string literal of the file that uses it: each selector of SHEET_ANCHORS in sheet.mjs, each page anchor in its own file", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-12 (Q-7: SHEET_ANCHORS in patches.mjs, sheet.mjs untouched). A list
+         * of selectors beside the code that uses them is a second copy, true only while somebody keeps it so: a
+         * selector changed in sheet.mjs and not here would read a place the sheet no longer asks for, and the row
+         * would hold while the sheet broke. Read off the source, comments out: each SHEET_ANCHORS selector, and
+         * each `literals` entry of an anchor row, must be a whole string literal of the row's file; an anchor row
+         * has literals or is the sheet's. The reader runs first on a planted fixture. Red before C3: no
+         * SHEET_ANCHORS, no anchor row.
+         */
+        const { PATCHES, SHEET_ANCHORS } = await import("./patches.mjs");
+        // blankComments, not stripComments: the second blanks live code in sheet.mjs's tidySidebar (measured 30.10: both
+        // ".equipment-section h3" and ".loadout-section h3" gone from its output after a comment quoting "Equipment"/"Loadout").
+        const literalsOf = src => new Set(stringLiterals(blankComments(lf(src))).map(lit => lit.text));
+        const planted = literalsOf('const a = ".kept .selector"; // ".gone"\nconst b = `x ${".inner"}`;');
+        equal(JSON.stringify([".kept .selector", ".gone", ".inner"].map(text => planted.has(text))), JSON.stringify([true, false, true]),
+            "the reader does not see a literal as it is - a string, one in a comment, one inside a template's hole");
+        ok(Array.isArray(SHEET_ANCHORS) && SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${SHEET_ANCHORS?.length ?? "no"} place(s)`);
+        const sources = await moduleSources();
+        const sheet = literalsOf(sources.get("sheet.mjs") ?? "");
+        must(sheet.size > 500, `sheet.mjs reads as ${sheet.size} literal(s) - this test would read nothing`);
+        const selectors = (SHEET_ANCHORS ?? []).map(anchor => anchor.selector);
+        equal(new Set(selectors).size, selectors.length, "a selector is twice in SHEET_ANCHORS");
+        equal(JSON.stringify(selectors.filter(selector => !sheet.has(selector))), "[]", "a selector of SHEET_ANCHORS is not a string literal of sheet.mjs");
+        const anchors = PATCHES.filter(row => row.kind === "anchor");
+        must(anchors.length >= 5, `the register has ${anchors.length} anchor row(s)`);
+        equal(JSON.stringify(anchors.filter(row => row.id !== "sheet-anchors" && !(Array.isArray(row.literals) && row.literals.length)).map(row => row.id)), "[]",
+            "an anchor row names no literal of its file to be held to");
+        const strays = anchors.flatMap(row => {
+            const found = literalsOf(sources.get(row.file) ?? "");
+            return (row.literals ?? []).filter(text => !found.has(text)).map(text => `${row.id}: ${row.file} has no "${text}"`);
+        });
+        equal(JSON.stringify(strays), "[]", "an anchor row's literal is not a string literal of its file");
     }],
 ];
 

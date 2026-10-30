@@ -24,6 +24,14 @@
  * a failed row's fallback is the one its own file has always had (D24 as the
  * spec reads it, Q-6), and the trust rows - the relay guard, the roll draw -
  * read their own files' states and never turn a failed one into a looser one.
+ *
+ * Since E52 C3 the register also holds what the code relies on without
+ * replacing it: other packages' hooks, ok once their listener marked them
+ * fired in the load (utils.mjs `markFired`); the settings and flags the module
+ * writes, read from enforced.mjs's ENFORCED and FOUNDRY_WRITES; the calls and
+ * constants of Foundry and avclient-livekit, unknown where only a table can
+ * read them; and the DOM places the code finds by selector (SHEET_ANCHORS,
+ * read on the first character sheet drawn; R1549 holds each to its file).
  * Also fetched by `game.drpg.diagnosePatches()` and the newer-system warning
  * (requirements.mjs); nothing imports this file statically.
  */
@@ -38,7 +46,9 @@ import { relayGuardStatus } from "./relay-guard.mjs";
 import { rollDrawState } from "./roll-draw.mjs";
 import { visibleGetterOf } from "./fog.mjs";
 import { levelFailure } from "./rooms.mjs";
-import { plural, warn } from "./utils.mjs";
+import { ENFORCED, FOUNDRY_WRITES } from "./enforced.mjs";
+import { broadcastAudioKnown } from "./voice.mjs";
+import { firedAt, isPrimaryGm, markFired, plural, warn } from "./utils.mjs";
 
 const AV_MODULE = "avclient-livekit";
 
@@ -94,8 +104,143 @@ const trayClass = () => {
     const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
     return typeof Tray === "function" ? Tray : null;
 };
-/* A hook's row: present when the package or the class that fires it is here (null: cannot tell), never "ours". */
-const hookProbe = present => ({ present, ours: null, note: "whether it fires is not read here" });
+/**
+ * A hook row's answer (E52 C3, E52-09): ok once its listener marked the hook fired in this load (utils.mjs
+ * `markFired`), else `present` as the row reads it - the package or the class that fires it is here - with the
+ * road that would fire it, which the contract reads as unknown, never ok. `fired` is handed in by R1545.
+ */
+export function hookState(target, present, road, fired = firedAt) {
+    if (fired(target) !== null) return { present: true, ours: null, state: "ok", note: "fired in this load" };
+    return { present, ours: null, note: `not seen firing in this load; it fires when ${road}` };
+}
+/* A hook row: its probe asks `present` and the mark. */
+const hookRow = (row, present) => ({ kind: "hook", ...row, probe: () => hookState(row.target, present(), row.road) });
+/* A call row no probe can read (a behaviour, not a name): unknown, naming the table check that reads it. */
+const tableRow = row => ({
+    kind: "call", ...row,
+    probe: () => ({ present: null, ours: null, note: `a probe cannot read it: checked at a table (${row.table})` })
+});
+/* Whether `key` is in one of Foundry's registries (a Map), null where the registry is not there to read. */
+const registryProbe = (map, key, unreadable) => (map instanceof Map
+    ? { present: map.has(key), ours: null } : { present: null, ours: null, note: unreadable });
+/*
+ * Whether Foundry's AV defaults (`AVSettings.DEFAULT_CLIENT_SETTINGS`, `DEFAULT_USER_SETTINGS`: v13's names, read
+ * from memory, not on v14 here) hold each of `keys`; null where they cannot be read (the harness has none).
+ */
+function avDefaultsHave(which, keys) {
+    const defaults = foundry.av?.AVSettings?.[which];
+    if (!defaults || typeof defaults !== "object") return null;
+    return keys.every(key => Object.hasOwn(defaults, key));
+}
+/* The system or an active module of that id. */
+const packageHere = id => game.system?.id === id || moduleActive(id);
+const kebab = id => id.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+
+/*
+ * The setting and flag rows (E52 C3, E52-10), from enforced.mjs's two lists and no third: each ENFORCED row, and each
+ * FOUNDRY_WRITES row ENFORCED does not hold that names a `reach`. A missing entry is failed, and its fallback is the
+ * writer's own: enforced.mjs `entryOf` writes nothing to a setting that is not registered and says so in the console.
+ * Both lists can be handed in (R1546).
+ */
+export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
+    const held = enforced.map(row => {
+        const base = {
+            id: `held-${kebab(row.id)}`, from: `ENFORCED ${row.id}`, file: "enforced.mjs",
+            why: `Held for the table while its switch (${row.toggle}) is on; Give back Foundry's settings lists it.`
+        };
+        if (row.kind === "userFlag") {
+            return { ...base, kind: "flag", target: `${row.scope}.${row.flag} on each account`, owner: row.system, symbol: "holdUserFlag",
+                when: `on a world of ${row.system}, while its switch is on`,
+                fallback: "not held: the system reads the account's flag as it stands",
+                inUse: () => game.system?.id === row.system,
+                // A flag has no entry to look up: what is read is that its system is the one here.
+                probe: () => ({ present: game.system?.id === row.system, ours: null, note: "a flag: only its system is read" }) };
+        }
+        const full = `${row.module}.${row.key}`;
+        const registered = () => Boolean(game.settings?.settings?.has?.(full));
+        if (row.kind === "permissions") {
+            return { ...base, kind: "setting-entry", target: `${full}: ${row.permissions.join(", ")}`, owner: "foundry", symbol: "holdPermissions",
+                when: "always, on the primary GM, while its switch is on",
+                fallback: "not held: the permissions stay as the world has them",
+                probe: () => {
+                    const perms = globalThis.CONST?.USER_PERMISSIONS;
+                    if (!registered()) return { present: false, ours: null, note: `${full} is not registered` };
+                    if (!perms || typeof perms !== "object") return { present: null, ours: null, note: "Foundry's permission list is not readable here" };
+                    const gone = row.permissions.filter(name => !Object.hasOwn(perms, name));
+                    return { present: !gone.length, ours: null, ...(gone.length ? { note: `Foundry names no ${gone.join(", ")}` } : {}) };
+                } };
+        }
+        if (row.kind === "rtc") {
+            const fields = Object.keys(row.fields ?? {}), users = Object.keys(row.userFields ?? {});
+            return { ...base, kind: "setting-entry", target: `${full}: ${fields.join(", ")} and each user's ${users.join(", ")}`, owner: "foundry",
+                symbol: "holdRtcDock", when: "while its switch is on",
+                fallback: "the dock is not held: each browser keeps its own dock and popouts",
+                probe: () => {
+                    if (!registered()) return { present: false, ours: null, note: `${full} is not registered` };
+                    const client = avDefaultsHave("DEFAULT_CLIENT_SETTINGS", fields), user = avDefaultsHave("DEFAULT_USER_SETTINGS", users);
+                    if (client === false || user === false) return { present: false, ours: null, note: "a field it holds is not among Foundry's AV defaults" };
+                    return { present: true, ours: null, ...(client === null || user === null ? { note: "registered; its fields are not readable here" } : {}) };
+                } };
+        }
+        // The A/V client's own setting matters to the table only while this world's voice is on: off, nothing
+        // reads whether LiveKit runs inside the Foundry window.
+        const voiceOnly = row.module === AV_MODULE;
+        return { ...base, kind: "setting-entry", target: full, owner: row.module, symbol: "applyEnforced",
+            when: `while ${row.module} is active${voiceOnly ? ", voice is on in this world" : ""} and its switch is on`,
+            fallback: "not held, and the console says so: the setting stays as each browser has it",
+            inUse: () => packageHere(row.module) && (!voiceOnly || (game.webrtc?.mode ?? 0) > 0),
+            probe: () => ({ present: registered(), ours: null }) };
+    });
+    const reached = writes.filter(write => write.reach && !enforced.some(row => row.id === write.id)).map(write => {
+        const { kind, owner, key, file, symbol, fallback } = write.reach;
+        const target = `${owner}.${key}`;
+        return { id: `held-${kebab(write.id)}`, from: `FOUNDRY_WRITES ${write.id}`, kind, target, owner, file, symbol, fallback,
+            why: "Written for the table; Give back Foundry's settings lists it.", when: `while ${owner} is here`,
+            inUse: () => packageHere(owner),
+            probe: kind === "flag"
+                ? () => ({ present: packageHere(owner), ours: null, note: "a flag: only its package is read" })
+                : () => ({ present: Boolean(game.settings?.settings?.has?.(target)), ours: null }) };
+    });
+    return [...held, ...reached];
+}
+
+/**
+ * The character sheet's places the module fills (E52 C3, E52-12; Q-7): Daggerheart's selectors sheet.mjs looks up
+ * to lay the student's file in, one per entry, each a string literal of sheet.mjs that R1549 (tier 0) holds this list
+ * to. Read once a load, on the first sheet of the system's own class (`watchSheetRenders`); the places sheet.mjs only
+ * takes away (the item sheet's tabs, the editor and toggle buttons) are not here, since their absence leaves nothing
+ * undrawn.
+ */
+export const SHEET_ANCHORS = Object.freeze([
+    { selector: ".window-content", what: "the window's body" },
+    { selector: "nav.sheet-tabs, .sheet-tabs, nav.tabs", what: "the tab bar (the Rules tab)" },
+    { selector: ".character-header-sheet .name-row", what: "the header's name row" },
+    { selector: ".character-header-sheet .character-row", what: "the header's character row" },
+    { selector: ".resource-section", what: "the header's resources" },
+    { selector: ".character-header-sheet .character-details", what: "the header's details" },
+    { selector: ".character-header-sheet .hope-section .hope-value", what: "the header's Hope" },
+    { selector: ".hope-section .hope-value", what: "Hope's pips" },
+    { selector: ".character-traits .trait-value, .trait .trait-value", what: "the traits' values" },
+    { selector: ".character-sidebar-sheet", what: "the sidebar" },
+    { selector: ".character-sidebar-sheet .resources-section .status-bar", what: "the sidebar's bars" },
+    { selector: "input.bar-input", what: "a bar's input" },
+    { selector: "progress.progress-bar", what: "a bar's progress" },
+    { selector: ".equipment-section h3", what: "the equipment heading" },
+    { selector: ".loadout-section h3", what: "the loadout heading" },
+    { selector: ".character-sidebar-sheet .equipment-section .items-sidebar-list", what: "the equipped list" },
+    { selector: ".character-sidebar-sheet .shortcut-items-section", what: "the sidebar's shortcuts" },
+    { selector: ".experience-section", what: "the Experience" }
+]);
+
+/* The first sheet of the system's class drawn in this load: `{ at, missing, of }`, null before. */
+const sheetRead = { done: null };
+
+/** The sheet row's answer from a reading (`readSheetAnchors`): unknown before one, failed naming each missing place. */
+export function sheetAnchorsAnswer(read) {
+    if (!read) return { present: null, ours: null, note: "no character sheet drawn on this browser yet in this load" };
+    if (read.missing.length) return { present: false, ours: null, note: `not on the sheet: ${read.missing.join(" | ")}` };
+    return { present: true, ours: null, note: `all ${read.of} places found on the first sheet` };
+}
 /* Whether a character sheet class named CharacterSheet is registered (its render and close hooks carry the name);
    null while no character sheet class is registered at all. */
 const characterSheetNamed = () => {
@@ -474,104 +619,425 @@ export const PATCHES = [
             return { present: typeof Region?.prototype?.includedInLevel === "function", ours: null };
         }
     },
-    {
+    hookRow({
         id: "hook-duality-configured",
-        kind: "hook",
         target: "daggerheart.postDualityRollConfiguration",
         owner: "daggerheart",
         file: "forced-roll.mjs",
         symbol: "registerForcedRolls",
         why: "A Free Critical loads one die of the roll this hook hands over.",
         when: "always",
-        fallback: "none: a Free Critical's die is not loaded",
-        probe: () => hookProbe(typeof game.system?.api?.dice?.DualityRoll === "function")
-    },
-    {
+        road: "a duality roll is configured (any action roll)",
+        fallback: "none: a Free Critical's die is not loaded"
+    }, () => typeof game.system?.api?.dice?.DualityRoll === "function"),
+    hookRow({
         id: "hook-roll-dialog-render",
-        kind: "hook",
         target: "renderD20RollDialog",
         owner: "daggerheart",
         file: "murder-rules.mjs",
         symbol: "registerMurder",
         why: "The opening's own roll window is marked as it is drawn.",
         when: "always",
-        fallback: "none: the opening's roll window is not marked as the opening's",
-        probe: () => hookProbe(typeof rollDialogClass() === "function")
-    },
-    {
+        road: "a roll window opens on this browser",
+        fallback: "none: the opening's roll window is not marked as the opening's"
+    }, () => typeof rollDialogClass() === "function"),
+    hookRow({
         id: "hook-character-sheet-render",
-        kind: "hook",
         target: "renderCharacterSheet",
         owner: "daggerheart",
         file: "sheet.mjs",
         symbol: "registerSheetTweaks",
         why: "The character sheet is dressed as a student's file at every render.",
         when: "always",
-        fallback: "none: the character sheet is drawn as Daggerheart draws it",
-        probe: () => hookProbe(characterSheetNamed())
-    },
-    {
+        // Marked by this file's own listener (`watchSheetRenders`): sheet.mjs is left as it is (E52 Q-7).
+        road: "a character sheet is drawn on this browser",
+        fallback: "none: the character sheet is drawn as Daggerheart draws it"
+    }, () => characterSheetNamed()),
+    hookRow({
         id: "hook-character-sheet-close",
-        kind: "hook",
         target: "closeCharacterSheet",
         owner: "daggerheart",
         file: "sheet.mjs",
         symbol: "registerSheetTweaks",
         why: "A closed sheet's tile-fit observer is let go.",
         when: "always",
-        fallback: "none: the observer of a closed sheet watches a detached element for the rest of the session",
-        probe: () => hookProbe(characterSheetNamed())
-    },
-    {
+        road: "a character sheet is closed on this browser",
+        fallback: "none: the observer of a closed sheet watches a detached element for the rest of the session"
+    }, () => characterSheetNamed()),
+    hookRow({
         id: "hook-countdowns-render",
-        kind: "hook",
         target: "renderDhCountdowns",
         owner: "daggerheart",
         file: "projects-ui.mjs, hud.mjs",
         symbol: "registerProjectsUi, registerHud",
         why: "The countdown tray shows projects as the module keeps them, and the HUD is redrawn with it.",
         when: "always",
-        fallback: "none: the tray is drawn as Daggerheart draws it and the HUD is not redrawn with it",
-        probe: () => hookProbe(trayClass() !== null)
-    },
-    {
+        road: "the countdown tray is drawn",
+        fallback: "none: the tray is drawn as Daggerheart draws it and the HUD is not redrawn with it"
+    }, () => trayClass() !== null),
+    hookRow({
         id: "hook-dice-so-nice-ready",
-        kind: "hook",
         target: "diceSoNiceReady",
         owner: "dice-so-nice",
         file: "dice-sync.mjs",
         symbol: "registerDiceSync",
         why: "The players' dice appearances are swept once Dice So Nice is up.",
         when: "only while Dice So Nice is active, and not up yet when the module is",
+        road: "Dice So Nice finishes starting (marked at once when it was up first)",
         fallback: "none: the dice appearances are not swept",
-        inUse: () => moduleActive("dice-so-nice"),
-        probe: () => hookProbe(moduleActive("dice-so-nice"))
-    },
-    {
+        inUse: () => moduleActive("dice-so-nice")
+    }, () => moduleActive("dice-so-nice")),
+    hookRow({
         id: "hook-dice-so-nice-message",
-        kind: "hook",
         target: "diceSoNiceMessagePreProcess",
         owner: "dice-so-nice",
         file: "private-rolls.mjs",
         symbol: "registerPrivateRolls",
         why: "A roll the GM drew is thrown only on the screens that may read it, with the roller's dice.",
         when: "only while Dice So Nice is active",
+        road: "a chat message with dice arrives while Dice So Nice is on",
         fallback: "none: Dice So Nice throws such a roll on every screen, in the GM's colours",
-        inUse: () => moduleActive("dice-so-nice"),
-        probe: () => hookProbe(moduleActive("dice-so-nice"))
-    },
-    {
+        inUse: () => moduleActive("dice-so-nice")
+    }, () => moduleActive("dice-so-nice")),
+    hookRow({
         id: "hook-livekit-initialized",
-        kind: "hook",
         target: "liveKitClientInitialized",
         owner: AV_MODULE,
         file: "voice-client.mjs, voice-tile.mjs, trial-speakers.mjs",
         symbol: "registerVoiceClient, registerVoiceTile, registerTrialSpeakers",
         why: "Each new LiveKit room is watched for a drop, and read for the voice tile and the trial's speakers.",
         when: `only while ${AV_MODULE} is active`,
+        road: "the A/V client starts a room (voice on in this world)",
         fallback: "none: the voice rooms, the voice tile and the trial's speakers do not follow the A/V client",
+        inUse: () => moduleActive(AV_MODULE)
+    }, () => moduleActive(AV_MODULE)),
+    hookRow({
+        id: "hook-image-popout-header",
+        target: "getHeaderControlsImagePopout",
+        owner: "foundry",
+        file: "room-tile.mjs",
+        symbol: "registerRoomTile",
+        why: "The room tile's picture window keeps no header control, not Foundry's share, not one a module adds (amend 11.10 A9).",
+        when: "always",
+        road: "a picture window (ImagePopout) opens on this browser",
+        fallback: "none: the room picture's window shows Foundry's share control and any a module adds"
+    }, () => (typeof foundry.applications?.apps?.ImagePopout === "function" ? true : null)),
+
+    /* ---- Setting entries and flags (E52 C3, E52-10): read from enforced.mjs's ENFORCED and FOUNDRY_WRITES ---- */
+    ...heldRows(),
+    {
+        id: "user-permission-broadcast-audio",
+        kind: "setting-entry",
+        target: "the user permission BROADCAST_AUDIO (a user's permissions.BROADCAST_AUDIO)",
+        owner: "foundry",
+        file: "voice-tile.mjs, voice.mjs",
+        symbol: "toggleBlock, blockForTrial",
+        why: "The GM's block in the voice list and the trial's block of a dead student's microphone are Foundry's own permission, written on the user (amend 05.10 C).",
+        when: "whenever a GM blocks a microphone, or a trial blocks the dead's",
+        fallback: "nobody's microphone is blocked: neither block writes, the GM's button says why and the console says it for the trial",
+        probe: () => {
+            const perms = globalThis.CONST?.USER_PERMISSIONS;
+            return { present: perms && typeof perms === "object" ? broadcastAudioKnown(perms) : null, ours: null };
+        }
+    },
+    {
+        id: "rtc-client-keys",
+        kind: "setting-entry",
+        target: "core.rtcClientSettings: muteAll and each user's muted, volume and blocked",
+        owner: "foundry",
+        file: "voice-tile.mjs",
+        symbol: "audible",
+        why: "The voice tile reads Foundry's mute-all and each speaker's mute, volume and hide on this browser, and writes them as the dock does (amend 11.10 A9).",
+        when: "while voice is on in this world",
+        fallback: "a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and a write to it changes nothing",
+        probe: () => {
+            const client = avDefaultsHave("DEFAULT_CLIENT_SETTINGS", ["muteAll"]), user = avDefaultsHave("DEFAULT_USER_SETTINGS", ["muted", "volume", "blocked"]);
+            if (client === null || user === null) return { present: null, ours: null, note: "Foundry's AV defaults are not readable here" };
+            return { present: client && user, ours: null };
+        }
+    },
+    {
+        id: "push-to-talk-key",
+        kind: "setting-entry",
+        target: "the keybinding core.pushToTalk",
+        owner: "foundry",
+        file: "voice-tile.mjs",
+        symbol: "pushToTalkKey",
+        why: "The microphone's push-to-talk line names the key Foundry's controls bind (amend 11.10 A9).",
+        when: "while Foundry's voice mode is push-to-talk",
+        fallback: "the push-to-talk line names no key",
+        probe: () => registryProbe(game.keybindings?.actions, "core.pushToTalk", "Foundry's keybinding list is not readable here")
+    },
+    {
+        id: "av-config-menu",
+        kind: "setting-entry",
+        target: "the settings menu core.webrtc (Audio/Video Configuration, avclient-livekit's class over it)",
+        owner: "foundry",
+        file: "enforced.mjs",
+        symbol: "registerEnforced",
+        why: "The fields the table holds (the dock folded, no camera popped out) are greyed in that window when it draws (amend 11.10 A9).",
+        when: "while the camera dock is held",
+        fallback: "the held fields are not greyed in the window; their values are held all the same",
+        probe: () => registryProbe(game.settings?.menus, "core.webrtc", "Foundry's settings menus are not readable here")
+    },
+
+    /* ---- Calls (E52 C3, E52-11): a presence probe where Foundry or a module exposes the name; a behaviour no
+       probe can read is unknown and names the table check that reads it (`table`, the stage's B-E52 rows) ---- */
+    tableRow({
+        id: "chat-delete-options",
+        target: "the deleteChatMessage hook's options: deleteAll taken out before it runs, the module's own options reaching other browsers",
+        owner: "foundry",
+        file: "notice-history.mjs",
+        symbol: "noticeCardDeleted",
+        why: "A notice's card deleted keeps or drops its history entry by those options: kept on Clear chat, withdrawn on the module's own delete (amend 11.10 A7).",
+        when: "always",
+        fallback: "a history entry may stay after its card is withdrawn, or go on Clear chat",
+        table: "B-E52-2"
+    }),
+    tableRow({
+        id: "notifications-lifetime",
+        target: "Notifications.LIFETIME_MS (how long a toast stays)",
+        owner: "foundry",
+        file: "notice-history.mjs",
+        symbol: "registerNoticeHistory",
+        why: "The notice history's timing follows how long Foundry keeps a toast up (amend 11.10 A7).",
+        when: "always",
+        fallback: "the history keeps its own timing, whatever Foundry's toasts do",
+        table: "B-E52-2"
+    }),
+    tableRow({
+        id: "tooltip-clean-html",
+        target: "TooltipManager: data-tooltip-html and aria-label passed through cleanHTML",
+        owner: "foundry",
+        file: "notice-history.mjs",
+        symbol: "tooltipWords",
+        why: "A notice's tooltip words are read as Foundry's tooltip shows them, cleaned (amend 11.10 A7).",
+        when: "always",
+        fallback: "a tooltip's words in the history may differ from what Foundry's tooltip showed",
+        table: "B-E52-2"
+    }),
+    tableRow({
+        id: "client-setting-sync-write",
+        target: "a client setting's write stored at once, before the page can unload",
+        owner: "foundry",
+        file: "notice-history.mjs",
+        symbol: "registerNoticeHistory",
+        why: "The notice history is kept on this browser as the page closes (amend 11.10 A7).",
+        when: "always",
+        fallback: "the last notices before a reload may be missing from the history",
+        table: "B-E52-2"
+    }),
+    {
+        id: "livekit-room-events",
+        kind: "call",
+        // The events are LiveKit's speaker and participant events; their names stay in the two files that listen (R591).
+        target: "the LiveKit Room's events (who speaks, who joins and leaves)",
+        owner: AV_MODULE,
+        file: "voice-tile.mjs, trial-speakers.mjs",
+        symbol: "attachRoom, attachSpeakers",
+        why: "Who speaks and who is in the room come from avclient-livekit's Room (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active`,
+        fallback: "the voice tile and the trial's speakers show nobody speaking and follow no one joining or leaving",
         inUse: () => moduleActive(AV_MODULE),
-        probe: () => hookProbe(moduleActive(AV_MODULE))
+        probe: () => {
+            const room = game.webrtc?.client?._liveKitClient?.liveKitRoom;
+            if (!room) return { present: null, ours: null, note: "no LiveKit Room on this browser now" };
+            return { present: typeof room.on === "function", ours: null };
+        }
+    },
+    {
+        id: "livekit-participant-user",
+        kind: "call",
+        // avclient-livekit's getParticipantFVTTUser: named here as a property only, since no string of the module may
+        // carry the letters of Foundry's logo file (R509).
+        target: "avclient-livekit's call that names a participant's user",
+        owner: AV_MODULE,
+        file: "voice-tile.mjs",
+        symbol: "participantUser",
+        why: "A LiveKit participant is named as this world's user (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active`,
+        fallback: "a participant the call cannot name is left out of the voice tile and the trial's speakers",
+        inUse: () => moduleActive(AV_MODULE),
+        probe: () => {
+            const client = game.webrtc?.client?._liveKitClient;
+            if (!client) return { present: null, ours: null, note: "no LiveKit client on this browser now" };
+            return { present: typeof client.getParticipantFVTTUser === "function", ours: null };
+        }
+    },
+    tableRow({
+        id: "livekit-attach-audio",
+        target: "avclient-livekit's attachAudioTrack setting volume and muted at every attach",
+        owner: AV_MODULE,
+        file: "voice-tile.mjs",
+        symbol: "audible",
+        why: "A speaker muted on this browser stays muted because every attach writes the element's volume and muted from the settings (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active`,
+        fallback: "a speaker muted here may be heard again after LiveKit attaches their audio anew",
+        inUse: () => moduleActive(AV_MODULE),
+        table: "B-E52-3"
+    }),
+    tableRow({
+        id: "voice-modes",
+        target: "the voice modes (always and push-to-talk, no activity mode)",
+        owner: AV_MODULE,
+        file: "voice-tile.mjs",
+        symbol: "micState",
+        why: "The microphone's states are read from the voice mode, and no voice-activity mode is offered (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active`,
+        fallback: "a mode the tile does not know is shown as an open microphone",
+        inUse: () => moduleActive(AV_MODULE),
+        table: "B-E52-3"
+    }),
+    tableRow({
+        id: "livekit-connected-users",
+        target: "avclient-livekit's getConnectedUsers (who is in voice)",
+        owner: AV_MODULE,
+        file: "voice-client.mjs",
+        symbol: "roomState",
+        why: "Whether this browser's room holds anybody is read from avclient-livekit (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active`,
+        fallback: "the room's state is read from the Room alone",
+        inUse: () => moduleActive(AV_MODULE),
+        table: "B-E52-3"
+    }),
+    {
+        id: "scene-controls-activate",
+        kind: "call",
+        target: "ui.controls.activate({ control, tool })",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "askTokensLayer",
+        why: "A player's layer is asked back to Tokens after the map tools window closes (amend 11.10 A8).",
+        when: "on a player's browser, while Foundry's rails are in the module's windows",
+        fallback: "the layer stays as it was",
+        probe: () => ({ present: typeof globalThis.ui?.controls?.activate === "function", ours: null, note: "its arguments are not read here" })
+    },
+    tableRow({
+        id: "chat-notifications",
+        target: "#chat-notifications and the chat log's _shouldShowNotifications and _toggleNotifications",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "wrapSidebar",
+        why: "With the Foundry tools window closed the sidebar is collapsed, so Foundry shows its chat notifications and keeps the chat's input outside (amend 11.10 A8).",
+        when: "while Foundry's rails are in the module's windows",
+        fallback: "with the window closed, chat notifications may not show and the chat's input may stay hidden",
+        table: "B-E52-3"
+    }),
+    tableRow({
+        id: "escape-dismiss-order",
+        target: "core.dismiss's order of steps (drag, menus, tour, framed windows, selection, main menu)",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "escapeFallsToWindows",
+        why: "Escape closes the module's two windows only where Foundry's own Escape would open the main menu (amend 11.10 A8).",
+        when: "while either of the two windows is open",
+        fallback: "Escape may close the windows before Foundry's own steps, or never",
+        table: "B-E52-3"
+    }),
+    tableRow({
+        id: "focus-chat",
+        target: "core.focusChat focusing #chat-message at once",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "wrapSidebar",
+        why: "The chat key opens the Foundry tools window first, synchronously, so the focus lands in a shown input (amend 11.10 A8).",
+        when: "while Foundry's rails are in the module's windows",
+        fallback: "the chat key may focus an input in a hidden window",
+        table: "B-E52-3"
+    }),
+    tableRow({
+        id: "image-popout-options",
+        target: "ImagePopout's options (window.controls, showTitle)",
+        owner: "foundry",
+        file: "room-tile.mjs",
+        symbol: "openRoomImage",
+        why: "A room's picture opens in Foundry's picture window with no title bar controls and no title (amend 11.10 A8).",
+        when: "whenever a room's picture is opened",
+        fallback: "the picture window may show Foundry's title and controls",
+        table: "B-E52-3"
+    }),
+
+    /* ---- Anchors (E52 C3, E52-12): DOM places of theirs the code finds by selector or id. R1549 (tier 0) holds each
+       of `literals` (and each selector of SHEET_ANCHORS) to a string literal in its file. A page anchor is found or
+       not yet: one not on the page now (a camera not popped out, a theme not drawn) is unknown, never failed ---- */
+    {
+        id: "sheet-anchors",
+        kind: "anchor",
+        target: "the character sheet's places the module fills (SHEET_ANCHORS)",
+        owner: "daggerheart",
+        file: "sheet.mjs",
+        symbol: "onRenderCharacterSheet",
+        why: "The student's file is laid into Daggerheart's own sheet: its header rows, traits, Hope, sidebar bars and sections.",
+        when: "read at the first character sheet of the system's own class drawn in a load",
+        fallback: "what the module puts at a missing place is not drawn there; sheet.mjs looks each place up and skips one it cannot find",
+        probe: () => sheetAnchorsAnswer(sheetRead.done)
+    },
+    {
+        id: "foundry-rails",
+        kind: "anchor",
+        target: "#sidebar and #scene-controls (Foundry's two rails the module's windows hold)",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "adoptFoundryNodes",
+        literals: ["sidebar", "scene-controls"],
+        why: "The sidebar and the scene controls are moved into the Foundry tools and Map tools windows and kept there (amend 11.10 A8).",
+        when: "while Foundry's rails are in the module's windows",
+        fallback: "a rail not found by its id stays where Foundry puts it, outside the module's window",
+        probe: () => {
+            const ids = [globalThis.ui?.sidebar?.element?.id, globalThis.ui?.controls?.element?.id];
+            if (ids.some(id => id === undefined)) return { present: null, ours: null, note: "Foundry's sidebar or scene controls have not drawn here" };
+            return { present: ids[0] === "sidebar" && ids[1] === "scene-controls", ours: null, note: `ids read: ${ids.join(", ")}` };
+        }
+    },
+    {
+        id: "interface-theme",
+        kind: "anchor",
+        target: "the theme classes on #interface (themed, theme-dark or theme-light)",
+        owner: "foundry",
+        file: "foundry-windows.mjs",
+        symbol: "wearInterfaceTheme",
+        literals: ["interface", "theme-"],
+        why: "The module's two windows wear the interface's theme, so Foundry's rails inside them keep their colours (amend 11.10 A8).",
+        when: "while Foundry's rails are in the module's windows",
+        fallback: "the windows wear no theme class, and the rails inside take the page's",
+        probe: () => {
+            const classes = [...(document.getElementById("interface")?.classList ?? [])];
+            if (classes.some(c => c.startsWith("theme-"))) return { present: true, ours: null };
+            return { present: null, ours: null, note: "no theme class on #interface now" };
+        }
+    },
+    {
+        id: "camera-popout-id",
+        kind: "anchor",
+        target: "a camera popout's id, camera-view-<user id>",
+        owner: "foundry",
+        file: "voice-tile.mjs",
+        symbol: "foundryDock",
+        literals: ['.application[id^="camera-view-"]'],
+        why: "A camera popped out of the dock is still read for its speaker's audio (amend 11.10 A9).",
+        when: "while voice is on and a camera is popped out",
+        fallback: "a popped-out camera's speaker is not found, and reads as not audible",
+        probe: () => {
+            if (document.querySelector('.application[id^="camera-view-"]')) return { present: true, ours: null };
+            return { present: null, ours: null, note: "no camera popped out now" };
+        }
+    },
+    {
+        id: "mic-audio-anchor",
+        kind: "anchor",
+        target: "a speaker's audio element, .camera-view[data-user] audio.user-microphone-audio",
+        owner: AV_MODULE,
+        file: "voice-tile.mjs",
+        symbol: "audible",
+        literals: [".camera-view[data-user] audio.user-microphone-audio"],
+        why: "Whether a speaker is audible on this browser is read from the audio element avclient-livekit attaches (amend 11.10 A9).",
+        when: `only while ${AV_MODULE} is active and someone is heard`,
+        fallback: "a speaker whose element is not found reads as not audible",
+        inUse: () => moduleActive(AV_MODULE),
+        probe: () => {
+            if (document.querySelector(".camera-view[data-user] audio.user-microphone-audio")) return { present: true, ours: null };
+            return { present: null, ours: null, note: "no speaker's audio element on this page now" };
+        }
     }
 ];
 
@@ -667,7 +1133,7 @@ function judged(entry) {
     if (CONTRACT_STATES.includes(result.state)) return answer(result.state);
     if (present === false) return answer("failed", "not found where the module expects it");
     if (present !== true) return answer("unknown", "the probe cannot tell");
-    if (entry.kind === "hook") return answer("unknown", "whether it fires is not read here");
+    if (entry.kind === "hook") return answer("unknown", "not seen firing in this load");
     if (entry.kind !== "override" || entry.marked === false) return answer("ok");
     if (ours === true) return answer("ok");
     if (ours === false) return answer("failed", "another function stands where the module's was");
@@ -727,6 +1193,69 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
         }
     }
     return contract;
+}
+
+/* ==========================================================================
+ * THE CHARACTER SHEET'S FIRST RENDER (E52 C3, E52-09, E52-12)
+ * --------------------------------------------------------------------------
+ * sheet.mjs is left as it is (Q-7): this file listens to the sheet's render
+ * and close hooks itself, marks each fired, and reads SHEET_ANCHORS on the
+ * first sheet of the system's own class - a stand-in a test draws is not one.
+ * Read once a load, on that render alone: nothing per frame.
+ * ========================================================================== */
+
+/** Which of `anchors` the element lacks: `{ at, missing, of }`, or null when there is no element to read. */
+export function readSheetAnchors(element, anchors = SHEET_ANCHORS) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root?.querySelector) return null;
+    const missing = anchors.filter(anchor => {
+        try {
+            return !root.querySelector(anchor.selector);
+        } catch {
+            return true;
+        }
+    }).map(anchor => anchor.selector);
+    return { at: Date.now(), missing, of: anchors.length };
+}
+
+/* Whether `app` is a sheet of a character sheet class the world registered. */
+const systemSheet = app => Object.values(CONFIG.Actor?.sheetClasses?.character ?? {})
+    .some(entry => typeof entry?.cls === "function" && app instanceof entry.cls);
+
+/**
+ * A character sheet drawn: the first of the system's own class in this load is read for its anchors, and a missing
+ * one is said in the console. Answers the reading, or null when this render was not read. `state` and `isSheet` are
+ * handed in by R1548.
+ */
+export function noteSheetRender(app, element, { state = sheetRead, isSheet = systemSheet } = {}) {
+    if (state.done || !isSheet(app)) return null;
+    const read = readSheetAnchors(element ?? app?.element);
+    if (!read) return null;
+    state.done = read;
+    if (read.missing.length) warn(`The contract: the character sheet has no ${read.missing.join(" | ")}; what the module puts there is not drawn.`);
+    return read;
+}
+
+let watchingSheets = false;
+
+/**
+ * From module.mjs's ready, on every client: listen to the two sheet hooks of the register (their names read from
+ * its rows), mark each fired, and read the first sheet's anchors; on the primary GM a missing one runs the contract
+ * again, so a GM not told yet this load is told now.
+ */
+export function watchSheetRenders() {
+    if (watchingSheets) return false;
+    watchingSheets = true;
+    const render = PATCHES.find(row => row.id === "hook-character-sheet-render")?.target;
+    const close = PATCHES.find(row => row.id === "hook-character-sheet-close")?.target;
+    if (render) {
+        Hooks.on(render, (app, element) => {
+            markFired(render);
+            if (noteSheetRender(app, element)?.missing.length && isPrimaryGm()) announceContract();
+        });
+    }
+    if (close) Hooks.on(close, () => markFired(close));
+    return true;
 }
 
 /**

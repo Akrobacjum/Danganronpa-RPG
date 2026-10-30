@@ -658,9 +658,17 @@ export function closeUnaskedUserConfig(app, options = {}, {
  * the button first.
  * ========================================================================== */
 
-/** What the module changes in Foundry, for the window and the handbook; literal keys, so the language check reads each. */
+/**
+ * What the module changes in Foundry, for the window and the handbook; literal keys, so the language check reads each.
+ * The contract register (patches.mjs) reads its setting and flag rows from here and from ENFORCED, not from a list of
+ * its own (E52 C3, E52-10): a row ENFORCED holds is read there; the others name what they reach in `reach` - its kind,
+ * the package and key, the file and function that write it, and what the table gets when the entry is gone. The
+ * scenes' vision has none: it writes a scene's own fields, this world's documents, not another package's entry.
+ */
 export const FOUNDRY_WRITES = [
-    { id: "automation", text: "DRPG.GiveBack.what.automation" },
+    { id: "automation", text: "DRPG.GiveBack.what.automation",
+      reach: { kind: "setting-entry", owner: "daggerheart", key: "Automation", file: "states.mjs", symbol: "suppressSystemAutomation",
+          fallback: "nothing switched off: Daggerheart's Vulnerable and Defeated automations run beside the module's" } },
     { id: "playerFiles", text: "DRPG.GiveBack.what.playerFiles" },
     { id: "isoWelcome", text: "DRPG.GiveBack.what.isoWelcome" },
     { id: "dhWelcome", text: "DRPG.GiveBack.what.dhWelcome" },
@@ -670,7 +678,9 @@ export const FOUNDRY_WRITES = [
     /* The one dice look (dice-sync.mjs, E20 fix round, the goal review's G-7): forced on every player and Assistant GM
        while "One dice look for the table" is on, as that setting says, and not given back by this window - the looks
        it replaced were never kept, so the row says so instead. */
-    { id: "diceLook", text: "DRPG.GiveBack.what.diceLook" }
+    { id: "diceLook", text: "DRPG.GiveBack.what.diceLook",
+      reach: { kind: "flag", owner: "dice-so-nice", key: "appearance", file: "dice-sync.mjs", symbol: "holdSource",
+          fallback: "no look held: each player's dice keep their own look" } }
 ];
 
 /** The parts of the world's kept record Give back writes back, in the order it writes them. */

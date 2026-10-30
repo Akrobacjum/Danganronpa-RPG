@@ -27565,6 +27565,219 @@ const INVARIANTS = [
         equal(stableJson([row?.state, /R1544 Levels broke/.test(row?.note ?? "")]), stableJson(["failed", true]),
             "the register's Levels row does not fail with the error includedInLevel threw");
     }],
+    ["R1545 - a hook of another package is ok once its listener marked it fired in this load, unknown with the road that fires it until then, and every hook row's listener marks it", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-09. A hook another package renames is never called again, and the
+         * listener waiting for it never learns so: the register's hook rows answered "whether it fires is not read
+         * here" whatever happened. Each listener of a hook row now marks its first call of the load (utils.mjs
+         * `markFired`) and the row is ok once marked, unknown until then with the road that fires it - never ok on
+         * presence alone - and failed only where what fires it is gone. Stand-in rows first, the marks handed in;
+         * then every hook row of the register against this load's marks; then each row's mark in its listener's
+         * file (the sheet's two in patches.mjs's own listener, sheet.mjs being left as it is, Q-7); then one real
+         * listener called: room-tile.mjs's on Foundry's picture-window header hook, with a window that is not the
+         * tile's and a list it must leave whole. A mark the call made is taken back. Red before C3: no hookState,
+         * no road, no mark.
+         */
+        const mod = await import("./patches.mjs");
+        const U = await import("./utils.mjs");
+        ok(typeof mod.hookState === "function" && typeof U.markFired === "function" && typeof U.firedAt === "function" && typeof U.forgetFired === "function",
+            "patches.mjs has no hookState, or utils.mjs no markFired, firedAt and forgetFired");
+        if (typeof mod.hookState !== "function" || typeof U.firedAt !== "function") return;
+        const row = (id, fired, present) => ({
+            id, kind: "hook", target: `R1545 ${id}`, owner: "foundry", file: "room-tile.mjs", symbol: "registerRoomTile", why: "R1545", when: "always",
+            fallback: `R1545 ${id}`, probe: () => mod.hookState(`R1545 ${id}`, present, `R1545 road ${id}`, () => fired)
+        });
+        const contract = mod.runContract({ rows: [row("fired", 1, true), row("waiting", null, true), row("gone", null, false), row("cannot-tell", null, null)] });
+        equal(stableJson(contract.rows.map(r => [r.id, r.state])), stableJson([["fired", "ok"], ["waiting", "unknown"], ["gone", "failed"], ["cannot-tell", "unknown"]]),
+            "a hook row is not read as [marked: ok | not marked: unknown | what fires it gone: failed | cannot tell: unknown]");
+        ok(contract.rows[1]?.note.includes("R1545 road waiting"), `a hook not seen firing does not name the road that fires it: ${contract.rows[1]?.note}`);
+
+        const hooks = mod.PATCHES.filter(r => r.kind === "hook");
+        must(hooks.length >= 9, `the register has ${hooks.length} hook row(s) - this test would read nothing`);
+        equal(stableJson(hooks.filter(r => !(typeof r.road === "string" && r.road.trim())).map(r => r.id)), "[]", "a hook row names no road that fires it");
+        const disagree = hooks.filter(r => {
+            const answer = r.probe();
+            return U.firedAt(r.target) !== null ? answer.state !== "ok" : (answer.state === "ok" || !String(answer.note).includes(r.road));
+        }).map(r => r.id);
+        equal(stableJson(disagree), "[]", "a hook row's probe does not answer as this load's marks say [marked: ok | not: no ok, the road named]");
+
+        const sources = await moduleSources();
+        const files = r => String(r.file).split(/\s*,\s*/);
+        const watcher = fnSource(sources.get("patches.mjs") ?? "", "watchSheetRenders");
+        const SHEET = ["renderCharacterSheet", "closeCharacterSheet"];
+        const unmarked = hooks.filter(r => !files(r).some(file => stripComments(sources.get(file) ?? "").includes(`markFired("${r.target}")`))
+            && !(SHEET.includes(r.target) && /markFired\(render\)/.test(watcher) && /markFired\(close\)/.test(watcher))).map(r => r.id);
+        equal(stableJson(unmarked), "[]", "a hook row's listener does not mark the hook fired");
+
+        const target = "getHeaderControlsImagePopout", had = U.firedAt(target);
+        const controls = [{ action: "R1545" }];
+        Hooks.callAll(target, { options: { classes: [] } }, controls);
+        const after = mod.runContract({ rows: hooks.filter(r => r.target === target) }).rows[0] ?? null;
+        if (had === null) U.forgetFired(target);
+        equal(stableJson([after?.state ?? null, controls.length]), stableJson(["ok", 1]),
+            "room-tile.mjs's listener did not mark Foundry's picture-window header hook fired, or stripped a window that is not the tile's");
+    }],
+
+    ["R1546 - the setting and flag rows are enforced.mjs's ENFORCED and FOUNDRY_WRITES, each in use on the suite's world present there; an entry gone is failed and not written, the microphone permission among them", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-10, E52-13 (amend 05.10 C). The module writes settings and flags of
+         * other packages (enforced.mjs's two lists) and Foundry's microphone permission (the GM's block, the trial's),
+         * and nothing said when one of those entries was gone. Each is now a row read from those lists, not a third
+         * (one per ENFORCED row, one per FOUNDRY_WRITES `reach` ENFORCED does not hold); each probe of a row in use on
+         * the suite's world finds its entry (the harness registers Foundry's A/V client setting since C3 and names
+         * BROADCAST_AUDIO; avclient-livekit's separate window is read only while voice is on, which it is not until a
+         * scenario installs the LiveKit stand-in, so its row is not in use here). A stand-in ENFORCED row whose key nobody registered: its row
+         * fails, `applyEnforced` writes nothing and says so once. Foundry's permissions without BROADCAST_AUDIO
+         * (handed in): the GM's block writes nothing and tells the GM why; the write is spied on as R539 does. Red
+         * before C3: no heldRows, no row of the permission, the block wrote.
+         */
+        const mod = await import("./patches.mjs");
+        const E = await import("./enforced.mjs");
+        ok(typeof mod.heldRows === "function", "patches.mjs reads no setting or flag rows from enforced.mjs");
+        if (typeof mod.heldRows !== "function") return;
+        const expected = [...E.ENFORCED.map(r => `ENFORCED ${r.id}`),
+            ...E.FOUNDRY_WRITES.filter(w => w.reach && !E.ENFORCED.some(r => r.id === w.id)).map(w => `FOUNDRY_WRITES ${w.id}`)];
+        must(expected.length >= 7, `enforced.mjs lists ${expected.length} entries - this test would read nothing`);
+        equal(stableJson(mod.PATCHES.filter(r => r.from).map(r => r.from)), stableJson(expected),
+            "the register's setting and flag rows are not one per ENFORCED row and per FOUNDRY_WRITES reach, in their order");
+        equal(stableJson(mod.PATCHES.filter(r => r.from && !["setting-entry", "flag"].includes(r.kind)).map(r => r.id)), "[]",
+            "a row read from enforced.mjs is not a setting entry or a flag");
+        const inUse = r => typeof r.inUse !== "function" || r.inUse() === true;
+        const ids = [...mod.PATCHES.filter(r => r.from), mod.PATCHES.find(r => r.id === "user-permission-broadcast-audio") ?? { id: "user-permission-broadcast-audio" }]
+            .filter(inUse).map(r => r.id);
+        must(ids.length >= 6, `${ids.length} of the rows read from enforced.mjs are in use on the suite's world - this test would read little`);
+        (await import("./utils.mjs")).log(`R1546: ${ids.length} entry row(s) in use read; not in use here: ${mod.PATCHES.filter(r => r.from && !inUse(r)).map(r => r.id).join(", ") || "none"}`);
+        const read = ids.map(id => {
+            const r = mod.PATCHES.find(x => x.id === id);
+            try {
+                return [id, r ? r.probe().present : "no row"];
+            } catch (err) {
+                return [id, `throws: ${err?.message ?? err}`];
+            }
+        });
+        equal(stableJson(read), stableJson(ids.map(id => [id, true])), "an entry the module writes is not found on the suite's world, or has no row");
+
+        const { SETTINGS } = await import("./settings.mjs");
+        const gone = { id: "r1546Gone", module: "isometric-perspective", key: "r1546NoSuchKey", value: false, toggle: SETTINGS.enforceIsoWelcome };
+        const [goneRow] = mod.heldRows([gone], []);
+        const goneAnswer = mod.runContract({ rows: goneRow ? [goneRow] : [] }).rows[0] ?? null;
+        const said = watchLog();
+        let held;
+        try {
+            held = await E.applyEnforced([gone]);
+        } finally {
+            said.stop();
+        }
+        equal(stableJson([goneAnswer?.target ?? null, goneAnswer?.state ?? null, held, game.settings.settings.has("isometric-perspective.r1546NoSuchKey"),
+            said.count(/r1546NoSuchKey/)]), stableJson(["isometric-perspective.r1546NoSuchKey", "failed", [], false, 1]),
+            "an entry that is gone is not [its row's target | failed | held nowhere | still not registered | said once]");
+
+        const V = await import("./voice-tile.mjs");
+        const { broadcastAudioKnown } = await import("./voice.mjs");
+        equal(stableJson([broadcastAudioKnown({ BROADCAST_AUDIO: {} }), broadcastAudioKnown({ FILES_BROWSE: {} }), broadcastAudioKnown(null)]),
+            stableJson([true, false, false]), "voice.mjs does not tell Foundry's permissions with and without BROADCAST_AUDIO apart");
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's, whose microphone the block would write");
+        must(game.user.isGM, "the block is a GM's: measured on a GM's client, where the suite runs");
+        const player = game.users.find(user => user.id !== game.user.id && !user.isGM);
+        const own = Object.getOwnPropertyDescriptor(player, "update"), writes = [], told = [];
+        player.update = async data => { writes.push(JSON.stringify(data)); return player; };
+        let wrote;
+        try {
+            wrote = await V.toggleBlock(player, { holds: () => null, settings: { getUser: () => ({ canBroadcastAudio: true }) },
+                notify: text => told.push(text), perms: { FILES_BROWSE: {}, FILES_UPLOAD: {} } });
+        } finally {
+            if (own) Object.defineProperty(player, "update", own);
+            else delete player.update;
+        }
+        equal(stableJson([wrote, writes, told]), stableJson([false, [], [game.i18n.localize("DRPG.Voice.list.gmNoBlock")]]),
+            "on a Foundry without BROADCAST_AUDIO the GM's block wrote, or did not tell the GM why");
+        const src = (await moduleSources()).get("voice.mjs") ?? "";
+        ok(/broadcastAudioKnown\(\)/.test(fnSource(src, "blockForTrial")), "the trial's block of a dead student's microphone writes without asking whether Foundry has the permission");
+    }],
+
+    ["R1547 - the calls the amendments name are rows: a presence probe where the name is exposed, unknown naming its table check where only a table can read it", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-11 (amend 11.10 A7, A8, A9). What the code relies on in Foundry and
+         * avclient-livekit beyond what it overrides - a hook's options, a constant, a call, an order of steps - had
+         * no row, so nothing said when one changed. Each is now a call row. Where only a table can read it (a
+         * behaviour, or a name the module never touches) the row is unknown and names the table check (`table`, the
+         * stage's B-E52 rows), never ok; where Foundry exposes the name the probe reads it, and `ui.controls.activate`
+         * is a function on the suite's world. The LiveKit rows read avclient-livekit's client when there is one, and
+         * cannot tell without it. Red before C3: none of the rows.
+         */
+        const { PATCHES, runContract } = await import("./patches.mjs");
+        const TABLE = { "chat-delete-options": "B-E52-2", "notifications-lifetime": "B-E52-2", "tooltip-clean-html": "B-E52-2",
+            "client-setting-sync-write": "B-E52-2", "livekit-attach-audio": "B-E52-3", "voice-modes": "B-E52-3", "livekit-connected-users": "B-E52-3",
+            "chat-notifications": "B-E52-3", "escape-dismiss-order": "B-E52-3", "focus-chat": "B-E52-3", "image-popout-options": "B-E52-3" };
+        const PROBED = ["livekit-room-events", "livekit-participant-user", "scene-controls-activate"];
+        const rowOf = id => PATCHES.find(r => r.id === id) ?? null;
+        equal(stableJson([...Object.keys(TABLE), ...PROBED].filter(id => rowOf(id)?.kind !== "call")), "[]", "a call the amendments name is not a call row");
+        const tableRows = Object.keys(TABLE).map(rowOf).filter(Boolean).map(r => ({ ...r, inUse: undefined }));
+        const answers = runContract({ rows: tableRows }).rows;
+        equal(stableJson(answers.map(r => [r.id, r.state, r.note.includes(TABLE[r.id])])), stableJson(Object.keys(TABLE).map(id => [id, "unknown", true])),
+            "a call only a table can read is not unknown naming its table check");
+        equal(stableJson(Object.keys(TABLE).map(id => rowOf(id)?.table ?? null)), stableJson(Object.values(TABLE)), "a table row does not carry its table check");
+        const probed = PROBED.map(id => {
+            try {
+                const answer = rowOf(id)?.probe();
+                return [id, [true, false, null].includes(answer?.present) ? "read" : `answers ${answer?.present}`];
+            } catch (err) {
+                return [id, `throws: ${err?.message ?? err}`];
+            }
+        });
+        equal(stableJson(probed), stableJson(PROBED.map(id => [id, "read"])), "a probed call row throws or answers no presence");
+        equal(rowOf("scene-controls-activate")?.probe().present, true, "the scene controls' activate is not found on the suite's world, whose controls have it");
+    }],
+
+    ["R1548 - the character sheet's places are read on the first sheet of the system's class, a missing one named and its row failed; the page's anchors are unknown until found, never failed on absence", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-12 (Q-7). sheet.mjs lays the student's file into Daggerheart's sheet
+         * by about twenty of its selectors, and a Daggerheart that renamed one left that part undrawn with no word.
+         * SHEET_ANCHORS (patches.mjs) is that list; the first sheet of the system's own class drawn in a load is read
+         * against it (`noteSheetRender`, from `watchSheetRenders` at ready on every client - a stand-in a test draws is
+         * not that class). Here: a stand-in sheet holding every place reads whole; without its Experience, that one
+         * is named, the reading kept once, and the row built on it fails naming it; a render that is not the system's
+         * class is not read. The page's anchors (a camera popped out, a speaker's audio, the theme) answer unknown
+         * while not on the page, never failed. Red before C3: no SHEET_ANCHORS, no reading.
+         */
+        const mod = await import("./patches.mjs");
+        ok(Array.isArray(mod.SHEET_ANCHORS) && typeof mod.readSheetAnchors === "function" && typeof mod.noteSheetRender === "function"
+            && typeof mod.sheetAnchorsAnswer === "function", "patches.mjs has no SHEET_ANCHORS, readSheetAnchors, noteSheetRender or sheetAnchorsAnswer");
+        if (typeof mod.noteSheetRender !== "function" || typeof mod.sheetAnchorsAnswer !== "function") return;
+        const sheet = document.createElement("div");
+        sheet.innerHTML = `<div class="window-content"><nav class="sheet-tabs"></nav><div class="character-header-sheet"><div class="name-row"></div>
+            <div class="character-row"><div class="resource-section"></div></div><div class="character-details"></div>
+            <div class="hope-section"><span class="hope-value"></span></div><div class="character-traits"><div class="trait"><span class="trait-value"></span></div></div></div>
+            <div class="character-sidebar-sheet"><div class="resources-section"><div class="status-bar"><input class="bar-input"><progress class="progress-bar"></progress></div></div>
+            <div class="equipment-section"><h3></h3><div class="items-sidebar-list"></div></div><div class="loadout-section"><h3></h3></div>
+            <div class="shortcut-items-section"><div class="experience-section"></div></div></div></div>`;
+        must(mod.SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${mod.SHEET_ANCHORS.length} place(s) - this test would read nothing`);
+        equal(stableJson(mod.readSheetAnchors(sheet)?.missing ?? null), "[]", "a sheet holding every place reads a place as missing");
+        sheet.querySelector(".experience-section").remove();
+        const state = { done: null };
+        const notTheClass = mod.noteSheetRender({}, sheet, { state, isSheet: () => false });
+        const log = watchLog();
+        let first, second;
+        try {
+            first = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+            second = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+        } finally {
+            log.stop();
+        }
+        equal(stableJson([notTheClass, first?.missing ?? null, second, log.count(/experience-section/)]), stableJson([null, [".experience-section"], null, 1]),
+            "the first sheet of the system's class is not read once, naming its one missing place [another class | the first | the second | said]");
+        const row = mod.PATCHES.find(r => r.id === "sheet-anchors");
+        const answer = mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(state.done) }] : [] }).rows[0] ?? null;
+        equal(stableJson([answer?.state ?? null, /\.experience-section/.test(answer?.note ?? "")]), stableJson(["failed", true]),
+            "the register's sheet row does not fail naming the missing place");
+        equal(mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(null) }] : [] }).rows[0]?.state, "unknown",
+            "the sheet row before any sheet is drawn is not unknown");
+        equal(mod.watchSheetRenders(), false, "the ready hook did not start watching the character sheet on this client");
+        const PAGE = ["camera-popout-id", "mic-audio-anchor", "interface-theme"];
+        const page = PAGE.map(id => [id, mod.PATCHES.find(r => r.id === id)?.probe() ?? null]);
+        equal(stableJson(page.map(([id, a]) => [id, a === null ? "no row" : a.present === false ? "failed on absence" : "found or unknown"])),
+            stableJson(PAGE.map(id => [id, "found or unknown"])), "a page anchor not on the page is failed, or has no row");
+    }],
 ];
 
 /**

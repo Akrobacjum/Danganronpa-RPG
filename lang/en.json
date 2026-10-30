@@ -4247,7 +4247,8 @@
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
-        "gmSecretDead": "This death is still a secret: a block would give it away."
+        "gmSecretDead": "This death is still a secret: a block would give it away.",
+        "gmNoBlock": "This version of Foundry has no microphone permission, so no microphone can be blocked from here."
       },
       "panel": {
         "legend": "Voice",

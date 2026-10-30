@@ -336,6 +336,9 @@ Hooks.once("ready", () => {
     // a window the GM reads while the rest of this hook gets on with the world.
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
+    // Every client reads the first character sheet it draws for the places the module fills (E52 C3, E52-12), and
+    // marks the sheet's render and close hooks as fired (E52-09).
+    import("./patches.mjs").then(m => m.watchSheetRenders()).catch(err => error("Could not watch the character sheet for the contract", err));
     // The contract with Foundry, Daggerheart and the modules (E52 C2): every row of the register probed once a load,
     // a failed one told to this GM. The import settles after every ready hook has run, the relay guard's own (which
     // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world.

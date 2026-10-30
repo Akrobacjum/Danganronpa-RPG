@@ -123,7 +123,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { micHold, moduleHoldsMic } from "./voice.mjs";
+import { micHold, moduleHoldsMic, broadcastAudioKnown } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting, getClock } from "./settings.mjs";
 import { avclientActive, voiceApplying } from "./voice-client.mjs";
 import { voiceIdentity, voiceActorFor, measureCameraDock } from "./camera-view.mjs";
@@ -1273,12 +1273,18 @@ function heldLine(hold) {
  * @param {(user: User) => object|null} [options.holds]
  * @param {object} [options.settings]  Foundry's `game.webrtc.settings`
  * @param {(text: string) => void} [options.notify]
+ * @param {object} [options.perms]  Foundry's `CONST.USER_PERMISSIONS`, handed in by R1546: without BROADCAST_AUDIO
+ *   nothing is written and the GM is told (E52-13)
  * @returns {Promise<boolean>} whether it wrote
  */
 export async function toggleBlock(user, { holds = target => moduleHoldsMic(target), settings = game.webrtc?.settings,
-    notify = text => ui.notifications?.warn(text) } = {}) {
+    notify = text => ui.notifications?.warn(text), perms = globalThis.CONST?.USER_PERMISSIONS } = {}) {
     if (!game.user?.isGM) return false;
     if (!user?.id || user.id === game.user.id || game.users.get(user.id) !== user) return false;
+    if (!broadcastAudioKnown(perms)) {
+        notify(game.i18n.localize("DRPG.Voice.list.gmNoBlock"));
+        return false;
+    }
     const hold = holds(user);
     if (hold?.held) {
         notify(heldLine(hold));
