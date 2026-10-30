@@ -188,7 +188,7 @@
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
  *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
- *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
+ *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -418,9 +418,16 @@ if (args.includes("--frame-cost")) {
    has no edge to lose and is said so. A pixel whose contrast falls under M/2 is counted: `steady` where it is under in
    every frame, `flicker` where only in some. Printed per side (L, T, R, B), only where not 0, `still` and `moving`
    apart, and at the end, per selector, the sizes and themes where each count is not 0.
-   THE CONTROL: at the first Stained Glass size that draws a GM Panel tile, the tile is read again with
-   `clip-path: inset(0 0.5px 0 0)` written on it - its right edge cut 0.5 px in - and its R count must not be 0; the
-   style is then taken off. A control that reads 0 exits 1, as does a page that never loaded the glass.
+   THE CONTROL: at the first Stained Glass size that draws a GM Panel tile, once both phases are read and the mover is
+   stopped, the tile whose box was read (the first visible match, `__edgeEls`) is read `--edge-frames` times as drawn
+   and as many again with `clip-path: inset(0 0.5px 0 0)` written on it - its right edge cut 0.5 px in - and both are
+   counted by the M of the frames as drawn: the R count with the plant must be greater than the R count without it;
+   the style is then taken off. A control that does not add counts exits 1, as does a page that never loaded the glass.
+   Until E89 fix FG1 (COR-2) the control counted R with the plant alone, while the mover still ran, on
+   document.querySelector's first match: at 1366x768 the tile unplanted read flicker R63 in the moving phase, so a
+   plant that drew nothing could pass whenever the board's motion fell in the control's frames. `--edge-plant <css>`
+   writes another clip-path for the control, to check the control itself: `inset(0 0 0 0)` changes no pixel and must
+   read FAIL.
    Headless Chromium rasterises in software (perf-baseline.json `headless`), not as a table's GPU does: a count here is
    the shape of what this Chromium draws, and a zero says the probe did not reproduce a table's picture, not that the
    table's edges hold. `--edge-sel` keeps only the selectors that contain one of its `|`-separated parts (to read
@@ -435,12 +442,16 @@ const EDGE_SELECTORS = [
     "#drpg-hud", "#drpg-despair", ".drpg-despair-pip", ".drpg-action-pip", "#players", "#drpg-room-art", "#drpg-tile-row",
     "#scene-controls", "#sidebar-tabs", "#drpg-messenger-launcher", "#drpg-gm-launcher"
 ];
+/* Runs in the page: the first visible match of each selector, its box, and the element kept in `__edgeEls` (by the
+   selector's position) so that the control plants on the element whose box was read (E89 fix FG1, COR-2). */
 function edgeBoxes(list) {
-    return list.map(sel => {
+    window.__edgeEls = [];
+    return list.map((sel, k) => {
         const all = [...document.querySelectorAll(sel)];
         const el = all.find(e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
             return r.width >= 16 && r.height >= 16 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight && cs.visibility !== "hidden" && cs.display !== "none"; });
         if (!el) return null;
+        window.__edgeEls[k] = el;
         const r = el.getBoundingClientRect();
         return { l: r.left, t: r.top, r: r.right, b: r.bottom };
     });
@@ -467,12 +478,13 @@ async function edgeRead([b64, boxes]) {
     });
 }
 /* frames: per frame, per box, the four sides' values. Returns null for an absent box, else { M, steady, flicker, n }
-   with steady and flicker per side. */
-function edgeCount(frames, k) {
+   with steady and flicker per side. `fixedM`, when given, is the M to judge by instead of these frames' own median:
+   the control counts its planted frames by the M of the same box as drawn, so both counts use one threshold. */
+function edgeCount(frames, k, fixedM = null) {
     if (!frames[0][k]) return null;
     const vals = frames.flatMap(f => f[k].flat()).filter(v => v != null).sort((a, b) => a - b);
     if (!vals.length) return { M: 0, steady: [0, 0, 0, 0], flicker: [0, 0, 0, 0], n: 0 };
-    const M = vals[Math.floor(vals.length / 2)], out = { M, steady: [0, 0, 0, 0], flicker: [0, 0, 0, 0], n: 0 };
+    const M = fixedM ?? vals[Math.floor(vals.length / 2)], out = { M, steady: [0, 0, 0, 0], flicker: [0, 0, 0, 0], n: 0 };
     if (M < 16) return out;
     for (let s = 0; s < 4; s++) for (let i = 0; i < frames[0][k][s].length; i++) {
         const seq = frames.map(f => f[k][s][i]).filter(v => v != null);
@@ -484,7 +496,7 @@ function edgeCount(frames, k) {
     return out;
 }
 if (args.includes("--edges")) {
-    const N = Number(opt("--edge-frames") ?? 30), SIDES = "LTRB", want = (opt("--edge-sel") ?? "").split("|").filter(Boolean);
+    const N = Number(opt("--edge-frames") ?? 30), PLANT = opt("--edge-plant") ?? "inset(0 0.5px 0 0)", SIDES = "LTRB", want = (opt("--edge-sel") ?? "").split("|").filter(Boolean);
     const LIST = want.length ? EDGE_SELECTORS.filter(sel => want.some(w => sel.includes(w))) : EDGE_SELECTORS, withControl = control && LIST[0] === EDGE_SELECTORS[0];
     if (control && !withControl) console.log("control: not run - --edge-sel leaves out the tile it is planted on");
     const calc = await browser.newPage();
@@ -517,18 +529,20 @@ if (args.includes("--edges")) {
                 if (r.steady.some(Boolean) || r.flicker.some(Boolean)) parts.push(`${ph} ${sel} M${r.M} steady[${fmt(r.steady) || 0}] flicker[${fmt(r.flicker) || 0}]`);
             });
             }
+            await page.evaluate(() => window.__mover.stop());
             if (withControl && !planted && theme === "stained" && boxes[0]) {
-                await page.evaluate(() => { document.querySelector(".drpg-gm-panel .drpg-gmp-button").style.clipPath = "inset(0 0.5px 0 0)"; });
+                await page.waitForTimeout(300);
+                const was = edgeCount(await read(await shoot(page), [boxes[0]]), 0);
+                await page.evaluate(css => { window.__edgeEls[0].style.clipPath = css; }, PLANT);
                 await page.waitForTimeout(100);
                 const pf = await read(await shoot(page), [boxes[0]]);
-                await page.evaluate(() => { document.querySelector(".drpg-gm-panel .drpg-gmp-button").style.removeProperty("clip-path"); });
-                const r = edgeCount(pf, 0), was = edgeCount(frames, 0);
+                await page.evaluate(() => { window.__edgeEls[0].style.removeProperty("clip-path"); });
+                const r = was && was.M >= 16 ? edgeCount(pf, 0, was.M) : null;
+                const Rw = was ? was.steady[2] + was.flicker[2] : 0, Rp = r ? r.steady[2] + r.flicker[2] : 0, ok = !!r && Rp > Rw;
                 planted = { size, r, was };
-                const R = r && r.M >= 16 ? r.steady[2] + r.flicker[2] : 0;
-                console.log(`${theme.padEnd(7)} ${size.padEnd(9)} control: ${EDGE_SELECTORS[0]} cut 0.5 px at its right edge - R ${R} counted (steady ${r?.steady[2]}, flicker ${r?.flicker[2]}; as drawn ${was ? was.steady[2] + was.flicker[2] : "-"})${R ? "" : "  - FAIL: the count did not see the plant"}`);
-                if (!R) bad++;
+                console.log(`${theme.padEnd(7)} ${size.padEnd(9)} control: ${EDGE_SELECTORS[0]} with clip-path ${PLANT}, the board still - R ${Rp} with the plant against ${Rw} as drawn, the same box and M ${was?.M ?? "-"}${ok ? "" : "  - FAIL: the plant added nothing the count sees"}`);
+                if (!ok) bad++;
             }
-            await page.evaluate(() => window.__mover.stop());
             console.log(`${theme.padEnd(7)} ${size.padEnd(9)} edges: ${boxes.filter(Boolean).length} selectors drawn, ${N} frames - ${parts.length ? parts.join("; ") : "none counted"}`);
             await page.close();
         }
