@@ -71,8 +71,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 fix A: $10.76 (03:49:58 $61.36 -> 04:21:31 $72.12), 1 drpg-fix agent (310k tokens, 153 tool calls, 31 min wall).
 - E20 fix B: $10.52 (04:21:31 $72.12 -> 04:51:34 $82.64), 1 drpg-fix agent (297k tokens, 155 tool calls, 30 min wall).
 - E20 close: $2.12 (04:51:34 $82.64 -> 05:17:53 $84.76, with marking READY), 1 drpg-scribe agent (115k tokens, 26 min wall).
-- E20 gaps commit bc158f09 (E20-T7, E20-T8; the owner's yes 30.10): 1 drpg-fix agent (95k tokens, 25 min wall); $ = the next log line minus $85.67 (the log reached $86.35 at 06:16:13).
-- E20 total: about $97 (C1 $12 by the owner + this run's $84.76); 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
+- E20 gaps commit bc158f09 (E20-T7, E20-T8; the owner's yes 30.10): 1 drpg-fix agent (95k tokens, 25 min wall); $3.70 (05:46:56 $85.67 -> 06:41:21 $89.37).
+- E20 total: about $101 (C1 $12 by the owner + this run's $89.37); 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
