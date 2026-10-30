@@ -45,7 +45,8 @@
  *     C4 (fix FG1, F3) gm2 maps the current state to the second playlist while gm is the primary; once gm has heard
  *        the echo, gm is stood in as gone on gm's page and gm2's (`_source.active`, as client-entry.mjs marks a user
  *        who left), so gm2 is the primary when the settle ends: gm2 plays the new playlist with one `music.apply`, gm
- *        with none. A real GM leaving a real server is LIVE-E50-04.
+ *        with none, and the first playlist, which gm started and the map no longer names, is stopped (fix FG1b). A
+ *        real GM leaving a real server is LIVE-E50-04.
  *     C5 (fix FG1, G8) a mapping onto a playlist named "Situational" (the world's, or one made) stored as before
  *        1.2.93; `dropCueMappings()` with its defaults, as `ready` calls it, on gm2 and then on gm: gm2 drops nothing
  *        and writes nothing, gm drops that key with one write (heard once on both), every other key kept.
@@ -74,7 +75,8 @@
  * Red at 419d3b42 (E50 C1's parent) for part A, at cbe52a4e's module code (E50 C2's parent) for part B, at
  * 83ca7142's (E50 C3's parent) for part C and at 50d9e9c6's (E50 C4's parent) for parts E and S1, measured
  * 30.10.2026: see each commit's message. D and S2 are green there; their mutants are in C4's message. C4 is red at
- * 8d509dc7's module code and C5 is green there (it reads wiring C3 made): see fix FG1's message.
+ * 8d509dc7's module code and C5 is green there (it reads wiring C3 made): see fix FG1's message; C4's stopped first
+ * playlist is red at 422142bc's (fix FG1b's message).
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -486,8 +488,8 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         c4Gone.back = { gm: await gm.eval(GM_HERE(true)), gm2: await gm2.eval(GM_HERE(true)) };
     }
     const c4Applies = { gm: (await gm.eval(APPLIES)) - c4Before.gm, gm2: (await gm2.eval(APPLIES)) - c4Before.gm2 };
-    check("C4: a mapping change made while gm is the primary is followed by gm2 when gm leaves within the settle: gm2, the primary when the timer ends, plays the state's new playlist with one apply, gm with none (F3, E50-22, LIVE-E50-04)",
-        c4Write.primary === false && c4Echo && c4Gone.gm === false && c4Gone.gm2 === true && c4?.playing === true
+    check("C4: a mapping change made while gm is the primary is followed by gm2 when gm leaves within the settle: gm2, the primary when the timer ends, plays the state's new playlist with one apply, gm with none, and the playlist the state left is stopped (F3, FG1b, E50-22, LIVE-E50-04)",
+        c4Write.primary === false && c4Echo && c4Gone.gm === false && c4Gone.gm2 === true && c4?.playing === true && c4?.old === false
             && c4Applies.gm2 === 1 && c4Applies.gm === 0 && c4Gone.back.gm === true && c4Gone.back.gm2 === false,
         J({ c4Write, c4Echo, c4Gone, c4, c4Applies }));
 

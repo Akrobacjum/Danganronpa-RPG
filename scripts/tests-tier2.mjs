@@ -75781,6 +75781,57 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ followed: true, applies: 1, unchanged: true }),
             "[the current state's new playlist played on the primary]; [applies after three writes in 200 ms]; [what plays the same after them]");
     }],
+    ["E50-T4 - a state's playlist moved from A to B in the map: the primary GM that played A follows with B and stops A, and a playlist the map never named, playing beside them, plays on (E50 fix FG1b; E50-22)", async () => {
+        /*
+         * E50 fix FG1b, 30.10.2026. A follow of a mapping change played B and left A playing beside it: `crossfade`
+         * stopped the playing playlists the map names, and A was no longer named. 87 C4 read it on a GM that became
+         * the primary within the settle; this reads it on the primary that never changed, which started A itself.
+         * Here, on the primary GM with the music switched on (the switch's own refresh let past): the current state
+         * mapped to A and followed (A plays); a third playlist, never mapped, put on by this test's `playAll` (the
+         * harness's `playAll` writes the playlist, not a sound, so `watchManualPlayback` does not take it for the
+         * GM's track and the follow is not held for it - this reads the stop rule alone); then the state moved to B
+         * and A, B and the third read 1500 + 400 + 700 ms after. The map, the switch and the playlists are put back.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "the music is the primary GM's to drive");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const state = M.currentState();
+        must(state && state !== "murder", `no world state owns the music here (${state})`);
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        must(!Object.values(mapBefore).some(id => game.playlists.get(id)?.playing),
+            "a mapped playlist is playing already - this test reads what its own follow stops");
+        const musicWasOn = getSetting(SETTINGS.musicEnabled);
+        const made = [];
+        const read = {};
+        try {
+            for (const name of ["A", "B", "loose"]) {
+                made.push(await Playlist.create({ name: `Suite E50-T4 ${name}`, sounds: [{ name: `E50-T4 ${name} one`, path: "sounds/lock.wav" }] }));
+            }
+            must(made.every(Boolean), "the fixture playlists were not made");
+            const [a, b, loose] = made;
+            await setSetting(SETTINGS.musicEnabled, true);
+            await wait(900);
+            await setSetting(SETTINGS.musicMap, { ...mapBefore, [state]: a.id });
+            read.first = Boolean(await until(() => a.playing, 4000));
+            await loose.playAll();
+            await wait(300);
+            await setSetting(SETTINGS.musicMap, { ...mapBefore, [state]: b.id });
+            await until(() => b.playing, 1500 + 400 + 2000);
+            await wait(700);
+            read.after = { a: a.playing, b: b.playing, loose: loose.playing };
+        } finally {
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await setSetting(SETTINGS.musicEnabled, musicWasOn);
+            for (const playlist of made) {
+                try { if (playlist?.playing) await playlist.stopAll(); } catch { /* it was not playing */ }
+                if (playlist) await playlist.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: true, after: { a: false, b: true, loose: true } }),
+            "[A played for the state]; [A, B and the never-mapped playlist playing after the state moved to B]");
+    }],
     ...GRID
 ];
 

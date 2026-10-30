@@ -352,11 +352,45 @@ let playingPlaylist = null;
 const MAP_SETTLE_MS = 1500;
 let mapTimer = null;
 
+/*
+ * WHAT A MAPPING CHANGE LEAVES PLAYING (E50 fix FG1b). A state's playlist moved from A to B was followed by B and
+ * left A playing beside it: `crossfade` stops the playing playlists the map names (`ours()`), and A, no longer named,
+ * was nobody's. Measured on the harness 30.10.2026: 87 C4 (gm2 following after gm left) and E50-T4 (the primary
+ * that never changed) both read A still playing after B started.
+ *
+ * THE RULE CHOSEN: the follow also stops a playlist the map named before the change and does not name after it. Not
+ * "the playlist this browser started" (`playingPlaylist`): that answers on the primary that started A, and not on a
+ * GM who became the primary within the settle - gm2 never started A and nothing in the world says who did (a flag on
+ * the playlist would be a document write at every start, for every browser); tried as a mutant, that rule passed
+ * E50-T4 and left 87 C4's A playing. The map is what every GM holds, and a
+ * playlist it names is already the state machine's while it is named: `crossfade` stops it and
+ * `watchManualPlayback` does not count a sound in it as the GM's own. So this stays inside the module's own
+ * definition of its playlists, one map further back; a playlist the map never named - one a GM put on by hand, the
+ * cue playlist - is never stopped by it, and a state left with no playlist still stops nothing (`apply`).
+ *
+ * `mapSeen` is the map as this GM's browser last heard it (at ready, then at each echo); `mapLeft` gathers what left
+ * it during one settle, and only the primary's apply after it reads it (`leftForApply`).
+ */
+let mapSeen = null;
+const mapLeft = new Set();
+const leftForApply = new Set();
+
+function noteMapLeft() {
+    const now = musicMap() ?? {};
+    const named = new Set(Object.values(now).filter(Boolean));
+    for (const id of Object.values(mapSeen ?? {})) if (id && !named.has(id)) mapLeft.add(id);
+    mapSeen = { ...now };
+}
+
 function scheduleMapRefresh() {
     if (!game.user?.isGM) return;
+    noteMapLeft();
     if (mapTimer) clearTimeout(mapTimer);
     mapTimer = setTimeout(() => {
         mapTimer = null;
+        const left = [...mapLeft];
+        mapLeft.clear();
+        if (enabled()) for (const id of left) leftForApply.add(id);
         schedule();
     }, MAP_SETTLE_MS);
 }
@@ -459,6 +493,7 @@ export function registerMusic() {
     }
 
     Hooks.once("ready", () => {
+        if (game.user?.isGM) mapSeen = { ...(musicMap() ?? {}) };
         watchManualPlayback();
         watchManualEnd();
         adoptRunningInterruption();
@@ -654,6 +689,10 @@ async function apply() {
 
     const state = currentState();
     const next = state ? playlistFor(state) : null;
+    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here so
+    // that an apply that returns below does not hand it to a later one.
+    const left = [...leftForApply];
+    leftForApply.clear();
     // The same state on the same playlist: nothing to do. The playlist is asked too since E50 C3, because the map
     // can move a state's playlist under it (`scheduleMapRefresh`).
     if (!state || (state === playingState && (next?.id ?? null) === playingPlaylist)) return;
@@ -688,7 +727,7 @@ async function apply() {
         return;
     }
 
-    await crossfade(next, { randomTrack: stateDef(state)?.randomTrack === true });
+    await crossfade(next, { randomTrack: stateDef(state)?.randomTrack === true, left });
     playingState = state;
     playingPlaylist = next.id;
     log(`Music: ${state} -> "${next.name}".`);
@@ -706,10 +745,18 @@ async function apply() {
  * @param {boolean} [options.randomTrack]  Start ONE track, chosen at random,
  *   rather than letting the playlist resume wherever it left off. The trial's
  *   three states ask for this; see `playRandomTrack`.
+ * @param {string[]} [options.left]  Playlists a mapping change took out of
+ *   the map, stopped too when playing (E50 fix FG1b; `mapLeft`).
  */
-function crossfade(next, { randomTrack = false } = {}) {
+function crossfade(next, { randomTrack = false, left = [] } = {}) {
     return asOurs(async () => {
-        for (const playlist of ours()) {
+        // The playlists the map names, and those a mapping change just took out of it (the rule: `mapLeft`).
+        const stopping = new Map(ours().map(playlist => [playlist.id, playlist]));
+        for (const id of left) {
+            const playlist = game.playlists.get(id);
+            if (playlist && !isCuePlaylist(playlist)) stopping.set(id, playlist);
+        }
+        for (const playlist of stopping.values()) {
             if (playlist.id === next.id) continue;
             if (!playlist.playing) continue;
             try {
