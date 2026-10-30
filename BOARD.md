@@ -70,8 +70,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 end review: $19.10 (01:47:00 $42.26 -> 03:49:58 $61.36, with the owner's answers and fix A's launch), 2 drpg-review agents (360k + 321k tokens; 23 min and 2 h wall).
 - E20 fix A: $10.76 (03:49:58 $61.36 -> 04:21:31 $72.12), 1 drpg-fix agent (310k tokens, 153 tool calls, 31 min wall).
 - E20 fix B: $10.52 (04:21:31 $72.12 -> 04:51:34 $82.64), 1 drpg-fix agent (297k tokens, 155 tool calls, 30 min wall).
-- E20 close: 1 drpg-scribe agent (115k tokens, 26 min wall); $ in the next turn's log line minus $82.64.
-- E20 total so far: about $95 (C1 $12 by the owner + this run's $82.64) + the close; 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
+- E20 close: $2.12 (04:51:34 $82.64 -> 05:17:53 $84.76, with marking READY), 1 drpg-scribe agent (115k tokens, 26 min wall).
+- E20 total: about $97 (C1 $12 by the owner + this run's $84.76); 7 drpg-impl, 2 drpg-review, 2 drpg-fix, 1 drpg-scribe, plus the spec's 1.
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
