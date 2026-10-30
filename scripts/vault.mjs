@@ -2819,14 +2819,16 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
          * never decided, leaves the box reading what the GM decided of the rest.
          */
         const possible = pieces.length > 0;
-        const isRoomNow = pieces.length && pieces.every(roomDecided)
-            ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        const decided = pieces.length > 0 && pieces.every(roomDecided);
+        const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart.
+        const undecidedMark = possible && !decided ? " data-drpg-undecided" : "";
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
             owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
-                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
+                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
@@ -3128,20 +3130,29 @@ export function wireRoomRatio(dialog, rooms, living) {
              */
             const field = (prefix, room) => form?.querySelector(`[name="${CSS.escape(`${prefix}:${room}`)}"]`);
             const ticked = (prefix, room) => Boolean(field(prefix, room)?.checked);
-            // A box drawn off is a name no piece of which may be a room (`roomCells`).
-            const marked = room => { const box = field("isroom", room); return Boolean(box && !box.disabled && box.checked); };
+            /* A box drawn off is a name no piece of which may be a room (`roomCells`). A box nobody decided yet is ticked
+               as a suggestion (`data-drpg-undecided`), and counted only once the GM has changed it in this window: on a
+               fresh map every named region read as a room here, 12 against the checklist's 0 (E20 fix round, the
+               correctness review's C-10). The suggestions are said apart, after the ratio. */
+            const box = room => field("isroom", room);
+            const open = room => Boolean(box(room) && !box(room).disabled && box(room).checked);
+            const suggested = room => open(room) && box(room).hasAttribute("data-drpg-undecided") && !changed.has(room);
             const census = roomCensusOf(rooms.map(room => ({
                 name: room,
-                room: marked(room),
+                room: open(room) && !suggested(room),
                 owner: field("owner", room)?.value ?? "",
                 notShared: ticked("notshared", room),
                 locked: ticked("locked", room)
             })));
-            ratio.textContent = roomRatioLine(census, living);
+            const pending = rooms.filter(suggested).length;
+            ratio.textContent = pending ? `${roomRatioLine(census, living)} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
+                : roomRatioLine(census, living);
             ratio.classList.toggle("drpg-warning", living > 0 && census.count > roomsWantedFor(living));
         };
+        const changed = new Set();
         dialog.element.addEventListener("change", ev => {
             const name = String(ev.target?.name ?? "");
+            if (name.startsWith("isroom:")) changed.add(name.slice("isroom:".length));
             if (name.startsWith("locked:") || name.startsWith("notshared:")
                 || name.startsWith("owner:") || name.startsWith("isroom:")) paintRatio();
         });

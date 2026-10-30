@@ -2170,6 +2170,12 @@
         "many": "Zamknięte z nich: {n}.",
         "other": "Zamknięte z nich: {n}."
       },
+      "roomCensusUndecided": {
+        "one": "Jeszcze nie liczony: {n} region, o którym nikt nie zdecydował, zaznaczony jako propozycja - Zastosuj zrobi z niego pokój.",
+        "few": "Jeszcze nie liczone: {n} regiony, o których nikt nie zdecydował, zaznaczone jako propozycje - Zastosuj zrobi z nich pokoje.",
+        "many": "Jeszcze nie liczone: {n} regionów, o których nikt nie zdecydował, zaznaczonych jako propozycje - Zastosuj zrobi z nich pokoje.",
+        "other": "Jeszcze nie liczone: {n} regionu, o którym nikt nie zdecydował, zaznaczonego jako propozycja - Zastosuj zrobi z nich pokoje."
+      },
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
       "room": "Pokój",
       "owner": "Czyja sypialnia",
@@ -2980,7 +2986,7 @@
         "many": "{n} pul",
         "other": "{n} puli"
       },
-      "suggestNone": "Sugestia pojawi się tu, gdy sezon będzie miał uczniów.",
+      "suggestNone": "Sugestia pojawi się tu, gdy sezon będzie miał żyjących uczniów.",
       "amount": "o",
       "floorNote": "Żadne z nich nigdy nie schodzi poniżej jednego. Pora dnia bez akcji albo pokój bez Search Tokenów to nie trudniejsza gra - to gracz, który nie ma co robić, dopóki zegar się nie przesunie.",
       "current": "Teraz: {count} z {max}.",
@@ -3722,6 +3728,7 @@
       },
       "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
       "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne w oknie Ustaw sezon: {step}.",
+      "nextSeasonSetupAside": "Okno Ustaw sezon wciąż czeka na: {step}.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
       "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
@@ -4548,7 +4555,7 @@
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
       "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle.",
       "cast": {
-        "students": "Uczniowie (bez Monokum): {n}",
+        "students": "Uczniowie: {all}, żyjący: {living}",
         "starting": "Zasoby na start: {hp} Health, {stress} Sanity, {hope} Hope",
         "noCast": "Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.",
         "row": "Health maks. {hp}, Sanity maks. {stress}",
@@ -4594,7 +4601,7 @@
       "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
       "title": "Ustaw sezon",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
-      "introReady": "Wszystko na miejscu. To ta sama lista, którą czyta kontrola przed sezonem, więc wróci zielona.",
+      "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
       "campaignName": "Nazwa kampanii",
       "campaignPlaceholder": "Hope's Peak: Utopione lato",
       "chapter": "Rozdział",
@@ -4742,10 +4749,10 @@
       "overflowNow": "{line} Teraz {n}.",
       "roomsUncovered": "{pct}% sceny {scene} nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",
       "roomsCheckErrors": {
-        "one": "Sprawdzenie pokoi znalazło {n} błąd na scenie {scene}: popraw go i sprawdź jeszcze raz.",
-        "few": "Sprawdzenie pokoi znalazło {n} błędy na scenie {scene}: popraw je i sprawdź jeszcze raz.",
-        "many": "Sprawdzenie pokoi znalazło {n} błędów na scenie {scene}: popraw je i sprawdź jeszcze raz.",
-        "other": "Sprawdzenie pokoi znalazło {n} błędu na scenie {scene}: popraw je i sprawdź jeszcze raz."
+        "one": "Sprawdzenie pokoi znalazło {n} problem na scenie {scene}: popraw go i sprawdź jeszcze raz.",
+        "few": "Sprawdzenie pokoi znalazło {n} problemy na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "many": "Sprawdzenie pokoi znalazło {n} problemów na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "other": "Sprawdzenie pokoi znalazło {n} problemu na scenie {scene}: popraw je i sprawdź jeszcze raz."
       },
       "roomsJudged": {
         "one": "Oceniana scena: {scene}. Pokoje ma {n} scena.",
@@ -4966,10 +4973,10 @@
         "other": "{n} nazwanego regionu nie jest pokojem"
       },
       "lastCheckErrors": {
-        "one": "ostatnie sprawdzenie pokoi znalazło {n} błąd",
-        "few": "ostatnie sprawdzenie pokoi znalazło {n} błędy",
-        "many": "ostatnie sprawdzenie pokoi znalazło {n} błędów",
-        "other": "ostatnie sprawdzenie pokoi znalazło {n} błędu"
+        "one": "ostatnie sprawdzenie pokoi znalazło {n} problem",
+        "few": "ostatnie sprawdzenie pokoi znalazło {n} problemy",
+        "many": "ostatnie sprawdzenie pokoi znalazło {n} problemów",
+        "other": "ostatnie sprawdzenie pokoi znalazło {n} problemu"
       },
       "checkNoScene": {
         "problem": "Na płótnie nie ma sceny",
@@ -4991,6 +4998,8 @@
         "why": "Mgła nie rysuje obrysu ani odsłonięcia dla regionu, który nie jest pokojem, i nie prowadzą do niego żadne drzwi."
       },
       "uncoveredShare": "{pct}% mapy nie należy do żadnego pokoju",
+      "uncoveredShareFloor": "{pct}% piętra {floor} nie należy do żadnego pokoju",
+      "sceneFloor": "{scene} ({floor})",
       "check": {
         "showOnMap": "Pokaż na mapie",
         "unnamed": {

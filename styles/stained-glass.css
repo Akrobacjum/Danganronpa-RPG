@@ -2888,6 +2888,12 @@ body.drpg-theme-stained-glass .drpg-gmp-next-label {
     color: var(--drpg-glass-accent);
 }
 body.drpg-theme-stained-glass .drpg-gmp-next-text { font-family: var(--drpg-font-prose); }
+/* the Season setup row a running game still waits on, under the line and quieter (the owner's Q-8 amended) */
+body.drpg-theme-stained-glass .drpg-gmp-next-setup {
+    font-family: var(--drpg-font-prose);
+    font-size: var(--drpg-sg-floor);
+    color: var(--drpg-sg-bone-dim);
+}
 body.drpg-theme-stained-glass .drpg-gmp-next-go {
     --brush: var(--drpg-sg-bone);
     color: var(--drpg-sg-ink);
@@ -3483,6 +3489,11 @@ body.drpg-theme-stained-glass {
     --drpg-font-ui: var(--drpg-font-chrome);
 }
 body.drpg-theme-stained-glass .drpg-check-report { font-family: var(--drpg-font-chrome); }
+/* the report's marks in the theme's evidence colour and its alarm (E20 fix round, G-8) */
+body.drpg-theme-stained-glass .drpg-check-report .drpg-check-ok,
+body.drpg-theme-stained-glass [data-drpg-anon] .drpg-check-ok { color: var(--drpg-sg-evidence); }
+body.drpg-theme-stained-glass .drpg-check-report .drpg-check-bad,
+body.drpg-theme-stained-glass [data-drpg-anon] .drpg-check-bad { color: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass :is(#drpg-hud, .drpg-messenger-note-text, .drpg-popup-title, .drpg-safeword-button,
     .drpg-camera-dock .player-name, .drpg-camera-dock .charname) { font-family: var(--drpg-font-chrome); }
 /* the clock's pane is the audit page's 312 px, not "as wide as its longest line" */

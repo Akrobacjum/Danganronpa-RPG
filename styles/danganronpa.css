@@ -12133,6 +12133,18 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     box-shadow: 0 0 8px var(--drpg-eye-glow);
 }
 
+/* The Season setup row a running game still waits on (the owner's Q-8 amended, 30.10.2026): a second line under
+   the Next line, a size down and dimmed, so "N students still have actions" stays the line that is read first
+   (gm-panel.mjs `nextLineHtml`; R1522 reads both themes). */
+.drpg-gmp-next-setup {
+    flex: 1 0 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
+}
+
 /* The clock's own button: one press moves the time of day on. Sits at the end
    of the clock line, sized like the suggestion's "Do it".
 
@@ -12336,6 +12348,12 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     border: 1px solid var(--drpg-line);
     border-radius: 3px;
 }
+
+/* The report's marks in their state's colour (E20 fix round, the goal review's G-8): a check in the evidence
+   colour, a cross in the alarm, where both were the text's own colour (season-setup.mjs `checkMarks`; R1530
+   reads both themes). */
+.drpg-check-ok { color: var(--drpg-evidence); font-weight: 700; }
+.drpg-check-bad { color: var(--drpg-eye-light); font-weight: 700; }
 
 /* ==========================================================================
    BLOCKED BY THE ECLIPSE, NOT BY THE PURSE

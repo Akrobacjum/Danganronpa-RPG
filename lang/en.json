@@ -2121,6 +2121,10 @@
         "one": "{n} of them is locked.",
         "other": "{n} of them are locked."
       },
+      "roomCensusUndecided": {
+        "one": "Not counted yet: {n} region nobody has decided, ticked as a suggestion - Apply makes it a room.",
+        "other": "Not counted yet: {n} regions nobody has decided, ticked as suggestions - Apply makes them rooms."
+      },
       "searchIntro": "What searching each room draws from, how many search tokens it has left, and what it is a sensible place to look for.",
       "room": "Room",
       "owner": "Whose bedroom",
@@ -2873,7 +2877,7 @@
         "one": "{n} pool",
         "other": "{n} pools"
       },
-      "suggestNone": "A suggestion appears here once the season has students.",
+      "suggestNone": "A suggestion appears here once the season has living students.",
       "amount": "by",
       "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
@@ -3580,6 +3584,7 @@
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
       "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
+      "nextSeasonSetupAside": "Set the season up still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
@@ -4370,7 +4375,7 @@
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves.",
       "cast": {
-        "students": "Students (Monokumas excluded): {n}",
+        "students": "Students: {all}, living: {living}",
         "starting": "Starting resources: {hp} Health, {stress} Sanity, {hope} Hope",
         "noCast": "No students yet: create the cast first, then run these checks again.",
         "row": "Health max {hp}, Sanity max {stress}",
@@ -4414,7 +4419,7 @@
       "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
       "title": "Set the season up",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
-      "introReady": "Everything is in place. This list is the same one the pre-season checks read, so they will come back green.",
+      "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
       "campaignName": "Campaign name",
       "campaignPlaceholder": "Hope's Peak: Drowned Summer",
       "chapter": "Chapter",
@@ -4633,8 +4638,8 @@
       "fallsBackTo": "{name} (falls back to {pool})",
       "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
       "roomsCheckErrors": {
-        "one": "The room check found {n} error on {scene}: fix it and check again.",
-        "other": "The room check found {n} errors on {scene}: fix them and check again."
+        "one": "The room check found {n} problem on {scene}: fix it and check again.",
+        "other": "The room check found {n} problems on {scene}: fix them and check again."
       },
       "roomsJudged": {
         "one": "Judged on {scene}. {n} scene holds rooms.",
@@ -4730,8 +4735,8 @@
         "other": "{n} named regions are not rooms"
       },
       "lastCheckErrors": {
-        "one": "the last room check found {n} error",
-        "other": "the last room check found {n} errors"
+        "one": "the last room check found {n} problem",
+        "other": "the last room check found {n} problems"
       },
       "checkNoScene": {
         "problem": "No scene on the canvas",
@@ -4753,6 +4758,8 @@
         "why": "The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it."
       },
       "uncoveredShare": "{pct}% of the map belongs to no room",
+      "uncoveredShareFloor": "{pct}% of {floor} belongs to no room",
+      "sceneFloor": "{scene} ({floor})",
       "check": {
         "showOnMap": "Show on map",
         "unnamed": {

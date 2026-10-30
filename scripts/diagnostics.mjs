@@ -13,7 +13,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
 import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
-import { studentActors } from "./monokuma.mjs";
+import { studentActors, studentCensus } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
@@ -1262,7 +1262,10 @@ export function diagnoseCharacters({ toChat = true, roster = studentActors(), as
     const t = (key, data) => (data ? game.i18n.format(`DRPG.Diagnostics.cast.${key}`, data) : game.i18n.localize(`DRPG.Diagnostics.cast.${key}`));
     const lines = [];
 
-    lines.push(t("students", { n: roster.length }));
+    /* ALL AND LIVING, BY THE CHECKLIST'S COUNT (E20 fix round, the goal review's G-5). This line counted the dead as
+       "Students (Monokumas excluded): 4" while the checklist and the Doors tab said "Living students: 3": both now. */
+    const census = studentCensus(roster);
+    lines.push(t("students", { all: census.all.length, living: census.count }));
     lines.push(t("starting", { hp: STARTING.hp, stress: STARTING.stress, hope: STARTING.hope }));
     lines.push("");
 

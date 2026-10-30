@@ -25,7 +25,9 @@
  * No other name here is read outside it, so none was exported for the move and
  * the module's API is the one it was. E20 C2 added three that season-setup.mjs
  * imports from here, the facade exporting nothing new: `roomCheckHtml`, the
- * check drawn with its legend, and `wireShowOnMap` with `showOnMap`.
+ * check drawn with its legend, and `wireShowOnMap` with `showOnMap`; the E20
+ * fix round two more: `roomCheckProblems` (with `ROOM_CHECK_PROBLEM_KINDS`) and
+ * `sceneUncoveredShare`, the worst floor's share by name.
  * Nothing here imports fog.mjs back (R161
  * would see the cycle). Below it are config.mjs (`MODULE_ID`), movement.mjs
  * (`boundsOf`), the rooms.mjs leaf (what a room is, E12 C2b), fog-geometry.mjs,
@@ -642,6 +644,20 @@ function finding(kind, data = {}, fact = null) {
     return { kind, problem: game.i18n.format(`${key}.problem`, data), detail, why: game.i18n.localize(`${key}.why`), ...(title ? { title } : {}) };
 }
 
+/*
+ * WHAT BREAKS THE FOG, NOT ONLY WHAT IS AN ERROR (E20 fix round, the goal review's G-1; S06-28). Check rooms
+ * recorded its errors alone, so a border drawn away from its walls, a room with no way out and no neighbour, and
+ * a room whose pieces disagree - each a warning, each a fault a player sees - left the rooms tick, Pre-season's
+ * mark and the Next line done. These kinds count beside the errors; the rest of the warnings (a Foundry default
+ * name, a sealed room beside another, a secret door) are advice the row does not wait on.
+ */
+export const ROOM_CHECK_PROBLEM_KINDS = Object.freeze(["adrift", "isolated", "piecesDiffer"]);
+
+/** How many of Check rooms' findings the rooms row and Pre-season's scene line wait on: every error, and the warnings above (R1526). */
+export function roomCheckProblems(findings) {
+    return (findings ?? []).filter(f => f?.level === "error" || (f?.level === "warning" && ROOM_CHECK_PROBLEM_KINDS.includes(f.kind))).length;
+}
+
 /**
  * Check rooms' findings as the Season setup window draws them (E20 C2, S07-14): the explanation of each kind
  * once, as a legend above the list, in the order the kinds first appear; then one row a finding - its mark,
@@ -804,12 +820,14 @@ function overlapArea(a, b, grid) {
  * ========================================================================== */
 
 /**
- * Percentage of the scene's own rect NOT covered by any room's polygons.
- * A simple sum of areas, not a true union - two overlapping rooms would be
- * counted twice - which only ever makes the number an over-estimate of the
- * covered fraction, i.e. an UNDER-estimate of how much is missing. Good
- * enough for a warning line computed once when a GM opens a management
- * window; not something to spend a polygon-boolean library on.
+ * Percentage of the scene's own rect NOT covered by any room's polygons, on its
+ * worst floor (`sceneUncoveredShare`). A simple sum of areas, not a true union -
+ * two overlapping rooms would be counted twice - which only ever makes the
+ * number an over-estimate of the covered fraction, i.e. an UNDER-estimate of how
+ * much is missing. Not something to spend a polygon-boolean library on, though
+ * it is read on every redraw of the GM panel since E20 C4 (its Next line asks
+ * the checklist, whose rooms row reads it), not once per management window as
+ * this note said until the E20 fix round.
  *
  * THE SCENE'S RECT, NOT THE CANVAS (E20 C1, S07-13). `dimensions.width` and
  * `height` are the canvas, the padding round the map included, so a map
@@ -820,7 +838,19 @@ function overlapArea(a, b, grid) {
  * (`regionAreaIn`).
  */
 export function sceneUncoveredPercent(scene = canvas?.scene) {
-    if (!scene) return 0;
+    return sceneUncoveredShare(scene).pct;
+}
+
+/**
+ * FLOOR BY FLOOR (E20 fix round, the correctness review's C-4). Every floor's rooms were added up against
+ * the one rect, so a school whose first floor was covered whole and whose second by half read 0% - and the
+ * share decides the checklist's rooms tick and Pre-season's mark. On a scene of more than one floor
+ * (rooms.mjs `floorsOf`) each floor is measured with its own room pieces (`onLevel`: a piece that names no
+ * floor stands on every floor), and the worst one answers, by name. Answers `{ pct, floor }`: the percent,
+ * and the worst floor's name, or null on a scene of one floor or none (R1525).
+ */
+export function sceneUncoveredShare(scene = canvas?.scene) {
+    if (!scene) return { pct: 0, floor: null };
     // THE SCENE'S OWN dimensions, not the canvas's. This used to measure
     // whichever scene was on screen, so asking about any other one compared its
     // regions against a rectangle belonging to somewhere else - which is
@@ -828,13 +858,23 @@ export function sceneUncoveredPercent(scene = canvas?.scene) {
     const dims = scene.dimensions ?? canvas?.dimensions;
     const rect = sceneRectOf(dims, scene);
     const total = rect.width * rect.height;
-    if (!(total > 0)) return 0;
+    if (!(total > 0)) return { pct: 0, floor: null };
 
     // Rooms only (E12 C2b): the floor of a named region that is no room belongs to no room.
-    let covered = 0;
-    for (const region of roomPieces(scene)) covered += regionAreaIn(region, rect);
-    const uncovered = Math.max(0, total - covered);
-    return Math.round((uncovered / total) * 100);
+    const pieces = roomPieces(scene);
+    const share = list => {
+        let covered = 0;
+        for (const region of list) covered += regionAreaIn(region, rect);
+        return Math.round((Math.max(0, total - covered) / total) * 100);
+    };
+    const floors = floorsOf(scene);
+    if (floors.length < 2) return { pct: share(pieces), floor: null };
+    let worst = null;
+    for (const floor of floors) {
+        const pct = share(pieces.filter(region => onLevel(region, floor)));
+        if (!worst || pct > worst.pct) worst = { pct, floor: floor?.name || floor?.id || null };
+    }
+    return worst;
 }
 
 /** The map's own rect inside the padded canvas: `sceneRect`, else its four numbers, else the scene's size at the origin. */

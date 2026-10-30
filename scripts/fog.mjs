@@ -82,7 +82,7 @@ import {
     revealLinePositions, drawRevealFrame, flashOutline, ensurePixelFont, fadeRoomOutline, seamWidth,
     rezoomRoomOutline, recolourRoomOutline
 } from "./fog-reveal.mjs";
-import { sceneUncoveredPercent } from "./fog-diagnostics.mjs";
+import { sceneUncoveredShare } from "./fog-diagnostics.mjs";
 // The one census of rooms (E20 C1): vault.mjs reaches fog.mjs by no static import, so this makes no cycle (R161).
 import { roomCensus } from "./vault.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -895,7 +895,8 @@ export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ??
         if (!roomNames(scene).length) continue;
         const census = roomCensus(scene);
         const notRooms = namedRegions(scene).length - roomPieces(scene).length;
-        const uncovered = sceneUncoveredPercent(scene);
+        // The worst floor's share, named on a scene of several (E20 fix round, C-4); the last room check's problems (G-1).
+        const { pct: uncovered, floor } = sceneUncoveredShare(scene);
         const errors = Number(lastChecks.get(scene.id)) || 0;
 
         const off = fogDisabledValue();
@@ -907,7 +908,8 @@ export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ??
         // In the table's language, marked as the cast report marks its rows (E20 C2, S01-23): "ok" and "!!"
         // and "% of the map belongs to no room" were English on a Polish table.
         rows.push(`${ready ? "✓ " : "✗ "}${scene.name} - ${plural("DRPG.Vault.roomCensus", { n: census.count })}, `
-            + game.i18n.format("DRPG.Fog.uncoveredShare", { pct: uncovered })
+            + (floor ? game.i18n.format("DRPG.Fog.uncoveredShareFloor", { pct: uncovered, floor })
+                : game.i18n.format("DRPG.Fog.uncoveredShare", { pct: uncovered }))
             + (notRooms > 0 ? `; ${plural("DRPG.Fog.notRooms", { n: notRooms })}` : "")
             + (errors ? `; ${plural("DRPG.Fog.lastCheckErrors", { n: errors })}` : ""));
     }

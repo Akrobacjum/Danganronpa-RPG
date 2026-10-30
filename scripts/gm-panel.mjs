@@ -1350,11 +1350,14 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
     } catch (err) {
         error("Could not read Set the season up for the Next line", err);
     }
-    if (outstanding) {
-        return {
-            text: game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${outstanding.key}`) }),
-            action: "seasonSetup"
-        };
+    /* BEFORE THE SEASON STARTS, NOT IN A RUNNING GAME (the owner's Q-8 amended, 30.10.2026). In a game under way a
+       required row not done - a student added mid-season with no Ultimate, a room check that found a fault - took the
+       line from "N students still have actions", the one number a GM running a time of day reads. Before the season
+       starts (`seasonUnderway`) the setup line replaces it, as C4 built; once it runs, Daily Life's line stays first and
+       the row comes under it as a second, quieter line (`setup`, drawn by `nextLineHtml`). R1522. */
+    const stepName = outstanding ? game.i18n.localize(`DRPG.Season.step.${outstanding.key}`) : "";
+    if (outstanding && !seasonUnderway(clock)) {
+        return { text: game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: stepName }), action: "seasonSetup" };
     }
 
     // Daily Life. The one number that decides whether the time of day is over.
@@ -1362,10 +1365,51 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
     // refills, `endEclipse` advances), so that is what the line suggests; the
     // "Next time of day" button beside the clock is the road for a table that
     // skips one. Neither goes near the campaign editor, which is for corrections.
-    return stillActing.length
+    const line = stillActing.length
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
         : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
+    return outstanding
+        ? { ...line, setup: { text: game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: stepName }), action: "seasonSetup" } }
+        : line;
+}
+
+/**
+ * WHETHER THE SEASON HAS STARTED (the owner's Q-8 amended, 30.10.2026): the clock has left the first time of day of
+ * its first day - a time of day, a day, a session or a chapter on, a phase other than Daily Life - or a boundary has
+ * refilled the cast (`refilledFor`, written by the first Eclipse). A fresh world's clock and the one a season reset
+ * writes (chapter 1, day 1, session 1, the first time of day, Daily Life, `refilledFor` forgotten) read not started.
+ * Pure over the clock handed in; exported for R1522.
+ */
+export function seasonUnderway(clock) {
+    if (!clock) return false;
+    const first = TIMES_OF_DAY[0];
+    return clock.refilledFor != null
+        || (Number(clock.chapter) || 1) > 1 || (Number(clock.day) || 1) > 1 || (Number(clock.session) || 1) > 1
+        || (clock.timeOfDay ?? first) !== first || (clock.phase ?? "dailyLife") !== "dailyLife";
+}
+
+/**
+ * The Next line as the panel draws it (E11's line; the owner's Q-8 amended): the label, the text and its Do it, and
+ * under them, while a game under way still has a required Season setup row not done, that row as a second, quieter
+ * line with its own Open (`step.setup`). The second line's classes are its own, so a reader of the first
+ * (`.drpg-gmp-next-text`, `.drpg-gmp-next-go`; scenario 65) reads the line it read before. Exported for R1522.
+ */
+export function nextLineHtml(step) {
+    const setup = step?.setup ? `<div class="drpg-gmp-next-setup">
+            <span class="drpg-gmp-next-setup-text">${step.setup.text}</span>
+            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}">
+                ${game.i18n.localize("DRPG.Season.openIt")}</button>
+        </div>` : "";
+    return `<div class="drpg-gmp-next">
+            <span class="drpg-gmp-next-label">${game.i18n.localize("DRPG.Panel.nextLabel")}</span>
+            <span class="drpg-gmp-next-text">${step.text}</span>
+            ${step.action
+                ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}">
+                       ${game.i18n.localize("DRPG.Panel.nextGo")}</button>`
+                : ""}
+            ${setup}
+        </div>`;
 }
 
 /** The first body a walk-in would discover now, as the watcher picks them (`bodiesToDiscover`), or null. GM-side. */
@@ -1444,15 +1488,7 @@ function buildPanelContent() {
     // The suggestion sits ABOVE the standing, because it is the thing being
     // looked for. Its button carries an ordinary `data-drpg-run`, so the panel's
     // existing delegate runs it and reopens the panel afterwards like any tile.
-    const step = nextStep(clock);
-    const suggestion = `<div class="drpg-gmp-next">
-            <span class="drpg-gmp-next-label">${game.i18n.localize("DRPG.Panel.nextLabel")}</span>
-            <span class="drpg-gmp-next-text">${step.text}</span>
-            ${step.action
-                ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}">
-                       ${game.i18n.localize("DRPG.Panel.nextGo")}</button>`
-                : ""}
-        </div>`;
+    const suggestion = nextLineHtml(nextStep(clock));
 
     // One press for the clock, on the line that shows it. Hidden during an
     // Eclipse (its end advances) and in a trial (the chapter's end does).

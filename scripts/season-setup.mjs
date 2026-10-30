@@ -47,8 +47,9 @@ import { overflowThreshold, overflowSuggestion, overflowSuggestionLine } from ".
 // A leaf: which named regions no GM has decided yet (E12 C1).
 import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene,
     namedRegions } from "./rooms.mjs";
-// How much of a map is in no room (E20 C1): fog.mjs never reaches back here.
-import { sceneUncoveredPercent } from "./fog.mjs";
+// How much of a map is in no room, on its worst floor (E20 C1; fix round C-4), and what of Check rooms the rooms row
+// waits on (fix round G-1): fog-diagnostics.mjs never reaches back here.
+import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite } from "./utils.mjs";
@@ -252,10 +253,11 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
  * The checklist's rows. Every argument is the world's unless handed in (E20 C1: R1501, R1503 and
  * R1505 hand an empty cast, scenes of plain objects, an assignment map and a record of room checks):
  * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,
- * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id.
+ * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id (how many problems each found,
+ * `roomCheckProblems`), `liveKit` avclient-livekit's connection setting (R1523 hands one).
  */
 export function steps({ roster = studentActors(), scenes = Array.from(game.scenes ?? []), roomScene: judged,
-    assigned = assignments(), lastChecks = lastRoomChecks } = {}) {
+    assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings() } = {}) {
     const clock = getClock();
     /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
@@ -272,7 +274,9 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
     const living = studentCensus(roster).count;
     // The rooms row's facts (E20 C1, S06-28, S07-33): every scene with rooms counted, the judged one named.
     const withRooms = scenes.filter(sceneHoldsRooms);
-    const uncovered = roomScene ? sceneUncoveredPercent(roomScene) : 0;
+    // The worst floor's share, and that floor's name on a scene of several (E20 fix round, C-4).
+    const share = roomScene ? sceneUncoveredShare(roomScene) : { pct: 0, floor: null };
+    const uncovered = share.pct;
     const checkErrors = roomScene ? (Number(lastChecks.get(roomScene.id)) || 0) : 0;
     const anyNamed = scenes.some(scene => namedRegions(scene).length > 0);
     const nobody = a => feedsNobody(a, assigned);
@@ -403,11 +407,14 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         {
             /* THE OVERFLOW THRESHOLD FOR THIS CAST (E20 C6, S02-59, D21). The default is tuned for sixteen players;
                this row works the module's formula out for the living cast and the pools, and is advisory: done when
-               the threshold is the suggestion, a dash otherwise, since the GM decides. Waits with no cast. */
+               the threshold is the suggestion, a dash otherwise, since the GM decides. Waits with no cast. A cast with
+               no living student has no suggestion (E20 fix round, C-8 = G-10): the row read "Suggested for 0 students
+               and 1 pool: null"; it is not done, and its line says a suggestion comes with living students
+               (`overflowSuggestionLine`). */
             key: "overflow",
             optional: true,
             waiting,
-            done: !waiting && overflowThreshold() === overflowSuggestion(living),
+            done: !waiting && living > 0 && overflowThreshold() === overflowSuggestion(living),
             missing: () => [game.i18n.format("DRPG.Season.overflowNow", {
                 line: overflowSuggestionLine(living, monokumas().length), n: overflowThreshold() })],
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
@@ -476,7 +483,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             done: withRooms.length > 0 && sceneHoldsRooms(roomScene) && uncovered <= UNCOVERED_LIMIT_PCT && !checkErrors,
             missing: () => [
                 ...(roomScene && uncovered > UNCOVERED_LIMIT_PCT
-                    ? [game.i18n.format("DRPG.Season.roomsUncovered", { scene: roomScene.name, pct: uncovered })] : []),
+                    ? [game.i18n.format("DRPG.Season.roomsUncovered", { pct: uncovered, scene: share.floor
+                        ? game.i18n.format("DRPG.Fog.sceneFloor", { scene: roomScene.name, floor: share.floor }) : roomScene.name })] : []),
                 ...(checkErrors ? [plural("DRPG.Season.roomsCheckErrors", { n: checkErrors, scene: roomScene.name })] : [])
             ],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
@@ -590,10 +598,14 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
            `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
            because the setting is avclient-livekit's and the repair is choosing a server
-           that keeps its secret to itself. The sentence is the voice diagnosis's. */
-        ...(liveKitSecretWarning(liveKitConnectionSettings()) ? [{
+           that keeps its secret to itself. The sentence is the voice diagnosis's.
+           A ROW THE MODULE CANNOT FINISH (E20 fix round, the correctness review's C-1): `external`, so the GM panel's
+           Next line (`firstOutstandingStep`) does not wait on it - with a self-hosted LiveKit it never offered the
+           Eclipse. The row is still drawn, crossed. */
+        ...(liveKitSecretWarning(liveKit) ? [{
             key: "liveKitSecret",
             hintKey: "DRPG.Voice.liveKitSecret",
+            external: true,
             done: false,
             missing: () => []
         }] : []),
@@ -643,9 +655,12 @@ function despairSplitEven() {
  * THE FIRST STEP (E20 C4, S10-57; Q-8): the first row a season still needs - neither optional nor done - or null
  * once every required row holds. The GM panel's Next line names it until then (gm-panel.mjs `nextStep`), so a world
  * with no cast is sent here and not to the Eclipse.
+ * E20 fix round: a row the module cannot finish (`external`, C-1: a self-hosted LiveKit's secret) is not waited on;
+ * and the rooms are judged on the school (`homeScene`, C-7), not on the scene this GM happens to view - a side map
+ * of two rooms told the Next line the season was not set up.
  */
-export function firstOutstandingStep(list = steps()) {
-    return list.find(step => !step.done && !step.optional) ?? null;
+export function firstOutstandingStep(list = steps({ roomScene: homeScene() })) {
+    return list.find(step => !step.done && !step.optional && !step.external) ?? null;
 }
 
 /**
@@ -728,14 +743,30 @@ export function campaignFieldsHtml(clock, word) {
  * `autofocus`; with the footer pinned across the scroll (utils.mjs `pinFooterAcrossScroll`), focusing it is the likely
  * reason the window opened scrolled to the bottom (the audit's reading; not measured on a real Foundry here). Save
  * stays the default for Enter; only its autofocus goes, the campaign name takes the focus without scrolling, and the
- * content is put back at its top. Answers the field it focused.
+ * content is put back at its top. Answers the element it focused.
+ *
+ * AND COMES BACK WHERE IT WAS (E20 fix round, the correctness review's C-2; S06-30 again). This ran on every render,
+ * so after a row's Do it or Open, or Pre-season checks, the window came back at its top with the caret in Campaign
+ * name and the row just acted on below the fold. `place` is what the copy that closed carried (`readDraft`): its
+ * scroll and the row it acted on (`step`) or the footer button pressed (`action`). With a place the scroll is put
+ * back and that row's button, or that footer button, takes the focus without scrolling (a row done since has no
+ * button left: nothing is focused then, and the scroll still holds); only a fresh open goes to the top.
  */
-export function seasonOpening(root) {
+export function seasonOpening(root, place = null) {
     if (!root) return null;
     for (const button of root.querySelectorAll("footer [autofocus]")) button.removeAttribute("autofocus");
-    const first = root.querySelector('.drpg-setup-campaign input[name="campaignName"]');
-    try { first?.focus({ preventScroll: true }); } catch { /* a field that cannot take the focus still leaves the top in view */ }
     const content = root.querySelector(".window-content");
+    const focus = el => { try { el?.focus({ preventScroll: true }); } catch { /* a control that cannot take the focus */ } };
+    if (place) {
+        const row = place.step ? root.querySelector(`.drpg-setup-step[data-drpg-step="${CSS.escape(String(place.step))}"]`) : null;
+        const target = place.action ? root.querySelector(`footer [data-action="${CSS.escape(String(place.action))}"]`)
+            : row?.querySelector(".drpg-setup-do") ?? null;
+        focus(target);
+        if (content) content.scrollTop = Number(place.scrollTop) || 0;
+        return target ?? null;
+    }
+    const first = root.querySelector('.drpg-setup-campaign input[name="campaignName"]');
+    focus(first);
     if (content) content.scrollTop = 0;
     return first ?? null;
 }
@@ -754,18 +785,23 @@ export function seasonOpening(root) {
  *
  * Only these three, by name: everything else in the window is a read-out, and the
  * reset panel is its own window with its own confirmation.
+ *
+ * And where the GM was (E20 fix round, C-2): `place`, the content's scroll and the row acted on (`step`) or the
+ * footer button pressed (`action`), which `seasonOpening` puts back on the copy that comes back. Exported for R1524.
  */
-function readDraft(root) {
+export function readDraft(root, { step = null, action = null } = {}) {
     if (!root) return null;
     const value = name => root.querySelector(`[name="${name}"]`)?.value ?? null;
-    return { campaignName: value("campaignName"), chapter: value("chapter"), safeword: value("safeword") };
+    const scrollTop = Number(root.querySelector(".window-content")?.scrollTop) || 0;
+    return { campaignName: value("campaignName"), chapter: value("chapter"), safeword: value("safeword"),
+        place: { scrollTop, step, action } };
 }
 
 /** Put a carried draft back on the fields, once the new copy has rendered. */
 function paintDraft(root, draft) {
     if (!root || !draft) return;
     for (const [name, value] of Object.entries(draft)) {
-        if (value === null) continue;
+        if (value === null || name === "place") continue;
         const field = root.querySelector(`[name="${name}"]`);
         // The value the GM typed, including a deliberately emptied field - which is
         // why this writes whatever came back rather than only non-empty strings.
@@ -800,8 +836,10 @@ export function setupRows(list) {
         // the cross nor the "outstanding" styling - a dash and its own note.
         const mark = step.done ? "✓" : step.optional || waits ? "\u2013" : "✗";
 
+        // Its key on the row (E20 fix round): Check rooms draws the rooms row again in place (`repaintStep`), and a round
+        // trip finds the row it acted on (`seasonOpening`).
         return `<li class="drpg-setup-step${step.done ? " done" : ""}${
-            (step.optional || waits) && !step.done ? " optional" : ""}${waits ? " waiting" : ""}">
+            (step.optional || waits) && !step.done ? " optional" : ""}${waits ? " waiting" : ""}" data-drpg-step="${esc(step.key)}">
             <span class="drpg-setup-mark">${mark}</span>
             <div class="drpg-setup-body">
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
@@ -827,6 +865,34 @@ function readSeasonForm(d) {
     };
 }
 
+/**
+ * One row of the checklist drawn again in place (E20 fix round, the goal review's G-1): its mark, its state, the line
+ * of what it waits on and its button, from `setupRows`, while the rest of the row - the room guide, Check rooms and
+ * its findings - stays as it is. The list's one listener (`wireSetupSteps`) runs the buttons, so a button the redraw
+ * brings works. Exported for R1526.
+ */
+export function repaintStep(li, step) {
+    if (!li || !step) return;
+    const box = document.createElement("template");
+    box.innerHTML = setupRows([step]);
+    const fresh = box.content.querySelector(".drpg-setup-step");
+    if (!fresh) return;
+    li.className = fresh.className;
+    const mark = li.querySelector(":scope > .drpg-setup-mark");
+    if (mark) mark.textContent = fresh.querySelector(":scope > .drpg-setup-mark")?.textContent ?? "";
+    const body = li.querySelector(":scope > .drpg-setup-body");
+    const missing = body?.querySelector(":scope > .drpg-setup-missing") ?? null;
+    const nextMissing = fresh.querySelector(":scope > .drpg-setup-body > .drpg-setup-missing");
+    if (missing && nextMissing) missing.replaceWith(nextMissing);
+    else if (missing) missing.remove();
+    else if (nextMissing) body?.querySelector(":scope > .notes")?.after(nextMissing);
+    const button = li.querySelector(":scope > .drpg-setup-do");
+    const nextButton = fresh.querySelector(":scope > .drpg-setup-do");
+    if (button && nextButton) button.replaceWith(nextButton);
+    else if (button) button.remove();
+    else if (nextButton) li.append(nextButton);
+}
+
 /** The Check rooms button under the rooms step: run the region check and print its findings in place. */
 function wireRoomCheck(dialog) {
     const checkButton = dialog.element.querySelector("[data-drpg-check]");
@@ -835,8 +901,11 @@ function wireRoomCheck(dialog) {
         ev.preventDefault();
         const [{ checkRegions }, { roomCheckHtml }] = await Promise.all([import("./fog.mjs"), import("./fog-diagnostics.mjs")]);
         const findings = checkRegions();
-        // What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1).
-        if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, findings.filter(f => f.level === "error").length);
+        /* What the rooms row and Pre-season's scene line read (`lastRoomChecks`, E20 C1): the problems - the errors and the
+           warnings that break the fog (`roomCheckProblems`, E20 fix round G-1), where the errors alone were kept; and the
+           rooms row drawn again with them, where it kept the mark the window opened with. */
+        if (canvas?.scene?.id) lastRoomChecks.set(canvas.scene.id, roomCheckProblems(findings));
+        repaintStep(dialog.element.querySelector('.drpg-setup-step[data-drpg-step="rooms"]'), steps().find(s => s.key === "rooms"));
         if (!findings.length) {
             checkOut.innerHTML = `<p class="notes">${
                 esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
@@ -856,52 +925,56 @@ function wireRoomCheck(dialog) {
  * place of its own answer - see the note inside.
  */
 function wireSetupSteps(dialog, onHandOff) {
-    for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
-        button.addEventListener("click", async ev => {
-            ev.preventDefault();
-            const step = steps().find(s => s.key === button.dataset.step);
-            if (!step) return;
-            // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
-            const before = windowStack();
-            try {
-                if (button.dataset.undo && step.undo) {
-                    const n = await step.undo();
-                    ui.notifications.info(plural(step.undoneKey, { n }));
-                } else if (step.fix) {
-                    const n = await step.fix();
-                    ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
-                } else {
-                    await step.open(step.missing());
-                }
-            } catch (err) {
-                error(`Could not act on the "${step.key}" setup step`, err);
+    /* One listener on the list, not one per button (E20 fix round, G-1): Check rooms draws the rooms row again in place
+       (`repaintStep`), and a button the redraw brings was wired by nobody. */
+    const list = dialog.element.querySelector(".drpg-setup-list");
+    list?.addEventListener("click", async ev => {
+        const button = ev.target?.closest?.(".drpg-setup-do");
+        if (!button || !list.contains(button)) return;
+        ev.preventDefault();
+        const step = steps().find(s => s.key === button.dataset.step);
+        if (!step) return;
+        // The windows on the page before the row acts, so the checklist that comes back can raise what it opened (S06-30).
+        const before = windowStack();
+        try {
+            if (button.dataset.undo && step.undo) {
+                const n = await step.undo();
+                ui.notifications.info(plural(step.undoneKey, { n }));
+            } else if (step.fix) {
+                const n = await step.fix();
+                ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
+            } else {
+                await step.open(step.missing());
             }
+        } catch (err) {
+            error(`Could not act on the "${step.key}" setup step`, err);
+        }
 
-            /*
-             * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
-             *
-             * The window still closes and comes back, because every one of these
-             * rows can change what ANOTHER row reports and the checklist is built
-             * from the world. What changed is the two things that made one press
-             * look like two:
-             *
-             * `await dialog.close(); openSeasonSetup();` resolved the
-             * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
-             * returned, and the GM panel tile awaiting it opened the PANEL over
-             * the window as it came back. `handOff` keeps the whole round trip in
-             * one promise, handed to `onHandOff` in the same turn as the close and
-             * returned by `openSeasonSetup`, so the tile waits for the real end of
-             * it. See the note on `handOff` in live.mjs for why it cannot be
-             * written with an `await` in front of it.
-             *
-             * And the new copy is built from the world, so the campaign name, the
-             * chapter and the safeword the GM had typed but not applied went with
-             * the reopen. They are read here, BEFORE the close, and painted back.
-             */
-            const draft = readDraft(dialog.element);
-            onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
-        });
-    }
+        /*
+         * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
+         *
+         * The window still closes and comes back, because every one of these
+         * rows can change what ANOTHER row reports and the checklist is built
+         * from the world. What changed is the two things that made one press
+         * look like two:
+         *
+         * `await dialog.close(); openSeasonSetup();` resolved the
+         * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
+         * returned, and the GM panel tile awaiting it opened the PANEL over
+         * the window as it came back. `handOff` keeps the whole round trip in
+         * one promise, handed to `onHandOff` in the same turn as the close and
+         * returned by `openSeasonSetup`, so the tile waits for the real end of
+         * it. See the note on `handOff` in live.mjs for why it cannot be
+         * written with an `await` in front of it.
+         *
+         * And the new copy is built from the world, so the campaign name, the
+         * chapter and the safeword the GM had typed but not applied went with
+         * the reopen. They are read here, BEFORE the close, and painted back.
+         */
+        // And the row acted on, with the scroll, so the copy that comes back opens there (C-2).
+        const draft = readDraft(dialog.element, { step: step.key });
+        onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
+    });
 }
 
 export async function openSeasonSetup({ draft = null, opened = null } = {}) {
@@ -955,7 +1028,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             // answer the string "checks", which carries no fields at all.
             {
                 action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
-                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element) })
+                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
             },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
@@ -974,8 +1047,9 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
              */
             wireRoomCheck(dialog);
             wireSetupSteps(dialog, trip => { roundTrip = trip; });
-            // At its top, on its first field (S01-19); then what a row's Open opened, in front of it (S06-30).
-            seasonOpening(dialog.element);
+            // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a row's Open
+            // opened, in front of it (S06-30).
+            seasonOpening(dialog.element, draft?.place ?? null);
             if (opened) raiseOpened(opened);
         },
         rejectClose: false
@@ -1099,16 +1173,47 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head } =
             ${voice.map(key => `<p class="drpg-check-report">${esc(game.i18n.localize(key))}</p>`).join("")}` : "";
     const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}) }), esc);
 
+    // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
     return `<div>
             <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
-            <pre class="drpg-check-report">${esc(setup)}</pre>
+            <pre class="drpg-check-report">${checkMarks(esc(setup))}</pre>
             <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
-            <pre class="drpg-check-report">${esc(sceneLines)}</pre>
+            <pre class="drpg-check-report">${checkMarks(esc(sceneLines))}</pre>
             ${pictures}
             ${video}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
-            <div data-drpg-anon>${anon.body ?? ""}</div>
+            <div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>
         </div>`;
+}
+
+/**
+ * THE REPORT'S MARKS IN THEIR STATE'S COLOUR (E20 fix round, the goal review's G-8; E20-07's "reads green"). Every check
+ * and cross of Pre-season's report was the text's own colour in both themes, so a line that passed read as one that
+ * did not. Each ✓ and ✗ in the text of `html` (escaped markup; attributes are not touched, the marks are found in its
+ * text nodes) is wrapped in a span the stylesheets colour - the evidence colour of each theme for a check, the alarm
+ * for a cross (R1530). Exported for R1530.
+ */
+export function checkMarks(html) {
+    const box = document.createElement("template");
+    box.innerHTML = String(html ?? "");
+    const texts = [];
+    const walk = node => {
+        for (const child of node.childNodes) {
+            if (child.nodeType === 3) { if (/[✓✗]/.test(child.nodeValue)) texts.push(child); } else walk(child);
+        }
+    };
+    walk(box.content);
+    for (const node of texts) {
+        const parts = node.nodeValue.split(/([✓✗])/);
+        node.replaceWith(...parts.filter(Boolean).map(part => {
+            if (part !== "✓" && part !== "✗") return document.createTextNode(part);
+            const mark = document.createElement("span");
+            mark.className = part === "✓" ? "drpg-check-ok" : "drpg-check-bad";
+            mark.textContent = part;
+            return mark;
+        }));
+    }
+    return box.innerHTML;
 }
 
 /**

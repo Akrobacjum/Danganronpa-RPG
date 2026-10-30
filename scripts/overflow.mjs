@@ -1003,8 +1003,12 @@ export function overflowSuggestion(students) {
     return Math.min(max, Math.max(min, Math.round(12 + n / 2)));
 }
 
-/** "Suggested for {n} students and {p} pools: {x}". */
+/**
+ * "Suggested for {n} students and {p} pools: {x}"; with no living student the line that says a suggestion comes with
+ * the cast (E20 fix round, C-8 = G-10: it printed "Suggested for 0 students and 1 pool: null").
+ */
 export function overflowSuggestionLine(students, pools) {
+    if (overflowSuggestion(students) === null) return game.i18n.localize("DRPG.Overflow.suggestNone");
     return game.i18n.format("DRPG.Overflow.suggested", {
         students: plural("DRPG.Overflow.suggestStudents", { n: students }),
         pools: plural("DRPG.Overflow.suggestPools", { n: pools }),

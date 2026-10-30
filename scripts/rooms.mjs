@@ -551,6 +551,8 @@ export const CAMERA_READERS = Object.freeze({
     "fog-diagnostics.mjs#whatIsHere": "diagnose",
     "fog-diagnostics.mjs#checkRegions": "diagnose",
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",
+    /* Its worst floor by name (E20 fix round, C-4): the same reading, floor by floor. */
+    "fog-diagnostics.mjs#sceneUncoveredShare": "diagnose",
     /* Season setup's Check rooms (E20 C1): it records the errors of the map check under the scene on screen. */
     "season-setup.mjs#wireRoomCheck": "diagnose",
     "fog.mjs#diagnoseFog": "diagnose",

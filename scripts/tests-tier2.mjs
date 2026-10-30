@@ -47371,7 +47371,9 @@ const SCENARIOS = [
             return [made.length, doc.includes(title), doc.includes(phrase), made[0]?.whisper ?? null, words.includes(title), words.includes(phrase)];
         };
         const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"), "music follows the game state");
-        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"), "Monokumas excluded");
+        // The cast report's starting-resources line: its first line no longer says "Monokumas excluded" (E20 fix round, G-5).
+        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"),
+            game.i18n.localize("DRPG.Diagnostics.cast.starting").split("{")[0]);
         const want = [1, false, false, [game.user.id], true, true];
         equal(stableJson([music, season]), stableJson([want, want]),
             "a report's words are in its document, or not in this GM's store");
