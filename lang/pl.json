@@ -5084,6 +5084,14 @@
         "many": "Oznaczono {n} pokoi: {names}.",
         "other": "Oznaczono {n} pokoju: {names}."
       },
+      "stashesTitle": "Skrytki w sypialniach",
+      "stashesNote": "Żadna sypialnia poniżej nie miała skrytki swojego właściciela, więc właściciel każdej dostał otwartą. Jeśli którąś usunięto celowo, usuń ją znowu na karcie Skrytki w Ustawieniach pokoi.",
+      "stashesGiven": {
+        "one": "{n} sypialnia: {names}.",
+        "few": "{n} sypialnie: {names}.",
+        "many": "{n} sypialni: {names}.",
+        "other": "{n} sypialni: {names}."
+      },
       "skippedBehaviours": "Do Twojej decyzji w Ustawieniach pokoi, bo mają zachowania: {names}.",
       "skippedPlayer": "Nigdy nie są pokojami, bo narysował je gracz: {names}.",
       "skippedNoName": {

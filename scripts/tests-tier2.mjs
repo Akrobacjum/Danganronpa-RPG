@@ -56614,6 +56614,113 @@ const SCENARIOS = [
             `the stored stash lists of the seven rooms (A, B, C the three students; "hidden" a concealed stash), parts that differ: ${red.join(", ") || "none"}`);
     }],
 
+    ["the migration gives every Bedroom of an existing world its owner's stash once and tells the GMs, and not on a GM that is not the primary", async () => {
+        /*
+         * E89 C8, 30.10.2026; E89-23, Q-E89-4 (the owner: a stash for every Bedroom without one, once, at the first load
+         * of 1.2.91 on the primary GM, reported). A world played before 1.2.91 may hold Bedrooms whose owner has no
+         * stash - Room Setup's Stashes tab wrote `stashes: []` over a room marked after its owner (C7) - and nothing
+         * marks a stash a GM removed on purpose apart from that same list, so the clause runs once a world, stamped with
+         * its version, and names what it wrote. Here a scene of the suite's own holds three Bedrooms: Kept (A's, with
+         * A's stash), Emptied (B's, an empty stored list) and Late (C's, unticked with an empty list, then marked, as the
+         * bug left it). The clause is run through the migration (`only`), from a stamp before it (1.2.89: the module's
+         * version is the stamp a world reaches, so a stamp of it owes nothing); then again, forced; then, Emptied's stash
+         * taken away again, on a GM that is not the primary (another GM put first in the user list for the call's
+         * synchronous start, as the liftEclipseMoves test does). Read: the stored lists, the clause's answer, the stamp,
+         * the cards posted and the report's words. A Bedroom elsewhere in the world the clause also seeds is counted and
+         * its stash taken back. Red at the parent: no clause. In a GM-store world of the suite's own (`withGmStoreWorld`).
+         */
+        const [a, b, c] = cast(3);
+        const G = await import("./migrate.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { moduleVersion } = await import("./config.mjs");
+        const P = "SUITE E89 T2 ", KEPT = `${P}Kept`, EMPTIED = `${P}Emptied`, LATE = `${P}Late`, OLDER = "1.2.89";
+        const F = V.VAULT_FLAGS;
+        const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
+        const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
+        const FIRST = { id: "!suiteE89T2Gm", name: "SUITE E89 T2 first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const putBack = () => {
+            if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
+            if (ownFilter) users.filter = realFilter;
+            else delete users.filter;
+        };
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const msgsBefore = new Set(game.messages.contents.map(m => m.id));
+        const elsewhere = Array.from(game.scenes ?? []).flatMap(scene => V.bedroomStashGaps?.(scene)?.map(room => [scene, room]) ?? []);
+        const region = (name, x, flags) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: flags }, behaviors: [] });
+        let reading = null;
+        await E.withGmStoreWorld(`suite-e89t2-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const seen = new Set(msgsBefore);
+            const fresh = () => { const made = game.messages.contents.filter(m => !seen.has(m.id)); for (const m of made) seen.add(m.id); return made; };
+            try {
+                scene = await Scene.create({ name: `${P}scene`, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [
+                    region(KEPT, 0, { [R.ROOM_FLAG]: true, [F.owner]: a.id, [F.stashes]: [{ actorId: a.id, concealed: true }] }),
+                    region(EMPTIED, 500, { [R.ROOM_FLAG]: true, [F.owner]: b.id, [F.stashes]: [] }),
+                    region(LATE, 1000, { [R.ROOM_FLAG]: false, [F.owner]: c.id, [F.stashes]: [] })]);
+                await R.setRoomFlag(scene, LATE, R.ROOM_FLAG, true);
+                await settle();
+                const lists = () => [KEPT, EMPTIED, LATE].map(room => V.stashesIn(room, scene).map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort());
+                const at = [lists()];
+                await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, OLDER);
+                const first = await G.migrate1_2_0({ quiet: true, only: ["bedroomStashes"] });
+                await settle();
+                const cards = fresh();
+                const words = cards.length === 1 ? String(await wordsOf(cards[0], 2000) ?? "") : "";
+                at.push(lists());
+                const stamp = getSetting(SETTINGS.migratedVersion);
+                const second = await G.migrate1_2_0({ force: true, quiet: true, only: ["bedroomStashes"] });
+                await settle();
+                const cardsAgain = fresh().length;
+                at.push(lists());
+                await V.setStash(EMPTIED, b.id, { present: false, scene });
+                await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, OLDER);
+                users.filter = function (fn, ...rest) {
+                    const found = realFilter.call(this, fn, ...rest);
+                    return fn(FIRST) ? [...found, FIRST] : found;
+                };
+                let running;
+                try {
+                    running = G.migrate1_2_0({ quiet: true, only: ["bedroomStashes"] });
+                } finally {
+                    putBack();
+                }
+                const third = await running;
+                await settle();
+                at.push(lists());
+                reading = {
+                    lists: at,
+                    first: first?.clauses?.bedroomStashes ?? null, stamp: stamp === moduleVersion(), cards: cards.length,
+                    named: [scene.name, EMPTIED, LATE, c.name, b.name].map(text => words.includes(text)), keptNamed: words.includes(KEPT),
+                    second: [second?.clauses?.bedroomStashes ?? null, second?.failed ?? null], cardsAgain,
+                    third: [third?.notPrimary ?? null, getSetting(SETTINGS.migratedVersion) === OLDER, fresh().length]
+                };
+            } finally {
+                putBack();
+                await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+                for (const [where, room] of elsewhere) {
+                    const owner = V.vaultOwnerOf(room, where);
+                    if (owner && V.stashIn(room, owner, where)) await V.setStash(room, owner, { present: false, scene: where });
+                }
+                await scene?.delete();
+                const posted = game.messages.filter(m => !msgsBefore.has(m.id)).map(m => m.id);
+                if (posted.length) await ChatMessage.deleteDocuments(posted);
+                await settle();
+            }
+        });
+        const before = [["A hidden"], [], []], seeded = [["A hidden"], ["B"], ["C"]];
+        equal(stableJson(reading), stableJson({
+            lists: [before, seeded, seeded, [["A hidden"], [], ["C"]]],
+            first: { scenes: 1 + new Set(elsewhere.map(([where]) => where.id)).size, seeded: 2 + elsewhere.length }, stamp: true, cards: 1,
+            named: [true, true, true, true, true], keptNamed: false,
+            second: [null, []], cardsAgain: 0,
+            third: [["bedroomStashes"], true, 0]
+        }), `[the stored lists of Kept, Emptied and Late before, after the clause, after the forced run, after the run on a GM that is not the primary], the clause's answer, the stamp, the report's card and words, the forced run and the run off the primary`);
+    }],
+
     ["Room Setup writes a room's picture: a picture changed alone is saved on every piece of the room on the scene the window opened on, Remove writes none, a refused path is written nowhere and named, and a console's is read as none", async () => {
         /*
          * E77 C1, 13.10.2026; the A8 design's R382, the E77 plan's R507 (ledger V5), whose number the tier-0 guard

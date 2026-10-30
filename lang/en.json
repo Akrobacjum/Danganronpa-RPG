@@ -4842,6 +4842,12 @@
         "one": "{n} room marked: {names}.",
         "other": "{n} rooms marked: {names}."
       },
+      "stashesTitle": "Bedroom stashes given",
+      "stashesNote": "Each bedroom below had no stash for its owner, so its owner was given an open one. If you had removed one on purpose, remove it again on Room Setup's Stashes tab.",
+      "stashesGiven": {
+        "one": "{n} bedroom: {names}.",
+        "other": "{n} bedrooms: {names}."
+      },
       "skippedBehaviours": "Left for you to decide in Room Setup, because they carry behaviours: {names}.",
       "skippedPlayer": "Never rooms, because a player drew them: {names}.",
       "skippedNoName": {
