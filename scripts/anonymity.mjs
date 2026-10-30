@@ -581,13 +581,20 @@ export function explainOwnership(actor) {
  * a Set them to Observer the on-screen copy carries (`wireAnonymityFix`); a sheet closed to the other
  * players is an info line, since nobody can open it to loot the body; the levels are words.
  * `actors` is every character unless handed in (R1506 hands its own).
+ *
+ * WITH THE SWITCH OFF (E20 fix round, the goal review's G-3). Observer hides the secrets only while "Keep character
+ * sheets anonymous" is on: off, the redaction never runs and every player reads an Observer sheet whole. The audit then
+ * lists the Observer sheets (`unredacted`) under a line naming the switch, and its words, here and in Set them to
+ * Observer's notice, no longer say "its secrets hidden". `enforced` is the switch unless handed in (R1534).
  */
-export async function auditAnonymity({ toChat = true, actors = game.actors } = {}) {
+export async function auditAnonymity({ toChat = true, actors = game.actors, enforced = enforcing() } = {}) {
     const exposed = [];
     const closed = [];
     const shared = [];
     const orphaned = [];
     const assistants = [];
+    const unredacted = [];
+    const on = enforced === true;
 
     for (const actor of actors ?? []) {
         if (actor.type !== "character") continue;
@@ -596,23 +603,30 @@ export async function auditAnonymity({ toChat = true, actors = game.actors } = {
 
         if (info.defaultLevel > OBSERVER) exposed.push(info);
         else if (info.defaultLevel < OBSERVER) closed.push(info);
+        else if (!on) unredacted.push(info);
         if (info.assistantOwners.length) assistants.push(info);
         if (info.playerOwners.length > 1) shared.push(info);
         if (info.playerOwners.length === 0 && info.assistantOwners.length === 0) orphaned.push(info);
     }
 
-    const findings = { exposed, closed, shared, orphaned, assistants };
+    const findings = { exposed, closed, shared, orphaned, assistants, unredacted };
 
     const sections = [];
 
     if (exposed.length) {
         sections.push(section("DRPG.Anonymity.audit.exposed", exposed.map(i =>
-            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone"))}`
+            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone", on))}`
         )));
         // A button only where somebody can press it: a whispered copy is a chat card nothing wires.
         if (!toChat) {
             sections.push(`<p><button type="button" data-drpg-anon-fix>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
         }
+    }
+
+    if (unredacted.length) {
+        sections.push(section("DRPG.Anonymity.audit.switchOff", unredacted.map(i =>
+            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone", on))}`
+        )));
     }
 
     if (assistants.length) {
@@ -631,7 +645,7 @@ export async function auditAnonymity({ toChat = true, actors = game.actors } = {
         sections.push(section("DRPG.Anonymity.audit.orphaned", orphaned.map(i => {
             // Say who *does* have access, so "no owner" is never a mystery.
             const others = i.entries.length
-                ? i.entries.map(e => `${escape(e.user.name)}: ${escape(levelWords(e.level, "level"))}${e.isFullGm
+                ? i.entries.map(e => `${escape(e.user.name)}: ${escape(levelWords(e.level, "level", on))}${e.isFullGm
                     ? ` ${escape(game.i18n.localize("DRPG.Anonymity.role.gm"))}`
                     : e.isAssistant ? ` ${escape(game.i18n.localize("DRPG.Anonymity.role.assistant"))}` : ""}`).join(", ")
                 : game.i18n.localize("DRPG.Anonymity.audit.nobody");
@@ -642,7 +656,7 @@ export async function auditAnonymity({ toChat = true, actors = game.actors } = {
     // Nothing to fix still says so when the only lines are the closed sheets' note below it.
     const body = `${sections.length ? sections.join("") : `<p>✓ ${escape(game.i18n.localize("DRPG.Anonymity.audit.clean"))}</p>`}${
         closed.length ? section("DRPG.Anonymity.audit.closed", closed.map(i =>
-            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone"))}`)) : ""}`;
+            `${escape(i.actor.name)} - ${escape(levelWords(i.defaultLevel, "everyone", on))}`)) : ""}`;
 
     // The rendered body travels back with the findings, so a caller that puts
     // the answer on screen itself gets the same prose the whisper would have
@@ -679,9 +693,10 @@ export async function fixExposed(actors = game.actors) {
 /**
  * The on-screen audit's Set them to Observer (Pre-season checks): fix, say how many, and draw the audit
  * again in place. Answers `{ done() }`, the last press's promise, for a caller that waits on it (R1506,
- * E20-T1). `root` holds the audit's body, as `auditAnonymity({ toChat: false })` drew it.
+ * E20-T1). `root` holds the audit's body, as `auditAnonymity({ toChat: false })` drew it. With the switch off
+ * (`enforced`, the world's unless handed in; E20 fix round, G-3) the notice does not promise hidden secrets.
  */
-export function wireAnonymityFix(root, { actors = game.actors } = {}) {
+export function wireAnonymityFix(root, { actors = game.actors, enforced = enforcing() } = {}) {
     let last = Promise.resolve();
     root?.addEventListener("click", ev => {
         const button = ev.target?.closest?.("[data-drpg-anon-fix]");
@@ -690,8 +705,8 @@ export function wireAnonymityFix(root, { actors = game.actors } = {}) {
         button.disabled = true;
         last = (async () => {
             const n = await fixExposed(actors);
-            ui.notifications?.info(plural("DRPG.Anonymity.audit.fixed", { n }));
-            const again = await auditAnonymity({ toChat: false, actors });
+            ui.notifications?.info(plural(enforced === true ? "DRPG.Anonymity.audit.fixed" : "DRPG.Anonymity.audit.fixedOpen", { n }));
+            const again = await auditAnonymity({ toChat: false, actors, enforced });
             root.innerHTML = again.body ?? "";
         })().catch(err => error("Could not set the sheets back to Observer", err));
     });
@@ -701,10 +716,12 @@ export function wireAnonymityFix(root, { actors = game.actors } = {}) {
 /**
  * An ownership level in words (E20 C2, S11-19): `everyone` for the default, what every player gets;
  * `level` for one user's. Foundry's own names (OBSERVER, ...) were what the audit printed until then.
+ * Observer with "Keep character sheets anonymous" off (`enforced` false; E20 fix round, G-3) is the open
+ * words (`observerOpen`): no redaction runs, so no secret is hidden.
  */
-function levelWords(level, kind) {
+function levelWords(level, kind, enforced = true) {
     const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
-    const name = level >= L.OWNER ? "owner" : level >= L.OBSERVER ? "observer" : level >= L.LIMITED ? "limited" : "none";
+    const name = level >= L.OWNER ? "owner" : level >= L.OBSERVER ? (enforced ? "observer" : "observerOpen") : level >= L.LIMITED ? "limited" : "none";
     return game.i18n.localize(`DRPG.Anonymity.${kind}.${name}`);
 }
 

@@ -52,6 +52,7 @@ import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms
 import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
+import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
@@ -254,10 +255,11 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
  * R1505 hand an empty cast, scenes of plain objects, an assignment map and a record of room checks):
  * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,
  * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id (how many problems each found,
- * `roomCheckProblems`), `liveKit` avclient-livekit's connection setting (R1523 hands one).
+ * `roomCheckProblems`), `liveKit` avclient-livekit's connection setting (R1523 hands one), `givenBack` whether
+ * Foundry's settings are given back (enforced.mjs `foundryGivenBack`; R1532 hands it).
  */
 export function steps({ roster = studentActors(), scenes = Array.from(game.scenes ?? []), roomScene: judged,
-    assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings() } = {}) {
+    assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings(), givenBack = foundryGivenBack() } = {}) {
     const clock = getClock();
     /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
@@ -594,6 +596,16 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             undo: () => setPlayerRulers(true),
             undoKey: "DRPG.Season.showRulers",
             undoneKey: "DRPG.Season.undoneRulers"
+        },
+        /* THE MODULE HOLDS NOTHING (E20 fix round, the goal review's G-2). After Give back Foundry's settings the module
+           writes none of them until a GM holds them again - also after it was switched off and on, which is when a GM
+           forgets. Optional: a table may want Daggerheart's automations; Open is the Give back window, Hold them again. */
+        {
+            key: "foundryHeld",
+            optional: true,
+            done: !givenBack,
+            missing: () => [],
+            open: () => openGiveBackFoundry()
         },
         /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
            `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
@@ -1151,7 +1163,7 @@ async function runPreSessionChecks() {
  * @param {object} [options]
  * @returns {Promise<string>} HTML
  */
-export async function preSessionReport({ av = {}, scenes = game.scenes, head } = {}) {
+export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack() } = {}) {
     const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched, avOffForTile, videoWithoutAudio },
         { checkRoomImages }] = await Promise.all([
         import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
@@ -1171,10 +1183,14 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head } =
         videoUnwatched(av) && "DRPG.Panel.checksAvVideo"].filter(Boolean);
     const video = voice.length ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>
             ${voice.map(key => `<p class="drpg-check-report">${esc(game.i18n.localize(key))}</p>`).join("")}` : "";
-    const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}) }), esc);
+    const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}), ...(probeMs ? { probeMs } : {}) }), esc,
+        probeMs ?? ROOM_IMAGE_LIMITS.probeMs);
+    // The module holds nothing while Foundry's settings are given back (E20 fix round, G-2): said first, it explains the rest.
+    const held = givenBack ? `<p class="drpg-check-report">${esc(game.i18n.localize("DRPG.GiveBack.preSeason"))}</p>` : "";
 
     // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
     return `<div>
+            ${held}
             <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
             <pre class="drpg-check-report">${checkMarks(esc(setup))}</pre>
             <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
@@ -1221,11 +1237,15 @@ export function checkMarks(html) {
  * those over `ROOM_IMAGE_LIMITS` with the size that is over, and those whose size the server did not give - one
  * line each kind, nothing when no picture needs a word.
  *
- * @param {{missing: object[], large: object[], unknownSize: object[]}} found  room-tile.mjs `checkRoomImages`
+ * E20 fix round (the correctness review's C-3): a picture whose decode did not end in time while the server has it is
+ * no longer "does not load" - it is a line of its own, "not checked in time".
+ *
+ * @param {{missing: object[], large: object[], unknownSize: object[], late: object[]}} found  room-tile.mjs `checkRoomImages`
  * @param {function(*): string} esc
+ * @param {number} probeMs  how long a decode was given
  * @returns {string} HTML
  */
-function roomImagesSection(found, esc) {
+function roomImagesSection(found, esc, probeMs = ROOM_IMAGE_LIMITS.probeMs) {
     const where = entry => entry.rooms.map(r => game.i18n.format("DRPG.Panel.checksImagesWhere", r)).join(", ");
     const listOf = list => list.map(where).join("; ");
     const mb = bytes => new Intl.NumberFormat(game.i18n.lang || undefined, { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024));
@@ -1236,7 +1256,8 @@ function roomImagesSection(found, esc) {
         found.missing.length && game.i18n.format("DRPG.Panel.checksImagesMissing", { rooms: listOf(found.missing) }),
         found.large.length && game.i18n.format("DRPG.Panel.checksImagesLarge", { side: ROOM_IMAGE_LIMITS.side,
             mb: mb(ROOM_IMAGE_LIMITS.bytes), rooms: found.large.map(sized).join("; ") }),
-        found.unknownSize.length && game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) })
+        found.unknownSize.length && game.i18n.format("DRPG.Panel.checksImagesUnknown", { rooms: listOf(found.unknownSize) }),
+        found.late?.length && game.i18n.format("DRPG.Panel.checksImagesLate", { s: probeMs / 1000, rooms: listOf(found.late) })
     ].filter(Boolean);
     return lines.length ? `<h3>${esc(game.i18n.localize("DRPG.Panel.checksImages"))}</h3>
             ${lines.map(line => `<p class="drpg-check-report">${esc(line)}</p>`).join("")}` : "";

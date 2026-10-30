@@ -25932,8 +25932,12 @@ const INVARIANTS = [
         const text = root.textContent;
         const why = kind => rows.find(r => r.kind === kind)?.why || " ";
         const times = (hay, needle) => hay.split(needle).length - 1;
-        const pans = [], pings = [];
-        const board = { scene: { id: scene.id }, animatePan: o => { pans.push([o.x, o.y]); return Promise.resolve(true); }, ping: p => { pings.push([p.x, p.y]); return Promise.resolve(true); } };
+        /* The goal review's G-4 (E20 fix round, 30.10.2026): v14's `canvas.ping` broadcasts the ping to every client (and a
+           Shift pans every player's screen), so the mark is drawn on this canvas's own controls layer (`drawPing`) and the
+           broadcasting ping is never called. */
+        const pans = [], pings = [], marks = [];
+        const board = { scene: { id: scene.id }, animatePan: o => { pans.push([o.x, o.y]); return Promise.resolve(true); }, ping: p => { pings.push([p.x, p.y]); return Promise.resolve(true); },
+            controls: { drawPing: p => { marks.push([p.x, p.y]); return Promise.resolve(true); } } };
         FD.wireShowOnMap?.(root, { board, sceneId: scene.id });
         const buttons = [...root.querySelectorAll("[data-drpg-show-at]")];
         buttons[1]?.click();
@@ -25944,15 +25948,15 @@ const INVARIANTS = [
             legend: [root.querySelectorAll("[data-drpg-legend] li").length, kinds.length, kinds.map(k => times(text, why(k)))],
             rows: [root.querySelectorAll("tbody tr").length, buttons.length, buttons.map(b => b.dataset.drpgShowAt)],
             words: [/\(\d+, \d+\)/.test(text), /second way/i.test(text)],
-            shown: [pans, pings]
+            shown: [pans, pings, marks]
         }), stableJson({
             named: ["Region", "Region (2)", "Region (3)"],
             legend: [kinds.length, kinds.length, kinds.map(() => 1)],
             rows: [rows.length, rows.filter(r => r.at).length, rows.filter(r => r.at).map(r => `${r.at.x},${r.at.y}`)],
             words: [false, false],
-            shown: [[[second?.x, second?.y]], [[second?.x, second?.y]]]
+            shown: [[[second?.x, second?.y]], [], [[second?.x, second?.y]]]
         }), "Check rooms repeats itself or shows nothing on the map [the rooms named by Foundry; the legend's entries, the kinds, each explanation's count in the text; "
-            + "the rows drawn, the buttons, their points; raw coordinates, 'the second way'; the second button: the pans, the pings]");
+            + "the rows drawn, the buttons, their points; raw coordinates, 'the second way'; the second button: the pans, the broadcasting pings (none), the local marks]");
     }],
     ["R1509 - the CAST report is no fixed-height frame and starts with its fix (E20 C2, E20-10; S01-20): no rule of either theme gives the Pre-season report block a max-height or an overflow, and the cast report's \"Fix:\" sentence comes before the first student's line", async () => {
         /*
@@ -26443,7 +26447,9 @@ const INVARIANTS = [
             const suppressed = { vulnerableAutomation: false, defeated: { enabled: false, overlay: false }, r1518: 5 };
             out.automation = { before, back: S.automationGivenBack(suppressed, before), unknown: S.automationGivenBack(suppressed, null) };
             const ids = E.FOUNDRY_WRITES.map(w => w.id);
-            out.writes = [...E.ENFORCED.map(r => r.id), "automation", "sceneVision"].filter(id => !ids.includes(id));
+            // The census widened in the E20 fix round (the goal review's G-7): the one dice look dice-sync.mjs forces on every
+            // player and Assistant GM is a change in what Foundry draws for them, and the window and the handbook name it.
+            out.writes = [...E.ENFORCED.map(r => r.id), "automation", "sceneVision", "diceLook"].filter(id => !ids.includes(id));
             out.words = E.FOUNDRY_WRITES.filter(w => !game.i18n.has(w.text)).map(w => w.id);
             const text = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
             const back = text(E.giveBackContent({ givenBack: true })), open = text(E.giveBackContent({ givenBack: false }));
@@ -26943,6 +26949,300 @@ const INVARIANTS = [
         }), "Pre-season's marks are uncoloured, or the ready line promises a green report [escaped text: kept, checks, crosses | a mark in an attribute: "
             + "kept, the text's | colour of a check, a cross, the audit's check: Monokuma Legacy, Stained Glass | the ready line names Pre-season checks "
             + "as more | the report's three blocks marked]");
+    }],
+    ["R1531 - the Give back window says plainly what it cannot know and what it does not give back, and only a full Gamemaster gives back (E20 fix round; the owner's answer of 30.10 on the automations, the goal review's G-7, the correctness review's C-6): with no value of Daggerheart's automations kept it says the values from before the module are not known; it names the one dice look and says nobody's own look comes back; an Assistant GM reads that a full Gamemaster gives them back; a part not written stays kept", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harms: (the owner, 30.10: "przy powrocie automatyzacji do domyslnych Daggerhearta
+         * okno ma mowic wprost, ze wartosci sprzed modulu nie sa znane") a world whose automations an earlier version
+         * switched off has nothing kept, and Give back sets Daggerheart's defaults without a word; (G-7) the window and
+         * the handbook did not name the Dice So Nice look the module forces on every player and Assistant GM, which Give
+         * back does not touch; (C-6) an Assistant GM could press Give back, the switch and the automations were written
+         * and the file permissions - a full Gamemaster's setting - threw: half done, and the kept values never cleared.
+         * Read: enforced.mjs `giveBackFacts` over kept records and users of plain objects, `giveBackContent` with and
+         * without the unknown line and as an Assistant, `canGiveBack`, `keptAfterGiveBack`, lang/pl.json's twins, and,
+         * with comments blanked, where the window takes its facts and where Give back asks who presses it. Nothing is
+         * written (E20-T6 gives back as an Assistant and with a part that fails). Red at c72c43ff: none of the three
+         * functions, no line, no dice look row.
+         */
+        let E = null;
+        try { E = await import("./enforced.mjs"); } catch { E = null; }
+        const R = CONST.USER_ROLES;
+        const ready = ["giveBackFacts", "canGiveBack", "keptAfterGiveBack", "giveBackContent"].every(n => typeof E?.[n] === "function");
+        const text = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
+        const words = key => game.i18n.localize(key);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const gm = { isGM: true, role: R.GAMEMASTER }, assistant = { isGM: true, role: R.ASSISTANT }, player = { isGM: false, role: R.PLAYER };
+        const auto = { vulnerableAutomation: true, defeated: true }, perms = { FILES_BROWSE: null, FILES_UPLOAD: null };
+        const out = { facts: null, content: null, who: null, kept: null };
+        if (ready) {
+            const pick = f => [f.givenBack, f.filesStay, f.automationUnknown, f.fullGm, f.retry];
+            out.facts = [E.giveBackFacts({ kept: {}, givenBack: false, user: gm, filesWanted: true }),
+                E.giveBackFacts({ kept: { automation: auto, permissions: perms }, givenBack: false, user: gm, filesWanted: true }),
+                E.giveBackFacts({ kept: { permissions: perms }, givenBack: true, user: assistant, filesWanted: true })].map(pick);
+            const unknown = text(E.giveBackContent({ givenBack: false, automationUnknown: true })), known = text(E.giveBackContent({ givenBack: false }));
+            const asAssistant = text(E.giveBackContent({ givenBack: false, fullGm: false }));
+            out.content = [unknown.includes(words("DRPG.GiveBack.automationUnknown")), known.includes(words("DRPG.GiveBack.automationUnknown")),
+                [unknown, known].every(t => t.includes(words("DRPG.GiveBack.what.diceLook"))),
+                asAssistant.includes(words("DRPG.GiveBack.fullGmOnly")), known.includes(words("DRPG.GiveBack.fullGmOnly"))];
+            out.who = [gm, assistant, player, null].map(u => E.canGiveBack(u));
+            out.kept = [E.keptAfterGiveBack({ automation: auto, permissions: perms }, ["automation"]), E.keptAfterGiveBack({ automation: auto, permissions: perms }, ["automation", "permissions"])];
+        }
+        const has = key => game.i18n.has(key) && key.split(".").reduce((o, k) => o?.[k], pl)?.length > 0;
+        const lines = {
+            keys: ["DRPG.GiveBack.automationUnknown", "DRPG.GiveBack.what.diceLook", "DRPG.GiveBack.fullGmOnly", "DRPG.GiveBack.partly"].map(has),
+            plain: [words("DRPG.GiveBack.automationUnknown").includes("not known"), String(pl.DRPG?.GiveBack?.automationUnknown ?? "").includes("nie są znane")],
+            dice: [words("DRPG.GiveBack.what.diceLook").includes(words("DRPG.Settings.forceDiceLook.name")),
+                String(pl.DRPG?.GiveBack?.what?.diceLook ?? "").includes(pl.DRPG?.Settings?.forceDiceLook?.name ?? "\u0000")]
+        };
+        const sources = new Map(await otherSources());
+        const enforced = stripComments(sources.get("enforced.mjs") ?? "");
+        must(enforced.length, "enforced.mjs is not among the module's sources - this would measure nothing");
+        const give = fnSource(enforced, "giveBackFoundry");
+        const asks = give.indexOf("canGiveBack("), writes = give.indexOf("SETTINGS.foundryGivenBack, true");
+        const roads = [fnSource(enforced, "openGiveBackFoundry").includes("giveBackFacts("), asks >= 0 && writes > asks];
+        equal(stableJson({ ready, ...out, lines, roads }), stableJson({
+            ready: true,
+            facts: [[false, true, true, true, false], [false, false, false, true, false], [true, false, false, false, true]],
+            content: [true, false, true, true, false],
+            who: [true, false, false, false],
+            kept: [{ permissions: perms }, {}],
+            lines: { keys: [true, true, true, true], plain: [true, true], dice: [true, true] },
+            roads: [true, true]
+        }), "the Give back window keeps quiet about what it cannot know or give back, or lets an Assistant half give back [the functions exported | "
+            + "the facts (given back, files stay, automations unknown, full GM, a part left to retry): nothing kept, both kept, an Assistant after a part "
+            + "failed | the window: the unknown line with it, without it, the dice look row, an Assistant's line, a full GM's | who may: GM, Assistant, "
+            + "player, nobody | the record after: the automations written, both | the words EN/PL; 'not known' in both; the dice look names its setting | "
+            + "the window reads the facts; Give back asks who presses it before the switch]");
+    }],
+    ["R1532 - after Give back, a module switched off and on again says it holds nothing and offers Hold them again (E20 fix round, the goal review's G-2): a GM is asked at each start while the settings are given back, Season setup has a row and Pre-season checks a line for it, and the handbook's box says to press Hold them again", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-2): a GM who gave Foundry's settings back and switched the module off and on
+         * again found it holding nothing - the given-back switch stays true, so the held settings and Daggerheart's
+         * automations are left alone - and nothing on screen said so. Read: enforced.mjs `offerHoldAgain` with users,
+         * the switch, the question and the hold handed in (a stand-in that counts); season-setup.mjs `steps` and
+         * `preSessionReport` with the switch handed in (no room picture, no A/V); with comments blanked, that module.mjs's
+         * `ready` asks it; the GM handbooks' IMPORTANT box, EN and PL. Nothing is written. Red at c72c43ff: no
+         * `offerHoldAgain`, no row, no line.
+         */
+        let E = null, SS = null;
+        try { [E, SS] = await Promise.all(["./enforced.mjs", "./season-setup.mjs"].map(p => import(p))); } catch { E = null; }
+        const words = key => game.i18n.localize(key);
+        const asked = [], held = [];
+        const hold = async () => { held.push(1); return true; };
+        const answer = choice => async () => { asked.push(choice); return choice; };
+        let offers = null;
+        if (typeof E?.offerHoldAgain === "function") {
+            offers = [await E.offerHoldAgain({ user: { isGM: true }, givenBack: true, ask: answer("hold"), hold }),
+                await E.offerHoldAgain({ user: { isGM: true }, givenBack: true, ask: answer("close"), hold }),
+                await E.offerHoldAgain({ user: { isGM: true }, givenBack: false, ask: answer("hold"), hold }),
+                await E.offerHoldAgain({ user: { isGM: false }, givenBack: true, ask: answer("hold"), hold })];
+        }
+        const row = givenBack => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), givenBack }).find(r => r.key === "foundryHeld") ?? null;
+        const rows = [row(true), row(false)].map(r => (r ? [r.done, r.optional === true, typeof r.open === "function"] : null));
+        const report = async givenBack => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), givenBack });
+            return el.textContent.includes(words("DRPG.GiveBack.preSeason"));
+        };
+        const lines = [await report(true), await report(false)];
+        const sources = new Map(await otherSources());
+        const module = stripComments(sources.get("module.mjs") ?? "");
+        must(module.length, "module.mjs is not among the module's sources - this would measure nothing");
+        const ready = bodyOf(module, 'Hooks.once("ready"', { until: "\n});" });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const box = async (lang, marker, label) => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            const md = res.ok ? await lfText(res) : "";
+            return md.includes(marker) ? bodyOf(md, marker, { until: "\n\n" }).includes(`**${label}**`) : null;
+        };
+        equal(stableJson({ offers, asked, held: held.length, rows, lines, ready: ready.includes("offerHoldAgain("),
+            keys: ["DRPG.GiveBack.preSeason", "DRPG.GiveBack.heldNothing", "DRPG.Season.step.foundryHeld", "DRPG.Season.hint.foundryHeld"]
+                .map(k => game.i18n.has(k) && k.split(".").reduce((o, p) => o?.[p], pl)?.length > 0),
+            books: [await box("en", "**Before you switch the module off**", words("DRPG.GiveBack.holdAgain")),
+                await box("pl", "**Zanim wyłączysz moduł**", pl.DRPG?.GiveBack?.holdAgain ?? "\u0000")] }), stableJson({
+            offers: [true, true, false, false], asked: ["hold", "close"], held: 1,
+            rows: [[false, true, true], [true, true, true]], lines: [true, false], ready: true,
+            keys: [true, true, true, true], books: [true, true]
+        }), "a module holding nothing after Give back says nothing [asked: given back and Hold, given back and Not now, not given back, a player | "
+            + "the questions | the holds | Season setup's row given back, not (done, optional, opens) | Pre-season's line given back, not | ready asks | "
+            + "the words EN/PL | the handbooks' box names Hold them again, EN and PL]");
+    }],
+    ["R1533 - a module that did not start says what it changed before stays until it runs again and a GM gives it back, never that Foundry is as it was without it (E20 fix round, the goal review's G-6): the requirements window's intro EN/PL and the GM handbooks", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-6): in a world the module ran in before, the stopped module's window said
+         * "Your world and Foundry are as they were without it" and the handbook "a module that did not start changes
+         * nothing in Foundry" - false: what it held (Daggerheart's automations, the file permissions, the players' held
+         * settings) stays as it held it. Read: lang/en.json's and lang/pl.json's `DRPG.Requirements.intro` forms and the
+         * GM handbooks' line about a module that did not start, as served. Nothing is written. Red at c72c43ff: the old
+         * sentence in every form.
+         */
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        const forms = lang => Object.values(lang.DRPG?.Requirements?.intro ?? {});
+        const read = (lang, old) => {
+            const all = forms(lang);
+            must(all.length > 0, "no DRPG.Requirements.intro forms - this would measure nothing");
+            return [all.length, all.filter(t => t.includes(old)).length, all.filter(t => t.includes(lang.DRPG?.GiveBack?.menuLabel ?? "\u0000")).length];
+        };
+        const line = async (lang, marker, old) => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            const md = res.ok ? await lfText(res) : "";
+            must(md.includes(marker), `gm-handbook.${lang}.md no longer has "${marker}" - this would measure nothing`);
+            const text = lineAround(md, md.indexOf(marker));
+            return [text.includes(old), text.includes(lang === "en" ? en.DRPG.GiveBack.menuLabel : pl.DRPG.GiveBack.menuLabel)];
+        };
+        const enRead = read(en, "as they were without it"), plRead = read(pl, "takie jak bez niego");
+        equal(stableJson({ en: enRead, pl: plRead,
+            books: [await line("en", "a module that did not start", "changes nothing in Foundry"), await line("pl", "który nie wystartował, ni", "niczego w Foundry nie zmienia")] }),
+        stableJson({ en: [enRead[0], 0, enRead[0]], pl: [plRead[0], 0, plRead[0]], books: [[false, true], [false, true]] }),
+        "a stopped module says Foundry is as it was without it [EN, PL: the forms, those with the old sentence, those naming Give back Foundry's settings | "
+            + "the handbooks EN, PL: the old sentence, Give back named]");
+    }],
+    ["R1534 - with Keep character sheets anonymous off the anonymity audit lists the Observer sheets every player reads whole and names the switch, and says no secret is hidden (E20 fix round, the goal review's G-3; S11-19)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-3): with the switch off the redaction never runs, so an Observer sheet is
+         * read whole by every player - but the audit left Observer out ("Nothing to fix") and its words said "its secrets
+         * hidden", and Set them to Observer said the same. R1506 ran only with the switch on. Read: `auditAnonymity` (no
+         * chat) with the switch handed in, on three characters of plain objects - Observer with a player owner, owned by
+         * every player, Observer with no player owner - and `wireAnonymityFix` with the switch off, its notice caught.
+         * Nothing is written. Red at c72c43ff: the audit read the world's switch and had no such list.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let A = null;
+        try { A = await import("./anonymity.mjs"); } catch { A = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const words = key => game.i18n.localize(key);
+        const make = () => [fx.sheet("R1534seen", L.OBSERVER, { owner: player.id }), fx.sheet("R1534open", L.OWNER, { owner: player.id }), fx.sheet("R1534loose", L.OBSERVER)];
+        const drawn = async enforced => {
+            const actors = make();
+            const found = await A.auditAnonymity({ toChat: false, actors, enforced });
+            const el = document.createElement("div");
+            el.innerHTML = found?.body ?? "";
+            return { found, text: el.textContent, el, actors };
+        };
+        const off = await drawn(false), on = await drawn(true);
+        const hidden = [words("DRPG.Anonymity.everyone.observer"), words("DRPG.Anonymity.level.observer")];
+        const told = [];
+        const notices = ui.notifications;
+        let fixed = null;
+        try {
+            ui.notifications = { ...notices, info: message => { told.push(String(message)); }, warn: notices?.warn?.bind(notices), error: notices?.error?.bind(notices) };
+            const wired = A.wireAnonymityFix?.(off.el, { actors: off.actors, enforced: false }) ?? null;
+            off.el.querySelector("[data-drpg-anon-fix]")?.click();
+            await wired?.done?.();
+            fixed = told[0] ?? null;
+        } finally {
+            ui.notifications = notices;
+        }
+        const names = list => (list ?? []).map(i => i.actor?.name).sort();
+        equal(stableJson({
+            off: [names(off.found?.unredacted), off.text.includes(words("DRPG.Anonymity.audit.switchOff")), off.text.includes(words("DRPG.Settings.enforceAnonymity.name")),
+                hidden.map(h => off.text.includes(h)), off.text.includes(words("DRPG.Anonymity.audit.clean")), off.text.includes(`${player.name}: ${words("DRPG.Anonymity.level.observerOpen")}`)],
+            on: [names(on.found?.unredacted), on.text.includes(words("DRPG.Anonymity.audit.switchOff")), on.text.includes(`${player.name}: ${hidden[1]}`)],
+            fixed: [fixed === game.i18n.format("DRPG.Anonymity.audit.fixedOpen.one", { n: 1 }), hidden.some(h => String(fixed).includes(h))]
+        }), stableJson({
+            off: [["R1534loose student", "R1534seen student"], true, true, [false, false], false, true],
+            on: [[], false, true],
+            fixed: [true, false]
+        }), "the audit with the switch off says the Observer sheets hide their secrets [off: the Observer sheets listed, the switch's line, the switch "
+            + "named, 'its secrets hidden' in either form, 'Nothing to fix', the player's level in the open words | on: no such list, no switch line, the "
+            + "player's level as before | Set them to Observer's notice with the switch off: the open words, no 'secrets hidden']");
+    }],
+    ["R1535 - Check rooms' Show on map goes to the finding's floor (E20 fix round, the correctness review's C-5 = the goal review's G-9): each finding carries its floor's id, its row names the floor, its button carries the floor, and a press views the scene at that floor before it marks and pans", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-5, G-9): on a school of two floors a finding on Floor 2 was drawn with no floor,
+         * and Show on map panned on whichever floor was on screen, where nothing of the finding is drawn. Read: `checkRegions`
+         * on a scene of plain objects with a room on each of two floors and no wall, `roomCheckHtml` into a detached element,
+         * `wireShowOnMap` with a canvas of the test's own on Floor 1 and a scene that records `view`; both floors' buttons
+         * pressed. Nothing is written; how a real canvas draws the floor is AUDIT 9.2 B-E20-5. Red at c72c43ff: no floor on a row's
+         * button, no view of the floor.
+         */
+        let F = null, FD = null;
+        try { [F, FD] = await Promise.all(["./fog.mjs", "./fog-diagnostics.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const floors = [{ id: "R1535L1", name: "R1535 Floor 1", elevation: 0 }, { id: "R1535L2", name: "R1535 Floor 2", elevation: 10 }];
+        const scene = fx.scene("R1535 two", [fx.region("R1535a", "R1535 Lab", { rect: [0, 0, 400, 400], levels: ["R1535L1"] }),
+            fx.region("R1535b", "R1535 Gym", { rect: [1000, 0, 400, 400], levels: ["R1535L2"] })], { levels: floors });
+        const rows = F.checkRegions(scene);
+        const onFloor = id => rows.find(r => r.at && r.floor === floors.find(f => f.id === id).name) ?? null;
+        const up = onFloor("R1535L2"), down = onFloor("R1535L1");
+        must(up && down, "checkRegions drew no finding with a point on each floor - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = FD.roomCheckHtml(rows, scene.id);
+        const log = [];
+        const viewed = { id: scene.id, levels: floors, view: async options => { log.push(["view", options?.level ?? null]); } };
+        const board = { scene: { id: scene.id }, level: { id: "R1535L1" }, ping: () => { log.push(["ping"]); },
+            controls: { drawPing: p => { log.push(["mark", p.x, p.y]); } }, animatePan: o => { log.push(["pan", o.x, o.y]); return Promise.resolve(true); } };
+        FD.wireShowOnMap(root, { board, sceneId: scene.id, scenes: new Map([[scene.id, viewed]]) });
+        const buttonAt = row => [...root.querySelectorAll("[data-drpg-show-at]")].find(b => b.dataset.drpgShowAt === `${row.at.x},${row.at.y}`) ?? null;
+        const press = async row => { log.length = 0; buttonAt(row)?.click(); await settle(); return [...log]; };
+        const cell = row => buttonAt(row)?.closest("tr")?.children?.[1]?.textContent ?? "";
+        equal(stableJson({
+            ids: [up.floorId ?? null, down.floorId ?? null],
+            buttons: [buttonAt(up)?.dataset?.drpgLevel ?? null, buttonAt(down)?.dataset?.drpgLevel ?? null],
+            named: [cell(up).includes("R1535 Floor 2"), cell(down).includes("R1535 Floor 1")],
+            up: await press(up), down: await press(down)
+        }), stableJson({
+            ids: ["R1535L2", "R1535L1"], buttons: ["R1535L2", "R1535L1"], named: [true, true],
+            up: [["view", "R1535L2"], ["mark", up.at.x, up.at.y], ["pan", up.at.x, up.at.y]],
+            down: [["mark", down.at.x, down.at.y], ["pan", down.at.x, down.at.y]]
+        }), "Show on map ignores the finding's floor [the findings' floor ids | the buttons' floors | the rows name their floor | Floor 2's press from "
+            + "Floor 1: view, mark, pan | Floor 1's press: mark, pan]");
+    }],
+    ["R1536 - a room picture that only took long to load is not called missing, and the pictures are probed a few at a time (E20 fix round, the correctness review's C-3): missing only on a decode that fails or a server's 404/410; a decode past its time with the file there is 'not checked in time', heavy when the server's length says so", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-3): a decode not finished within the probe's time was reported "do not
+         * load - pick the file again" even with the server's 200 and a length, and every picture was probed at once
+         * sharing one connection (eighteen 3 MB pictures at 30 Mbit/s all "missing"). Read: `checkRoomImages` over a scene
+         * of plain objects with seven pictures - one that loads, one whose decode fails, one the server says is gone, four
+         * whose decode never ends (a length under the limit, over it, none, no answer at all) - with stand-ins for Image
+         * and HEAD (the HEAD counts how many run at once) and a probe time of 30 ms; Pre-season's line for the late ones.
+         * Nothing is written. Red at c72c43ff: the late ones missing after 8 s each, all seven at once.
+         */
+        let RT = null, C = null, SS = null;
+        try { [RT, C, SS] = await Promise.all([import("./room-tile.mjs"), import("./config.mjs"), import("./season-setup.mjs")]); } catch { RT = null; }
+        const fx = await e20Fixture();
+        const MB = 1024 * 1024;
+        const pics = { ok: ["load", 200, MB], broken: ["fail", 200, MB], gone: ["load", 404, null], slow: ["hang", 200, 2 * MB],
+            slowheavy: ["hang", 200, 9 * MB], slownolength: ["hang", 200, null], slownohead: ["hang", null, null] };
+        const scene = fx.scene("R1536 pictures", Object.keys(pics).map((name, i) =>
+            fx.region(`R1536p${i}`, `R1536 ${name}`, { rect: [i * 500, 0, 500, 500], image: `worlds/suite/r1536-${name}.webp` })));
+        const of = src => pics[String(src).match(/r1536-(\w+)\.webp/)?.[1]] ?? ["fail", null, null];
+        let running = 0, most = 0;
+        const head = async src => {
+            running++;
+            most = Math.max(most, running);
+            await new Promise(resolve => setTimeout(resolve, 10));
+            running--;
+            const [, status, bytes] = of(src);
+            return { status, bytes };
+        };
+        const RealImage = globalThis.Image;
+        let found = null, line = null;
+        try {
+            globalThis.Image = class {
+                set src(path) { this.how = of(path)[0]; this.naturalWidth = 1000; this.naturalHeight = 1000; }
+                decode() { return this.how === "load" ? Promise.resolve() : this.how === "fail" ? Promise.reject(new Error("R1536: broken")) : new Promise(() => {}); }
+            };
+            found = await RT.checkRoomImages({ scenes: [scene], head, probeMs: 30 });
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [scene], head, probeMs: 30 });
+            line = el.textContent;
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const rooms = list => (list ?? []).map(e => e.rooms.map(r => r.room.replace("R1536 ", ""))).flat().sort();
+        equal(stableJson({
+            missing: rooms(found?.missing), late: rooms(found?.late), large: (found?.large ?? []).map(e => [e.rooms[0].room.replace("R1536 ", ""), e.pixels, e.heavy]),
+            unknownSize: rooms(found?.unknownSize), most, atOnce: C?.ROOM_IMAGE_LIMITS?.atOnce ?? null,
+            said: game.i18n.has("DRPG.Panel.checksImagesLate") && String(line).includes(game.i18n.format("DRPG.Panel.checksImagesLate",
+                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }))
+        }), stableJson({
+            missing: ["broken", "gone"], late: ["slow", "slowheavy", "slownohead", "slownolength"], large: [["slowheavy", false, true]],
+            unknownSize: [], most: 3, atOnce: 3, said: true
+        }), "a slow room picture is called missing, or all are probed at once [missing | not checked in time | large (pixels, bytes) | size unknown | "
+            + "the most HEAD requests at once | the limit | Pre-season's line for the late ones]");
     }],
 ];
 

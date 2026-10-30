@@ -548,31 +548,35 @@ export async function openRoomImage(path, room) {
 
 /**
  * The decode probe the tile's window and Pre-season checks share (E20 C3, from `openRoomImage`): the path judged
- * again (`safeRoomImage`), then a probe `Image` asked to decode it. Answers `{ ok, src, width, height }` - `src` null
- * when the path is refused, `ok` false when the picture does not decode or `ms` passes first, its natural size when it
- * does. A probe without `decode` (jsdom has none) is not waited on and answers `ok` with whatever size it holds.
+ * again (`safeRoomImage`), then a probe `Image` asked to decode it. Answers `{ ok, src, width, height, late }` - `src`
+ * null when the path is refused, `ok` false when the picture does not decode or `ms` passes first (`late` true then:
+ * nothing failed, it only took longer - E20 fix round, C-3), its natural size when it does. A probe without `decode`
+ * (jsdom has none) is not waited on and answers `ok` with whatever size it holds.
  *
  * @param {string} path
  * @param {object} [options]
  * @param {number|null} [options.ms]  how long the decode may take; null (the tile's window) waits as long as it takes
- * @returns {Promise<{ok: boolean, src: string|null, width: number, height: number}>}
+ * @returns {Promise<{ok: boolean, src: string|null, width: number, height: number, late: boolean}>}
  */
 export async function decodeImage(path, { ms = null } = {}) {
     const src = safeRoomImage(path);
-    if (!src) return { ok: false, src: null, width: 0, height: 0 };
+    if (!src) return { ok: false, src: null, width: 0, height: 0, late: false };
     let timer = null;
+    const LATE = Symbol("late");
     try {
         // globalThis.Image, not a bare Image: the lint config declares no browser Image (13.10.2026, no-undef),
         // and a test's stand-in goes on the same object.
         const probe = new globalThis.Image();
         probe.src = src;
         if (typeof probe.decode === "function") {
-            const late = Number.isFinite(ms) ? new Promise((resolve, reject) => { timer = setTimeout(() => reject(new Error("late")), ms); }) : null;
-            await (late ? Promise.race([probe.decode(), late]) : probe.decode());
+            const late = Number.isFinite(ms) ? new Promise(resolve => { timer = setTimeout(() => resolve(LATE), ms); }) : null;
+            if ((late ? await Promise.race([probe.decode(), late]) : await probe.decode()) === LATE) {
+                return { ok: false, src, width: 0, height: 0, late: true };
+            }
         }
-        return { ok: true, src, width: Number(probe.naturalWidth) || 0, height: Number(probe.naturalHeight) || 0 };
+        return { ok: true, src, width: Number(probe.naturalWidth) || 0, height: Number(probe.naturalHeight) || 0, late: false };
     } catch {
-        return { ok: false, src, width: 0, height: 0 };
+        return { ok: false, src, width: 0, height: 0, late: false };
     } finally {
         clearTimeout(timer);
     }
@@ -586,9 +590,9 @@ export async function decodeImage(path, { ms = null } = {}) {
  * @param {string} src  a path `safeRoomImage` accepted
  * @returns {Promise<{status: number|null, bytes: number|null}>}
  */
-async function headOfImage(src) {
+async function headOfImage(src, { ms = ROOM_IMAGE_LIMITS.probeMs } = {}) {
     const abort = typeof globalThis.AbortController === "function" ? new globalThis.AbortController() : null;
-    const timer = setTimeout(() => abort?.abort(), ROOM_IMAGE_LIMITS.probeMs);
+    const timer = setTimeout(() => abort?.abort(), ms);
     try {
         const answer = await fetch(src, { method: "HEAD", signal: abort?.signal });
         const length = answer.headers?.get?.("content-length");
@@ -609,12 +613,20 @@ async function headOfImage(src) {
  * bytes (`heavy`); its size is unknown when the server sent no length. Each entry is `{ path, rooms: [{ room,
  * scene }], width, height, bytes }`, in the order the scenes and their rooms are read.
  *
+ * SLOW IS NOT MISSING, AND A FEW AT A TIME (E20 fix round, the correctness review's C-3). A decode that did not end
+ * within the probe's time was "does not load - pick the file again" even with the server's 200 and a length, and
+ * every picture was probed at once on one connection, so a school of eighteen 3 MB pictures on a 30 Mbit/s line read
+ * all missing. Now a picture is missing only on a decode that fails or the server's 404/410; one whose decode ran out
+ * of time otherwise is `late` ("not checked in time": its pixels unread), and `large` as well when the server's length
+ * is over the limit. The pictures are probed `ROOM_IMAGE_LIMITS.atOnce` at a time.
+ *
  * @param {object} [options]
  * @param {Iterable<Scene>} [options.scenes]  every scene unless handed in (R1510, R1511 hand scenes of plain objects)
  * @param {function(string): Promise<{status: number|null, bytes: number|null}>} [options.head]  the HEAD request
- * @returns {Promise<{missing: object[], large: object[], unknownSize: object[], checked: number}>}
+ * @param {number} [options.probeMs]  how long each decode and HEAD may take (R1536 hands 30 ms)
+ * @returns {Promise<{missing: object[], large: object[], unknownSize: object[], late: object[], checked: number}>}
  */
-export async function checkRoomImages({ scenes = game.scenes, head = headOfImage } = {}) {
+export async function checkRoomImages({ scenes = game.scenes, probeMs = ROOM_IMAGE_LIMITS.probeMs, head = src => headOfImage(src, { ms: probeMs }) } = {}) {
     const byPath = new Map();
     for (const scene of scenes ?? []) {
         for (const room of roomNames(scene)) {
@@ -624,17 +636,33 @@ export async function checkRoomImages({ scenes = game.scenes, head = headOfImage
             byPath.get(path).push({ room, scene: scene.name ?? "" });
         }
     }
-    const { side, bytes: heavyBytes, probeMs } = ROOM_IMAGE_LIMITS;
-    const read = await Promise.all([...byPath].map(async ([path, rooms]) => {
+    const { side, bytes: heavyBytes, atOnce } = ROOM_IMAGE_LIMITS;
+    const probe = async ([path, rooms]) => {
         const [picture, answer] = await Promise.all([decodeImage(path, { ms: probeMs }), head(path).catch(() => ({ status: null, bytes: null }))]);
-        const gone = !picture.ok || answer?.status === 404 || answer?.status === 410;
+        const gone = (!picture.ok && !picture.late) || answer?.status === 404 || answer?.status === 410;
         const bytes = Number.isFinite(answer?.bytes) ? answer.bytes : null;
-        return { path, rooms, width: picture.width, height: picture.height, bytes, gone };
-    }));
-    const out = { missing: [], large: [], unknownSize: [], checked: read.length };
-    for (const { gone, ...entry } of read) {
+        return { path, rooms, width: picture.width, height: picture.height, bytes, gone, late: !gone && picture.late === true };
+    };
+    // `atOnce` workers, each taking the next picture; `read` keeps the scenes' order.
+    const all = [...byPath];
+    const read = new Array(all.length);
+    let next = 0;
+    const worker = async () => {
+        while (next < all.length) {
+            const i = next++;
+            read[i] = await probe(all[i]);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(atOnce, all.length)) }, worker));
+    const out = { missing: [], large: [], unknownSize: [], late: [], checked: read.length };
+    for (const { gone, late, ...entry } of read) {
         if (gone) {
             out.missing.push(entry);
+            continue;
+        }
+        if (late) {
+            out.late.push(entry);
+            if (entry.bytes !== null && entry.bytes > heavyBytes) out.large.push({ ...entry, pixels: false, heavy: true });
             continue;
         }
         const pixels = entry.width > side || entry.height > side, heavy = entry.bytes !== null && entry.bytes > heavyBytes;

@@ -465,7 +465,9 @@ export const UNCOVERED_LIMIT_PCT = 10;
  * against a browser's load time. `probeMs` bounds each picture's HEAD request and decode, so one server that does
  * not answer keeps the window waiting no longer than that (a choice, not measured on a real server).
  */
-export const ROOM_IMAGE_LIMITS = Object.freeze({ side: 4096, bytes: 8 * 1024 * 1024, probeMs: 8000 });
+/* `atOnce` (E20 fix round, the correctness review's C-3): how many room pictures Pre-season checks probes at a time -
+   every picture at once shared one connection, and a slow line read them all as missing. Not measured on a real server. */
+export const ROOM_IMAGE_LIMITS = Object.freeze({ side: 4096, bytes: 8 * 1024 * 1024, probeMs: 8000, atOnce: 3 });
 
 /* ==========================================================================
  * ROOMS

@@ -3656,6 +3656,7 @@
       "checksImagesMissing": "These room pictures do not load - pick the file again in Room Setup: {rooms}",
       "checksImagesLarge": "These room pictures are large and slow to load for every player - make them at most {side} px on a side and {mb} MB: {rooms}",
       "checksImagesUnknown": "The file size of these room pictures could not be read: {rooms}",
+      "checksImagesLate": "These room pictures did not finish loading within {s} seconds, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}",
       "checksImagesWhere": "{room} ({scene})",
       "checksImagesSized": "{rooms}: {size}",
       "checksImagesPixels": "{width} x {height} px",
@@ -3780,7 +3781,8 @@
         "dhWelcome": "Daggerheart's welcome journal does not open for anyone.",
         "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
         "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
-        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back."
+        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back.",
+        "diceLook": "While 'One dice look for the table' is on, every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
       },
       "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
       "filesStay": "Give back leaves the file permissions as they are now: if players should browse or upload files, grant it in Foundry's permissions.",
@@ -3789,7 +3791,18 @@
       "holdAgain": "Hold them again",
       "done": "Foundry's settings are given back.",
       "heldAgain": "The module holds its settings again.",
-      "automationOff": "Daggerheart's Vulnerable and Defeated automations are switched off: Breakdown and Wounded take their place. To have them back, press Give back Foundry's settings in this module's settings."
+      "automationOff": "Daggerheart's Vulnerable and Defeated automations are switched off: Breakdown and Wounded take their place. To have them back, press Give back Foundry's settings in this module's settings.",
+      "automationUnknown": "The values Daggerheart's Vulnerable and Defeated automations had before this module are not known: it switched them off before it kept anything. Give them back sets Daggerheart's defaults - both on. If this world had them off, switch them off again in Daggerheart's settings.",
+      "fullGmOnly": "Only a full Gamemaster can give these back: Foundry lets only a full Gamemaster change the file permissions.",
+      "partly": "Given back, except: {parts}. Its value is still kept - open this window again and press Give them back.",
+      "part": {
+        "automation": "Daggerheart's automations",
+        "permissions": "the file permissions"
+      },
+      "failed": "Foundry's settings could not be given back or held. The console says why.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
+      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back.",
+      "notNow": "Not now"
     },
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
@@ -3819,6 +3832,8 @@
         "exposed": "Owned by every player, so nothing on these sheets is hidden and every player reads them whole - fix these:",
         "fix": "Set them to Observer",
         "fixed": {"one": "{n} sheet set to Observer: every player can open it, its secrets hidden.", "other": "{n} sheets set to Observer: every player can open them, their secrets hidden."},
+        "fixedOpen": {"one": "{n} sheet set to Observer: every player can open it. 'Keep character sheets anonymous' is off, so they read it whole.", "other": "{n} sheets set to Observer: every player can open them. 'Keep character sheets anonymous' is off, so they read them whole."},
+        "switchOff": "'Keep character sheets anonymous' is off, so nothing on these Observer sheets is hidden and every player reads them whole - switch it on in the module's settings:",
         "closed": "Closed to the other players. Nothing to fix, but nobody can open these sheets, so nobody can loot the body when the character dies:",
         "assistants": "Owned by an Assistant GM. Assistants read every sheet in the world, which breaks anonymity - drop them to Player:",
         "shared": "Owned by more than one player:",
@@ -3829,12 +3844,14 @@
         "none": "the other players cannot open the sheet",
         "limited": "the other players see the name and portrait only",
         "observer": "every player can open the sheet, its secrets hidden",
+        "observerOpen": "every player can open the sheet and read it whole",
         "owner": "every player owns the sheet and reads it whole"
       },
       "level": {
         "none": "cannot open the sheet",
         "limited": "sees the name and portrait only",
         "observer": "can open the sheet, its secrets hidden",
+        "observerOpen": "can open the sheet and read it whole",
         "owner": "owns the sheet"
       },
       "role": {
@@ -3850,8 +3867,8 @@
     "Requirements": {
       "title": "Danganronpa RPG is not running",
       "intro": {
-        "one": "Danganronpa RPG needs this module and has not started. Your world and Foundry are as they were without it.",
-        "other": "Danganronpa RPG needs these {n} modules and has not started. Your world and Foundry are as they were without it."
+        "one": "Danganronpa RPG needs this module and has not started: nothing of it runs until the module is back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings.",
+        "other": "Danganronpa RPG needs these {n} modules and has not started: nothing of it runs until they are back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings."
       },
       "state": {
         "absent": "not installed",
@@ -4497,6 +4514,8 @@
       "hint.rulers": "While a player drags a token, the whole table sees the route it takes - through a secret passage too. Hide takes the ruler from the Player and Trusted Player roles, and Show gives it back. The GM roles keep theirs.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and the Final Truth Remnants that prove it. A season without a Mastermind is a legal season - this row never turns red.",
+      "step.foundryHeld": "The module holds Foundry's settings (optional)",
+      "hint.foundryHeld": "After Give back Foundry's settings the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings - also after it was switched off and on again. Open the window and press Hold them again, unless your table wants them given back.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
       "resetGoes": "This goes:",

@@ -542,8 +542,9 @@ export function checkRegions(scene = canvas?.scene) {
     const findings = [];
     // A row: how bad, the room, the finding (`finding`: its kind, title, short fact and the explanation the legend
     // says once), and the point "Show on map" goes to.
+    // `floorId` beside the floor's name (E20 fix round, C-5 = G-9): Show on map views that floor before it marks and pans.
     const addOn = floor => (level, room, found, at = null) =>
-        findings.push({ level, room, floor: floor?.name || floor?.id || null, ...found, at });
+        findings.push({ level, room, floor: floor?.name || floor?.id || null, floorId: floor?.id ?? null, ...found, at });
     const add = addOn(null);
 
     const rooms = roomsToCheck(scene, add);
@@ -662,7 +663,8 @@ export function roomCheckProblems(findings) {
  * Check rooms' findings as the Season setup window draws them (E20 C2, S07-14): the explanation of each kind
  * once, as a legend above the list, in the order the kinds first appear; then one row a finding - its mark,
  * its room, its title and short fact, and a Show on map that carries its point (`wireShowOnMap`). Pure over
- * its rows; `sceneId` is the scene they were read on.
+ * its rows; `sceneId` is the scene they were read on. On a scene of several floors (E20 fix round, C-5 = G-9) a
+ * finding's row names its floor under the room, and its button carries the floor (`data-drpg-level`).
  */
 export function roomCheckHtml(findings, sceneId = null) {
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
@@ -674,38 +676,44 @@ export function roomCheckHtml(findings, sceneId = null) {
         `<li><strong>${esc(f.title ?? f.problem)}</strong> ${esc(f.why)}</li>`).join("")}</ul>` : "";
     const rows = (findings ?? []).map(f => `<tr>
             <td>${marks[f.level] ?? "·"}</td>
-            <td>${esc(f.room)}</td>
+            <td>${esc(f.room)}${f.floor ? `<br><small>${esc(f.floor)}</small>` : ""}</td>
             <td><strong>${esc(f.problem)}</strong>${f.detail ? `<br><small>${esc(f.detail)}</small>` : ""}</td>
             <td>${f.at ? `<button type="button" class="drpg-mini-button" data-drpg-show-at="${Math.round(f.at.x)},${Math.round(f.at.y)}"${
-                sceneId ? ` data-drpg-scene="${esc(sceneId)}"` : ""}>${show}</button>` : ""}</td>
+                sceneId ? ` data-drpg-scene="${esc(sceneId)}"` : ""}${f.floorId ? ` data-drpg-level="${esc(f.floorId)}"` : ""}>${show}</button>` : ""}</td>
         </tr>`).join("");
     return `${head}<table class="drpg-vault-table drpg-room-check-table"><tbody>${rows}</tbody></table>`;
 }
 
 /**
- * Show on map (E20 C2, S07-14): the canvas pans to the finding's point and marks it with Foundry's ping, on
- * this GM's screen alone. The scene the check read is put on the canvas first when another is there. `board`
- * is the canvas unless handed in (R1508 hands one that records). Answers whether it panned. How the mark looks
- * on a real canvas is not measured: a table's check, which E20 C7 writes into AUDIT 9.2.
+ * Show on map (E20 C2, S07-14): the canvas pans to the finding's point and marks it, on this GM's screen alone. The
+ * scene the check read is put on the canvas first when another is there, at the finding's floor when that is not the
+ * floor on screen (E20 fix round, C-5 = G-9: `scene.view({ level })`, as passages.mjs `viewPassage` views one; a floor
+ * the scene does not hold is not asked for). The mark is drawn on this canvas's controls layer (`drawPing`), never by
+ * `canvas.ping`, which v14 broadcasts to every client - and a Shift held pans every player's screen (E20 fix round,
+ * G-4). `board` is the canvas and `scenes` the world's unless handed in (R1508, R1535 hand their own). Answers whether
+ * it panned. How the mark looks on a real canvas is not measured: a table's check, AUDIT 9.2 B-E20-5.
  */
-export async function showOnMap(at, { sceneId = null, board = canvas } = {}) {
+export async function showOnMap(at, { sceneId = null, levelId = null, board = canvas, scenes = game.scenes } = {}) {
     if (!at || !board) return false;
-    if (sceneId && board.scene?.id !== sceneId) await game.scenes?.get(sceneId)?.view();
+    const scene = sceneId ? scenes?.get?.(sceneId) ?? null : null;
+    const here = board.level?.id ?? board.level ?? null;
+    const held = Boolean(levelId) && [...(scene?.levels ?? [])].some(l => (l?.id ?? l) === levelId);
+    if (scene && (board.scene?.id !== sceneId || (held && here !== levelId))) await (held ? scene.view({ level: levelId }) : scene.view());
     const point = { x: at.x, y: at.y };
-    board.ping?.(point);
+    board.controls?.drawPing?.(point, { style: CONFIG.Canvas?.pings?.types?.PULSE ?? "pulse", user: game.user });
     await board.animatePan?.({ ...point, duration: 250 });
     return true;
 }
 
-/** Wires every Show on map under `root` to `showOnMap` (R1508 hands its own `board`). */
-export function wireShowOnMap(root, { board = canvas, sceneId = null } = {}) {
+/** Wires every Show on map under `root` to `showOnMap` (R1508, R1535 hand their own `board` and `scenes`). */
+export function wireShowOnMap(root, { board = canvas, sceneId = null, scenes = game.scenes } = {}) {
     root?.addEventListener("click", ev => {
         const button = ev.target?.closest?.("[data-drpg-show-at]");
         if (!button) return;
         ev.preventDefault();
         const [x, y] = button.dataset.drpgShowAt.split(",").map(Number);
         if (![x, y].every(Number.isFinite)) return;
-        showOnMap({ x, y }, { sceneId: button.dataset.drpgScene || sceneId, board });
+        showOnMap({ x, y }, { sceneId: button.dataset.drpgScene || sceneId, levelId: button.dataset.drpgLevel || null, board, scenes });
     });
 }
 

@@ -101,7 +101,7 @@ import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
-import { registerEnforced } from "./enforced.mjs";
+import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility, removeModuleStyles } from "./requirements.mjs";
@@ -448,6 +448,9 @@ Hooks.once("ready", () => {
     safely("item table wording", refreshTableCopyOnLoad);
     // Last: a GM on a world with no season yet is told once where to start (E20 C4, S01-61; season-setup.mjs).
     offerStartHere().catch(err => error("Could not say where to start", err));
+    // While Foundry's settings are given back, a GM is asked at each start whether the module holds them again (E20 fix
+    // round, the goal review's G-2): the switch outlives switching the module off and on, and nothing else said so.
+    offerHoldAgain().catch(err => error("Could not ask to hold Foundry's settings again", err));
 });
 
 /**

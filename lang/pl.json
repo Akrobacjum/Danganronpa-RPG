@@ -3809,6 +3809,7 @@
       "checksImagesMissing": "Te zdjęcia pokoi się nie wczytują - wybierz plik jeszcze raz w Ustawieniach pokoi: {rooms}",
       "checksImagesLarge": "Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli - zmniejsz je do najwyżej {side} px na bok i {mb} MB: {rooms}",
       "checksImagesUnknown": "Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: {rooms}",
+      "checksImagesLate": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}",
       "checksImagesWhere": "{room} ({scene})",
       "checksImagesSized": "{rooms}: {size}",
       "checksImagesPixels": "{width} x {height} px",
@@ -3938,7 +3939,8 @@
         "dhWelcome": "Dziennik powitalny Daggerheart nie otwiera się nikomu.",
         "liveKitInFoundry": "Głos LiveKit zostaje w oknie Foundry u wszystkich.",
         "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafel głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
-        "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje."
+        "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje.",
+        "diceLook": "Póki „Jeden wygląd kości przy stole” jest włączony, każdy gracz i Asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera. Oddanie tego nie zmienia i nikomu nie wraca jego dawny wygląd: moduł go nie zachował."
       },
       "givenBackState": "Oddane: moduł nie rusza tych ustawień, dopóki znów ich nie przejmiesz.",
       "filesStay": "Oddanie zostawia uprawnienia do plików takie, jakie są teraz: jeśli gracze mają przeglądać lub wysyłać pliki, nadaj je w uprawnieniach Foundry.",
@@ -3947,7 +3949,18 @@
       "holdAgain": "Przejmij je znowu",
       "done": "Ustawienia Foundry są oddane.",
       "heldAgain": "Moduł znów trzyma swoje ustawienia.",
-      "automationOff": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded. Żeby je przywrócić, naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu."
+      "automationOff": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded. Żeby je przywrócić, naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
+      "automationUnknown": "Wartości, jakie automatyki Vulnerable i Defeated z Daggerheart miały przed tym modułem, nie są znane: wyłączył je, zanim cokolwiek zachował. „Oddaj je” ustawia domyślne wartości Daggerheart - obie włączone. Jeśli ten świat miał je wyłączone, wyłącz je znowu w ustawieniach Daggerheart.",
+      "fullGmOnly": "Oddać je może tylko pełny Gamemaster: tylko pełny Gamemaster może w Foundry zmienić uprawnienia do plików.",
+      "partly": "Oddane, z wyjątkiem: {parts}. Ta wartość jest dalej zachowana - otwórz to okno jeszcze raz i naciśnij „Oddaj je”.",
+      "part": {
+        "automation": "automatyk Daggerheart",
+        "permissions": "uprawnień do plików"
+      },
+      "failed": "Nie udało się oddać ani przejąć ustawień Foundry. Konsola mówi dlaczego.",
+      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustaw sezon albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
+      "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane.",
+      "notNow": "Nie teraz"
     },
     "Enforced": {
       "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
@@ -3977,6 +3990,8 @@
         "exposed": "Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte i każdy gracz czyta je w całości - napraw te:",
         "fix": "Ustaw je na Obserwatora",
         "fixed": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć, z ukrytymi sekretami.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami."},
+        "fixedOpen": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają go w całości.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości."},
+        "switchOff": "„Anonimowe karty postaci” są wyłączone, więc nic na tych arkuszach Obserwatora nie jest ukryte i każdy gracz czyta je w całości - włącz to w ustawieniach modułu:",
         "closed": "Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale nikt nie może otworzyć tych arkuszy, więc nikt nie przeszuka ciała, gdy postać zginie:",
         "assistants": "Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie, co łamie anonimowość - zdegraduj ich do Gracza:",
         "shared": "Należą do więcej niż jednego gracza:",
@@ -3987,12 +4002,14 @@
         "none": "pozostali gracze nie mogą otworzyć arkusza",
         "limited": "pozostali gracze widzą tylko imię i portret",
         "observer": "każdy gracz może otworzyć arkusz, z ukrytymi sekretami",
+        "observerOpen": "każdy gracz może otworzyć arkusz i czyta go w całości",
         "owner": "każdy gracz jest właścicielem arkusza i czyta go w całości"
       },
       "level": {
         "none": "nie może otworzyć arkusza",
         "limited": "widzi tylko imię i portret",
         "observer": "może otworzyć arkusz, z ukrytymi sekretami",
+        "observerOpen": "może otworzyć arkusz i czyta go w całości",
         "owner": "jest właścicielem arkusza"
       },
       "role": {
@@ -4008,10 +4025,10 @@
     "Requirements": {
       "title": "Danganronpa RPG nie działa",
       "intro": {
-        "one": "Danganronpa RPG potrzebuje tego modułu i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
-        "few": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
-        "many": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego.",
-        "other": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował. Twój świat i Foundry są takie jak bez niego."
+        "one": "Danganronpa RPG potrzebuje tego modułu i nie wystartował: nic z niego nie działa, dopóki moduł nie wróci. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "few": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "many": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "other": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry."
       },
       "state": {
         "absent": "niezainstalowany",
@@ -4633,6 +4650,7 @@
         "secretDoors": "Brak sekretnych drzwi Foundry (zalecane)",
         "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
+        "foundryHeld": "Moduł trzyma ustawienia Foundry (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
         "despairSplit": "Uczniowie są podzieleni po równo między pule",
         "overflow": "Próg overflow pasuje do obsady"
@@ -4655,6 +4673,7 @@
         "secretDoors": "Sekretne drzwi Foundry może otworzyć każdy gracz, a jego postać przez nie przejdzie. Zamień na przejścia robi z każdych zwykłą, zamkniętą ścianę; tam, gdzie stały między dwoma pokojami, także tajne przejście, którego jeszcze nikt nie zna - daj je uczniowi na karcie Przejścia. Drzwi, które nie stały między dwoma pokojami, zostają zwykłą ścianą.",
         "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
+        "foundryHeld": "Po „Oddaj ustawienia Foundry” moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy - także po wyłączeniu i ponownym włączeniu. Otwórz okno i naciśnij „Przejmij je znowu”, chyba że twój stół chce je mieć oddane.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
         "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd.",
         "overflow": "Wzór modułu, 12 + połowa żyjących uczniów, policzony dla tego sezonu. Tylko rada: próg wybierasz sam w zakładce Overflow okna Despair Flow."

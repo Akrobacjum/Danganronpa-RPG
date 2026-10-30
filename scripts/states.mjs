@@ -200,7 +200,11 @@ export function automationGivenBack(current, kept) {
     return out;
 }
 
-/** Give Daggerheart's two automations back (enforced.mjs `giveBackFoundry`); writes only what differs. */
+/**
+ * Give Daggerheart's two automations back (enforced.mjs `giveBackFoundry`); writes only what differs. Answers true when
+ * it wrote, false when there was nothing to write (or no such setting), and null when the write was refused - so Give
+ * back keeps the value for another try (E20 fix round, C-6).
+ */
 export async function giveBackAutomation(kept) {
     if (!game.user.isGM) return false;
     let automation;
@@ -214,7 +218,7 @@ export async function giveBackAutomation(kept) {
         return true;
     } catch (err) {
         error("Could not give Daggerheart's own full-track conditions back", err);
-        return false;
+        return null;
     }
 }
 

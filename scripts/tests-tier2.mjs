@@ -74974,6 +74974,103 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([true, null, true]), "[the section shows the motive announced, the motive after Withdraw, the table told it is withdrawn]");
     }],
+    ["E20-T6 - Give back Foundry's settings is a full Gamemaster's, gives back each part on its own and forgets only what it wrote, and a player's setting already as the module holds it is kept as that player's own (E20 fix round, the correctness review's C-6 and C-9)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harms: (C-6) an Assistant GM could press Give back; the switch was written and
+         * Daggerheart's automations given back, then the file permissions - a full Gamemaster's setting - threw: half done,
+         * the kept values never cleared, and a full GM later read "Given back". (C-9) a client row already at the value the
+         * module holds when it first started was never kept, so Give back wrote the setting's registered default over the
+         * player's own choice (Isometric Perspective's welcome: false came back true). On the suite's world, as the module
+         * first finds it (the automations on, Players allowed to upload, nothing kept): Isometric Perspective's welcome set
+         * to the held value with nothing kept for it, and its row held; Give back asked as an Assistant GM (a user handed
+         * in); then as this full GM while Foundry refuses the write of `core.permissions` (the settings' `set` wrapped for
+         * that key alone). Everything is put back as E20-T4 puts it back, and this browser's kept record and the welcome.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function", "enforced.mjs giveBackFoundry or states.mjs suppressSystemAutomation is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function") return;
+        const R = CONST.USER_ROLES;
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const iso = E.ENFORCED.find(r => r.id === "isoWelcome");
+        const isoKey = `${iso.module}.${iso.key}`;
+        ok(Boolean(game.settings.settings.get(isoKey)), `${isoKey} is not registered on the suite's world - the client row cannot be read`);
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const clientWas = plain(getSetting(SETTINGS.foundryBeforeClient));
+        const isoWas = game.settings.get(iso.module, iso.key);
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const automation = () => { const a = plain(game.settings.get("daggerheart", "Automation")); return [a.vulnerableAutomation, a.defeated?.enabled]; };
+        const keptParts = () => Object.keys(plain(getSetting(SETTINGS.foundryBefore))).sort();
+        const open = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        const filesOn = getSetting(SETTINGS.enforcePlayerFiles) !== false;
+        const assistant = { id: game.user.id, name: "E20-T6 assistant", isGM: true, role: R.ASSISTANT };
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const realSet = game.settings.set;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await game.settings.set("core", "permissions", { ...permsWas, FILES_UPLOAD: open });
+            // C-9: the player already has the welcome off, and nothing is kept for it yet.
+            const client = plain(getSetting(SETTINGS.foundryBeforeClient));
+            delete client[isoKey];
+            if (Array.isArray(client["@given"])) client["@given"] = client["@given"].filter(k => k !== isoKey);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBeforeClient, client);
+            await game.settings.set(iso.module, iso.key, iso.value);
+            await settle();
+            await E.applyEnforced([iso]);
+            const isoKept = Object.prototype.hasOwnProperty.call(plain(getSetting(SETTINGS.foundryBeforeClient)), isoKey)
+                ? plain(getSetting(SETTINGS.foundryBeforeClient))[isoKey] : "nothing kept";
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            await settle();
+            // C-6: an Assistant GM presses Give back.
+            let asAssistant;
+            try { asAssistant = await E.giveBackFoundry({ user: assistant }); } catch (err) { asAssistant = `threw: ${err?.message}`; }
+            await settle();
+            const byAssistant = [asAssistant ?? null, getSetting(SETTINGS.foundryGivenBack) === true, automation(), keptParts()];
+            // C-6: a full GM presses it while Foundry refuses the file permissions' write.
+            let partly;
+            game.settings.set = function (namespace, key, ...rest) {
+                if (namespace === "core" && key === "permissions") return Promise.reject(new Error("E20-T6: the permissions refused"));
+                return realSet.call(this, namespace, key, ...rest);
+            };
+            try { partly = await E.giveBackFoundry(); } catch (err) { partly = `threw: ${err?.message}`; } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            }
+            await settle();
+            const byGm = [partly ?? null, getSetting(SETTINGS.foundryGivenBack) === true, automation(), keptParts()];
+            read = { isoKept, byAssistant, byGm };
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBeforeClient, clientWas);
+            await game.settings.set(iso.module, iso.key, isoWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            isoKept: iso.value,
+            byAssistant: [null, false, [false, false], filesOn ? ["automation", "permissions"] : ["automation"]],
+            byGm: [{ given: ["automation"], failed: filesOn ? ["permissions"] : [] }, true, [true, true], filesOn ? ["permissions"] : []]
+        }), `[file permissions held: ${filesOn}] [the welcome already off: the value kept | an Assistant's Give back: the answer, the switch, the automations, `
+            + "the parts still kept | a full GM's with the permissions refused: the answer, the switch, the automations, the parts still kept]");
+    }],
     ...GRID
 ];
 
