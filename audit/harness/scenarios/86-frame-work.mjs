@@ -306,6 +306,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         check(`${theme}: E89 C0 - sightRefresh fired on every frame of the slide is heard on every browser (the model, LIVE-E89-02)`,
             Object.values(sight).every(r => (r.moved["visibility.sightRefresh"] ?? 0) >= SLIDE), moved(sight));
         await stateHolds(theme, "a move with sightRefresh on every frame");
+        /* E89 C4 (30.10.2026; E89-08): the hooks of a frame ask one pass on the next, which flags only a token this file
+           hid and may now show. At e9e41f58 visibility.applyAll 20 and applyAll.tokens 920 on every browser (on the model). */
+        const sightPasses = Object.fromEntries(Object.entries(sight).map(([who, r]) => [who, ["visibility.applyAll", "visibility.sightPass",
+            "visibility.sightPass.flags", "refreshToken.visibility"].map(k => r.moved[k] ?? 0)]));
+        check(`${theme}: E89 C4 - sightRefresh on each of the slide's ${SLIDE} frames asks no whole pass on any browser, at most one pass a frame (E89-08, on the model)`,
+            Object.values(sightPasses).every(([all, passes]) => all === 0 && passes >= 1 && passes <= SLIDE + 1), J(sightPasses));
         await p1.eval(SPY);
         const elsewhere = await measure(theme, "own move into another room", () => gm.eval(`${ACADEMY}
             await academy.tokens.get("TOKAIKO000000000").update({ x: 1300, y: 650 }, ${MOVE}); return true;`));

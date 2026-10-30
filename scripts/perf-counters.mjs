@@ -22,6 +22,8 @@
  *   visibility.applyAll.flags                                           the refreshes a whole pass asked of Foundry (E89 C0)
  *   visibility.applyOne                                                 a move that asked its own token alone (E88 C2)
  *   visibility.applyRooms, visibility.applyRooms.tokens                 an own move into other rooms, and the tokens it asked (E89 C2)
+ *   visibility.sightPass, .sightPass.tokens, .sightPass.flags           the next frame's pass for `sightRefresh`, the tokens
+ *                                                                       it judged, and the hidden ones it flagged (E89 C4)
  *   visibility.forget, visibility.myRooms.walk                          the room memos dropped; the viewer's rooms walked
  *                                                                       again over every placeable (E89 C0)
  *   visibility.sliding                                                  a sprite still sliding to its spot, tested against

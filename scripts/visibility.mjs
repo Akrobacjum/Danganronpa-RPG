@@ -48,12 +48,14 @@ export function registerVisibility() {
            token) over one 20-frame drag. `myRooms` reads the documents' positions, never a sprite's, so a refresh cannot
            change its answer: what can is an owned document's move (`passForTokenUpdate`), a token created or deleted, a
            bullet and its refs and the scene's own events (each through `applyAll`). */
+        // E89 C4: Foundry's refresh has had its say on `visible`; whether this file hides it again is asked below.
+        hiddenByUs.delete(token);
         applyToToken(token);
         // …and again after this frame's refresh has finished, this token among the ones refreshed in it. See below.
         reassertNextFrame(token);
     });
 
-    Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); applyAll(); });
+    Hooks.on("sightRefresh", () => { count("visibility.sightRefresh"); sightPassNextFrame(); });
     Hooks.on("canvasReady", () => applyAll());
     Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
@@ -612,6 +614,7 @@ function inTheIncident() {
 }
 
 function hide(token) {
+    hiddenByUs.add(token);
     token.visible = false;
     if (token.mesh) token.mesh.visible = false;
     // Nameplates, bars and the target marker are separate display objects.
@@ -636,6 +639,7 @@ function hide(token) {
  */
 function show(token) {
     if (token.document?.hidden) return;
+    hiddenByUs.delete(token);
     token.visible = true;
     if (token.mesh) token.mesh.visible = true;
 }
@@ -669,6 +673,52 @@ function enforcing() {
         return game.settings.get(MODULE_ID, SETTINGS.roomVisibility);
     } catch {
         return false;
+    }
+}
+
+/*
+ * `sightRefresh`: ONE VERDICT PASS ON THE NEXT FRAME, AND THE UN-HIDE ROAD ONLY WHERE IT IS NEEDED (E89 C4,
+ * 30.10.2026; E89-08). The hook ran `applyAll` each time it fired, and `applyAll` asks Foundry to refresh every token:
+ * scenario 86 at e9e41f58, with `sightRefresh` fired on each of a slide's 20 frames (the harness's model; whether v14
+ * fires it per frame is LIVE-E89-02), counted visibility.applyAll.tokens 920 on every browser and refreshToken.visibility
+ * 921, and on the GM's remnantIcons.apply 600 and utils.cssColour 681 from those refreshes. Every hook of a frame now
+ * asks one pass, run on the next frame, which reads each token's verdict as `applyAll` does (so a token a whole pass
+ * would hide is hidden by it) and flags `refreshVisibility` only on a token this file hid (`hiddenByUs`: written by
+ * `hide`, cleared by `show` and by the token's own refresh, where Foundry has just written `visible` again) whose
+ * verdict is no longer to hide it - the flag is the road that gives such a token back to Foundry (see `applyAll`'s
+ * note), and a token this file did not hide has nothing to be given back. `judge` is the verdict; the stand-ins of
+ * R1052 hand their own, which is passed `hide`.
+ */
+const hiddenByUs = new WeakSet();
+let pendingSight = 0;
+
+function sightPassNextFrame() {
+    if (pendingSight) return;
+    pendingSight = requestAnimationFrame(() => {
+        pendingSight = 0;
+        try {
+            sightPass();
+        } catch (err) {
+            debug("Visibility: the pass after sightRefresh failed", err);
+        }
+    });
+}
+
+export function sightPass(placeables = canvas?.tokens?.placeables ?? [], judge = applyToToken) {
+    if (!canvas?.ready) return;
+    forgetMyRooms();
+    passBasis = game.user?.isGM ? null : basisNow();
+    count("visibility.sightPass");
+    count("visibility.sightPass.tokens", placeables.length);
+    for (const token of placeables) {
+        if (!token || token.destroyed) continue;
+        const was = hiddenByUs.has(token);
+        hiddenByUs.delete(token);
+        judge(token, hide);
+        if (was && !hiddenByUs.has(token) && token.renderFlags?.set) {
+            token.renderFlags.set({ refreshVisibility: true });
+            count("visibility.sightPass.flags");
+        }
     }
 }
 

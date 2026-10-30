@@ -21828,6 +21828,41 @@ const INVARIANTS = [
         equal(JSON.stringify([drag[0], drag[1] <= 1, move[0] >= 1, move[1]]), JSON.stringify([0, true, true, 1]),
             `[memo drops over 40 refreshes, at most one walk of the scene for them, a drop on the document's move, one walk after it] for ${own.name}: drag ${JSON.stringify(drag)}, move ${JSON.stringify(move)}`);
     }],
+    ["R1052 - sightRefresh during a move asks one pass a frame (E89 C4): five sightRefresh hooks in one frame run one verdict pass on the next, which flags a token this file hid and may now be shown, and neither one it never hid nor one it hides again", async () => {
+        /*
+         * E89 C4, 30.10.2026; E89-08. The `sightRefresh` listener ran `applyAll` each time it fired, and `applyAll`
+         * flags `refreshVisibility` on every token: scenario 86 at e9e41f58, with sightRefresh on each of a slide's 20
+         * frames (the harness's model; LIVE-E89-02), counted visibility.applyAll.tokens 920 and refreshToken.visibility
+         * 921 on every browser. Now the hooks of a frame ask one pass (`sightPass`) on the next frame, which flags only
+         * a token this file hid whose verdict is no longer to hide it. Two parts, writing nothing: five hooks called in
+         * one frame on the canvas on screen, then two frames, counting the passes (`visibility.sightPass` and
+         * `visibility.applyAll`); and `sightPass` over three stand-in tokens with a verdict of its own (handed `hide`):
+         * "back" hidden by the first pass and entitled at the second, "never" not hidden by either, "still" hidden by
+         * both. Red at the parent: five whole passes, and no `sightPass`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        must(canvas.ready && (canvas.tokens?.placeables ?? []).length > 0, "the canvas is not ready or holds no token - this would measure nothing");
+        const frames = async k => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); };
+        await frames(1);
+        const b0 = C.snapshot();
+        for (let k = 0; k < 5; k++) Hooks.callAll("sightRefresh");
+        await frames(2);
+        const d = C.delta(b0, C.snapshot());
+        const passes = (d["visibility.sightPass"] ?? 0) + (d["visibility.applyAll"] ?? 0);
+        const flagged = new Set();
+        const stand = name => ({ name, destroyed: false, visible: true, mesh: null, renderFlags: { set: flags => { if (flags?.refreshVisibility) flagged.add(name); } } });
+        const back = stand("back"), never = stand("never"), still = stand("still");
+        let marks = "no sightPass";
+        if (typeof V.sightPass === "function") {
+            V.sightPass([back, still], (token, hide) => hide(token));
+            V.sightPass([back, never, still], (token, hide) => { if (token === still) hide(token); });
+            marks = [...flagged].sort().join(" ");
+        }
+        equal(JSON.stringify([passes, marks]), JSON.stringify([1, "back"]),
+            `[passes for 5 sightRefresh hooks in one frame, the stand-ins flagged]: ${JSON.stringify(d)}`);
+    }],
 
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
         /*
