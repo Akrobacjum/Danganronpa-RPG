@@ -194,10 +194,16 @@ function reassertNextFrame(token) {
  * one path of 3 updates three of them (applyAll.tokens 138). So the viewer hands signatures, not sets: `roomsBefore`/
  * `lairBefore` as the screen was last drawn, `roomsAfter`/`lairAfter` read again after the move
  * (`passForTokenUpdate`). Equal, and the move asks its own token's verdict ("one"); different, or nothing known
- * before (no signatures, no whole pass yet), every token's ("all") - narrowed to the tokens a room change can touch
- * in C2. Two owned characters are one set: one walking into a room the other stands in changes nothing. A room is a
+ * before (no signatures, no whole pass yet), every token's ("all"; "rooms" since C2, below). Two owned characters are one set: one walking into a room the other stands in changes nothing. A room is a
  * region's name (movement.mjs `roomAt`), so a step onto another floor into a room of the same name signs the same, as
  * every verdict compares the same names. An Eclipse is read by no signature: it changes no verdict on a move.
+ *
+ * E89 C2 (30.10.2026; E89-06): different signatures, both known, are "rooms" - the tokens a room change can touch
+ * (`roomChangeTokens`), not every token. Scenario 86 at 6bee0e69, on the harness's model: Aiko's move into the
+ * Cafeteria cost her player's browser two whole passes (visibility.applyAll.tokens 92: the update's, and the one
+ * sync.mjs `SYNC.fog` runs when the ledger records a room entered the first time - the GM's browser runs that one
+ * too, and it is the road that shows a public project found there). At C2 the update asks 5 tokens there
+ * (visibility.applyRooms.tokens 5) and the ledger's pass stays (applyAll.tokens 46). Nothing known before stays "all".
  */
 export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }) {
     // `hidden` as well as a move: that is the write `revealRemnantToFinder`
@@ -209,7 +215,47 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
     if (viewer.gm || !doc?.isOwner) return "one";
     const sameRooms = viewer.roomsBefore != null && viewer.roomsBefore === viewer.roomsAfter;
     const sameLair = (viewer.lairBefore ?? null) === (viewer.lairAfter ?? null);
-    return sameRooms && sameLair ? "one" : "all";
+    if (sameRooms && sameLair) return "one";
+    return viewer.roomsBefore != null ? "rooms" : "all";
+}
+
+/**
+ * THE TOKENS A CHANGE OF THE VIEWER'S ROOMS CAN SHOW OR HIDE (E89 C2, 30.10.2026; E89-06). `before` and `after` are
+ * `{ rooms, lair }` (rooms any iterable of names), `tokens` the placeables; the answer is the tokens among them whose
+ * verdict may differ between the two, read off what each verdict reads (`tokenShownTo`, `applyToProjectToken`,
+ * `applyToRemnantToken`):
+ * - a character standing in a room of one side and not the other (`room && viewer.rooms.has(room)` turns);
+ * - a character in no room when one side has no room and the other has (`!viewer.rooms.size && !room` turns);
+ * - every character when the watchtower turns (`viewer.lair && viewer.rooms.has(viewer.lair)`);
+ * - a project token in a room of one side and not the other. STAGE.md names the rooms entered alone (a public
+ *   project's record of rooms stood in grows); the rooms left are asked as well, because `hasStoodIn` also reads
+ *   where the viewer's tokens stand now, and a narrower pass may never leave a token shown that a whole pass hides;
+ * - never a Remnant: its verdict reads the viewer's bullets and the incident's cast, no room.
+ * The viewer's own characters read "show" on either side and are in the answer only by these rules (the caller adds
+ * the moved one). Everything else reads nothing a move changes. `roomOf` is `roomOfToken` unless the suite hands its
+ * stand-ins' (R1050): this reads no canvas and writes nothing.
+ */
+export function roomChangeTokens(before, after, tokens, roomOf = roomOfToken) {
+    const was = new Set(before?.rooms ?? []), now = new Set(after?.rooms ?? []);
+    const turned = new Set([...was].filter(room => !now.has(room)).concat([...now].filter(room => !was.has(room))));
+    const watch = (rooms, lair) => Boolean(lair) && rooms.has(lair);
+    const lairFlip = watch(was, before?.lair ?? null) !== watch(now, after?.lair ?? null);
+    const emptied = (was.size === 0) !== (now.size === 0);
+    const asked = [];
+    for (const token of tokens ?? []) {
+        const doc = token?.document;
+        if (!doc) continue;
+        if (doc.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) continue;
+        if (projectIdOf(doc)) {
+            const room = roomOf(doc);
+            if (room && turned.has(room)) asked.push(token);
+            continue;
+        }
+        if ((token.actor ?? doc.actor)?.type !== "character") continue;
+        const room = roomOf(doc) ?? null;
+        if (lairFlip || (room ? turned.has(room) : emptied)) asked.push(token);
+    }
+    return asked;
 }
 
 /**
@@ -224,7 +270,8 @@ export function movePass(doc, changes, viewer = { gm: Boolean(game.user?.isGM) }
 let passBasis = null;
 
 function basisNow() {
-    return { rooms: JSON.stringify([...myRooms()].map(String).sort()), lair: myLairRoom() ?? null };
+    const list = [...myRooms()].map(String).sort();
+    return { rooms: JSON.stringify(list), lair: myLairRoom() ?? null, list };
 }
 
 /** The move of one of this player's own tokens as `movePass` reads it: the memo dropped, the rooms read again. */
@@ -232,7 +279,28 @@ function ownMoveViewer() {
     forgetMyRooms();
     const now = basisNow();
     return { gm: false, roomsBefore: passBasis?.rooms ?? null, lairBefore: passBasis?.lair ?? null,
-        roomsAfter: now.rooms, lairAfter: now.lair };
+        roomsAfter: now.rooms, lairAfter: now.lair, before: passBasis, after: now };
+}
+
+/*
+ * "rooms" (E89 C2): the tokens `roomChangeTokens` names, and the moved one, each flagged and asked as `applyAll` asks
+ * its own (the flag is the un-hide road), the memo already dropped and read again by `ownMoveViewer` as `applyAll`
+ * drops it. Those are every token whose verdict differs between the two signatures, so the screen is now drawn for
+ * the new rooms: they become the basis the next move compares against (and the re-read at rest finds nothing to do).
+ */
+function applyRooms(doc, before, after) {
+    if (!canvas?.ready) return;
+    const asked = new Set(roomChangeTokens({ rooms: before.list, lair: before.lair }, { rooms: after.list, lair: after.lair },
+        canvas.tokens?.placeables ?? []));
+    if (doc?.object) asked.add(doc.object);
+    passBasis = after;
+    count("visibility.applyRooms");
+    count("visibility.applyRooms.tokens", asked.size);
+    for (const token of asked) {
+        if (token.destroyed) continue;
+        token.renderFlags?.set?.({ refreshVisibility: true });
+        applyToToken(token);
+    }
 }
 
 /*
@@ -260,9 +328,11 @@ export function passForTokenUpdate(doc, changes) {
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
     const ownMove = !gm && Boolean(doc?.isOwner) && changes?.hidden === undefined && isMoveChange(changes);
-    const pass = movePass(doc, changes, ownMove ? ownMoveViewer() : { gm });
+    const viewer = ownMove ? ownMoveViewer() : { gm };
+    const pass = movePass(doc, changes, viewer);
     if (ownMove) recheckAtRest(doc);
     if (pass === "all") return applyAll();
+    if (pass === "rooms") return applyRooms(doc, viewer.before, viewer.after);
     if (pass !== "one" || !canvas?.ready) return;
     const token = doc?.object;
     if (!token || token.destroyed) return;

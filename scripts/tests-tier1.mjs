@@ -21718,7 +21718,8 @@ const INVARIANTS = [
          * lair among them, and nothing else a move of the viewer's own token can change, so the rule now compares
          * signatures: `roomsBefore`/`lairBefore` as the screen was last drawn (the last whole pass), `roomsAfter`/
          * `lairAfter` read again after the move. Plain stand-ins, writing nothing. Red at 6ae66c7f: the same-room row and
-         * the room-less row read "all".
+         * the room-less row read "all". E89 C2 (30.10.2026): a change of rooms or of the lair, with the rooms before known,
+         * is "rooms" - the tokens `roomChangeTokens` names (R1050), no longer every token.
          */
         const V = await import("./visibility.mjs");
         must(typeof V.movePass === "function", "visibility.mjs exports no movePass - this would measure nothing");
@@ -21731,9 +21732,9 @@ const INVARIANTS = [
             "another token's move": [V.movePass(other, step, at(A, AC)), "one"],
             "own move, the same rooms": [V.movePass(own, step, at(A, A)), "one"],
             "own move, no room before or after": [V.movePass(own, step, at(sig(), sig())), "one"],
-            "own move, a room entered": [V.movePass(own, step, at(A, AC)), "all"],
-            "own move, a room left": [V.movePass(own, step, at(AC, A)), "all"],
-            "own move, the same rooms with the lair now among them": [V.movePass(own, step, at(A, A, null, "Dorm A")), "all"],
+            "own move, a room entered": [V.movePass(own, step, at(A, AC)), "rooms"],
+            "own move, a room left": [V.movePass(own, step, at(AC, A)), "rooms"],
+            "own move, the same rooms with the lair now among them": [V.movePass(own, step, at(A, A, null, "Dorm A")), "rooms"],
             "own move, nothing known before": [V.movePass(own, step, at(null, A)), "all"],
             "own move, no signatures handed": [V.movePass(own, step, { gm: false }), "all"],
             "a change of hidden": [V.movePass(other, { hidden: true, x: 1 }, at(A, A)), "all"],
@@ -21742,6 +21743,54 @@ const INVARIANTS = [
         const got = Object.fromEntries(Object.entries(rows).map(([row, [pass]]) => [row, pass]));
         const want = Object.fromEntries(Object.entries(rows).map(([row, [, pass]]) => [row, pass]));
         equal(JSON.stringify(got), JSON.stringify(want), "movePass on stand-ins, row by row");
+    }],
+    ["R1050 - an own move into another room asks only the tokens it can change (E89 C2): the characters in a room entered or left, the ones in no room when the viewer's rooms empty or fill, every character when the lair's watchtower turns, the project tokens in a room entered or left, and never a Remnant", async () => {
+        /*
+         * E89 C2, 30.10.2026; E89-06. Scenario 86 at 6bee0e69 (on the harness's model): Aiko's move into the Cafeteria
+         * cost her player's browser two whole passes, visibility.applyAll.tokens 92 of a scene of 46 (the update's and the
+         * ledger's, sync.mjs `SYNC.fog`). A verdict reads the
+         * viewer's rooms, the lair among them, and for a public project the rooms stood in; a Remnant's reads none. So a
+         * change of rooms asks the tokens `roomChangeTokens` names. Stand-ins as STAGE.md's: Dorm A and the Cafeteria with
+         * three students each, two elsewhere, one in no room, a project in the Cafeteria, 30 Remnants spread over the
+         * same rooms and none; the room of each is handed (`roomOf`), so nothing of the canvas is read and nothing is
+         * written. Red at 6bee0e69: visibility.mjs exported no roomChangeTokens.
+         */
+        const V = await import("./visibility.mjs");
+        must(typeof V.roomChangeTokens === "function", "visibility.mjs exports no roomChangeTokens - nothing to ask");
+        const { PROJECT_TOKEN_FLAG } = await import("./projects-map.mjs");
+        const { REMNANT_FLAGS } = await import("./remnants.mjs");
+        const character = (name, room) => ({ name, actor: { type: "character" },
+            document: { name, room, actor: { type: "character" }, getFlag: () => undefined } });
+        const project = (name, room) => ({ name, actor: null,
+            document: { name, room, actor: null, getFlag: (scope, key) => (scope === MODULE_ID && key === PROJECT_TOKEN_FLAG ? "S1050P" : undefined) } });
+        const remnant = (name, room) => ({ name, actor: { type: "character" },
+            document: { name, room, actor: { type: "character" }, getFlag: (scope, key) => (scope === MODULE_ID && key === REMNANT_FLAGS.isRemnant ? true : undefined) } });
+        const tokens = [
+            ...["A1", "A2", "A3"].map(n => character(n, "Dorm A")), ...["C1", "C2", "C3"].map(n => character(n, "Cafeteria")),
+            character("G1", "Gym"), character("H1", "Hall"), character("N1", null), project("P-Cafeteria", "Cafeteria"),
+            ...Array.from({ length: 30 }, (_, k) => remnant("R" + k, ["Dorm A", "Cafeteria", "Gym", null][k % 4]))
+        ];
+        const roomOf = doc => doc.room;
+        const ask = (before, after) => V.roomChangeTokens(before, after, tokens, roomOf);
+        const names = list => list.map(t => t.name).sort().join(" ");
+        const side = (rooms, lair = null) => ({ rooms, lair });
+        const all = "A1 A2 A3 C1 C2 C3 G1 H1 N1";
+        const rows = {
+            "Dorm A -> Cafeteria": [ask(side(["Dorm A"]), side(["Cafeteria"])), "A1 A2 A3 C1 C2 C3 P-Cafeteria"],
+            "Cafeteria -> Dorm A": [ask(side(["Cafeteria"]), side(["Dorm A"])), "A1 A2 A3 C1 C2 C3 P-Cafeteria"],
+            "Dorm A -> Dorm A and the Cafeteria (a second own student walks in)": [ask(side(["Dorm A"]), side(["Dorm A", "Cafeteria"])), "C1 C2 C3 P-Cafeteria"],
+            "Dorm A -> Dorm A (nothing turned)": [ask(side(["Dorm A"]), side(["Dorm A"])), ""],
+            "the lair entered: Dorm A -> the Cafeteria, the lair": [ask(side(["Dorm A"], "Cafeteria"), side(["Cafeteria"], "Cafeteria")), all + " P-Cafeteria"],
+            "the lair left: the Cafeteria, the lair -> Dorm A": [ask(side(["Cafeteria"], "Cafeteria"), side(["Dorm A"], "Cafeteria")), all + " P-Cafeteria"],
+            "the lair entered without a room turned (a second own student already there)": [ask(side(["Dorm A", "Cafeteria"], null), side(["Dorm A", "Cafeteria"], "Dorm A")), all],
+            "stepping outside every region: Dorm A -> none": [ask(side(["Dorm A"]), side([])), "A1 A2 A3 N1"],
+            "stepping back in: none -> Dorm A": [ask(side([]), side(["Dorm A"])), "A1 A2 A3 N1"]
+        };
+        const got = Object.fromEntries(Object.entries(rows).map(([row, [list]]) => [row, names(list)]));
+        const want = Object.fromEntries(Object.entries(rows).map(([row, [, list]]) => [row, list]));
+        equal(JSON.stringify(got), JSON.stringify(want), "roomChangeTokens on stand-ins, row by row");
+        const remnantsAsked = Object.values(rows).reduce((sum, [list]) => sum + list.filter(t => t.name.startsWith("R")).length, 0);
+        equal(remnantsAsked, 0, "Remnants asked over every row");
     }],
 
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
