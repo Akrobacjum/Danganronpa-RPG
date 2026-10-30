@@ -912,7 +912,11 @@
       "murderRulingTitle": "Decyzja do podjęcia",
       "murderAsk": "Direct Murder w ciemności: {killer} sam na sam z: {victim} w: {room}. Otworzyć incydent?",
       "murderAskNote": "Pytano o to przy zgłoszeniu i pytanie wciąż czeka. Odmowa niczego nie otwiera; akcja przepada tak czy inaczej.",
-      "sabotageSeenOn": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej."
+      "sabotageSeenOn": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej.",
+      "palmTitle": "{action} - {trait}, przebij {n}",
+      "needed": "potrzeba {n}",
+      "observeGmMode": "Sposób patrzenia: {mode}.",
+      "dynamicMissedGm": "Rzut się nie udał. Nie ma czego dawać; akcja zostaje wydana."
     },
     "Analyze": {
       "analyseBullet": "Zidentyfikuj Truth Bullet",
@@ -2045,7 +2049,9 @@
       "trackerCastGone": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Nic nie popchnie go dalej - zakończy go przycisk „Zamknij morderstwo”.",
       "victimMarks": "Ofiara: zaznaczone Health {hp}, Sanity {stress}.",
       "castMissingHere": "Ta przeglądarka nie ma obsady trwającego incydentu, więc nie da się tu ustalić jego tury. Wpisz obsadę ręcznie (kontrola zdrowia sprawy) albo pozwól działać GM-owi, którego przeglądarka ją ma.",
-      "castNotArrived": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę."
+      "castNotArrived": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę.",
+      "deniedByIncident": "Incydent odebrał ci tę akcję.",
+      "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
       "room": "Pokój",
@@ -2679,9 +2685,9 @@
       "rerollLost": "Przyszedł Reroll Observe bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego samego śladu i odbierz Truth Bullet, jeśli już nie pasuje.",
       "alreadyHeld": "Masz już Truth Bullet tego śladu.",
       "alreadyDescribed": "Ten ślad ma już nazwę i każdy obserwator słyszy tę samą - dwie nazwy jednego przedmiotu to fałszywa sprzeczność, którą trzeba by potem rozplątywać w Class Trial. Krytyk kupuje większą podpowiedź, nie nową nazwę: dopisz ją poniżej.",
-      "generalHint": "Weź to, co najłatwiej zauważyć w tym pokoju. Rozstrzygają kości.",
-      "nonObviousHint": "Celuj w najtrudniejszą rzecz tutaj - i w to, czego w tym pokoju w ogóle nie powinno być. Rozstrzygają kości.",
-      "followTracesHint": "Wróć po własnych śladach i znajdź to, co po tobie zostało. Rozstrzygają kości.",
+      "generalHint": "Omieć pokój wzrokiem w poszukiwaniu tego, co najłatwiej zauważyć.",
+      "nonObviousHint": "Spójrz poza oczywiste: na najtrudniejszą rzecz tutaj i na to, czego w tym pokoju w ogóle nie powinno być.",
+      "followTracesHint": "Wróć po własnych śladach i poszukaj tego, co po tobie zostało.",
       "specificHint": "Powiedz, czego szukasz. GM decyduje, na czym zatrzyma się twój wzrok.",
       "anythingHint": "Coś, co nie jest śladem - osoba, maszyna, pogoda. GM to rozstrzyga.",
       "resolveLost": "{name} rzuca {total} na Observe, a ta przeglądarka nie ma zapisu, na co patrzyła ta osoba. Nic nie znaleziono i nic nie pobrano - akcja przepadła. Zapytaj, co było zgłoszone, a jeśli coś było do znalezienia, przekaż to ręcznie.",
@@ -4142,7 +4148,6 @@
       "cardTheirHandsFull": "{who} nie ma miejsca na {item}. Zostaje przy tobie.",
       "caughtPlanting": "Widzisz to: {who} wkłada ci {item} do kieszeni.",
       "caughtTryingPlant": "Łapiesz {who} na próbie wsunięcia ci czegoś do kieszeni. Nic ich nie masz przy sobie.",
-      "unseenRoll": "Trzymaj ręce poza zasięgiem wzroku",
       "emptyPockets": "{name} nie nosi niczego, co dałoby się wziąć.",
       "chooseTitle": "Wybieraj",
       "chooseIntro": "Poszło idealnie. Wybierz, co bierzesz od: {name}.",

@@ -37,7 +37,7 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel } from "./projects.mjs";
 import { callGm, promptAndCallGm, promptForRequest } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
@@ -167,21 +167,6 @@ export async function performAction(actor, actionKey, options = {}) {
         const inFight = fightState()?.stage === "incident" && sideInFight(actor);
         if (inFight && actionKey === "directMurder") return openCrisisMenu(actor);
 
-        // The Eclipse is a placement window, not a time of day - the guide has
-        // the next time of day begin only once everyone has placed. Nothing
-        // beyond the two free crossings (handled in movement.mjs, not here) is
-        // available yet: not an action, not a Call. `actionKey === "move"`
-        // still passes through, since Move does nothing here besides show its
-        // own briefing - the crossing itself is judged by `judgeEclipseCrossing`.
-        //
-        // Direct Murder is the exception in BOTH directions: the lights are out
-        // and everybody is crossing the map, which is the one moment the guide
-        // gives for being alone with somebody. So it is the only ordinary action
-        // that works during an Eclipse - and it works at no other time.
-        if (actionKey !== "move" && actionKey !== "directMurder" && isEclipse()) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
-            return null;
-        }
         /*
          * A MONOCUB HAS TWO ACTIONS, AND THIS IS WHERE THAT IS TRUE (ACT-13, 20.09).
          *
@@ -197,6 +182,9 @@ export async function performAction(actor, actionKey, options = {}) {
          * with the dead test - which is further down - would have left the loudest
          * action in the game open to a Monocub.
          *
+         * ABOVE THE DEAD TEST AND THE ECLIPSE since E51 C1, which put the dead test above
+         * the Eclipse (R1105); R86 holds the gate above the dead test.
+         *
          * BELOW the in-fight shortcut above, equally deliberately. A fight is its own
          * economy with its own entry point (`takeCrisisAction`), and somebody already
          * in one pressing this tile means "open the fight's menu" whoever they are;
@@ -210,6 +198,42 @@ export async function performAction(actor, actionKey, options = {}) {
         const { isMonocub: cubCheck } = await import("./monocub.mjs");
         if (cubCheck(actor) && !MONOCUB.dispatchable.includes(actionKey)) {
             ui.notifications.warn(game.i18n.localize("DRPG.Monocub.onlyTwoActions"));
+            return null;
+        }
+
+        // The dead do not act. The sheet already stops showing them a grid, but
+        // this is the boundary that decides: the panel is rebuilt on render, so
+        // a sheet left open across the moment of death still has live buttons,
+        // and `game.drpg.performAction` reaches here without a sheet at all.
+        //
+        // A Monocub is deceased too and is deliberately let through - their own
+        // panel offers exactly Move and Meddle, and Move is dispatched from
+        // here like any other action.
+        //
+        // ABOVE THE ECLIPSE (E51 C1; audit S02-51 (d)). It stood below it, so a dead student pressing a tile in an
+        // Eclipse was told the Eclipse locks actions - true, and not why: being dead is. R1105 holds the order.
+        const { isMonocub } = await import("./monocub.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        if (isDeadForGm(actor) && !isMonocub(actor)) {
+            ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
+                name: actor.name
+            }));
+            return null;
+        }
+
+        // The Eclipse is a placement window, not a time of day - the guide has
+        // the next time of day begin only once everyone has placed. Nothing
+        // beyond the two free crossings (handled in movement.mjs, not here) is
+        // available yet: not an action, not a Call. `actionKey === "move"`
+        // still passes through, since Move does nothing here besides show its
+        // own briefing - the crossing itself is judged by `judgeEclipseCrossing`.
+        //
+        // Direct Murder is the exception in BOTH directions: the lights are out
+        // and everybody is crossing the map, which is the one moment the guide
+        // gives for being alone with somebody. So it is the only ordinary action
+        // that works during an Eclipse - and it works at no other time.
+        if (actionKey !== "move" && actionKey !== "directMurder" && isEclipse()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
         }
 
@@ -264,22 +288,6 @@ export async function performAction(actor, actionKey, options = {}) {
             return null;
         }
 
-        // The dead do not act. The sheet already stops showing them a grid, but
-        // this is the boundary that decides: the panel is rebuilt on render, so
-        // a sheet left open across the moment of death still has live buttons,
-        // and `game.drpg.performAction` reaches here without a sheet at all.
-        //
-        // A Monocub is deceased too and is deliberately let through - their own
-        // panel offers exactly Move and Meddle, and Move is dispatched from
-        // here like any other action.
-        const { isMonocub } = await import("./monocub.mjs");
-        const { isDeadForGm } = await import("./chapter.mjs");
-        if (isDeadForGm(actor) && !isMonocub(actor)) {
-            ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
-                name: actor.name
-            }));
-            return null;
-        }
 
         /*
          * A CLASS TRIAL IS NOT A TIME OF DAY (T-1, Dawid 17.09, answers 2 and 99).
@@ -679,11 +687,13 @@ function dynamicDef() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0 } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, titled = false } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
-    if (dc !== null && dc !== undefined && dc !== "") {
+    // `titled`: the title says its number already, in its own words (`palmTitle`, E51 C1).
+    const shown = dc !== null && dc !== undefined && dc !== "";
+    if (shown && !titled) {
         const heading = title ?? ACTIONS[actionKey]?.label ?? null;
         const beat = game.i18n.format("DRPG.Action.beat", { n: dc });
         title = heading ? `${heading} · ${beat}` : beat;
@@ -698,11 +708,53 @@ export async function rollTrait(actor, drpgTrait,
     if (supporting) calls.shieldCalls();
     if (situational) calls.armOwnSituational(situational);
     try {
-        return await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
+        /* THE NUMBER RIDES ON THE ROLL TO ITS CARD (E51 C1; the owner's amendment of 14.10: "modul w zaden sposob nie
+           informuje ani gracza, ani gma o thresholdach akcji"). The window said "beat N" and the card said the total
+           alone, so a reader of the card had to know the table. `dc` is kept on the outcome for the card that reports
+           it (`rollHead`, `report`, a concealment's line: "needed N") and is read by nothing that judges - every
+           judgement reads its own number (the GM's `applyCrisisAction`, `stealFromPerson`, the bands). */
+        const outcome = await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
+        if (outcome && shown) outcome.dc = dc;
+        return outcome;
     } finally {
         if (situational) calls.clearOwnSituational();
         if (supporting) calls.unshieldCalls();
     }
+}
+
+/**
+ * A Palm's or a Frisk's roll window, named by the part it throws (E51 C1; the owner's A11 of 13.10: "Palm - Hand, beat
+ * 10", Frisk included, the numbers from config): "{action} - {trait}, beat {n}". `part` is one of `PALM_PARTS`, each
+ * read off `ACTIONS.palm` - the statistic and the number its judge reads: the cover (`unseen`) and the hand (`hand`) of
+ * a Palm, a Plant's two (`plantUnseen`, `plant`), an unseen Frisk's two (`rummageUnseen`, `rummage`) and the forced
+ * Frisk (`frisk`). A part the table does not hold, or holds with no statistic or no number, falls back to the action's
+ * label with no beat, which R1104 fails. The window's `dc` is still handed to `rollTrait` (its card's "needed N"),
+ * with `titled`: the title says the number already.
+ */
+export const PALM_PARTS = Object.freeze({
+    unseen: def => [def.unseen?.trait, def.unseen?.threshold],
+    hand: def => [palmHand(def), def.threshold],
+    plantUnseen: def => [def.unseen?.trait, def.plant?.unseen],
+    plant: def => [palmHand(def), def.plant?.threshold],
+    rummageUnseen: def => [def.unseen?.trait, def.rummage?.unseen],
+    rummage: def => [def.rummage?.trait, def.rummage?.threshold],
+    frisk: def => [def.frisk?.trait, def.frisk?.threshold]
+});
+
+/** The hand's statistic: Palm lists one trait, and R213 holds this site to that (its FIRSTS). */
+function palmHand(def) {
+    return def.traits?.[0];
+}
+
+export function palmTitle(part, def = ACTIONS.palm) {
+    const [trait, n] = PALM_PARTS[part]?.(def ?? {}) ?? [];
+    if (!TRAITS[trait] || !Number.isFinite(n)) return def?.label ?? "";
+    return game.i18n.format("DRPG.Action.palmTitle", { action: def.label, trait: TRAITS[trait].label, n });
+}
+
+/** " (needed N)" after a total written into a card's own line - a concealment's (E51 C1), "" with no number. */
+export function neededNote(n) {
+    return n === null || n === undefined || n === "" ? "" : ` (${game.i18n.format("DRPG.Action.needed", { n })})`;
 }
 
 /** The roll itself, once it has been decided whether a Call may touch it. */
@@ -2577,8 +2629,9 @@ async function performSearch(actor, def, options) {
  * ========================================================================== */
 
 /** The textarea, with whatever prompt the action wants above it. */
-function requestFieldHtml({ prompt, placeholder, optional = true }) {
-    return `<label class="drpg-specific-note">
+function requestFieldHtml({ prompt, placeholder, optional = true, when = null }) {
+    // `when`: the row whose pick shows it (the stylesheet's `data-drpg-when`), or shown with every row.
+    return `<label class="drpg-specific-note"${when ? ` data-drpg-when="${esc(when)}"` : ""}>
         <span>${prompt}</span>
         <textarea name="request" rows="2" placeholder="${
             foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
@@ -2610,7 +2663,7 @@ export async function chooseVariant({
     // content, and the stylesheet unfolds the block right after the picked row.
     const rows = options.map(o => `
         <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
-            o.gmRoute ? " drpg-gm-route" : ""}">
+            o.gmRoute ? " drpg-gm-route" : ""}${o.struck ? " drpg-row-denied" : ""}">
             <input type="radio" name="variant" value="${esc(o.value)}"${
                 o.value === first ? " checked" : ""}${o.disabled ? " disabled" : ""}>
             <i class="fa-solid ${esc(o.icon ?? "fa-circle")}" inert></i>
@@ -3364,7 +3417,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
             if (!conceal) return { exit: await abort(actor, paid) };
             rolledAlready = true;
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
-            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
+            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
                 ok ? (conceal.withFear
                         ? INDIRECT_MURDER.concealIntent.successWithDespair
                         : INDIRECT_MURDER.concealIntent.success)
@@ -3494,10 +3547,6 @@ export async function hideProjectTraces(actor, project, progress, lines) {
 function projectOptionsHtml(list, { disableComplete = false } = {}) {
     let defaulted = false;
     return list.map(p => {
-        const target = p.start ? ` - ${p.current}/${p.start}${scaleFor(p.start) ? `, ${scaleFor(p.start)}` : ""}` : "";
-        const where = p.room ? ` · ${p.room}` : "";
-        // The statistic its roll takes (C11d): the project's own, said before it is picked.
-        const stat = TRAITS[p.trait] ? ` · ${TRAITS[p.trait].label}` : "";
         const done = disableComplete && p.complete;
 
         let mark = "";
@@ -3510,10 +3559,11 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
 
         // The word as well as the line through it. The strike is the glance and
         // the word is the answer, and only one of the two survives a picker
-        // drawn by a browser that will not style an <option>.
-        const suffix = done ? ` - ${game.i18n.localize("DRPG.Project.completeTag")}` : "";
+        // drawn by a browser that will not style an <option>. The statistic its
+        // roll takes (C11d): the project's own, said before it is picked. One
+        // formatter for every list of projects (`projectLabel`, E51 C1).
         return `<option value="${p.id}"${mark}>${
-            foundry.utils.escapeHTML(p.name)}${target}${where}${stat}${suffix}</option>`;
+            foundry.utils.escapeHTML(projectLabel(p, { scale: true, room: true, stat: true, complete: done }))}</option>`;
     }).join("");
 }
 
@@ -3637,7 +3687,7 @@ async function performSabotage(actor, def, options, preset = null) {
 
     const concealment = await concealSabotage(actor, { room, project, witnesses, paid, lines });
     if ("exit" in concealment) return concealment.exit;
-    const { penalty, rolledAlready } = concealment;
+    const { penalty, rolledAlready, watched } = concealment;
 
     // Sabotage is project work with the sign flipped, so the tool counts here
     // too - the guide's own "including sabotage". `performSabotage` did not look
@@ -3731,7 +3781,7 @@ async function performSabotage(actor, def, options, preset = null) {
                   })}`
     };
 
-    await soundSabotage(actor, room, outcome);
+    await soundSabotage(actor, room, outcome, { watched });
 
     // What Reroll has to unpick: the freeze on the target, the repair project it
     // spawned, and the trace. The concealment penalty rides along because the new
@@ -3800,6 +3850,7 @@ async function sabotageTargets(actor, place, { sabotageTargetsIn }) {
 async function concealSabotage(actor, { room, project, witnesses, paid, lines }) {
     let penalty = 0;
     let rolledAlready = false;
+    let watched = false;
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
@@ -3809,7 +3860,7 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
 
-        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}: ${
+        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}${neededNote(conceal.dc)}: ${
             hidden
                 ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
                 : SABOTAGE_CONCEAL.failure
@@ -3827,17 +3878,23 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
          * for it is R40.
          */
         if (!hidden) {
+            /* THE ROOM'S ONE CARD, AND ITS ONE SOUND (E51 C1; audit S02-51 (e)). A watched sabotage whose roll then came
+               with Fear was announced twice to the same room - this line, then `soundSabotage`'s "is seen doing
+               something" - with the sound on the second. The room has seen it here: the sound goes on this card, and
+               `soundSabotage` posts and plays nothing more for a watched one. E51-T3 counts the cards and the sounds. */
             await announce({
                 content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`,
-                whisper: roomAudience(actor)
+                whisper: roomAudience(actor),
+                flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
             });
+            watched = true;
             await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
                 <p>${game.i18n.localize("DRPG.Action.sabotageSeenOn")}</p>`);
         }
     } else {
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
-    return { penalty, rolledAlready };
+    return { penalty, rolledAlready, watched };
 }
 
 /**
@@ -3937,7 +3994,9 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
      * chapter. And the saboteur is on the announcement's audience too, so
      * playing only the failure would have left them hearing the smaller half.
      */
-async function soundSabotage(actor, room, outcome) {
+async function soundSabotage(actor, room, outcome, { watched = false } = {}) {
+    // Seen already, on the room's card with its sound (`concealSabotage`, E51 C1): one card, one sound, nothing here.
+    if (watched) return;
     if (outcome.revealed) {
         await announce({
             content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {
@@ -4278,7 +4337,7 @@ async function openCrisisMenu(actor) {
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
         confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
-        options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy }) => ({
+        options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
@@ -4300,10 +4359,14 @@ async function openCrisisMenu(actor) {
             }),
             confirm: game.i18n.localize(free || def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll"),
             disabled: blocked,
+            // Taken away by the incident (`deniedToVictim`): drawn struck through, with why (E51 C1; S02-51 (g)).
+            struck: Boolean(denied),
             // Say WHICH kind of shut this is, in the same precedence the tiles
-            // used: locked behind another action, already spent, or blocked by
-            // something the other side did.
-            why: locked
+            // used: taken away by the incident, locked behind another action,
+            // already spent, or blocked by something the other side did.
+            why: denied
+                ? game.i18n.localize(why ?? "DRPG.Murder.deniedByIncident")
+                : locked
                 ? game.i18n.format("DRPG.Murder.actionLocked", { name: lockedBy ?? "?" })
                 : spent
                     ? game.i18n.localize("DRPG.Murder.actionSpent")
@@ -4601,14 +4664,15 @@ async function performPalm(actor, def, options) {
      * bookmark renames it "palm" by its context); this one, which told the GM no action until C15,
      * is told as the action's own key. A supporting roll all the same: nothing remembers it (`remember: false`).
      */
+    // Each window named "Palm - Shadow, beat 15" by its part (`palmTitle`, E51 C1), its number the one judged below.
     const shadow = await rollTrait(actor, unseen.trait, {
-        remember: false, actionKey: "palm", title: game.i18n.localize("DRPG.Steal.unseenRoll"),
+        remember: false, actionKey: "palm", title: palmTitle(planting ? "plantUnseen" : "unseen", def), titled: true,
         dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
     if (!shadow) return abort(actor, paid);
 
     const hand = await rollTrait(actor, def.traits[0], {
-        actionKey: "steal",
+        actionKey: "steal", title: palmTitle(planting ? "plant" : "hand", def), titled: true,
         dc: planting ? (def.plant?.threshold ?? def.threshold) : def.threshold,
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
@@ -4960,7 +5024,7 @@ async function observeRanked(actor, def, cost, options, declaration) {
     // Nothing here to find, or the character is not standing in a room: the
     // GM rules on the roll just thrown, as `observeSpecific` does. This used
     // to open a SECOND declaration window (ROLL-11).
-    if (!target.ok) return ruleObserve(actor, def, roll, "", null, paid);
+    if (!target.ok) return ruleObserve(actor, def, roll, "", null, paid, declaration);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -5010,7 +5074,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Opening a second declaration window would roll a second
     // time for the same action.
-    if (!target.ok) return ruleObserve(actor, def, roll, request, null, paid);
+    if (!target.ok) return ruleObserve(actor, def, roll, request, null, paid, declaration);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -5075,7 +5139,7 @@ async function observeAnything(actor, def, cost, request = "") {
     // pressing and meaningless as the title of the window it arrives in. The GM
     // gets a title that says which action this was.
     return ruleObserve(actor, def, roll, request,
-        game.i18n.localize("DRPG.Observe.anythingTitle"), paid);
+        game.i18n.localize("DRPG.Observe.anythingTitle"), paid, "anything");
 }
 
 /**
@@ -5086,7 +5150,7 @@ async function observeAnything(actor, def, cost, request = "") {
  * is the Observe's own result and charges its miss (see `missAction`). A card
  * never posted is no answer: `paid` comes back (E18 C0).
  */
-async function ruleObserve(actor, def, roll, request, title = null, paid = null) {
+async function ruleObserve(actor, def, roll, request, title = null, paid = null, declaration = null) {
     const { callGm } = await import("./gm-bridge.mjs");
     const label = title ?? def.label;
     // Both halves from one lookup: `locateActor` answers without the canvas, so
@@ -5102,7 +5166,9 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null)
         title: label,
         what: "observe.resolve",
         nothingSpent: true,
-        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>`,
+        // Which way of looking was declared (E51 C1; audit S02-50): an empty room handed the GM a total and no question.
+        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>${
+            observeModeLine(declaration)}`,
         roll,
         request,
         room,
@@ -5138,6 +5204,18 @@ async function ruleObserve(actor, def, roll, request, title = null, paid = null)
 
     return { calledGm: true, roll };
 }
+
+/**
+ * The GM's line naming the way of looking an Observe declared (`DRPG.Action.observeGmMode`), or "" for none: general,
+ * non-obvious, follow traces, something specific, or a point of interest (E51 C1; audit S02-50). Exported for E51-T1.
+ */
+export function observeModeLine(declaration) {
+    const key = OBSERVE_MODES.includes(declaration) ? `DRPG.Observe.${declaration}` : null;
+    return key ? `<p><small>${game.i18n.format("DRPG.Action.observeGmMode", { mode: esc(game.i18n.localize(key)) })}</small></p>` : "";
+}
+
+/** The declarations `askDeclaration` offers, each with its label at `DRPG.Observe.<value>`. */
+const OBSERVE_MODES = Object.freeze(["general", "nonObvious", "followTraces", "specific", "anything"]);
 
 /**
  * How are you looking? The guide's declarations, and nothing else.
@@ -5642,12 +5720,16 @@ async function askWhatToAnalyze(actor, def, bullets) {
                         foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
             : ""}${requestFieldHtml({
                 prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
-                placeholder: game.i18n.localize("DRPG.Action.placeholder.analyze")
+                placeholder: game.i18n.localize("DRPG.Action.placeholder.analyze"),
+                // A GM reads it on the hint alone (E51 C1; audit S02-51 (a)): shown with every row, it asked the
+                // stash hunt and the passage, which no person reads, for a sentence. R1103 reads it.
+                when: "hint"
             })}`
     });
 
     if (!picked) return null;
-    const request = readRequestField(picked.form);
+    // Read for the hint alone, as it is shown: what was typed before another row was picked is not that row's.
+    const request = picked.value === "hint" ? readRequestField(picked.form) : "";
     // Both of the rows that end in a person are their own answer. Only the
     // first has a `<select>` underneath it, so anything else falling through to
     // the line below reads an element that is not there and comes back `null`,
@@ -6148,7 +6230,9 @@ async function performDynamic(actor, options) {
         text: success ? game.i18n.format("DRPG.Action.dynamicSuccess", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
-    if (success) await offerDynamicFind(actor, { tier: band.tier, room: roomOfActor(actor), description, roll, rollId: rollInHand(actor)?.messageId ?? null });
+    // The GMs' card, a miss's too (E51 C1; the session notes of 27.10: a failure gave the GM no card with the result).
+    await offerDynamicFind(actor, { success, tier: band.tier, room: roomOfActor(actor), description, roll,
+        rollId: rollInHand(actor)?.messageId ?? null, dc: dynamicBar(band) });
 
     // The GM's difficulty band is the one thing a reroll must NOT re-ask for:
     // the ruling was about what the player described, not about the dice.
@@ -6179,16 +6263,26 @@ async function performDynamic(actor, options) {
  * roller's own here, a GM's for a Reroll that turns a miss (reroll.mjs `settleDynamic`). Tier 2's
  * E16-T26 reads the card's data after a success, a Reroll of it and a Reroll from a miss.
  */
-export async function offerDynamicFind(actor, { tier, room = null, description = "", roll = null, rollId = null } = {}) {
+export async function offerDynamicFind(actor, { success = true, tier, room = null, description = "", roll = null, rollId = null,
+    dc = roll?.dc ?? null } = {}) {
+    /* THE ROLL AND ITS NUMBER, ON A MISS TOO (E51 C1; the session notes of 27.10). The GMs' card came on a success
+       alone, so the thread showed the difficulty card's "Answered by" and then nothing: a GM did not see what a miss
+       had rolled against what. A miss posts the same card, its roll and "needed N", as a receipt - nothing to rule:
+       the miss is the roll's - with no button. E51-T8 reads both. */
+    const needed = dc === null || dc === undefined || dc === ""
+        ? "" : `<p><small>${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small></p>`;
     const sent = await callGm(actor, {
         title: dynamicDef().label,
         request: description,
         roll,
         room,
-        gmBody: `<p>${game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
-            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+        gmBody: success
+            ? `<p>${game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
+                game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>${needed}`
+            : `<p>${game.i18n.localize("DRPG.Action.dynamicMissedGm")}</p>${needed}`,
+        receipt: !success,
         // Lowercase data keys only, as searchSpecific's: `dataset` lowercases them.
-        actions: [
+        actions: !success ? [] : [
             {
                 action: "createItem",
                 label: game.i18n.localize("DRPG.Bridge.createItem"),
@@ -6350,7 +6444,9 @@ function rollHead(def, roll) {
         total: roll?.total,
         result: roll?.isCritical ? game.i18n.localize("DRPG.Action.critical") : null,
         resultKind: roll?.isCritical ? "critical" : null,
-        trait: TRAITS[roll?.trait]?.label
+        trait: TRAITS[roll?.trait]?.label,
+        // The number its window said (`rollTrait`'s `dc`), "needed N" on the card (E51 C1).
+        dc: roll?.dc ?? null
     }) + dualityBar(roll);
 }
 
@@ -6399,7 +6495,9 @@ export async function report(actor, def, roll, outcome) {
         // The two the slot can name are also the two it can colour: something
         // found is evidence, a critical is a critical.
         resultKind: outcome.item ? "evidence" : roll?.isCritical ? "critical" : null,
-        trait: traitLabel
+        trait: traitLabel,
+        // "needed N", the number its window said (`rollTrait`'s `dc`; E51 C1): a Palm's hand, a Search's ladder.
+        dc: roll?.dc ?? null
     }));
 
     // Directly under the header, because it is the header's own number shown

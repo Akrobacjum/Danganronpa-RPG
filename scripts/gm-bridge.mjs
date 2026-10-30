@@ -4899,7 +4899,8 @@ export async function callGm(actor, {
      * waited on a ruling that was never coming and the GMs were interrupted for a receipt. True: no
      * "awaiting" line, no `gmAsk`, no sound or popup of a question. Every other card at d90687dc
      * carries buttons or is answered by a reply (`askGm`: Think, Listen and the rest), so is a
-     * question; the watched trap's receipt is the one caller (projects.mjs `announceTrapReady`).
+     * question; the watched trap's receipt was the one caller (projects.mjs `announceTrapReady`), and since E51 C1 a
+     * Dynamic miss's card is another (action-rolls.mjs `offerDynamicFind`).
      */
     receipt = false
 } = {}) {

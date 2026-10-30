@@ -6600,8 +6600,10 @@ const REGRESSIONS = [
         // C12b (04.10.2026) until E29 fix r1-G10, whose table of sources (`TRAIT_SOURCES`) reads each
         // definition's list whole and takes a statistic from it only where it lists one; Tamper's door
         // takes Tamper's first with a `slice`, as `cleanupTrait` takes it - no `[0]` for this to read.
+        // E51 C1 added `palmHand`, the hand's statistic in a Palm's window title (`palmTitle`), off Palm's one trait.
         const FIRSTS = {
             "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
+            "action-rolls.mjs palmHand": ACTIONS.palm,
             "action-rolls.mjs performPalm": ACTIONS.palm,
             "cleanup.mjs cleanupTrait": ACTIONS.tamper
         };
@@ -14491,7 +14493,7 @@ const REGRESSIONS = [
             ["action-rolls.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
             ["action-rolls.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
             ["action-rolls.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
-            ["action-rolls.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2): the success is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
+            ["action-rolls.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
@@ -16370,6 +16372,190 @@ const REGRESSIONS = [
             keyed: [true, true, true]
         }), "[per body: the literals of two words or more outside a key or a console call; the keys it names missing from en.json or pl.json]; "
             + "[whether each body names a DRPG.Sound or DRPG.Music key at all]");
+    }],
+    ["R1100 - every action window goes through `chooseVariant` or a `drpg-panel`: each DialogV2 wait, confirm, prompt or input, each `tableDialog` and each `new ...Application(` in the action files names the class `drpg-panel` in its own call (E51 C1; E51-10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the plan's goal ("every action window goes through `chooseVariant` or a `drpg-panel`").
+         * Read in the files whose windows a player meets while acting - action-rolls, observe, frisk, search-tokens,
+         * use-items, murder-ui, projects-ui, monocub (Confusion's window) and cleanup (Tamper's) - comments blanked: each
+         * opening of a window, its call's own parentheses cut by `callArgs`, and the class named inside them.
+         * `chooseVariant` is one of those calls, so a window built by it passes with it. `KEPT` lists a window allowed
+         * without the class, with why: none at C1. The reader is run first on a planted source. A GUARD: green at C1's
+         * parent (the crawl found 31 windows, every one with the class); its power is the plant - `drpg-panel` taken off
+         * `cubAbilityDialog`'s classes in a scratch copy turned it red (C1's message).
+         */
+        const FILES = ["action-rolls.mjs", "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
+            "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
+        const KEPT = {};
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|new\s+\w*Application\w*)\s*\(/g;
+        const read = (file, raw) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const out = [];
+            for (const m of blank.matchAll(OPENS)) {
+                const { close } = callArgs(blank, m.index + m[0].length - 1);
+                const top = tops.findLast(t => t.at <= m.index)?.name ?? "(top level)";
+                out.push({ at: `${file}#${top}`, panel: /["'`]drpg-panel["'`]/.test(blank.slice(m.index, close + 1)) });
+            }
+            return out;
+        };
+        const planted = read("planted.mjs", 'async function a() { return DialogV2.wait({ classes: ["drpg-panel"] }); }\n'
+            + 'async function b() { await tableDialog({ classes: ["drpg-other"] }); /* DialogV2.wait( */ }\n'
+            + 'function c() { return new DialogV2({ window: {} }).render(true); }\n');
+        equal(JSON.stringify(planted), JSON.stringify([{ at: "planted.mjs#a", panel: true }, { at: "planted.mjs#b", panel: false },
+            { at: "planted.mjs#c", panel: false }]), "the reader does not read the planted windows as planted - the crawl below would measure the wrong calls");
+        const found = [];
+        for (const file of FILES) {
+            const raw = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(raw.length > 1000, `${file} was not served - this test reads nothing until it is`);
+            found.push(...read(file, raw));
+        }
+        must(found.length >= 20, `the crawl found ${found.length} window(s) in the action files - it is not reading them`);
+        const bare = found.filter(f => !f.panel && !KEPT[f.at]).map(f => f.at);
+        equal(JSON.stringify(bare), "[]", `an action window that names no drpg-panel (and is not kept with a reason) - ${found.length} read`);
+    }],
+
+    ["R1101 - every action roll with a threshold in the rules hands it to the roll window: each `rollTrait(` in the action files whose action key has a number in config passes `dc`, the crisis, the opening and an item used in an incident among them; Observe and an Analyze's identification are kept with their reasons (E51 C1; E51-11, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner, 14.10: "modul w zaden sposob nie informuje ani gracza, ani gma o thresholdach
+         * akcji". `rollTrait`'s `dc` is what puts "beat N" on the roll window and, since C1, "needed N" on its card.
+         * Read in action-rolls, frisk, murder-rules, cleanup, use-items and observe, comments blanked: each call's own
+         * parentheses (`callArgs`), its literal `actionKey`, and whether it names `dc:`. An action key's rules hold a
+         * number when config gives one: ACTIONS' `threshold`, `thresholds`, `hintThresholds`, `stashThreshold` or
+         * `passageThreshold`, Observe's table (OBSERVE_DC), Palm's parts for `steal`, `rummage` and `frisk`, the crisis
+         * table for `crisis` (the sheet's "use" on an item goes through `takeCrisisAction`, sheet.mjs, read below) and
+         * MURDER_OPENING for `murderOpening`. KEPT: Observe (the trace's visibility is the answer key, and the window
+         * shows no number on purpose) - measured as no `dc` on any Observe roll - and an Analyze's identification (no
+         * dc in the rules: the bullet's real type is what the roll finds) - measured as the Analyze roll's `dc`
+         * answering null for a bullet. A call whose action key is no literal must stand in `performGeneric`, whose
+         * claim is that every ACTIONS key has a performer of its own (performAction's switch, read). Red at C1's
+         * parent: crisis and murderOpening passed none.
+         */
+        const FILES = ["action-rolls.mjs", "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
+        const palm = ACTIONS.palm;
+        const num = v => Number.isFinite(v);
+        const RULED = {
+            ...Object.fromEntries(Object.entries(ACTIONS).map(([key, def]) => [key, num(def.threshold) || Boolean(def.thresholds?.length)
+                || Boolean(def.hintThresholds?.length) || num(def.stashThreshold) || num(def.passageThreshold)])),
+            observe: Object.keys(OBSERVE_DC ?? {}).length > 0,
+            steal: num(palm?.threshold), rummage: num(palm?.rummage?.threshold), frisk: num(palm?.frisk?.threshold),
+            palm: num(palm?.unseen?.threshold),
+            crisis: Object.values(CRISIS_ACTIONS).some(def => num(def.threshold)),
+            murderOpening: num(MURDER_OPENING?.killer?.threshold) && num(MURDER_OPENING?.victim?.threshold)
+        };
+        const KEPT = { observe: "the trace's visibility is the answer key", analyzeIdentify: "no dc in the rules" };
+        const calls = [];
+        for (const file of FILES) {
+            const raw = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(raw.length > 1000, `${file} was not served - this test reads nothing until it is`);
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            for (const m of blank.matchAll(/\brollTrait\s*\(/g)) {
+                if (/function\s*$|\.\s*$/.test(blank.slice(Math.max(0, m.index - 12), m.index)) && !/A\.\s*$/.test(blank.slice(Math.max(0, m.index - 3), m.index))) continue;
+                const { close } = callArgs(blank, m.index + m[0].length - 1);
+                const args = blank.slice(m.index, close + 1);
+                const key = /\bactionKey\s*:\s*"(\w+)"/.exec(args)?.[1] ?? (/\bactionKey\b/.test(args) ? "(variable)" : null);
+                const top = tops.findLast(t => t.at <= m.index)?.name ?? "(top level)";
+                calls.push({ at: `${file}#${top}`, key, dc: /\bdc\s*:/.test(args), args });
+            }
+        }
+        must(calls.length >= 15, `the crawl found ${calls.length} rollTrait call(s) - it is not reading the action files`);
+        const missing = calls.filter(c => c.key && c.key !== "(variable)" && RULED[c.key] && !c.dc && !KEPT[c.key]).map(c => `${c.at} (${c.key})`);
+        const variable = calls.filter(c => c.key === "(variable)").map(c => c.at);
+        const observe = calls.filter(c => c.key === "observe");
+        const analyze = calls.filter(c => c.key === "analyze");
+        const perform = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText)), "performAction");
+        const performers = Object.keys(ACTIONS).filter(key => !new RegExp(`case\\s+"${key}"\\s*:`).test(perform));
+        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const useItem = /takeCrisisAction\(\s*app\.document\s*,\s*"useItem"/.test(sheet) && !/rollTrait\s*\(/.test(bodyOf(sheet, '"useItem"', { length: 400 }));
+        equal(JSON.stringify({
+            missing, variable, performers,
+            crisis: calls.filter(c => c.key === "crisis").map(c => c.dc), opening: calls.filter(c => c.key === "murderOpening").map(c => c.dc), useItem,
+            observeKept: observe.length > 0 && observe.every(c => !c.dc), analyzeKept: analyze.length > 0 && analyze.every(c => /:\s*null\s*,/.test(c.args)),
+            kept: Object.keys(KEPT)
+        }), JSON.stringify({
+            missing: [], variable: ["action-rolls.mjs#performGeneric"], performers: [],
+            crisis: [true], opening: [true], useItem: true, observeKept: true, analyzeKept: true, kept: ["observe", "analyzeIdentify"]
+        }), "[the rolls whose rules hold a number and whose window is not handed it; the calls with no literal action key; ACTIONS keys with no "
+            + "performer of their own; the crisis and the opening rolls' dc; the sheet's item button going through takeCrisisAction; Observe kept "
+            + "with no dc; Analyze's dc null for a bullet]");
+    }],
+
+    ["R1102 - no Observe hint promises the dice settle it: the general, non-obvious and follow-traces hints in lang/en.json and lang/pl.json hold no \"Settled by the dice\" nor \"Rozstrzygaja kosci\" (E51 C1; E51-02, audit S02-50)", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-50. The three ways of looking that the table settles each ended "Settled by
+         * the dice." - and an empty room hands the roll to a GM (`ruleObserve`), so the promise did not hold. Each hint
+         * says what the way of looking is for. Read in both language files; red at C1's parent: all six held it.
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const KEYS = ["generalHint", "nonObviousHint", "followTracesHint"];
+        const hints = [en, pl].flatMap(lang => KEYS.map(key => lang?.DRPG?.Observe?.[key]));
+        must(hints.every(h => typeof h === "string" && h.length > 10), `an Observe hint is missing from a language file: ${JSON.stringify(hints)}`);
+        const promising = hints.filter(h => /settled by the dice|rozstrzygaj[aą] ko[sś]ci/i.test(h));
+        equal(JSON.stringify(promising), "[]", "an Observe hint still promises that the dice settle it");
+    }],
+
+    ["R1103 - Analyze's request field shows with Hint alone: `askWhatToAnalyze`'s request block carries `data-drpg-when=\"hint\"` and the stylesheet's rule that shows the checked row's block covers `hint` (E51 C1; E51-04, audit S02-51 (a))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (a). The GM's hint is the one Analyze row a person reads, and the box for
+         * it was shown under every row - a stash hunt or a passage asked for a sentence no GM would read. The block is
+         * hidden by `.drpg-specific-note[data-drpg-when]` and shown by the rule that names the checked row's value
+         * (styles/danganronpa.css, the variant menu). The slice calls the picker `chooseAnalyze`; it is
+         * `askWhatToAnalyze` here. Red at C1's parent: no `when` on the block, and no rule for `hint`.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const picker = fnSource(src, "askWhatToAnalyze");
+        const field = fnSource(src, "requestFieldHtml");
+        const block = bodyOf(picker, "requestFieldHtml(", { until: "}`" });
+        const css = await moduleStyles();
+        equal(JSON.stringify([/\bwhen\s*:\s*"hint"/.test(block), /data-drpg-when="\$\{esc\(when\)\}"/.test(field),
+            /:has\(input\[value="hint"\]:checked\)\s*~\s*\[data-drpg-when="hint"\]/.test(css),
+            /picked\.value\s*===\s*"hint"\s*\?\s*readRequestField\(picked\.form\)/.test(picker)]),
+            JSON.stringify([true, true, true, true]),
+            "[the Analyze request block names when: \"hint\"; requestFieldHtml writes it as data-drpg-when; the stylesheet shows it on a "
+                + "checked hint; the request is read for the hint alone]");
+    }],
+
+    ["R1105 - a dead student under the Eclipse is told they are dead: in `performAction` the death refusal (`DRPG.Chapter.deadCannotAct`) stands above the Eclipse's (`DRPG.Eclipse.actionsLocked`) (E51 C1; E51-06, audit S02-51 (d))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (d). The Eclipse's refusal came first, so a dead student pressing a tile
+         * in an Eclipse read that the Eclipse locks actions - true, and not the reason. Read in `performAction`,
+         * comments stripped; R42 holds the trial gate below both. Red at C1's parent: the death refusal stood after.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const body = fnSource(src, "performAction");
+        const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
+        const eclipse = body.indexOf("DRPG.Eclipse.actionsLocked");
+        must(dead > 0 && eclipse > 0, "performAction no longer holds both refusals - the order below has nothing to measure");
+        ok(dead < eclipse, "the Eclipse's refusal stands above the death's: a dead student is told the Eclipse locks actions");
+    }],
+
+    ["R1106 - one project-name formatter: the action window's project list, the Call picker and the project manager each name a project through projects.mjs `projectLabel`, and none writes `current}/${...start` by hand (E51 C1; E51-08, audit S02-51 (f))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (f). Three readers wrote a project's progress each in its own shape:
+         * action-rolls.mjs `projectOptionsHtml`, call-pickers.mjs `pickProject` and projects-ui.mjs (the manager's cell
+         * and its live refresh). Read with comments stripped: each file brings `projectLabel` in from projects.mjs and
+         * calls it, and none holds a template of `current` over `start`. The formatter itself is tier 2's to call; this
+         * reads its shape in projects.mjs. Red at C1's parent: no `projectLabel`, and four hand-built templates.
+         */
+        const read = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
+        const files = ["action-rolls.mjs", "call-pickers.mjs", "projects-ui.mjs"];
+        const srcs = await Promise.all(files.map(read));
+        const projects = await read("projects.mjs");
+        const BY_HAND = /\.current\s*\}\s*\/\s*\$\{\s*[\w?.]*\.start\b/;
+        const label = topLevelFunction(projects, "projectLabel");
+        equal(JSON.stringify({
+            exported: /^export function projectLabel\(/m.test(projects) && Boolean(label) && /\.current\b/.test(label ?? "") && /\.start\b/.test(label ?? ""),
+            files: Object.fromEntries(files.map((file, i) => [file, {
+                imports: /\bprojectLabel\b[^;]*?from\s*"\.\/projects\.mjs"|\{[^}]*\bprojectLabel\b[^}]*\}\s*=\s*await\s+import\(\s*"\.\/projects\.mjs"\s*\)/.test(srcs[i]),
+                calls: (srcs[i].match(/\bprojectLabel\(/g) ?? []).length > 0,
+                byHand: BY_HAND.test(srcs[i])
+            }]))
+        }), JSON.stringify({
+            exported: true,
+            files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
+        }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
     }],
 ];
 

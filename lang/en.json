@@ -925,7 +925,11 @@
       "murderNotParked": "That declaration is no longer waiting - the Eclipse has ended, or it has already been ruled on.",
       "murderRulingTitle": "A ruling to make",
       "murderAsk": "{killer} declared a direct murder in the dark and has ended up alone with {victim} in {room}. Open the incident?",
-      "murderAskNote": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way."
+      "murderAskNote": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way.",
+      "palmTitle": "{action} - {trait}, beat {n}",
+      "needed": "needed {n}",
+      "observeGmMode": "The way they were looking: {mode}.",
+      "dynamicMissedGm": "The roll missed. There is nothing to give; the action stays spent."
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
@@ -2014,7 +2018,9 @@
       "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
       "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works.",
       "castMissingHere": "This browser holds no cast for the running incident, so its turn cannot be worked out here. Enter the cast by hand (the case's health check), or let the GM whose browser holds it act.",
-      "castNotArrived": "The other GMs' copies of the incident's cast have not arrived on this browser yet: try again in a moment."
+      "castNotArrived": "The other GMs' copies of the incident's cast have not arrived on this browser yet: try again in a moment.",
+      "deniedByIncident": "The incident has taken this one away from you.",
+      "trackerScore": "{total} against {n}"
     },
     "Investigation": {
       "room": "Room",
@@ -2593,9 +2599,9 @@
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyHeld": "You already hold a Truth Bullet of this trace.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
-      "generalHint": "Take whatever is easiest to spot in this room. Settled by the dice.",
-      "nonObviousHint": "Go for the hardest thing here instead, and for whatever does not belong in this room at all. Settled by the dice.",
-      "followTracesHint": "Retrace your own steps and find what you left behind. Settled by the dice.",
+      "generalHint": "Sweep the room for whatever is easiest to spot.",
+      "nonObviousHint": "Look past the obvious: the hardest thing here, and whatever does not belong in this room at all.",
+      "followTracesHint": "Retrace your own steps and look for what you left behind.",
       "specificHint": "Say what you are looking for. The GM decides what your gaze lands on.",
       "anythingHint": "Something that is not a trace - a person, a machine, the weather. The GM rules on it."
     },
@@ -3976,7 +3982,6 @@
       "cardTheirHandsFull": "{who} has no room for {item}. It stays with you.",
       "caughtPlanting": "{who} put {item} into your pocket, and you saw them do it.",
       "caughtTryingPlant": "You catch {who} trying to slip something into your pocket. Nothing of theirs is on you.",
-      "unseenRoll": "Keep your hands out of sight",
       "emptyPockets": "{name} is carrying nothing you could take.",
       "chooseTitle": "Take your pick",
       "chooseIntro": "It went perfectly. Choose what you take from {name}.",

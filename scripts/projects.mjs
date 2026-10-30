@@ -23,7 +23,7 @@
  * countdowns or the meta into projects-secrecy.mjs.
  */
 
-import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, TRAITS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
@@ -2039,6 +2039,26 @@ export async function sealOldRepairs() {
 export function scaleFor(target) {
     const entry = Object.values(PROJECT_SCALE).find(s => s.progress === target);
     return entry?.label ?? null;
+}
+
+/**
+ * ONE WAY TO NAME A PROJECT IN A LIST (E51 C1; audit S02-51 (f)). The action window wrote
+ * `name - current/start, scale · room · stat [- complete]`, the Call picker `name - current/start` and the project
+ * manager `current/start`, each by hand. Plain text, for the caller to escape: "Fix the door - 2/4, Everyday ·
+ * Kitchen · Hand - complete". `name: false` is the progress alone (the manager's cell); `scale`, `room`, `stat` and
+ * `complete` add their parts. R1106 holds the three readers to it.
+ */
+export function projectLabel(project, { name = true, scale = false, room = false, stat = false, complete = false } = {}) {
+    if (!project) return "";
+    const progress = `${project.current ?? 0}/${project.start ?? 0}`;
+    if (!name) return progress;
+    const sized = scale && scaleFor(project.start) ? `, ${scaleFor(project.start)}` : "";
+    return [
+        `${project.name ?? ""}${project.start ? ` - ${progress}${sized}` : ""}`,
+        room && project.room ? ` · ${project.room}` : "",
+        stat && TRAITS[project.trait] ? ` · ${TRAITS[project.trait].label}` : "",
+        complete ? ` - ${game.i18n.localize("DRPG.Project.completeTag")}` : ""
+    ].join("");
 }
 
 /**

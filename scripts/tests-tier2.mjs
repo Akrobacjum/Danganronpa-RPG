@@ -75832,6 +75832,437 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ first: true, after: { a: false, b: true, loose: true } }),
             "[A played for the state]; [A, B and the never-mapped playlist playing after the state moved to B]");
     }],
+    ["E51-T1 - an Observe the GM rules names the way of looking: a General Observe in a room with no trace for it, and a look at a point of interest, each put a card in the thread whose GM line says which (E51 C1; E51-03, audit S02-50)", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-50. A General, Non-obvious or Follow my traces Observe in a room with nothing
+         * for it goes to a GM's ruling (action-rolls.mjs `ruleObserve`), and the card said "Total N. Score it against
+         * the Observe table for whatever they are looking at" with no word of how they were looking. On this GM's
+         * browser, for a connected player's character stood alone in a room `observeCandidates` finds no trace in:
+         * a free General Observe (the declaration window answered General, the dice forced to 7 and 4), then a free
+         * look at a point of interest. Read on each new card with a GM's call buttons: whether its words hold
+         * `observeModeLine` of its declaration, and that line holds the declaration's own label. The cards, the tokens,
+         * the bookmark and the position are put back. Red at C1's parent: no `observeModeLine`, and no such line.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the card goes to a player's thread");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the observer alone");
+        const A = await import("./action-rolls.mjs");
+        const { observeCandidates } = await import("./observe.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfActor } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(typeof A.observeModeLine === "function", "action-rolls.mjs exports no observeModeLine - the GM's card has no line for the way of looking");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const scene = canvas?.scene;
+        const student = livingStudents().find(a => player(a) && scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen - this would measure nothing");
+        const token = scene.tokens.find(t => t.actorId === student.id);
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const seen = new Set(game.messages.map(m => m.id)), had = new Set(scene.tokens.map(t => t.id));
+        const bookmark = rerollBookmarkStore.get(student.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(student.id)) : null;
+        let ask = "general";
+        const windows = answerWindows((cfg, root) => {
+            const radio = root.querySelector(`input[name="variant"][value="${ask}"]`);
+            if (radio) for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === radio;
+            const request = root.querySelector('[name="request"]');
+            if (request && ask === "anything") request.value = "E51-T1 the window over the courtyard";
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const read = {};
+        try {
+            let empty = null;
+            for (const room of allRooms(scene).filter(r => othersInNamedRoom(r, student).length === 0)) {
+                await token.update(positionIn(room, token), PLACE);
+                await settle();
+                if (roomOfActor(student) === room && !(await observeCandidates(student)).candidates.length) { empty = room; break; }
+            }
+            must(empty, "no room on the scene on screen is both free of others and of a trace a General Observe could find - this would measure nothing");
+            globalThis.__forceRoll = { hope: 7, fear: 4 };
+            const cards = async declaration => {
+                const mark = new Set(game.messages.map(m => m.id));
+                ask = declaration;
+                await A.performAction(student, "observe", { free: true });
+                await until(() => game.messages.some(m => !mark.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call=")), 6000);
+                await settle();
+                return game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).filter(w => w.includes("data-drpg-call="));
+            };
+            for (const declaration of ["general", "anything"]) {
+                const line = A.observeModeLine(declaration);
+                const label = foundry.utils.escapeHTML(game.i18n.localize(`DRPG.Observe.${declaration}`));
+                const words = await cards(declaration);
+                read[declaration] = [words.length, words.some(w => w.includes(line)), line.includes(label) && label.length > 0];
+            }
+        } finally {
+            windows.restore();
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(student.id, bookmark);
+            else if (rerollBookmarkStore.has(student.id)) await rerollBookmarkStore.drop(student.id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ general: [1, true, true], anything: [1, true, true] }),
+            "[per declaration: the GM's cards it put up, whether one holds the line naming the way of looking, whether that line holds the declaration's label]");
+    }],
+
+    ["E51-T2 - a dead student under the Eclipse is told they are dead, not that the Eclipse locks actions (E51 C1; E51-06, audit S02-51 (d))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (d). `performAction` asked the Eclipse first, so a dead student's tile in an
+         * Eclipse warned "actions are locked". A student dead in the GMs' store (the `deaths` store, as the tier-2 gate
+         * test stands one) and the clock's Eclipse set; this GM asks a Search for them. Read: the warnings raised. The
+         * death and the clock are put back. Red at C1's parent: the Eclipse's warning.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to stand dead");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        const [student] = cast(1);
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const warned = [];
+        const own = ui.notifications.warn;
+        let dead = false;
+        try {
+            await deathStore.patch(student.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            must(isDeadForGm(student), `the death of ${student.name} in the GMs' store is not read on this GM - this would measure nothing`);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+            await settle();
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return own.call(ui.notifications, message, ...rest); };
+            await performAction(student, "search", { free: true });
+        } finally {
+            ui.notifications.warn = own;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (dead && deathStore.has(student.id)) await deathStore.drop(student.id);
+            await settle();
+        }
+        const deadLine = game.i18n.format("DRPG.Chapter.deadCannotAct", { name: student.name });
+        equal(stableJson(warned), stableJson([deadLine]), "a dead student's tile in an Eclipse was not answered with their death alone");
+    }],
+
+    ["E51-T3 - a watched Sabotage whose roll comes with Fear is announced once, with one sound, and its card says the cover's number (E51 C1; E51-07, E51-12, audit S02-51 (e))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (e). A Sabotage in front of a witness rolls to cover itself first; a failed
+         * cover told the room "X is doing something to P" (`concealSabotage`), and a sabotage roll with Fear then told
+         * the same room "X is seen doing something to a project" with the sound (`soundSabotage`): two cards for one
+         * act. On this GM's browser: a student and a witness stood alone together in a room, a public project of 6 there
+         * (Hand), a free Sabotage from the Projects window, every die forced to 2 and 5 (the cover fails against 16, the
+         * sabotage throws with Fear). Read among the new cards: how many tell the room of it (the watched line or the
+         * seen line), how many carry a sound, and whether the report's cover line says "needed 16" - E51-T6's
+         * concealment card. The project, its trace, the cards, the tokens and the bookmark are put back. Red at C1's
+         * parent: two cards, and no "needed".
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the saboteur and the witness stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two of them");
+        const { performAction, sabotageWatchedLine } = await import("./action-rolls.mjs");
+        const { SABOTAGE_CONCEAL } = await import("./config.mjs");
+        const P = await import("./projects.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const [actor, witness] = cast(2);
+        // The sabotage's Fear goes to the GMs' pool (Daggerheart's), put back after as `swingFixture` puts it.
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const stood = await aloneTogether(actor, witness, { asked: true });
+        const seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const name = `SUITE E51-T3 ${foundry.utils.randomID(4)}`;
+        const pick = { project: null };
+        const windows = answerWindows((cfg, root) => {
+            const radio = root.querySelector('input[name="variant"][value="sabotage"]');
+            if (radio) for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === radio;
+            for (const field of ["project", "sabotage"]) {
+                const select = root.querySelector(`select[name="${field}"]`);
+                if (select) select.value = pick.project;
+            }
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const made = [];
+        let read = null;
+        try {
+            const id = (await P.createProject({ name, target: 6, room: stood.room, trait: "hand" }))?.id ?? null;
+            must(id, "the fixture project could not be made - this would measure nothing");
+            made.push(id);
+            pick.project = id;
+            globalThis.__forceRoll = { hope: 2, fear: 5 };
+            await performAction(actor, "project", { free: true });
+            await settle(600);
+            const project = P.allProjects().find(p => p.id === id);
+            const told = [sabotageWatchedLine(actor, stood.room, project), game.i18n.format("DRPG.Action.sabotageSeen", {
+                actor: foundry.utils.escapeHTML(actor.name), room: foundry.utils.escapeHTML(stood.room) })];
+            const fresh = game.messages.filter(m => !seen.has(m.id));
+            const words = fresh.map(m => String(contentOf(m) ?? ""));
+            const needed = game.i18n.format("DRPG.Action.needed", { n: SABOTAGE_CONCEAL.threshold });
+            read = {
+                cards: words.filter(w => told.some(line => w.includes(line))).length,
+                // A private card's sound rides in its meta, as the reader's browser reads it (sfx.mjs `soundFromMessage`).
+                sounds: fresh.map(m => soundFromMessage(m)?.key ?? null).filter(Boolean),
+                cover: words.some(w => w.includes(`<strong>${SABOTAGE_CONCEAL.label}</strong>`) && w.includes(needed))
+            };
+        } finally {
+            windows.restore();
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, sounds: ["sabotageSeen"], cover: true }),
+            "[the cards telling the room of the watched sabotage]; [the sounds the new cards carry]; [the report's cover line says needed 16]");
+    }],
+
+    ["E51-T4 - Role reversal the Despair opening took away is struck in the victim's menu with its reason, and a forged take of it is refused as denied (E51 C1; E51-09, audit S02-51 (g))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (g). A killer's opening on a Despair success takes Role reversal from the
+         * victim (`deniedToVictim`). The row was dropped from the menu with no word; it stays now, shut and struck
+         * (`.drpg-row-denied`) with `DRPG.Murder.deniedByIncident`, and the GM refuses it under `actionDenied` as
+         * before (murder-rules.mjs `crisisRefusal`'s `offered.denied`). Two students with players: the incident opened,
+         * the opening scored 24 with Despair; at the victim's turn this GM presses the victim's tile (`performAction`,
+         * the menu answered by closing it) and reads Role reversal's row; then the victim's player's packet naming it
+         * goes through the bridge's runner (`judge`, as the GM's listener hands it on). Read: the row, the packets sent
+         * back, and the seats. The incident and the victim's reserves are put back. Red at C1's parent: no row (and
+         * the refusal's reason the old one).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = { hp: victim.system.resources.hitPoints.value, stress: victim.system.resources.stress.value };
+        const menuTitle = game.i18n.localize("DRPG.Murder.yourTurn");
+        let row = null;
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") !== menuTitle) return null;
+            const input = root.querySelector('input[name="variant"][value="roleReversal"]');
+            const label = input?.closest("label");
+            row = input ? { disabled: input.disabled, struck: Boolean(label?.classList.contains("drpg-row-denied")),
+                why: label?.querySelector("small")?.textContent.trim() ?? null } : "absent";
+            return null;
+        });
+        const sent = [];
+        let read = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
+            await settle();
+            for (let i = 0; i < 4 && M.murderState()?.stage === "incident" && !M.isTheirTurn(victim); i++) await M.passTurn();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim) && (M.murderState()?.deniedToVictim ?? []).includes("roleReversal"),
+                `the fixture's fight is not at the victim's turn with Role reversal denied: ${stableJson(M.murderState())}`);
+            await performAction(victim, "directMurder");
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId: `E51T4${foundry.utils.randomID(8)}`, actorId: victim.id, key: "roleReversal",
+                total: 99, isCritical: false, withHope: true }, owner(victim).id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
+            await settle();
+            const now = M.murderState();
+            read = { row, sent, seats: [now?.killerId === killer.id, now?.victimId === victim.id] };
+        } finally {
+            windows.restore();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            row: { disabled: true, struck: true, why: game.i18n.localize("DRPG.Murder.deniedByIncident") },
+            sent: [["bridge.refused", "actionDenied"]], seats: [true, true]
+        }), "[Role reversal's row in the victim's menu: shut, struck, its reason]; [the packets the forged take was sent back]; [the seats unmoved]");
+    }],
+
+    ["E51-T5 - the crisis roll window says the number of the moment: a Finishing Blow's \"beat N\" is the threshold read at the roll, after the victim lost Health, and the sheet's item button says 15 (E51 C1; E51-11, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner, 14.10. `takeCrisisAction` threw the crisis roll with the action's label alone,
+         * while the menu said "Beat N" (`availableCrisisActions`). It hands `dc` now, read at the roll
+         * (`crisisThreshold`): a Finishing Blow's falls as the victim runs out of Health. At the killer's turn
+         * (`swingFixture`), on this GM's browser, the killer's own `rollTrait` notes the window's title and throws
+         * nothing, as a closed window does: a Finishing Blow, then the victim marked two Health and the blow again, then
+         * Use an item on the knife - the road of the sheet's "use" button (sheet.mjs, `takeCrisisAction(..., "useItem")`).
+         * Read: each title against "beat N" of the threshold read just before it. The fight is put back by the fixture,
+         * the incident ended and the victim's Health restored. Red at C1's parent: no "beat" in any title. What
+         * Daggerheart's window shows of the title on v14 is LIVE-E51-01 (AUDIT 9.2 item 354).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { M, killer, victim, knife, putBack } = await swingFixture();
+        // The menu's reading of the number, taken just before each roll (murder-rules.mjs `availableCrisisActions`).
+        const menu = key => M.availableCrisisActions(killer).find(o => o.key === key)?.threshold ?? null;
+        const titles = [];
+        const beat = n => game.i18n.format("DRPG.Action.beat", { n });
+        const read = [];
+        try {
+            killer.rollTrait = async (dh, config) => { titles.push(String(config?.title ?? "")); return null; };
+            const first = menu("finishingBlow");
+            await M.takeCrisisAction(killer, "finishingBlow");
+            await victim.update({ "system.resources.hitPoints.value": 2 });
+            const second = menu("finishingBlow");
+            await M.takeCrisisAction(killer, "finishingBlow");
+            await M.takeCrisisAction(killer, "useItem", { itemId: knife.id });
+            read.push(first !== second, titles.length, titles[0]?.endsWith(beat(first)), titles[1]?.endsWith(beat(second)), titles[2]?.endsWith(beat(15)));
+        } finally {
+            delete killer.rollTrait;
+            await putBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": 0 });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, 3, true, true, true]),
+            `[the threshold moved with the Health]; [titles noted]; [the first blow's says beat N, the second's the new N, the item's beat 15]: ${stableJson(titles)}`);
+    }],
+
+    ["E51-T6 - a Palm's card says the number it needed, to the owner and the GMs as before (E51 C1; E51-12, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026. The roll window said "beat 10"; the card the roll reports said the total alone. `rollTrait`
+         * keeps the window's `dc` on the roll it answers and `report` writes "needed N" in the card's head. On this GM's
+         * browser, a student's Palm hand thrown through `rollTrait` with the window's own title and number
+         * (`palmTitle("hand")`, `dc` 10), the character's own roll answering a stand-in result of 13, then reported as
+         * the Palm reports it. Read: the window's title, the roll's `dc`, whether the card says "needed 10", and its
+         * whisper list against the GMs and the owners. The concealment card's half is E51-T3's (the cover line says
+         * "needed 16"). The card is deleted. Red at C1's parent: no `palmTitle`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to throw the Palm");
+        const A = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { gmIds, ownerIdsOf } = await import("./utils.mjs");
+        must(typeof A.palmTitle === "function", "action-rolls.mjs exports no palmTitle - the Palm windows have no one name");
+        const [student] = cast(1);
+        const seen = new Set(game.messages.map(m => m.id));
+        const titles = [];
+        let roll = null, card = null;
+        try {
+            student.rollTrait = async (dh, config) => {
+                titles.push(config?.title ?? null);
+                return { roll: { total: 13, isCritical: false, result: { duality: 1, total: 13 }, options: { roll: { trait: "finesse" } } } };
+            };
+            roll = await A.rollTrait(student, "hand", { remember: false, actionKey: "steal", title: A.palmTitle("hand"), titled: true, dc: ACTIONS.palm.threshold });
+            card = await A.report(student, ACTIONS.palm, roll, { success: true, text: "E51-T6" });
+        } finally {
+            delete student.rollTrait;
+        }
+        const message = card?.id ? game.messages.get(card.id) : null;
+        const { contentOf } = await import("./secret.mjs");
+        const words = String(message ? contentOf(message) ?? "" : "");
+        const whisper = [...(message?.whisper ?? [])].sort();
+        for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+        equal(stableJson({ title: titles[0], dc: roll?.dc ?? null, needed: words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: 10 }))),
+            whisper: stableJson(whisper) === stableJson([...new Set([...gmIds(), ...ownerIdsOf(student)])].sort()) }), stableJson({
+            title: A.palmTitle("hand"), dc: 10, needed: true, whisper: true
+        }), "[the window's title]; [the roll's dc]; [the card says needed 10]; [the card went to the GMs and the owners]");
+    }],
+
+    ["E51-T7 - a free crisis take is not shown as a roll: the critical Self-defence's free Survive prints no \"0 >= N\" and says it worked with no roll, and its tracker line holds no score (E51 C1; E51-14)", async () => {
+        /*
+         * E51 C1, 30.10.2026. A critical Self-defence buys one resolution as an automatic success (G-18); it is sent
+         * with total 0 (`takeCrisisAction`), and its card printed the score line "0 >= 18 · with Hope" - a roll nobody
+         * threw. A fight at the victim's turn (the opening on 24 with Hope), the victim's Self-defence scored critical
+         * on this GM, the turn brought back to the victim with the grant standing, then the victim's free Survive taken
+         * on this GM's browser. Read: the new crisis card's words for "0 >=" (the score line's shape) and the sentence
+         * a take with no roll prints, and the tracker's last entry. The incident is put back by the runner and ended
+         * here. RED FIRST: at C1's parent the card printed "0 >= 18".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const was = { hp: victim.system.resources.hitPoints.value, stress: victim.system.resources.stress.value };
+        let read = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            for (let i = 0; i < 4 && M.murderState()?.stage === "incident" && !M.isTheirTurn(victim); i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: true, withHope: true });
+            await settle();
+            for (let i = 0; i < 4 && M.murderState()?.stage === "incident" && !M.isTheirTurn(victim); i++) await M.passTurn();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim) && M.freeResolutionFor("victim"),
+                `the fixture's victim holds no free resolution at their turn: ${stableJson(M.murderState())}`);
+            const mark = new Set(game.messages.map(m => m.id));
+            await M.takeCrisisAction(victim, "survive");
+            await settle();
+            const label = foundry.utils.escapeHTML(CRISIS_ACTIONS.survive.label);
+            const card = game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).find(w => w.includes(label));
+            const recent = M.murderState()?.recent ?? [];
+            const last = recent.at?.(-1) ?? null;
+            read = { card: Boolean(card), score: /(^|>|\s)0 [≥<] /.test(card ?? ""), free: (card ?? "").includes(game.i18n.localize("DRPG.Murder.noRollItWorks")),
+                entry: last ? [last.key, last.band ?? null, last.total ?? null, last.threshold ?? null] : null };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await victim.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ card: true, score: false, free: true, entry: ["survive", null, null, null] }),
+            "[the free Survive's card]; [it prints a score of 0]; [it says it works with no roll]; [the tracker's entry: key, band, total, threshold]");
+    }],
+
+    ["E51-T8 - a Dynamic action's GM card comes on a miss as on a success, each with the roll and \"needed N\", the miss's with nothing to press (E51 C1; E51-15, the session notes of 27.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the session notes of 27.10: the Dynamic difficulty card ended "Answered by" and a failure
+         * gave the GM no card with the result. The GMs' card of a success (action-rolls.mjs `offerDynamicFind`, E16 C2)
+         * now comes on a miss too, a receipt with no button, and both say "needed N" (the band's `dynamicBar`). This GM
+         * takes a Dynamic action for a player's character standing in a room, free, twice: the second band picked, the
+         * dice forced to 9 and 8 (a success), then to 2 and 1 (a miss). Read per throw: the new cards with the action's
+         * title in the thread, whether one holds the roll's total and "needed N", and its buttons. The cards, the trace
+         * and the bookmark are put back. Red at C1's parent: no card on the miss, and no "needed" on the success's.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const { performAction, rollInHand, dynamicBar } = await import("./action-rolls.mjs");
+        const { DYNAMIC_THRESHOLDS } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = "E51-T8 the GM's own Dynamic action";
+            if (tier) tier.value = "1";
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const n = dynamicBar(DYNAMIC_THRESHOLDS[1]);
+        const needed = foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n }));
+        const title = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.dynamicLabel"));
+        const read = {};
+        try {
+            for (const [label, dice] of [["hit", { hope: 9, fear: 8 }], ["miss", { hope: 2, fear: 1 }]]) {
+                const mark = new Set(game.messages.map(m => m.id));
+                globalThis.__forceRoll = dice;
+                const outcome = await performAction(actor, "dynamic", { free: true });
+                const total = rollInHand(actor)?.total ?? null;
+                await settle(400);
+                const cards = game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? ""))
+                    .filter(w => w.includes(`<h3>${title}</h3>`));
+                read[label] = { success: outcome?.success ?? null, cards: cards.length,
+                    said: cards.some(w => w.includes(`<strong>${total}</strong>`) && w.includes(needed)),
+                    buttons: cards.flatMap(w => [...w.matchAll(/data-drpg-call="(\w+)"/g)].map(m => m[1])) };
+            }
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+        }
+        equal(stableJson(read), stableJson({
+            hit: { success: true, cards: 1, said: true, buttons: ["createItem", "giveItem", "reply"] },
+            miss: { success: false, cards: 1, said: true, buttons: [] }
+        }), "[per throw: the outcome; the GMs' Dynamic cards; one says the total and needed N; its buttons]");
+    }],
     ...GRID
 ];
 

@@ -337,12 +337,13 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
     const part = def.rummage;
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
+    // "Palm - Shadow, beat 15" and "Palm - Hand, beat 10" (action-rolls.mjs `palmTitle`, E51 C1; the owner's A11).
     const shadow = await A.rollTrait(actor, def.unseen.trait, {
-        remember: false, actionKey: "palm", title: game.i18n.localize("DRPG.Steal.unseenRoll"), dc: part.unseen
+        remember: false, actionKey: "palm", title: A.palmTitle("rummageUnseen", def), titled: true, dc: part.unseen
     });
     if (!shadow) return A.abort(actor, paid);
     const hand = await A.rollTrait(actor, part.trait, {
-        actionKey: "rummage", dc: part.threshold, title: part.label,
+        actionKey: "rummage", dc: part.threshold, title: A.palmTitle("rummage", def), titled: true,
         context: { room, victimId: victim.id, unseenTotal: shadow.total, direction: "frisk" }
     });
     if (!hand) return A.spentAfterRoll(actor, def);
@@ -1135,7 +1136,7 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     const shut = () => gmOwn && gmForceShut(actor, victim, silentAtAsk, heldBy, askedAt);
     const stopped = pressed && shut();
     let roll = pressed && !stopped ? await A.rollTrait(actor, def.frisk.trait, {
-        actionKey: "frisk", dc: def.frisk.threshold, title: def.frisk.label,
+        actionKey: "frisk", dc: def.frisk.threshold, title: A.palmTitle("frisk", def), titled: true,
         context: { room, victimId: victim.id, direction: "frisk", mode: "openly" }
     }) : null;
     // A GM's own roll window stood open while the gate shut (E80 fix r2-G2, r2-G1's gap): read again as the dice come

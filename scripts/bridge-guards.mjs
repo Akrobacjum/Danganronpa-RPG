@@ -258,6 +258,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionBlocked", /^that action is blocked$/],
     // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
+    // E51 C1: an action the incident took away, kept in the list struck through and refused (murder-rules.mjs `crisisRefusal`).
+    ["actionDenied", /^that action is denied by the incident$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
     // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
     ["nothingLeft", /^no crossings left this Eclipse$/],

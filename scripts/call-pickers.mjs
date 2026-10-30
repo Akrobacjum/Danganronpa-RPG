@@ -254,7 +254,7 @@ async function pickPlayer(actor, call, kind) {
 }
 
 async function pickProject(actor, kind = "hope", call = null) {
-    const { knownProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
+    const { knownProjects, projectsAvailableIn, isComplete, isFrozen, projectLabel } = await import("./projects.mjs");
     const { locateActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -302,7 +302,8 @@ async function pickProject(actor, kind = "hope", call = null) {
     }
 
     const id = await choose("DRPG.Calls.whichProject",
-        pool.map(p => ({ value: p.id, label: `${p.name} - ${p.current}/${p.start}` })));
+        // The one formatter of a project's name in a list (projects.mjs `projectLabel`, E51 C1).
+        pool.map(p => ({ value: p.id, label: projectLabel(p) })));
     if (!id) return null;
     return { project: id };
 }

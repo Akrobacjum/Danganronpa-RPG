@@ -634,7 +634,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         denyOpen.stage === "incident" && denyOpen.turnSide === "victim" && (denyOpen.denied ?? []).includes("roleReversal")
             && denyAnswer?.ok === false && denyAnswer?.reason === "actionDenied"
             && denyAfter.killerId === ids.botan && denyAfter.victimId === ids.chie
-            && denyReasons.some(r => /that action is not open to that character now/.test(r)),
+            // Since E51 C1 the row stays in the victim's list, struck, and the GM's reason names the incident's denial.
+            && denyReasons.some(r => /that action is denied by the incident/.test(r)),
         JSON.stringify({ denyOpen, denyAnswer, denyAfter, denyReasons }), { flow: "murder-incident" });
 
     /* A STATISTIC RULING NOBODY MAY ASK (E32+E07 C11b, 02.10.2026; audit S04-23). The card a

@@ -5801,7 +5801,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .drpg-choice-list:has(input[value="cover"]:checked) ~ [data-drpg-when="cover"],
 .drpg-choice-list:has(input[value="frame"]:checked) ~ [data-drpg-when="frame"],
 .drpg-choice-list:has(input[value="plant"]:checked) ~ [data-drpg-when="plant"],
-.drpg-choice-list:has(input[value="body"]:checked) ~ [data-drpg-when="body"] {
+.drpg-choice-list:has(input[value="body"]:checked) ~ [data-drpg-when="body"],
+.drpg-choice-list:has(input[value="hint"]:checked) ~ [data-drpg-when="hint"] {
     display: flex;
 }
 
@@ -14175,6 +14176,12 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 
 .drpg-choice.unavailable .drpg-choice-text small {
     font-style: italic;
+}
+
+/* A crisis row the incident took away (`deniedToVictim`; E51 C1, audit S02-51 (g)): struck like any shut row, and
+   with the line drawn in the incident's red, so it reads as taken away rather than not yet open. */
+.drpg-choice.drpg-row-denied .drpg-choice-text strong {
+    text-decoration: line-through var(--drpg-crimson) 2px;
 }
 
 /* Red on a row that ends in somebody else deciding, the same red the buttons

@@ -620,13 +620,19 @@ async function privately(payload) {
  *   colour for everything, which is the same as taking none. Callers that
  *   cannot say leave it out and keep the neutral gold.
  * @param {?string} slots.trait   carried on the element, shown on hover.
+ * @param {?(number|string)} slots.dc  the number the total was measured against, a ladder as text ("12 / 18"):
+ *   "needed N" beside the total (E51 C1; the owner's amendment of 14.10), the roll window's "beat N" told again on
+ *   the card. Printed only with a total; the card goes to whom it went before.
  * @returns {string} the `<p>`, or "" when there is nothing to put in it.
  */
-export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null } = {}) {
+export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null, dc = null } = {}) {
+    const hasTotal = total != null && total !== "";
+    const needed = hasTotal && dc != null && dc !== ""
+        ? ` <small class="drpg-card-needed">${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
-        total != null && total !== "" ? `<span class="drpg-card-total">${esc(total)}</span>` : null,
+        hasTotal ? `<span class="drpg-card-total">${esc(total)}</span>${needed}` : null,
         result
             ? `<span class="drpg-card-result"${
                 resultKind ? ` data-kind="${esc(resultKind)}"` : ""}>${esc(result)}</span>`

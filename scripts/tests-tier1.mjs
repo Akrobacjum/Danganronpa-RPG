@@ -6756,6 +6756,10 @@ const INVARIANTS = [
          * carried out. Asked of fixture states, as the judgement is asked of a Reroll's receipt:
          * the victim's denied Role reversal and a trap's third's Double role reversal are
          * refused with their own reason, and offered, unlocked, are not. Pure; nothing is written.
+         *
+         * CHANGED IN E51 C1 (30.10.2026; audit S02-51 (g)): a denied action stays in the side's list, struck through
+         * (`denied`, shut as `blocked`), so "offered" is read as a row that may be taken, and the GM's reason is the
+         * incident's denial (`crisisRefusal`'s `offered.denied`), told with the same code. R1107 reads the struck row.
          */
         const M = await import("./murder.mjs");
         const V = { id: "R211VICTIM000001" }, K = { id: "R211KILLER000001" }, T = { id: "R211THIRD0000001" };
@@ -6766,8 +6770,8 @@ const INVARIANTS = [
             const r = M.crisisRefusal(actor, key, state);
             return r ? `${r.why} | ${r.key}` : null;
         };
-        const DENIED = "that action is not open to that character now | DRPG.Murder.actionDenied";
-        const offers = (actor, state) => M.availableCrisisActions(actor, state).map(o => o.key);
+        const DENIED = "that action is denied by the incident | DRPG.Murder.actionDenied";
+        const offers = (actor, state) => M.availableCrisisActions(actor, state).filter(o => !o.denied && !o.blocked).map(o => o.key);
         equal(JSON.stringify([said(V, "roleReversal", trap), said(T, "doubleRoleReversal", trap), said(T, "doubleRoleReversal", fight),
             offers(V, fight).includes("roleReversal"), offers(V, trap).includes("roleReversal")]),
             JSON.stringify([DENIED, DENIED, null, true, false]),
@@ -29304,6 +29308,113 @@ const INVARIANTS = [
             }
         }
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
+    }],
+
+    ["R1104 - the Palm and Frisk roll windows are named by their part: action-rolls.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
+         * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
+         * `palmTitle(part, def)` names each of the seven rolls by its statistic and its number. Asked of ACTIONS.palm as
+         * the module holds it, each expected string built from the same table and TRAITS, and of a stand-in table with
+         * other numbers, so a title that reads a fixed number fails. Pure; nothing is written. Red at C1's parent: no
+         * `palmTitle`.
+         */
+        const A = await import("./action-rolls.mjs");
+        must(typeof A.palmTitle === "function", "action-rolls.mjs exports no palmTitle - the Palm windows have no one name");
+        const palm = ACTIONS.palm;
+        const want = (trait, n) => game.i18n.format("DRPG.Action.palmTitle", { action: palm.label, trait: TRAITS[trait].label, n });
+        const parts = ["unseen", "hand", "plantUnseen", "plant", "rummageUnseen", "rummage", "frisk"];
+        const read = parts.map(part => A.palmTitle(part));
+        const stand = { label: "R1104", traits: ["eye"], threshold: 3, unseen: { trait: "leg", threshold: 4 }, plant: { threshold: 5, unseen: 6 },
+            rummage: { trait: "head", threshold: 7, unseen: 9 }, frisk: { trait: "shadow", threshold: 11 } };
+        const standIn = ["unseen", "hand", "frisk"].map(part => A.palmTitle(part, stand));
+        const f = (def, trait, n) => game.i18n.format("DRPG.Action.palmTitle", { action: def.label, trait: TRAITS[trait].label, n });
+        equal(JSON.stringify({ read, standIn, missing: A.palmTitle("nothing"), noNumber: A.palmTitle("frisk", { label: "R1104", frisk: { trait: "body" } }),
+            literal: [read[0], read[1], read[6]] }), JSON.stringify({
+            read: [want(palm.unseen.trait, palm.unseen.threshold), want(palm.traits[0], palm.threshold), want(palm.unseen.trait, palm.plant.unseen),
+                want(palm.traits[0], palm.plant.threshold), want(palm.unseen.trait, palm.rummage.unseen), want(palm.rummage.trait, palm.rummage.threshold),
+                want(palm.frisk.trait, palm.frisk.threshold)],
+            standIn: [f(stand, "leg", 4), f(stand, "eye", 3), f(stand, "shadow", 11)],
+            missing: palm.label, noNumber: "R1104",
+            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 10", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
+        }), "[the seven parts' titles off ACTIONS.palm; three off a stand-in table; a part the table lacks; a part with no number; in English the owner's three strings]");
+    }],
+
+    ["R1107 - Role reversal the incident took away stays in the menu, struck, and the GM still refuses it: murder-rules.mjs `availableCrisisActions` keeps a key of `deniedToVictim` as `denied` and shut (`blocked`) with its reason, never free, and `crisisRefusal` refuses it as denied by the incident (E51 C1; E51-09, audit S02-51 (g))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (g). The row was filtered out of the victim's list, so the menu lost Role
+         * reversal with no word of why; since C1 it stays, `denied`, shut like a blocked row and drawn struck through
+         * (action-rolls.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
+         * judgement refuses it as before (`crisisRefusal`'s `offered.denied`, under the same code). Asked of fixture
+         * states as R211's: the victim on their turn with Role reversal unlocked, denied and not. Pure; nothing is
+         * written. Red at C1's parent: the denied state gave no row.
+         */
+        const M = await import("./murder-rules.mjs");
+        const V = { id: "R1107VICTIM00001" }, K = { id: "R1107KILLER00001" };
+        const fight = { stage: "incident", killerId: K.id, victimId: V.id, thirdId: null, thirdSide: null, thirdActed: false,
+            turn: 2, turnSide: "victim", unlocked: ["survive", "roleReversal"], spent: [], deniedToVictim: [] };
+        const denied = { ...fight, deniedToVictim: ["roleReversal"] };
+        const row = state => {
+            const r = M.availableCrisisActions(V, state).find(o => o.key === "roleReversal");
+            return r ? { denied: r.denied, blocked: r.blocked, free: r.free, why: r.why } : null;
+        };
+        const said = state => M.crisisRefusal(V, "roleReversal", state);
+        const reason = game.i18n.localize("DRPG.Murder.deniedByIncident");
+        // The open row is judged past the denial: this fixture holds no reserves, so its answer is the resolution's price.
+        equal(JSON.stringify({ open: row(fight), struck: row(denied), refusedOpen: said(fight)?.why ?? null, refused: said(denied) && [said(denied).why, said(denied).key],
+            worded: reason !== "DRPG.Murder.deniedByIncident" }), JSON.stringify({
+            open: { denied: false, blocked: false, free: false, why: null },
+            struck: { denied: true, blocked: true, free: false, why: "DRPG.Murder.deniedByIncident" },
+            refusedOpen: "nothing left to spend on a resolution", refused: ["that action is denied by the incident", "DRPG.Murder.actionDenied"], worded: true
+        }), "[Role reversal unlocked: the row; denied: the row kept, struck and shut with its reason; the GM's answer to each; the reason is a key of this language]");
+    }],
+
+    ["R1108 - a result card says the number it needed: utils.mjs `cardHead` writes \"needed N\" beside the total when handed `dc`, a ladder as text too, and nothing without a total or a dc (E51 C1; E51-12, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner, 14.10: the module told nobody the thresholds. The roll window said "beat N";
+         * the card the roll reports went out with the total alone. `cardHead` takes the roll's `dc` (kept on the roll
+         * by `rollTrait`, read by action-rolls.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
+         * slot. Pure; nothing is written. Red at C1's parent: no "needed" in any of the heads.
+         */
+        const { cardHead } = await import("./utils.mjs");
+        const needed = n => foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n }));
+        const html = slots => cardHead(slots);
+        const one = html({ action: "R1108", total: 13, dc: 10 });
+        const ladder = html({ action: "R1108", total: 13, dc: "12 / 18" });
+        const none = html({ action: "R1108", total: 13 });
+        const noTotal = html({ action: "R1108", dc: 10 });
+        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed">/.test(one),
+            ladder.includes(needed("12 / 18")), none.includes("drpg-card-needed"), noTotal.includes("drpg-card-needed"), needed(10) !== "DRPG.Action.needed"]),
+            JSON.stringify([true, true, true, false, false, true]),
+            "[a dc of 10 says needed 10; beside the total; a ladder too; no dc says nothing; no total says nothing; the key is worded]");
+    }],
+
+    ["R1109 - the GM's tracker shows the last turns' total and threshold: murder-rules.mjs `turnEntry` writes `total` and `threshold` on a rolled turn and neither on a take with no dice, and murder-ui.mjs `recentTurnsHtml` prints \"N against M\" for each, an entry written before E51 as it was (E51 C1; E51-13, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026. The tracker's turn lines (E32+E07 C17) said "made it with Hope" and no number, so a GM
+         * who looked away read the band and had to work out the margin from the chat. `applyCrisisAction` writes each
+         * turn through `turnEntry` with the roll's total and the threshold it was judged on (`crisisThreshold`), into
+         * the cast's `recent`, which no player's copy carries (`castFor`). Built here as the GM writes them: a hit at 14
+         * against 12, a miss at 9 against 15, a free take (no dice), and an entry from before E51 with neither field.
+         * Pure; nothing is written. Red at C1's parent: no `turnEntry`, and the lines carried no numbers.
+         */
+        const R = await import("./murder-rules.mjs");
+        const U = await import("./murder-ui.mjs");
+        must(typeof R.turnEntry === "function" && typeof U.recentTurnsHtml === "function",
+            "murder-rules.mjs exports no turnEntry or murder-ui.mjs no recentTurnsHtml - the tracker's lines have no numbers to read");
+        const hit = R.turnEntry({ turn: 1, side: "killer", key: "strike", band: "hope", success: true, total: 14, threshold: 12, rolled: true, changes: [] });
+        const miss = R.turnEntry({ turn: 1, side: "victim", key: "selfDefence", band: "despair", success: false, total: 9, threshold: 15, rolled: true, changes: [] });
+        const free = R.turnEntry({ turn: 2, side: "victim", key: "survive", band: "hope", success: true, total: 0, threshold: 18, rolled: false, changes: [] });
+        const old = { turn: 3, side: "killer", key: "strike", band: "hope", success: true, changes: [] };
+        const score = (total, n) => game.i18n.format("DRPG.Murder.trackerScore", { total, n });
+        const lines = [hit, miss, free, old].map(entry => U.recentTurnsHtml([entry]));
+        equal(JSON.stringify({ entries: [hit, miss, free].map(e => [e.total, e.threshold, e.band]),
+            printed: [lines[0].includes(score(14, 12)), lines[1].includes(score(9, 15)), lines[2].includes("("),
+                lines[3].includes("(") ] }), JSON.stringify({
+            entries: [[14, 12, "hope"], [9, 15, "despair"], [null, null, null]],
+            printed: [true, true, false, false]
+        }), "[each entry's total, threshold and band as written; the hit's line says 14 against 12, the miss's 9 against 15; the free take's line holds "
+            + "a score in brackets; the old entry's]");
     }],
 ];
 
