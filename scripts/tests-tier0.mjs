@@ -15,7 +15,8 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
+    apiKind, apiSurfaceProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -16231,6 +16232,82 @@ const REGRESSIONS = [
             return (row.literals ?? []).filter(text => !found.has(text)).map(text => `${row.id}: ${row.file} has no "${text}"`);
         });
         equal(JSON.stringify(strays), "[]", "an anchor row's literal is not a string literal of its file");
+    }],
+    ["R1559 - api.mjs imports each module once (E52 C6, S01-52)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-52, E52-20. api.mjs imported diagnostics.mjs, remnants.mjs and projects.mjs
+         * twice each, so a name added to one of the two lines and looked for in the other read as missing, and the
+         * file a macro author reads to find the surface told two stories about where a name came from. Read off the
+         * source with comments out: every static `import ... from "./x.mjs"`, counted per module. The reader runs
+         * on a planted fixture first. Red before C6: diagnostics.mjs, projects.mjs and remnants.mjs twice.
+         */
+        const twice = text => {
+            const counts = new Map();
+            for (const m of stripComments(String(text ?? "")).matchAll(/^[ \t]*import\b[^;]*?\bfrom\s*["']\.\/([\w-]+\.mjs)["']/gm)) {
+                counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+            }
+            return { seen: counts.size, twice: [...counts].filter(([, n]) => n > 1).map(([file, n]) => `${file} x${n}`).sort() };
+        };
+        equal(JSON.stringify(twice('import { a } from "./x.mjs";\nimport {\n    b\n} from "./x.mjs";\nimport { c } from "./y.mjs";\n// import { d } from "./y.mjs";\n')),
+            JSON.stringify({ seen: 2, twice: ["x.mjs x2"] }), "the reader does not count a module imported twice, or counts one in a comment");
+        const read = twice((await moduleSources()).get("api.mjs"));
+        must(read.seen >= 50, `api.mjs reads as importing ${read.seen} module(s) - this test would read nothing`);
+        equal(JSON.stringify(read.twice), "[]", "api.mjs imports a module on more than one line");
+    }],
+
+    ["R1560 - game.drpg is the surface tools/api-surface.json lists: each key with its kind, each alias on it and pointing at a key, nothing gone without an alias (E52 C6, S17-51, D25)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S17-51, E52-21 (amend 11.10 and 27.10: E70's names and its three older names;
+         * D25 as E52 reads it: a key leaves game.drpg only after at least one release as an alias). A macro is
+         * written against game.drpg, and a key renamed in a stage broke every macro that called it, with nothing
+         * in the suite to notice. The file lists every key with its kind, the aliases with their target, the stage
+         * or release they came in and the release they are kept until; its `$comment` says how a rename is recorded
+         * (line A's E66 follows it). The judge (tests-kit.mjs `apiSurfaceProblems`) runs on a planted surface
+         * first - a key removed with no alias, an alias to nothing, a removal before its release, an alias gone and
+         * not in removed, a key on the object the file lacks, a kind changed, one function under two names, an
+         * alias kept no release - and then on the live object. Red before C6: no tools/api-surface.json.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const STAGES = new Map([["E90", { id: "E90", planned: "2.0.0", version: null }]]);
+        const SURFACE = { keys: { a: "function", b: "object", c: "function" }, aliases: { old: { target: "a", since: "E90", keepUntil: "2.0.1" } }, removed: {} };
+        const LIVE = { a: "function", b: "object", c: "function", old: "function" };
+        const withOut = (table, name) => Object.fromEntries(Object.entries(table).filter(([key]) => key !== name));
+        const planted = [
+            ["agrees", { live: LIVE, surface: SURFACE }],
+            ["a key removed with no alias", { live: withOut(LIVE, "c"), surface: SURFACE }],
+            ["an alias to nothing", { live: LIVE, surface: { ...SURFACE, aliases: { old: { ...SURFACE.aliases.old, target: "gone" } } } }],
+            ["an alias removed before its release", { live: withOut(LIVE, "old"), surface: { ...SURFACE, aliases: {}, removed: { old: SURFACE.aliases.old } } }],
+            ["an alias gone and not in removed", { live: withOut(LIVE, "old"), surface: SURFACE }],
+            ["a key the file lacks", { live: { ...LIVE, d: "function" }, surface: SURFACE }],
+            ["a kind changed", { live: { ...LIVE, b: "function" }, surface: SURFACE }],
+            ["one function under two names", { live: LIVE, surface: SURFACE, same: [["a", "c"]] }],
+            ["an alias kept no release", { live: LIVE, surface: { ...SURFACE, aliases: { old: { ...SURFACE.aliases.old, keepUntil: "2.0.0" } } } }]
+        ];
+        equal(JSON.stringify(planted.map(([name, c]) => [name, apiSurfaceProblems({ version: "2.0.0", stages: STAGES, same: [], ...c }).length > 0])),
+            JSON.stringify(planted.map(([name], i) => [name, i > 0])), "the judge does not tell a surface that agrees from each planted fault");
+        const removedLater = apiSurfaceProblems({ live: withOut(LIVE, "old"), surface: { ...SURFACE, aliases: {}, removed: { old: SURFACE.aliases.old } }, version: "2.0.1", stages: STAGES });
+        equal(JSON.stringify(removedLater), "[]", "the judge refuses an alias removed once its release has come");
+
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(surface && typeof surface.keys === "object", "tools/api-surface.json is missing or lists no keys");
+        if (!surface) return;
+        // `suiteRolling` is the runner's own switch (tests.mjs sets it on game.drpg while a run lasts), not a key of the surface.
+        const live = Object.fromEntries(Object.entries(game.drpg ?? {}).filter(([key]) => key !== "suiteRolling").map(([key, value]) => [key, apiKind(value)]));
+        must(Object.keys(live).length >= 400, `game.drpg holds ${Object.keys(live).length} key(s) - this test would read nothing`);
+        const { DrpgApi } = await import("./api.mjs");
+        const functions = Object.entries(DrpgApi).filter(([, value]) => typeof value === "function");
+        const same = [];
+        functions.forEach(([a, fa], i) => functions.slice(i + 1).forEach(([b, fb]) => { if (fa === fb) same.push([a, b]); }));
+        const problems = apiSurfaceProblems({ live, same, surface, version: game.modules.get(MODULE_ID)?.version ?? "0", stages: (await stageLedger()) ?? new Map() });
+        equal(JSON.stringify(problems), "[]", "game.drpg and tools/api-surface.json disagree");
+        equal(JSON.stringify(["openNotices", "skipStep", "adjustTime", "endMode", "overruleObjection", "trialVoice", "migrate"].filter(key => surface.keys[key] !== "function")),
+            "[]", "a key E70, A7 or E52 names is not a function of the file's keys");
+        equal(JSON.stringify(["advanceFloorNow", "extendFloor", "endFloor", "migrate1_2_0"].map(key => surface.aliases?.[key]?.target ?? null)),
+            JSON.stringify(["skipStep", "adjustTime", "endMode", "migrate"]), "an older name is not the alias of the key that does its work now");
     }],
 ];
 

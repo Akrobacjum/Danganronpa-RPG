@@ -1428,7 +1428,8 @@ export async function myStashHere(actor) {
     return stashIn(place.room, actor.id, place.scene) ? place.room : null;
 }
 
-/** Compatibility: `game.drpg.atOwnVault` predates several stashes. */
+/** Whether this character stands in one of its own stashes (`myStashHere`). Not on `game.drpg`, and nothing in the
+ *  module calls it (E52 C6, S01-52: this comment named it there as a compatibility entry). */
 export async function atOwnVault(actor) {
     return Boolean(await myStashHere(actor));
 }

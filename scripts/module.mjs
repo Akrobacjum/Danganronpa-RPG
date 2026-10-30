@@ -368,7 +368,7 @@ Hooks.once("ready", () => {
     // not hold the interface shut. The consequence is written down where the
     // clauses live: a clause that repairs something one of the passes below has
     // already read is responsible for asking that pass to run again.
-    safely("the 1.2.0 migration", runMigrationOnLoad);
+    safely("the data migration", runMigrationOnLoad);
 
     // Before anything that reads a Remnant: the traces are drawn again when the
     // ledger changes - this GM's write or another GM's merged in by the store

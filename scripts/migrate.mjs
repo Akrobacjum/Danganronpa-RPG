@@ -1,14 +1,18 @@
 /**
- * Danganronpa RPG - the 1.2.0 data migration.
+ * Danganronpa RPG - the data migration.
  * ---------------------------------------------------------------------------
- * The Sweet & Sound update changes the SHAPE of saved data in five places: the
- * trial playlist mapping, the seeding of stashes, the old motive record, the
- * safeword, and the `stashRoom` flag on items. Five separate "remember to run
- * this" notes is how a world ends up half-migrated and nobody able to say which
- * half, so there is one function here instead, and every stage that changes a
- * saved shape appends its clause to `CLAUSES` below.
+ * One function brings a world's saved data up to the shape the installed build
+ * expects: every stage that changes a saved shape appends its clause to
+ * `CLAUSES` below, and nothing else lifts old data. Separate "remember to run
+ * this" notes are how a world ends up half-migrated and nobody able to say which
+ * half. It runs by itself at `ready` on the primary GM's client whenever the
+ * installed version has moved (`runMigrationOnLoad`); by hand it is
+ * `game.drpg.migrate()` (`migrate1_2_0`, its name from the 1.2.0 update, is the
+ * same function and stays an alias on `game.drpg` until at least 1.3.1:
+ * tools/api-surface.json). `migrationStatus` answers what it would do, writing
+ * nothing.
  *
- * WHY IT COMPARES VERSIONS INSTEAD OF ASKING "HAS 1.2.0 RUN YET".
+ * WHY IT COMPARES VERSIONS INSTEAD OF A "DONE" STAMP.
  *
  * A boolean stamp would be wrong for exactly the way this update is being
  * built. It ships as a ladder of test builds - 1.1.1, 1.1.2, and so on, one per
@@ -1380,8 +1384,8 @@ export async function keepOldSafeword({ from = "", wasInPlay = false } = {}) {
 /**
  * Bring this world's saved data up to the shape the installed build expects.
  *
- *     game.drpg.migrate1_2_0()                  // run if the version moved
- *     game.drpg.migrate1_2_0({ force: true })   // run regardless, for repair
+ *     game.drpg.migrate()                  // run if the version moved
+ *     game.drpg.migrate({ force: true })   // run regardless, for repair
  *
  * Runs by itself at `ready` on the primary GM's client - see module.mjs. The
  * manual call is the repair route, and it is why `force` exists: a world whose
@@ -1524,7 +1528,7 @@ export function runMigrationOnLoad() {
     // world: whether it was played before this load (S01-14).
     const wasInPlay = worldWasInPlay(worldAsFound());
     onLoad = migrate1_2_0({ quiet: true, wasInPlay })
-        .catch(err => error("The 1.2.0 migration could not run", err));
+        .catch(err => error("The data migration could not run", err));
 }
 
 /** The pass this load started - the primary GM's - or nothing to wait for. */

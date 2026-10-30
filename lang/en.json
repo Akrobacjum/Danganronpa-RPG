@@ -3562,6 +3562,11 @@
       "launcher": "Open the GM panel",
       "gmOnly": "Only a GM can open the panel.",
       "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
+      "noActorNamed": "game.drpg.{fn} was given \"{value}\", which is no actor's id or name, so it had no actor to act on: check the spelling.",
+      "actorNameShared": {
+        "one": "game.drpg.{fn} was given \"{value}\", a name {n} actor has, and acted on the first of them: hand it the id of the one you mean.",
+        "other": "game.drpg.{fn} was given \"{value}\", a name {n} actors share, and acted on the first of them: hand it the id of the one you mean."
+      },
       "nextLabel": "Next",
       "nextGo": "Do it",
       "nextIncident": "An incident is running. Take it to the end before anything else.",

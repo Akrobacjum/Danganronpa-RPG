@@ -28132,6 +28132,143 @@ const INVARIANTS = [
         ]), stableJson([true, true, true, true, true, true, true, true]),
             "a JSDoc block over the wrong function [diagnoseDice | rollAudienceLines | fileSizes | loadedFiles | perfReport | whySlow | verifyStylesheet | perfReport times with frameBeat]");
     }],
+    ["R1557 - a macro's actor that is nobody, or a name two actors share, is said with the call and the value; traitValue works taken off game.drpg (E52 C6, S01-42)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-42, E52-19 (owner's Q-7: a shared name warns and still acts on `getName`'s
+         * first, so no macro breaks). api.mjs `asActor` turned a string that was no actor's id or name into null in
+         * silence: `game.drpg.killCharacter("typo")` did nothing and the GM read the function as broken. And
+         * `traitValue`, the one entry that read `this`, threw a TypeError once taken off the object. Measured on the
+         * live object with the notifications' warn caught and put back; the shared name on a stand-in collection,
+         * since tier 1 makes no actor. Red before C6: no warning, `asActor` not exported, the TypeError.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student of this world is the actor the calls are handed");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const api = game.drpg;
+        const NOBODY = "R1557 nobody by this name";
+        const warned = [];
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        let got;
+        try {
+            ui.notifications.warn = text => { warned.push(String(text)); };
+            const byMethod = api.traitValue(student, "eye");
+            let threw = null, byId = null, bare = null;
+            try {
+                const { traitValue } = api;
+                bare = traitValue(student, "eye");
+                byId = traitValue(student.id, "eye");
+            } catch (err) { threw = err?.message ?? String(err); }
+            const quiet = warned.length;
+            const nobody = api.traitValue(NOBODY, "eye");
+            const toldNobody = warned.slice(quiet);
+            const empty = api.traitValue("", "eye");
+            const afterEmpty = warned.length;
+
+            const { asActor } = await import("./api.mjs");
+            const people = [{ id: "r1557a", name: "R1557 Twin" }, { id: "r1557b", name: "R1557 Twin" }, { id: "r1557c", name: "R1557 Solo" }];
+            const standIn = { get: id => people.find(p => p.id === id), getName: name => people.find(p => p.name === name), filter: fn => people.filter(fn) };
+            let shared = "asActor is not exported";
+            if (typeof asActor === "function") {
+                const before = warned.length;
+                const twin = asActor("R1557 Twin", "killCharacter", standIn)?.id ?? null;
+                const toldTwin = warned.slice(before);
+                const solo = asActor("R1557 Solo", "killCharacter", standIn)?.id ?? null;
+                const byOwnId = asActor("r1557b", "killCharacter", standIn)?.id ?? null;
+                shared = [twin, toldTwin.length, toldTwin.every(t => t.includes("killCharacter") && t.includes("R1557 Twin") && t.includes("2")),
+                    solo, byOwnId, warned.length - before];
+            }
+            got = [threw, bare === byMethod, byId === byMethod, quiet, nobody, toldNobody.length,
+                toldNobody.every(t => t.includes("traitValue") && t.includes(NOBODY)), empty, afterEmpty - quiet - toldNobody.length, shared];
+        } finally {
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else delete ui.notifications.warn;
+        }
+        equal(stableJson(got), stableJson([null, true, true, 0, 0, 1, true, 0, 0, ["r1557a", 1, true, "r1557c", "r1557b", 1]]),
+            "[TypeError taken off the object | destructured = method | by id = method | warnings for a real actor | a nobody's value | "
+            + "warnings for a nobody | they name the call and the value | an empty string's value | warnings for it | "
+            + "[a shared name: the first | warned once | naming the call, the name and the count | a unique name | an id | warnings in all]]");
+    }],
+
+    ["R1558 - game.drpg.migrate() is the data migration and migrate1_2_0 its alias; every game.drpg name the module's code and text give is on game.drpg; the API's comments say what the code does (E52 C6, S01-52, S01-56)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-52, S01-56, E52-20 (owner's Q-7: migrate1_2_0 kept until at least 1.3.1). The
+         * public name of the data migration was tied to a release three minor versions old, and its header listed
+         * clauses that are not there; two comments sent a macro author to `game.drpg.gatherEveryone` and
+         * `game.drpg.atOwnVault`, neither on the object (a TypeError); and comments over the API said the clock
+         * refills nothing, only full Gamemasters hold a pool, a long rest is bedroom only, the characters' check is
+         * a GM panel tile. Each comment is held to the code it describes. The name reader runs on a planted line
+         * first. Red before C6: no `migrate`, gatherEveryone and atOwnVault named, every comment as it was.
+         */
+        const { migrate1_2_0 } = await import("./migrate.mjs");
+        const { DrpgApi } = await import("./api.mjs");
+        const sources = new Map(await otherSources());
+        const migrate = sources.get("migrate.mjs") ?? "", api = sources.get("api.mjs") ?? "";
+        must(migrate.length > 20000 && api.length > 20000, "migrate.mjs or api.mjs was not read");
+        equal(stableJson([DrpgApi.migrate === migrate1_2_0, DrpgApi.migrate1_2_0 === migrate1_2_0, typeof game.drpg?.migrate,
+            bodyOf(migrate, "/**", { until: "*/" }).includes("Danganronpa RPG - the data migration."),
+            fnSource(migrate, "runMigrationOnLoad").includes("\"The data migration could not run\""),
+            (sources.get("module.mjs") ?? "").includes("safely(\"the data migration\", runMigrationOnLoad)")]),
+        stableJson([true, true, "function", true, true, true]),
+        "[migrate is the migration | migrate1_2_0 the same | on game.drpg | migrate.mjs's title | the load's log | the load's label]");
+
+        const NAME = /game\.drpg\??\.([A-Za-z_$][\w$]*)/g;
+        equal(stableJson([..."game.drpg.foo() and game.drpg?.bar, not game.drpg.{fn}".matchAll(NAME)].map(m => m[1])), stableJson(["foo", "bar"]),
+            "the reader does not see a game.drpg name as a macro would write it");
+        const texts = [...sources];
+        for (const file of ["lang/en.json", "lang/pl.json"]) {
+            texts.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText).catch(() => "")]);
+        }
+        const onIt = new Set(Object.keys(game.drpg ?? {}));
+        const named = texts.flatMap(([file, text]) => [...String(text).matchAll(NAME)].map(m => [file, m[1]]));
+        must(named.length >= 50, `the module names game.drpg ${named.length} time(s) - this test would read nothing`);
+        equal(stableJson([...new Set(named.filter(([, key]) => !onIt.has(key)).map(([file, key]) => `${file}: game.drpg.${key}`))].sort()), "[]",
+            "the module names a game.drpg entry that is not on game.drpg");
+
+        const surface = bodyOf(api, "export const DrpgApi = {", { until: "\n};" });
+        const docOver = marker => (bodyOf(surface, marker, { back: 700 }).match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*$/) ?? [""])[0];
+        const clock = fnSource(sources.get("clock.mjs") ?? "", "advanceTimeOfDay") ?? "";
+        const pools = fnSource(sources.get("despair.mjs") ?? "", "monokumas") ?? "";
+        const rest = sources.get("rest.mjs") ?? "";
+        const { REST } = await import("./config.mjs");
+        equal(stableJson([
+            /resetSearchTokens = true/.test(clock) && /resetActions = false/.test(clock),
+            docOver("\n    advanceTimeOfDay,").includes("resetSearchTokens: false") && docOver("\n    advanceTimeOfDay,").includes("`resetActions: true`"),
+            /extraPoolUserIds\(\)/.test(pools), docOver("\n    monokumas,").includes("Assistant GM"),
+            REST.long.perSession === true && /roomFlag\(/.test(fnSource(rest, "roomAllows") ?? ""),
+            docOver("\n    takeRest,").includes("once per session") && docOver("\n    takeRest,").includes("roomAllows") && !/bedroom/i.test(docOver("\n    takeRest,")),
+            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(sources.get("gm-panel.mjs") ?? ""),
+            docOver("\n    diagnoseCharacters,").includes("pre-session checks") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
+            /migrateTruthBullets/.test(migrate) && /migrateRemnants/.test(migrate), /the data migration runs\s+\*?\s*them too/.test(docOver("\n    migrateTruthBullets,"))
+        ]), stableJson([true, true, true, true, true, true, true, true, true, true]),
+        "[clock: search tokens by default, actions opt-in | its comment | pools: Assistant GMs granted one | its comment | rest: per session, by room flag | "
+            + "its comment | characters: a pre-session line, no panel tile | its comment | the migration runs the bullets' and traces' lifts | its comment]");
+    }],
+
+    ["R1561 - tools/api-surface.json says what ECLIPSE_FREE_PLACEMENT holds and when eclipseMovesLeft answers null, as config.mjs and eclipse.mjs do now (E52 C6, S18-90)", async () => {
+        /*
+         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5: E37 withdraws free placement; until it
+         * ships the surface lists the aggregate's key as it is, and eclipseMovesLeft's null with it. A note that
+         * outlived the code would tell a macro author a number where null comes. Held: the file's value is the live
+         * `config.ECLIPSE_FREE_PLACEMENT`, its `nullAt` the times of day whose Eclipse `isFreePlacement` answers true
+         * for, measured on a stand-in clock per time of day, and `movesLeft` answers null only from a null allowance.
+         * Red before C6: no file.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(surface?.notes, "tools/api-surface.json is missing or has no notes");
+        if (!surface?.notes) return;
+        const { ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY } = await import("./config.mjs");
+        const { isFreePlacement } = await import("./eclipse.mjs");
+        const free = TIMES_OF_DAY.filter((t, i) => isFreePlacement({ ...getClock(), timeOfDay: TIMES_OF_DAY[(i + TIMES_OF_DAY.length - 1) % TIMES_OF_DAY.length] }));
+        const moves = fnSource((await moduleSources()).get("eclipse.mjs") ?? "", "movesLeft") ?? "";
+        equal(stableJson([surface.notes["config.ECLIPSE_FREE_PLACEMENT"]?.value ?? null, surface.notes.eclipseMovesLeft?.nullAt ?? null, free,
+            game.drpg?.config?.ECLIPSE_FREE_PLACEMENT ?? null, /if \(allowance === null\) return null;/.test(moves)]),
+        stableJson([ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, true]),
+        "[the file's ECLIPSE_FREE_PLACEMENT | the file's nullAt | free placement measured per time of day | game.drpg.config's | movesLeft's null from the allowance]");
+    }],
 ];
 
 /**

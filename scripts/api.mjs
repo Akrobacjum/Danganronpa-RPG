@@ -2,8 +2,12 @@
  * Danganronpa RPG - public API.
  * ---------------------------------------------------------------------------
  * Everything macros and journal buttons are allowed to call hangs off
- * `game.drpg`. Treat this as the stable surface: internal files may be
- * reshuffled between stages, this object should not break.
+ * `game.drpg`. Its keys are listed, each with its kind, in tools/api-surface.json,
+ * and the suite holds the live object to that file (R1560): a key added here is
+ * added there, and a key renamed or removed stays on this object as an alias of
+ * its new name for at least one release, written in the file's `aliases` (D25,
+ * as E52 reads it: the file's `$comment` says how). Internal files may be
+ * reshuffled between stages; this object is not.
  */
 
 import { DRPG, MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
@@ -69,30 +73,27 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseGmStores, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow, diagnose } from "./diagnostics.mjs";
+    diagnoseWindows, diagnoseCharacters, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow, diagnose
+} from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
     openStateExplainer, openDespairExplainer, openStatusExplainer, openProjectsExplainer
 } from "./explain.mjs";
-import {
-    diagnoseCharacters
-} from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
 import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor,
     tableNameCandidates, refreshTableCopy } from "./tables.mjs";
 import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf, locateActor } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
-import {
-    migrateRemnants, remnantData, reportRemnants, flushTraceDigest } from "./remnants.mjs";
 import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
     allProjects, visibleProjects, knownProjects, knowsProject, canSee,
     projectsAvailableIn, projectsListedIn,
     isComplete, addProgress, patchProjectMeta,
-    makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
+    makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf,
+    createProject, deleteProject, updateProject
 } from "./projects.mjs";
 import { openProjectManager, openShareDialog } from "./projects-ui.mjs";
 import { callGm, askReshapeRuling } from "./gm-bridge.mjs";
@@ -100,7 +101,7 @@ import { takeRest, roomAllows, restRooms, setRestRoom } from "./rest.mjs";
 import {
     dropRemnant, placeRemnant, remnantsOn, remnantsInRoom, rankForObserve,
     revealRemnant, removeRemnant, clearFaintRemnants,
-    setRemnantFlags
+    setRemnantFlags, migrateRemnants, remnantData, reportRemnants, flushTraceDigest
 } from "./remnants.mjs";
 import { chooseObserveTarget, resolveObserve, clearPendingObserves } from "./observe.mjs";
 import { resolveAnalyze } from "./analyze.mjs";
@@ -120,7 +121,7 @@ import {
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
     startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
-    extendFloor, endFloor, skipStep, adjustTime, endMode, overruleObjection
+    extendFloor, endFloor, skipStep, adjustTime, endMode, overruleObjection, trialVoice
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
     trialProgressChapter } from "./vote.mjs";
@@ -211,7 +212,6 @@ import {
 import {
     startEclipse, endEclipse, isEclipse, movesLeft, placementStatus, ruleOnParkedMurder
 } from "./eclipse.mjs";
-import { createProject, deleteProject, updateProject } from "./projects.mjs";
 import {
     actionBudget,
     actionsLeft,
@@ -246,7 +246,8 @@ import {
     isPrimaryGm,
     resolveThreshold,
     clamp,
-    log
+    log,
+    plural
 } from "./utils.mjs";
 import { createPassage, grantPassage, revokePassage, closePassage, openPassage, deletePassage, listPassages, passageLog } from "./passages-gm.mjs";
 import { auditRows } from "./movement-audit.mjs";
@@ -302,9 +303,10 @@ export const DrpgApi = {
         return TRAIT_BY_DH[dhKey] ?? dhKey;
     },
 
-    /** Current value of a DRPG trait on an actor. */
+    /** Current value of a DRPG trait on an actor. Reads no `this`, so `const { traitValue } = game.drpg` works too
+     *  (E52 C6, S01-42: it threw a TypeError taken off the object). */
     traitValue(actor, drpgKey) {
-        const dh = this.traitKey(drpgKey);
+        const dh = TRAITS[drpgKey]?.dh ?? drpgKey;
         return actor?.system?.traits?.[dh]?.value ?? 0;
     },
 
@@ -361,7 +363,8 @@ export const DrpgApi = {
     /** Phase: "dailyLife" | "investigation" | "classTrial". */
     setPhase,
 
-    /** Move to the next time of day. Refills nothing by default; `resetActions` and `resetSearchTokens` are opt-in (see clock.mjs). */
+    /** Move to the next time of day. Restocks every room's search tokens unless `resetSearchTokens: false`; refills the
+     *  actions only with `resetActions: true`, once per boundary (see clock.mjs). */
     advanceTimeOfDay,
 
     /** Step back one time of day. A correction - refills nothing, and refused while an Eclipse runs. */
@@ -379,7 +382,7 @@ export const DrpgApi = {
 
     /* ---- despair ------------------------------------------------------- */
 
-    /** Full Gamemasters only - Assistant GMs do not get a Monokuma pool. */
+    /** Every full Gamemaster, and each Assistant GM granted a pool in the GM panel's Despair Flow window. */
     monokumas,
     despairMax,
     getDespair,
@@ -517,7 +520,8 @@ export const DrpgApi = {
 
     /* ---- rest ---------------------------------------------------------- */
 
-    /** Short rest: 1 action, pick 1. Long rest: 2 actions, pick 2, bedroom only. */
+    /** Short rest: 1 action, pick 1, once per time of day. Long rest: 2 actions, pick 2, once per session. Each only in
+     *  a room Room Setup marks for that rest (`roomAllows`). */
     takeRest,
     roomAllows,
     restRooms,
@@ -711,15 +715,18 @@ export const DrpgApi = {
     exportLedger: backupCase,
     importLedger: restoreCase,
 
-    /** Bring bullets made before Stage 1 up to the current shape. Idempotent. */
+    /** Bring Truth Bullets and traces of an older shape up to the current one. Idempotent; the data migration runs
+     *  them too. */
     migrateTruthBullets,
     migrateRemnants,
 
-    /* ---- 1.2.0 data migration -------------------------------------------
+    /* ---- the data migration ---------------------------------------------
      * Runs by itself at `ready` on the primary GM's client whenever the
      * installed version has moved. These are the repair route. */
 
     /** Re-run every clause. `{ force: true }` ignores the version stamp. */
+    migrate: migrate1_2_0,
+    /** The same call under its name until E52 (S01-56): an alias, kept until at least 1.3.1 (tools/api-surface.json). */
     migrate1_2_0,
 
     /** What the migration thinks of this world, without writing anything. */
@@ -1046,6 +1053,9 @@ export const DrpgApi = {
     trialTarget: floorTarget,
     trialMaySpeak: maySpeak,
     trialSecondsLeft: secondsLeft,
+    /** "speak", "listen" or "muted": what the trial's rule lets this character do now, by actor id; "speak" outside a
+     *  Class Trial (trial-floor.mjs `trialVoice`; E70 C5, exposed in E52 C6). */
+    trialVoice,
     startFloor,
 
     /** An OBJECTION calls this by itself - presenting evidence takes the floor. */
@@ -1141,7 +1151,7 @@ export const DrpgApi = {
     diagnoseDespair,
 
     /** Who is still missing the guide's starting resources - run before a session
-     *  zero. Also a tile in the GM panel. */
+     *  zero. Also a line of Season setup's pre-session checks and of `diagnose()`. */
     diagnoseCharacters,
 
     /** Why does the sheet look different here than on another install? */
@@ -1212,8 +1222,8 @@ export const DrpgApi = {
     /*
      * THE SUITE IS FETCHED WHEN IT IS ASKED FOR, NOT AT EVERY START (C2).
      *
-     * The suite - `tests.mjs` and, since E30, the four `tests-*.mjs` files it
-     * imports, about 15,000 lines on 24.09.2026 - has this file as its only
+     * The suite - `tests.mjs` and the `tests-*.mjs` files it imports, about
+     * 125,000 lines and 9.7 MB on 30.10.2026 - has this file as its only
      * importer. Imported at the top, every client at the table - players
      * included, none of whom can run it - parsed the whole regression suite
      * before the world finished loading. Behind a thunk it is never fetched
@@ -1289,6 +1299,9 @@ export const DrpgApi = {
     startEclipse,
     endEclipse,
     isEclipse,
+    /** Crossings a character has left in the running Eclipse: a number, or `null` while an Eclipse that places freely
+     *  runs (`config.ECLIPSE_FREE_PLACEMENT`, the Night Eclipse at this release, unless the darkening gives it two).
+     *  tools/api-surface.json's note says the same (R1561). */
     eclipseMovesLeft: movesLeft,
     placementStatus,
 
@@ -1561,11 +1574,28 @@ export const DrpgApi = {
  * behaving exactly as it does today - strictly no worse.
  * ========================================================================== */
 
-/** An Actor from a document, an id, or a name. `null` when it is none of them. */
-function asActor(value) {
+/**
+ * An Actor from a document, an id, or a name. `null` when it is none of them.
+ *
+ * A NAME THAT FINDS NOBODY, OR TWO, IS SAID (E52 C6, 30.10.2026; S01-42, owner's Q-7). A typo in an
+ * id or a name became null in silence, so `game.drpg.killCharacter("typo")` did nothing and the GM
+ * read the function as broken. A non-empty string that is no actor's id and no actor's name now
+ * warns, naming the call and the value; a name two actors share warns too and still takes
+ * `getName`'s first, as before, so no macro that worked stops working. `key` is the `game.drpg`
+ * name the call came in by; `actors` is handed in by R1557.
+ */
+export function asActor(value, key = "", actors = game.actors) {
     if (!value) return value ?? null;
     if (typeof value !== "string") return value;
-    return game.actors.get(value) ?? game.actors.getName(value) ?? null;
+    const byId = actors.get(value);
+    if (byId) return byId;
+    const named = actors.filter(a => a.name === value);
+    if (!named.length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Panel.noActorNamed", { fn: key, value }));
+        return null;
+    }
+    if (named.length > 1) ui.notifications.warn(plural("DRPG.Panel.actorNameShared", { fn: key, value, n: named.length }));
+    return actors.getName(value) ?? named[0];
 }
 
 /** Which positional parameter, if any, is the actor. */
@@ -1587,11 +1617,11 @@ function actorPosition(fn) {
     }
 }
 
-function wrap(fn) {
+function wrap(fn, key = fn.name) {
     const at = actorPosition(fn);
     if (at < 0) return fn;
     const wrapped = function (...args) {
-        if (args.length > at) args[at] = asActor(args[at]);
+        if (args.length > at) args[at] = asActor(args[at], key);
         return fn.apply(this, args);
     };
     // Keep the name, so `actorPosition` on a re-wrapped object and any logging
@@ -1604,7 +1634,7 @@ function wrap(fn) {
 function normalise(api) {
     const out = {};
     for (const [key, value] of Object.entries(api)) {
-        out[key] = typeof value === "function" ? wrap(value) : value;
+        out[key] = typeof value === "function" ? wrap(value, key) : value;
     }
     return out;
 }

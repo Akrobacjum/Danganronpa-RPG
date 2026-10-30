@@ -3702,6 +3702,13 @@
       "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może otworzyć panel.",
       "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
+      "noActorNamed": "game.drpg.{fn} dostało „{value}”, a to nie jest identyfikator ani nazwa żadnego aktora, więc nie miało na kim działać: sprawdź pisownię.",
+      "actorNameShared": {
+        "one": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "few": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "many": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "other": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi."
+      },
       "nextLabel": "Dalej",
       "nextGo": "Zrób to",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
