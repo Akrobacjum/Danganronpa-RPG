@@ -6293,6 +6293,27 @@
       "refundLost": "Nie dało się zwrócić ci {what}, bo trwa zaciemnienie Despair. Powiedz GM-owi.",
       "noPrice": "Tego nie możesz zrobić."
     },
+    "Contract": {
+      "notice": {
+        "one": "Danganronpa RPG: jedna rzecz w Foundry, Daggerheart lub innym module, na której polega, nie jest taka, jakiej ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "few": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie są takie, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "many": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie jest takich, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "other": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie jest takich, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz."
+      },
+      "checksTitle": "Foundry, Daggerheart i moduły",
+      "checksAllOk": {
+        "one": "Jedyne sprawdzone miejsce jest takie, jakiego ta wersja oczekuje.",
+        "few": "Wszystkie {n} sprawdzone miejsca są takie, jakich ta wersja oczekuje.",
+        "many": "Wszystkich {n} sprawdzonych miejsc jest takich, jakich ta wersja oczekuje.",
+        "other": "Wszystkich {n} sprawdzonych miejsc jest takich, jakich ta wersja oczekuje."
+      },
+      "checksUnknown": {
+        "one": "Nie wiadomo, czy działa, bo nie dało się tego tu sprawdzić: {targets}",
+        "few": "{n} miejsca: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}",
+        "many": "{n} miejsc: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}",
+        "other": "{n} miejsc: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}"
+      }
+    },
     "Relay": {
       "refused": "Odrzucono zmianę Daggerhearta od {name}: {what}. Nic nie zostało zmienione.",
       "forged": "Od <strong>{name}</strong> przyszła zmiana, której Daggerheart nie robi dla gracza: {what}. Nic nie zostało zmienione. Jeśli nikt przy stole nie zrobił nic nietypowego, daj znać autorowi modułu - to może być funkcja Daggerhearta, której ten moduł jeszcze nie zna.",

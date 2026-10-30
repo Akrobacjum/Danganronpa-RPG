@@ -27315,6 +27315,256 @@ const INVARIANTS = [
         ok(!fnSource(src, "applySelectionColour").includes("FOUNDRY_CONTROLLED"), "the controlled border still falls back to Foundry's orange on a reading that always answers");
         ok(/door/i.test(bodyOf(src, "/**", { until: "*/" })), "selection.mjs's header does not say which of Foundry's icons keep Foundry's colour");
     }],
+    ["R1540 - the contract runs at ready on the primary GM, after the requirements, once a load; each row answers ok, failed or unknown, a probe that throws is failed with its message, and a row that cannot be read is never ok", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-04. Until C2 the register was a table `diagnosePatches()` printed
+         * when somebody asked: a Daggerheart that moved a target was found by the feature that stopped. Now the
+         * primary GM's ready runs it (`announceContract`, after `requirementsMet`, so a world that does not start
+         * is not probed) and each row is one of three: ok, failed, unknown. The plan's risk: a probe reads
+         * presence, and "cannot tell" is a warning, never green. Stand-in rows here, so the suite's own world
+         * decides nothing (E52-T1 reads that one); a stand-in run does not replace the load's state, which the
+         * report reads. Red before C2: no runContract.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.runContract === "function" && typeof mod.announceContract === "function" && typeof mod.contractState === "function",
+            "patches.mjs has no runContract, announceContract or contractState");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R1540 ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1540", when: "always", fallback: `R1540 ${id}: what the table gets`, probe, ...extra
+        });
+        const rows = [
+            row("ours", () => ({ present: true, ours: true })),
+            row("gone", () => ({ present: false, ours: null })),
+            row("replaced", () => ({ present: true, ours: false })),
+            row("throws", () => { throw new Error("R1540 the probe broke"); }),
+            row("cannot-tell", () => ({ present: null, ours: null })),
+            row("unmarked", () => ({ present: true, ours: null })),
+            row("presence-only", () => ({ present: true, ours: null }), { marked: false }),
+            row("hook", () => ({ present: true, ours: null }), { kind: "hook" }),
+            row("call", () => ({ present: true, ours: null }), { kind: "call" }),
+            row("not-in-use", () => ({ present: false, ours: false }), { inUse: () => false }),
+            row("in-use-throws", () => ({ present: true, ours: true }), { inUse: () => { throw new Error("R1540 inUse broke"); } }),
+            row("says-failed", () => ({ present: true, ours: true, state: "failed", note: "R1540 its own state" }))
+        ];
+        const before = stableJson(mod.contractState());
+        const contract = mod.runContract({ rows });
+        equal(stableJson(contract.rows.map(r => [r.id, r.state])), stableJson([
+            ["ours", "ok"], ["gone", "failed"], ["replaced", "failed"], ["throws", "failed"], ["cannot-tell", "unknown"], ["unmarked", "unknown"],
+            ["presence-only", "ok"], ["hook", "unknown"], ["call", "ok"], ["not-in-use", "ok"], ["in-use-throws", "failed"], ["says-failed", "failed"]
+        ]), "a row's state is not read as the contract says [present and ours | gone | another function there | a probe that throws | "
+            + "cannot tell | no mark to read | presence is the contract | a hook not seen firing | a call present | not in use here | "
+            + "the in-use test throws | the probe's own state]");
+        equal(stableJson(["throws", "in-use-throws", "says-failed"].map(id => contract.rows.find(r => r.id === id)?.note)),
+            stableJson(["R1540 the probe broke", "R1540 inUse broke", "R1540 its own state"]), "a failed row does not carry the reason it failed");
+        equal(stableJson([contract.ok.length, contract.failed.length, contract.unknown.length]), stableJson([4, 5, 3]),
+            "the run's ok, failed and unknown lists do not count its rows");
+        equal(stableJson(mod.contractState()), before, "a run on rows handed in replaced this load's contract, which the report reads");
+
+        // Unknown is a warning: one console line naming each such row, and no notice (a notice is a failed row's).
+        const notices = [];
+        const log = watchLog();
+        try {
+            mod.announceContract({ rows: rows.filter(r => ["ours", "cannot-tell", "hook"].includes(r.id)), told: { done: false },
+                notify: text => notices.push(text) });
+        } finally {
+            log.stop();
+        }
+        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([1, 1, 0]),
+            "a row that cannot be read is not one warning line each, or it raised a notice [cannot tell | hook | notices]");
+
+        // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
+        const src = (await moduleSources()).get("module.mjs") ?? "";
+        const ready = bodyOf(src, "Hooks.once(\"ready\", () => {", { until: "\n});" });
+        const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceContract(");
+        ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
+        ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
+    }],
+
+    ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
+         * (D24 read as Q-6: the register only reads); what C2 adds is that the GMs are told which, once a load,
+         * and that Pre-season's checks say the same before a session. `told` and `notify` are handed in, so the
+         * load's own notice is neither spent nor shown. Each row names the function of its file that makes the
+         * reach (`symbol`, one per file of `file`, in order), held here to the file's source. Red before C2:
+         * no announceContract, no symbol on any row.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.announceContract === "function" && typeof mod.runContract === "function", "patches.mjs has no announceContract or runContract");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R1541 target ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1541", when: "always", fallback: `R1541 fallback ${id}`, probe, ...extra
+        });
+        const rows = [
+            row("gone", () => ({ present: false, ours: null })),
+            row("two", () => { throw new Error("R1541 broke"); }, { file: "forced-roll.mjs, roll-draw.mjs", symbol: "loadDie, rollerCopyOf" }),
+            row("fine", () => ({ present: true, ours: true }))
+        ];
+        const notices = [];
+        const told = { done: false };
+        const notify = (text, options) => notices.push([String(text), options ?? null]);
+        mod.announceContract({ rows, told, notify });
+        mod.announceContract({ rows, told, notify });
+        equal(notices.length, 1, "a failed row was told more than once in one load, or not at all");
+        const [text, options] = notices[0] ?? ["", null];
+        ok(options?.permanent === true, "the notice of a failed row fades by itself");
+        equal(stableJson(["R1541 target gone", "fog.mjs:registerDoorControls", "R1541 fallback gone", "R1541 target two",
+            "forced-roll.mjs:loadDie", "roll-draw.mjs:rollerCopyOf", "R1541 fallback two", "R1541 target fine"].map(part => text.includes(part))),
+            stableJson([true, true, true, true, true, true, true, false]),
+            "the notice does not name each failed row's target, file:symbol and fallback, or names a row that holds");
+
+        const SS = await import("./season-setup.mjs");
+        const read = async contract => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract });
+            return el.textContent;
+        };
+        const failed = await read(mod.runContract({ rows }));
+        equal(stableJson(["R1541 target gone", "fog.mjs:registerDoorControls", "R1541 fallback gone", "forced-roll.mjs:loadDie",
+            "R1541 fallback two", "R1541 target fine"].map(part => failed.includes(part))), stableJson([true, true, true, true, true, false]),
+            "Pre-season's checks do not list the failed rows with their file:symbol and fallback, or list a row that holds");
+        const okLine = game.i18n.format("DRPG.Contract.checksAllOk.one", { n: 1 });
+        const all = await read(mod.runContract({ rows: [rows[2]] }));
+        const blind = await read(mod.runContract({ rows: [row("blind", () => ({ present: null, ours: null }))] }));
+        ok(!okLine.startsWith("DRPG.") && all.includes(okLine) && !all.includes("R1541"), "Pre-season's checks give no green line when every row holds");
+        ok(blind.includes("R1541 target blind") && !blind.includes(okLine), "a row nobody could read is green on Pre-season's checks, or not named there");
+
+        // Every row of the register: one symbol per file, each a function its file declares.
+        const sources = await moduleSources();
+        const list = value => String(value ?? "").split(/\s*,\s*/).filter(Boolean);
+        const wrong = mod.PATCHES.flatMap(entry => {
+            const files = list(entry.file), symbols = list(entry.symbol);
+            if (files.length !== symbols.length) return [`${entry.id}: ${files.length} file(s), ${symbols.length} symbol(s)`];
+            return files.map((file, i) => [file, symbols[i]]).filter(([file, symbol]) => topLevelFunction(sources.get(file) ?? "", symbol) === null)
+                .map(([file, symbol]) => `${entry.id}: ${file}:${symbol}`);
+        });
+        equal(stableJson(wrong), "[]", "a row's file:symbol is not a function its file declares");
+    }],
+
+    ["R1542 - the trust rows read their own state: the relay guard first on Daggerheart's channel, the roll draw's build the reviewed one, the roll window's context, a drawn roll's reading and the veiled card's pip; the contract changes none of their fallbacks", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-06; MARKED (m1-m3). The rows that judge D2's two layers do
+         * not read presence: the relay guard's row reads relay-guard.mjs `relayGuardStatus` and whether the
+         * guard is the first listener on the channel (a listener before it acts on a packet before it is
+         * judged); the roll draw's row reads roll-draw.mjs `rollDrawState`, where "changed" is D1's fallback -
+         * rolls thrown in the player's browser - and so a failed row, never ok. The register reads; it never
+         * loosens: the guard's and the seam's states are the same after a run as before. Stand-ins for the
+         * listeners and the seam (`standInSeam`, the suite's own), put back at once. Red before C2: no
+         * relay guard row, no relayGuardRow or rollDrawRow.
+         */
+        const mod = await import("./patches.mjs");
+        const { relayGuardStatus } = await import("./relay-guard.mjs");
+        const { rollDrawState, standInSeam } = await import("./roll-draw.mjs");
+        ok(typeof mod.relayGuardRow === "function" && typeof mod.rollDrawRow === "function" && typeof mod.runContract === "function",
+            "patches.mjs has no relayGuardRow, rollDrawRow or runContract");
+        const guard = Object.assign(function wrapped() { /* the guard's stand-in */ }, { __drpgRelayGuard: true });
+        const other = function handleSocketEvent() { /* another listener */ };
+        const relay = (state, listeners) => mod.relayGuardRow({ state }, listeners)?.state ?? "no answer";
+        equal(stableJson([relay("ok", [guard]), relay("ok", [guard, other]), relay("ok", [other, guard]), relay("ok", [other]),
+            relay("changed", [guard]), relay("unnamed", [guard]), relay("backstop", []), relay("notFound", []), relay("noApi", []), relay("idle", [])]),
+            stableJson(["ok", "ok", "failed", "failed", "failed", "failed", "failed", "failed", "failed", "unknown"]),
+            "the relay guard's row is not read from its own state [alone | first of two | second | not on the channel | unreviewed cases | "
+            + "an unnamed listener | the backstop | not found | no socket to wrap | not looked yet]");
+        const relayRow = mod.PATCHES.find(r => r.id === "relay-guard");
+        ok(relayRow?.kind === "socket" && relayRow?.file === "relay-guard.mjs", "the register has no socket row for the relay guard in relay-guard.mjs");
+
+        const marked = Object.assign(() => null, { [Symbol.for("drpgRollDraw")]: true });
+        const drawn = state => mod.rollDrawRow({ state, why: "R1542" }, marked)?.state ?? "no answer";
+        equal(stableJson([drawn("ok"), drawn("changed"), drawn("none")]), stableJson(["ok", "failed", "unknown"]),
+            "the roll draw's row is not read from the seam's state [wrapped | a build the draw was not written for | not decided yet]");
+        equal(mod.rollDrawRow({ state: "ok", why: "" }, () => null)?.state, "failed", "the roll draw's row reads ok while another function stands where its wrapper was");
+        const drawRow = mod.PATCHES.find(r => r.id === "roll-draw");
+        ok(/player's browser/.test(drawRow?.fallback ?? "") && /D1/.test(drawRow?.fallback ?? ""), "the roll draw's row does not name D1's fallback");
+
+        const guardBefore = stableJson(relayGuardStatus()), seamBefore = stableJson(rollDrawState());
+        let changed;
+        const restore = standInSeam("changed");
+        try {
+            changed = mod.runContract({ rows: [drawRow] }).rows[0];
+        } finally {
+            restore();
+        }
+        equal(stableJson([changed?.state, /stood in by the suite/.test(changed?.note ?? "")]), stableJson(["failed", true]),
+            "the register's roll draw row reads ok, or says no reason, on a build the draw was not written for");
+        mod.runContract();
+        equal(stableJson([stableJson(relayGuardStatus()), stableJson(rollDrawState())]), stableJson([guardBefore, seamBefore]),
+            "running the contract changed the relay guard's state or the roll draw's");
+
+        // The other trust rows: ours on this world, failed on a reading where another function stands there.
+        const TRUST = ["relay-guard", "roll-draw", "roll-dialog-context", "chat-content-visible", "chat-notify"];
+        const trust = TRUST.map(id => mod.PATCHES.find(r => r.id === id));
+        equal(stableJson(mod.runContract({ rows: trust }).rows.map(r => r.state)), stableJson(TRUST.map(() => "ok")),
+            `a trust row is not ok on the suite's world [${TRUST.join(" | ")}]`);
+        const others = trust.slice(2).map(r => ({ ...r, probe: () => ({ present: true, ours: false }) }));
+        equal(stableJson(mod.runContract({ rows: others }).rows.map(r => r.state)), stableJson(others.map(() => "failed")),
+            "a trust row whose function is not the module's reads other than failed");
+    }],
+
+    ["R1543 - a door control class without isVisible is left as Foundry's, doors open, and the contract's door row fails naming it", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-07, the plan's "verify"; MARKED (m4). fog.mjs subclassed any
+         * function standing in `CONFIG.Canvas.doorControlClass` and read `super.isVisible`: on a Foundry whose
+         * class has no such getter that is undefined, and every door control a player's fog would show was hidden
+         * - doors nobody could open. Now a class without the getter is left as Foundry's, the console says so, and
+         * the register's door row reads failed. The class handed in, never installed; CONFIG's class stood in for
+         * the row's probe and put back. Red before C2: no doorControlFor.
+         */
+        const fog = await import("./fog.mjs");
+        const mod = await import("./patches.mjs");
+        ok(typeof fog.doorControlFor === "function", "fog.mjs has no doorControlFor: any class is subclassed, with or without isVisible");
+        class Bare { constructor(wall) { this.wall = wall; } }
+        equal(fog.doorControlFor(Bare), null, "a door control class without isVisible is subclassed: super.isVisible is undefined and a player's doors hide");
+        const Live = CONFIG.Canvas?.doorControlClass;
+        const Foundry = Live?.name === "RoomDoorControl" ? Object.getPrototypeOf(Live) : Live;
+        const Made = fog.doorControlFor(Foundry);
+        ok(typeof Made === "function" && Made.name === "RoomDoorControl" && Object.getPrototypeOf(Made) === Foundry
+            && typeof Object.getOwnPropertyDescriptor(Made.prototype, "isVisible")?.get === "function",
+            "Foundry's own door control class is not extended by the rooms' door control");
+        const row = mod.PATCHES.find(r => r.id === "door-controls");
+        let bare;
+        CONFIG.Canvas.doorControlClass = Bare;
+        try {
+            bare = mod.runContract({ rows: [row] }).rows[0];
+        } finally {
+            CONFIG.Canvas.doorControlClass = Live;
+        }
+        equal(stableJson([bare?.state, /isVisible/.test(bare?.note ?? "")]), stableJson(["failed", true]),
+            "the door row does not fail, naming isVisible, on a class without it");
+        equal(mod.runContract({ rows: [row] }).rows[0]?.state, "ok", "the door row is not ok on the suite's world");
+    }],
+
+    ["R1544 - Levels: a region whose includedInLevel throws is on every floor, said once, and the contract's row fails", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-08, the plan's "verify". rooms.mjs `onLevel` fell back to
+         * `region.levels` when Foundry's `includedInLevel` was absent, and called it unguarded when present - so
+         * a Foundry whose method throws threw out of every reader of a floor (the fog's included: a black
+         * screen). Now it is "on every floor", the module's rule wherever it cannot read a map, said once a
+         * load, and the register's row reads the failure. A stand-in region, never in a scene; the load's
+         * "said" put back after. Red before C2: onLevel threw the stand-in's own error.
+         */
+        const rooms = await import("./rooms.mjs");
+        const mod = await import("./patches.mjs");
+        const restore = typeof rooms.standInLevelFailure === "function" ? rooms.standInLevelFailure(null) : null;
+        const broken = { levels: new Set(["R1544-a"]), includedInLevel() { throw new Error("R1544 Levels broke"); } };
+        const asks = { levels: new Set(["R1544-a"]), includedInLevel: id => id === "R1544-a" };
+        const read = (region, level) => { try { return rooms.onLevel(region, level); } catch (err) { return `throws: ${err?.message ?? err}`; } };
+        const log = watchLog();
+        let answers, row;
+        try {
+            answers = [read(broken, "R1544-b"), read(broken, { id: "R1544-b" }), read(asks, "R1544-a"), read(asks, "R1544-b")];
+            row = typeof mod.runContract === "function"
+                ? mod.runContract({ rows: mod.PATCHES.filter(r => r.id === "region-included-in-level") }).rows[0] ?? null : null;
+        } finally {
+            log.stop();
+            restore?.();
+        }
+        equal(stableJson(answers), stableJson([true, true, true, false]),
+            "onLevel throws, or does not read a region whose includedInLevel throws as on every floor [throws | throws, a level | asks, on | asks, off]");
+        equal(log.count(/includedInLevel/), 1, "a throwing includedInLevel is not said exactly once");
+        ok(typeof restore === "function", "rooms.mjs has no stand-in for the load's Levels failure, so this test would leave one behind");
+        equal(stableJson([row?.state, /R1544 Levels broke/.test(row?.note ?? "")]), stableJson(["failed", true]),
+            "the register's Levels row does not fail with the error includedInLevel threw");
+    }],
 ];
 
 /**

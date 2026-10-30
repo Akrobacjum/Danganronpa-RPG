@@ -2740,16 +2740,42 @@ function refreshDoorControls() {
     }
 }
 
-function registerDoorControls() {
-    const Base = CONFIG.Canvas?.doorControlClass;
-    if (typeof Base !== "function") return warn("Fog: Foundry offers no door control class here, so every door control stays shown.");
-    CONFIG.Canvas.doorControlClass = class RoomDoorControl extends Base {
+/**
+ * The `isVisible` getter a door control class has on its prototype chain, or null. Exported for patches.mjs's
+ * door row and R1543.
+ */
+export function visibleGetterOf(Base) {
+    for (let proto = Base?.prototype; proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+        const get = Object.getOwnPropertyDescriptor(proto, "isVisible")?.get;
+        if (typeof get === "function") return get;
+    }
+    return null;
+}
+
+/**
+ * The rooms' door control over `Base`, or null where `Base` is no class with an `isVisible` getter (E52 C2,
+ * E52-07). Until C2 any function was extended and `super.isVisible` read unchecked: on a class without the
+ * getter that is undefined, and a player's fog hid every door control it should have shown. Such a class is
+ * now left as Foundry's - its doors shown and opened as Foundry shows them - and the contract's door row fails.
+ * Exported for R1543.
+ */
+export function doorControlFor(Base) {
+    if (typeof Base !== "function" || !visibleGetterOf(Base)) return null;
+    return class RoomDoorControl extends Base {
         get isVisible() {
             const shown = super.isVisible;
             if (!shown || game.user.isGM) return shown;
             return doorKnown(this.wall) ?? shown;
         }
     };
+}
+
+function registerDoorControls() {
+    const Base = CONFIG.Canvas?.doorControlClass;
+    if (typeof Base !== "function") return warn("Fog: Foundry offers no door control class here, so every door control stays shown.");
+    const Door = doorControlFor(Base);
+    if (!Door) return warn("Fog: Foundry's door control has no isVisible to ask, so it is left as Foundry's and every door control stays as Foundry shows it.");
+    CONFIG.Canvas.doorControlClass = Door;
 }
 
 export function repaintFog() {

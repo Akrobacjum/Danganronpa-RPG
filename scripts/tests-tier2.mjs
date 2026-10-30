@@ -75243,6 +75243,30 @@ const SCENARIOS = [
         }), "[the checklist's rooms row on the side map on screen | with the school wall to wall, then mostly in no room: the list the Next line judged "
             + "caught, its rooms row done, its line naming the school, the Next line's step with every other row done]");
     }],
+    ["E52-T1 - the contract on the suite's world: run at the primary GM's ready, every row read, none failed (E52 C2, E52-04; S17-50)", async () => {
+        /*
+         * E52 C2, 30.10.2026. The suite's world is the module's whole start-up on the harness's Foundry and
+         * Daggerheart: every row of the register must hold there (failed is a real reach broken, or a probe
+         * that reads it wrong), and the GM's ready must have run it - the load's state is what the report reads.
+         * Unknown rows are logged, not counted: whether a hook fires is C3's (E52-09). The controlled border's
+         * colour is laid first by the module's own `applySelectionColour`, as R1539 does, so an hour or a theme
+         * another test left mid-change does not decide that row.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.runContract === "function" && typeof mod.contractState === "function", "patches.mjs has no runContract or contractState");
+        const { runContract, contractState, PATCHES } = mod;
+        const { applySelectionColour } = await import("./selection.mjs");
+        const atReady = contractState();
+        ok(atReady !== null && Array.isArray(atReady?.rows) && atReady.rows.length === PATCHES.length,
+            "the primary GM's ready did not run the contract over the whole register");
+        applySelectionColour();
+        const contract = runContract();
+        equal(contract.rows.length, PATCHES.length, "the contract did not read every row of the register");
+        equal(stableJson(contract.rows.filter(r => r.state === "failed").map(r => [r.id, r.note])), "[]",
+            "a row of the contract failed on the suite's world");
+        equal(stableJson(contract.rows.filter(r => !["ok", "failed", "unknown"].includes(r.state)).map(r => r.id)), "[]",
+            "a row of the contract answered no state of the three");
+    }],
     ...GRID
 ];
 

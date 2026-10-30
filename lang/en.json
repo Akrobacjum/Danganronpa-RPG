@@ -4928,6 +4928,21 @@
       "plantAction": "Plant the item",
       "plantSettled": "{name} planted the item."
     },
+    "Contract": {
+      "notice": {
+        "one": "Danganronpa RPG: one thing it relies on in Foundry, Daggerheart or another module is not as this version expects. Until that is fixed, the table gets this instead - {rows}. Update Danganronpa RPG, or tell its author which versions of Foundry and Daggerheart you run.",
+        "other": "Danganronpa RPG: {n} things it relies on in Foundry, Daggerheart or other modules are not as this version expects. Until they are fixed, the table gets this instead - {rows}. Update Danganronpa RPG, or tell its author which versions of Foundry and Daggerheart you run."
+      },
+      "checksTitle": "Foundry, Daggerheart and the modules",
+      "checksAllOk": {
+        "one": "The one place checked is as this version expects.",
+        "other": "All {n} places checked are as this version expects."
+      },
+      "checksUnknown": {
+        "one": "Not known to work, as it could not be checked here: {targets}",
+        "other": "{n} places are not known to work, as they could not be checked here: {targets}"
+      }
+    },
     "Relay": {
       "refused": "Refused a Daggerheart change from {name}: {what}. Nothing was changed.",
       "forged": "<strong>{name}</strong> sent a change Daggerheart does not make for a player: {what}. Nothing was changed. If nobody at the table did anything unusual, tell the module's author - it may be a Daggerheart feature this module has not met yet.",
