@@ -52,7 +52,7 @@
     {"id": "E42", "planned": "1.2.101", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E60", "planned": "1.2.102", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E43", "planned": "1.2.103", "version": null, "shipped": null, "touches": null, "drills": []},
-    {"id": "E20", "planned": "1.2.104", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E20", "planned": "1.2.104", "version": null, "shipped": null, "touches": [], "drills": []},
     {"id": "E44", "planned": "1.2.105", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E21", "planned": "1.2.106", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E22", "planned": "1.2.107", "version": null, "shipped": null, "touches": null, "drills": []},
