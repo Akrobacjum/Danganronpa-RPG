@@ -16748,7 +16748,9 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const locked = game.i18n.localize("DRPG.Eclipse.actionsLocked");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         const real = CONFIG.Dice.randomUniform;
         const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
         let picker = "unasked", out = null, armed = null;
@@ -35825,7 +35827,9 @@ const SCENARIOS = [
         const locked = game.i18n.localize("DRPG.Trial.actionsLocked");
         const callsLocked = game.i18n.localize("DRPG.Trial.callsLocked");
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -38096,7 +38100,9 @@ const SCENARIOS = [
         const was = foundry.utils.deepClone(getClock());
         const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -41850,7 +41856,9 @@ const SCENARIOS = [
         const [victim] = cast(1);
 
         const said = [];
-        const info = ui.notifications.info.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const info = ui.notifications.info;
         ui.notifications.info = text => { said.push(String(text)); return null; };
         const before = game.messages.size;
 
@@ -57174,7 +57182,9 @@ const SCENARIOS = [
         const home = canvas?.scene ?? null;
         const AWAY = "SUITE E12 C5 a room of another scene";
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         let reading = null, expected = null;
         await G.withGmStoreWorld(`suite-c5-gather-${foundry.utils.randomID(8)}`, async () => {
             let away = null;
@@ -75583,6 +75593,58 @@ const SCENARIOS = [
             schoolUncovered: { caught: true, done: false, names: true, next: "rooms" }
         }), "[the checklist's rooms row on the side map on screen | with the school wall to wall, then mostly in no room: the list the Next line judged "
             + "caught, its rooms row done, its line naming the school, the Next line's step with every other row done]");
+    }],
+    ["E52-T1 - the contract on the suite's world: run at the primary GM's ready, every row read, none failed (E52 C2, E52-04; S17-50)", async () => {
+        /*
+         * E52 C2, 30.10.2026. The suite's world is the module's whole start-up on the harness's Foundry and
+         * Daggerheart: every row of the register must hold there (failed is a real reach broken, or a probe
+         * that reads it wrong), and the GM's ready must have run it - the load's state is what the report reads.
+         * Unknown rows are logged, not counted: whether a hook fires is C3's (E52-09). The controlled border's
+         * colour is laid first by the module's own `applySelectionColour`, as R1539 does, so an hour or a theme
+         * another test left mid-change does not decide that row.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.runContract === "function" && typeof mod.contractState === "function", "patches.mjs has no runContract or contractState");
+        const { runContract, contractState, PATCHES } = mod;
+        const { applySelectionColour } = await import("./selection.mjs");
+        // The ready road's own run (E52 fix round, line A; review F2): `contractState` is replaced by any run over the
+        // register (R1542, the report), so it stayed set with module.mjs's call removed; `contractAtReady` is written by
+        // `announceAtReady` alone, and that road hands rooms.mjs the call for a later Levels throw (G-2). Red at
+        // 90bca290 with module.mjs's call removed in a scratch copy: passed; now failed.
+        const rooms = await import("./rooms.mjs");
+        const atReady = typeof mod.contractAtReady === "function" ? mod.contractAtReady()?.contract ?? null : null;
+        ok(atReady !== null && Array.isArray(atReady?.rows) && atReady.rows.length === PATCHES.length,
+            "the primary GM's ready did not run the contract over the whole register");
+        ok(typeof rooms.levelThrowListener === "function" && rooms.levelThrowListener() === mod.announceLevelThrow,
+            "the primary GM's ready did not hand rooms.mjs the call that tells a Levels throw met later in the load");
+        ok(contractState() !== null, "no contract over the register in this load, for the report to read");
+        applySelectionColour();
+        const contract = runContract();
+        equal(contract.rows.length, PATCHES.length, "the contract did not read every row of the register");
+        equal(stableJson(contract.rows.filter(r => r.state === "failed").map(r => [r.id, r.note])), "[]",
+            "a row of the contract failed on the suite's world");
+        equal(stableJson(contract.rows.filter(r => !["ok", "failed", "unknown"].includes(r.state)).map(r => r.id)), "[]",
+            "a row of the contract answered no state of the three");
+    }],
+    ["E52-T2 - the one report on the suite's world: every part read, none failed, no chat message, and game.drpg.diagnose() answers its text (E52 C4, E52-14; S17-51)", async () => {
+        /*
+         * E52 C4, 30.10.2026. The report runs every diagnose* this client may run; on the suite's world, the
+         * module's whole start-up on the harness's Foundry and Daggerheart, none of them may throw (a part that
+         * throws is "failed" in the report, with its message), and the report is read, not posted. Here as the
+         * GM: every part ok, the chat as it was, and `diagnose({ show: false })` answers the same parts' text.
+         * Red before C4: no gatherReport.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && typeof game.drpg?.diagnose === "function", "no gatherReport, or no game.drpg.diagnose");
+        if (typeof D.gatherReport !== "function" || typeof game.drpg?.diagnose !== "function") return;
+        const before = game.messages.size;
+        const report = await D.gatherReport({ gm: true });
+        equal(stableJson(report.sections.filter(s => s.state !== "ok").map(s => [s.id, s.state, s.text.slice(0, 160)])), "[]",
+            "a part of the report failed, or was not run, on the GM of the suite's world");
+        const text = await game.drpg.diagnose({ show: false });
+        equal(game.messages.size, before, "the report posted a chat message");
+        equal(stableJson(report.sections.filter(s => !String(text).includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
+            "game.drpg.diagnose() does not answer the report's text");
     }],
     ...GRID
 ];

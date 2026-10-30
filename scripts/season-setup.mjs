@@ -1158,15 +1158,17 @@ async function runPreSessionChecks() {
  * The Pre-season checks window's body (E20 C3, from `runPreSessionChecks`, so the suite reads it without a window):
  * the cast, the scenes, the voice rows, the room pictures and the anonymity audit. `av` hands the A/V facts in
  * (`{ mode, on, available }`, R1510), `scenes` the scenes whose room pictures are checked and `head` their HEAD
- * request (R1510, R1511, E20-T2); each is the world's unless handed.
+ * request (R1510, R1511, E20-T2), `contract` a run of the contract (patches.mjs `runContract`; R1541); each is the
+ * world's unless handed.
  *
  * @param {object} [options]
  * @returns {Promise<string>} HTML
  */
-export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack() } = {}) {
+export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack(), contract = null } = {}) {
     const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched, avOffForTile, videoWithoutAudio },
-        { checkRoomImages }] = await Promise.all([
-        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
+        { checkRoomImages }, { runContract }] = await Promise.all([
+        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs"),
+        import("./patches.mjs")
     ]);
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
@@ -1187,6 +1189,8 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
         probeMs ?? ROOM_IMAGE_LIMITS.probeMs);
     // The module holds nothing while Foundry's settings are given back (E20 fix round, G-2): said first, it explains the rest.
     const held = givenBack ? `<p class="drpg-check-report">${esc(game.i18n.localize("DRPG.GiveBack.preSeason"))}</p>` : "";
+    // The contract (E52 C2, E52-05): run now, the rows the load's notice names, so the report says what holds today.
+    const reaches = contractSection(contract ?? runContract(), esc);
 
     // The marks in the state's colour (E20 fix round, the goal review's G-8): `checkMarks`.
     return `<div>
@@ -1197,9 +1201,33 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
             <pre class="drpg-check-report">${checkMarks(esc(sceneLines))}</pre>
             ${pictures}
             ${video}
+            ${reaches}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
             <div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>
         </div>`;
+}
+
+/**
+ * Pre-season's lines of the contract (E52 C2, E52-05): each failed row with a cross, its target, file:symbol and what
+ * the table gets instead - the rows the primary GM's notice names; the rows nobody could read on one line, never
+ * green; a check only when every row holds.
+ *
+ * @param {{rows: object[], failed: object[], unknown: object[]}} contract  patches.mjs `runContract`
+ * @param {function(*): string} esc
+ * @returns {string} HTML
+ */
+function contractSection(contract, esc) {
+    const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
+    const lines = failed.map(r => `✗ ${r.target} (${r.where}): ${r.instead ?? r.fallback}`);
+    if (!lines.length && !unknown.length) lines.push(`✓ ${plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 })}`);
+    // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
+    // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
+    const fold = unknown.length
+        ? `<details class="drpg-check-report drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
+            unknown.map(r => `<div>${esc(`${r.target} (${r.where}): ${r.note}`)}</div>`).join("")}</details>`
+        : "";
+    return `<h3>${esc(game.i18n.localize("DRPG.Contract.checksTitle"))}</h3>
+            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}${fold}`;
 }
 
 /**

@@ -82,7 +82,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, debug, esc, cardHead
+    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
@@ -4281,6 +4281,7 @@ let openingRollsInFlight = 0;
 const openingDialogs = new Set();
 
 function markOpeningDialog(app) {
+    markFired("renderD20RollDialog");
     if (!openingRollsInFlight) return;
     const title = String(app?.title ?? "");
     const ours = ["killer", "victim", "selfInflicted"]

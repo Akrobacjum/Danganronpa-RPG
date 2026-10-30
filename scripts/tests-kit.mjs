@@ -187,6 +187,10 @@ function compareVersions(a, b) {
     return 0;
 }
 
+/* Whether this install serves tools/, as the run's own fetch of the stage ledger found it (`env.tools`, E52 C6): the
+   repository and the harness do, an installed module does not (tools/ is export-ignored from the zip). */
+let toolsServed = false;
+
 /**
  * tools/stages.json as this run reads it: `Map<id, row>`, each row with `done` -
  * THE rule of tools/stages.mjs: a version, and this module's version at or past
@@ -198,13 +202,68 @@ async function stageLedger() {
     let doc = null;
     try {
         const res = await fetch(`/modules/${MODULE_ID}/tools/stages.json`, { cache: "no-cache" });
+        toolsServed = Boolean(res.ok);
         if (res.ok) doc = await res.json();
-    } catch { /* not served: the answer below says so */ }
+    } catch { toolsServed = false; /* not served: the answer below says so */ }
     if (!Array.isArray(doc?.stages)) return null;
     const version = game.modules.get(MODULE_ID)?.version ?? "0";
     return new Map(doc.stages.map(row => [row.id, {
         ...row, done: Boolean(row.version) && compareVersions(version, row.version) >= 0
     }]));
+}
+
+/**
+ * THE MACRO API'S SURFACE, HELD TO ITS FILE (E52 C6, 30.10.2026; S17-51, E52-21; D25 as E52 reads it: a key leaves
+ * `game.drpg` only after a release as an alias). What is wrong between the live object and tools/api-surface.json, as
+ * sentences, none when they agree. `live` maps each key of `game.drpg` to `apiKind` of its value; `same` lists the
+ * pairs of keys holding one value before the actor wrapper (api.mjs `DrpgApi`); `surface` is the file; `version`
+ * this module's; `stages` tools/stages.json's rows by id. R1560 runs it on a planted fixture before the real surface.
+ */
+const SURFACE_VERSION = /^\d+\.\d+\.\d+$/;
+function apiKind(value) {
+    if (value === null) return "null";
+    if (Array.isArray(value)) return "array";
+    return typeof value;
+}
+function apiSurfaceProblems({ live = {}, same = [], surface = null, version = "0", stages = new Map() } = {}) {
+    const out = [];
+    const keys = surface?.keys ?? {}, aliases = surface?.aliases ?? {}, removed = surface?.removed ?? {};
+    const has = (table, name) => Object.prototype.hasOwnProperty.call(table, name);
+    for (const [name, kind] of Object.entries(live)) {
+        if (has(keys, name)) {
+            if (keys[name] !== kind) out.push(`${name} is a ${kind} on game.drpg and a ${keys[name]} in the file`);
+        } else if (!has(aliases, name)) out.push(`${name} is on game.drpg and in neither keys nor aliases`);
+        if (has(removed, name)) out.push(`${name} is in removed and still on game.drpg`);
+    }
+    for (const name of Object.keys(keys)) {
+        if (!has(live, name)) out.push(`${name} is gone from game.drpg with no alias row`);
+    }
+    const since = (name, row) => {
+        const stage = stages.get(row?.since);
+        if (!stage && !SURFACE_VERSION.test(String(row?.since ?? ""))) out.push(`${name}'s since "${row?.since}" is neither a stage of tools/stages.json nor a release`);
+        const from = stage ? (stage.version ?? stage.planned) : row?.since;
+        if (row?.keepUntil !== null && !SURFACE_VERSION.test(String(row?.keepUntil ?? ""))) out.push(`${name}'s keepUntil is neither a release nor null`);
+        else if (row?.keepUntil && SURFACE_VERSION.test(String(from ?? "")) && compareVersions(row.keepUntil, from) <= 0) {
+            out.push(`${name} is kept until ${row.keepUntil}, not past ${from}, the release it became an alias in`);
+        }
+    };
+    for (const [name, row] of Object.entries(aliases)) {
+        if (has(keys, name)) out.push(`${name} is both a key and an alias`);
+        if (!has(live, name)) out.push(`the alias ${name} is gone from game.drpg and not in removed`);
+        if (!has(keys, row?.target)) out.push(`the alias ${name} points at ${row?.target}, which is no key of the file`);
+        since(name, row);
+    }
+    for (const [name, row] of Object.entries(removed)) {
+        if (has(keys, name) || has(aliases, name)) out.push(`${name} is in removed and still a key or an alias`);
+        if (!has(keys, row?.target)) out.push(`the removed ${name} names ${row?.target}, which is no key of the file`);
+        since(name, row);
+        if (!row?.keepUntil) out.push(`${name} was removed with no keepUntil`);
+        else if (compareVersions(version, row.keepUntil) < 0) out.push(`${name} was removed at ${version}, before ${row.keepUntil}, the release its alias was kept until`);
+    }
+    for (const [a, b] of same) {
+        if (aliases[a]?.target !== b && aliases[b]?.target !== a) out.push(`${a} and ${b} are one function on game.drpg and neither is the other's alias in the file`);
+    }
+    return out;
 }
 
 /** What is wrong with a red marker before anything is run, or null. */
@@ -495,6 +554,8 @@ const env = Object.freeze({
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
     unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
+    /* tools/ served (E52 C6): the run's fetch of the stage ledger (`stageLedger`, once per run, before the first test). */
+    tools: () => probe("env.tools", toolsServed, "this install has no tools/ folder (an installed module's zip leaves it out)"),
     /* The primary GM (E11 fix r2-H1, 1.2.73; round 1's residue R4): the one browser the discovery, the watcher and the
        GMs' audit run on. Which GM that is is a fact about this browser at this table, so a test of those roads run from a
        second GM skips instead of failing; the harness's GM is the primary, so nothing skips for it there. */
@@ -1926,6 +1987,7 @@ function cast(n = 3) {
 
 export {
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
+    apiKind, apiSurfaceProblems,
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,

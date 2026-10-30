@@ -167,6 +167,32 @@ export function error(...args) {
     record("error", args);
 }
 
+/* ==========================================================================
+ * OTHER PACKAGES' HOOKS, SEEN FIRING (E52 C3, E52-09)
+ * --------------------------------------------------------------------------
+ * A hook another package renames is never called again, and a listener that
+ * waits for it never learns so: the contract register (patches.mjs) could only
+ * say "whether it fires is not read here". Each listener of a hook row marks
+ * its first call of the load here, and the row is ok once marked and unknown
+ * until then, never ok on presence alone. This browser's memory only.
+ * ========================================================================== */
+const hooksFired = new Map();
+
+/** Mark `hook` as fired in this load; the first call's time is kept. */
+export function markFired(hook) {
+    if (!hooksFired.has(hook)) hooksFired.set(hook, Date.now());
+}
+
+/** When `hook` was first marked in this load, or null. */
+export function firedAt(hook) {
+    return hooksFired.get(hook) ?? null;
+}
+
+/** Take back a mark the suite's own call made (R1545), so a hook it called is not read as one its package fired. */
+export function forgetFired(hook) {
+    hooksFired.delete(hook);
+}
+
 /** Ids of every GM user, active or not. */
 export function gmIds() {
     return game.users.filter(u => u.isGM).map(u => u.id);

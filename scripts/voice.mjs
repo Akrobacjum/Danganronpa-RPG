@@ -1315,6 +1315,19 @@ function deadForTrial(held = actor => actor) {
     return [...ids].sort();
 }
 
+/**
+ * Whether Foundry names the user permission BROADCAST_AUDIO (E52 C3, E52-13; amend 05.10 C). Both blocks of a microphone
+ * - the trial's below and the GM's in the voice list (voice-tile.mjs `toggleBlock`) - write it on a user; a Foundry
+ * without it would take the write and block nobody, so neither writes then, and the contract (patches.mjs, its row of
+ * the entry) tells the GMs. `perms` is handed in by R1546.
+ */
+export function broadcastAudioKnown(perms = globalThis.CONST?.USER_PERMISSIONS) {
+    return Boolean(perms && typeof perms === "object" && Object.hasOwn(perms, "BROADCAST_AUDIO"));
+}
+
+/* Said once a load: the trial's block found no permission to write. */
+let saidNoBroadcastEntry = false;
+
 /** A user's own BROADCAST_AUDIO grant: `{ had, value }`, from the document's source. */
 function grantOf(user) {
     const own = (user?._source ?? user)?.permissions ?? {};
@@ -1324,6 +1337,11 @@ function grantOf(user) {
 /** The trial's block of one player: what it found kept first, then the write; a GM's own block is left alone. */
 async function blockForTrial(user) {
     if (!isPrimaryGm()) return null;
+    if (!broadcastAudioKnown()) {
+        if (!saidNoBroadcastEntry) warn("The trial's microphone block: Foundry names no BROADCAST_AUDIO permission in this version, so no microphone is blocked.");
+        saidNoBroadcastEntry = true;
+        return null;
+    }
     const { had, value } = grantOf(user);
     if (had && value === false) return "gm";
     await trialMuteStore.patch(user.id, { had, value, wrote: true });
