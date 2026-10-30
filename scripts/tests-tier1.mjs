@@ -21792,6 +21792,42 @@ const INVARIANTS = [
         const remnantsAsked = Object.values(rows).reduce((sum, [list]) => sum + list.filter(t => t.name.startsWith("R")).length, 0);
         equal(remnantsAsked, 0, "Remnants asked over every row");
     }],
+    ["R1051 - a frame of a drag drops no memo (E89 C3): forty refreshes of a token the viewer owns and the next frame's walk ask the viewer's rooms of the scene at most once, and a move of that token's document once more", async () => {
+        /*
+         * E89 C3, 30.10.2026; E89-07. The `refreshToken` listener dropped the memo of the viewer's rooms on every
+         * refresh of an owned token, and a drag's preview and a slide refresh once a frame: scenario 86 at e9e41f58 (on
+         * the harness's model) counted visibility.forget 43 on the mover's browser and 21 on the GM's over one 20-frame
+         * drag. `myRooms` reads the documents, not the sprites, so only an owned document's move may drop it. On the
+         * canvas on screen, writing nothing: 40 refreshes of an owned character's token through the hook (as R1011's
+         * position-only refresh), each followed by a read of the viewer's rooms (`viewerHere().rooms`, the memo's own
+         * reader), then two frames for the walk and sweep after them; then `passForTokenUpdate` handed that token's own
+         * position as a move (no write - the listener's own call) and the rooms read again. Red at e9e41f58: 40 drops
+         * and 40 walks of the scene, and the document move dropped nothing on a GM's browser.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with tokens on it");
+        const C = await import("./perf-counters.mjs");
+        const V = await import("./visibility.mjs");
+        const tokens = canvas.tokens?.placeables ?? [];
+        const own = tokens.find(t => t.isOwner && t.actor?.type === "character" && !t.document?.getFlag?.(MODULE_ID, "isRemnant"));
+        must(canvas.ready && own, "no character's token this user owns is on the scene on screen - this would measure nothing");
+        must(typeof V.viewerHere === "function" && typeof V.passForTokenUpdate === "function", "visibility.mjs hands out no viewerHere or passForTokenUpdate");
+        const frames = async k => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); };
+        const read = (from, name) => C.delta(from, C.snapshot())[name] ?? 0;
+        V.viewerHere().rooms;
+        const b0 = C.snapshot();
+        for (let k = 0; k < 40; k++) {
+            Hooks.callAll("refreshToken", own, { refreshPosition: true });
+            V.viewerHere().rooms;
+        }
+        await frames(2);
+        const drag = [read(b0, "visibility.forget"), read(b0, "visibility.myRooms.walk")];
+        const b1 = C.snapshot();
+        V.passForTokenUpdate(own.document, { x: own.document.x });
+        V.viewerHere().rooms;
+        const move = [read(b1, "visibility.forget"), read(b1, "visibility.myRooms.walk")];
+        equal(JSON.stringify([drag[0], drag[1] <= 1, move[0] >= 1, move[1]]), JSON.stringify([0, true, true, 1]),
+            `[memo drops over 40 refreshes, at most one walk of the scene for them, a drop on the document's move, one walk after it] for ${own.name}: drag ${JSON.stringify(drag)}, move ${JSON.stringify(move)}`);
+    }],
 
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
         /*

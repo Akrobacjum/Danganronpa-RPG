@@ -270,6 +270,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         check(`${theme}: E89 C1 - Aiko's drag dropped inside Dorm A asks no whole pass on her player's browser, whose refreshes are a watcher's and the preview's ${SLIDE} frames (E89-04, on the model)`,
             noWholePass(dragged, (dragged.p2?.moved?.["refreshToken.visibility"] ?? 0) + SLIDE), J({ p1: dragged.p1.moved, p2: dragged.p2.moved }));
         await stateHolds(theme, "an own drag");
+        /* E89 C3 (30.10.2026; E89-07): a frame of the drag drops no memo of the viewer's rooms - only the drop (an owned
+           document's move) and the re-read at rest do. At e9e41f58 visibility.forget 21/43/0/0/0 over this drag and
+           visibility.myRooms.walk 3 on p1 (on the model). */
+        const forgets = Object.fromEntries(Object.entries(dragged).map(([who, r]) => [who, [r.moved["visibility.forget"] ?? 0, r.moved["visibility.myRooms.walk"] ?? 0]]));
+        check(`${theme}: E89 C3 - Aiko's ${SLIDE}-frame drag and slide drop the memo of the viewer's rooms at most twice on every browser and walk the scene for them at most twice on her player's (E89-07, on the model)`,
+            Object.values(forgets).every(([forget]) => forget <= 2) && forgets.p1[1] <= 2, J(forgets));
         const pathLog = await measure(theme, "own path", async () => {
             await p1.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"), x0 = t.x, y = t.y;
                 const seen = globalThis.__s86path = [];

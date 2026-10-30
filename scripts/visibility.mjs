@@ -42,9 +42,12 @@ export function registerVisibility() {
     // wall still showed the room beyond.
     Hooks.on("refreshToken", token => {
         count("refreshToken.visibility");
-        // One of ours moved: where WE are may have changed, so the memo of our
-        // own rooms is no longer good. Somebody else's refresh cannot change it.
-        if (token?.isOwner) forgetMyRooms();
+        /* NO MEMO IS DROPPED HERE (E89 C3, 30.10.2026; E89-07). This used to drop the memo of our rooms on every
+           refresh of a token we own, and a drag's preview and a slide refresh once a frame: scenario 86 at e9e41f58 (on
+           the harness's model) counted visibility.forget 43 on the mover's browser and 21 on the GM's (who owns every
+           token) over one 20-frame drag. `myRooms` reads the documents' positions, never a sprite's, so a refresh cannot
+           change its answer: what can is an owned document's move (`passForTokenUpdate`), a token created or deleted, a
+           bullet and its refs and the scene's own events (each through `applyAll`). */
         applyToToken(token);
         // …and again after this frame's refresh has finished, this token among the ones refreshed in it. See below.
         reassertNextFrame(token);
@@ -261,7 +264,7 @@ export function roomChangeTokens(before, after, tokens, roomOf = roomOfToken) {
 /**
  * THE ROOMS THE SCREEN WAS LAST DRAWN FOR (E89 C1, 30.10.2026): `{ rooms, lair }` signed by `basisNow` at the last
  * whole pass on a player's browser, null before the first and on a GM's. STAGE.md's C1 reads `myRooms()` before
- * `forgetMyRooms()` for the "before"; that memo is not the screen's: the `refreshToken` listener drops it on every
+ * `forgetMyRooms()` for the "before"; that memo is not the screen's: the `refreshToken` listener dropped it (until C3) on every
  * refresh of an owned token (a drag's preview refreshes once a frame: visibility.forget 42 on p1 over 86's drag at
  * 6ae66c7f), and the next verdict rebuilds it from the documents - so at the drop it can already hold the moved
  * token's new room, and before and after would read the same while every other token still shows the old rooms.
@@ -327,7 +330,11 @@ function recheckAtRest(doc) {
 export function passForTokenUpdate(doc, changes) {
     // E89 C1: an own token's move on a player's browser hands the rooms before and after; anything else, `{ gm }`.
     const gm = Boolean(game.user?.isGM);
-    const ownMove = !gm && Boolean(doc?.isOwner) && changes?.hidden === undefined && isMoveChange(changes);
+    const ownedMove = Boolean(doc?.isOwner) && isMoveChange(changes);
+    const ownMove = !gm && ownedMove && changes?.hidden === undefined;
+    // E89 C3: where WE stand moved with the document - the memo goes here, not on the sprite's refreshes (see the
+    // `refreshToken` listener). The player's own move drops it in `ownMoveViewer`; every other owned move here.
+    if (ownedMove && !ownMove) forgetMyRooms();
     const viewer = ownMove ? ownMoveViewer() : { gm };
     const pass = movePass(doc, changes, viewer);
     if (ownMove) recheckAtRest(doc);
@@ -556,7 +563,7 @@ function applyToRemnantToken(token) {
  * client legitimately holds: they are in it.
  */
 /* Whether this viewer is one of the live incident's cast whom its traces show to, read once for a frame's or a pass's
-   verdicts (E88 C2): null until read; dropped by `forgetMyRooms` (each `applyAll`, each refresh of an own token) and
+   verdicts (E88 C2): null until read; dropped by `forgetMyRooms` (each `applyAll`, each move of an own token) and
    after each next-frame walk. It reads no token: each trace asked the same three settings and the same actors walk. */
 let incidentEntitled = null;
 
