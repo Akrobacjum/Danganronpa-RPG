@@ -16748,7 +16748,9 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const locked = game.i18n.localize("DRPG.Eclipse.actionsLocked");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         const real = CONFIG.Dice.randomUniform;
         const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
         let picker = "unasked", out = null, armed = null;
@@ -35825,7 +35827,9 @@ const SCENARIOS = [
         const locked = game.i18n.localize("DRPG.Trial.actionsLocked");
         const callsLocked = game.i18n.localize("DRPG.Trial.callsLocked");
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -38096,7 +38100,9 @@ const SCENARIOS = [
         const was = foundry.utils.deepClone(getClock());
         const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -41850,7 +41856,9 @@ const SCENARIOS = [
         const [victim] = cast(1);
 
         const said = [];
-        const info = ui.notifications.info.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const info = ui.notifications.info;
         ui.notifications.info = text => { said.push(String(text)); return null; };
         const before = game.messages.size;
 
@@ -57174,7 +57182,9 @@ const SCENARIOS = [
         const home = canvas?.scene ?? null;
         const AWAY = "SUITE E12 C5 a room of another scene";
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         let reading = null, expected = null;
         await G.withGmStoreWorld(`suite-c5-gather-${foundry.utils.randomID(8)}`, async () => {
             let away = null;
