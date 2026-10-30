@@ -12,6 +12,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C4 fix | fd6620aa | CI on e52a60ef red: R1512 failed in 01-runtests with an incident open (`nextStep` put the incident line first); `nextStep` takes optional `incident`/`eclipse`, R1512 passes both false; fd6620aa CI green (01-runtests not run locally: it hit the agent's 40-min bound) |
 | C5 | 984033fa | QUICK GREEN at fd6620aa+edits: lint/check/gate ok; prose ok; t01 ok; own(5) ok; scen 00 ok (logs /c/Users/chrob/quick-runs/fd6620aa-220); R1516, R1517 red first; 00-boot 31/33 before, 33/33 after (E20-T3 a real boot without Dice So Nice) |
 | C6 | de321dad | QUICK GREEN at 984033fa+edits: lint/check/gate ok; prose ok; t01 ok; own(7) ok; scen 15 ok; scen 65 ok earlier (984033fa-825, before the last two fixes - not rerun) (logs /c/Users/chrob/quick-runs/984033fa-1746); R1518-R1521 red first 1 passed 4 failed, after 5/0; E20-T4/T5 4 passed 2 failed, after 6/0 |
+| C7 | 689040ee | QUICK GREEN at de321dad+edits: lint/check/gate ok; prose ok; own(14) ok (logs /c/Users/chrob/quick-runs/de321dad-603); --no-t01 (only handbooks, the audit file, stages.json changed); first run red on R431 alone (Check rooms sentences inside the guide box), moved after it |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -65,3 +66,6 @@ All exported; R1500 reads the exports.
 - C6 gap: worlds changed by an earlier version: file permissions stay (the window says so); automations go back to Daggerheart 2.6.5's defaults (2.10.x not read); a held player-side setting goes back to its registered default - the review
 - C6 gap: scenes get their vision back from turning off "Rooms decide what players can see", not from the button - the review
 - C6 for C7: the GM handbooks' list of what the module changes, "press it before switching the module off", the pointer from "until you withdraw it" to the Motive section
+- C7: AUDIT 9.2 B-E20-1..7 (LIVE-E20-01..07) appended after item 342, unnumbered; C4's window stacking in 01, C3's image decode in 04, new 06 (Give back Foundry's settings on v14), 07 (C1's 10% limit on the owner's school map); none measured at a table
+- C7 gap: README's requirements table keeps the old Isometric / Dice So Nice wording - README is line A's file
+- C7 note: stages.json E20 `touches: []`, planned 1.2.104, not shipped; next free R1522
