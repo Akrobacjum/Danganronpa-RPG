@@ -43,8 +43,29 @@
  *     C3 p1 sets its Music slider to 50: `core.globalPlaylistVolume` 0.3536, and 50 again when the window is drawn
  *        again. The map, the switch, the volume and the playlists are put back.
  *
- * Red at 419d3b42 (E50 C1's parent) for part A, at cbe52a4e's module code (E50 C2's parent) for part B and at
- * 83ca7142's (E50 C3's parent) for part C, measured 30.10.2026: see each commit's message.
+ *   D (E50 C4; E50-30, E50-31) - the murder music (E19 C5) on every account in the killing:
+ *     D1 p1's Aiko kills p2's Botan (opened on gm, the opening roll held on p1 and ruled a success, as 13-murder-signals
+ *        does), a murder playlist of 8 tracks: gm's, gm2's, p1's and p2's `murderMusicHere().track` the same; p3's
+ *        Chie, elsewhere, plays none.
+ *     D3 p1's band (`nowPlayingHere`) names the murder track during it, and nothing at Music 0.
+ *     D2 p2 moves its Music slider during it; the incident ends (`endMurder`): p2's volume is the moved one, every
+ *        other browser keeps its 0.8, no browser's `musicDuckedFrom` changed, the track stopped everywhere.
+ *   E (E50 C4; E50-32) - the Take on a body (anonymity.mjs `buildBodyLoot`), drawn into p1's page; Botan dead on a
+ *     published death with a Tool on him, Aiko beside him:
+ *     E1 p1 presses Take; gm holds the packet (its module socket's handlers wrapped) while Aiko walks out of the room,
+ *        then judges it: refused "not where it needs to be" - no "took" toast, the Take opened and shut again by the
+ *        gate with that sentence, the Tool still on the body.
+ *     E2 Aiko back; gm and gm2 stood in as gone on p1's page: no GM to ask - no "took" toast, "No GM is connected."
+ *        once, the Take open again, nothing sent.
+ *     E3 the Take lands: the toast once, the Take stays shut, a second press sends nothing (one packet counted on gm).
+ *   S (E50 C4; E50-33, flow "sound") - sfx.mjs's socket road, counted where `fire` hands a file to the audio layer
+ *     (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
+ *     S1 gm plays a sound for p1 (`playSfxForUsers`): 1 on p1, 0 on gm, gm2, p2 and p3.
+ *     S2 p2's page sends `playSfxFor` packets, one to p1 and one to everybody: 0 everywhere.
+ *
+ * Red at 419d3b42 (E50 C1's parent) for part A, at cbe52a4e's module code (E50 C2's parent) for part B, at
+ * 83ca7142's (E50 C3's parent) for part C and at 50d9e9c6's (E50 C4's parent) for parts E and S1, measured
+ * 30.10.2026: see each commit's message. D and S2 are green there; their mutants are in C4's message.
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -52,6 +73,7 @@ export const accounts = [
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff" }
 ];
 
+const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const WORDS = {
     a1: "S87 A1 a word while the Note tab shows",
@@ -62,7 +84,7 @@ const WORDS = {
     b1b: "S87 B1 a second ask, settled"
 };
 
-export async function run({ gm, gm2, p1, check, phase, settle, environment, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environment, IDS, repoUrl }) {
     const P1 = p1.userId;
     const UNTIL = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!(await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
     const M = `const M = await import("${repoUrl}/scripts/messenger.mjs"); const A = await import("${repoUrl}/scripts/messenger-app.mjs");`;
@@ -439,5 +461,259 @@ export async function run({ gm, gm2, p1, check, phase, settle, environment, IDS,
         await ST.setSetting(ST.SETTINGS.musicEnabled, was.on);
         for (const id of ${J(c1Setup.made)}) { const p = game.playlists.get(id); if (p?.playing) await p.stopAll(); await p?.delete(); }
         return true;`, { timeout: 60000 });
+    await settle(600);
+
+    const BROWSERS = [["gm", gm], ["gm2", gm2], ["p1", p1], ["p2", p2], ["p3", p3]];
+    const onEvery = async code => Object.fromEntries(await Promise.all(BROWSERS.map(async ([who, c]) => [who, await c.eval(code, { timeout: 60000 })])));
+    const PLACE = `{ teleport: true, movementAction: "displace", animate: false }`;
+
+    /* ------------------------------ D. the murder music on every account in it ------------------------------ */
+    phase("D1: p1's Aiko kills p2's Botan, a murder playlist of 8 tracks; p3's Chie is elsewhere", { flow: "murder-incident" });
+    const DMUSIC = `const M = await import("${repoUrl}/scripts/music.mjs"); const S = await import("${repoUrl}/scripts/settings.mjs");`;
+    const dSetup = await gm.eval(`${MU}
+        globalThis.__s87Murder = { map: ST.getSetting(ST.SETTINGS.musicMap) ?? {} };
+        const pl = await Playlist.create({ name: "S87 D the murder playlist",
+            sounds: Array.from({ length: 8 }, (_, i) => ({ name: "S87 D track " + (i + 1), path: "sounds/s87-murder-" + (i + 1) + ".ogg" })) });
+        await ST.setSetting(ST.SETTINGS.musicMap, { ...(ST.getSetting(ST.SETTINGS.musicMap) ?? {}), murder: pl.id });
+        const G = await import("${repoUrl}/scripts/gm-stores.mjs"); await G.castStore.whenHydrated();
+        return { playlist: pl.id, tracks: [...pl.sounds].map(s => s.name).sort(), running: Boolean(game.drpg.murderState()?.active) };`, { timeout: 60000 });
+    await gm2.eval(`const G = await import("${repoUrl}/scripts/gm-stores.mjs"); await G.castStore.whenHydrated(); return true;`, { timeout: 60000 });
+    // Every browser's Music volume at 0.8 for the incident, and what it parked (`musicDuckedFrom`) read before it.
+    const dBefore = await onEvery(`const v = { volume: game.settings.get("core", "globalPlaylistVolume"), ducked: game.settings.get("${MOD}", "musicDuckedFrom") };
+        globalThis.__s87Volume = v.volume; await game.settings.set("core", "globalPlaylistVolume", 0.8); return v;`);
+    await settle(900);
+    // The players' windows left unanswered, as 13-murder-signals leaves them; the killer's opening roll held on p1, as 13 holds
+    // it, and the GM rules it a success.
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__s87Auto = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return true;`);
+    await p1.eval(`globalThis.__s87Held = [];
+        game.actors.get("${IDS.aiko}").rollTrait = function () { return new Promise(r => globalThis.__s87Held.push(r)); }; return true;`);
+    const dOpened = await gm.eval(`const opened = (await game.drpg.openMurder({ killerId: "${IDS.aiko}", victimId: "${IDS.botan}", openingTrait: "body" }))?.stage ?? null;
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        return { opened, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
+    await settle(900);
+    const dHeld = await p1.eval(`delete game.actors.get("${IDS.aiko}").rollTrait; const held = globalThis.__s87Held ?? []; delete globalThis.__s87Held;
+        for (const r of held) r(null); return held.length;`);
+    const MURDER_HERE = wait => `${DMUSIC} const end = Date.now() + 4000;
+        while (${wait ? "!M.murderMusicHere().playing" : "false"} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const m = M.murderMusicHere(); return { witness: S.incidentWitness().witness, playing: m.playing, track: m.track, playlist: m.playlist };`;
+    await settle(600);
+    const d1 = { gm: await gm.eval(MURDER_HERE(true)), gm2: await gm2.eval(MURDER_HERE(true)), p1: await p1.eval(MURDER_HERE(true)),
+        p2: await p2.eval(MURDER_HERE(true)), p3: await p3.eval(MURDER_HERE(false)) };
+    const inIt = ["gm", "gm2", "p1", "p2"];
+    const d1Track = d1.p1.track;
+    check("D1: the killer's, the victim's, the primary GM's and the second GM's browsers play the same murder track of the 8; the bystander's plays none (E50-30)",
+        dSetup.running === false && dSetup.tracks.length === 8 && dOpened.opened === "openingRoll" && dOpened.stage === "incident" && dHeld === 1
+            && dSetup.tracks.includes(d1Track) && inIt.every(k => d1[k].witness === true && d1[k].playing === true && d1[k].track === d1Track)
+            && d1.p3.witness === false && d1.p3.playing === false && d1.p3.track === null,
+        J({ dSetup, dOpened, dHeld, d1 }), { flow: "murder-incident" });
+
+    phase("D3: what p1's band names during the incident", { flow: "murder-incident" });
+    const d3 = await p1.eval(`${DMUSIC} const was = game.settings.get("core", "globalPlaylistVolume");
+        const during = M.nowPlayingHere();
+        await game.settings.set("core", "globalPlaylistVolume", 0);
+        const silent = M.nowPlayingHere();
+        await game.settings.set("core", "globalPlaylistVolume", was);
+        return { was, during, silent };`);
+    check("D3: on p1 the band under the clock names the murder track during the incident, and nothing at Music 0 (E50-31)",
+        d3.was === 0.8 && d3.during?.track === d1Track && d3.during?.playlist === "S87 D the murder playlist" && d3.silent === null,
+        J({ d1Track, d3 }), { flow: "murder-incident" });
+
+    phase("D2: p2 moves its Music slider during the incident; the incident ends", { flow: "murder-incident" });
+    const d2Move = await p2.eval(`${MU} ${UNTIL} ${SOUND}
+        const slider = () => root()?.querySelector('input[name="vol:music"]');
+        const was = game.settings.get("core", "globalPlaylistVolume");
+        try {
+            MU.openSoundDialog();
+            await until(() => slider());
+            const input = slider();
+            if (input) { input.value = "70"; input.dispatchEvent(new Event("input", { bubbles: true })); }
+            await until(() => game.settings.get("core", "globalPlaylistVolume") !== was, 3000);
+            const moved = game.settings.get("core", "globalPlaylistVolume");
+            await closeSound();
+            return { was, moved, playing: MU.murderMusicHere().playing };
+        } finally { globalThis.__dialogWindows = windows; }`, { timeout: 60000 });
+    await gm.eval(`await game.drpg.endMurder({ reason: "suite", followUp: false }); return true;`, { timeout: 60000 });
+    await settle(1500);
+    const dAfter = await onEvery(`${DMUSIC} return { volume: game.settings.get("core", "globalPlaylistVolume"), ducked: game.settings.get("${MOD}", "musicDuckedFrom"),
+        playing: M.murderMusicHere().playing, running: Boolean(game.settings.get("${MOD}", "murderState")?.active) };`);
+    check("D2: p2's Music slider moved during the incident is p2's volume after it ends; every other browser keeps 0.8, none writes musicDuckedFrom, and the murder track stops everywhere (E50-31)",
+        d2Move.was === 0.8 && d2Move.playing === true && d2Move.moved !== 0.8 && Math.abs(d2Move.moved - 0.7 ** 1.5) < 1e-3
+            && dAfter.p2.volume === d2Move.moved && ["gm", "gm2", "p1", "p3"].every(k => dAfter[k].volume === 0.8)
+            && BROWSERS.every(([k]) => dAfter[k].ducked === dBefore[k].ducked && dAfter[k].playing === false && dAfter[k].running === false),
+        J({ d2Move, dBefore, dAfter }), { flow: "murder-incident" });
+    // Put back: every browser's volume, p1's dialogs, the map and the playlist.
+    await onEvery(`await game.settings.set("core", "globalPlaylistVolume", globalThis.__s87Volume); delete globalThis.__s87Volume; return true;`);
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = globalThis.__s87Auto; delete globalThis.__s87Auto; return true;`);
+    await gm.eval(`${MU} const was = globalThis.__s87Murder; delete globalThis.__s87Murder;
+        await ST.setSetting(ST.SETTINGS.musicMap, was.map);
+        await game.playlists.get(${J(dSetup.playlist)})?.delete();
+        return true;`, { timeout: 60000 });
+    await settle(600);
+
+    /* ------------------------------ E. the Take on a body ------------------------------ */
+    phase("E: Botan dead on a published death, a Tool on him, Aiko beside him; p1 draws his loot window", { flow: "give-take-stash" });
+    const LOOT_NAME = "S87 E a body's crowbar";
+    const eSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs"); const { ITEM_CATEGORIES } = await import("${repoUrl}/scripts/config.mjs");
+        const scene = canvas.scene, aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        const tok = scene.tokens.get("TOKAIKO000000000");
+        const back = globalThis.__s87Loot = { at: { x: tok.x, y: tok.y }, aikoItems: aiko.items.map(i => i.id), tokens: scene.tokens.map(t => t.id), stowed: [] };
+        // A hand of Aiko's free for a Tool (tier 2's handFreeFor): what takes the slot put in her stash, and back after.
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null, flag = "flags.${MOD}." + INV.ITEM_FLAGS.location;
+        const slot = i => { const c = i.getFlag("${MOD}", INV.ITEM_FLAGS.category); return c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group); };
+        if (!INV.canCarry(aiko, "tool").ok) for (const i of aiko.items.filter(i => slot(i) && !INV.isStashed(i))) {
+            back.stowed.push([i.id, i.getFlag("${MOD}", INV.ITEM_FLAGS.location) ?? null]); await i.update({ [flag]: INV.LOCATIONS.vault });
+        }
+        await tok.update({ x: 1500, y: 400 }, ${PLACE});
+        const dead = Boolean(await C.killCharacter(botan, { secret: false, keepBullets: true }));
+        const item = await INV.grantItem(botan, { name: ${J(LOOT_NAME)}, category: "tool", tier: 1, override: true, quiet: true });
+        await sheetAuditIdle();
+        // Every body.loot packet this GM is sent, counted; while held, kept until released (the module socket's handlers wrapped).
+        const list = game.socket._handlers.get("module.${MOD}") ?? [];
+        const real = [...list];
+        globalThis.__s87Bridge = { real, n: 0, hold: false, held: [], heldPackets: 0 };
+        list.splice(0, list.length, ...real.map((fn, at) => function (packet, ...rest) {
+            const b = globalThis.__s87Bridge;
+            if (packet?.action === "body.loot") {
+                if (at === 0) b.n++;
+                if (b.hold) { if (at === 0) b.heldPackets++; b.held.push(() => fn.call(this, packet, ...rest)); return undefined; }
+            }
+            return fn.call(this, packet, ...rest);
+        }));
+        return { dead, item: item?.id ?? null, canCarry: INV.canCarry(aiko, "tool").ok, stowed: back.stowed.length, room: (await import("${repoUrl}/scripts/movement.mjs")).locateActor?.(aiko)?.room ?? null };`, { timeout: 60000 });
+    const LOOT_ITEM = eSetup.item;
+    // p1's page: the body's loot window drawn into the page (anonymity.mjs buildBodyLoot, the viewer's own character the taker), and every toast.
+    const eDrawn = await p1.eval(`${UNTIL} const A = await import("${repoUrl}/scripts/anonymity.mjs"); const S = await import("${repoUrl}/scripts/settings.mjs");
+        const body = game.actors.get("${IDS.botan}");
+        await until(() => S.isDeadForGm(body) && body.items.has(${J(LOOT_ITEM)}));
+        globalThis.__s87Toasts = []; globalThis.__s87Real = {};
+        for (const kind of ["info", "warn", "error"]) {
+            const realFn = globalThis.__s87Real[kind] = ui.notifications[kind];
+            ui.notifications[kind] = function (text, ...rest) { globalThis.__s87Toasts.push([kind, String(text)]); return realFn.call(this, text, ...rest); };
+        }
+        const root = document.createElement("div"); root.id = "s87-loot";
+        root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
+        document.body.append(root);
+        await A.buildBodyLoot(root, body);
+        await new Promise(r => setTimeout(r, 200));
+        const take = [...root.querySelectorAll(".drpg-loot-list li")].find(li => li.textContent.includes(${J(LOOT_NAME)}))?.querySelector(".drpg-loot-take");
+        return { take: take ? [take.disabled, take.dataset.tooltip ?? ""] : null, open: game.i18n.localize("DRPG.Loot.takeTooltip") };`, { timeout: 60000 });
+    // The Take's state, its opens and shuts since the last click (a MutationObserver on `disabled`), and the toasts since.
+    const TAKE = `const take = [...document.querySelectorAll("#s87-loot .drpg-loot-list li")].find(li => li.textContent.includes(${J(LOOT_NAME)}))?.querySelector(".drpg-loot-take") ?? null;`;
+    const CLICK = `${TAKE} globalThis.__s87Flips = []; globalThis.__s87Seen?.disconnect();
+        globalThis.__s87Seen = new MutationObserver(records => { for (const r of records) if (r.attributeName === "disabled") globalThis.__s87Flips.push(r.oldValue === null ? "shut" : "open"); });
+        if (take) globalThis.__s87Seen.observe(take, { attributes: true, attributeOldValue: true, attributeFilter: ["disabled"] });
+        globalThis.__s87From = globalThis.__s87Toasts.length;
+        const was = take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+        take?.click();
+        return was;`;
+    const AFTER = `${TAKE} await new Promise(r => setTimeout(r, 50));
+        return { take: take ? [take.disabled, take.dataset.tooltip ?? ""] : null, flips: [...globalThis.__s87Flips], toasts: globalThis.__s87Toasts.slice(globalThis.__s87From),
+            onBody: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}) };`;
+    const WORDS_E = await p1.eval(`return { took: game.i18n.format("DRPG.Loot.took", { item: ${J(LOOT_NAME)} }), notThere: game.i18n.localize("DRPG.Bridge.why.notThere"),
+        noGm: game.i18n.localize("DRPG.Bridge.why.noGm"), open: game.i18n.localize("DRPG.Loot.takeTooltip") };`);
+    const tookToasts = toasts => toasts.filter(([kind, text]) => kind === "info" && text === WORDS_E.took).length;
+
+    phase("E1: p1 presses Take; Aiko walks out of the room before the primary judges it", { flow: "give-take-stash" });
+    const loots = () => gm.eval(`return globalThis.__s87Bridge.n;`);
+    const e1Loots = await loots();
+    await gm.eval(`globalThis.__s87Bridge.hold = true; return true;`);
+    const e1Was = await p1.eval(CLICK);
+    const e1Held = await gm.eval(`${UNTIL} await until(() => globalThis.__s87Bridge.heldPackets > 0, 4000);
+        await canvas.scene.tokens.get("TOKAIKO000000000").update(globalThis.__s87Loot.at, ${PLACE});
+        const b = globalThis.__s87Bridge; b.hold = false; const held = b.held.splice(0); for (const go of held) await go();
+        return globalThis.__s87Bridge.heldPackets;`, { timeout: 60000 });
+    const e1 = await p1.eval(`${UNTIL} ${TAKE} await until(() => (take?.dataset.tooltip ?? "") === ${J(WORDS_E.notThere)} && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
+        await new Promise(r => setTimeout(r, 300)); ${AFTER.replace(TAKE, "")}`, { timeout: 60000 });
+    const e1Gm = { loots: (await loots()) - e1Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
+    check("E1: a Take the primary refuses (the taker gone from the body's room) shows no \"took\" toast, opens and is shut again by the gate with the reason's sentence, and the Tool stays on the body (S11-36, E50-32)",
+        eSetup.dead && Boolean(LOOT_ITEM) && eSetup.room === "Cafeteria" && eSetup.canCarry && J(eDrawn.take) === J([false, WORDS_E.open]) && J(e1Was) === J([false, WORDS_E.open]) && e1Held === 1
+            && tookToasts(e1.toasts) === 0 && e1.toasts.some(([, text]) => text.includes(WORDS_E.notThere))
+            && e1.flips.includes("open") && J(e1.take) === J([true, WORDS_E.notThere]) && e1.onBody === true && e1Gm.onBody === true && e1Gm.loots === 1,
+        J({ eSetup, eDrawn, e1Was, e1Held, e1, e1Gm }), { flow: "give-take-stash" });
+
+    phase("E2: Aiko back beside the body; p1 presses Take with both GMs gone from p1's page", { flow: "give-take-stash" });
+    await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1500, y: 400 }, ${PLACE}); return true;`, { timeout: 60000 });
+    const e2Ready = await p1.eval(`${UNTIL} ${TAKE} await until(() => take && !take.disabled, 4000); return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;`);
+    const e2Loots = await loots();
+    // gm and gm2 stood in as gone on p1's page alone (as client-entry.mjs marks a user who left), and put back after.
+    const e2 = await p1.eval(`${UNTIL} const gone = game.users.filter(u => u.isGM && u.active);
+        for (const u of gone) u._source.active = false;
+        try {
+            const was = await (async () => { ${CLICK} })();
+            ${TAKE}
+            await until(() => take && !take.disabled && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
+            await new Promise(r => setTimeout(r, 300));
+            return { was, gone: gone.length, ...(await (async () => { ${AFTER} })()) };
+        } finally { for (const u of gone) u._source.active = true; }`, { timeout: 60000 });
+    const e2Gm = { loots: (await loots()) - e2Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
+    check("E2: a Take with no GM to answer it shows no \"took\" toast, says no GM is connected, and opens again as the gate reads it; nothing reached the primary (E50-32)",
+        J(e2Ready) === J([false, WORDS_E.open]) && e2.gone === 2 && J(e2.was) === J([false, WORDS_E.open])
+            && tookToasts(e2.toasts) === 0 && e2.toasts.filter(([, text]) => text.includes(WORDS_E.noGm)).length === 1
+            && e2.flips.includes("open") && J(e2.take) === J([false, WORDS_E.open]) && e2.onBody === true && e2Gm.onBody === true && e2Gm.loots === 0,
+        J({ e2Ready, e2, e2Gm }), { flow: "give-take-stash" });
+
+    phase("E3: p1 presses Take, and again", { flow: "give-take-stash" });
+    const e3Loots = await loots();
+    const e3Was = await p1.eval(CLICK);
+    const e3 = await p1.eval(`${UNTIL} await until(() => globalThis.__s87Toasts.length > globalThis.__s87From, 6000);
+        ${TAKE} take?.click();
+        await new Promise(r => setTimeout(r, 1200)); ${AFTER.replace(TAKE, "")}`, { timeout: 60000 });
+    const e3Gm = { loots: (await loots()) - e3Loots,
+        where: await gm.eval(`return { body: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}), taker: game.actors.get("${IDS.aiko}").items.some(i => i.name === ${J(LOOT_NAME)}) };`) };
+    check("E3: a Take that lands says so once and stays shut, a second press sends nothing, and the Tool leaves the body for the taker (E50-32)",
+        J(e3Was) === J([false, WORDS_E.open]) && tookToasts(e3.toasts) === 1 && e3.toasts.length === 1 && e3.take?.[0] === true && !e3.flips.includes("open")
+            && e3.onBody === false && e3Gm.loots === 1 && e3Gm.where.body === false && e3Gm.where.taker === true,
+        J({ e3Was, e3, e3Gm }), { flow: "give-take-stash" });
+    // Put back: p1's page, the GM's socket, Botan alive, what Aiko took and its trace, her place and her stashed things.
+    await p1.eval(`globalThis.__s87Seen?.disconnect(); delete globalThis.__s87Seen; delete globalThis.__s87Flips; delete globalThis.__s87From;
+        for (const [kind, fn] of Object.entries(globalThis.__s87Real ?? {})) ui.notifications[kind] = fn;
+        delete globalThis.__s87Real; delete globalThis.__s87Toasts; document.getElementById("s87-loot")?.remove(); return true;`);
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const b = globalThis.__s87Bridge; delete globalThis.__s87Bridge;
+        const list = game.socket._handlers.get("module.${MOD}"); if (list && b) list.splice(0, list.length, ...b.real);
+        const back = globalThis.__s87Loot; delete globalThis.__s87Loot;
+        const scene = canvas.scene, aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        for (const i of [...aiko.items].filter(i => !back.aikoItems.includes(i.id))) await i.delete();
+        for (const i of [...botan.items].filter(i => i.name === ${J(LOOT_NAME)})) await i.delete();
+        for (const t of [...scene.tokens].filter(t => !back.tokens.includes(t.id))) await t.delete();
+        for (const [id, was] of back.stowed) await aiko.items.get(id)?.update({ ["flags.${MOD}.location"]: was ?? (await import("${repoUrl}/scripts/utils.mjs")).forcedDeletion() });
+        await scene.tokens.get("TOKAIKO000000000").update(back.at, ${PLACE});
+        await sheetAuditIdle();
+        return true;`, { timeout: 60000 });
+    await settle(900);
+
+    /* ------------------------------ S. a sound played for another browser ------------------------------ */
+    phase("S: gm plays a sound for p1 alone; p2 forges one", { flow: "sound" });
+    const SFX = `const SFX = await import("${repoUrl}/scripts/sfx.mjs"); const ST = await import("${repoUrl}/scripts/settings.mjs");`;
+    const SFX_KEY = "newRule";
+    const sSetup = await gm.eval(`${SFX} globalThis.__s87Sfx = ST.getSetting(ST.SETTINGS.sfxMap) ?? {};
+        await SFX.setSoundFor("${SFX_KEY}", "sounds/s87-a-sound.ogg"); return { was: globalThis.__s87Sfx, now: ST.getSetting(ST.SETTINGS.sfxMap) };`, { timeout: 60000 });
+    // Sound above 0 on every browser (`fire` plays nothing at 0, and the counter counts a play only), put back after.
+    const sVolumes = await onEvery(`${SFX} globalThis.__s87SfxVolumes = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {});
+        await SFX.setSfxVolume("sound", 0.8); return SFX.sfxVolume("sound");`);
+    await settle(900);
+    const PLAYED = `const C = await import("${repoUrl}/scripts/perf-counters.mjs"); return C.snapshot()["sfx.played"] ?? 0;`;
+    const played = () => onEvery(PLAYED);
+    const delta = (after, before) => Object.fromEntries(BROWSERS.map(([k]) => [k, after[k] - before[k]]));
+    const s1Before = await played();
+    const s1Mapped = await p1.eval(`${SFX} return SFX.soundFor("${SFX_KEY}");`);
+    await gm.eval(`${SFX} SFX.playSfxForUsers(["${P1}"], "${SFX_KEY}"); return true;`);
+    await settle(900);
+    const s1 = delta(await played(), s1Before);
+    check("S1: a GM's sound for p1 plays on p1's browser alone (sfx.played: 1 on p1, 0 on gm, gm2, p2 and p3; E50-33)",
+        s1Mapped === "sounds/s87-a-sound.ogg" && BROWSERS.every(([k]) => sVolumes[k] === 0.8) && J(s1) === J({ gm: 0, gm2: 0, p1: 1, p2: 0, p3: 0 }),
+        J({ sSetup, sVolumes, s1Mapped, s1Before, s1 }), { flow: "sound" });
+    const s2Before = await played();
+    // p2's page sends what only a GM may: one packet addressed to p1, one to every browser with no user named.
+    await p2.eval(`game.socket.emit("module.${MOD}", { action: "playSfxFor", key: "${SFX_KEY}", userId: "${P1}" }, { recipients: ["${P1}"] });
+        game.socket.emit("module.${MOD}", { action: "playSfxFor", key: "${SFX_KEY}" }); return true;`);
+    await settle(900);
+    const s2 = delta(await played(), s2Before);
+    check("S2: a player's forged playSfxFor packets, to p1 and to everybody, play nothing on any browser (E50-33)",
+        J(s2) === J({ gm: 0, gm2: 0, p1: 0, p2: 0, p3: 0 }), J({ s2Before, s2 }), { flow: "sound" });
+    await onEvery(`${SFX} await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__s87SfxVolumes); delete globalThis.__s87SfxVolumes; return true;`);
+    await gm.eval(`${SFX} await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__s87Sfx); delete globalThis.__s87Sfx; return true;`, { timeout: 60000 });
     await settle(600);
 }

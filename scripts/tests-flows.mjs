@@ -30,7 +30,7 @@
  * sync.mjs exempt. Two scenario claims of the plan's list did not hold and are not
  * made: 12-social rolls with rollTrait, not performAction, so it is not an
  * action-roll scenario; 13-murder-signals checks the murder music (music.mjs, world
- * state), and no sfx.mjs packet crosses in it, so "sound" is planned. 10-murder
+ * state), and no sfx.mjs packet crosses in it, so "sound" was planned (covered by 87 since E50 C4). 10-murder
  * places a trace but makes no Truth Bullet, so truth-bullets names 30-security only.
  * And 11-killer-secrecy drives the discovery and checks nothing while it does (its
  * first tagged run: 0 body-discovery checks), so body-discovery names 10-murder.
@@ -310,8 +310,10 @@ export const FLOWS = Object.freeze([
     // tools/registry.mjs asks a covered flow's scenarios to tag a check with it.
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
+    // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx.mjs `fire` hands a file to the audio layer
+    // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
-        entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
+        entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.93" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },

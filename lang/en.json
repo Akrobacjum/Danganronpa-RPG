@@ -3800,7 +3800,7 @@
     },
     "Loot": {
       "take": "Take",
-      "takeTooltip": "Take this from the body. You will be able to say where you found it.",
+      "takeTooltip": "Take this from the body. It goes into your evidence as taken from them.",
       "heading": "What they were carrying",
       "empty": "Their pockets are empty.",
       "bulletName": "“{item}”, taken from a body",

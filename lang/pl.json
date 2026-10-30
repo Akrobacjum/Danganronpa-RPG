@@ -3958,7 +3958,7 @@
     },
     "Loot": {
       "take": "Weź",
-      "takeTooltip": "Weź to z ciała. Potem powiesz, skąd to masz.",
+      "takeTooltip": "Weź to z ciała. Trafi do twoich dowodów z zapisem, z czyjego ciała pochodzi.",
       "heading": "Zawartość kieszeni",
       "empty": "Kieszenie są puste.",
       "bulletName": "„{item}”, zabrane z ciała",

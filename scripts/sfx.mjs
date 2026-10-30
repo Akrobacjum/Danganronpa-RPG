@@ -63,6 +63,7 @@ import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_K
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, warn, error, clamp, ownerOf, esc} from "./utils.mjs";
 import { cardFlag, cardWriter, wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
+import { count } from "./perf-counters.mjs";
 
 
 /**
@@ -636,6 +637,9 @@ function fire(key, force) {
     if (volume <= 0) return false;
 
     lastPlayed.set(key, now);
+    // A file handed to the audio layer, by either path below (E50 C4): what 87-messenger-sound counts on every browser
+    // for the socket road ("sound" flow). A play, not a sound heard - the harness has no audio.
+    count("sfx.played");
 
     // `channel: "interface"` puts these under Foundry's own interface volume,
     // which is where a player already goes to turn the game down - without it

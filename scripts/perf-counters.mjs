@@ -66,6 +66,9 @@
  *   music.apply                                                         one `apply()` of the music asked (music.mjs
  *                                                                       `runApply`, E50 C3: one for a burst of mapping
  *                                                                       writes, after their settle)
+ *   sfx.played                                                          a sound effect's file handed to the audio layer
+ *                                                                       (sfx.mjs `fire`, E50 C4: nothing mapped, the
+ *                                                                       cooldown, a locked page or Sound at 0 count none)
  */
 
 const counts = new Map();
