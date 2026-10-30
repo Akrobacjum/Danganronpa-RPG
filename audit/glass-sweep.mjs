@@ -431,14 +431,16 @@ if (args.includes("--frame-cost")) {
    Headless Chromium rasterises in software (perf-baseline.json `headless`), not as a table's GPU does: a count here is
    the shape of what this Chromium draws, and a zero says the probe did not reproduce a table's picture, not that the
    table's edges hold. `--edge-sel` keeps only the selectors that contain one of its `|`-separated parts (to read
-   again where a count was not 0, E89 C6); a list without the first tile runs no control and says so. A side drawn without a border (the HUD's, a rail's on the screen's edge) reads `steady` by
+   again where a count was not 0, E89 C6); a list without the first tile runs no control and says so. A part naming
+   the messenger (not its launcher) also draws the conversation window (`?msgr=1`, E89 fix FG1): its header band and
+   send button are read then, and only then, so the default list reads the page C5 read. A side drawn without a border (the HUD's, a rail's on the screen's edge) reads `steady` by
    design; the pixels outside the screen are not read. */
 const EDGE_SELECTORS = [
     ".drpg-gm-panel .drpg-gmp-button", ".drpg-gm-panel .drpg-gmp-grid > :nth-child(2)", ".drpg-gm-panel .drpg-gmp-button.drpg-gm-route",
     ".drpg-gm-panel .drpg-gmp-button.drpg-destructive", ".drpg-gm-panel .drpg-gmp-section > summary", ".drpg-gm-panel-window .window-header",
     ".drpg-gm-panel-window .window-content", ".drpg-gm-panel-window footer.form-footer button",
     ".application.drpg-panel:not(.drpg-gm-panel-window) .window-content", ".application.drpg-panel:not(.drpg-gm-panel-window) footer.form-footer button",
-    ".application.drpg-messenger .window-header", ".character-header-sheet.drpg-glass-band", "#pause.paused figcaption",
+    ".application.drpg-messenger .window-header", ".drpg-messenger .drpg-messenger-input button", ".character-header-sheet.drpg-glass-band", "#pause.paused figcaption",
     "#drpg-hud", "#drpg-despair", ".drpg-despair-pip", ".drpg-action-pip", "#players", "#drpg-room-art", "#drpg-tile-row",
     "#scene-controls", "#sidebar-tabs", "#drpg-messenger-launcher", "#drpg-gm-launcher"
 ];
@@ -498,6 +500,7 @@ function edgeCount(frames, k, fixedM = null) {
 if (args.includes("--edges")) {
     const N = Number(opt("--edge-frames") ?? 30), PLANT = opt("--edge-plant") ?? "inset(0 0.5px 0 0)", SIDES = "LTRB", want = (opt("--edge-sel") ?? "").split("|").filter(Boolean);
     const LIST = want.length ? EDGE_SELECTORS.filter(sel => want.some(w => sel.includes(w))) : EDGE_SELECTORS, withControl = control && LIST[0] === EDGE_SELECTORS[0];
+    const msgr = want.some(w => w.includes("messenger") && !w.includes("launcher"));   // the conversation window only when asked (glass-harness `?msgr=1`)
     if (control && !withControl) console.log("control: not run - --edge-sel leaves out the tile it is planted on");
     const calc = await browser.newPage();
     const tally = new Map(LIST.flatMap(sel => ["still", "moving"].map(ph => [`${ph} ${sel}`, { steady: [], flicker: [], seen: 0, flat: 0 }])));
@@ -508,7 +511,7 @@ if (args.includes("--edges")) {
         for (const theme of themes) for (const size of (opt("--sizes") ?? SIZES.join(",")).split(",")) {
             const [W, H] = size.split("x").map(Number);
             const page = await browser.newPage({ viewport: { width: W, height: H } });
-            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}gmp=1${theme === "legacy" ? "&theme=legacy" : ""}`);
+            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}gmp=1${msgr ? "&msgr=1" : ""}${theme === "legacy" ? "&theme=legacy" : ""}`);
             const loaded = await page.waitForFunction(() => window.__glass && window.__mover, null, { timeout: 15000 }).then(() => true, () => false);
             if (!loaded) { console.log(`${theme.padEnd(7)} ${size.padEnd(9)} FAIL: the page did not load the glass`); bad++; await page.close(); continue; }
             await page.waitForTimeout(waitMs);
