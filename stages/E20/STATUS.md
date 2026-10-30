@@ -11,6 +11,7 @@ Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2
 | C4 | e52a60ef | QUICK GREEN at 6ad88c5a+edits: lint/check/gate ok; prose ok; t01 ok; own(11) ok; scen 65 ok earlier (6ad88c5a-1778) (logs /c/Users/chrob/quick-runs/6ad88c5a-616); R1512-R1515 red first 1 passed 4 failed, after 5 passed 0 failed; R74's two patterns widened (the opener takes a second argument) |
 | C4 fix | fd6620aa | CI on e52a60ef red: R1512 failed in 01-runtests with an incident open (`nextStep` put the incident line first); `nextStep` takes optional `incident`/`eclipse`, R1512 passes both false; fd6620aa CI green (01-runtests not run locally: it hit the agent's 40-min bound) |
 | C5 | 984033fa | QUICK GREEN at fd6620aa+edits: lint/check/gate ok; prose ok; t01 ok; own(5) ok; scen 00 ok (logs /c/Users/chrob/quick-runs/fd6620aa-220); R1516, R1517 red first; 00-boot 31/33 before, 33/33 after (E20-T3 a real boot without Dice So Nice) |
+| C6 | de321dad | QUICK GREEN at 984033fa+edits: lint/check/gate ok; prose ok; t01 ok; own(7) ok; scen 15 ok; scen 65 ok earlier (984033fa-825, before the last two fixes - not rerun) (logs /c/Users/chrob/quick-runs/984033fa-1746); R1518-R1521 red first 1 passed 4 failed, after 5/0; E20-T4/T5 4 passed 2 failed, after 6/0 |
 
 ## Predicates for E51's "First session" (line A, 29.10)
 All exported; R1500 reads the exports.
@@ -58,3 +59,9 @@ All exported; R1500 reads the exports.
 - C5 gap: a comment in gm-panel.mjs explains the GM's chrome stamp by a stylesheet left on the page (the stamp stays, R470) - the review
 - C5 note: no recommendations window at HEAD (removed 1.2.73); for S13-43 only the requirements window's counted intro was fixed
 - C5 question for the owner (default: as built): with no module language stored, the requirements window follows Foundry's language (the module's setting cannot change while the module is stopped); S01-63's English default waits for E66
+- C6 gap: scenario 65 not rerun after C6's last two fixes (import cycle, save order) - CI
+- C6 note: the overflow line is worked out in gm-team-dialog.mjs (in overflow.mjs it made an import cycle, R161); R808 restores the player-side settings record its hold writes; the module saves the old value after its own write (scenario 15)
+- C6 gap: "Give back Foundry's settings" in a real v14 settings window not measured (the harness's menu registration does nothing) - C7 LIVE
+- C6 gap: worlds changed by an earlier version: file permissions stay (the window says so); automations go back to Daggerheart 2.6.5's defaults (2.10.x not read); a held player-side setting goes back to its registered default - the review
+- C6 gap: scenes get their vision back from turning off "Rooms decide what players can see", not from the button - the review
+- C6 for C7: the GM handbooks' list of what the module changes, "press it before switching the module off", the pointer from "until you withdraw it" to the Motive section
