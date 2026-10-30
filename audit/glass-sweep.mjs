@@ -188,6 +188,7 @@
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
  *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
+ *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -400,6 +401,143 @@ if (args.includes("--frame-cost")) {
         }
     } finally { await browser.close(); srv?.kill(); }
     console.log(`FRAME COST ${bad ? "RED" : "read"}: ${themes.length} theme(s), ${frames} frames a reading, headless Chromium (software): a shape, not a table's number`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE EDGES (E89 C5, 30.10.2026; E89-10, the owner's Q-E89-2: "Stained glass. Wiele miejsc. Przyklad - GM Panel", the
+   edges of controls dropping or flickering). `--edges` runs this instead of the sweep. At each size in each theme the
+   harness is loaded with the GM Panel's copy (`?gmp=1`) on a GM's page, the board is redrawn on every frame under every
+   layer (`__mover`), and `--edge-frames` (30) screenshots of the whole screen are taken one after another - and as
+   many before it with the board still, so that a count that comes only with the board moving (an edge lost against
+   what passes behind a translucent layer) is told from one that comes with nothing moving (the layer's own drawing
+   changing from frame to frame), which is the shape the owner described. For each
+   selector of EDGE_SELECTORS - the candidates of the stage's item 2 that the page draws, the GM Panel's first - the
+   first visible match's box is read, and along each of its four sides (6 px left out at each end, for the chamfers and
+   radii) the edge's contrast at each pixel: the larger channel difference of the side's two inside pixels against the
+   first pixel outside it. M is the median of every such value of that control over every frame; a control under 16
+   has no edge to lose and is said so. A pixel whose contrast falls under M/2 is counted: `steady` where it is under in
+   every frame, `flicker` where only in some. Printed per side (L, T, R, B), only where not 0, `still` and `moving`
+   apart, and at the end, per selector, the sizes and themes where each count is not 0.
+   THE CONTROL: at the first Stained Glass size that draws a GM Panel tile, the tile is read again with
+   `clip-path: inset(0 0.5px 0 0)` written on it - its right edge cut 0.5 px in - and its R count must not be 0; the
+   style is then taken off. A control that reads 0 exits 1, as does a page that never loaded the glass.
+   Headless Chromium rasterises in software (perf-baseline.json `headless`), not as a table's GPU does: a count here is
+   the shape of what this Chromium draws, and a zero says the probe did not reproduce a table's picture, not that the
+   table's edges hold. `--edge-sel` keeps only the selectors that contain one of its `|`-separated parts (to read
+   again where a count was not 0, E89 C6); a list without the first tile runs no control and says so. A side drawn without a border (the HUD's, a rail's on the screen's edge) reads `steady` by
+   design; the pixels outside the screen are not read. */
+const EDGE_SELECTORS = [
+    ".drpg-gm-panel .drpg-gmp-button", ".drpg-gm-panel .drpg-gmp-grid > :nth-child(2)", ".drpg-gm-panel .drpg-gmp-button.drpg-gm-route",
+    ".drpg-gm-panel .drpg-gmp-button.drpg-destructive", ".drpg-gm-panel .drpg-gmp-section > summary", ".drpg-gm-panel-window .window-header",
+    ".drpg-gm-panel-window .window-content", ".drpg-gm-panel-window footer.form-footer button",
+    ".application.drpg-panel:not(.drpg-gm-panel-window) .window-content", ".application.drpg-panel:not(.drpg-gm-panel-window) footer.form-footer button",
+    ".application.drpg-messenger .window-header", ".character-header-sheet.drpg-glass-band", "#pause.paused figcaption",
+    "#drpg-hud", "#drpg-despair", ".drpg-despair-pip", ".drpg-action-pip", "#players", "#drpg-room-art", "#drpg-tile-row",
+    "#scene-controls", "#sidebar-tabs", "#drpg-messenger-launcher", "#drpg-gm-launcher"
+];
+function edgeBoxes(list) {
+    return list.map(sel => {
+        const all = [...document.querySelectorAll(sel)];
+        const el = all.find(e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+            return r.width >= 16 && r.height >= 16 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight && cs.visibility !== "hidden" && cs.display !== "none"; });
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+    });
+}
+/* Runs in a blank page: one screenshot decoded, and for each box the contrast at each position of its four sides (null
+   where the outside pixel is off the screen), in the order L, T, R, B. */
+/* global createImageBitmap, OffscreenCanvas */
+async function edgeRead([b64, boxes]) {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+    const W = bmp.width, H = bmp.height, c = new OffscreenCanvas(W, H).getContext("2d");
+    c.drawImage(bmp, 0, 0);
+    const d = c.getImageData(0, 0, W, H).data;
+    const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? -1 : (y * W + x) * 4;
+    const diff = (a, b) => Math.max(Math.abs(d[a] - d[b]), Math.abs(d[a + 1] - d[b + 1]), Math.abs(d[a + 2] - d[b + 2]));
+    const pair = (ins, out) => { if (out < 0 || ins.some(i => i < 0)) return null; return Math.max(...ins.map(i => diff(i, out))); };
+    return boxes.map(bx => {
+        if (!bx) return null;
+        const y0 = Math.ceil(bx.t) + 6, y1 = Math.floor(bx.b) - 7, x0 = Math.ceil(bx.l) + 6, x1 = Math.floor(bx.r) - 7;
+        const L = Math.floor(bx.l), R = Math.ceil(bx.r), T = Math.floor(bx.t), B = Math.ceil(bx.b);
+        const side = [[], [], [], []];
+        for (let y = y0; y <= y1; y++) { side[0].push(pair([at(L, y), at(L + 1, y)], at(L - 1, y))); side[2].push(pair([at(R - 1, y), at(R - 2, y)], at(R, y))); }
+        for (let x = x0; x <= x1; x++) { side[1].push(pair([at(x, T), at(x, T + 1)], at(x, T - 1))); side[3].push(pair([at(x, B - 1), at(x, B - 2)], at(x, B))); }
+        return side;
+    });
+}
+/* frames: per frame, per box, the four sides' values. Returns null for an absent box, else { M, steady, flicker, n }
+   with steady and flicker per side. */
+function edgeCount(frames, k) {
+    if (!frames[0][k]) return null;
+    const vals = frames.flatMap(f => f[k].flat()).filter(v => v != null).sort((a, b) => a - b);
+    if (!vals.length) return { M: 0, steady: [0, 0, 0, 0], flicker: [0, 0, 0, 0], n: 0 };
+    const M = vals[Math.floor(vals.length / 2)], out = { M, steady: [0, 0, 0, 0], flicker: [0, 0, 0, 0], n: 0 };
+    if (M < 16) return out;
+    for (let s = 0; s < 4; s++) for (let i = 0; i < frames[0][k][s].length; i++) {
+        const seq = frames.map(f => f[k][s][i]).filter(v => v != null);
+        if (!seq.length) continue;
+        out.n++;
+        const under = seq.filter(v => v < M / 2).length;
+        if (under === seq.length) out.steady[s]++; else if (under) out.flicker[s]++;
+    }
+    return out;
+}
+if (args.includes("--edges")) {
+    const N = Number(opt("--edge-frames") ?? 30), SIDES = "LTRB", want = (opt("--edge-sel") ?? "").split("|").filter(Boolean);
+    const LIST = want.length ? EDGE_SELECTORS.filter(sel => want.some(w => sel.includes(w))) : EDGE_SELECTORS, withControl = control && LIST[0] === EDGE_SELECTORS[0];
+    if (control && !withControl) console.log("control: not run - --edge-sel leaves out the tile it is planted on");
+    const calc = await browser.newPage();
+    const tally = new Map(LIST.flatMap(sel => ["still", "moving"].map(ph => [`${ph} ${sel}`, { steady: [], flicker: [], seen: 0, flat: 0 }])));
+    let bad = 0, planted = null;
+    const shoot = async page => { const fr = []; for (let i = 0; i < N; i++) fr.push((await page.screenshot({ type: "png" })).toString("base64")); return fr; };
+    const read = async (shots, boxes) => { const out = []; for (const b64 of shots) out.push(await calc.evaluate(edgeRead, [b64, boxes])); return out; };
+    try {
+        for (const theme of themes) for (const size of (opt("--sizes") ?? SIZES.join(",")).split(",")) {
+            const [W, H] = size.split("x").map(Number);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}gmp=1${theme === "legacy" ? "&theme=legacy" : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.__mover, null, { timeout: 15000 }).then(() => true, () => false);
+            if (!loaded) { console.log(`${theme.padEnd(7)} ${size.padEnd(9)} FAIL: the page did not load the glass`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const boxes = await page.evaluate(edgeBoxes, LIST);
+            const parts = [];
+            let frames;
+            for (const ph of ["still", "moving"]) {
+            if (ph === "moving") { await page.evaluate(() => window.__mover.start()); await page.waitForTimeout(200); }
+            frames = await read(await shoot(page), boxes);
+            LIST.forEach((sel, k) => {
+                const r = edgeCount(frames, k), t = tally.get(`${ph} ${sel}`);
+                if (!r) return;
+                t.seen++;
+                if (r.M < 16) { t.flat++; return; }
+                const fmt = a => a.map((v, s) => v ? `${SIDES[s]}${v}` : "").filter(Boolean).join(" ");
+                if (r.steady.some(Boolean)) t.steady.push(`${theme} ${size} ${fmt(r.steady)}`);
+                if (r.flicker.some(Boolean)) t.flicker.push(`${theme} ${size} ${fmt(r.flicker)}`);
+                if (r.steady.some(Boolean) || r.flicker.some(Boolean)) parts.push(`${ph} ${sel} M${r.M} steady[${fmt(r.steady) || 0}] flicker[${fmt(r.flicker) || 0}]`);
+            });
+            }
+            if (withControl && !planted && theme === "stained" && boxes[0]) {
+                await page.evaluate(() => { document.querySelector(".drpg-gm-panel .drpg-gmp-button").style.clipPath = "inset(0 0.5px 0 0)"; });
+                await page.waitForTimeout(100);
+                const pf = await read(await shoot(page), [boxes[0]]);
+                await page.evaluate(() => { document.querySelector(".drpg-gm-panel .drpg-gmp-button").style.removeProperty("clip-path"); });
+                const r = edgeCount(pf, 0), was = edgeCount(frames, 0);
+                planted = { size, r, was };
+                const R = r && r.M >= 16 ? r.steady[2] + r.flicker[2] : 0;
+                console.log(`${theme.padEnd(7)} ${size.padEnd(9)} control: ${EDGE_SELECTORS[0]} cut 0.5 px at its right edge - R ${R} counted (steady ${r?.steady[2]}, flicker ${r?.flicker[2]}; as drawn ${was ? was.steady[2] + was.flicker[2] : "-"})${R ? "" : "  - FAIL: the count did not see the plant"}`);
+                if (!R) bad++;
+            }
+            await page.evaluate(() => window.__mover.stop());
+            console.log(`${theme.padEnd(7)} ${size.padEnd(9)} edges: ${boxes.filter(Boolean).length} selectors drawn, ${N} frames - ${parts.length ? parts.join("; ") : "none counted"}`);
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (withControl && !planted) { console.log("control: no Stained Glass size drew a GM Panel tile - FAIL"); bad++; }
+    console.log("per selector (sizes and themes where the count is not 0):");
+    for (const [sel, t] of tally) console.log(`  ${sel}: ${!t.seen ? "not drawn" : t.flat === t.seen ? `no edge to read (M < 16 at all ${t.seen})`
+        : `steady ${t.steady.length ? t.steady.join(", ") : "0 everywhere"} | flicker ${t.flicker.length ? t.flicker.join(", ") : "0 everywhere"}`}${t.flat && t.flat < t.seen ? ` (no edge at ${t.flat})` : ""}`);
+    console.log(`EDGES ${bad ? "RED" : "read"}: ${themes.length} theme(s), ${N} frames a size, headless Chromium (software): a shape, not a table's picture`);
     process.exit(bad ? 1 : 0);
 }
 

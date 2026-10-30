@@ -220,6 +220,16 @@ Storage and cookies, state that never touched the wire, the canvas, audio).
 Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its
 number is not reused for a scenario.
 
+The edges of the Stained Glass controls (E89 C5, the owner's Q-E89-2) are read by
+`node audit/glass-sweep.mjs --edges --chromium <executable>` from the repository root, not
+here: Chromium, not jsdom. It loads `audit/glass-harness.html?gmp=1` (a copy of the GM Panel's
+window and four of its tiles, off by default) at each of the sweep's sizes in both themes, takes
+30 screenshots with the board still and 30 with it redrawn on every frame (`?mover=1` or
+`__mover.start()`), and counts per selector the edge pixels whose contrast falls under half of
+the control's median: under half in every frame (`steady`) or in some (`flicker`). Its control,
+a 0.5 px clip on one tile's right edge, must be counted or it exits 1. Software Chromium is not
+a table's GPU: a count is a shape, and a zero is not a table's picture.
+
 ## Daggerheart's dice
 
 From E33 C2a (07.10.2026; the owner's decision P6 of 06.10.2026) the duality roll
