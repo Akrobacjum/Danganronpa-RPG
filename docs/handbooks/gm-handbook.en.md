@@ -137,6 +137,7 @@ The report of **Check the rooms on this scene** says once, above the list, what 
 - **Scenes and rooms**: one line per scene with rooms - a tick when it is ready, a cross when it is not - with its shared rooms, the share of the map that belongs to no room (the scene's own area, without the padding), the regions that are not rooms, and the errors of its last room check.
 - **Room pictures**, only when one needs a word: pictures that do not load (pick the file again in Room Setup), pictures over 4096 px on a side or over 8 MB (`ROOM_IMAGE_LIMITS`), which every player waits for, and pictures whose file size the server did not give.
 - **Voice**, only when one holds: Audio/Video is off in this world, so there is no voice tile; the world is set to video only, so nobody sends sound; the world sends video nobody watches.
+- **Foundry, Daggerheart and the modules**: one line when every place the module relies on in them is as this version expects; a cross for each place that is not, with what the table gets instead (the list is in section 20, "The contract with Foundry, Daggerheart and the modules"). Places that could not be checked on this screen are one counted line with the list folded under it, and are not known to work: unchecked is never a pass.
 - **The anonymity audit**: sheets owned by every player, which every player reads whole, under *fix these*, with **Set them to Observer** (every player can then open them, their secrets hidden); sheets at Observer are fine and not listed; sheets closed to the other players are listed for your information, since nobody can loot such a character's body.
 
 **Character creation numbers** (`config.mjs`):
@@ -1047,6 +1048,8 @@ The **pre-session note** in the messenger (seven questions a player answers befo
 
 Everything is under `game.drpg` in the browser console; actor arguments accept a document, an id or a name.
 
+**One report for whoever is helping you.** `game.drpg.diagnose()` opens a window with everything this browser can check, as one text, and returns the same text, so a macro has it too. The window's **Copy report** puts it on the clipboard, to paste wherever somebody is helping you. The text is English, like the console, and its parts come in this order: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. On a player's browser the parts that read what only GMs may know (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps) are named and say *GM only*; nothing of the GMs' is in a player's report. The window also lists the warnings this browser silenced, each by its id with **Show again**; the one the module keeps is the warning that Daggerheart is newer than the version the module was tested on, silenced for that version. Every `diagnose...()` call below is one part of this report on its own.
+
 **The regression suite.**
 
 | Call | What it does |
@@ -1095,6 +1098,88 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `publicRoll(formula, { flavor })` | the one roll everybody reads while rolls are forced private - a vote's tie, Monokuma's lottery; GM only, the same road as the panel's **Public roll** tile (read in the code; since 1.2.69) |
 | the panel's **Debug log** (Diagnostics) | its Copy button produces the paste a bug report needs |
 
+**The contract with Foundry, Daggerheart and the modules.** The module reaches into code that is not its own - Foundry's, Daggerheart's, other modules' - at many places, and every one is a row of one register (`scripts/patches.mjs`; `diagnosePatches()` lists it). At each load the primary GM's browser reads every row: *ok*, *failed* or *unknown*. Unknown means nothing here could tell, a warning and never a pass. When a row fails, the module does what its own file has always done without that place, and you get one notice, which stays until you close it, naming each such place with its file and function and what the table gets instead; Pre-season checks (section 2) and the report show the same lines. Nothing is written to the world. The rows that guard trust (the guard on Daggerheart's GM relay, the roll draw, what a player may read of a roll) keep their own words and their own fallbacks, and a failed one never becomes a looser one. To fix it: update Danganronpa RPG, or tell its author which versions of Foundry and Daggerheart you run, with the report above. Some places can be read only at a table (a notice's lifetime, the voice client's mute and volume); those stay *unknown* until somebody checks them. What the table gets instead, by row (a setting or flag the module holds has a row named `held-` and its id; its sentence is the one of its kind, `held-flag`, `held-permissions`, `held-rtc` or `held-setting`, and the two that name their own are listed):
+
+| Row | What the table gets instead |
+|---|---|
+| `critical-rule` | a critical keeps Daggerheart's own numbers |
+| `roll-dialog-context` | what a Call forces is filled into the roll window once it is open, as before |
+| `roll-draw` | rolls are thrown in the player's own browser, as in 1.2.66 |
+| `dice-random-uniform` | nothing stands in for Foundry's randomiser |
+| `no-scrolling-text` | captions float over tokens as Foundry draws them |
+| `window-close` | windows close without the module's exit or its sound |
+| `window-await-transition` | a window with no transition running waits out Foundry's own delay before it closes |
+| `livekit-toasts` | avclient-livekit's own notices show beside the module's |
+| `iso-refresh-state` | Isometric Perspective's own override runs while a token is edited |
+| `chat-notify` | a veiled card may light up the Chat tab on every screen |
+| `chat-content-visible` | the player who rolled cannot read a roll the GM drew |
+| `sheet-render-guard` | a character sheet redraws on every resource change, as Foundry draws it |
+| `passages-move` | no token can pass a secret passage in this browser, and the GM is told at every load |
+| `selection-drag-rectangle` | the drag rectangle stays Foundry's orange |
+| `selection-controlled-colour` | token borders stay Foundry's orange |
+| `countdown-row-menu` | a project row's menu is Daggerheart's: Reveal and Hide are shown, and Delete removes only the countdown |
+| `door-controls` | every door control is shown as Foundry shows it |
+| `actions-resource` | a character has no Actions resource |
+| `sidebar-calls` | Foundry's own calls neither show nor place the Foundry tools window |
+| `relay-guard` | requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load |
+| `region-included-in-level` | a region that cannot be asked about its floor, or answers with an error, counts as being on every floor |
+| `hook-duality-configured` | a Free Critical's die is not loaded |
+| `hook-roll-dialog-render` | the opening's roll window is not marked as the opening's |
+| `hook-character-sheet-render` | the character sheet is drawn as Daggerheart draws it |
+| `hook-character-sheet-close` | a closed sheet's observer keeps watching a detached element until the page is reloaded |
+| `hook-countdowns-render` | the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it |
+| `hook-dice-so-nice-ready` | the dice looks are not swept |
+| `hook-dice-so-nice-message` | Dice So Nice throws such a roll on every screen, in the GM's colours |
+| `hook-livekit-initialized` | the voice rooms, the voice tile and the trial's speakers do not follow the voice client |
+| `hook-image-popout-header` | a room picture's window shows Foundry's share control and any a module adds |
+| `user-permission-broadcast-audio` | nobody's microphone is blocked: the GM's button says why, and so does the trial |
+| `rtc-client-keys` | a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and writing to it changes nothing |
+| `push-to-talk-key` | the push-to-talk line names no key |
+| `av-config-menu` | the held fields are not greyed out in the window; their values are held all the same |
+| `chat-delete-options` | a history entry may stay after its card is withdrawn, or go on Clear chat |
+| `notifications-lifetime` | the history keeps its own timing, whatever Foundry's toasts do |
+| `tooltip-clean-html` | a tooltip's words in the history may differ from what Foundry's tooltip showed |
+| `client-setting-sync-write` | the last notices before a reload may be missing from the history |
+| `livekit-room-events` | the voice tile and the trial's speakers show nobody speaking and follow no one joining or leaving |
+| `livekit-participant-user` | a participant the call cannot name is left out of the voice tile and the trial's speakers |
+| `livekit-attach-audio` | a speaker muted here may be heard again after LiveKit attaches their audio anew |
+| `voice-modes` | a mode the tile does not know is shown as an open microphone |
+| `livekit-connected-users` | the room's state is read from the call's room alone |
+| `scene-controls-activate` | the layer stays as it was |
+| `chat-notifications` | with the window closed, chat notifications may not show and the chat's input may stay hidden |
+| `escape-dismiss-order` | Escape may close the windows before Foundry's own steps, or never |
+| `focus-chat` | the chat key may focus an input in a hidden window |
+| `image-popout-options` | the picture window may show Foundry's title and controls |
+| `sheet-anchors` | what the module adds at a place it cannot find is not drawn there, and the rest of the sheet is drawn as usual |
+| `foundry-rails` | a rail not found by its id stays where Foundry puts it, outside the module's window |
+| `interface-theme` | the windows wear no theme class, and the rails inside take the page's |
+| `camera-popout-id` | a popped-out camera's speaker is not found, and counts as not audible |
+| `mic-audio-anchor` | a speaker whose element is not found counts as not audible |
+| `held-flag` | the account's flag is left as it stands for the system to read |
+| `held-permissions` | the permissions stay as the world has them |
+| `held-rtc` | the dock is not held: each browser keeps its own dock and popouts |
+| `held-setting` | the setting is not held: it stays as each browser has it |
+| `held-automation` | nothing is switched off: Daggerheart's Vulnerable and Defeated automations run beside the module's |
+| `held-dice-look` | no look is held: each player's dice keep their own look |
+
+**The data migration.** It runs by itself at load on the primary GM's browser whenever the installed version has moved, and does nothing on a world that is already current. By hand it is `game.drpg.migrate()`; `game.drpg.migrate({ force: true })` runs it whether or not the version moved, which is the repair when a world's data plainly is not current. Running it twice changes nothing the second time. `game.drpg.migrationStatus()` says what it would do and writes nothing. `migrate1_2_0` is its name from the 1.2.0 update: the same function, kept as an alias until at least 1.3.1 - call `migrate()`.
+
+**The macro API.** Everything under `game.drpg` is what a macro calls; actor arguments take a document, an id or a name. A name that is no actor's id and no actor's name now says so in a warning that names the call and the word you gave it, instead of doing nothing; a name two actors share warns too and acts on the first, as before. `tools/api-surface.json` in the module's repository lists every key of `game.drpg` with its kind, and a test holds the live object to it: a key does not leave `game.drpg` without staying for at least one release under its old name as an alias. The aliases today (the file is the list; the book follows it):
+
+| Old name | Now | Kept until |
+|---|---|---|
+| `migrate1_2_0` | `migrate` | 1.3.1 |
+| `advanceFloorNow` | `skipStep` | no end set |
+| `extendFloor` | `adjustTime` | no end set |
+| `endFloor` | `endMode` | no end set |
+| `exportLedger` | `backupCase` | no end set |
+| `importLedger` | `restoreCase` | no end set |
+| `isSilenced` | `isCrimeSilenced` | no end set |
+| `musicDialog` | `soundDialog` | no end set |
+| `currentRoom` | `roomOfActor` | no end set |
+
+*No end set* means the module has set no release for removing the old name; it stays until a release says otherwise.
+
 **When the table lags: what to measure, and what to send back.** Measure before you change anything, on the GM's machine and on the weakest player's, and send one block a machine:
 
 1. Note the browser and whether it draws on the GPU (`chrome://gpu`, "Canvas: Hardware accelerated"), the screen size and the page zoom, Foundry's *Performance Mode* and *Maximum Framerate* (core settings), the theme, how many players are connected, and how many tokens and Remnants stand on the scene. DevTools -> Rendering -> "Frame Rendering Stats" shows the frame rate live.
@@ -1126,6 +1211,7 @@ Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId
 | *A player's change to their sheet snapped back, or a card asks you about it.* | Nothing the module knows of covered it (section 6.3); `game.drpg.sheetWrites()` shows what and why. If it was a ruling of yours, set the value yourself: a GM's change is never judged. |
 | *A door stays locked after the season reset.* | The Doors tab's "starts locked" column is what the reset restores. |
 | *"The data migration stopped short" stays on screen after an update.* | A step that moves world data into the GMs' store could not read it back and left the world as it was (section 1). The console has the details; the next load of the world tries again, on the primary GM's browser. |
+| *A notice says something Danganronpa RPG relies on in Foundry, Daggerheart or another module is not as this version expects.* | The contract above: the notice names each place and what the table gets instead, and nothing else is lost. Update the module, or send its author the report (`game.drpg.diagnose()`, then **Copy report**). |
 | *The table sees nothing of a death.* | The running incident's victim is kept by the GMs until the body is found (section 13.4). Set them to *dead* in the Students window to make it known. |
 
 ---

@@ -80,11 +80,15 @@ export const KINDS = Object.freeze(["override", "hook", "setting-entry", "flag",
  *            function sitting there is the module's, and is null when the
  *            wrapper leaves no mark to read, or the row is not an override
  *   fallback what the table gets when the target is not there: the code's own
- *            answer today, read in its file
+ *            answer today, read in its file - English, for the console and the
+ *            author's report; the table reads the same in its own language
+ *            from lang's DRPG.Contract.instead.<id> (`insteadOf`, E52 C7)
  *
- * And two the contract reads where it has them (E52 C2):
+ * And these the contract reads where it has them (E52 C2, C7):
  *   inUse    () => boolean - false where the reach is not made on this world
  *            (its package off, its switch off): the row is ok, not in use
+ *   insteadKey  the key of lang's sentence when it is not the id (a held row's
+ *            template: held-flag, held-permissions, held-rtc, held-setting)
  *   marked   false on an override whose wrapper leaves no mark by design (it
  *            is installed only for a moment, or per window): present is ok
  * A probe may answer its own `state` ("ok", "failed", "unknown") where its
@@ -149,7 +153,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
             why: `Held for the table while its switch (${row.toggle}) is on; Give back Foundry's settings lists it.`
         };
         if (row.kind === "userFlag") {
-            return { ...base, kind: "flag", target: `${row.scope}.${row.flag} on each account`, owner: row.system, symbol: "holdUserFlag",
+            return { ...base, insteadKey: "held-flag", kind: "flag", target: `${row.scope}.${row.flag} on each account`, owner: row.system, symbol: "holdUserFlag",
                 when: `on a world of ${row.system}, while its switch is on`,
                 fallback: "not held: the system reads the account's flag as it stands",
                 inUse: () => game.system?.id === row.system,
@@ -159,7 +163,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
         const full = `${row.module}.${row.key}`;
         const registered = () => Boolean(game.settings?.settings?.has?.(full));
         if (row.kind === "permissions") {
-            return { ...base, kind: "setting-entry", target: `${full}: ${row.permissions.join(", ")}`, owner: "foundry", symbol: "holdPermissions",
+            return { ...base, insteadKey: "held-permissions", kind: "setting-entry", target: `${full}: ${row.permissions.join(", ")}`, owner: "foundry", symbol: "holdPermissions",
                 when: "always, on the primary GM, while its switch is on",
                 fallback: "not held: the permissions stay as the world has them",
                 probe: () => {
@@ -172,7 +176,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
         }
         if (row.kind === "rtc") {
             const fields = Object.keys(row.fields ?? {}), users = Object.keys(row.userFields ?? {});
-            return { ...base, kind: "setting-entry", target: `${full}: ${fields.join(", ")} and each user's ${users.join(", ")}`, owner: "foundry",
+            return { ...base, insteadKey: "held-rtc", kind: "setting-entry", target: `${full}: ${fields.join(", ")} and each user's ${users.join(", ")}`, owner: "foundry",
                 symbol: "holdRtcDock", when: "while its switch is on",
                 fallback: "the dock is not held: each browser keeps its own dock and popouts",
                 probe: () => {
@@ -185,7 +189,7 @@ export function heldRows(enforced = ENFORCED, writes = FOUNDRY_WRITES) {
         // The A/V client's own setting matters to the table only while this world's voice is on: off, nothing
         // reads whether LiveKit runs inside the Foundry window.
         const voiceOnly = row.module === AV_MODULE;
-        return { ...base, kind: "setting-entry", target: full, owner: row.module, symbol: "applyEnforced",
+        return { ...base, insteadKey: "held-setting", kind: "setting-entry", target: full, owner: row.module, symbol: "applyEnforced",
             when: `while ${row.module} is active${voiceOnly ? ", voice is on in this world" : ""} and its switch is on`,
             fallback: "not held, and the console says so: the setting stays as each browser has it",
             inUse: () => packageHere(row.module) && (!voiceOnly || (game.webrtc?.mode ?? 0) > 0),
@@ -1117,6 +1121,18 @@ function whereOf(entry) {
     return list(entry.file).map((file, i) => (symbols[i] ? `${file}:${symbols[i]}` : file)).join(", ");
 }
 
+/**
+ * What the table gets while a row is failed, in the table's language (E52 C7, R1562): lang's
+ * DRPG.Contract.instead.<key>, the key being the row's `insteadKey` (a held row's template) or its id. The row's
+ * own `fallback` is English, written for the console and the author's report; it stands in for a row with no
+ * sentence of its own (a stand-in a test draws) and is never what a GM reads in a sentence of the table's language
+ * when the register has one.
+ */
+export function insteadOf(entry) {
+    const key = `DRPG.Contract.instead.${entry.insteadKey ?? entry.id}`;
+    return game.i18n?.has?.(key) ? game.i18n.localize(key) : entry.fallback;
+}
+
 /* One row's answer: `{ state, present, ours, note }`. A probe, or an `inUse`, that throws is failed with its message. */
 function judged(entry) {
     let result;
@@ -1154,7 +1170,7 @@ let lastContract = null;
 export function runContract({ rows = PATCHES } = {}) {
     const out = rows.map(entry => ({
         id: entry.id, kind: entry.kind, target: entry.target, owner: entry.owner, file: entry.file, symbol: entry.symbol ?? "",
-        where: whereOf(entry), when: entry.when, fallback: entry.fallback, ...judged(entry)
+        where: whereOf(entry), when: entry.when, fallback: entry.fallback, instead: insteadOf(entry), ...judged(entry)
     }));
     const contract = {
         at: Date.now(), rows: out,
@@ -1189,7 +1205,7 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
         if (!told.done && game.user?.isGM) {
             told.done = true;
             notify(plural("DRPG.Contract.notice", { n: contract.failed.length,
-                rows: contract.failed.map(r => `${r.target} (${r.where}): ${r.fallback}`).join("; ") }), { permanent: true });
+                rows: contract.failed.map(r => `${r.target} (${r.where}): ${r.instead}`).join("; ") }), { permanent: true });
         }
     }
     return contract;

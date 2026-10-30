@@ -28269,6 +28269,91 @@ const INVARIANTS = [
         stableJson([ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, true]),
         "[the file's ECLIPSE_FREE_PLACEMENT | the file's nullAt | free placement measured per time of day | game.drpg.config's | movesLeft's null from the allowance]");
     }],
+    ["R1562 - a failed contract row reaches the table in the table's words: every row of the register has its sentence in both languages, and the notice and Pre-season's line carry it, not the register's English (E52 C7, E52-05)", async () => {
+        /*
+         * E52 C7, 30.10.2026; C2's gap. The notice and Pre-season's line put each failed row's `fallback` - an English
+         * sentence written for the console and the author - inside a sentence in the table's language, so a Polish GM
+         * read one line half in each language. Each row now has its sentence in DRPG.Contract.instead.<id> (a held
+         * row by its template: held-flag, held-permissions, held-rtc, held-setting); the console and the diagnose()
+         * report keep the English. Held here to the register (a row with no sentence, a sentence of no row, a Polish
+         * one equal to the English), then to a real row made to fail: its sentence in the notice and in Pre-season,
+         * its register fallback in neither. Red before C7: no such keys, the notice carrying the English fallback.
+         */
+        const mod = await import("./patches.mjs");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json()))?.DRPG?.Contract?.instead ?? {};
+        const keyOf = row => row.insteadKey ?? row.id;
+        const keys = new Set(mod.PATCHES.map(keyOf));
+        must(keys.size >= 55, `the register has ${keys.size} key(s) - this test would read nothing`);
+        const wrong = [];
+        for (const key of keys) {
+            for (const code of ["en", "pl"]) if (typeof lang[code][key] !== "string" || !lang[code][key].trim()) wrong.push(`${code} has no sentence for ${key}`);
+            if (lang.en[key] && lang.en[key] === lang.pl[key]) wrong.push(`${key}: the Polish sentence is the English one`);
+        }
+        for (const code of ["en", "pl"]) for (const key of Object.keys(lang[code])) if (!keys.has(key)) wrong.push(`${code} has a sentence for ${key}, a row the register lacks`);
+        equal(stableJson(wrong), "[]", "a register row has no sentence in a language, a sentence has no row, or the Polish one is the English");
+
+        const real = mod.PATCHES.find(r => r.id === "door-controls");
+        must(real, "the register has no door-controls row");
+        const failing = { ...real, probe: () => ({ present: false, ours: null }) };
+        const sentence = game.i18n.localize("DRPG.Contract.instead.door-controls");
+        must(!sentence.startsWith("DRPG."), "no sentence for the door controls row in this language");
+        const notices = [];
+        mod.announceContract({ rows: [failing], told: { done: false }, notify: text => notices.push(String(text)) });
+        equal(stableJson([notices.length, notices[0]?.includes(sentence), notices[0]?.includes(real.fallback)]), stableJson([1, true, false]),
+            "the notice does not give the row's sentence in the table's language, or still gives the register's English [notices | the sentence | the fallback]");
+        const SS = await import("./season-setup.mjs");
+        const el = document.createElement("div");
+        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows: [failing] }) });
+        equal(stableJson([el.textContent.includes(sentence), el.textContent.includes(real.fallback)]), stableJson([true, false]),
+            "Pre-season's line does not give the row's sentence, or still gives the register's English [the sentence | the fallback]");
+        // The console and the report keep the English the author reads: the run still carries `fallback`.
+        equal(mod.runContract({ rows: [failing] }).failed[0]?.fallback, real.fallback, "the run lost the register's own fallback");
+    }],
+
+    ["R1563 - the GM handbook, English and Polish, tells the table the contract, diagnose() with Copy report, migrate() and the macro API as the code has them (E52 C7, E52-23)", async () => {
+        /*
+         * E52 C7, 30.10.2026; E52-23. The books carry what C1-C6 built: the one report (game.drpg.diagnose(), the
+         * parts of its text, Copy report, Show again), the contract (Pre-season's line, the notice, each row's
+         * sentence), the migration (migrate(), migrate1_2_0 its alias) and the macro API (tools/api-surface.json,
+         * its aliases and when each may go). Held to the code, not to a count: the report's part titles are
+         * REPORT_SECTIONS's, each row's sentence is lang's DRPG.Contract.instead (the book repeats it, in the book's
+         * language), each alias row is the file's with its target and its release, the buttons are the lang labels
+         * of each language. Red before C7: none of it in the books.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const read = async path => {
+            const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+            must(res.ok, `${path} did not load`);
+            return res;
+        };
+        const surface = await (await read("tools/api-surface.json")).json();
+        const { REPORT_SECTIONS } = await import("./diagnostics.mjs");
+        const mod = await import("./patches.mjs");
+        const NO_END = { en: "no end set", pl: "bez terminu" };
+        const missing = [];
+        for (const code of ["en", "pl"]) {
+            const text = await lfText(await read(`docs/handbooks/gm-handbook.${code}.md`));
+            const lang = (await (await read(`lang/${code}.json`)).json()).DRPG;
+            const has = (what, why) => { if (!text.includes(what)) missing.push(`${code}: ${why} (${what})`); };
+            for (const word of ["game.drpg.diagnose()", "game.drpg.migrate()", "migrate1_2_0", "tools/api-surface.json", "diagnosePatches()"]) has(word, "the book does not name");
+            has(lang.Diagnose.copy, "the report's Copy report label");
+            has(lang.Diagnose.showAgain, "the report's Show again label");
+            has(lang.Contract.checksTitle, "Pre-season's contract heading");
+            for (const s of REPORT_SECTIONS) has(s.title, `the report's part ${s.id}`);
+            for (const key of new Set(mod.PATCHES.map(r => r.insteadKey ?? r.id))) {
+                const line = text.split("\n").find(l => l.startsWith(`| \`${key}\` |`));
+                if (!line) missing.push(`${code}: no row for ${key}`);
+                else if (!line.includes(lang.Contract.instead[key])) missing.push(`${code}: the row of ${key} is not the sentence lang gives`);
+            }
+            for (const [old, alias] of Object.entries(surface.aliases)) {
+                const line = text.split("\n").find(l => l.startsWith(`| \`${old}\` |`));
+                if (!line) missing.push(`${code}: no row for the alias ${old}`);
+                else if (!line.includes(`\`${alias.target}\``) || !line.includes(alias.keepUntil ?? NO_END[code])) missing.push(`${code}: the row of ${old} does not give its target and its release`);
+            }
+        }
+        equal(stableJson(missing), "[]", "the handbook lacks something the code has");
+    }],
 ];
 
 /**

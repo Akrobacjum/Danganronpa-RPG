@@ -1218,7 +1218,7 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
  */
 function contractSection(contract, esc) {
     const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
-    const lines = failed.map(r => `✗ ${r.target} (${r.where}): ${r.fallback}`);
+    const lines = failed.map(r => `✗ ${r.target} (${r.where}): ${r.instead ?? r.fallback}`);
     if (!lines.length && !unknown.length) lines.push(`✓ ${plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 })}`);
     // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
     // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
