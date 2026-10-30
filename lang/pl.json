@@ -1434,6 +1434,8 @@
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",
+      "stepUpBy": "+{n}",
+      "stepDownBy": "-{n}",
       "atMost": "Najwyżej {n}",
       "atLeast": "Co najmniej {n}",
       "note": "Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.",
@@ -2964,7 +2966,21 @@
       "gmHintActive": "Ta pora dnia jest zaciemniona. Od tego czasu rozlało się {count} z {max} Despair.",
       "setupIntro": "Despair, który nie mieści się w pełnej puli, przestaje parować i zbiera się tutaj. Gdy sięgnie progu, płaci tyle, zachowuje resztę i losuje jedną rzecz z puli poniżej - nigdy więcej niż jedną.",
       "threshold": "Próg (X)",
-      "thresholdHint": "Sugerowane: 12 + połowa liczby graczy. Szesnastu graczy daje 20, ośmiu 16, czterech 14. Zakres {min}-{max}.",
+      "thresholdHint": "Dowolna wartość od {min} do {max}: decyduje stół.",
+      "suggested": "Sugerowane dla {students} i {pools}: {x}.",
+      "suggestStudents": {
+        "one": "{n} ucznia",
+        "few": "{n} uczniów",
+        "many": "{n} uczniów",
+        "other": "{n} ucznia"
+      },
+      "suggestPools": {
+        "one": "{n} puli",
+        "few": "{n} pul",
+        "many": "{n} pul",
+        "other": "{n} puli"
+      },
+      "suggestNone": "Sugestia pojawi się tu, gdy sezon będzie miał uczniów.",
       "amount": "o",
       "floorNote": "Żadne z nich nigdy nie schodzi poniżej jednego. Pora dnia bez akcji albo pokój bez Search Tokenów to nie trudniejsza gra - to gracz, który nie ma co robić, dopóki zegar się nie przesunie.",
       "current": "Teraz: {count} z {max}.",
@@ -3902,9 +3918,33 @@
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
       "settingsLocked": "Ustawienia postaci należą do GM-a."
     },
+    "GiveBack": {
+      "menuName": "Ustawienia Foundry",
+      "menuLabel": "Oddaj ustawienia Foundry",
+      "menuHint": "Co ten moduł zmienia w Foundry i Daggerheart, i przycisk, który to przywraca. Naciśnij go, zanim wyłączysz moduł.",
+      "title": "Oddaj ustawienia Foundry",
+      "intro": "Póki działa, ten moduł zmienia te ustawienia Foundry, Daggerheart i modułów, których potrzebuje:",
+      "what": {
+        "automation": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded.",
+        "playerFiles": "Gracze i Zaufani Gracze nie przeglądają ani nie wysyłają plików („Bez przeglądarki plików dla graczy”).",
+        "isoWelcome": "Okno powitalne Isometric Perspective zostaje zamknięte u wszystkich.",
+        "dhWelcome": "Dziennik powitalny Daggerheart nie otwiera się nikomu.",
+        "liveKitInFoundry": "Głos LiveKit zostaje w oknie Foundry u wszystkich.",
+        "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafel głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
+        "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje."
+      },
+      "givenBackState": "Oddane: moduł nie rusza tych ustawień, dopóki znów ich nie przejmiesz.",
+      "filesStay": "Oddanie zostawia uprawnienia do plików takie, jakie są teraz: jeśli gracze mają przeglądać lub wysyłać pliki, nadaj je w uprawnieniach Foundry.",
+      "beforeOff": "Zanim wyłączysz moduł, naciśnij tu „Oddaj je” i wyłącz „Pokoje decydują, co widzą gracze”.",
+      "giveBack": "Oddaj je",
+      "holdAgain": "Przejmij je znowu",
+      "done": "Ustawienia Foundry są oddane.",
+      "heldAgain": "Moduł znów trzyma swoje ustawienia.",
+      "automationOff": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded. Żeby je przywrócić, naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu."
+    },
     "Enforced": {
       "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
-      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry.",
+      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry albo naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
       "lost": {
         "player": "Gracz",
         "trusted": "Zaufany gracz",
@@ -4402,6 +4442,9 @@
       "title": "Motive",
       "banner": "MOTIVE OD MONOKUMY",
       "withdrawn": "Motive wycofany. Nic nad wami nie wisi - na razie.",
+      "none": "Żaden Motive nie obowiązuje.",
+      "withdraw": "Wycofaj",
+      "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
       "deadline": {
         "one": "Jedna pora dnia, by coś z tym zrobić.",
         "few": "{n} pory dnia, by coś z tym zrobić.",
@@ -4584,7 +4627,8 @@
         "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
-        "despairSplit": "Uczniowie są podzieleni po równo między pule"
+        "despairSplit": "Uczniowie są podzieleni po równo między pule",
+        "overflow": "Próg overflow pasuje do obsady"
       },
       "hint": {
         "name": "Wyświetlana u góry ekranu każdego, nad rozdziałem i zegarem.",
@@ -4605,7 +4649,8 @@
         "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
-        "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd."
+        "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd.",
+        "overflow": "Wzór modułu, 12 + połowa żyjących uczniów, policzony dla tego sezonu. Tylko rada: próg wybierasz sam w zakładce Overflow okna Despair Flow."
       },
       "resetTitle": "Zresetuj sezon",
       "resetWarning": "Tego nie da się cofnąć, ani tym modułem, ani niczym innym.",
@@ -4694,6 +4739,7 @@
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
+      "overflowNow": "{line} Teraz {n}.",
       "roomsUncovered": "{pct}% sceny {scene} nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",
       "roomsCheckErrors": {
         "one": "Sprawdzenie pokoi znalazło {n} błąd na scenie {scene}: popraw go i sprawdź jeszcze raz.",

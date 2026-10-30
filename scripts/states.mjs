@@ -35,7 +35,8 @@ import { MODULE_ID, FLAGS, STATES } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./settings.mjs";
 import { remaining } from "./character.mjs";
-import { isPrimaryGm, primaryGmId, log, debug, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, log, debug, error, whisperToGms } from "./utils.mjs";
+import { foundryGivenBack, keepOriginal } from "./enforced.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DH = "daggerheart";
@@ -141,9 +142,14 @@ export function namesFlag(changes, key) {
  *
  * Idempotent, and it says what it did - silently rewriting somebody else's
  * settings is the kind of thing a GM should be able to find in the log.
+ *
+ * KEPT, TOLD AND GIVEN BACK (E20 C6, 30.10.2026; S03-37). The two values it found are kept before the write
+ * (enforced.mjs `keepOriginal`), the GMs are told in the chat, not the log alone, and a GM's Give back Foundry's
+ * settings writes them back (`giveBackAutomation`) and stops this until a GM holds them again. Exported for the
+ * switch's re-hold and E20-T4.
  */
-async function suppressSystemAutomation() {
-    if (!game.user.isGM) return false;
+export async function suppressSystemAutomation() {
+    if (!game.user.isGM || foundryGivenBack()) return false;
 
     let automation;
     try {
@@ -159,6 +165,7 @@ async function suppressSystemAutomation() {
     if (!wantsVulnerable && !wantsDefeated) return false;
 
     try {
+        await keepOriginal("automation", automationOriginal(current));
         await game.settings.set(DH, AUTOMATION, {
             ...current,
             vulnerableAutomation: false,
@@ -166,9 +173,47 @@ async function suppressSystemAutomation() {
         });
         log("Switched off Daggerheart's Vulnerable and Defeated automations; "
             + "Breakdown and Wounded replace them.");
+        await whisperToGms(`<p>${game.i18n.localize("DRPG.GiveBack.automationOff")}</p>`);
         return true;
     } catch (err) {
         error("Could not switch off Daggerheart's own full-track conditions", err);
+        return false;
+    }
+}
+
+/* Daggerheart's own initial values of the two fields (2.6.5's Automation.mjs `defineSchema`, as the harness copies
+   it in lib/daggerheart.mjs `AUTOMATION_DEFAULT`; 2.10.x's not read here). Given back where nothing was kept: a world
+   whose automations an earlier version switched off. */
+const AUTOMATION_DEFAULTS = { vulnerableAutomation: true, defeated: true };
+
+/** The two fields `suppressSystemAutomation` writes, as Daggerheart's setting holds them now. Pure. */
+export function automationOriginal(current) {
+    return { vulnerableAutomation: current?.vulnerableAutomation ?? null, defeated: current?.defeated?.enabled ?? null };
+}
+
+/** Daggerheart's setting with the two fields as `kept` has them (Daggerheart's defaults when nothing was kept); the rest as it is. Pure. */
+export function automationGivenBack(current, kept) {
+    const from = kept ?? AUTOMATION_DEFAULTS;
+    const out = foundry.utils.deepClone(current ?? {});
+    if (typeof from.vulnerableAutomation === "boolean") out.vulnerableAutomation = from.vulnerableAutomation;
+    if (typeof from.defeated === "boolean") out.defeated = { ...(out.defeated ?? {}), enabled: from.defeated };
+    return out;
+}
+
+/** Give Daggerheart's two automations back (enforced.mjs `giveBackFoundry`); writes only what differs. */
+export async function giveBackAutomation(kept) {
+    if (!game.user.isGM) return false;
+    let automation;
+    try { automation = game.settings.get(DH, AUTOMATION); } catch { return false; }
+    const current = automation?.toObject?.() ?? foundry.utils.deepClone(automation ?? {});
+    const back = automationGivenBack(current, kept);
+    if (back.vulnerableAutomation === current.vulnerableAutomation && back.defeated?.enabled === current.defeated?.enabled) return false;
+    try {
+        await game.settings.set(DH, AUTOMATION, back);
+        log("Gave Daggerheart's Vulnerable and Defeated automations back.");
+        return true;
+    } catch (err) {
+        error("Could not give Daggerheart's own full-track conditions back", err);
         return false;
     }
 }

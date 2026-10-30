@@ -19225,6 +19225,8 @@ const INVARIANTS = [
         const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"}`);
         const store = game.settings.storage.get("client");
         const had = store.getItem(FULL);
+        // The hold keeps this browser's value before its first write (E20 C6): that record is put back too.
+        const KEPT = `${MODULE_ID}.foundryBeforeClient`, hadKept = store.getItem(KEPT);
         const stub = globalThis.__liveKit, avModule = game.modules.get(AV), wasActive = avModule.active;
         const value = () => game.settings.get(AV, KEY);
         const entry = () => game.settings.settings.get(FULL);
@@ -19249,6 +19251,8 @@ const INVARIANTS = [
             globalThis.__liveKit = stub;
             if (had === null) store.removeItem(FULL);
             else store.setItem(FULL, had);
+            if (hadKept === null) store.removeItem(KEPT);
+            else store.setItem(KEPT, hadKept);
         }
         equal(stableJson(seen), stableJson([
             [AV, KEY, false, null, "liveKitInFoundry", "world", true, true, true],
@@ -26394,6 +26398,186 @@ const INVARIANTS = [
             + "Nice missing: its reason from pl.json, the state, a count of two, an English word | English, Isometric switched off: its reason, the "
             + "state, a count of two, academy maps or a demo | two missing: the intro counts 2 | a module with no key: the manifest's reason | each "
             + "required module: module.json's reason is en.json's, pl.json has one | Dice So Nice's reason in English]");
+    }],
+    ["R1518 - what the module changes in Foundry is listed, the value before its first write is kept, and Give back Foundry's settings writes it back and stops the writes (E20 C6, E20-19; S03-37, Q-5)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S03-37): at every start the module switched Daggerheart's Vulnerable and Defeated
+         * automations off and held Foundry's file permissions, Isometric Perspective's welcome and LiveKit's separate
+         * window, said so in the log alone, kept none of the values it found and gave none back, so a GM who tried the
+         * module in a played world was left with settings nobody had chosen. Read: enforced.mjs `keptOriginal` (the
+         * first value kept, never overwritten), `permissionsOriginal` and `permissionsGivenBack` over a stored value the
+         * hold changed, `clientOriginalFor` (the kept value, else the setting's registered default), `clientGiveBack`
+         * (given back once, then a value its owner sets is left alone), `FOUNDRY_WRITES`
+         * against every held row, `giveBackContent` with and without the given-back state; states.mjs
+         * `automationOriginal` and `automationGivenBack` over Daggerheart's fields; with comments blanked, where each
+         * writer keeps the value before its write and asks whether the settings were given back. Nothing is written
+         * (E20-T4 writes, gives back and reads Foundry's values). Red at the parent: none of these was exported.
+         */
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        const ready = ["keptOriginal", "permissionsOriginal", "permissionsGivenBack", "clientOriginalFor", "clientGiveBack", "giveBackContent", "giveBackFoundry", "foundryGivenBack"]
+            .every(n => typeof E?.[n] === "function") && Array.isArray(E?.FOUNDRY_WRITES)
+            && ["automationOriginal", "automationGivenBack"].every(n => typeof S?.[n] === "function");
+        const out = { kept: null, permissions: null, client: null, automation: null, writes: null, words: null, content: null };
+        const R = CONST.USER_ROLES;
+        const stored = () => ({ FILES_BROWSE: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], R1518_OTHER: [R.GAMEMASTER] });
+        if (ready) {
+            const first = E.keptOriginal({}, "r1518.key", true), second = E.keptOriginal(first, "r1518.key", false);
+            out.kept = [first["r1518.key"], second === first, E.keptOriginal(second, "r1518.other", undefined) === second];
+            const row = E.ENFORCED.find(r => r.kind === "permissions");
+            const kept = E.permissionsOriginal(stored(), row);
+            const held = E.heldPermissions(stored(), {}, row);
+            out.permissions = { kept, held: [held.FILES_BROWSE, held.FILES_UPLOAD], back: E.permissionsGivenBack(held, kept, row) };
+            out.client = [E.clientOriginalFor({ "r1518.a": false }, "r1518.a", { default: true }), E.clientOriginalFor({}, "r1518.a", { default: true }),
+                E.clientOriginalFor({}, "r1518.a", null)];
+            const given = E.clientGiveBack({ "r1518.a": false, "r1518.b": 1 }, "r1518.a", { default: true }, true);
+            const again = E.clientGiveBack(given.record, "r1518.a", { default: true }, false);
+            out.client.push([given.write ?? "none", given.record], [again.write ?? "none", again.record === given.record]);
+            const found = { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 };
+            const before = S.automationOriginal(found);
+            const suppressed = { vulnerableAutomation: false, defeated: { enabled: false, overlay: false }, r1518: 5 };
+            out.automation = { before, back: S.automationGivenBack(suppressed, before), unknown: S.automationGivenBack(suppressed, null) };
+            const ids = E.FOUNDRY_WRITES.map(w => w.id);
+            out.writes = [...E.ENFORCED.map(r => r.id), "automation", "sceneVision"].filter(id => !ids.includes(id));
+            out.words = E.FOUNDRY_WRITES.filter(w => !game.i18n.has(w.text)).map(w => w.id);
+            const text = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
+            const back = text(E.giveBackContent({ givenBack: true })), open = text(E.giveBackContent({ givenBack: false }));
+            const state = game.i18n.localize("DRPG.GiveBack.givenBackState");
+            out.content = [E.FOUNDRY_WRITES.every(w => open.includes(game.i18n.localize(w.text))), open.includes(state), back.includes(state),
+                open.includes(game.i18n.localize("DRPG.GiveBack.beforeOff"))];
+        }
+        const sources = new Map(await otherSources());
+        const enforced = stripComments(sources.get("enforced.mjs") ?? ""), states = stripComments(sources.get("states.mjs") ?? "");
+        must(enforced.length && states.length, "enforced.mjs or states.mjs is not among the module's sources - this would measure nothing");
+        const keepsFirst = (body, keep, write) => { const k = body.indexOf(keep), w = body.indexOf(write); return k >= 0 && w > k; };
+        const apply = fnSource(enforced, "applyEnforced"), hold = fnSource(enforced, "holdPermissions"), auto = fnSource(states, "suppressSystemAutomation");
+        const roads = {
+            client: keepsFirst(apply, "keepClientOriginal(", "game.settings.set(row.module"),
+            permissions: keepsFirst(hold, 'keepOriginal("permissions"', 'game.settings.set("core", "permissions"'),
+            automation: keepsFirst(auto, 'keepOriginal("automation"', "game.settings.set(DH"),
+            stops: [/foundryGivenBack\(\)/.test(fnSource(enforced, "wanted")), /foundryGivenBack\(\)/.test(auto)]
+        };
+        equal(stableJson({ ready, ...out, roads }), stableJson({
+            ready: true, kept: [true, true, true],
+            permissions: { kept: { FILES_BROWSE: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], FILES_UPLOAD: null },
+                held: [[R.ASSISTANT, R.GAMEMASTER], [R.ASSISTANT, R.GAMEMASTER]], back: stored() },
+            client: [false, true, null, [false, { "@given": ["r1518.a"], "r1518.b": 1 }], ["none", true]],
+            automation: { before: { vulnerableAutomation: true, defeated: true },
+                back: { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 },
+                unknown: { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 } },
+            writes: [], words: [], content: [true, false, true, true],
+            roads: { client: true, permissions: true, automation: true, stops: [true, true] }
+        }), "the module changes Foundry's settings without keeping or giving back what it found [the functions exported | the first value kept, "
+            + "not overwritten, nothing kept for undefined | the permissions kept, held, given back | a client setting's value given back: kept, the "
+            + "registered default, none, given back once (the write and the record), not again | Daggerheart's automations kept, given back, given back with nothing kept (Daggerheart's defaults) | held rows "
+            + "missing from the list | list rows with no words | the window: every row named, the given-back line while not given back, while given "
+            + "back, the switch-off advice | each writer keeps the value before writing: client rows, permissions, automations | the held rows and the "
+            + "automations stop when given back]");
+    }],
+    ["R1519 - the overflow threshold is suggested from the season's own cast, 12 + half the living students, and the default stays 20 (E20 C6, E20-20; S02-59, D21)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S02-59): the overflow threshold's default, 20, is tuned for sixteen players; a
+         * table of five left it there and the darkening fired two or three times less often than the module's own
+         * formula means, and the hint beside the field gave the formula in words for other counts, not the table's.
+         * Read: overflow.mjs `overflowSuggestion` for 0, 4, 5, 8, 16 and 200 students, `overflowSuggestionLine` for 4
+         * students and 1 pool, Despair Flow's `overflowSuggestionNow` and the Overflow tab's markup (`overflowSection`)
+         * against the line for this world's living students and pools, the window handing the tab its line, and Season
+         * setup's `overflow` row: optional, its line the same, and with no student not
+         * done and waiting. D21: the default unchanged. Nothing is written. Red at the parent: neither function was
+         * exported and no row was there.
+         */
+        let O = null, SS = null, M = null, D = null, GT = null;
+        try {
+            [O, SS, M, D, GT] = await Promise.all([import("./overflow.mjs"), import("./season-setup.mjs"), import("./monokuma.mjs"), import("./despair.mjs"),
+                import("./gm-team-dialog.mjs")]);
+        } catch { O = null; }
+        const { plural } = await import("./utils.mjs");
+        const ready = typeof O?.overflowSuggestion === "function" && typeof O?.overflowSuggestionLine === "function" && typeof GT?.overflowSuggestionNow === "function";
+        const out = { values: null, line: null, section: null, row: null, empty: null };
+        if (ready) {
+            out.values = [0, 4, 5, 8, 16, 200].map(n => O.overflowSuggestion(n));
+            out.line = O.overflowSuggestionLine(4, 1) === game.i18n.format("DRPG.Overflow.suggested", {
+                students: plural("DRPG.Overflow.suggestStudents", { n: 4 }), pools: plural("DRPG.Overflow.suggestPools", { n: 1 }), x: 14 });
+            const living = M.studentCensus().count, pools = D.monokumas().length;
+            const line = living > 0 ? O.overflowSuggestionLine(living, pools) : game.i18n.localize("DRPG.Overflow.suggestNone");
+            const pane = document.createElement("div");
+            pane.innerHTML = O.overflowSection({ suggestion: GT.overflowSuggestionNow() });
+            out.section = [GT.overflowSuggestionNow() === line, pane.textContent.includes(line)];
+            const row = SS.steps().find(r => r.key === "overflow");
+            out.row = row ? [row.optional === true, living > 0 ? row.missing().join(" ").includes(line) : row.waiting === true] : null;
+            const empty = SS.steps({ roster: [] }).find(r => r.key === "overflow");
+            out.empty = empty ? [empty.done, empty.waiting === true] : null;
+        }
+        const sources = new Map(await otherSources());
+        const dialog = stripComments(sources.get("gm-team-dialog.mjs") ?? "");
+        must(dialog.length, "gm-team-dialog.mjs is not among the module's sources - this would measure nothing");
+        const tab = dialog.includes("overflowSection({ suggestion: overflowSuggestionNow() })");
+        equal(stableJson({ ready, ...out, threshold: OVERFLOW.threshold, tab }), stableJson({
+            ready: true, values: [null, 14, 15, 16, 20, 60], line: true, section: [true, true], row: [true, true], empty: [false, true], threshold: 20,
+            tab: true
+        }), "the overflow threshold is not suggested from this season's cast [the two exported | the suggestion for 0, 4, 5, 8, 16, 200 students "
+            + "(the range's top) | the line for 4 students and 1 pool | Despair Flow's line for this world is the line for its living students "
+            + "and pools (or the one that waits for the cast), and the Overflow tab draws it | Season setup's overflow row: optional, says the "
+            + "line or waits | with no student: not done, waiting | the default | the window hands the tab its line]");
+    }],
+    ["R1520 - the rules manager shows the motive in force with its time left and a Withdraw that withdraws it (E20 C6, E20-21; S10-55)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S10-55): a motive Monokuma had carried out hung on the HUD and in the Event panel,
+         * the handbook said "until you withdraw it", and nothing a GM could open withdrew it - the console's
+         * `setMotive(null)` was the only road. Read: rules.mjs `motiveSection` with no motive and with one (its text,
+         * its time left, its price, the Withdraw button), `wireMotiveWithdraw` on a detached element with a stand-in for
+         * the withdrawal, pressed twice, and, with comments blanked, the manager drawing and wiring the section. Nothing
+         * is written (E20-T5 withdraws on the suite's world). Red at the parent: neither was exported.
+         */
+        let R = null;
+        try { R = await import("./rules.mjs"); } catch { R = null; }
+        const { plural } = await import("./utils.mjs");
+        const ready = typeof R?.motiveSection === "function" && typeof R?.wireMotiveWithdraw === "function";
+        const out = { none: null, some: null, calls: null };
+        if (ready) {
+            const draw = html => { const el = document.createElement("div"); el.innerHTML = html; return el; };
+            const none = draw(R.motiveSection(null));
+            out.none = [none.textContent.includes(game.i18n.localize("DRPG.Motive.none")), Boolean(none.querySelector("[data-drpg-motive-withdraw]"))];
+            const some = draw(R.motiveSection({ text: "R1520 demand", remaining: 3, consequence: "R1520 price", due: false }));
+            out.some = [some.textContent.includes("R1520 demand"), some.textContent.includes(plural("DRPG.Motive.left", { n: 3 })),
+                some.textContent.includes("R1520 price"), some.querySelector("[data-drpg-motive-withdraw]")?.textContent.trim() === game.i18n.localize("DRPG.Motive.withdraw")];
+            let calls = 0;
+            const wired = R.wireMotiveWithdraw(some, { withdraw: async () => { calls++; } });
+            const button = some.querySelector("[data-drpg-motive-withdraw]");
+            button?.click();
+            button?.click();
+            await wired?.done?.();
+            out.calls = [calls, button?.disabled === true];
+        }
+        const sources = new Map(await otherSources());
+        const rules = stripComments(sources.get("rules.mjs") ?? "");
+        must(rules.length, "rules.mjs is not among the module's sources - this would measure nothing");
+        const manager = fnSource(rules, "openRulesManager");
+        equal(stableJson({ ready, ...out, manager: [manager.includes("motiveSection("), manager.includes("wireMotiveWithdraw(")] }), stableJson({
+            ready: true, none: [true, false], some: [true, true, true, true], calls: [1, true], manager: [true, true]
+        }), "the motive cannot be withdrawn from the rules manager [the two exported | no motive: says so, no button | a motive: its text, its time "
+            + "left, its price, the Withdraw button | pressed twice: withdrawn once, the button off | the manager draws and wires it]");
+    }],
+    ["R1521 - a number field's - and + say the step they move by, \"One more / One fewer\" only at a step of 1 (E20 C6, E20-22; S01-48)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S01-48): the debate length's field moves by 10 (trial-floor-ui.mjs, step="10"),
+         * and its buttons said "One more" and "One fewer". Read: chrome.mjs `stepLabels` over fields of step 10, 1,
+         * none, 0.5 and "any", and, with comments blanked, the stepper taking its labels from it. Nothing is written.
+         * Red at the parent: the function was not exported.
+         */
+        let C = null;
+        try { C = await import("./chrome.mjs"); } catch { C = null; }
+        const field = step => { const input = document.createElement("input"); input.type = "number"; if (step !== null) input.step = step; return input; };
+        const labels = typeof C?.stepLabels === "function"
+            ? ["10", "1", null, "0.5", "any"].map(step => { const l = C.stepLabels(field(step)); return [l.down, l.up]; }) : null;
+        const sources = new Map(await otherSources());
+        const chrome = stripComments(sources.get("chrome.mjs") ?? ""), floor = sources.get("trial-floor-ui.mjs") ?? "";
+        must(chrome.length && floor.length, "chrome.mjs or trial-floor-ui.mjs is not among the module's sources - this would measure nothing");
+        const one = [game.i18n.localize("DRPG.Look.stepDown"), game.i18n.localize("DRPG.Look.stepUp")];
+        equal(stableJson({ labels, dress: fnSource(chrome, "dressNumberField").includes("stepLabels("), debate: /name="seconds"[^>]*step="10"/.test(floor) }), stableJson({
+            labels: [["-10", "+10"], one, one, ["-0.5", "+0.5"], one], dress: true, debate: true
+        }), "the stepper's buttons say a step of one whatever the field moves by [the labels for step 10, 1, none, 0.5, any | the stepper reads "
+            + "them | the debate length moves by 10]");
     }],
 ];
 

@@ -358,6 +358,56 @@ export async function removeRule(id) {
  * ========================================================================== */
 
 /**
+ * THE MOTIVE IN THE MANAGER (E20 C6, 30.10.2026; S10-55). A motive Monokuma had carried out hung on the HUD and in the
+ * Event panel, the handbook said "until you withdraw it", and the console's `setMotive(null)` was the only road. The
+ * manager shows the motive in force - its demand, its time left, its price - with Withdraw, which is `setMotive(null)`:
+ * written and announced to the table. One block, drawn and wired here and nowhere else.
+ *
+ * @param {object|null} [record]  `motive()`'s answer
+ */
+export function motiveSection(record = motive()) {
+    const t = key => esc(game.i18n.localize(key));
+    if (!record?.text) {
+        return `<section class="drpg-rules-motive"><h4>${t("DRPG.Motive.title")}</h4>
+            <p class="notes">${t("DRPG.Motive.none")}</p></section>`;
+    }
+    const left = record.due ? t("DRPG.Motive.dueShort") : esc(plural("DRPG.Motive.left", { n: Math.max(0, Number(record.remaining) || 0) }));
+    return `<section class="drpg-rules-motive"><h4>${t("DRPG.Motive.title")}</h4>
+        <p>${esc(record.text)}</p>
+        <p class="notes">${left}</p>
+        ${record.consequence ? `<p class="notes">${esc(game.i18n.format("DRPG.Motive.orElse", { what: record.consequence }))}</p>` : ""}
+        <p><button type="button" data-drpg-motive-withdraw>${t("DRPG.Motive.withdraw")}</button></p>
+        <p class="notes">${t("DRPG.Motive.withdrawNote")}</p></section>`;
+}
+
+/**
+ * Wire the section's Withdraw: pressed once (the button goes off at once, so a second press withdraws nothing more),
+ * then the section says there is no motive. `withdraw` is `setMotive(null)` unless the suite hands a stand-in (R1520).
+ *
+ * @returns {{ done: () => Promise<unknown> }} what the last press is still doing
+ */
+export function wireMotiveWithdraw(root, { withdraw = () => setMotive(null) } = {}) {
+    let pending = Promise.resolve();
+    const button = root?.querySelector?.("[data-drpg-motive-withdraw]");
+    if (!button) return { done: () => pending };
+    button.addEventListener("click", () => {
+        if (button.disabled) return;
+        button.disabled = true;
+        pending = Promise.resolve()
+            .then(() => withdraw())
+            .then(() => {
+                const section = button.closest(".drpg-rules-motive");
+                if (section?.parentNode) section.outerHTML = motiveSection(null);
+            })
+            .catch(err => {
+                button.disabled = false;
+                error("Could not withdraw the motive", err);
+            });
+    });
+    return { done: () => pending };
+}
+
+/**
  * Edit the whole list on one screen.
  *
  * A textarea per rule rather than a per-rule edit dialog: the GM's question
@@ -399,6 +449,8 @@ export async function openRulesManager() {
         window: { title: game.i18n.localize("DRPG.Rules.manageTitle") },
         classes: ["drpg-panel", "drpg-projects", "drpg-window-rules"],
         content: dialogContent(`<form>
+            ${motiveSection()}
+            <hr />
             <p>${game.i18n.localize("DRPG.Rules.manageIntro")}</p>
             ${current.length ? `<table class="drpg-vault-table"><thead><tr>
                 <th>#</th>
@@ -430,6 +482,7 @@ export async function openRulesManager() {
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
+        render: (_event, dialog) => { wireMotiveWithdraw(dialog?.element); },
         rejectClose: false
     });
 

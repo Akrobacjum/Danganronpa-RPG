@@ -74868,6 +74868,110 @@ const SCENARIOS = [
             + `for mode ${mode} with the tile ${on ? "on" : "off"}]`);
     }],
 
+    ["E20-T4 - Give back Foundry's settings puts Daggerheart's automations and the file permissions back as the module found them, and the module stops writing them (E20 C6, E20-19; S03-37, Q-5)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S03-37): the module switched Daggerheart's Vulnerable and Defeated automations
+         * off and took the file permissions from players at every start, kept nothing of what it found and gave nothing
+         * back. On the suite's world, as the module first finds a world: the automations on, Players allowed to upload,
+         * no value kept. The module's own writes run (`suppressSystemAutomation`, the permissions' hold through
+         * `applyEnforced`), then `giveBackFoundry`, Foundry's values are read, the writers are asked again, and
+         * everything is put back: the given-back switch first, its re-hold waited for (`onGivenBackChanged`, queued behind the switch's own), then the
+         * automations, the permissions, the kept values and the whispers the writes posted.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function" && "foundryBefore" in SETTINGS,
+            "enforced.mjs giveBackFoundry, states.mjs suppressSystemAutomation or the kept values' setting is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function" || !("foundryBefore" in SETTINGS)) return;
+        const R = CONST.USER_ROLES;
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const automation = () => { const a = plain(game.settings.get("daggerheart", "Automation")); return [a.vulnerableAutomation, a.defeated?.enabled]; };
+        const upload = () => plain(game.settings.get("core", "permissions")).FILES_UPLOAD ?? null;
+        const open = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        // The file permissions are held only with their switch on (the suite's world has it on by default); read, not set.
+        const filesOn = getSetting(SETTINGS.enforcePlayerFiles) !== false;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await game.settings.set("core", "permissions", { ...permsWas, FILES_UPLOAD: open });
+            await settle();
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            const held = { automation: automation(), upload: upload(), kept: plain(getSetting(SETTINGS.foundryBefore)) };
+            await E.giveBackFoundry();
+            await settle();
+            const back = { automation: automation(), upload: upload(), flag: getSetting(SETTINGS.foundryGivenBack), kept: plain(getSetting(SETTINGS.foundryBefore)) };
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            await settle();
+            const after = { automation: automation(), upload: upload() };
+            read = { held: [held.automation, held.upload, held.kept.automation ?? null, held.kept.permissions?.FILES_UPLOAD ?? null],
+                back: [back.automation, back.upload, back.flag, back.kept], after: [after.automation, after.upload] };
+        } finally {
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            held: [[false, false], filesOn ? [R.ASSISTANT, R.GAMEMASTER] : open, { vulnerableAutomation: true, defeated: true }, filesOn ? open : null],
+            back: [[true, true], open, true, {}],
+            after: [[true, true], open]
+        }), `[file permissions held: ${filesOn}] [held: the automations, Players' upload, the automations kept, the upload kept | given back: the automations, the upload, the switch, "
+            + "the kept values cleared | asked again after: the automations, the upload]`);
+    }],
+    ["E20-T5 - the rules manager's Withdraw takes the motive in force away and tells the table (E20 C6, E20-21; S10-55)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S10-55): a motive could be withdrawn only from the console. On the suite's world
+         * a motive is announced (`setMotive`), the rules manager's Motive section is drawn into a detached element from
+         * the world (`motiveSection(motive())`), its Withdraw pressed as wired (`wireMotiveWithdraw` with its own
+         * withdrawal), and the motive and the chat read. The motive setting and the chat are put back.
+         */
+        needs(env.primaryGm());
+        const R = await import("./rules.mjs");
+        ok(typeof R.motiveSection === "function" && typeof R.wireMotiveWithdraw === "function", "rules.mjs motiveSection or wireMotiveWithdraw is missing");
+        if (typeof R.motiveSection !== "function" || typeof R.wireMotiveWithdraw !== "function") return;
+        const was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const withdrawn = game.i18n.localize("DRPG.Motive.withdrawn");
+        let read = null;
+        try {
+            await R.setMotive({ text: "E20-T5 demand", timesOfDay: 3, consequence: "E20-T5 price" });
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = R.motiveSection(R.motive());
+            const shown = root.textContent.includes("E20-T5 demand");
+            const wired = R.wireMotiveWithdraw(root);
+            root.querySelector("[data-drpg-motive-withdraw]")?.click();
+            await wired?.done?.();
+            await settle();
+            const told = game.messages.filter(m => !chatWas.has(m.id)).some(m => String(m.content ?? "").includes(withdrawn));
+            read = [shown, R.motive(), told];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.motive, was);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, null, true]), "[the section shows the motive announced, the motive after Withdraw, the table told it is withdrawn]");
+    }],
     ...GRID
 ];
 

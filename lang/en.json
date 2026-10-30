@@ -1442,6 +1442,8 @@
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",
+      "stepUpBy": "+{n}",
+      "stepDownBy": "-{n}",
       "atMost": "At most {n}",
       "atLeast": "At least {n}",
       "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
@@ -2861,7 +2863,17 @@
       "gmHintActiveFull": "This time of day is darkened. {count} of {max} spilled Despair is waiting, and fires when this time of day ends.",
       "setupIntro": "Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.",
       "threshold": "Threshold (X)",
-      "thresholdHint": "Suggested: 12 + half your player count. Sixteen players makes 20, eight makes 16, four makes 14. Range {min}-{max}.",
+      "thresholdHint": "Any value from {min} to {max}: the table decides.",
+      "suggested": "Suggested for {students} and {pools}: {x}.",
+      "suggestStudents": {
+        "one": "{n} student",
+        "other": "{n} students"
+      },
+      "suggestPools": {
+        "one": "{n} pool",
+        "other": "{n} pools"
+      },
+      "suggestNone": "A suggestion appears here once the season has students.",
       "amount": "by",
       "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
@@ -3750,9 +3762,33 @@
       "tabLocked": "Theirs to tell you, not yours to read.",
       "settingsLocked": "The character's settings are the GM's."
     },
+    "GiveBack": {
+      "menuName": "Foundry's settings",
+      "menuLabel": "Give back Foundry's settings",
+      "menuHint": "What this module changes in Foundry and Daggerheart, and the button that puts it back. Press it before you switch the module off.",
+      "title": "Give back Foundry's settings",
+      "intro": "While it runs, this module changes these settings of Foundry, Daggerheart and the modules it needs:",
+      "what": {
+        "automation": "Daggerheart's Vulnerable and Defeated automations are off: Breakdown and Wounded take their place.",
+        "playerFiles": "Players and Trusted Players cannot browse or upload files ('Keep players out of the file browser').",
+        "isoWelcome": "Isometric Perspective's welcome window stays closed for everyone.",
+        "dhWelcome": "Daggerheart's welcome journal does not open for anyone.",
+        "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
+        "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
+        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back."
+      },
+      "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
+      "filesStay": "Give back leaves the file permissions as they are now: if players should browse or upload files, grant it in Foundry's permissions.",
+      "beforeOff": "Before you switch the module off, press Give them back here and turn 'Rooms decide what players can see' off.",
+      "giveBack": "Give them back",
+      "holdAgain": "Hold them again",
+      "done": "Foundry's settings are given back.",
+      "heldAgain": "The module holds its settings again.",
+      "automationOff": "Daggerheart's Vulnerable and Defeated automations are switched off: Breakdown and Wounded take their place. To have them back, press Give back Foundry's settings in this module's settings."
+    },
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
-      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions.",
+      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions, or press Give back Foundry's settings in this module's settings.",
       "lost": {
         "player": "Player",
         "trusted": "Trusted Player",
@@ -4234,6 +4270,9 @@
       "title": "Motive",
       "banner": "MONOKUMA'S MOTIVE",
       "withdrawn": "The motive is withdrawn. Nothing hanging over you - for now.",
+      "none": "No motive in force.",
+      "withdraw": "Withdraw",
+      "withdrawNote": "Withdraw tells everyone the motive is off.",
       "deadline": {
         "one": "One time of day to do something about it.",
         "other": "{n} times of day to do something about it."
@@ -4429,6 +4468,9 @@
       "hint.items": "The opening item. A student with an empty bag has nothing to search with, nothing to give away and nothing to kill with.",
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
+      "step.overflow": "The overflow threshold suits the cast",
+      "hint.overflow": "The module's formula, 12 + half the living students, worked out for this season. Advisory: the threshold is yours to choose in Despair Flow's Overflow tab.",
+      "overflowNow": "{line} Now {n}.",
       "step.assignments": "Every student has a Monokuma watching",
       "hint.assignments": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",

@@ -174,6 +174,17 @@ export const SETTINGS = {
      */
     voicePeerMutes: "voicePeerMutes",
     rtcDockBefore: "rtcDockBefore",
+    /**
+     * What the module found in Foundry's and other packages' settings before its first write there (E20 C6, S03-37,
+     * Q-5): `foundryBefore` the world's (Daggerheart's automations, the file permissions; world, `config: false`, no
+     * secret - Foundry's own values), `foundryBeforeClient` this browser's (the held client settings, by full key),
+     * `foundryGivenBack` true once a GM pressed Give back Foundry's settings, after which the module writes none of
+     * them until a GM holds them again (enforced.mjs `giveBackFoundry`). The settings window's button is a menu,
+     * registered beside them under its own key (`GIVE_BACK_MENU`), not a setting.
+     */
+    foundryBefore: "foundryBefore",
+    foundryBeforeClient: "foundryBeforeClient",
+    foundryGivenBack: "foundryGivenBack",
     /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
@@ -1078,6 +1089,9 @@ export const DEFAULT_CLOCK = {
     resetCuts: Object.freeze({})
 };
 
+/** The settings window's Give back Foundry's settings button: a menu's key, not a setting (E20 C6). */
+const GIVE_BACK_MENU = "giveBackFoundry";
+
 export function registerSettings() {
     // The hint names the one roll this leaves public: the GM panel's "Public roll"
     // (`game.drpg.publicRoll`, E33 C12) - a GM's own `/r` goes to the GMs with it on.
@@ -1468,6 +1482,47 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.foundryBefore, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.foundryBeforeClient, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.foundryGivenBack, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.onGivenBackChanged())
+            .catch(err => console.error("danganronpa-rpg | Could not give back or hold Foundry's settings", err))
+    });
+    /* The settings window's button. Foundry renders the menu's class; this one opens the module's own window instead
+       (enforced.mjs `openGiveBackFoundry`). How v14's settings window constructs and renders a menu's class is not
+       measured here: the harness's `registerMenu` is a no-op. */
+    const Base = foundry.applications?.api?.ApplicationV2 ?? class {};
+    class GiveBackFoundryMenu extends Base {
+        render() {
+            import("./enforced.mjs").then(m => m.openGiveBackFoundry())
+                .catch(err => console.error("danganronpa-rpg | Could not open Give back Foundry's settings", err));
+            return this;
+        }
+    }
+    game.settings.registerMenu?.(MODULE_ID, GIVE_BACK_MENU, {
+        name: "DRPG.GiveBack.menuName",
+        label: "DRPG.GiveBack.menuLabel",
+        hint: "DRPG.GiveBack.menuHint",
+        icon: "fa-solid fa-rotate-left",
+        type: GiveBackFoundryMenu,
+        restricted: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.musicEnabled, {

@@ -43,6 +43,7 @@ import { carriableCategories } from "./inventory.mjs";
 // synchronous - a `done` that had to await could not answer at all.
 import { roomCensus, roomRatioLine, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
+import { overflowThreshold, overflowSuggestion, overflowSuggestionLine } from "./overflow.mjs";
 // A leaf: which named regions no GM has decided yet (E12 C1).
 import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene,
     namedRegions } from "./rooms.mjs";
@@ -397,6 +398,18 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             waiting,
             done: !waiting && despairSplitEven(),
             missing: () => despairSplitCounts().map(p => `${p.name}: ${p.n}`),
+            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
+        },
+        {
+            /* THE OVERFLOW THRESHOLD FOR THIS CAST (E20 C6, S02-59, D21). The default is tuned for sixteen players;
+               this row works the module's formula out for the living cast and the pools, and is advisory: done when
+               the threshold is the suggestion, a dash otherwise, since the GM decides. Waits with no cast. */
+            key: "overflow",
+            optional: true,
+            waiting,
+            done: !waiting && overflowThreshold() === overflowSuggestion(living),
+            missing: () => [game.i18n.format("DRPG.Season.overflowNow", {
+                line: overflowSuggestionLine(living, monokumas().length), n: overflowThreshold() })],
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
         {
