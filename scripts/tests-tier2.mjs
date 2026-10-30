@@ -56468,6 +56468,152 @@ const SCENARIOS = [
             + `the stashes (${stasher.name}'s cell, ${owner.name}'s as the new owner) and the owner, and the rooms Apply says it changed`);
     }],
 
+    ["a Bedroom set up the usual way has its owner's open stash on every road, and Room Setup writes only the stash cells the GM changed", async () => {
+        /*
+         * E89 C7, 30.10.2026; E89-20, E89-21, E89-22 (the owner's report: a Bedroom made no stash by itself and the GM
+         * had to make it by hand). A Bedroom is a room with an owner; its stash is an entry of the room's stored list,
+         * and with no stored list the owner is read as the room's one stash. Room Setup's Stashes tab compared the
+         * cells as drawn when the window opened with the room as it stood after this Apply's rows were written, so a
+         * stash the rows brought into being read as one the GM had removed, and `setVaultRoom` seeded nothing. Here
+         * three scenes of the suite's own, answered as a GM answers Room Setup (the form drawn, its fields set, Apply's
+         * own callback), and read as stored on every piece: (1) One, unticked, given to A and marked in one Apply;
+         * (2) Two, of two unticked pieces, given to B in one Apply - with C's stash cell ticked there, which a region
+         * that is no room may not hold - and marked in the next; (3) Three, marked with a stored empty list, given to C
+         * through `setVaultRoom` as the console does, then `ensureBedroomStash` asked again; (4) Four, A's with A's
+         * stash, given to B; TRAP 76: Five, C's, C's stash removed on the tab, then a second Apply touching nothing;
+         * TRAP 77: Six, nobody's, holding A's stash with a thing in it, ticked off - and B's hidden stash written there
+         * by another GM's hand after the window opened; Seven, A's as a world before E11 holds it (an owner and no
+         * stored list) with a thing in A's stash, given to B (Q-E89-5: A keeps the stash and the thing). Red at the
+         * parent by reading: (2), (3) and the other GM's stash; the message names the parts that differ. In a GM-store
+         * world of the suite's own (`withGmStoreWorld`), as the R119 test; the keys Apply's sweep hands out, the things
+         * made and the chat it posted are taken back. Read on the harness: the window is answered without being drawn.
+         */
+        const [a, b, c] = cast(3);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const INV = await import("./inventory.mjs");
+        const home = canvas?.scene ?? null;
+        const P = "SUITE E89 T1 ";
+        const ROOMS = ["One", "Two", "Three", "Four", "Five", "Six", "Seven"].map(n => P + n);
+        const [ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN] = ROOMS;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const notices = ui.notifications, realWarn = notices.warn, ownWarn = Object.hasOwn(notices, "warn");
+        const warned = [];
+        const letter = id => ({ [a.id]: "A", [b.id]: "B", [c.id]: "C" })[id] ?? id;
+        const stored = (scene, room) => scene.regions.filter(r => r.name === room)
+            .map(r => { const list = r.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes); return Array.isArray(list) ? list.map(e => `${letter(e.actorId)}${e.concealed ? " hidden" : ""}`).sort() : null; });
+        const msgsBefore = new Set(game.messages.contents.map(m => m.id));
+        const made = [];
+        const stash = async (actor, room, name) => {
+            const item = await INV.grantItem(actor, { name, category: "usable", tier: 1, override: true, quiet: true });
+            must(item, `could not give ${actor.name} a thing to stash - this would measure nothing`);
+            made.push([actor, item.id]);
+            await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room });
+        };
+        // One Apply of Room Setup opened on `scene`: `answer(field)` sets the form, `between()` runs after the window opened.
+        const apply = async (scene, answer, between = null) => {
+            await scene.view();
+            await settle();
+            D.wait = async cfg => {
+                const element = document.createElement("div"), form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                element.append(form);
+                await answer(name => form.querySelector(`[name="${CSS.escape(name)}"]`));
+                if (between) await between();
+                const ok = (cfg.buttons ?? []).find(btn => btn.action === "ok");
+                return ok.callback(new Event("click"), ok, { element });
+            };
+            try {
+                await V.openRoomSetupDialog();
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+            }
+            await settle();
+        };
+        const region = (name, x, flags = {}) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags: { [MODULE_ID]: flags }, behaviors: [] });
+        const room = { [R.ROOM_FLAG]: true };
+        let reading = null;
+        await G.withGmStoreWorld(`suite-e89t1-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            try {
+                for (const n of [1, 2, 3]) scenes.push(await Scene.create({ name: `${P}scene ${n}`, width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false }));
+                const [s1, s2, s3] = scenes;
+                const F = V.VAULT_FLAGS;
+                // One and Two unticked by the GM (`room: false`): an undecided region is drawn ticked, and Apply marks it.
+                const no = { [R.ROOM_FLAG]: false };
+                await s1.createEmbeddedDocuments("Region", [region(ONE, 0, no), region(TWO, 500, no), region(TWO, 1000, no),
+                    region(THREE, 1500, { ...room, [F.stashes]: [] })]);
+                await s2.createEmbeddedDocuments("Region", [region(FOUR, 0, { ...room, [F.owner]: a.id, [F.stashes]: [{ actorId: a.id, concealed: false }] }),
+                    region(FIVE, 500, { ...room, [F.owner]: c.id, [F.stashes]: [{ actorId: c.id, concealed: false }] }),
+                    region(SIX, 1000, { ...room, [F.stashes]: [{ actorId: a.id, concealed: false }] })]);
+                await s3.createEmbeddedDocuments("Region", [region(SEVEN, 0, { ...room, [F.owner]: a.id })]);
+                await stash(a, SIX, `${P}thing in Six`);
+                await stash(a, SEVEN, `${P}thing in Seven`);
+                await settle();
+                if (ownWarn) delete notices.warn;
+                notices.warn = (text, ...rest) => { warned.push(String(text)); return realWarn.call(notices, text, ...rest); };
+
+                // (1) and the first half of (2).
+                await apply(s1, field => {
+                    field(`owner:${ONE}`).value = a.id;
+                    field(`isroom:${ONE}`).checked = true;
+                    field(`owner:${TWO}`).value = b.id;
+                    field(`stash:${TWO}:${c.id}`).value = "open";
+                });
+                const twoBefore = stored(s1, TWO);
+                // The second half of (2): Two marked, nothing else.
+                await apply(s1, field => { field(`isroom:${TWO}`).checked = true; });
+                // (3), and the second call.
+                await V.setVaultRoom(THREE, { owner: c.id, scene: s1 });
+                await settle();
+                const again = typeof V.ensureBedroomStash === "function" ? (await V.ensureBedroomStash(s1, THREE)) ?? null : "no ensureBedroomStash";
+                // (4), TRAP 76's first Apply, TRAP 77 and the other GM's stash.
+                await apply(s2, field => {
+                    field(`owner:${FOUR}`).value = b.id;
+                    field(`stash:${FIVE}:${c.id}`).value = "";
+                    field(`stash:${SIX}:${a.id}`).value = "";
+                }, () => V.setStash(SIX, b.id, { concealed: true, scene: s2 }));
+                // TRAP 76's second Apply: nothing touched.
+                await apply(s2, () => {});
+                // Seven given away.
+                await apply(s3, field => { field(`owner:${SEVEN}`).value = b.id; });
+                reading = {
+                    one: stored(s1, ONE), twoBefore, two: stored(s1, TWO), three: stored(s1, THREE), again,
+                    four: stored(s2, FOUR), five: stored(s2, FIVE), six: stored(s2, SIX),
+                    sixWarned: warned.filter(text => text.includes(SIX) && text.includes(a.name)).length,
+                    seven: stored(s3, SEVEN), sevenThing: V.stashItemsIn(a, SEVEN, s3).map(i => i.name)
+                };
+            } finally {
+                if (ownWarn) notices.warn = realWarn;
+                else delete notices.warn;
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                for (const [actor, id] of made) await actor.items.get(id)?.delete();
+                for (const actor of [a, b, c]) {
+                    const keys = actor.items.filter(i => ROOMS.includes(i.getFlag(MODULE_ID, V.KEY_FLAG))).map(i => i.id);
+                    if (keys.length) await actor.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                const posted = game.messages.filter(m => !msgsBefore.has(m.id)).map(m => m.id);
+                if (posted.length) await ChatMessage.deleteDocuments(posted);
+                await settle();
+            }
+        });
+        const want = {
+            one: [["A"]], twoBefore: [null, null], two: [["B"], ["B"]], three: [["C"]], again: null,
+            four: [["A", "B"]], five: [[]], six: [["A", "B hidden"]], sixWarned: 1,
+            seven: [["A", "B"]], sevenThing: [`${P}thing in Seven`]
+        };
+        const red = Object.keys(want).filter(key => stableJson(reading?.[key]) !== stableJson(want[key]));
+        equal(stableJson(reading), stableJson(want),
+            `the stored stash lists of the seven rooms (A, B, C the three students; "hidden" a concealed stash), parts that differ: ${red.join(", ") || "none"}`);
+    }],
+
     ["Room Setup writes a room's picture: a picture changed alone is saved on every piece of the room on the scene the window opened on, Remove writes none, a refused path is written nowhere and named, and a console's is read as none", async () => {
         /*
          * E77 C1, 13.10.2026; the A8 design's R382, the E77 plan's R507 (ledger V5), whose number the tier-0 guard

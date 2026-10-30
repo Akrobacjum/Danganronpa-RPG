@@ -21872,6 +21872,60 @@ const INVARIANTS = [
             `[passes for 5 sightRefresh hooks in one frame, the stand-ins flagged]: ${JSON.stringify(d)}`);
     }],
 
+    ["R1053 - the Bedrooms without their owner's stash are the marked rooms with an owner who exists and has no stash there, never the trial hall's (E89 C7): bedroomStashGaps on stand-in regions", async () => {
+        /*
+         * E89 C7, 30.10.2026; E89-22, read by C8's migration clause `bedroomStashes` (E89-23). A Bedroom is a marked
+         * room with an owner; its stash is an entry of the stored list, and with no stored list the owner is read as
+         * the room's one stash (`stashesIn`). `bedroomStashGaps(scene)` names the Bedrooms whose owner has none. Read
+         * on stand-ins, writing nothing: a scene of eight regions - with the owner's stash stored, an empty stored list,
+         * no stored list (the pre-E11 shape), unticked with an owner, marked with no owner, an owner no actor is, two
+         * pieces with empty lists - and a second scene holding a Bedroom with an empty list, read once as an ordinary
+         * scene and once as the trial hall: the linked roles are read through `game.settings.get` held for the one
+         * synchronous call, with `forgetSceneRoles` before and after, so nothing else reads the stand-in. Red at the
+         * parent: no `bedroomStashGaps`.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students of this world are the owners the stand-ins name");
+        const [a, b] = studentActors();
+        must(a && b, "fewer than two students - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        ok(typeof V.bedroomStashGaps === "function", "vault.mjs hands out no `bedroomStashGaps`");
+        if (typeof V.bedroomStashGaps !== "function") return;
+        const F = V.VAULT_FLAGS;
+        const piece = (name, flags) => ({ id: `SUITE1053${name}`, name, behaviors: [], getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const marked = flags => ({ [R.ROOM_FLAG]: true, ...flags });
+        const X = { id: "SUITE1053sceneX", name: "SUITE R1053 X", regions: [
+            piece("Kept", marked({ [F.owner]: a.id, [F.stashes]: [{ actorId: a.id, concealed: true }] })),
+            piece("Emptied", marked({ [F.owner]: a.id, [F.stashes]: [] })),
+            piece("Legacy", marked({ [F.owner]: b.id })),
+            piece("Unticked", { [R.ROOM_FLAG]: false, [F.owner]: b.id, [F.stashes]: [] }),
+            piece("Nobody's", marked({ [F.stashes]: [] })),
+            piece("Gone", marked({ [F.owner]: "SUITE1053noActor", [F.stashes]: [] })),
+            piece("Split", marked({ [F.owner]: b.id, [F.stashes]: [] })),
+            piece("Split", marked({ [F.stashes]: [] }))
+        ] };
+        const H = { id: "SUITE1053sceneH", name: "SUITE R1053 hall", regions: [piece("Dock", marked({ [F.owner]: a.id, [F.stashes]: [{ actorId: b.id, concealed: false }] }))] };
+        const asHall = () => {
+            const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+            settings.get = function (namespace, key, ...rest) {
+                if (namespace === MODULE_ID && key === "sceneRoles") return { trial: H.id };
+                return realGet.call(this, namespace, key, ...rest);
+            };
+            R.forgetSceneRoles();
+            try {
+                return [R.isTrialScene(H), V.bedroomStashGaps(H)];
+            } finally {
+                if (ownGet) settings.get = realGet;
+                else delete settings.get;
+                R.forgetSceneRoles();
+            }
+        };
+        const hall = asHall();
+        equal(JSON.stringify([V.bedroomStashGaps(X), V.bedroomStashGaps(H), hall, R.isTrialScene(H)]),
+            JSON.stringify([["Emptied", "Split"], ["Dock"], [true, []], false]),
+            "[the gaps of the eight regions, of the second scene as a scene, [whether it read as the trial hall, its gaps], whether it is a scene again after]");
+    }],
+
     ["R1012 - the fog's raster is drawn once and shown until it changes (E88 C3): at rest the masked raster and the backdrop are each drawn into a picture of their own at most ten times a second and the frames show the picture, a pan draws the raster again on every frame and the backdrop not, a mask swapped draws it once more, reduced motion draws each once, a frame whose picture is out of date is drawn live, only an outermost render's prerender draws one, a destroyed layer frees its picture, and a browser that cannot draw into a texture keeps the live layer and its drift by fractions of a pixel", async () => {
         /*
          * E88 C3, 27.10.2026; E88-08. The masked raster over the fog is two screen-sized TilingSprites drawn into a

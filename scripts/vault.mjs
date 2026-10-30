@@ -907,6 +907,45 @@ export async function setStash(room, actorId, { present = undefined, concealed =
     return list;
 }
 
+/*
+ * A BEDROOM HAS ITS OWNER'S STASH (E89 C7, 30.10.2026; E89-22; the owner's report of 30.10: a Bedroom made no stash
+ * by itself and the GM had to make one by hand). Until 1.2.91 one road seeded it - Room Setup's Apply, when a row's
+ * owner changed - and three did not: `setVaultRoom` from the console, a room marked after its owner was given, and
+ * (through the Stashes tab, `applyStashMatrix`) a stash read by its owner and never stored. Called on an event only,
+ * never on every Apply (TRAP 76: a stash the GM removed on the Stashes tab stays removed): `setVaultRoom` when the
+ * owner changes, Room Setup when a room's mark goes from none to marked, and C8's migration clause once a world.
+ * Writes nothing when the room is no marked room (`setStash` refuses those), has no owner, or the owner is no actor;
+ * and nothing when the owner's stash is stored already. A stash read by its owner with no stored list (the pre-E11
+ * shape) is written as stored, concealment kept, so a later write of the list cannot lose it. Answers the list written,
+ * or null.
+ */
+export async function ensureBedroomStash(scene, room) {
+    if (!game.user?.isGM || !scene || !room) return null;
+    const pieces = roomRegions(scene, room);
+    if (!pieces.length) return null;
+    const owner = vaultOwnerOf(room, scene);
+    if (!owner || !game.actors?.get(owner)) return null;
+    const has = stashIn(room, owner, scene);
+    const stored = pieces.every(piece => Array.isArray(piece.getFlag(MODULE_ID, VAULT_FLAGS.stashes)));
+    if (has && stored) return null;
+    return setStash(room, owner, has ? { scene } : { concealed: false, scene });
+}
+
+/**
+ * The Bedrooms of this scene whose owner has no stash in them, by name: a marked room whose owner is an actor of this
+ * world and is not on its list (`stashesIn`, so a room with no stored list counts its owner's). The trial hall holds
+ * no room (`roomPieces`), so none of it. Read by the clause `bedroomStashes` (E89 C8) and by R1053.
+ */
+export function bedroomStashGaps(scene) {
+    const gaps = [];
+    for (const [name, pieces] of piecesByName(scene)) {
+        const owner = flagOver(pieces, VAULT_FLAGS.owner);
+        if (!owner || !game.actors?.get(owner)) continue;
+        if (!stashesOver(pieces).some(entry => entry.actorId === owner)) gaps.push(name);
+    }
+    return gaps.sort((x, y) => x.localeCompare(y));
+}
+
 /**
  * Every finder's note about one stash, gone - the stash of that owner in that room ON THAT
  * SCENE. A note is keyed `sceneId::room::ownerId` (`foundKey`); this matched the end of the key
@@ -1310,7 +1349,23 @@ export async function setVaultRoom(room, {
     }
     if (!Object.keys(update).length) return null;
 
+    /* AN OWNER CHANGE KEEPS THE ROOM'S STASHES AND GIVES THE NEW OWNER ONE (E89 C7, 30.10.2026; E89-20, E89-22,
+       Q-E89-5). A room with no stored list reads its owner as its one stash (`stashesOn`), so the owner written
+       below would take the old owner's stash with it and leave what they had stashed there in no stash at all: the
+       list as read now is written first (`setStash` writes the whole list it reads, so one call on its first entry
+       stores it). After the write the
+       new owner is given an open stash when they have none (`ensureBedroomStash`) - from the console too, which
+       seeded nothing until 1.2.91 (the tier-2 "a Bedroom set up the usual way ...", red at 55ed2e36 on that road). */
+    const ownerMoves = owner !== undefined && (ownerBefore ?? null) !== (owner || null);
+    if (ownerMoves) {
+        const pieces = roomRegions(scene, room);
+        if (pieces.some(piece => !Array.isArray(piece.getFlag(MODULE_ID, VAULT_FLAGS.stashes)))) {
+            const [first] = stashesOver(pieces);
+            if (first) await setStash(room, first.actorId, { scene });
+        }
+    }
     await updateRoom(scene, room, update);
+    if (ownerMoves) await ensureBedroomStash(scene, room);
     if (owner !== undefined && ownerBefore && ownerBefore !== (owner || null)) {
         await takeOldOwnersKeys([{ room, from: ownerBefore, to: owner || null }]);
     }
@@ -2721,7 +2776,7 @@ function stashMatrixRows(rooms, students, scene) {
             // assigned the room (the legend above the table says so, E12 C15).
             const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
             return `<td class="drpg-stash-cell${own}">
-                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" />
+                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" data-drpg-drawn="${state}" />
                 <button type="button" class="drpg-stash-toggle"
                     data-drpg-stash="${escRoom}:${actor.id}"
                     title="${foundry.utils.escapeHTML(
@@ -3075,20 +3130,15 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
             }
         }
     }
-    // Room -> the stashes the GM left in it. Empty cells are
-    // simply absent, which is what "no stash" means.
+    // Room -> every stash cell as the GM left it (`state`) beside the state it was drawn in (`drawn`, E89 C7):
+    // "" no stash, "open" or "hidden". `applyStashMatrix` acts on a cell whose two differ, and on no other.
     const stashMatrix = {};
     for (const room of rooms) {
-        stashMatrix[room] = students
-            .map(actor => ({
-                actorId: actor.id,
-                state: pick(`stash:${room}:${actor.id}`)?.value ?? ""
-            }))
-            .filter(entry => entry.state)
-            .map(entry => ({
-                actorId: entry.actorId,
-                concealed: entry.state === "hidden"
-            }));
+        stashMatrix[room] = students.flatMap(actor => {
+            const cell = pick(`stash:${room}:${actor.id}`);
+            if (!cell) return [];
+            return [{ actorId: actor.id, state: cell.value ?? "", drawn: cell.getAttribute("data-drpg-drawn") ?? "" }];
+        });
     }
     return { rooms: roomRows, fogChanges, stashes: stashMatrix };
 }
@@ -3509,8 +3559,15 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.notShared}`]: row.notShared });
         }
 
-        // Nothing announced: whether a region is a room is the GM's map, not news.
-        if (!roomSettled) await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
+        // Nothing announced: whether a region is a room is the GM's map, not news. A name that was no room and is one
+        // now gives its owner a stash (E89 C7, E89-22): an owner given while it was unmarked was refused one, since
+        // `setStash` writes rooms only. Only on that change, so a piece drawn and marked onto a standing room puts
+        // back no stash the GM removed (TRAP 76).
+        if (!roomSettled) {
+            const wasRoom = roomRegions(scene, row.room).length > 0;
+            await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
+            if (row.isRoom === true && !wasRoom) await ensureBedroomStash(scene, row.room);
+        }
 
         // Nothing announced: a door on the GM's map is learnt by walking through it. A name that
         // is no room of this scene is kept as typed and the GM told: it connects nothing, and the
@@ -3561,32 +3618,39 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
  * with the count, and the GM is told whose things and how many. The cell
  * snaps back on the next open because the form is redrawn from the flags.
  */
+/*
+ * THE CELLS THE GM CHANGED, AND NO OTHER (E89 C7, 30.10.2026; E89-21). Until 1.2.91 this compared the cells as
+ * drawn when the window opened with the room as it stood after this Apply's rows were written, so a stash the rows
+ * brought into being - a room marked in this Apply whose owner was given before, read as the owner's stash because
+ * it held no stored list - was absent from the cells and read as one the GM had removed: `stashes: []` was written
+ * and nothing put it back (the tier-2 "a Bedroom set up the usual way ...", red at 55ed2e36 on that road), and a
+ * stash another GM wrote while this window was open was removed the same way. Now a cell acts only where the GM
+ * left it other than it was drawn (`state` beside `drawn`, `readRoomSetupForm`), against the room as it is now.
+ */
 async function applyStashMatrix(stashes, scene) {
     const changed = new Set();
-    for (const [room, wanted] of Object.entries(stashes)) {
-        const current = stashesIn(room, scene);
-        const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
-
-        for (const entry of current) {
-            if (keep.has(entry.actorId)) continue;
-            const owner = game.actors.get(entry.actorId);
-            const held = owner ? stashItemsIn(owner, room, scene).length : 0;
-            if (held) {
-                ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
-                    name: owner?.name ?? "?", room, n: held
-                }));
-                keep.set(entry.actorId, entry);      // refused: leave it alone
+    for (const [room, cells] of Object.entries(stashes)) {
+        for (const { actorId, state, drawn } of cells) {
+            if (state === drawn) continue;
+            const now = stashIn(room, actorId, scene);
+            if (!state) {
+                if (!now) continue;
+                const owner = game.actors.get(actorId);
+                const held = owner ? stashItemsIn(owner, room, scene).length : 0;
+                if (held) {
+                    ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
+                        name: owner?.name ?? "?", room, n: held
+                    }));
+                    continue;      // refused: leave it alone
+                }
+                // Counted only when written (E12 fix r1-G1; review EARLY-C4-1): a cell of a name no
+                // room carries - a Teleport's - wrote nothing and was counted a changed room.
+                if (await setStash(room, actorId, { present: false, scene })) changed.add(room);
                 continue;
             }
-            // Counted only when written (E12 fix r1-G1; review EARLY-C4-1): a cell of a name no
-            // room carries - a Teleport's - wrote nothing and was counted a changed room.
-            if (await setStash(room, entry.actorId, { present: false, scene })) changed.add(room);
-        }
-
-        for (const entry of keep.values()) {
-            const was = current.find(e => e.actorId === entry.actorId);
-            if (was && was.concealed === entry.concealed) continue;
-            if (await setStash(room, entry.actorId, { concealed: entry.concealed, scene })) changed.add(room);
+            const concealed = state === "hidden";
+            if (now && now.concealed === concealed) continue;
+            if (await setStash(room, actorId, { concealed, scene })) changed.add(room);
         }
     }
     return changed;
@@ -3607,9 +3671,8 @@ async function applyStashMatrix(stashes, scene) {
  */
 async function seedOwnerStashes(ownerMoved, scene) {
     const changed = new Set();
-    for (const { room, owner } of ownerMoved) {
-        if (stashIn(room, owner, scene)) continue;
-        if (await setStash(room, owner, { concealed: false, scene })) changed.add(room);
+    for (const { room } of ownerMoved) {
+        if (await ensureBedroomStash(scene, room)) changed.add(room);
     }
     return changed;
 }
