@@ -538,6 +538,10 @@ export const CAMERA_READERS = Object.freeze({
     /* A player's own view switched once after a load (E13 C3, Q-E13-1 c): it moves this browser's
        canvas and decides nothing - the plan named it a window row, but no GM window reads it. */
     "trial-scene.mjs#selfRepair": "draw",
+    /* A move's verdicts asked again where the token comes to rest (E89 C1): it reads the scene on screen only to skip
+       a token that is not drawn here, and asks this browser's token visibility again - it decides nothing a roll, a
+       stash or a trace reads. */
+    "visibility.mjs#recheckAtRest": "draw",
 
     "utils.mjs#workingScene": "window",
     "gm-panel.mjs#nextStep": "window",
