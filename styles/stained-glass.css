@@ -856,7 +856,28 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
     box-shadow: none;
     text-shadow: none;
     opacity: 1;
-    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    /* THE CUT TAKES THE CORNERS, NOT THE BORDER (E89 fix FG1, 30.10.2026; E89-11, the owner's "Stained glass.
+       Wiele miejsc. Przyklad - GM Panel"). The polygon is laid on the unsnapped border box and the 1px border is
+       drawn snapped, so where a box ends between pixels - the GM Panel's tiles in `repeat(auto-fit, minmax(150px,
+       1fr))` columns, a row under a font size times the scale - a cut at 100% covered part of the border's last
+       pixel and the board passing behind the translucent tile showed through it. Read in headless Chromium at
+       1366x768 (glass-harness ?gmp=1): the Students tile's box ends at y 306.797, its bottom border pixel read
+       116-144 over 12 moving frames as cut and 147-164 with the sides 0.5 px out; glass-sweep --edges at 7 sizes
+       counted the route tile's R side at 7, the destructive tile's B at 3 and the plain tile's R at 4, and 0 at each
+       after; the messenger's send button, the same rule, read steady T22 at 3 of 4 sizes as cut and 0 at 4 after
+       (`?msgr=1`, `--edge-sel messenger`). The sides stand `--drpg-clip-out` outside the box and the diagonals keep their lines (x + y = 4px at
+       a corner), so the chamfers are what they were. 0.5 px, not 1: a snapped edge is round(f), never past f + 0.5,
+       and at 1 px the lit brush (`inset: -4px -5px`, cut by this polygon) showed a pixel past the border - the
+       Close button read steady L17 R18 at all 7 sizes. While the brush is on (hover, selected, the default,
+       pressed) the polygon stays on the box as before, so a lit button's outline is unchanged. Software Chromium,
+       not a table's GPU: LIVE-E89-04 is the table's reading. */
+    --drpg-clip-out: calc((1 - var(--brush-on, 0)) * 0.5px);
+    clip-path: polygon(calc(4px + var(--drpg-clip-out)) calc(0px - var(--drpg-clip-out)),
+        calc(100% + var(--drpg-clip-out)) calc(0px - var(--drpg-clip-out)),
+        calc(100% + var(--drpg-clip-out)) calc(100% - 4px - var(--drpg-clip-out)),
+        calc(100% - 4px - var(--drpg-clip-out)) calc(100% + var(--drpg-clip-out)),
+        calc(0px - var(--drpg-clip-out)) calc(100% + var(--drpg-clip-out)),
+        calc(0px - var(--drpg-clip-out)) calc(4px + var(--drpg-clip-out)));
     transition: color var(--drpg-t-snap, 120ms), border-color var(--drpg-t-snap, 120ms);
 }
 /* the brush: a pseudo-element behind the label, its edge torn by a clip path */

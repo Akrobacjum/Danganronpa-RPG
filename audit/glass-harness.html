@@ -1545,6 +1545,15 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       tile("whoIsAlive", "fa-heart-pulse", "Students")}${tile("projects", "fa-list-check", "Projects")}${tile("murder", "fa-skull", "Murder", " drpg-gm-route")}${tile("seasonReset", "fa-trash-arrow-up", "Reset the season", " drpg-gm-route drpg-destructive")
     }</div></details></div><p class="drpg-gmp-version">Danganronpa RPG v1.2.91</p></div><footer class="form-footer"><button type="button" data-action="close" class="default">Close</button></footer></section></div>`);
   }
+  /* `?msgr=1` (E89 fix FG1, the review's G4): a conversation window, the smallest copy of what messenger-app.mjs
+     `DrpgMessengerApp` renders - the class ApplicationV2 gives it, the participants line, the Chat and Note tabs, one
+     bubble and the send form - so glass-sweep `--edges` reads its header band and the send button, which wears the
+     same cut as the GM Panel's tiles (stained-glass.css, the shared button rule). At the right, under the clock; only
+     when asked, since at the small sizes it lies over the despair bar and the panel the other selectors read. */
+  if (q.get("msgr")) {
+    document.querySelector(".application.drpg-panel").insertAdjacentHTML("afterend", `<div class="application drpg-messenger" style="left:calc(100vw - 460px);top:150px;width:420px;z-index:100"><header class="window-header"><i class="window-icon fa-solid fa-comments" inert></i><h1 class="window-title">Messenger - Kaede</h1><button class="header-control" data-action="close">x</button></header>
+  <section class="window-content"><div class="drpg-messenger-body"><div class="drpg-messenger-participants">Kaede, Monokuma</div><nav class="drpg-messenger-tabs"><button type="button" class="drpg-messenger-tab active" data-drpg-tab="chat">Chat</button><button type="button" class="drpg-messenger-tab" data-drpg-tab="note">Note</button></nav><div class="drpg-messenger-log"><div class="drpg-messenger-bubble gm"><div class="drpg-messenger-author">Monokuma</div><div class="drpg-messenger-text">The Library is open until night.</div></div></div><form class="drpg-messenger-input"><textarea name="text" rows="1" placeholder="Write"></textarea><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane" inert></i></button></form></div></section></div>`);
+  }
   /* `?mover=1` (E89 C5), or `__mover.start()`: the board redrawn on every frame with a bright block crossing it, as
      Foundry's ticker redraws its canvas under the windows, so every layer with a backdrop filter is repainted from a
      board that changed. Off by default. */
@@ -1608,4 +1617,6 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   chrome.dressChrome?.(win);
   const gmp = document.querySelector(".application.drpg-gm-panel-window");
   if (gmp) { m.dressWindow({ element: gmp }); chrome.dressChrome?.(gmp); }
+  const msgr = document.querySelector(".application.drpg-messenger");
+  if (msgr) { m.dressWindow({ element: msgr }); chrome.dressChrome?.(msgr); }
 </script></body></html>
