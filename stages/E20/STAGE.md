@@ -216,6 +216,6 @@ znane. README zostaw (moja reguła)."
   line. Fix round, red first.
 - C5's language choice stands (no module language stored: the requirements window follows Foundry's language).
 - The implementers' readings stand: 8 MB = 8 MiB; 8 s per picture; height compared only between pieces on the same
-  floors; automations go back to Daggerhearts defaults - and the window says plainly that the values from before the
+  floors; automations go back to Daggerheart's defaults - and the window says plainly that the values from before the
   module are not known. Fix round, red first.
 - README stays as it is (the owner's rule).
