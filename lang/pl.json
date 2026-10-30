@@ -3702,6 +3702,13 @@
       "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może otworzyć panel.",
       "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
+      "noActorNamed": "game.drpg.{fn} dostało „{value}”, a to nie jest identyfikator ani nazwa żadnego aktora, więc nie miało na kim działać: sprawdź pisownię.",
+      "actorNameShared": {
+        "one": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "few": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "many": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktorów, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi.",
+        "other": "game.drpg.{fn} dostało „{value}”, nazwę wspólną dla {n} aktora, i zadziałało na pierwszym z nich: przekaż mu identyfikator tego, o którego chodzi."
+      },
       "nextLabel": "Dalej",
       "nextGo": "Zrób to",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
@@ -4044,8 +4051,8 @@
       "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
       "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
       "newerSystemIntro": "Ten świat działa na {system} {found}. Danganronpa RPG był zweryfikowany na {verified}. Ładuje się mimo to i większość modułu tego nie zauważy - ale okno rzutu, karta postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak {system} jest zbudowany w środku, a nowsza wersja może to zmienić bez słowa. Jeśli coś działa źle, wspomnij o tym najpierw, zgłaszając problem.",
-      "newerSystemPatches": "Tych miejsc, które moduł zmienia w systemie, nie znaleziono tam, gdzie były, więc to, co robią, się nie dzieje:",
-      "newerSystemAllPatches": "Każde miejsce, które moduł zmienia w systemie, znalazło się tam, gdzie oczekiwał. To dobry znak, nie gwarancja.",
+      "newerSystemPatches": "Tych miejsc w systemie, które moduł zmienia albo na których polega, nie znaleziono tam, gdzie były, więc to, co moduł w nich robi, się nie dzieje:",
+      "newerSystemAllPatches": "Każde miejsce w systemie, które moduł zmienia albo na którym polega, znalazło się tam, gdzie oczekiwał. To dobry znak, nie gwarancja.",
       "newerSystemSilence": "Nie wspominaj o {found} więcej na tym komputerze",
       "newerSystemNotice": "{system} {found} jest nowszy niż {verified}, wersja, na której zweryfikowano Danganronpa RPG. Ładuje się, ale część funkcji może działać źle."
     },
@@ -4419,7 +4426,8 @@
         "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
         "gmUnblock": "Odblokuj mikrofon: {name}",
         "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
-        "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła."
+        "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła.",
+        "gmNoBlock": "Ta wersja Foundry nie ma uprawnienia do mikrofonu, więc stąd nie da się zablokować żadnego mikrofonu."
       },
       "panel": {
         "legend": "Głos",
@@ -4961,6 +4969,18 @@
         "secret": "Niektóre projekty są prywatne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.",
         "yours": "Co widzisz",
         "none": "Jeszcze nic - żaden projekt nie jest dla ciebie widoczny."
+      }
+    },
+    "Diagnose": {
+      "title": "Raport diagnostyczny",
+      "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
+      "copy": "Kopiuj raport",
+      "copied": "Raport skopiowany - wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "gmOnly": "Tylko dla MG - tę część pokazuje raport otwarty na ekranie MG.",
+      "silencesTitle": "Wyciszone przez ciebie ostrzeżenia",
+      "showAgain": "Pokaż znowu",
+      "silence": {
+        "systemWarning": "Ostrzeżenie, że Daggerheart {version} jest nowszy niż wersja, na której ten moduł sprawdzono."
       }
     },
     "Failures": {
@@ -6300,6 +6320,88 @@
       "refunded": "Odzyskujesz: {what}.",
       "refundLost": "Nie dało się zwrócić ci {what}, bo trwa zaciemnienie Despair. Powiedz GM-owi.",
       "noPrice": "Tego nie możesz zrobić."
+    },
+    "Contract": {
+      "notice": {
+        "one": "Danganronpa RPG: jedna rzecz w Foundry, Daggerheart lub innym module, na której polega, nie jest taka, jakiej ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "few": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie są takie, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "many": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie jest takich, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz.",
+        "other": "Danganronpa RPG: {n} rzeczy w Foundry, Daggerheart lub innych modułach, na których polega, nie jest takich, jakich ta wersja oczekuje. Dopóki się tego nie naprawi, stół dostaje zamiast tego - {rows}. Zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz."
+      },
+      "instead": {
+        "critical-rule": "krytyk zostaje przy liczbach samego Daggerheart",
+        "roll-dialog-context": "to, co wymusza Call, jest wpisywane do okna rzutu dopiero po jego otwarciu, jak dotąd",
+        "roll-draw": "rzuty są wykonywane w przeglądarce samego gracza, jak w 1.2.66",
+        "dice-random-uniform": "nic nie zastępuje generatora losowego Foundry",
+        "no-scrolling-text": "napisy nad tokenami unoszą się tak, jak rysuje je Foundry",
+        "window-close": "okna zamykają się bez wyjścia i dźwięku z modułu",
+        "window-await-transition": "okno bez trwającego przejścia czeka przed zamknięciem na własne opóźnienie Foundry",
+        "livekit-toasts": "własne powiadomienia avclient-livekit pokazują się obok powiadomień modułu",
+        "iso-refresh-state": "własne nadpisanie Isometric Perspective działa, gdy token jest edytowany",
+        "chat-notify": "zasłonięta karta może zapalić kartę Czatu na każdym ekranie",
+        "chat-content-visible": "gracz, który rzucał, nie przeczyta rzutu, który wylosował GM",
+        "sheet-render-guard": "karta postaci przerysowuje się przy każdej zmianie zasobu, tak jak rysuje ją Foundry",
+        "passages-move": "żaden token nie przejdzie tajnym przejściem w tej przeglądarce, a GM jest o tym informowany przy każdym wczytaniu",
+        "selection-drag-rectangle": "ramka przeciągania zostaje pomarańczowa, jak w Foundry",
+        "selection-controlled-colour": "ramki tokenów zostają pomarańczowe, jak w Foundry",
+        "countdown-row-menu": "menu wiersza projektu jest menu Daggerheart: widać Reveal i Hide, a Delete usuwa tylko odliczanie",
+        "door-controls": "każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry",
+        "actions-resource": "postać nie ma zasobu Akcji",
+        "sidebar-calls": "własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry",
+        "relay-guard": "prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu",
+        "region-included-in-level": "region, o którego piętro nie da się zapytać albo który odpowiada błędem, liczy się jako leżący na każdym piętrze",
+        "hook-duality-configured": "kość Free Critical nie jest ładowana",
+        "hook-roll-dialog-render": "okno rzutu otwarcia nie jest oznaczone jako okno otwarcia",
+        "hook-character-sheet-render": "karta postaci jest rysowana tak, jak rysuje ją Daggerheart",
+        "hook-character-sheet-close": "obserwator zamkniętej karty patrzy na odłączony element aż do przeładowania strony",
+        "hook-countdowns-render": "taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią",
+        "hook-dice-so-nice-ready": "wyglądy kości nie są porządkowane",
+        "hook-dice-so-nice-message": "Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a",
+        "hook-livekit-initialized": "pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu",
+        "hook-image-popout-header": "okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł",
+        "user-permission-broadcast-audio": "niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również",
+        "rtc-client-keys": "klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia",
+        "push-to-talk-key": "wiersz o mówieniu na przycisk nie podaje klawisza",
+        "av-config-menu": "przytrzymywane pola nie są wyszarzone w oknie; ich wartości i tak są przytrzymywane",
+        "chat-delete-options": "wpis w historii może zostać po wycofaniu jego karty albo zniknąć przy Wyczyść czat",
+        "notifications-lifetime": "historia trzyma własny czas, cokolwiek robią powiadomienia Foundry",
+        "tooltip-clean-html": "słowa podpowiedzi w historii mogą się różnić od tego, co pokazała podpowiedź Foundry",
+        "client-setting-sync-write": "ostatnich powiadomień sprzed przeładowania może brakować w historii",
+        "livekit-room-events": "kafel głosu i mówcy rozprawy nie pokazują, kto mówi, i nie śledzą, kto dołącza ani wychodzi",
+        "livekit-participant-user": "uczestnik, którego rozmowa nie potrafi nazwać, jest pominięty w kaflu głosu i wśród mówców rozprawy",
+        "livekit-attach-audio": "wyciszony tu mówca może znów być słyszany, gdy LiveKit podepnie jego dźwięk od nowa",
+        "voice-modes": "tryb, którego kafel nie zna, jest pokazywany jako otwarty mikrofon",
+        "livekit-connected-users": "stan pokoju jest czytany tylko z pokoju rozmowy",
+        "scene-controls-activate": "warstwa zostaje taka, jaka była",
+        "chat-notifications": "przy zamkniętym oknie powiadomienia czatu mogą się nie pokazać, a pole czatu może zostać ukryte",
+        "escape-dismiss-order": "Escape może zamknąć okna przed własnymi krokami Foundry albo nigdy",
+        "focus-chat": "klawisz czatu może ustawić kursor w polu ukrytego okna",
+        "image-popout-options": "okno zdjęcia może pokazywać tytuł i przyciski Foundry",
+        "sheet-anchors": "to, co moduł dodaje w miejscu, którego nie znajduje, nie jest tam rysowane, a reszta karty jest rysowana jak zwykle",
+        "foundry-rails": "pasek, którego nie znaleziono po jego identyfikatorze, zostaje tam, gdzie stawia go Foundry, poza oknem modułu",
+        "interface-theme": "okna nie noszą klasy motywu, a paski w środku przejmują motyw strony",
+        "camera-popout-id": "mówca z wyskakującej kamery nie jest znajdowany i liczy się jako niesłyszalny",
+        "mic-audio-anchor": "mówca, którego elementu nie znaleziono, liczy się jako niesłyszalny",
+        "held-flag": "flaga konta zostaje taka, jaka jest, i system czyta ją w tym stanie",
+        "held-permissions": "uprawnienia zostają takie, jakie ma świat",
+        "held-rtc": "dok nie jest przytrzymywany: każda przeglądarka zachowuje własny dok i okna",
+        "held-setting": "ustawienie nie jest przytrzymywane: zostaje takie, jakie ma każda przeglądarka",
+        "held-automation": "nic nie jest wyłączane: automaty Vulnerable i Defeated z Daggerheart działają obok automatów modułu",
+        "held-dice-look": "żaden wygląd nie jest przytrzymywany: kości każdego gracza zachowują własny wygląd"
+      },
+      "checksTitle": "Foundry, Daggerheart i moduły",
+      "checksAllOk": {
+        "one": "Jedyne sprawdzone miejsce jest takie, jakiego ta wersja oczekuje.",
+        "few": "Wszystkie {n} sprawdzone miejsca są takie, jakich ta wersja oczekuje.",
+        "many": "Wszystkich {n} sprawdzonych miejsc jest takich, jakich ta wersja oczekuje.",
+        "other": "Wszystkich {n} sprawdzonych miejsc jest takich, jakich ta wersja oczekuje."
+      },
+      "checksUnknown": {
+        "one": "Jednego miejsca nie dało się tu sprawdzić, więc nie wiadomo, czy działa. Kliknij ten wiersz, by zobaczyć które.",
+        "few": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę.",
+        "many": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę.",
+        "other": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę."
+      }
     },
     "Relay": {
       "refused": "Odrzucono zmianę Daggerhearta od {name}: {what}. Nic nie zostało zmienione.",

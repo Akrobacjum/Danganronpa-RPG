@@ -137,6 +137,7 @@ Raport **Sprawdź pokoje na tej scenie** raz, nad listą, mówi, co znaczy każd
 - **Sceny i pokoje**: jedna linia na scenę z pokojami - ptaszek, gdy jest gotowa, krzyżyk, gdy nie jest - z jej wspólnymi pokojami, częścią mapy, która nie należy do żadnego pokoju (własna powierzchnia sceny, bez marginesu), regionami, które nie są pokojami, i błędami jej ostatniej kontroli pokoi.
 - **Zdjęcia pokoi**, tylko gdy któreś wymaga słowa: zdjęcia, które się nie wczytują (wybierz plik jeszcze raz w Ustawieniach pokoi), zdjęcia ponad 4096 px na boku albo ponad 8 MB (`ROOM_IMAGE_LIMITS`), na które czeka każdy gracz, i zdjęcia, których rozmiaru pliku serwer nie podał.
 - **Głos**, tylko gdy któreś zachodzi: Audio/Wideo jest w tym świecie wyłączone, więc nie ma kafla głosu; świat ma ustawione samo wideo, więc nikt nie wysyła dźwięku; świat wysyła wideo, którego nikt nie ogląda.
+- **Foundry, Daggerheart i moduły**: jedna linia, gdy każde miejsce, na którym moduł polega w tych programach, jest takie, jakiego ta wersja oczekuje; krzyżyk przy każdym, które nie jest, z tym, co stół dostaje zamiast tego (lista jest w sekcji 20, "Umowa z Foundry, Daggerheart i modułami"). Miejsca, których nie dało się tu sprawdzić, to jedna policzona linia z listą schowaną pod nią; nie wiadomo, czy działają: niesprawdzone to nigdy zaliczone.
 - **Audyt anonimowości**: arkusze należące do każdego gracza, które każdy gracz czyta w całości, pod *napraw te*, z przyciskiem **Ustaw je na Obserwatora** (wtedy każdy gracz może je otworzyć, a ich sekrety są ukryte); arkusze na poziomie Obserwatora są w porządku i ich nie wymienia; arkusze zamknięte dla pozostałych graczy wymienia dla twojej wiadomości, bo ciała takiej postaci nikt nie przeszuka.
 
 **Liczby tworzenia postaci** (`config.mjs`):
@@ -1049,6 +1050,8 @@ Nikomu innemu nie mówi się kto: naciśnięcie gracza prosi przeglądarkę gł�
 
 Wszystko jest pod `game.drpg` w konsoli przeglądarki; argumenty aktora przyjmują dokument, id albo nazwę.
 
+**Jeden raport dla tego, kto ci pomaga.** `game.drpg.diagnose()` otwiera okno ze wszystkim, co ta przeglądarka potrafi sprawdzić, jako jeden tekst, i zwraca ten sam tekst, więc makro też go ma. Przycisk **Kopiuj raport** w oknie wkłada go do schowka, żeby wkleić tam, gdzie ktoś ci pomaga. Tekst jest po angielsku, jak konsola, a jego części idą w tej kolejności: The contract with Foundry, Daggerheart and the modules; Data migration; Failures since this page loaded; Silenced warnings; Dice; Despair; Styles; Windows; Truth Bullets; GM stores; Voice; Characters; Scenes; Fog; Room visibility; Token frames; Windows that keep themselves true; Music; Sound effects; Private cards; Traps. W przeglądarce gracza części czytające to, co wolno wiedzieć tylko GM-om (Despair, Truth Bullets, GM stores, Characters, Scenes, Room visibility, Music, Traps), są wymienione i mówią *GM only*; nic z tego, co należy do GM-ów, nie trafia do raportu gracza. Okno wylicza też ostrzeżenia, które ta przeglądarka wyciszyła, każde po swoim id z przyciskiem **Pokaż znowu**; moduł trzyma jedno: ostrzeżenie, że Daggerheart jest nowszy od wersji, na której moduł testowano, wyciszone dla tej wersji. Każde wywołanie `diagnose...()` poniżej to jedna część tego raportu osobno.
+
 **Zestaw testów regresji.**
 
 | Wywołanie | Co robi |
@@ -1097,6 +1100,88 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `publicRoll(formula, { flavor })` | jedyny rzut, który czytają wszyscy, gdy rzuty są wymuszone jako prywatne - remis w głosowaniu, loteria Monokumy; tylko GM, ta sama droga co kafelek **Rzut publiczny** w panelu (odczytane z kodu; od 1.2.69) |
 | panelowy **Dziennik debugowania** (Diagnostyka) | jego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu |
 
+**Umowa z Foundry, Daggerheart i modułami.** Moduł sięga w kod, który nie jest jego - Foundry, Daggerheart, innych modułów - w wielu miejscach i każde jest wierszem jednego rejestru (`scripts/patches.mjs`; `diagnosePatches()` go wylicza). Przy każdym wczytaniu przeglądarka głównego GMa czyta każdy wiersz: *ok*, *nie powiodło się* albo *nieznane*. Nieznane znaczy, że nic tu nie dało odpowiedzi - ostrzeżenie, nigdy zaliczenie. Gdy wiersz zawodzi, moduł robi to, co jego plik zawsze robił bez tego miejsca, a ty dostajesz jedno powiadomienie, które zostaje, dopóki go nie zamkniesz, z każdym takim miejscem, jego plikiem i funkcją oraz tym, co stół dostaje zamiast tego; Kontrola przed sezonem (sekcja 2) i raport pokazują te same linie. Nic nie jest zapisywane do świata. Wiersze strzegące zaufania (strażnik przekaźnika GMa Daggerheart, losowanie rzutu, to, co gracz może przeczytać o rzucie) zachowują własne słowa i własne zastępstwa, a wiersz, który zawiódł, nigdy nie staje się luźniejszy. Jak to naprawić: zaktualizuj Danganronpa RPG albo napisz autorowi, jakich wersji Foundry i Daggerheart używasz, i dołącz powyższy raport. Niektóre miejsca da się odczytać tylko przy stole (czas życia powiadomienia, wyciszenie i głośność klienta głosu); zostają *nieznane*, dopóki ktoś ich nie sprawdzi. Co stół dostaje zamiast tego, wiersz po wierszu (ustawienie albo flaga, które moduł przytrzymuje, ma wiersz o nazwie `held-` z jego id; jego zdanie jest zdaniem jego rodzaju: `held-flag`, `held-permissions`, `held-rtc` albo `held-setting`, a dwa, które mają własne, są wymienione):
+
+| Wiersz | Co stół dostaje zamiast tego |
+|---|---|
+| `critical-rule` | krytyk zostaje przy liczbach samego Daggerheart |
+| `roll-dialog-context` | to, co wymusza Call, jest wpisywane do okna rzutu dopiero po jego otwarciu, jak dotąd |
+| `roll-draw` | rzuty są wykonywane w przeglądarce samego gracza, jak w 1.2.66 |
+| `dice-random-uniform` | nic nie zastępuje generatora losowego Foundry |
+| `no-scrolling-text` | napisy nad tokenami unoszą się tak, jak rysuje je Foundry |
+| `window-close` | okna zamykają się bez wyjścia i dźwięku z modułu |
+| `window-await-transition` | okno bez trwającego przejścia czeka przed zamknięciem na własne opóźnienie Foundry |
+| `livekit-toasts` | własne powiadomienia avclient-livekit pokazują się obok powiadomień modułu |
+| `iso-refresh-state` | własne nadpisanie Isometric Perspective działa, gdy token jest edytowany |
+| `chat-notify` | zasłonięta karta może zapalić kartę Czatu na każdym ekranie |
+| `chat-content-visible` | gracz, który rzucał, nie przeczyta rzutu, który wylosował GM |
+| `sheet-render-guard` | karta postaci przerysowuje się przy każdej zmianie zasobu, tak jak rysuje ją Foundry |
+| `passages-move` | żaden token nie przejdzie tajnym przejściem w tej przeglądarce, a GM jest o tym informowany przy każdym wczytaniu |
+| `selection-drag-rectangle` | ramka przeciągania zostaje pomarańczowa, jak w Foundry |
+| `selection-controlled-colour` | ramki tokenów zostają pomarańczowe, jak w Foundry |
+| `countdown-row-menu` | menu wiersza projektu jest menu Daggerheart: widać Reveal i Hide, a Delete usuwa tylko odliczanie |
+| `door-controls` | każdy znacznik drzwi jest pokazywany tak, jak pokazuje go Foundry |
+| `actions-resource` | postać nie ma zasobu Akcji |
+| `sidebar-calls` | własne wywołania Foundry ani nie pokazują, ani nie ustawiają okna narzędzi Foundry |
+| `relay-guard` | prośby z Daggerheart gracza, których moduł nie przejrzał, są odrzucane w przeglądarce GM-a, a GM-owie dostają o tym wiadomość raz na wersję; gdzie strażnik nie może stanąć wcale, przekaźnik nie jest strzeżony, a GM-owie są o tym informowani przy każdym wczytaniu |
+| `region-included-in-level` | region, o którego piętro nie da się zapytać albo który odpowiada błędem, liczy się jako leżący na każdym piętrze |
+| `hook-duality-configured` | kość Free Critical nie jest ładowana |
+| `hook-roll-dialog-render` | okno rzutu otwarcia nie jest oznaczone jako okno otwarcia |
+| `hook-character-sheet-render` | karta postaci jest rysowana tak, jak rysuje ją Daggerheart |
+| `hook-character-sheet-close` | obserwator zamkniętej karty patrzy na odłączony element aż do przeładowania strony |
+| `hook-countdowns-render` | taca odliczań jest rysowana tak, jak rysuje ją Daggerheart, a HUD nie jest przerysowywany razem z nią |
+| `hook-dice-so-nice-ready` | wyglądy kości nie są porządkowane |
+| `hook-dice-so-nice-message` | Dice So Nice rzuca taki rzut na każdym ekranie, w kolorach GM-a |
+| `hook-livekit-initialized` | pokoje głosowe, kafel głosu i mówcy rozprawy nie podążają za klientem głosu |
+| `hook-image-popout-header` | okno zdjęcia pokoju pokazuje przycisk udostępniania Foundry i każdy, który doda moduł |
+| `user-permission-broadcast-audio` | niczyj mikrofon nie jest blokowany: przycisk GM-a mówi dlaczego, rozprawa również |
+| `rtc-client-keys` | klucz, którego Foundry już nie trzyma, jest czytany jako domyślny (bez wyciszenia, pełna głośność, widoczny), a zapis do niego niczego nie zmienia |
+| `push-to-talk-key` | wiersz o mówieniu na przycisk nie podaje klawisza |
+| `av-config-menu` | przytrzymywane pola nie są wyszarzone w oknie; ich wartości i tak są przytrzymywane |
+| `chat-delete-options` | wpis w historii może zostać po wycofaniu jego karty albo zniknąć przy Wyczyść czat |
+| `notifications-lifetime` | historia trzyma własny czas, cokolwiek robią powiadomienia Foundry |
+| `tooltip-clean-html` | słowa podpowiedzi w historii mogą się różnić od tego, co pokazała podpowiedź Foundry |
+| `client-setting-sync-write` | ostatnich powiadomień sprzed przeładowania może brakować w historii |
+| `livekit-room-events` | kafel głosu i mówcy rozprawy nie pokazują, kto mówi, i nie śledzą, kto dołącza ani wychodzi |
+| `livekit-participant-user` | uczestnik, którego rozmowa nie potrafi nazwać, jest pominięty w kaflu głosu i wśród mówców rozprawy |
+| `livekit-attach-audio` | wyciszony tu mówca może znów być słyszany, gdy LiveKit podepnie jego dźwięk od nowa |
+| `voice-modes` | tryb, którego kafel nie zna, jest pokazywany jako otwarty mikrofon |
+| `livekit-connected-users` | stan pokoju jest czytany tylko z pokoju rozmowy |
+| `scene-controls-activate` | warstwa zostaje taka, jaka była |
+| `chat-notifications` | przy zamkniętym oknie powiadomienia czatu mogą się nie pokazać, a pole czatu może zostać ukryte |
+| `escape-dismiss-order` | Escape może zamknąć okna przed własnymi krokami Foundry albo nigdy |
+| `focus-chat` | klawisz czatu może ustawić kursor w polu ukrytego okna |
+| `image-popout-options` | okno zdjęcia może pokazywać tytuł i przyciski Foundry |
+| `sheet-anchors` | to, co moduł dodaje w miejscu, którego nie znajduje, nie jest tam rysowane, a reszta karty jest rysowana jak zwykle |
+| `foundry-rails` | pasek, którego nie znaleziono po jego identyfikatorze, zostaje tam, gdzie stawia go Foundry, poza oknem modułu |
+| `interface-theme` | okna nie noszą klasy motywu, a paski w środku przejmują motyw strony |
+| `camera-popout-id` | mówca z wyskakującej kamery nie jest znajdowany i liczy się jako niesłyszalny |
+| `mic-audio-anchor` | mówca, którego elementu nie znaleziono, liczy się jako niesłyszalny |
+| `held-flag` | flaga konta zostaje taka, jaka jest, i system czyta ją w tym stanie |
+| `held-permissions` | uprawnienia zostają takie, jakie ma świat |
+| `held-rtc` | dok nie jest przytrzymywany: każda przeglądarka zachowuje własny dok i okna |
+| `held-setting` | ustawienie nie jest przytrzymywane: zostaje takie, jakie ma każda przeglądarka |
+| `held-automation` | nic nie jest wyłączane: automaty Vulnerable i Defeated z Daggerheart działają obok automatów modułu |
+| `held-dice-look` | żaden wygląd nie jest przytrzymywany: kości każdego gracza zachowują własny wygląd |
+
+**Migracja danych.** Działa sama przy wczytaniu, w przeglądarce głównego GMa, ilekroć zmieniła się zainstalowana wersja, a na świecie już aktualnym nic nie robi. Ręcznie to `game.drpg.migrate()`; `game.drpg.migrate({ force: true })` uruchamia ją niezależnie od tego, czy wersja się zmieniła - to naprawa, gdy dane świata ewidentnie nie są aktualne. Uruchomiona drugi raz niczego nie zmienia. `game.drpg.migrationStatus()` mówi, co by zrobiła, i niczego nie zapisuje. `migrate1_2_0` to jej nazwa z aktualizacji 1.2.0: ta sama funkcja, zostaje aliasem co najmniej do 1.3.1 - wołaj `migrate()`.
+
+**API makr.** Wszystko pod `game.drpg` to to, co wołają makra; argumenty aktora przyjmują dokument, id albo nazwę. Nazwa, która nie jest ani id, ani nazwą żadnego aktora, mówi to teraz ostrzeżeniem z nazwą wywołania i słowem, które podałeś, zamiast nie robić nic; nazwa wspólna dwóm aktorom też ostrzega i działa na pierwszym, jak dotąd. `tools/api-surface.json` w repozytorium modułu wylicza każdy klucz `game.drpg` z jego rodzajem, a test trzyma żywy obiekt tego pliku: klucz nie znika z `game.drpg`, jeśli nie został co najmniej jedno wydanie pod starą nazwą jako alias. Aliasy dziś (plik jest listą; książka za nim idzie):
+
+| Stara nazwa | Teraz | Zostaje do |
+|---|---|---|
+| `migrate1_2_0` | `migrate` | 1.3.1 |
+| `advanceFloorNow` | `skipStep` | bez terminu |
+| `extendFloor` | `adjustTime` | bez terminu |
+| `endFloor` | `endMode` | bez terminu |
+| `exportLedger` | `backupCase` | bez terminu |
+| `importLedger` | `restoreCase` | bez terminu |
+| `isSilenced` | `isCrimeSilenced` | bez terminu |
+| `musicDialog` | `soundDialog` | bez terminu |
+| `currentRoom` | `roomOfActor` | bez terminu |
+
+*Bez terminu* znaczy, że moduł nie wyznaczył wydania, w którym stara nazwa zniknie; zostaje, dopóki jakieś wydanie nie powie inaczej.
+
 **Gdy stół laguje: co zmierzyć i co odesłać.** Zmierz, zanim cokolwiek zmienisz, na komputerze GMa i na najsłabszym komputerze gracza, i odeślij jeden blok z każdego komputera:
 
 1. Zanotuj przeglądarkę i to, czy rysuje na karcie graficznej (`chrome://gpu`, "Canvas: Hardware accelerated"), rozmiar ekranu i powiększenie strony, *Performance Mode* i *Maximum Framerate* Foundry (ustawienia rdzenia), motyw, ilu graczy jest połączonych i ile tokenów i Remnantów stoi na scenie. DevTools -> Rendering -> "Frame Rendering Stats" pokazuje liczbę klatek na żywo.
@@ -1132,6 +1217,7 @@ Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurde
 | *Zmiana gracza na jego karcie wróciła do poprzedniej wartości albo pyta o nią karta.* | Nic, o czym wie moduł, jej nie pokrywało (rozdział 6.3); `game.drpg.sheetWrites()` pokazuje, co i dlaczego. Jeśli to była twoja decyzja, ustaw wartość sam: zmiany GM-a nic nie ocenia. |
 | *Drzwi zostają zamknięte po resecie sezonu.* | Reset przywraca kolumnę "zaczyna zamknięte" z zakładki Drzwi. |
 | *Po aktualizacji na ekranie zostaje "migracja danych zatrzymała się w pół drogi".* | Krok, który przenosi dane świata do magazynu GMów, nie mógł ich odczytać z powrotem i zostawił świat bez zmian (sekcja 1). Szczegóły są w konsoli; przy następnym wczytaniu świata próba się powtarza, w przeglądarce głównego GMa. |
+| *Powiadomienie mówi, że coś, na czym Danganronpa RPG polega w Foundry, Daggerheart lub innym module, nie jest takie, jakiego ta wersja oczekuje.* | Umowa powyżej: powiadomienie wymienia każde miejsce i to, co stół dostaje zamiast tego, i nic więcej nie przepada. Zaktualizuj moduł albo wyślij autorowi raport (`game.drpg.diagnose()`, potem **Kopiuj raport**). |
 | *Stół nie widzi śmierci.* | Ofiarę trwającego incydentu GMowie trzymają, dopóki ciało nie zostanie znalezione (sekcja 13.4). Ustaw ją na *Nie żyje* w oknie Uczniowie, żeby to ujawnić. |
 
 ---

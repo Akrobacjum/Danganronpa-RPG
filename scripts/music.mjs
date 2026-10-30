@@ -1765,7 +1765,7 @@ export function musicStatus() {
  * to it. This prints all four at once rather than leaving it to be guessed at -
  * the same job `diagnoseVoice` does for the other subsystem that fails quietly.
  */
-export function diagnoseMusic() {
+export function diagnoseMusic({ toChat = true } = {}) {
     const clock = getClock();
     const map = musicMap();
     const winner = currentState();
@@ -1820,8 +1820,9 @@ export function diagnoseMusic() {
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Music diagnostics\n${text}`);
-    // The words to this console's own store, not a document every browser holds (E06 C11).
-    gmReport(game.i18n.localize("DRPG.Diagnostics.title.music"),
+    // The words to this console's own store, not a document every browser holds (E06 C11). Not from the one
+    // report (E52 C4), which shows them in its own window.
+    if (toChat) gmReport(game.i18n.localize("DRPG.Diagnostics.title.music"),
         `<pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`);
     return text;
 }

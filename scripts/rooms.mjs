@@ -429,8 +429,39 @@ export function regionPatches(scene, changes) {
 export function onLevel(region, level) {
     if (level === null || level === undefined || !region?.levels?.size) return true;
     const id = level?.id ?? level;
-    if (typeof region.includedInLevel === "function") return region.includedInLevel(id);
+    if (typeof region.includedInLevel === "function") {
+        // E52 C2 (E52-08): a Foundry whose `includedInLevel` throws threw out of every reader of a floor, the
+        // fog's included. Such a region is on every floor, as one that cannot be asked; said once a load, and
+        // the contract's Levels row reads it (`levelFailure`).
+        try {
+            return region.includedInLevel(id);
+        } catch (err) {
+            if (!levelThrew) {
+                levelThrew = { message: String(err?.message ?? err) };
+                console.warn(`${MODULE_ID} | Foundry's region includedInLevel threw (${levelThrew.message}): such a region is read as on every floor.`);
+            }
+            return true;
+        }
+    }
     return region.levels.has(id);
+}
+
+/* The first error `includedInLevel` threw this load, or null. */
+let levelThrew = null;
+
+/** What `onLevel` met this load: `{ message }` once `includedInLevel` threw, else null. For patches.mjs's Levels row. */
+export function levelFailure() {
+    return levelThrew ? { ...levelThrew } : null;
+}
+
+/**
+ * Stand `value` in for this load's Levels failure until the function answered is called, which puts the live one
+ * back. For R1544, which makes `includedInLevel` throw and must not leave the load's row failed behind it.
+ */
+export function standInLevelFailure(value) {
+    const live = levelThrew;
+    levelThrew = value;
+    return () => { levelThrew = live; };
 }
 
 /**

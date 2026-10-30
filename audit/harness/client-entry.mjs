@@ -409,6 +409,14 @@ hooks.once("ready", () => {
  * the world never stored are not read here (LIVE-E79-11).
  */
 settingDefs.set("core.permissions", { name: "Permissions", scope: "world", config: false, type: Object, default: {} });
+/*
+ * FOUNDRY'S A/V CLIENT SETTING, REGISTERED AS FOUNDRY DOES (E52 C3, 30.10.2026). The contract register (patches.mjs)
+ * reads each entry enforced.mjs holds as registered or not, and Foundry registers `core.rtcClientSettings` itself; the
+ * harness's A/V settings live on `game.webrtc.settings`, as before. Its scope and `config` are this harness's guess.
+ * avclient-livekit's `useExternalAV` stays registered by the LiveKit stand-in alone (lib/livekit.mjs), which the
+ * contract's row reads only while this world's voice is on.
+ */
+settingDefs.set("core.rtcClientSettings", { name: "Client RTC Settings", scope: "client", config: false, type: Object, default: {} });
 
 const settingsApi = {
     register(ns, key, def) { settingDefs.set(`${ns}.${key}`, def); },
@@ -647,7 +655,13 @@ function installDualityRoll(DualityRoll, diceTypes) {
     DualityRoll.buildEvaluate = harnessEvaluate(DualityRoll.buildEvaluate);
     DualityRoll.toMessage = harnessMessage;
     game.system.registeredTriggers = { runTrigger: async () => [] };
-    game.system.api.applications = { ui: { DhCountdowns: { updateCountdowns: async () => {} } } };
+    /* The countdown tray's class, as far as the module reaches into it: the static `updateCountdowns` a roll ticks, and
+       the row menu's builder projects-ui.mjs wraps (`_getCountdownContextOptions`; the contract register's
+       "countdown-row-menu", E52 C1). Its menu has no entries here: the harness draws no tray. */
+    game.system.api.applications = { ui: { DhCountdowns: class DhCountdowns {
+        static async updateCountdowns() {}
+        _getCountdownContextOptions() { return []; }
+    } } };
     Object.assign(globalThis.CONFIG.DH.GENERAL, {
         rollTypes: { spellcast: { id: "spellcast" } },
         countdownProgressionTypes: { actionRoll: { id: "actionRoll" }, fear: { id: "fear" } }
@@ -1466,7 +1480,11 @@ const CONST = {
        here until the module holds it - never less than a Foundry whose default stands higher. */
     USER_PERMISSIONS: {
         FILES_BROWSE: { label: "PERMISSION.FilesBrowse", defaultRole: 2 },
-        FILES_UPLOAD: { label: "PERMISSION.FilesUpload", defaultRole: 2 }
+        FILES_UPLOAD: { label: "PERMISSION.FilesUpload", defaultRole: 2 },
+        /* The microphone permission both blocks write on a user (voice-tile.mjs `toggleBlock`, voice.mjs `blockForTrial`),
+           which now write nothing on a Foundry without it (E52 C3, E52-13). Its default role as an older Foundry's
+           constants state it, from memory: v14's is not read here. */
+        BROADCAST_AUDIO: { label: "PERMISSION.BroadcastAudio", defaultRole: 2 }
     },
     DOCUMENT_OWNERSHIP_LEVELS: { INHERIT: -1, NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },

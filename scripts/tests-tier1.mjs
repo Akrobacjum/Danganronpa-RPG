@@ -27506,6 +27506,1116 @@ const INVARIANTS = [
         }), "a slow room picture is called missing, or all are probed at once [missing | not checked in time | large (pixels, bytes) | size unknown | "
             + "the most HEAD requests at once | the limit | Pre-season's line for the late ones]");
     }],
+    ["R1538 - the contract register: every row whole, of a kind from the list, the thirteen overrides kept, and diagnosePatches reading it", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S17-50, E52-01. One register of every reach into Foundry's, Daggerheart's
+         * or another module's code, each row `{ id, kind, target, owner, file, why, when, probe, fallback }`:
+         * the kinds are Q-3's seven, the fallback says what the table gets when the probe fails, and the
+         * thirteen rows of 1.2.90 stay (R130, R217, the passages tests and scenario 76 find them). The header
+         * named a count ("Thirteen places"; "Eight" in S01-50's day), wrong by the next override. Red before C1:
+         * no KINDS, no id, kind or fallback on any row.
+         */
+        const mod = await import("./patches.mjs");
+        const { PATCHES, KINDS, diagnosePatches } = mod;
+        ok(Array.isArray(KINDS), "patches.mjs exports no list of the kinds a row may be");
+        equal(JSON.stringify(KINDS), JSON.stringify(["override", "hook", "setting-entry", "flag", "socket", "anchor", "call"]),
+            "the kinds of a row are not Q-3's seven");
+        const text = value => typeof value === "string" && value.trim().length > 0;
+        const broken = PATCHES.filter(row => !(text(row.id) && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.id) && KINDS?.includes(row.kind)
+            && ["target", "owner", "file", "why", "when", "fallback"].every(key => text(row[key])) && typeof row.probe === "function"))
+            .map(row => row.id ?? row.target);
+        equal(JSON.stringify(broken), "[]", "a row of the register is not whole (an id of lower-case words, a kind from the list, target, owner, file, why, when, fallback, a probe)");
+        const ids = PATCHES.map(row => row.id);
+        equal(new Set(ids).size, ids.length, "two rows of the register share an id");
+        const KEPT = ["DualityRoll.addDualityResourceUpdates", "D20RollDialog.prototype._prepareContext", "DualityRoll.build", "CONFIG.Dice.randomUniform",
+            "InterfaceCanvasGroup.prototype.createScrollingText", "ApplicationV2.prototype.close", "ApplicationV2.prototype._awaitTransition",
+            "ui.notifications.info and .warn", "Token _refreshState (Isometric Perspective's own override)", "the chat log's notify",
+            "ChatMessage.prototype.isContentVisible", "render, as an own property on each open character sheet", "CONFIG.Canvas.polygonBackends.move._identifyEdges"];
+        equal(JSON.stringify(KEPT.filter(target => !PATCHES.some(row => row.target === target && row.kind === "override"))), "[]",
+            "an override row of 1.2.90 left the register, or is no longer an override");
+        const src = (await moduleSources()).get("patches.mjs") ?? "";
+        const header = bodyOf(src, "/**", { until: "*/" });
+        ok(!/\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty|thirty|\d+)\s+(?:places|rows|overrides)\b/i.test(header),
+            "patches.mjs's header names a fixed count of places, which the next row makes wrong");
+        const rows = diagnosePatches();
+        equal(JSON.stringify(rows.map(r => [r.id, r.kind, typeof r.fallback === "string" && r.fallback.length > 0])),
+            JSON.stringify(PATCHES.map(r => [r.id, r.kind, true])), "diagnosePatches does not answer one row per register row, with its id, kind and fallback");
+    }],
+
+    ["R1539 - the selection's drag rectangle and colour, the countdown tray's row menu and the door controls are rows, each ours on the suite's world", async () => {
+        /*
+         * E52 C1, 30.10.2026; audit S01-50, E52-02. Four overrides the register lacked: selection.mjs's
+         * `ControlsLayer#drawSelect` and `CONFIG.Canvas.dispositionColors.CONTROLLED`, projects-ui.mjs's
+         * `_getCountdownContextOptions` (its mark is now `Symbol.for`, so a probe can read it), fog.mjs's
+         * `CONFIG.Canvas.doorControlClass`. Each probe asked on this world must find the target and the
+         * module's own there. The colour is written first by the module's own `applySelectionColour`, so a
+         * theme or an hour another test left mid-change does not decide it. selection.mjs said Foundry's
+         * orange came back on "a missing reading"; `hourColour` always answers (own-ring.mjs's fallback), so
+         * the controlled border never took it there and that `?? FOUNDRY_CONTROLLED` is gone. Red before C1:
+         * none of the four rows.
+         */
+        const { PATCHES } = await import("./patches.mjs");
+        const { applySelectionColour } = await import("./selection.mjs");
+        const { hourColour } = await import("./own-ring.mjs");
+        applySelectionColour();
+        const TARGETS = ["ControlsLayer.prototype.drawSelect", "CONFIG.Canvas.dispositionColors.CONTROLLED",
+            "DhCountdowns.prototype._getCountdownContextOptions", "CONFIG.Canvas.doorControlClass"];
+        const read = target => {
+            const row = PATCHES.find(r => r.target === target && r.kind === "override");
+            if (!row) return "no row";
+            try {
+                const { present, ours } = row.probe();
+                return [present, ours];
+            } catch (err) {
+                return `throws: ${err?.message ?? err}`;
+            }
+        };
+        equal(JSON.stringify(TARGETS.map(read)), JSON.stringify(TARGETS.map(() => [true, true])),
+            `a row is missing, or its probe does not find the target and the module's own there [${TARGETS.join(" | ")}]`);
+        const src = (await moduleSources()).get("selection.mjs") ?? "";
+        equal(typeof hourColour(), "number", "the interface colour has no answer here, so Foundry's orange would be a live fallback after all");
+        ok(!fnSource(src, "applySelectionColour").includes("FOUNDRY_CONTROLLED"), "the controlled border still falls back to Foundry's orange on a reading that always answers");
+        ok(/door/i.test(bodyOf(src, "/**", { until: "*/" })), "selection.mjs's header does not say which of Foundry's icons keep Foundry's colour");
+    }],
+    ["R1540 - the contract runs at ready on the primary GM, after the requirements, once a load; each row answers ok, failed or unknown, a probe that throws is failed with its message, and a row that cannot be read is never ok", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-04. Until C2 the register was a table `diagnosePatches()` printed
+         * when somebody asked: a Daggerheart that moved a target was found by the feature that stopped. Now the
+         * primary GM's ready runs it (`announceContract`, after `requirementsMet`, so a world that does not start
+         * is not probed) and each row is one of three: ok, failed, unknown. The plan's risk: a probe reads
+         * presence, and "cannot tell" is a warning, never green. Stand-in rows here, so the suite's own world
+         * decides nothing (E52-T1 reads that one); a stand-in run does not replace the load's state, which the
+         * report reads. Red before C2: no runContract.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.runContract === "function" && typeof mod.announceContract === "function" && typeof mod.contractState === "function",
+            "patches.mjs has no runContract, announceContract or contractState");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R1540 ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1540", when: "always", fallback: `R1540 ${id}: what the table gets`, probe, ...extra
+        });
+        const rows = [
+            row("ours", () => ({ present: true, ours: true })),
+            row("gone", () => ({ present: false, ours: null })),
+            row("replaced", () => ({ present: true, ours: false })),
+            row("throws", () => { throw new Error("R1540 the probe broke"); }),
+            row("cannot-tell", () => ({ present: null, ours: null })),
+            row("unmarked", () => ({ present: true, ours: null })),
+            row("presence-only", () => ({ present: true, ours: null }), { marked: false }),
+            row("hook", () => ({ present: true, ours: null }), { kind: "hook" }),
+            row("call", () => ({ present: true, ours: null }), { kind: "call" }),
+            row("not-in-use", () => ({ present: false, ours: false }), { inUse: () => false }),
+            row("in-use-throws", () => ({ present: true, ours: true }), { inUse: () => { throw new Error("R1540 inUse broke"); } }),
+            row("says-failed", () => ({ present: true, ours: true, state: "failed", note: "R1540 its own state" }))
+        ];
+        const before = stableJson(mod.contractState());
+        const contract = mod.runContract({ rows });
+        equal(stableJson(contract.rows.map(r => [r.id, r.state])), stableJson([
+            ["ours", "ok"], ["gone", "failed"], ["replaced", "failed"], ["throws", "failed"], ["cannot-tell", "unknown"], ["unmarked", "unknown"],
+            ["presence-only", "ok"], ["hook", "unknown"], ["call", "ok"], ["not-in-use", "ok"], ["in-use-throws", "failed"], ["says-failed", "failed"]
+        ]), "a row's state is not read as the contract says [present and ours | gone | another function there | a probe that throws | "
+            + "cannot tell | no mark to read | presence is the contract | a hook not seen firing | a call present | not in use here | "
+            + "the in-use test throws | the probe's own state]");
+        equal(stableJson(["throws", "in-use-throws", "says-failed"].map(id => contract.rows.find(r => r.id === id)?.note)),
+            stableJson(["R1540 the probe broke", "R1540 inUse broke", "R1540 its own state"]), "a failed row does not carry the reason it failed");
+        equal(stableJson([contract.ok.length, contract.failed.length, contract.unknown.length]), stableJson([4, 5, 3]),
+            "the run's ok, failed and unknown lists do not count its rows");
+        equal(stableJson(mod.contractState()), before, "a run on rows handed in replaced this load's contract, which the report reads");
+
+        // Unknown is a warning: one console line naming each such row, and no notice (a notice is a failed row's).
+        const notices = [];
+        const log = watchLog();
+        try {
+            mod.announceContract({ rows: rows.filter(r => ["ours", "cannot-tell", "hook"].includes(r.id)), told: { done: false },
+                notify: text => notices.push(text) });
+        } finally {
+            log.stop();
+        }
+        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([1, 1, 0]),
+            "a row that cannot be read is not one warning line each, or it raised a notice [cannot tell | hook | notices]");
+
+        // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
+        const src = (await moduleSources()).get("module.mjs") ?? "";
+        const ready = bodyOf(src, "Hooks.once(\"ready\", () => {", { until: "\n});" });
+        const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceContract(");
+        ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
+        ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
+    }],
+
+    ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
+         * (D24 read as Q-6: the register only reads); what C2 adds is that the GMs are told which, once a load,
+         * and that Pre-season's checks say the same before a session. `told` and `notify` are handed in, so the
+         * load's own notice is neither spent nor shown. Each row names the function of its file that makes the
+         * reach (`symbol`, one per file of `file`, in order), held here to the file's source. Red before C2:
+         * no announceContract, no symbol on any row.
+         */
+        const mod = await import("./patches.mjs");
+        ok(typeof mod.announceContract === "function" && typeof mod.runContract === "function", "patches.mjs has no announceContract or runContract");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R1541 target ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1541", when: "always", fallback: `R1541 fallback ${id}`, probe, ...extra
+        });
+        const rows = [
+            row("gone", () => ({ present: false, ours: null })),
+            row("two", () => { throw new Error("R1541 broke"); }, { file: "forced-roll.mjs, roll-draw.mjs", symbol: "loadDie, rollerCopyOf" }),
+            row("fine", () => ({ present: true, ours: true }))
+        ];
+        const notices = [];
+        const told = { done: false };
+        const notify = (text, options) => notices.push([String(text), options ?? null]);
+        mod.announceContract({ rows, told, notify });
+        mod.announceContract({ rows, told, notify });
+        equal(notices.length, 1, "a failed row was told more than once in one load, or not at all");
+        const [text, options] = notices[0] ?? ["", null];
+        ok(options?.permanent === true, "the notice of a failed row fades by itself");
+        equal(stableJson(["R1541 target gone", "fog.mjs:registerDoorControls", "R1541 fallback gone", "R1541 target two",
+            "forced-roll.mjs:loadDie", "roll-draw.mjs:rollerCopyOf", "R1541 fallback two", "R1541 target fine"].map(part => text.includes(part))),
+            stableJson([true, true, true, true, true, true, true, false]),
+            "the notice does not name each failed row's target, file:symbol and fallback, or names a row that holds");
+
+        const SS = await import("./season-setup.mjs");
+        const read = async contract => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract });
+            return el.textContent;
+        };
+        const failed = await read(mod.runContract({ rows }));
+        equal(stableJson(["R1541 target gone", "fog.mjs:registerDoorControls", "R1541 fallback gone", "forced-roll.mjs:loadDie",
+            "R1541 fallback two", "R1541 target fine"].map(part => failed.includes(part))), stableJson([true, true, true, true, true, false]),
+            "Pre-season's checks do not list the failed rows with their file:symbol and fallback, or list a row that holds");
+        const okLine = game.i18n.format("DRPG.Contract.checksAllOk.one", { n: 1 });
+        const all = await read(mod.runContract({ rows: [rows[2]] }));
+        const blind = await read(mod.runContract({ rows: [row("blind", () => ({ present: null, ours: null }))] }));
+        ok(!okLine.startsWith("DRPG.") && all.includes(okLine) && !all.includes("R1541"), "Pre-season's checks give no green line when every row holds");
+        ok(blind.includes("R1541 target blind") && !blind.includes(okLine), "a row nobody could read is green on Pre-season's checks, or not named there");
+
+        // Every row of the register: one symbol per file, each a function its file declares.
+        const sources = await moduleSources();
+        const list = value => String(value ?? "").split(/\s*,\s*/).filter(Boolean);
+        const wrong = mod.PATCHES.flatMap(entry => {
+            const files = list(entry.file), symbols = list(entry.symbol);
+            if (files.length !== symbols.length) return [`${entry.id}: ${files.length} file(s), ${symbols.length} symbol(s)`];
+            return files.map((file, i) => [file, symbols[i]]).filter(([file, symbol]) => topLevelFunction(sources.get(file) ?? "", symbol) === null)
+                .map(([file, symbol]) => `${entry.id}: ${file}:${symbol}`);
+        });
+        equal(stableJson(wrong), "[]", "a row's file:symbol is not a function its file declares");
+    }],
+
+    ["R1542 - the trust rows read their own state: the relay guard first on Daggerheart's channel, the roll draw's build the reviewed one, the roll window's context, a drawn roll's reading and the veiled card's pip; the contract changes none of their fallbacks", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-06; MARKED (m1-m3). The rows that judge D2's two layers do
+         * not read presence: the relay guard's row reads relay-guard.mjs `relayGuardStatus` and whether the
+         * guard is the first listener on the channel (a listener before it acts on a packet before it is
+         * judged); the roll draw's row reads roll-draw.mjs `rollDrawState`, where "changed" is D1's fallback -
+         * rolls thrown in the player's browser - and so a failed row, never ok. The register reads; it never
+         * loosens: the guard's and the seam's states are the same after a run as before. Stand-ins for the
+         * listeners and the seam (`standInSeam`, the suite's own), put back at once. Red before C2: no
+         * relay guard row, no relayGuardRow or rollDrawRow.
+         */
+        const mod = await import("./patches.mjs");
+        const { relayGuardStatus } = await import("./relay-guard.mjs");
+        const { rollDrawState, standInSeam } = await import("./roll-draw.mjs");
+        ok(typeof mod.relayGuardRow === "function" && typeof mod.rollDrawRow === "function" && typeof mod.runContract === "function",
+            "patches.mjs has no relayGuardRow, rollDrawRow or runContract");
+        const guard = Object.assign(function wrapped() { /* the guard's stand-in */ }, { __drpgRelayGuard: true });
+        const other = function handleSocketEvent() { /* another listener */ };
+        const relay = (state, listeners) => mod.relayGuardRow({ state }, listeners)?.state ?? "no answer";
+        equal(stableJson([relay("ok", [guard]), relay("ok", [guard, other]), relay("ok", [other, guard]), relay("ok", [other]),
+            relay("changed", [guard]), relay("unnamed", [guard]), relay("backstop", []), relay("notFound", []), relay("noApi", []), relay("idle", [])]),
+            stableJson(["ok", "ok", "failed", "failed", "failed", "failed", "failed", "failed", "failed", "unknown"]),
+            "the relay guard's row is not read from its own state [alone | first of two | second | not on the channel | unreviewed cases | "
+            + "an unnamed listener | the backstop | not found | no socket to wrap | not looked yet]");
+        const relayRow = mod.PATCHES.find(r => r.id === "relay-guard");
+        ok(relayRow?.kind === "socket" && relayRow?.file === "relay-guard.mjs", "the register has no socket row for the relay guard in relay-guard.mjs");
+
+        const marked = Object.assign(() => null, { [Symbol.for("drpgRollDraw")]: true });
+        const drawn = state => mod.rollDrawRow({ state, why: "R1542" }, marked)?.state ?? "no answer";
+        equal(stableJson([drawn("ok"), drawn("changed"), drawn("none")]), stableJson(["ok", "failed", "unknown"]),
+            "the roll draw's row is not read from the seam's state [wrapped | a build the draw was not written for | not decided yet]");
+        equal(mod.rollDrawRow({ state: "ok", why: "" }, () => null)?.state, "failed", "the roll draw's row reads ok while another function stands where its wrapper was");
+        const drawRow = mod.PATCHES.find(r => r.id === "roll-draw");
+        ok(/player's browser/.test(drawRow?.fallback ?? "") && /D1/.test(drawRow?.fallback ?? ""), "the roll draw's row does not name D1's fallback");
+
+        const guardBefore = stableJson(relayGuardStatus()), seamBefore = stableJson(rollDrawState());
+        let changed;
+        const restore = standInSeam("changed");
+        try {
+            changed = mod.runContract({ rows: [drawRow] }).rows[0];
+        } finally {
+            restore();
+        }
+        equal(stableJson([changed?.state, /stood in by the suite/.test(changed?.note ?? "")]), stableJson(["failed", true]),
+            "the register's roll draw row reads ok, or says no reason, on a build the draw was not written for");
+        mod.runContract();
+        equal(stableJson([stableJson(relayGuardStatus()), stableJson(rollDrawState())]), stableJson([guardBefore, seamBefore]),
+            "running the contract changed the relay guard's state or the roll draw's");
+
+        // The other trust rows: ours on this world, failed on a reading where another function stands there.
+        const TRUST = ["relay-guard", "roll-draw", "roll-dialog-context", "chat-content-visible", "chat-notify"];
+        const trust = TRUST.map(id => mod.PATCHES.find(r => r.id === id));
+        equal(stableJson(mod.runContract({ rows: trust }).rows.map(r => r.state)), stableJson(TRUST.map(() => "ok")),
+            `a trust row is not ok on the suite's world [${TRUST.join(" | ")}]`);
+        const others = trust.slice(2).map(r => ({ ...r, probe: () => ({ present: true, ours: false }) }));
+        equal(stableJson(mod.runContract({ rows: others }).rows.map(r => r.state)), stableJson(others.map(() => "failed")),
+            "a trust row whose function is not the module's reads other than failed");
+    }],
+
+    ["R1543 - a door control class without isVisible is left as Foundry's, doors open, and the contract's door row fails naming it", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-07, the plan's "verify"; MARKED (m4). fog.mjs subclassed any
+         * function standing in `CONFIG.Canvas.doorControlClass` and read `super.isVisible`: on a Foundry whose
+         * class has no such getter that is undefined, and every door control a player's fog would show was hidden
+         * - doors nobody could open. Now a class without the getter is left as Foundry's, the console says so, and
+         * the register's door row reads failed. The class handed in, never installed; CONFIG's class stood in for
+         * the row's probe and put back. Red before C2: no doorControlFor.
+         */
+        const fog = await import("./fog.mjs");
+        const mod = await import("./patches.mjs");
+        ok(typeof fog.doorControlFor === "function", "fog.mjs has no doorControlFor: any class is subclassed, with or without isVisible");
+        class Bare { constructor(wall) { this.wall = wall; } }
+        equal(fog.doorControlFor(Bare), null, "a door control class without isVisible is subclassed: super.isVisible is undefined and a player's doors hide");
+        const Live = CONFIG.Canvas?.doorControlClass;
+        const Foundry = Live?.name === "RoomDoorControl" ? Object.getPrototypeOf(Live) : Live;
+        const Made = fog.doorControlFor(Foundry);
+        ok(typeof Made === "function" && Made.name === "RoomDoorControl" && Object.getPrototypeOf(Made) === Foundry
+            && typeof Object.getOwnPropertyDescriptor(Made.prototype, "isVisible")?.get === "function",
+            "Foundry's own door control class is not extended by the rooms' door control");
+        const row = mod.PATCHES.find(r => r.id === "door-controls");
+        let bare;
+        CONFIG.Canvas.doorControlClass = Bare;
+        try {
+            bare = mod.runContract({ rows: [row] }).rows[0];
+        } finally {
+            CONFIG.Canvas.doorControlClass = Live;
+        }
+        equal(stableJson([bare?.state, /isVisible/.test(bare?.note ?? "")]), stableJson(["failed", true]),
+            "the door row does not fail, naming isVisible, on a class without it");
+        equal(mod.runContract({ rows: [row] }).rows[0]?.state, "ok", "the door row is not ok on the suite's world");
+    }],
+
+    ["R1544 - Levels: a region whose includedInLevel throws is on every floor, said once, and the contract's row fails", async () => {
+        /*
+         * E52 C2, 30.10.2026; audit S17-50, E52-08, the plan's "verify". rooms.mjs `onLevel` fell back to
+         * `region.levels` when Foundry's `includedInLevel` was absent, and called it unguarded when present - so
+         * a Foundry whose method throws threw out of every reader of a floor (the fog's included: a black
+         * screen). Now it is "on every floor", the module's rule wherever it cannot read a map, said once a
+         * load, and the register's row reads the failure. A stand-in region, never in a scene; the load's
+         * "said" put back after. Red before C2: onLevel threw the stand-in's own error.
+         */
+        const rooms = await import("./rooms.mjs");
+        const mod = await import("./patches.mjs");
+        const restore = typeof rooms.standInLevelFailure === "function" ? rooms.standInLevelFailure(null) : null;
+        const broken = { levels: new Set(["R1544-a"]), includedInLevel() { throw new Error("R1544 Levels broke"); } };
+        const asks = { levels: new Set(["R1544-a"]), includedInLevel: id => id === "R1544-a" };
+        const read = (region, level) => { try { return rooms.onLevel(region, level); } catch (err) { return `throws: ${err?.message ?? err}`; } };
+        const log = watchLog();
+        let answers, row;
+        try {
+            answers = [read(broken, "R1544-b"), read(broken, { id: "R1544-b" }), read(asks, "R1544-a"), read(asks, "R1544-b")];
+            row = typeof mod.runContract === "function"
+                ? mod.runContract({ rows: mod.PATCHES.filter(r => r.id === "region-included-in-level") }).rows[0] ?? null : null;
+        } finally {
+            log.stop();
+            restore?.();
+        }
+        equal(stableJson(answers), stableJson([true, true, true, false]),
+            "onLevel throws, or does not read a region whose includedInLevel throws as on every floor [throws | throws, a level | asks, on | asks, off]");
+        equal(log.count(/includedInLevel/), 1, "a throwing includedInLevel is not said exactly once");
+        ok(typeof restore === "function", "rooms.mjs has no stand-in for the load's Levels failure, so this test would leave one behind");
+        equal(stableJson([row?.state, /R1544 Levels broke/.test(row?.note ?? "")]), stableJson(["failed", true]),
+            "the register's Levels row does not fail with the error includedInLevel threw");
+    }],
+    ["R1545 - a hook of another package is ok once its listener marked it fired in this load, unknown with the road that fires it until then, and every hook row's listener marks it", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-09. A hook another package renames is never called again, and the
+         * listener waiting for it never learns so: the register's hook rows answered "whether it fires is not read
+         * here" whatever happened. Each listener of a hook row now marks its first call of the load (utils.mjs
+         * `markFired`) and the row is ok once marked, unknown until then with the road that fires it - never ok on
+         * presence alone - and failed only where what fires it is gone. Stand-in rows first, the marks handed in;
+         * then every hook row of the register against this load's marks; then each row's mark in its listener's
+         * file (the sheet's two in patches.mjs's own listener, sheet.mjs being left as it is, Q-7); then one real
+         * listener called: room-tile.mjs's on Foundry's picture-window header hook, with a window that is not the
+         * tile's and a list it must leave whole. A mark the call made is taken back. Red before C3: no hookState,
+         * no road, no mark.
+         */
+        const mod = await import("./patches.mjs");
+        const U = await import("./utils.mjs");
+        ok(typeof mod.hookState === "function" && typeof U.markFired === "function" && typeof U.firedAt === "function" && typeof U.forgetFired === "function",
+            "patches.mjs has no hookState, or utils.mjs no markFired, firedAt and forgetFired");
+        if (typeof mod.hookState !== "function" || typeof U.firedAt !== "function") return;
+        const row = (id, fired, present) => ({
+            id, kind: "hook", target: `R1545 ${id}`, owner: "foundry", file: "room-tile.mjs", symbol: "registerRoomTile", why: "R1545", when: "always",
+            fallback: `R1545 ${id}`, probe: () => mod.hookState(`R1545 ${id}`, present, `R1545 road ${id}`, () => fired)
+        });
+        const contract = mod.runContract({ rows: [row("fired", 1, true), row("waiting", null, true), row("gone", null, false), row("cannot-tell", null, null)] });
+        equal(stableJson(contract.rows.map(r => [r.id, r.state])), stableJson([["fired", "ok"], ["waiting", "unknown"], ["gone", "failed"], ["cannot-tell", "unknown"]]),
+            "a hook row is not read as [marked: ok | not marked: unknown | what fires it gone: failed | cannot tell: unknown]");
+        ok(contract.rows[1]?.note.includes("R1545 road waiting"), `a hook not seen firing does not name the road that fires it: ${contract.rows[1]?.note}`);
+
+        const hooks = mod.PATCHES.filter(r => r.kind === "hook");
+        must(hooks.length >= 9, `the register has ${hooks.length} hook row(s) - this test would read nothing`);
+        equal(stableJson(hooks.filter(r => !(typeof r.road === "string" && r.road.trim())).map(r => r.id)), "[]", "a hook row names no road that fires it");
+        const disagree = hooks.filter(r => {
+            const answer = r.probe();
+            return U.firedAt(r.target) !== null ? answer.state !== "ok" : (answer.state === "ok" || !String(answer.note).includes(r.road));
+        }).map(r => r.id);
+        equal(stableJson(disagree), "[]", "a hook row's probe does not answer as this load's marks say [marked: ok | not: no ok, the road named]");
+
+        const sources = await moduleSources();
+        const files = r => String(r.file).split(/\s*,\s*/);
+        const watcher = fnSource(sources.get("patches.mjs") ?? "", "watchSheetRenders");
+        const SHEET = ["renderCharacterSheet", "closeCharacterSheet"];
+        const unmarked = hooks.filter(r => !files(r).some(file => stripComments(sources.get(file) ?? "").includes(`markFired("${r.target}")`))
+            && !(SHEET.includes(r.target) && /markFired\(render\)/.test(watcher) && /markFired\(close\)/.test(watcher))).map(r => r.id);
+        equal(stableJson(unmarked), "[]", "a hook row's listener does not mark the hook fired");
+
+        const target = "getHeaderControlsImagePopout", had = U.firedAt(target);
+        const controls = [{ action: "R1545" }];
+        Hooks.callAll(target, { options: { classes: [] } }, controls);
+        const after = mod.runContract({ rows: hooks.filter(r => r.target === target) }).rows[0] ?? null;
+        if (had === null) U.forgetFired(target);
+        equal(stableJson([after?.state ?? null, controls.length]), stableJson(["ok", 1]),
+            "room-tile.mjs's listener did not mark Foundry's picture-window header hook fired, or stripped a window that is not the tile's");
+    }],
+
+    ["R1546 - the setting and flag rows are enforced.mjs's ENFORCED and FOUNDRY_WRITES, each in use on the suite's world present there; an entry gone is failed and not written, the microphone permission among them", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-10, E52-13 (amend 05.10 C). The module writes settings and flags of
+         * other packages (enforced.mjs's two lists) and Foundry's microphone permission (the GM's block, the trial's),
+         * and nothing said when one of those entries was gone. Each is now a row read from those lists, not a third
+         * (one per ENFORCED row, one per FOUNDRY_WRITES `reach` ENFORCED does not hold); each probe of a row in use on
+         * the suite's world finds its entry (the harness registers Foundry's A/V client setting since C3 and names
+         * BROADCAST_AUDIO; avclient-livekit's separate window is read only while voice is on, which it is not until a
+         * scenario installs the LiveKit stand-in, so its row is not in use here). A stand-in ENFORCED row whose key nobody registered: its row
+         * fails, `applyEnforced` writes nothing and says so once. Foundry's permissions without BROADCAST_AUDIO
+         * (handed in): the GM's block writes nothing and tells the GM why; the write is spied on as R539 does. Red
+         * before C3: no heldRows, no row of the permission, the block wrote.
+         */
+        const mod = await import("./patches.mjs");
+        const E = await import("./enforced.mjs");
+        ok(typeof mod.heldRows === "function", "patches.mjs reads no setting or flag rows from enforced.mjs");
+        if (typeof mod.heldRows !== "function") return;
+        const expected = [...E.ENFORCED.map(r => `ENFORCED ${r.id}`),
+            ...E.FOUNDRY_WRITES.filter(w => w.reach && !E.ENFORCED.some(r => r.id === w.id)).map(w => `FOUNDRY_WRITES ${w.id}`)];
+        must(expected.length >= 7, `enforced.mjs lists ${expected.length} entries - this test would read nothing`);
+        equal(stableJson(mod.PATCHES.filter(r => r.from).map(r => r.from)), stableJson(expected),
+            "the register's setting and flag rows are not one per ENFORCED row and per FOUNDRY_WRITES reach, in their order");
+        equal(stableJson(mod.PATCHES.filter(r => r.from && !["setting-entry", "flag"].includes(r.kind)).map(r => r.id)), "[]",
+            "a row read from enforced.mjs is not a setting entry or a flag");
+        const inUse = r => typeof r.inUse !== "function" || r.inUse() === true;
+        const ids = [...mod.PATCHES.filter(r => r.from), mod.PATCHES.find(r => r.id === "user-permission-broadcast-audio") ?? { id: "user-permission-broadcast-audio" }]
+            .filter(inUse).map(r => r.id);
+        must(ids.length >= 6, `${ids.length} of the rows read from enforced.mjs are in use on the suite's world - this test would read little`);
+        (await import("./utils.mjs")).log(`R1546: ${ids.length} entry row(s) in use read; not in use here: ${mod.PATCHES.filter(r => r.from && !inUse(r)).map(r => r.id).join(", ") || "none"}`);
+        const read = ids.map(id => {
+            const r = mod.PATCHES.find(x => x.id === id);
+            try {
+                return [id, r ? r.probe().present : "no row"];
+            } catch (err) {
+                return [id, `throws: ${err?.message ?? err}`];
+            }
+        });
+        equal(stableJson(read), stableJson(ids.map(id => [id, true])), "an entry the module writes is not found on the suite's world, or has no row");
+
+        const { SETTINGS } = await import("./settings.mjs");
+        // A row of this run's own: enforced.mjs says a missing entry once a load per row id (`saidMissing`), and
+        // scenario 01 runs tiers 0-1 three times in one page, so a fixed id was said by the first run and the later
+        // ones counted 0 (CI of 1de03286 and of 2c635111, which changed only the key).
+        const stamp = Date.now().toString(36);
+        const goneKey = `r1546NoSuchKey${stamp}`;
+        const gone = { id: `r1546Gone${stamp}`, module: "isometric-perspective", key: goneKey, value: false, toggle: SETTINGS.enforceIsoWelcome };
+        const [goneRow] = mod.heldRows([gone], []);
+        const goneAnswer = mod.runContract({ rows: goneRow ? [goneRow] : [] }).rows[0] ?? null;
+        const said = watchLog();
+        let held;
+        try {
+            held = await E.applyEnforced([gone]);
+        } finally {
+            said.stop();
+        }
+        equal(stableJson([goneAnswer?.target ?? null, goneAnswer?.state ?? null, held, game.settings.settings.has(`isometric-perspective.${goneKey}`),
+            said.count(new RegExp(goneKey))]), stableJson([`isometric-perspective.${goneKey}`, "failed", [], false, 1]),
+            "an entry that is gone is not [its row's target | failed | held nowhere | still not registered | said once]");
+
+        const V = await import("./voice-tile.mjs");
+        const { broadcastAudioKnown } = await import("./voice.mjs");
+        equal(stableJson([broadcastAudioKnown({ BROADCAST_AUDIO: {} }), broadcastAudioKnown({ FILES_BROWSE: {} }), broadcastAudioKnown(null)]),
+            stableJson([true, false, false]), "voice.mjs does not tell Foundry's permissions with and without BROADCAST_AUDIO apart");
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's, whose microphone the block would write");
+        must(game.user.isGM, "the block is a GM's: measured on a GM's client, where the suite runs");
+        const player = game.users.find(user => user.id !== game.user.id && !user.isGM);
+        const own = Object.getOwnPropertyDescriptor(player, "update"), writes = [], told = [];
+        player.update = async data => { writes.push(JSON.stringify(data)); return player; };
+        let wrote;
+        try {
+            wrote = await V.toggleBlock(player, { holds: () => null, settings: { getUser: () => ({ canBroadcastAudio: true }) },
+                notify: text => told.push(text), perms: { FILES_BROWSE: {}, FILES_UPLOAD: {} } });
+        } finally {
+            if (own) Object.defineProperty(player, "update", own);
+            else delete player.update;
+        }
+        equal(stableJson([wrote, writes, told]), stableJson([false, [], [game.i18n.localize("DRPG.Voice.list.gmNoBlock")]]),
+            "on a Foundry without BROADCAST_AUDIO the GM's block wrote, or did not tell the GM why");
+        const src = (await moduleSources()).get("voice.mjs") ?? "";
+        ok(/broadcastAudioKnown\(\)/.test(fnSource(src, "blockForTrial")), "the trial's block of a dead student's microphone writes without asking whether Foundry has the permission");
+    }],
+
+    ["R1547 - the calls the amendments name are rows: a presence probe where the name is exposed, unknown naming its table check where only a table can read it", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-11 (amend 11.10 A7, A8, A9). What the code relies on in Foundry and
+         * avclient-livekit beyond what it overrides - a hook's options, a constant, a call, an order of steps - had
+         * no row, so nothing said when one changed. Each is now a call row. Where only a table can read it (a
+         * behaviour, or a name the module never touches) the row is unknown and names the table check (`table`, the
+         * stage's B-E52 rows), never ok; where Foundry exposes the name the probe reads it, and `ui.controls.activate`
+         * is a function on the suite's world. The LiveKit rows read avclient-livekit's client when there is one, and
+         * cannot tell without it. Red before C3: none of the rows.
+         */
+        const { PATCHES, runContract } = await import("./patches.mjs");
+        const TABLE = { "chat-delete-options": "B-E52-2", "notifications-lifetime": "B-E52-2", "tooltip-clean-html": "B-E52-2",
+            "client-setting-sync-write": "B-E52-2", "livekit-attach-audio": "B-E52-3", "voice-modes": "B-E52-3", "livekit-connected-users": "B-E52-3",
+            "chat-notifications": "B-E52-3", "escape-dismiss-order": "B-E52-3", "focus-chat": "B-E52-3", "image-popout-options": "B-E52-3" };
+        const PROBED = ["livekit-room-events", "livekit-participant-user", "scene-controls-activate"];
+        const rowOf = id => PATCHES.find(r => r.id === id) ?? null;
+        equal(stableJson([...Object.keys(TABLE), ...PROBED].filter(id => rowOf(id)?.kind !== "call")), "[]", "a call the amendments name is not a call row");
+        const tableRows = Object.keys(TABLE).map(rowOf).filter(Boolean).map(r => ({ ...r, inUse: undefined }));
+        const answers = runContract({ rows: tableRows }).rows;
+        equal(stableJson(answers.map(r => [r.id, r.state, r.note.includes(TABLE[r.id])])), stableJson(Object.keys(TABLE).map(id => [id, "unknown", true])),
+            "a call only a table can read is not unknown naming its table check");
+        equal(stableJson(Object.keys(TABLE).map(id => rowOf(id)?.table ?? null)), stableJson(Object.values(TABLE)), "a table row does not carry its table check");
+        const probed = PROBED.map(id => {
+            try {
+                const answer = rowOf(id)?.probe();
+                return [id, [true, false, null].includes(answer?.present) ? "read" : `answers ${answer?.present}`];
+            } catch (err) {
+                return [id, `throws: ${err?.message ?? err}`];
+            }
+        });
+        equal(stableJson(probed), stableJson(PROBED.map(id => [id, "read"])), "a probed call row throws or answers no presence");
+        equal(rowOf("scene-controls-activate")?.probe().present, true, "the scene controls' activate is not found on the suite's world, whose controls have it");
+    }],
+
+    ["R1548 - the character sheet's places are read on the first sheet of the system's class, a missing one named and its row failed; the page's anchors are unknown until found, never failed on absence", async () => {
+        /*
+         * E52 C3, 30.10.2026; audit S17-50, E52-12 (Q-7). sheet.mjs lays the student's file into Daggerheart's sheet
+         * by about twenty of its selectors, and a Daggerheart that renamed one left that part undrawn with no word.
+         * SHEET_ANCHORS (patches.mjs) is that list; the first sheet of the system's own class drawn in a load is read
+         * against it (`noteSheetRender`, from `watchSheetRenders` at ready on every client - a stand-in a test draws is
+         * not that class). Here: a stand-in sheet holding every place reads whole; without its Experience, that one
+         * is named, the reading kept once, and the row built on it fails naming it; a render that is not the system's
+         * class is not read. The page's anchors (a camera popped out, a speaker's audio, the theme) answer unknown
+         * while not on the page, never failed. Red before C3: no SHEET_ANCHORS, no reading.
+         */
+        const mod = await import("./patches.mjs");
+        ok(Array.isArray(mod.SHEET_ANCHORS) && typeof mod.readSheetAnchors === "function" && typeof mod.noteSheetRender === "function"
+            && typeof mod.sheetAnchorsAnswer === "function", "patches.mjs has no SHEET_ANCHORS, readSheetAnchors, noteSheetRender or sheetAnchorsAnswer");
+        if (typeof mod.noteSheetRender !== "function" || typeof mod.sheetAnchorsAnswer !== "function") return;
+        const sheet = document.createElement("div");
+        sheet.innerHTML = `<div class="window-content"><nav class="sheet-tabs"></nav><div class="character-header-sheet"><div class="name-row"></div>
+            <div class="character-row"><div class="resource-section"></div></div><div class="character-details"></div>
+            <div class="hope-section"><span class="hope-value"></span></div><div class="character-traits"><div class="trait"><span class="trait-value"></span></div></div></div>
+            <div class="character-sidebar-sheet"><div class="resources-section"><div class="status-bar"><input class="bar-input"><progress class="progress-bar"></progress></div></div>
+            <div class="equipment-section"><h3></h3><div class="items-sidebar-list"></div></div><div class="loadout-section"><h3></h3></div>
+            <div class="shortcut-items-section"><div class="experience-section"></div></div></div></div>`;
+        must(mod.SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${mod.SHEET_ANCHORS.length} place(s) - this test would read nothing`);
+        equal(stableJson(mod.readSheetAnchors(sheet)?.missing ?? null), "[]", "a sheet holding every place reads a place as missing");
+        sheet.querySelector(".experience-section").remove();
+        const state = { done: null };
+        const notTheClass = mod.noteSheetRender({}, sheet, { state, isSheet: () => false });
+        const log = watchLog();
+        let first, second;
+        try {
+            first = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+            second = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+        } finally {
+            log.stop();
+        }
+        equal(stableJson([notTheClass, first?.missing ?? null, second, log.count(/experience-section/)]), stableJson([null, [".experience-section"], null, 1]),
+            "the first sheet of the system's class is not read once, naming its one missing place [another class | the first | the second | said]");
+        const row = mod.PATCHES.find(r => r.id === "sheet-anchors");
+        const answer = mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(state.done) }] : [] }).rows[0] ?? null;
+        equal(stableJson([answer?.state ?? null, /\.experience-section/.test(answer?.note ?? "")]), stableJson(["failed", true]),
+            "the register's sheet row does not fail naming the missing place");
+        equal(mod.runContract({ rows: row ? [{ ...row, probe: () => mod.sheetAnchorsAnswer(null) }] : [] }).rows[0]?.state, "unknown",
+            "the sheet row before any sheet is drawn is not unknown");
+        equal(mod.watchSheetRenders(), false, "the ready hook did not start watching the character sheet on this client");
+        const PAGE = ["camera-popout-id", "mic-audio-anchor", "interface-theme"];
+        const page = PAGE.map(id => [id, mod.PATCHES.find(r => r.id === id)?.probe() ?? null]);
+        equal(stableJson(page.map(([id, a]) => [id, a === null ? "no row" : a.present === false ? "failed on absence" : "found or unknown"])),
+            stableJson(PAGE.map(id => [id, "found or unknown"])), "a page anchor not on the page is failed, or has no row");
+    }],
+    ["R1550 - game.drpg.diagnose(): one report of every diagnose* this client may run, the data migration, the contract and this session's failures, read without a chat message; its window copies the text once per Copy report (E52 C4, E52-14; S17-51)", async () => {
+        /*
+         * E52 C4, 30.10.2026; audit S17-51, E52-14. The module had eighteen diagnose* commands in ten files, each
+         * printed on its own, several whispered as a chat card; a GM asked "what does it say" had to know which to
+         * run. Now one report holds them (`REPORT_SECTIONS`, diagnostics.mjs), as plain text a GM copies with one
+         * button. Here: every exported diagnose* of scripts/*.mjs is read by a section, the report names each
+         * section and the four the plan lists (contract, migration, failures, silences), it posts no chat message,
+         * and the window's Copy report hands the text to the clipboard once per press and comes back. `wait`,
+         * `copy` and `notify` are handed in, so no window is drawn and the clipboard is not touched.
+         * Red before C4: no gatherReport, no openReport, no game.drpg.diagnose.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && typeof D.openReport === "function" && Array.isArray(D.REPORT_SECTIONS),
+            "diagnostics.mjs has no gatherReport, openReport or REPORT_SECTIONS");
+        if (typeof D.gatherReport !== "function" || typeof D.openReport !== "function" || !Array.isArray(D.REPORT_SECTIONS)) return;
+        equal(typeof game.drpg?.diagnose, "function", "game.drpg has no diagnose");
+
+        const sources = await moduleSources();
+        const named = new Set();
+        for (const [file, src] of sources) {
+            if (/^tests/.test(file)) continue;
+            for (const m of stripComments(src).matchAll(/export\s+(?:async\s+)?function\s+(diagnose\w+)\s*\(/g)) named.add(m[1]);
+        }
+        must(named.size >= 15, `${named.size} exported diagnose* found - this test would read nothing`);
+        const covered = new Set(D.REPORT_SECTIONS.flatMap(s => s.covers ?? []));
+        equal(stableJson([...named].filter(name => !covered.has(name)).sort()), "[]", "an exported diagnose* is read by no section of the report");
+        equal(stableJson(["contract", "migration", "failures", "silences"].filter(id => !D.REPORT_SECTIONS.some(s => s.id === id))), "[]",
+            "the report has no section for the contract, the data migration, this session's failures or the silences");
+
+        const before = game.messages.size;
+        const report = await D.gatherReport();
+        equal(game.messages.size, before, "reading the report posted a chat message");
+        equal(stableJson(D.REPORT_SECTIONS.filter(s => !report.text.includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
+            "a section of the report is not named in its text");
+        equal(stableJson(report.sections.filter(s => !["ok", "failed", "gmOnly"].includes(s.state)).map(s => s.id)), "[]",
+            "a section of the report answered no state of the three");
+
+        const configs = [], copied = [], told = [];
+        const answers = ["copy", "copy", "close"];
+        const result = await D.openReport("R1550 report text", {
+            wait: async config => { configs.push(config); return answers.shift() ?? null; },
+            copy: async text => { copied.push(text); }, notify: text => told.push(String(text)), silences: []
+        });
+        equal(stableJson([copied, configs.length, told.length, result]), stableJson([["R1550 report text", "R1550 report text"], 3, 2, "close"]),
+            "Copy report does not hand the text to the clipboard once per press and come back [copied | windows | told | closed with]");
+        const copyLabel = game.i18n.localize("DRPG.Diagnose.copy");
+        const button = (configs[0]?.buttons ?? []).find(b => b.action === "copy");
+        ok(!copyLabel.startsWith("DRPG.") && button?.label === copyLabel, "the report's window has no Copy report button");
+        const content = configs[0]?.content;
+        ok(String(content?.textContent ?? content ?? "").includes("R1550 report text"), "the report's window does not show the report");
+    }],
+    ["R1551 - on a player the report holds nothing of the GMs': the GM-only parts are not run and are listed as GM only, and no GM store is read (E52 C4, E52-15)", async () => {
+        /*
+         * E52 C4, 30.10.2026; E52-15. A player who copies the report to the GM must not carry the GMs' answer key
+         * in it: the GM stores, the Truth Bullets' and the traces' ledger, the traps, every student's checklist,
+         * where hidden tokens stand. The parts that read those are `gmOnly` in `REPORT_SECTIONS`; on a player they
+         * are named and not run. Here the report is read as a player stands in (`gm: false`) with each GM-only
+         * part's run replaced by one that returns a seeded line and counts its calls, and every GM store's reads
+         * counted (`gmStoreHandles`, put back after). The GM's run of the same table is the control: it runs them.
+         * Red before C4: no gatherReport.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && Array.isArray(D.REPORT_SECTIONS), "diagnostics.mjs has no gatherReport or REPORT_SECTIONS");
+        if (typeof D.gatherReport !== "function" || !Array.isArray(D.REPORT_SECTIONS)) return;
+        const GM_ONLY = ["despair", "truthBullets", "gmStores", "characters", "scenes", "visibility", "music", "traps"];
+        equal(stableJson(GM_ONLY.filter(id => !D.REPORT_SECTIONS.some(s => s.id === id && s.gmOnly === true))), "[]",
+            "a part of the report that reads the GMs' data runs on a player");
+        const seeded = "R1551 words only the GMs hold";
+        let calls = 0;
+        const sections = D.REPORT_SECTIONS.map(s => (s.gmOnly ? { ...s, run: () => { calls++; return seeded; } } : s));
+        const gmOnlyCount = sections.filter(s => s.gmOnly).length;
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        const reads = [], undo = [];
+        for (const handle of gmStoreHandles()) {
+            for (const key of ["get", "has", "entries"]) {
+                const original = handle[key];
+                if (typeof original !== "function") continue;
+                undo.push(() => { handle[key] = original; });
+                handle[key] = (...args) => { reads.push(`${handle.name}.${key}`); return original(...args); };
+            }
+        }
+        must(undo.length >= 9, `${undo.length} GM store read(s) watched - this test would read nothing`);
+        let player = null;
+        try {
+            player = await D.gatherReport({ gm: false, sections });
+        } finally {
+            for (const put of undo) put();
+        }
+        // The fog part reads this browser's discovered rooms through settings.mjs `discoveryLedger`, which picks the
+        // GMs' store or the player's own copy by `game.user.isGM` - the GM this stand-in runs on, so its read of
+        // "discovery" is the stand-in's, not a player's (measured 30.10: the only store read here).
+        const notOwn = [...new Set(reads)].filter(read => !read.startsWith("discovery."));
+        equal(stableJson([calls, player.text.includes(seeded), notOwn]), stableJson([0, false, []]),
+            "the player's report ran a GM-only part, holds its words, or read a GM store [runs | words | reads]");
+        const gmOnlyWord = game.i18n.localize("DRPG.Diagnose.gmOnly");
+        ok(!gmOnlyWord.startsWith("DRPG."), "no words for a GM-only part");
+        equal(stableJson(player.sections.filter(s => sections.find(t => t.id === s.id)?.gmOnly)
+            .filter(s => s.state !== "gmOnly" || !player.text.includes(`== ${s.title} ==\n${gmOnlyWord}`)).map(s => s.id)), "[]",
+            "a GM-only part is not listed as GM only in the player's report");
+        const gm = await D.gatherReport({ gm: true, sections });
+        equal(stableJson([calls, gm.text.includes(seeded)]), stableJson([gmOnlyCount, true]), "the GM's report does not run the GM-only parts");
+    }],
+    ["R1552 - the silences the module keeps are listed by id with Show again, which brings the warning back now; the stale recommended-modules silence is cleared and named (E52 C4, E52-16; S01-62, Q-8)", async () => {
+        /*
+         * E52 C4, 30.10.2026; audit S01-62, E52-16 (Q-8). A GM who ticked "do not show again" on the newer-Daggerheart
+         * warning had no way back but the browser's storage. The report's window lists every silence by id
+         * (`activeSilences`) with a Show again button, which empties `systemWarningSilenced` and asks for the
+         * warning now (`showSystemWarningAgain`). The recommended-modules window went in E13 C10 and left its
+         * silence (`recommendsSilenced`) in browsers that stored it; `clearStaleSilences` removes it at start, and
+         * the report's silences part names it. The setting's read, its write, the warning and the storage are
+         * handed in, so nothing of this browser changes. Red before C4: none of the four exists.
+         */
+        const R = await import("./requirements.mjs"), S = await import("./settings.mjs"), D = await import("./diagnostics.mjs");
+        ok(typeof R.systemWarningSilence === "function" && typeof R.showSystemWarningAgain === "function"
+            && typeof S.clearStaleSilences === "function" && typeof D.activeSilences === "function" && typeof D.openReport === "function",
+            "no systemWarningSilence, showSystemWarningAgain, clearStaleSilences, activeSilences or openReport");
+        if (typeof R.systemWarningSilence !== "function" || typeof S.clearStaleSilences !== "function" || typeof D.activeSilences !== "function") return;
+        equal(stableJson([R.systemWarningSilence(() => "9.9.9"), R.systemWarningSilence(() => "")]),
+            stableJson([{ id: "systemWarningSilenced", version: "9.9.9" }, null]), "the newer-Daggerheart silence is not read by id and version");
+        const writes = [];
+        let announced = 0;
+        await R.showSystemWarningAgain({ write: async value => { writes.push(value); }, announce: async () => { announced++; } });
+        equal(stableJson([writes, announced]), stableJson([[""], 1]), "Show again does not empty the silence and ask for the warning now");
+
+        let again = 0;
+        const silences = D.activeSilences({ system: { id: "systemWarningSilenced", version: "9.9.9" }, showAgain: async () => { again++; } });
+        equal(stableJson(silences.map(s => [s.id, String(s.label).includes("9.9.9")])), stableJson([["systemWarningSilenced", true]]),
+            "the silence is not listed by its id, naming the version it holds");
+        equal(D.activeSilences({ system: null }).length, 0, "a silence is listed while nothing is silenced");
+        const configs = [], answers = ["again:systemWarningSilenced", "close"];
+        await D.openReport("R1552 report", { wait: async config => { configs.push(config); return answers.shift() ?? null; },
+            copy: async () => {}, notify: () => {}, silences });
+        const showLabel = game.i18n.localize("DRPG.Diagnose.showAgain");
+        const buttons = configs.map(c => (c.buttons ?? []).filter(b => b.action.startsWith("again:")).map(b => [b.action, b.label]));
+        ok(!showLabel.startsWith("DRPG."), "no words for Show again");
+        equal(stableJson([buttons, again]), stableJson([[[["again:systemWarningSilenced", showLabel]], []], 1]),
+            "the window has no Show again for the silence, does not run it once, or still offers it after [buttons per window | runs]");
+        ok(String(configs[0]?.content?.textContent ?? "").includes("9.9.9"), "the window does not name the silence");
+
+        const held = new Map([["danganronpa-rpg.recommendsSilenced", "true"], ["danganronpa-rpg.systemWarningSilenced", "9.9.9"]]);
+        const storage = { getItem: key => (held.has(key) ? held.get(key) : null), removeItem: key => { held.delete(key); } };
+        equal(stableJson([S.clearStaleSilences(storage), [...held.keys()], S.clearStaleSilences(storage)]),
+            stableJson([["recommendsSilenced"], ["danganronpa-rpg.systemWarningSilenced"], []]),
+            "the stale silence is not cleared, once, leaving the live one [cleared | left | again]");
+        const settingsSrc = (await moduleSources()).get("settings.mjs") ?? "";
+        ok(/clearStaleSilences\s*\(/.test(stripComments(fnSource(settingsSrc, "registerSettings"))), "the stale silence is not cleared at start");
+        const part = D.REPORT_SECTIONS.find(s => s.id === "silences");
+        const text = part ? String(await part.run({ gm: true })) : "";
+        equal(stableJson(["systemWarningSilenced", "recommendsSilenced"].map(id => text.includes(id))), stableJson([true, true]),
+            "the report's silences part does not name the live and the stale silence");
+    }],
+    ["R1553 - Pre-season's contract lines: each failed row its own line, the rows nobody could read one counted line with their list folded under it (E52 C4, C3's gap; E52-05)", async () => {
+        /*
+         * E52 C4, 30.10.2026; C3's gap. On the suite's world about two dozen rows of the register cannot be read
+         * (checks only a table shows, hooks not seen firing yet) and Pre-season listed every one of them on one
+         * line, every world, every time. They are now one counted line, the list folded under it (a <details>,
+         * closed); a failed row is still a line of its own outside the fold. Measured on the report's text with
+         * every folded body taken out, as a closed fold shows it. Red before C4: the targets on the open line.
+         */
+        const mod = await import("./patches.mjs"), SS = await import("./season-setup.mjs");
+        const row = (id, probe) => ({ id, kind: "call", target: `R1553 target ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1553", when: "always", fallback: `R1553 fallback ${id}`, probe });
+        const rows = [...Array.from({ length: 20 }, (_, i) => row(`blind${i}`, () => ({ present: null }))), row("gone", () => ({ present: false }))];
+        const el = document.createElement("div");
+        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows }) });
+        const full = el.textContent;
+        const shown = el.cloneNode(true);
+        for (const fold of shown.querySelectorAll("details:not([open])")) for (const child of [...fold.children]) if (child.tagName !== "SUMMARY") child.remove();
+        const seen = shown.textContent;
+        const blind = rows.slice(0, 20).map(r => r.target);
+        const counted = game.i18n.format("DRPG.Contract.checksUnknown.other", { n: 20 });
+        must(!counted.startsWith("DRPG."), "no words for the unread rows");
+        equal(stableJson([blind.filter(t => full.includes(t)).length, blind.filter(t => seen.includes(t)).length]), stableJson([20, 0]),
+            "the unread rows are not all in the report, or are shown on the open line [in the report | shown]");
+        equal(stableJson([seen.includes("R1553 target gone"), seen.includes("R1553 fallback gone"), seen.includes(counted)]), stableJson([true, true, true]),
+            "the failed row is not shown with its fallback, or the unread rows are not counted [failed target | its fallback | the count]");
+    }],
+    ["R1554 - page tint: a permanent notice only for a named Dark Reader; an unnamed big inline sheet is a console line and a line of diagnoseStyles, and a sheet whose owner node names the system or a module is skipped (E52 C5, S01-39)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-39, E52-17. `detectPageTinting` read any inline sheet of 200 or more rules as
+         * "an extension", and `warnAboutPageTinting` put a permanent "turn the extension off" in front of every
+         * player at every login - a table with a module that writes its CSS inline was told to switch off an
+         * extension it does not run. Here three real <style> elements of 250 rules each go into this page one at a
+         * time and come out again: a plain one (no notice, a console line, a diagnoseStyles line), the same one
+         * with its owner node named after the system (skipped), and one carrying `--darkreader-` variables (the
+         * notice, permanent). `ui.notifications.warn` is stood in and put back.
+         * Red before C5: the plain sheet gave the permanent notice (one warn), and detect said nothing of a name.
+         */
+        const D = await import("./diagnostics.mjs");
+        must(D.detectPageTinting() === null, "this page already holds a sheet the detector reads - nothing here can be told apart");
+        const made = [];
+        const sheet = (text, attrs = {}) => {
+            const el = document.createElement("style");
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+            el.textContent = text;
+            document.head.append(el);
+            made.push(el);
+            return el;
+        };
+        const rules = (prefix, body) => Array.from({ length: 250 }, (_, i) => `.r1554-${prefix}-${i} { ${body(i)} }`).join("\n");
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const warned = [];
+        let plain, owned, named, plainWarns, styles;
+        try {
+            ui.notifications.warn = (text, options) => { warned.push([String(text), options?.permanent === true]); };
+            const a = sheet(rules("plain", i => `color: rgb(1, 2, ${i % 255});`));
+            plain = D.detectPageTinting();
+            D.warnAboutPageTinting();
+            plainWarns = warned.length;
+            styles = D.diagnoseStyles({ toChat: false });
+            a.remove();
+            const b = sheet(rules("owned", i => `color: rgb(3, 4, ${i % 255});`), { id: `${game.system?.id ?? "daggerheart"}-generated-styles` });
+            owned = D.detectPageTinting();
+            b.remove();
+            const c = sheet(rules("dr", () => "--darkreader-bg--r1554: #000;"));
+            named = D.detectPageTinting();
+            D.warnAboutPageTinting();
+            c.remove();
+        } finally {
+            for (const el of made) el.remove();
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else delete ui.notifications.warn;
+        }
+        equal(stableJson([plain?.named ?? null, plainWarns, String(styles ?? "").includes("inline stylesheet of 250 rules"),
+            /IS REPAINTING THIS PAGE/.test(String(styles ?? ""))]), stableJson([false, 0, true, false]),
+            "an unnamed inline sheet of 250 rules [detect's named | notices | diagnoseStyles names it | diagnoseStyles calls it a repaint]");
+        equal(owned, null, "a sheet whose owner node names the system is still read as a repainting extension");
+        equal(stableJson([named?.name ?? null, named?.named ?? null, warned.slice(plainWarns).map(([, permanent]) => permanent)]),
+            stableJson(["Dark Reader", true, [true]]), "a sheet carrying --darkreader- variables [name | named | the notices, permanent]");
+    }],
+    ["R1555 - diagnoseStyles and diagnoseWindows follow the code: the theme's own faces (VT323, Special Elite and their tokens under Stained Glass, DRPG Pixel under Monokuma Legacy), a fetched pixel.woff2?v=2 and a css?v= counted, fontScale read, VT323 known as a fixed face, and no masked Despair bar (E52 C5, S01-51)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-51, E52-18. The style report was written for the pixel font of Monokuma
+         * Legacy: under Stained Glass, the default theme, it checked no face the theme draws in; its resource filter
+         * `/\.woff2$/` missed the stylesheet's own `pixel.woff2?v=2` and then said "no .woff2 was requested at all";
+         * the window report read `fontSize`, a key v14's uiConfig no longer has, and knew no VT323; and the Despair
+         * bar's `masked` branch read a class the bar has not carried since D3 (despair.mjs removes it). Here the
+         * resource list is a stand-in (`performance.getEntriesByType`, put back), the theme is handed in, and the
+         * report's text is read.
+         * Red before C5: the woff2 with a query read as missing; no VT323 or Special Elite line; "fontSize".
+         */
+        const D = await import("./diagnostics.mjs");
+        const base = `${globalThis.location?.origin ?? "http://harness.invalid"}/modules/${MODULE_ID}`;
+        const fetched = [
+            { name: `${base}/fonts/pixel.woff2?v=2`, transferSize: 300, decodedBodySize: 12500, responseStatus: 200 },
+            { name: `${base}/styles/danganronpa.css?v=r1555`, transferSize: 300, decodedBodySize: 90000, responseStatus: 200 }
+        ];
+        const ownGet = Object.getOwnPropertyDescriptor(performance, "getEntriesByType");
+        let glass, legacy;
+        try {
+            performance.getEntriesByType = type => type === "resource" ? fetched : [];
+            glass = String(D.diagnoseStyles({ toChat: false, glass: true }));
+            legacy = String(D.diagnoseStyles({ toChat: false, glass: false }));
+        } finally {
+            if (ownGet) Object.defineProperty(performance, "getEntriesByType", ownGet);
+            else delete performance.getEntriesByType;
+        }
+        equal(stableJson([glass.includes("fonts/pixel.woff2?v=2"), glass.includes("styles/danganronpa.css?v=r1555"), glass.includes("no .woff2 was requested")]),
+            stableJson([true, true, false]), "the fetched files [pixel.woff2?v=2 listed | css?v= listed | told none was requested]");
+        equal(stableJson([glass.includes('@font-face "VT323"'), glass.includes('@font-face "Special Elite"'),
+            ["--drpg-font-chrome", "--drpg-font-title", "--drpg-font-prose"].filter(t => !glass.includes(t)), glass.includes('@font-face entries for "DRPG Pixel"')]),
+            stableJson([true, true, [], false]), "Stained Glass's faces [VT323 | Special Elite | tokens not read | reads the pixel face instead]");
+        equal(stableJson([legacy.includes('@font-face entries for "DRPG Pixel"'), legacy.includes('@font-face "VT323"')]), stableJson([true, false]),
+            "Monokuma Legacy's face [DRPG Pixel read | VT323 read]");
+
+        const windows = String(D.diagnoseWindows({ toChat: false }));
+        equal(stableJson([/Core UI: fontScale /.test(windows), /fontSize/.test(windows)]), stableJson([true, false]),
+            "the window report's core UI line [reads fontScale | reads fontSize]");
+        equal(stableJson(['"VT323", "Courier New", monospace', '"DRPG Pixel", "Press Start 2P", monospace', "Signika, sans-serif"]
+            .map(stack => D.FIXED_FACES instanceof RegExp ? D.FIXED_FACES.test(stack) : null)), stableJson([true, true, false]),
+            "FIXED_FACES does not tell the theme's fixed faces from Foundry's Signika [VT323 | DRPG Pixel | Signika]");
+        const src = new Map(await moduleSources()).get("diagnostics.mjs");
+        must(src, "diagnostics.mjs was not read");
+        const bar = stripComments(fnSource(src, "despairBarLines"));
+        equal(stableJson([bar.includes("masked"), bar.includes("--drpg-pix-query")]), stableJson([false, false]),
+            "despairBarLines still reads a masked Despair bar [masked | the question-mark mask]");
+    }],
+    ["R1556 - traceClicks hears a click cancelled on its way back up, perfReport warms up before it times frames, and each diagnostics JSDoc stands over its own function (E52 C5, S01-51)", async () => {
+        /*
+         * E52 C5, 30.10.2026; audit S01-51, E52-18. traceClicks listened in the capture phase only, so a click a
+         * listener stopped (stopPropagation) or cancelled (preventDefault) after the capture read as a click that
+         * happened - the third shape its header promises to tell apart. perfReport timed the frames right after it
+         * set a body class, so the module's MutationObservers reacting to that class were counted as the pulse's
+         * or the blur's cost. And four JSDoc blocks stood over the wrong function (two stacked, perfReport's over
+         * whySlow, verifyStylesheet's over stylesheetVersion).
+         * Here: a real button that stops and cancels its click, traced for 0.3 s without a chat card (`toChat:
+         * false`, the text handed to `onReport`); `frameBeat` with a stand-in clock whose first three frames cost
+         * 100 ms (the observers) and the rest 10 ms; the file's JSDoc read with the kit.
+         * Red before C5: no report handed back (traceClicks returned a string and posted a card); no frameBeat; three
+         * JSDoc blocks stacked.
+         */
+        const D = await import("./diagnostics.mjs");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "r1556-swallow";
+        button.style.cssText = "position:fixed;left:-9999px;top:0;";
+        button.addEventListener("click", event => { event.stopPropagation(); event.preventDefault(); });
+        const calm = document.createElement("button");
+        calm.type = "button";
+        calm.className = "r1556-calm";
+        calm.style.cssText = "position:fixed;left:-9999px;top:0;";
+        document.body.append(button, calm);
+        let text = null;
+        try {
+            const got = new Promise(resolve => {
+                D.traceClicks({ seconds: 0.3, toChat: false, onReport: resolve });
+                setTimeout(() => resolve(null), 1500);
+            });
+            calm.click();
+            button.click();
+            text = await got;
+        } finally {
+            button.remove();
+            calm.remove();
+        }
+        const lines = String(text ?? "").split("\n");
+        const at = lines.findIndex(l => l.includes("CLICK") && l.includes("r1556-swallow"));
+        const calmAt = lines.findIndex(l => l.includes("CLICK") && l.includes("r1556-calm"));
+        equal(stableJson([typeof text, at >= 0, at >= 0 && /stopPropagation/.test(lines[at + 1] ?? ""),
+            calmAt >= 0 && /stopPropagation|preventDefault/.test(lines[calmAt + 1] ?? "")]), stableJson(["string", true, true, false]),
+            "the click trace [a report handed back | the swallowed click listed | told it never came back up | the calm click told so too]");
+
+        ok(typeof D.frameBeat === "function", "diagnostics.mjs has no frameBeat");
+        if (typeof D.frameBeat === "function") {
+            const clockFor = () => {
+                let clock = 0, calls = 0;
+                return { now: () => clock, raf: cb => { calls += 1; clock += calls <= 3 ? 100 : 10; cb(clock); } };
+            };
+            const warm = clockFor(), cold = clockFor(), byDefault = clockFor();
+            equal(stableJson([await D.frameBeat({ frames: 10, warmup: 5, ...warm }), await D.frameBeat({ frames: 10, warmup: 0, ...cold }),
+                await D.frameBeat({ frames: 10, ...byDefault })]), stableJson([10, 37, 10]),
+                "frameBeat's ms a frame [warmed up 5 | not warmed | the default warm-up]");
+        }
+        const src = new Map(await moduleSources()).get("diagnostics.mjs");
+        must(src, "diagnostics.mjs was not read");
+        equal((src.match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*\/\*\*/g) ?? []).length, 0, "a JSDoc block in diagnostics.mjs stands over another JSDoc block, not a function");
+        const docOver = marker => (bodyOf(src, marker, { back: 4000 }).match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*$/) ?? [""])[0];
+        equal(stableJson([
+            docOver("export function diagnoseDice(").includes("Dice So Nice might be rolling unskinned dice"),
+            docOver("function rollAudienceLines(").includes("WHO WAS ALLOWED TO WATCH"),
+            docOver("export async function fileSizes(").includes("game.drpg.fileSizes()"),
+            docOver("export async function loadedFiles(").includes("Every script the module actually loads"),
+            docOver("export async function perfReport(").includes("game.drpg.perf()"),
+            docOver("export async function whySlow(").includes("WHERE THE TIME ACTUALLY GOES"),
+            docOver("export function verifyStylesheet(").includes("Runs at load"),
+            fnSource(src, "perfReport").includes("frameBeat(")
+        ]), stableJson([true, true, true, true, true, true, true, true]),
+            "a JSDoc block over the wrong function [diagnoseDice | rollAudienceLines | fileSizes | loadedFiles | perfReport | whySlow | verifyStylesheet | perfReport times with frameBeat]");
+    }],
+    ["R1557 - a macro's actor that is nobody, or a name two actors share, is said with the call and the value; traitValue works taken off game.drpg (E52 C6, S01-42)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-42, E52-19 (owner's Q-7: a shared name warns and still acts on `getName`'s
+         * first, so no macro breaks). api.mjs `asActor` turned a string that was no actor's id or name into null in
+         * silence: `game.drpg.killCharacter("typo")` did nothing and the GM read the function as broken. And
+         * `traitValue`, the one entry that read `this`, threw a TypeError once taken off the object. Measured on the
+         * live object with the notifications' warn caught and put back; the shared name on a stand-in collection,
+         * since tier 1 makes no actor. Red before C6: no warning, `asActor` not exported, the TypeError.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student of this world is the actor the calls are handed");
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const api = game.drpg;
+        const NOBODY = "R1557 nobody by this name";
+        const warned = [];
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        let got;
+        try {
+            ui.notifications.warn = text => { warned.push(String(text)); };
+            const byMethod = api.traitValue(student, "eye");
+            let threw = null, byId = null, bare = null;
+            try {
+                const { traitValue } = api;
+                bare = traitValue(student, "eye");
+                byId = traitValue(student.id, "eye");
+            } catch (err) { threw = err?.message ?? String(err); }
+            const quiet = warned.length;
+            const nobody = api.traitValue(NOBODY, "eye");
+            const toldNobody = warned.slice(quiet);
+            const empty = api.traitValue("", "eye");
+            const afterEmpty = warned.length;
+
+            const { asActor } = await import("./api.mjs");
+            const people = [{ id: "r1557a", name: "R1557 Twin" }, { id: "r1557b", name: "R1557 Twin" }, { id: "r1557c", name: "R1557 Solo" }];
+            const standIn = { get: id => people.find(p => p.id === id), getName: name => people.find(p => p.name === name), filter: fn => people.filter(fn) };
+            let shared = "asActor is not exported";
+            if (typeof asActor === "function") {
+                const before = warned.length;
+                const twin = asActor("R1557 Twin", "killCharacter", standIn)?.id ?? null;
+                const toldTwin = warned.slice(before);
+                const solo = asActor("R1557 Solo", "killCharacter", standIn)?.id ?? null;
+                const byOwnId = asActor("r1557b", "killCharacter", standIn)?.id ?? null;
+                shared = [twin, toldTwin.length, toldTwin.every(t => t.includes("killCharacter") && t.includes("R1557 Twin") && t.includes("2")),
+                    solo, byOwnId, warned.length - before];
+            }
+            got = [threw, bare === byMethod, byId === byMethod, quiet, nobody, toldNobody.length,
+                toldNobody.every(t => t.includes("traitValue") && t.includes(NOBODY)), empty, afterEmpty - quiet - toldNobody.length, shared];
+        } finally {
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else delete ui.notifications.warn;
+        }
+        equal(stableJson(got), stableJson([null, true, true, 0, 0, 1, true, 0, 0, ["r1557a", 1, true, "r1557c", "r1557b", 1]]),
+            "[TypeError taken off the object | destructured = method | by id = method | warnings for a real actor | a nobody's value | "
+            + "warnings for a nobody | they name the call and the value | an empty string's value | warnings for it | "
+            + "[a shared name: the first | warned once | naming the call, the name and the count | a unique name | an id | warnings in all]]");
+    }],
+
+    ["R1558 - game.drpg.migrate() is the data migration and migrate1_2_0 its alias; every game.drpg name the module's code and text give is on game.drpg; the API's comments say what the code does (E52 C6, S01-52, S01-56)", async () => {
+        /*
+         * E52 C6, 30.10.2026; audit S01-52, S01-56, E52-20 (owner's Q-7: migrate1_2_0 kept until at least 1.3.1). The
+         * public name of the data migration was tied to a release three minor versions old, and its header listed
+         * clauses that are not there; two comments sent a macro author to `game.drpg.gatherEveryone` and
+         * `game.drpg.atOwnVault`, neither on the object (a TypeError); and comments over the API said the clock
+         * refills nothing, only full Gamemasters hold a pool, a long rest is bedroom only, the characters' check is
+         * a GM panel tile. Each comment is held to the code it describes. The name reader runs on a planted line
+         * first. Red before C6: no `migrate`, gatherEveryone and atOwnVault named, every comment as it was.
+         */
+        const { migrate1_2_0 } = await import("./migrate.mjs");
+        const { DrpgApi } = await import("./api.mjs");
+        const sources = new Map(await otherSources());
+        const migrate = sources.get("migrate.mjs") ?? "", api = sources.get("api.mjs") ?? "";
+        must(migrate.length > 20000 && api.length > 20000, "migrate.mjs or api.mjs was not read");
+        equal(stableJson([DrpgApi.migrate === migrate1_2_0, DrpgApi.migrate1_2_0 === migrate1_2_0, typeof game.drpg?.migrate,
+            bodyOf(migrate, "/**", { until: "*/" }).includes("Danganronpa RPG - the data migration."),
+            fnSource(migrate, "runMigrationOnLoad").includes("\"The data migration could not run\""),
+            (sources.get("module.mjs") ?? "").includes("safely(\"the data migration\", runMigrationOnLoad)")]),
+        stableJson([true, true, "function", true, true, true]),
+        "[migrate is the migration | migrate1_2_0 the same | on game.drpg | migrate.mjs's title | the load's log | the load's label]");
+
+        const NAME = /game\.drpg\??\.([A-Za-z_$][\w$]*)/g;
+        equal(stableJson([..."game.drpg.foo() and game.drpg?.bar, not game.drpg.{fn}".matchAll(NAME)].map(m => m[1])), stableJson(["foo", "bar"]),
+            "the reader does not see a game.drpg name as a macro would write it");
+        const texts = [...sources];
+        for (const file of ["lang/en.json", "lang/pl.json"]) {
+            texts.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText).catch(() => "")]);
+        }
+        const onIt = new Set(Object.keys(game.drpg ?? {}));
+        const named = texts.flatMap(([file, text]) => [...String(text).matchAll(NAME)].map(m => [file, m[1]]));
+        must(named.length >= 50, `the module names game.drpg ${named.length} time(s) - this test would read nothing`);
+        equal(stableJson([...new Set(named.filter(([, key]) => !onIt.has(key)).map(([file, key]) => `${file}: game.drpg.${key}`))].sort()), "[]",
+            "the module names a game.drpg entry that is not on game.drpg");
+
+        const surface = bodyOf(api, "export const DrpgApi = {", { until: "\n};" });
+        const docOver = marker => (bodyOf(surface, marker, { back: 700 }).match(/\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*$/) ?? [""])[0];
+        const clock = fnSource(sources.get("clock.mjs") ?? "", "advanceTimeOfDay") ?? "";
+        const pools = fnSource(sources.get("despair.mjs") ?? "", "monokumas") ?? "";
+        const rest = sources.get("rest.mjs") ?? "";
+        const { REST } = await import("./config.mjs");
+        equal(stableJson([
+            /resetSearchTokens = true/.test(clock) && /resetActions = false/.test(clock),
+            docOver("\n    advanceTimeOfDay,").includes("resetSearchTokens: false") && docOver("\n    advanceTimeOfDay,").includes("`resetActions: true`"),
+            /extraPoolUserIds\(\)/.test(pools), docOver("\n    monokumas,").includes("Assistant GM"),
+            REST.long.perSession === true && /roomFlag\(/.test(fnSource(rest, "roomAllows") ?? ""),
+            docOver("\n    takeRest,").includes("once per session") && docOver("\n    takeRest,").includes("roomAllows") && !/bedroom/i.test(docOver("\n    takeRest,")),
+            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(sources.get("gm-panel.mjs") ?? ""),
+            docOver("\n    diagnoseCharacters,").includes("pre-session checks") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
+            /migrateTruthBullets/.test(migrate) && /migrateRemnants/.test(migrate), /the data migration runs\s+\*?\s*them too/.test(docOver("\n    migrateTruthBullets,"))
+        ]), stableJson([true, true, true, true, true, true, true, true, true, true]),
+        "[clock: search tokens by default, actions opt-in | its comment | pools: Assistant GMs granted one | its comment | rest: per session, by room flag | "
+            + "its comment | characters: a pre-session line, no panel tile | its comment | the migration runs the bullets' and traces' lifts | its comment]");
+    }],
+
+    ["R1561 - tools/api-surface.json says what ECLIPSE_FREE_PLACEMENT holds and when eclipseMovesLeft answers null, as config.mjs and eclipse.mjs do now (E52 C6, S18-90)", async () => {
+        /*
+         * E52 C6, 30.10.2026; amend 05.10 A (S18-90), E52-22, owner's Q-5: E37 withdraws free placement; until it
+         * ships the surface lists the aggregate's key as it is, and eclipseMovesLeft's null with it. A note that
+         * outlived the code would tell a macro author a number where null comes. Held: the file's value is the live
+         * `config.ECLIPSE_FREE_PLACEMENT`, its `nullAt` the times of day whose Eclipse `isFreePlacement` answers true
+         * for, measured on a stand-in clock per time of day, and `movesLeft` answers null only from a null allowance.
+         * Red before C6: no file.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        let surface = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/api-surface.json`, { cache: "no-cache" });
+            if (res.ok) surface = await res.json();
+        } catch { /* the assertion below says it is missing */ }
+        ok(surface?.notes, "tools/api-surface.json is missing or has no notes");
+        if (!surface?.notes) return;
+        const { ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY } = await import("./config.mjs");
+        const { isFreePlacement } = await import("./eclipse.mjs");
+        const free = TIMES_OF_DAY.filter((t, i) => isFreePlacement({ ...getClock(), timeOfDay: TIMES_OF_DAY[(i + TIMES_OF_DAY.length - 1) % TIMES_OF_DAY.length] }));
+        const moves = fnSource((await moduleSources()).get("eclipse.mjs") ?? "", "movesLeft") ?? "";
+        equal(stableJson([surface.notes["config.ECLIPSE_FREE_PLACEMENT"]?.value ?? null, surface.notes.eclipseMovesLeft?.nullAt ?? null, free,
+            game.drpg?.config?.ECLIPSE_FREE_PLACEMENT ?? null, /if \(allowance === null\) return null;/.test(moves)]),
+        stableJson([ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, ECLIPSE_FREE_PLACEMENT, true]),
+        "[the file's ECLIPSE_FREE_PLACEMENT | the file's nullAt | free placement measured per time of day | game.drpg.config's | movesLeft's null from the allowance]");
+    }],
+    ["R1562 - a failed contract row reaches the table in the table's words: every row of the register has its sentence in both languages, and the notice and Pre-season's line carry it, not the register's English (E52 C7, E52-05)", async () => {
+        /*
+         * E52 C7, 30.10.2026; C2's gap. The notice and Pre-season's line put each failed row's `fallback` - an English
+         * sentence written for the console and the author - inside a sentence in the table's language, so a Polish GM
+         * read one line half in each language. Each row now has its sentence in DRPG.Contract.instead.<id> (a held
+         * row by its template: held-flag, held-permissions, held-rtc, held-setting); the console and the diagnose()
+         * report keep the English. Held here to the register (a row with no sentence, a sentence of no row, a Polish
+         * one equal to the English), then to a real row made to fail: its sentence in the notice and in Pre-season,
+         * its register fallback in neither. Red before C7: no such keys, the notice carrying the English fallback.
+         */
+        const mod = await import("./patches.mjs");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json()))?.DRPG?.Contract?.instead ?? {};
+        const keyOf = row => row.insteadKey ?? row.id;
+        const keys = new Set(mod.PATCHES.map(keyOf));
+        must(keys.size >= 55, `the register has ${keys.size} key(s) - this test would read nothing`);
+        const wrong = [];
+        for (const key of keys) {
+            for (const code of ["en", "pl"]) if (typeof lang[code][key] !== "string" || !lang[code][key].trim()) wrong.push(`${code} has no sentence for ${key}`);
+            if (lang.en[key] && lang.en[key] === lang.pl[key]) wrong.push(`${key}: the Polish sentence is the English one`);
+        }
+        for (const code of ["en", "pl"]) for (const key of Object.keys(lang[code])) if (!keys.has(key)) wrong.push(`${code} has a sentence for ${key}, a row the register lacks`);
+        equal(stableJson(wrong), "[]", "a register row has no sentence in a language, a sentence has no row, or the Polish one is the English");
+
+        const real = mod.PATCHES.find(r => r.id === "door-controls");
+        must(real, "the register has no door-controls row");
+        const failing = { ...real, probe: () => ({ present: false, ours: null }) };
+        const sentence = game.i18n.localize("DRPG.Contract.instead.door-controls");
+        must(!sentence.startsWith("DRPG."), "no sentence for the door controls row in this language");
+        const notices = [];
+        mod.announceContract({ rows: [failing], told: { done: false }, notify: text => notices.push(String(text)) });
+        equal(stableJson([notices.length, notices[0]?.includes(sentence), notices[0]?.includes(real.fallback)]), stableJson([1, true, false]),
+            "the notice does not give the row's sentence in the table's language, or still gives the register's English [notices | the sentence | the fallback]");
+        const SS = await import("./season-setup.mjs");
+        const el = document.createElement("div");
+        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows: [failing] }) });
+        equal(stableJson([el.textContent.includes(sentence), el.textContent.includes(real.fallback)]), stableJson([true, false]),
+            "Pre-season's line does not give the row's sentence, or still gives the register's English [the sentence | the fallback]");
+        // The console and the report keep the English the author reads: the run still carries `fallback`.
+        equal(mod.runContract({ rows: [failing] }).failed[0]?.fallback, real.fallback, "the run lost the register's own fallback");
+    }],
+
+    ["R1563 - the GM handbook, English and Polish, tells the table the contract, diagnose() with Copy report, migrate() and the macro API as the code has them (E52 C7, E52-23)", async () => {
+        /*
+         * E52 C7, 30.10.2026; E52-23. The books carry what C1-C6 built: the one report (game.drpg.diagnose(), the
+         * parts of its text, Copy report, Show again), the contract (Pre-season's line, the notice, each row's
+         * sentence), the migration (migrate(), migrate1_2_0 its alias) and the macro API (tools/api-surface.json,
+         * its aliases and when each may go). Held to the code, not to a count: the report's part titles are
+         * REPORT_SECTIONS's, each row's sentence is lang's DRPG.Contract.instead (the book repeats it, in the book's
+         * language), each alias row is the file's with its target and its release, the buttons are the lang labels
+         * of each language. Red before C7: none of it in the books.
+         */
+        needs(env.tools(), "tools/api-surface.json is read from the repository's tools/");
+        const read = async path => {
+            const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+            must(res.ok, `${path} did not load`);
+            return res;
+        };
+        const surface = await (await read("tools/api-surface.json")).json();
+        const { REPORT_SECTIONS } = await import("./diagnostics.mjs");
+        const mod = await import("./patches.mjs");
+        const NO_END = { en: "no end set", pl: "bez terminu" };
+        const missing = [];
+        for (const code of ["en", "pl"]) {
+            const text = await lfText(await read(`docs/handbooks/gm-handbook.${code}.md`));
+            const lang = (await (await read(`lang/${code}.json`)).json()).DRPG;
+            const has = (what, why) => { if (!text.includes(what)) missing.push(`${code}: ${why} (${what})`); };
+            for (const word of ["game.drpg.diagnose()", "game.drpg.migrate()", "migrate1_2_0", "tools/api-surface.json", "diagnosePatches()"]) has(word, "the book does not name");
+            has(lang.Diagnose.copy, "the report's Copy report label");
+            has(lang.Diagnose.showAgain, "the report's Show again label");
+            has(lang.Contract.checksTitle, "Pre-season's contract heading");
+            for (const s of REPORT_SECTIONS) has(s.title, `the report's part ${s.id}`);
+            for (const key of new Set(mod.PATCHES.map(r => r.insteadKey ?? r.id))) {
+                const line = text.split("\n").find(l => l.startsWith(`| \`${key}\` |`));
+                if (!line) missing.push(`${code}: no row for ${key}`);
+                else if (!line.includes(lang.Contract.instead[key])) missing.push(`${code}: the row of ${key} is not the sentence lang gives`);
+            }
+            for (const [old, alias] of Object.entries(surface.aliases)) {
+                const line = text.split("\n").find(l => l.startsWith(`| \`${old}\` |`));
+                if (!line) missing.push(`${code}: no row for the alias ${old}`);
+                else if (!line.includes(`\`${alias.target}\``) || !line.includes(alias.keepUntil ?? NO_END[code])) missing.push(`${code}: the row of ${old} does not give its target and its release`);
+            }
+        }
+        equal(stableJson(missing), "[]", "the handbook lacks something the code has");
+    }],
 ];
 
 /**

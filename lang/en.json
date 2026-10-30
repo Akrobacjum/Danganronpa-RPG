@@ -3562,6 +3562,11 @@
       "launcher": "Open the GM panel",
       "gmOnly": "Only a GM can open the panel.",
       "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
+      "noActorNamed": "game.drpg.{fn} was given \"{value}\", which is no actor's id or name, so it had no actor to act on: check the spelling.",
+      "actorNameShared": {
+        "one": "game.drpg.{fn} was given \"{value}\", a name {n} actor has, and acted on the first of them: hand it the id of the one you mean.",
+        "other": "game.drpg.{fn} was given \"{value}\", a name {n} actors share, and acted on the first of them: hand it the id of the one you mean."
+      },
       "nextLabel": "Next",
       "nextGo": "Do it",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
@@ -3884,8 +3889,8 @@
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",
       "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
-      "newerSystemPatches": "These places the module changes in the system were not found where they used to be, so what they do is not happening:",
-      "newerSystemAllPatches": "Every place the module changes in the system was found where it expected it. That is a good sign, not a guarantee.",
+      "newerSystemPatches": "These places in the system that the module changes or relies on were not found where they used to be, so what the module does there is not happening:",
+      "newerSystemAllPatches": "Every place in the system that the module changes or relies on was found where it expected it. That is a good sign, not a guarantee.",
       "newerSystemSilence": "Do not mention {found} again on this computer",
       "newerSystemNotice": "{system} {found} is newer than {verified}, the version Danganronpa RPG was verified on. It loads, but some features may misbehave."
     },
@@ -4247,7 +4252,8 @@
         "gmBlock": "Block {name}'s microphone for everyone",
         "gmUnblock": "Unblock {name}'s microphone",
         "gmHeld": "You cannot block this microphone now.",
-        "gmSecretDead": "This death is still a secret: a block would give it away."
+        "gmSecretDead": "This death is still a secret: a block would give it away.",
+        "gmNoBlock": "This version of Foundry has no microphone permission, so no microphone can be blocked from here."
       },
       "panel": {
         "legend": "Voice",
@@ -4729,6 +4735,18 @@
         "none": "Nothing yet - no project is visible to you."
       }
     },
+    "Diagnose": {
+      "title": "Diagnostics report",
+      "intro": "Everything the module can check here, as one text. Copy it and send it to whoever is helping you.",
+      "copy": "Copy report",
+      "copied": "Report copied - paste it (Ctrl+V) wherever it needs to go.",
+      "gmOnly": "GM only - open the report on a GM's screen for this part.",
+      "silencesTitle": "Warnings you silenced",
+      "showAgain": "Show again",
+      "silence": {
+        "systemWarning": "The warning that Daggerheart {version} is newer than the version this module was tested on."
+      }
+    },
     "Failures": {
       "title": "Debug log",
       "intro": "Everything this browser has failed at since the page loaded. Reloading empties it - a failure from before a reload is not one you can still act on. Repeats are one row with a count.",
@@ -4933,6 +4951,82 @@
       "plantUsableNote": "It arrives as whatever the finder was searching for - that is what makes it look ordinary. So it only springs for somebody who searched for a usable: nobody can use a tool or a weapon.",
       "plantAction": "Plant the item",
       "plantSettled": "{name} planted the item."
+    },
+    "Contract": {
+      "notice": {
+        "one": "Danganronpa RPG: one thing it relies on in Foundry, Daggerheart or another module is not as this version expects. Until that is fixed, the table gets this instead - {rows}. Update Danganronpa RPG, or tell its author which versions of Foundry and Daggerheart you run.",
+        "other": "Danganronpa RPG: {n} things it relies on in Foundry, Daggerheart or other modules are not as this version expects. Until they are fixed, the table gets this instead - {rows}. Update Danganronpa RPG, or tell its author which versions of Foundry and Daggerheart you run."
+      },
+      "instead": {
+        "critical-rule": "a critical keeps Daggerheart's own numbers",
+        "roll-dialog-context": "what a Call forces is filled into the roll window once it is open, as before",
+        "roll-draw": "rolls are thrown in the player's own browser, as in 1.2.66",
+        "dice-random-uniform": "nothing stands in for Foundry's randomiser",
+        "no-scrolling-text": "captions float over tokens as Foundry draws them",
+        "window-close": "windows close without the module's exit or its sound",
+        "window-await-transition": "a window with no transition running waits out Foundry's own delay before it closes",
+        "livekit-toasts": "avclient-livekit's own notices show beside the module's",
+        "iso-refresh-state": "Isometric Perspective's own override runs while a token is edited",
+        "chat-notify": "a veiled card may light up the Chat tab on every screen",
+        "chat-content-visible": "the player who rolled cannot read a roll the GM drew",
+        "sheet-render-guard": "a character sheet redraws on every resource change, as Foundry draws it",
+        "passages-move": "no token can pass a secret passage in this browser, and the GM is told at every load",
+        "selection-drag-rectangle": "the drag rectangle stays Foundry's orange",
+        "selection-controlled-colour": "token borders stay Foundry's orange",
+        "countdown-row-menu": "a project row's menu is Daggerheart's: Reveal and Hide are shown, and Delete removes only the countdown",
+        "door-controls": "every door control is shown as Foundry shows it",
+        "actions-resource": "a character has no Actions resource",
+        "sidebar-calls": "Foundry's own calls neither show nor place the Foundry tools window",
+        "relay-guard": "requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load",
+        "region-included-in-level": "a region that cannot be asked about its floor, or answers with an error, counts as being on every floor",
+        "hook-duality-configured": "a Free Critical's die is not loaded",
+        "hook-roll-dialog-render": "the opening's roll window is not marked as the opening's",
+        "hook-character-sheet-render": "the character sheet is drawn as Daggerheart draws it",
+        "hook-character-sheet-close": "a closed sheet's observer keeps watching a detached element until the page is reloaded",
+        "hook-countdowns-render": "the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it",
+        "hook-dice-so-nice-ready": "the dice looks are not swept",
+        "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colours",
+        "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
+        "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
+        "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",
+        "rtc-client-keys": "a key Foundry no longer keeps reads as its default (not muted, full volume, shown), and writing to it changes nothing",
+        "push-to-talk-key": "the push-to-talk line names no key",
+        "av-config-menu": "the held fields are not greyed out in the window; their values are held all the same",
+        "chat-delete-options": "a history entry may stay after its card is withdrawn, or go on Clear chat",
+        "notifications-lifetime": "the history keeps its own timing, whatever Foundry's toasts do",
+        "tooltip-clean-html": "a tooltip's words in the history may differ from what Foundry's tooltip showed",
+        "client-setting-sync-write": "the last notices before a reload may be missing from the history",
+        "livekit-room-events": "the voice tile and the trial's speakers show nobody speaking and follow no one joining or leaving",
+        "livekit-participant-user": "a participant the call cannot name is left out of the voice tile and the trial's speakers",
+        "livekit-attach-audio": "a speaker muted here may be heard again after LiveKit attaches their audio anew",
+        "voice-modes": "a mode the tile does not know is shown as an open microphone",
+        "livekit-connected-users": "the room's state is read from the call's room alone",
+        "scene-controls-activate": "the layer stays as it was",
+        "chat-notifications": "with the window closed, chat notifications may not show and the chat's input may stay hidden",
+        "escape-dismiss-order": "Escape may close the windows before Foundry's own steps, or never",
+        "focus-chat": "the chat key may focus an input in a hidden window",
+        "image-popout-options": "the picture window may show Foundry's title and controls",
+        "sheet-anchors": "what the module adds at a place it cannot find is not drawn there, and the rest of the sheet is drawn as usual",
+        "foundry-rails": "a rail not found by its id stays where Foundry puts it, outside the module's window",
+        "interface-theme": "the windows wear no theme class, and the rails inside take the page's",
+        "camera-popout-id": "a popped-out camera's speaker is not found, and counts as not audible",
+        "mic-audio-anchor": "a speaker whose element is not found counts as not audible",
+        "held-flag": "the account's flag is left as it stands for the system to read",
+        "held-permissions": "the permissions stay as the world has them",
+        "held-rtc": "the dock is not held: each browser keeps its own dock and popouts",
+        "held-setting": "the setting is not held: it stays as each browser has it",
+        "held-automation": "nothing is switched off: Daggerheart's Vulnerable and Defeated automations run beside the module's",
+        "held-dice-look": "no look is held: each player's dice keep their own look"
+      },
+      "checksTitle": "Foundry, Daggerheart and the modules",
+      "checksAllOk": {
+        "one": "The one place checked is as this version expects.",
+        "other": "All {n} places checked are as this version expects."
+      },
+      "checksUnknown": {
+        "one": "One place could not be checked here, so it is not known to work. Click this line to see which.",
+        "other": "{n} places could not be checked here, so they are not known to work. Click this line for the list."
+      }
     },
     "Relay": {
       "refused": "Refused a Daggerheart change from {name}: {what}. Nothing was changed.",

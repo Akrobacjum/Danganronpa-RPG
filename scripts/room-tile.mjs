@@ -67,7 +67,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { error } from "./utils.mjs";
+import { error, markFired } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
 import { trialScene, roomNames } from "./rooms.mjs";
@@ -677,6 +677,7 @@ export async function checkRoomImages({ scenes = game.scenes, probeMs = ROOM_IMA
  * another module adds. Every other ImagePopout is left as it is.
  */
 export function stripImageControls(app, controls) {
+    markFired("getHeaderControlsImagePopout");
     if (!app?.options?.classes?.includes?.(POPOUT_CLASS) || !Array.isArray(controls)) return;
     controls.splice(0, controls.length);
 }
