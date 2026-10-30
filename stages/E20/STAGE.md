@@ -205,3 +205,17 @@ None required (no MARKED commit; METHOD-A-lite 4).
   names line `--drpg-text-sm`. Q-5 originals kept, "Give back Foundry's settings", the handbook says to press it first.
   Q-6 "fix these" only above OBSERVER. Q-7 4096 px or 8 MB; "pieces differ" = `notShared`, owner or elevation. Q-8
   "Open Season setup: {first row not done}" until the required rows hold.
+
+## Owner's answers after C7 (30.10.2026)
+Owner's words: "Zmiana do Q-8: w trwającej grze \"N students still have actions\" zostaje na górze, a niezrobiony setup idzie
+pod spodem jako druga, cichsza linia; zastępuje ją tylko przed startem sezonu. Zrób to w rundzie poprawek, red-first. Q-2 i
+Q-3 zostają; przy powrocie automatyzacji do domyślnych Daggerhearta okno ma mówić wprost, że wartości sprzed modułu nie są
+znane. README zostaw (moja reguła)."
+- Q-8 amended: before the season starts the setup line replaces the Next line (as C4 built); in a running game
+  "N students still have actions" stays first and an unfinished required setup row shows below it as a second, quieter
+  line. Fix round, red first.
+- C5's language choice stands (no module language stored: the requirements window follows Foundry's language).
+- The implementers' readings stand: 8 MB = 8 MiB; 8 s per picture; height compared only between pieces on the same
+  floors; automations go back to Daggerhearts defaults - and the window says plainly that the values from before the
+  module are not known. Fix round, red first.
+- README stays as it is (the owner's rule).

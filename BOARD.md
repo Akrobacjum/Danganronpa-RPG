@@ -19,7 +19,7 @@ R numbers: line A R1049-R1499.
 | Stage | State | Changes most | Note |
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
-| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef (CI green), C3 6ad88c5a (CI green), C4 e52a60ef + fix fd6620aa (CI green), C5 984033fa (CI green), C6 de321dad (CI green), C7 689040ee pushed (CI pending); C1-C7 built, end review next (waits for the owner) | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
+| E20 | BUILD: C1 5ede9103 (CI green), C2 08b92cef (CI green), C3 6ad88c5a (CI green), C4 e52a60ef + fix fd6620aa (CI green), C5 984033fa (CI green), C6 de321dad (CI green), C7 689040ee pushed (CI pending); C1-C7 built; REVIEW (2 reviewers), then one fix round, close | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
 
 R numbers: line B R1500-R1999.
 
@@ -66,6 +66,7 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E20 C4: $6.31 (22:21:39 $12.22 -> 22:45:09 $18.53), 1 drpg-impl agent (218k tokens, 123 tool calls, 23 min wall).
 - E20 C5 (+ C4's CI fix fd6620aa): $11.76 (22:45:09 $18.53 -> 00:59:01 $30.29), 1 drpg-impl agent (193k tokens, 145 tool calls, 2.2 h wall - 40 min of it a local 01-runtests run stopped at its bound).
 - E20 C6: $7.00 (00:59:01 $30.29 -> 01:27:15 $37.29), 1 drpg-impl agent (246k tokens, 109 tool calls, 28 min wall).
+- E20 C7: $4.67 (01:27:15 $37.29 -> 01:41:38 $41.96), 1 drpg-impl agent (190k tokens, 101 tool calls, 14 min wall). C1-C7 about $49 ($12 + $37.17 + $4.67 - the C1 figure is the owner's).
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
