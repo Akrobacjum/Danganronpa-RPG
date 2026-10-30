@@ -23026,6 +23026,122 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
     }],
+    ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window and the page visible, and neither a render nor a new bubble marks it without asking (E50 C1; S11-37, E50-01)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-37 (E50-01; Q-E50-2's default). `_onRender` marked the thread read on every
+         * render, the Note tab's too, and `appendMessage` on every bubble, whatever covered the window or however long
+         * the page had been hidden: a GM's badge went out on a request nobody saw. `seesThread` is read on stand-ins
+         * for the sixteen combinations of drawn, tab, in front and page visible (true for the one with all four), with
+         * `ui.activeWindow` and `document.visibilityState` stood in and put back; and the two bodies, comments stripped,
+         * hold no bare `markThreadRead(`. Red at 419d3b42: no `seesThread`, and both bodies called it.
+         */
+        const M = await import("./messenger-app.mjs");
+        const sees = M.DrpgMessengerApp.prototype.seesThread;
+        const read = [];
+        if (typeof sees !== "function") read.push("no seesThread");
+        else {
+            const wasFront = ui.activeWindow;
+            const other = { id: "R1061OtherWindow" };
+            try {
+                for (const visible of [true, false]) {
+                    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visible ? "visible" : "hidden" });
+                    for (const rendered of [true, false]) for (const tab of ["chat", "note"]) for (const front of [true, false]) {
+                        const app = { rendered, tab };
+                        ui.activeWindow = front ? app : other;
+                        if (sees.call(app)) read.push([rendered, tab, front, visible]);
+                    }
+                }
+            } finally {
+                delete document.visibilityState;
+                ui.activeWindow = wasFront;
+            }
+        }
+        const src = stripComments(new Map(await otherSources()).get("messenger-app.mjs") ?? "");
+        for (const [marker, until] of [["_onRender(_context, _options) {", "\n    }\n"], ["appendMessage(message) {", "\n    }\n"]]) {
+            read.push([marker, /\bmarkThreadRead\s*\(/.test(bodyOf(src, marker, { until }))]);
+        }
+        equal(stableJson(read), stableJson([[true, "chat", true, true],
+            ["_onRender(_context, _options) {", false], ["appendMessage(message) {", false]]),
+            "[each combination of drawn, tab, in front and visible that seesThread calls seen; whether _onRender, then appendMessage, calls markThreadRead itself]");
+    }],
+    ["R1062 - a failed send keeps the words in the messenger's field and says so once; a send that lands empties it (E50 C1; S11-38, E50-03)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-38 (E50-03). The submit handler emptied the field before the send, and
+         * `createThreadMessage` logs a failure and answers null: the words were gone and nothing said so. A stand-in
+         * window (the prototype, its own element, a thread no user has, so nothing can be sent) is wired by `_onRender`
+         * and submitted three times, its `send` answering null, then throwing, then a message; the field's text and
+         * the `sendFailed` toasts after each, with `ui.notifications.error` stood in and put back. Red at 419d3b42:
+         * the field empty after the first, as the handler sent through `sendMessage` (null: not a player) after
+         * emptying it.
+         */
+        const M = await import("./messenger-app.mjs");
+        const failed = game.i18n.localize("DRPG.Messenger.sendFailed");
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="drpg-messenger-log"></div><form class="drpg-messenger-input"><textarea name="text"></textarea><button type="submit"></button></form>`;
+        const answers = [() => null, () => { throw new Error("R1062 a send that throws"); }, () => ({ id: "R1062SentMessage" })];
+        const app = Object.create(M.DrpgMessengerApp.prototype, {
+            element: { value: root }, playerUserId: { value: "R1062NoSuchUser1" }, rendered: { value: false },
+            tab: { value: "chat", writable: true }, send: { value: async () => answers.shift()() }
+        });
+        const area = root.querySelector("textarea"), form = root.querySelector("form");
+        const toasts = [], realError = ui.notifications.error;
+        const read = [];
+        ui.notifications.error = text => { toasts.push(String(text)); };
+        try {
+            M.DrpgMessengerApp.prototype._onRender.call(app, {}, {});
+            for (const i of [0, 1, 2]) {
+                const words = `R1062 words ${i}`;
+                area.value = words;
+                const before = toasts.length;
+                form.dispatchEvent(new Event("submit", { cancelable: true }));
+                await until(() => !area.disabled, 1000);
+                await settle();
+                read.push([area.value === words ? "kept" : area.value === "" ? "empty" : area.value, area.disabled, toasts.slice(before).filter(t => t === failed).length]);
+            }
+        } finally {
+            ui.notifications.error = realError;
+        }
+        read.push(failed !== "DRPG.Messenger.sendFailed");
+        equal(stableJson(read), stableJson([["kept", false, 1], ["kept", false, 1], ["empty", false, 0], true]),
+            "[the field after a send answered null, one that threw, one that landed: its words, whether it is still disabled, the sendFailed toasts; whether sendFailed has words in this language]");
+    }],
+    ["R1063 - a deleted message leaves an open messenger window, and the last one gone puts the empty notice back (E50 C1; S11-35, E50-04)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-35 (E50-04). `registerMessenger` hooked creation and edits only, so a card
+         * deleted from the chat log stayed in every open window, its buttons live. A stand-in window (the prototype, its
+         * own log of two bubbles, under a thread no user has) is put among the open windows and taken out again;
+         * `drpgMessengerDeleted` is raised for one bubble, then for the other. Red at 419d3b42: nothing listened, and
+         * both bubbles stayed.
+         */
+        const M = await import("./messenger-app.mjs");
+        const thread = "R1063NoSuchUser1";
+        must(!M.DrpgMessengerApp.instances.has(thread), "a window is open under the stand-in's thread");
+        const root = document.createElement("div");
+        const log = document.createElement("div");
+        log.className = "drpg-messenger-log";
+        for (const id of ["R1063Bubble00001", "R1063Bubble00002"]) {
+            const bubble = document.createElement("div");
+            bubble.className = "drpg-messenger-bubble";
+            bubble.dataset.messageId = id;
+            log.append(bubble);
+        }
+        root.append(log);
+        const app = Object.create(M.DrpgMessengerApp.prototype, { element: { value: root }, playerUserId: { value: thread } });
+        const shown = () => [[...log.querySelectorAll(".drpg-messenger-bubble")].map(b => b.dataset.messageId), Boolean(log.querySelector(".drpg-messenger-empty"))];
+        const read = [];
+        M.DrpgMessengerApp.instances.set(thread, app);
+        try {
+            for (const id of ["R1063Bubble00001", "R1063Bubble00002"]) {
+                Hooks.callAll("drpgMessengerDeleted", { id }, thread);
+                await settle();
+                read.push(shown());
+            }
+        } finally {
+            M.DrpgMessengerApp.instances.delete(thread);
+        }
+        equal(stableJson(read), stableJson([[["R1063Bubble00002"], false], [[], true]]),
+            "[the window's bubbles and whether it shows the empty notice, after the first deletion, then the second]");
+    }],
     ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
         /*
          * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie

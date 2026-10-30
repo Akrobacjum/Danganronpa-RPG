@@ -1397,6 +1397,10 @@ export function buildApplications(ctx) {
             if (first) doc.body.appendChild(this.element);
             try { await this._onRender?.(context, opts2); } catch (err) { ctx.log(`_onRender threw in ${this.constructor.name}: ${err.stack}`); recordError(`${this.constructor.name}._onRender`, err); }
             this._rendered = true;
+            /* A first render puts the window in front, as `bringToFront` does (E50 C1): v13's `bringToFront` sets
+               `ui.activeWindow`, read from memory and not on v14 - whether v14's first render and a click in the window
+               set it is LIVE-E50-01, in `environment.unconfirmed`. The messenger reads it for "seen" (`seesThread`). */
+            if (first) this.bringToFront();
             // Foundry's `_doEvent`: the "render" event (DialogV2's `render` option) BEFORE
             // the render hooks - the a11y sweep on the hook relies on it. A render that
             // throws stops there: no position (the window stays at 0,0) and no hooks.
@@ -1410,6 +1414,7 @@ export function buildApplications(ctx) {
             try { await this._onClose?.(opts2); } catch {}
             this.element?.remove();
             this._rendered = false;
+            if (globalThis.ui?.activeWindow === this) globalThis.ui.activeWindow = null;
             globalThis.foundry?.applications?.instances?.delete(this.id);
             ctx.hooks().callAll("closeApplicationV2", this, this.element);
             this.dispatchEvent(new globalThis.window.Event("close"));
@@ -1443,7 +1448,9 @@ export function buildApplications(ctx) {
                 new Promise(resolve => setTimeout(resolve, timeout))
             ]);
         }
-        bringToFront() {} bringToTop() {}
+        // The window in front (E50 C1; LIVE-E50-01): `ui.activeWindow`, as v13's `bringToFront` sets it. No z-index.
+        bringToFront() { if (globalThis.ui) globalThis.ui.activeWindow = this; }
+        bringToTop() {}
         changeTab() {}
     }
 

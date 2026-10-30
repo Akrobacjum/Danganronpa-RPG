@@ -40,6 +40,14 @@ export function registerMessengerUi() {
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
+    Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
+    /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
+       was hidden (E50 C1, E50-01). What v14 does with `ui.activeWindow` meanwhile is LIVE-E50-02. */
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        const front = ui.activeWindow;
+        if (front instanceof DrpgMessengerApp) front.markIfSeen();
+    });
     // A note changed on this browser (settings.mjs, the note store's and copy's `onChange`).
     Hooks.on("drpgNotesChanged", () => {
         for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
@@ -363,18 +371,29 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         const form = this.element.querySelector(".drpg-messenger-input");
         const textarea = form?.querySelector("textarea");
 
+        /*
+         * A FAILED SEND KEEPS WHAT WAS TYPED (E50 C1; audit S11-38, E50-03). The field was emptied before the send,
+         * and `createThreadMessage` logs a failure and answers null - so a message that never left was gone from the
+         * screen as well, and nothing said so. The field is held while the send runs and emptied only once the
+         * message is there; on null or a throw the words stay, the field comes back, and the writer is told once.
+         */
         form?.addEventListener("submit", async event => {
             event.preventDefault();
             const text = textarea.value;
-            if (!text.trim()) return;
-            textarea.value = "";
+            if (!text.trim() || textarea.disabled) return;
             textarea.disabled = true;
+            let sent = null;
             try {
-                await sendMessage(this.playerUserId, text);
+                sent = await this.send(text);
+            } catch (err) {
+                error("Messenger: could not send.", err);
+                sent = null;
             } finally {
                 textarea.disabled = false;
-                textarea.focus();
             }
+            if (sent) textarea.value = "";
+            else ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
+            textarea.focus();
         });
 
         textarea?.addEventListener("keydown", event => {
@@ -385,8 +404,51 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         });
 
         this._scrollToBottom();
-        markThreadRead(this.playerUserId);
+        this.markIfSeen();
         textarea?.focus();
+    }
+
+    /** The send behind the Send button: the thread's own message, answered, or null when it did not go. */
+    async send(text) {
+        return sendMessage(this.playerUserId, text);
+    }
+
+    /*
+     * READ ONLY WHAT IS IN FRONT OF THE READER (E50 C1; audit S11-37, E50-01; Q-E50-2's default). Every render
+     * marked the thread read, the Note tab's too, and every message that came while the window was open, whatever
+     * covered it or however long the browser's tab had been hidden: a GM's badge went out on a request nobody saw.
+     * Seen now means the window drawn, on its Chat tab, the frontmost window (`ui.activeWindow`) and the page
+     * visible; a message that comes otherwise raises its card (the hook below) and is read when the window is
+     * brought forward, switched to Chat or shown again. A window minimised is not reachable (no-collapse.mjs).
+     * What sets `ui.activeWindow` on v14 is LIVE-E50-01: the harness sets it on a first render and on
+     * `bringToFront`, and clears it on close.
+     */
+    seesThread() {
+        return Boolean(this.rendered) && this.tab === "chat" && ui.activeWindow === this
+            && document.visibilityState === "visible";
+    }
+
+    markIfSeen() {
+        if (this.seesThread()) markThreadRead(this.playerUserId);
+    }
+
+    bringToFront() {
+        const out = super.bringToFront();
+        this.markIfSeen();
+        return out;
+    }
+
+    /**
+     * A message deleted from the chat log leaves this window (E50 C1; audit S11-35, E50-04): its bubble goes, its
+     * buttons with it, and an emptied log says so again.
+     */
+    removeMessage(messageId) {
+        const log = this.element?.querySelector(".drpg-messenger-log");
+        if (!log || !messageId) return false;
+        const bubbles = [...log.querySelectorAll(".drpg-messenger-bubble")].filter(b => b.dataset.messageId === messageId);
+        for (const bubble of bubbles) bubble.remove();
+        if (bubbles.length && !log.querySelector(".drpg-messenger-bubble")) log.replaceChildren(emptyNotice());
+        return bubbles.length > 0;
     }
 
     /**
@@ -408,9 +470,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         log.querySelector(".drpg-messenger-empty")?.remove();
         log.append(buildBubble(message));
         this._scrollToBottom();
-        // The window is on screen - count it as read immediately rather than
-        // leaving a badge for a conversation the user is looking straight at.
-        markThreadRead(this.playerUserId);
+        // Read at once only when it is in front of the reader (`seesThread`); otherwise its card is raised.
+        this.markIfSeen();
     }
 
     _scrollToBottom() {
@@ -431,7 +492,9 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
     const instance = DrpgMessengerApp.instances.get(playerUserId);
     if (instance) {
         instance.appendMessage(message);
-        return;
+        /* An open window that does not show it (on Note, covered by another window, the page hidden) raises the same
+           card a closed one would (E50 C1, E50-02). A stand-in without `seesThread` counts as seeing (R297). */
+        if (instance.seesThread?.() ?? true) return;
     }
 
     /* A GM used to keep only the roster badge for this - a passive dot in the
@@ -487,6 +550,16 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
  */
 function keptAsMessenger(message, playerUserId) {
     return { source: "messenger", messageId: message?.id ?? null, link: { messenger: playerUserId } };
+}
+
+/*
+ * A deleted message leaves every open window that shows it (E50 C1; audit S11-35, E50-04). Every window, not only its
+ * thread's: a veiled card names its thread only in the words it brought, so its window is found by its bubble. The
+ * launcher is drawn again, as the count may drop. The card copy on the screen is popup.mjs's (`onDeleteChatMessage`).
+ */
+function onMessengerDeleted(message) {
+    for (const app of DrpgMessengerApp.instances.values()) app.removeMessage?.(message?.id ?? null);
+    renderLauncher();
 }
 
 // A card that changed while a window is open redraws in place. A card that

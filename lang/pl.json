@@ -4335,6 +4335,7 @@
       "rosterEmpty": "W tym świecie nie ma jeszcze graczy.",
       "rosterNoMessages": "Brak wiadomości.",
       "noMessagesYet": "Brak wiadomości - przywitaj się.",
+      "sendFailed": "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.",
       "placeholder": "Napisz wiadomość…",
       "send": "Wyślij",
       "openChat": "Otwórz czat z GM-em",

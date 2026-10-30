@@ -4167,6 +4167,7 @@
       "rosterEmpty": "No players in this world yet.",
       "rosterNoMessages": "No messages yet.",
       "noMessagesYet": "No messages yet - say hello.",
+      "sendFailed": "Your message was not sent. It is still in the box - try again.",
       "placeholder": "Write a message…",
       "send": "Send",
       "openChat": "Open GM Chat",

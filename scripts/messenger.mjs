@@ -85,6 +85,7 @@ export const THREAD_KIND = {
 export function registerMessenger() {
     Hooks.on("createChatMessage", onCreateChatMessage);
     Hooks.on("updateChatMessage", onUpdateChatMessage);
+    Hooks.on("deleteChatMessage", onDeleteChatMessage);
 }
 
 /* ==========================================================================
@@ -324,4 +325,16 @@ function onUpdateChatMessage(message) {
     if (!thread) return;
     if (!game.user.isGM && game.user.id !== thread) return;
     Hooks.callAll("drpgMessengerEdited", thread, message);
+}
+
+/**
+ * A message of a thread was deleted (E50 C1; audit S11-35, E50-04): `drpgMessengerDeleted` takes it out of the open
+ * windows. A veiled card whose words never reached this browser names no thread here and was never placed in one; it
+ * is raised with a null thread, and the windows look for it by its id.
+ */
+function onDeleteChatMessage(message) {
+    const thread = cardFlag(message, MESSENGER_FLAGS.thread) ?? null;
+    if (!thread && !isVeiled(message)) return;
+    if (thread && !game.user.isGM && game.user.id !== thread) return;
+    Hooks.callAll("drpgMessengerDeleted", message, thread);
 }
