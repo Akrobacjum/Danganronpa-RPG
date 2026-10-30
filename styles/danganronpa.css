@@ -6549,7 +6549,8 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
    its 1.6rem height, its pointer, its hover and, in the focus list above, its ring - and keeps the label's
    frame, which is what reads as a count. The label with the help cursor is left for a stack of sticky cards
    only. Under Stained Glass its colour is the close button's by the title band's `:is(button, i)` rule
-   (stained-glass.css). The 44 px touch target is E63's; how it draws is not measured here (no browser). */
+   (stained-glass.css). A 44 px touch target was E63's, and E63 left the plan on 30.10.2026 (the owner); how it draws is
+   not measured here (no browser). */
 .drpg-popup-title button.drpg-popup-more {
     display: inline-flex;
     align-items: center;
