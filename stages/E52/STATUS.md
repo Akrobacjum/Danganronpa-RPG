@@ -12,6 +12,7 @@ Base: bc158f09 (line B's branch = main 12ff1b62 + E20). Spec: STAGE.md (the owne
 | C4 | d8e8f68b | QUICK GREEN at 5d16b968+edits: lint/check/gate ok; prose ok; t01 ok; own(12) ok; scen 66 ok (logs /c/Users/chrob/quick-runs/5d16b968-1556); R1550-R1553 (t1), E52-T2 (t2) red first on assertions (R1553 expected [20,0], measured [20,20]); with R1541: 10 passed, 0 failed |
 | C5 | 4f9edb60 | QUICK GREEN at d8e8f68b+edits: lint/check/gate ok; prose ok; t01 ok; own(6) ok; scen 13 ok (logs /c/Users/chrob/quick-runs/d8e8f68b-2270); R1554-R1556 (t1, E52-17, -18) red first on assertions; with "nothing is repainting the page": 5 passed, 0 failed |
 | C6 | c46612a7 | QUICK GREEN at 4f9edb60+edits: lint/check/gate ok; prose ok; t01 ok; own(9) ok; scen 40 ok; scen 72 ok (logs /c/Users/chrob/quick-runs/4f9edb60-3334); R1557, R1558, R1561 (t1), R1559, R1560 (t0) red first on assertions (5 failed); with R220: 7 passed, 0 failed; R1560 also checks a planted surface |
+| C7 | 03e73d82 | QUICK GREEN at c46612a7+edits: lint/check/gate ok; prose ok; t01 ok; own(9) ok; scen 50 ok; scen 65 ok (logs /c/Users/chrob/quick-runs/c46612a7-4119); R1562, R1563 red first on assertions; with R1541, R1540, R130, R217, R387, R806, R431: 13 passed, 0 failed |
 
 ## Open
 - C1 note: R1537's reader also found `ui.sidebar.toggleExpanded`/`changeTab` (foundry-windows.mjs) - a row added; hook rows added now with presence-only probes
@@ -22,7 +23,7 @@ Base: bc158f09 (line B's branch = main 12ff1b62 + E20). Spec: STAGE.md (the owne
 - C2 note: on the test world no row fails and 9 are unknown (8 hook rows; Isometric - the harness's token class is `Object`)
 - C2 note: C1's R1537-R1539 relabelled from stage E67 to E52 in the registry
 - C2 tools: mut.sh's `python3 -I` reads fog.mjs as cp1250 on this machine; m4 applied only with `-X utf8` (a wrapper in scratch) - the orchestrator (tools)
-- C2 gap: the notice and Pre-season lines put each row's English fallback text inside a translated sentence - C7 / the review
+- C2 gap (closed in C7): the 59 register keys each have an EN/PL sentence for the notice and Pre-season's line; the console and diagnose() keep the English fallback
 - C2 gap: a real Foundry (LIVE-E52-01), doors and floors on a real canvas not measured - C7
 - C3 behaviour: the GM's microphone block and the trial's block write nothing when Foundry has no `BROADCAST_AUDIO` permission; the GM is told why (`gmNoBlock` EN/PL). The harness registers `core.rtcClientSettings` and `BROADCAST_AUDIO`; the LiveKit separate-window row is checked only while voice is on (registering it at start broke R807, R808)
 - C3 gap (closed in C4): Pre-season's unchecked places are one counted line with the list folded under it; failed rows stay on their own lines
@@ -43,3 +44,6 @@ Base: bc158f09 (line B's branch = main 12ff1b62 + E20). Spec: STAGE.md (the owne
 - C6 gap: the two new actor warnings not seen on a real Foundry (who sees them, how often a looping macro repeats one) - C7 LIVE
 - C6 gap: R1560 leaves `suiteRolling` out by name (the runner adds it to `game.drpg` during a run) - the review
 - C6 note, outside the file list: tests-kit.mjs (`env.tools`: an installed module has no tools/), call-world.mjs (the comments were there, not in call-effects.mjs), eclipse.mjs (a comment wrongly said a Morning Eclipse places freely), module.mjs (the "1.2.0 migration" label)
+- C7: AUDIT 9.2 B-E52-1..11 appended (B-E52-2, -3 the ids patches.mjs already cites); every LIVE item of C1-C6 is a row there, none measured at a table
+- C7 gap: the Polish sentences of the 59 keys have no native speaker's read - the owner
+- C7 gap: the unknown rows' probe notes stay English (the folded list, the console) - the review

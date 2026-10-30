@@ -20,7 +20,7 @@ R numbers: line A R1049-R1499.
 | --- | --- | --- | --- |
 | B-C0 | READY (60ef9a97, CI green run 40890551850) | tools/moved-only.mjs | owner's yes 29.10 |
 | E20 | READY for line A's train: HEAD bc158f09, CI green run 41008175457; LEDGER 24 answered, 0 open, LIVE B-E20-1..7 | season-setup.mjs, diagnostics.mjs, vault.mjs (census), fog-diagnostics.mjs, anonymity.mjs, gm-panel.mjs `nextStep`, module.mjs, enforced.mjs, settings.mjs, CSS (a gate on rules aimed at Foundry's elements) | exports `roomCensus`/`studentCensus` for E51 |
-| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 e785e582 (CI green), C2 4022cd83 (CI green), C3 1de03286 + fixes 2c635111, 5d16b968 (CI green), C4 d8e8f68b (CI green), C5 4f9edb60 (CI green), C6 c46612a7 pushed (CI pending); C7 in work | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
+| E52 | SPEC 797cef9a (stages/E52/STAGE.md): 23 rows, C1-C7, C2 MARKED; BUILD (the owner's yes 30.10; Q-1..Q-8 on their defaults, D24/D25 text not given): C1 e785e582 (CI green), C2 4022cd83 (CI green), C3 1de03286 + fixes 2c635111, 5d16b968 (CI green), C4 d8e8f68b (CI green), C5 4f9edb60 (CI green), C6 c46612a7 (CI green), C7 03e73d82 pushed (CI pending); C1-C7 built, end review next (waits for the owner) | patches.mjs, diagnostics.mjs, requirements.mjs, season-setup.mjs, settings.mjs (reads enforced.mjs `FOUNDRY_WRITES`); fog.mjs/rooms.mjs in two places (E89) | builds on bc158f09 (E20); `ECLIPSE_FREE_PLACEMENT` with E37; E66's renames will need aliases |
 
 R numbers: line B R1500-R1999.
 
@@ -80,6 +80,8 @@ E24/E45 in sheet.mjs before E54 - which line A stage is safe?
 - E52 C3: $15.21 (08:26:12 $109.14 -> 12:15:49 $124.35), 1 drpg-impl agent (326k tokens, 153 tool calls, 3.8 h wall).
 - E52 C4 (+ C3's CI fixes 2c635111, 5d16b968): $13.34 (12:15:49 $124.35 -> 13:16:38 $137.69), 1 drpg-impl agent (232k tokens, 143 tool calls, 1 h wall).
 - E52 C5: $3.71 (13:16:38 $137.69 -> 13:31:37 $141.40), 1 drpg-impl agent (146k tokens, 59 tool calls, 15 min wall).
+- E52 C6: $7.24 (13:31:37 $141.40 -> 13:54:40 $148.64), 1 drpg-impl agent (222k tokens, 134 tool calls, 23 min wall).
+- E52 C7: 1 drpg-impl agent on sonnet (183k tokens, 84 tool calls, 17 min wall); $ = the next log line minus $148.64.
 
 
 ### Line A's answers (29.10.2026, after reading "Line B - proposed")
