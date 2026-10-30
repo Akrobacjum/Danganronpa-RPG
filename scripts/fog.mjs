@@ -2247,7 +2247,7 @@ let lastFogReason = "not run yet";
  * is off, the scene has no regions, the layer never mounted, or every room is
  * already discovered. Each of those now says so by name.
  */
-export function diagnoseFog() {
+export function diagnoseFog({ gm = game.user.isGM } = {}) {
     const scene = canvas?.scene ?? null;
     const container = findLayer();
     // The regions the fog draws with: rooms only, each piece on its own (E12 C2b). The named
@@ -2304,7 +2304,8 @@ export function diagnoseFog() {
         coveragePercent: container?.visible ? measureCoverage(fogTexture) : 0,
         myCharacters: game.actors.filter(a => a.type === "character" && a.isOwner).map(a => a.name),
         currentRooms: Array.from(myCurrentRooms()),
-        discoveredRooms: Array.from(myDiscoveredRooms(scene)),
+        // `gm` handed in by the one report (E52 C4): a player's report reads that player's rooms, never the ledger.
+        discoveredRooms: Array.from(myDiscoveredRooms(scene, { gm })),
         iAmTheMastermind: iAmTheMastermind(),
         // Holes cut at the last build, against where the tokens stand now.
         clearancesCutAt: lastClearances,

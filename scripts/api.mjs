@@ -69,7 +69,7 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseGmStores, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow } from "./diagnostics.mjs";
+    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow, diagnose } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
@@ -1201,6 +1201,13 @@ export const DrpgApi = {
      * on demand like the suite below: it is a table, not a feature.
      */
     diagnosePatches: () => import("./patches.mjs").then(m => m.diagnosePatches()),
+
+    /**
+     * Every diagnose* this browser may run, the data migration, the contract and this session's failures as
+     * one text, shown with Copy report and the silences' Show again; answers the text (E52 C4, E52-14). On a
+     * player the GMs' parts are named and not run. `{ show: false }` answers the text without the window.
+     */
+    diagnose,
 
     /*
      * THE SUITE IS FETCHED WHEN IT IS ASKED FOR, NOT AT EVERY START (C2).

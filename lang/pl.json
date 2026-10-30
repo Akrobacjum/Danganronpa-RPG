@@ -4964,6 +4964,18 @@
         "none": "Jeszcze nic - żaden projekt nie jest dla ciebie widoczny."
       }
     },
+    "Diagnose": {
+      "title": "Raport diagnostyczny",
+      "intro": "Wszystko, co moduł potrafi tu sprawdzić, w jednym tekście. Skopiuj go i wyślij osobie, która ci pomaga.",
+      "copy": "Kopiuj raport",
+      "copied": "Raport skopiowany - wklej go (Ctrl+V) tam, gdzie ma trafić.",
+      "gmOnly": "Tylko dla MG - tę część pokazuje raport otwarty na ekranie MG.",
+      "silencesTitle": "Wyciszone przez ciebie ostrzeżenia",
+      "showAgain": "Pokaż znowu",
+      "silence": {
+        "systemWarning": "Ostrzeżenie, że Daggerheart {version} jest nowszy niż wersja, na której ten moduł sprawdzono."
+      }
+    },
     "Failures": {
       "title": "Dziennik debugowania",
       "intro": "Wszystko, co nie udało się tej przeglądarce od załadowania strony. Przeładowanie go opróżnia - błąd sprzed przeładowania to nie taki, na który wciąż da się zareagować. Powtórki to jeden wiersz z licznikiem.",
@@ -6309,10 +6321,10 @@
         "other": "Wszystkich {n} sprawdzonych miejsc jest takich, jakich ta wersja oczekuje."
       },
       "checksUnknown": {
-        "one": "Nie wiadomo, czy działa, bo nie dało się tego tu sprawdzić: {targets}",
-        "few": "{n} miejsca: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}",
-        "many": "{n} miejsc: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}",
-        "other": "{n} miejsc: nie wiadomo, czy działają, bo nie dało się ich tu sprawdzić: {targets}"
+        "one": "Jednego miejsca nie dało się tu sprawdzić, więc nie wiadomo, czy działa. Kliknij ten wiersz, by zobaczyć które.",
+        "few": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę.",
+        "many": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę.",
+        "other": "{n} miejsc nie dało się tu sprawdzić, więc nie wiadomo, czy działają. Kliknij ten wiersz, by zobaczyć listę."
       }
     },
     "Relay": {

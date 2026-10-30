@@ -4730,6 +4730,18 @@
         "none": "Nothing yet - no project is visible to you."
       }
     },
+    "Diagnose": {
+      "title": "Diagnostics report",
+      "intro": "Everything the module can check here, as one text. Copy it and send it to whoever is helping you.",
+      "copy": "Copy report",
+      "copied": "Report copied - paste it (Ctrl+V) wherever it needs to go.",
+      "gmOnly": "GM only - open the report on a GM's screen for this part.",
+      "silencesTitle": "Warnings you silenced",
+      "showAgain": "Show again",
+      "silence": {
+        "systemWarning": "The warning that Daggerheart {version} is newer than the version this module was tested on."
+      }
+    },
     "Failures": {
       "title": "Debug log",
       "intro": "Everything this browser has failed at since the page loaded. Reloading empties it - a failure from before a reload is not one you can still act on. Repeats are one row with a count.",
@@ -4940,8 +4952,8 @@
         "other": "All {n} places checked are as this version expects."
       },
       "checksUnknown": {
-        "one": "Not known to work, as it could not be checked here: {targets}",
-        "other": "{n} places are not known to work, as they could not be checked here: {targets}"
+        "one": "One place could not be checked here, so it is not known to work. Click this line to see which.",
+        "other": "{n} places could not be checked here, so they are not known to work. Click this line for the list."
       }
     },
     "Relay": {

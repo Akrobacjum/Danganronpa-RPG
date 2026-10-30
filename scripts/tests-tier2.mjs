@@ -75267,6 +75267,26 @@ const SCENARIOS = [
         equal(stableJson(contract.rows.filter(r => !["ok", "failed", "unknown"].includes(r.state)).map(r => r.id)), "[]",
             "a row of the contract answered no state of the three");
     }],
+    ["E52-T2 - the one report on the suite's world: every part read, none failed, no chat message, and game.drpg.diagnose() answers its text (E52 C4, E52-14; S17-51)", async () => {
+        /*
+         * E52 C4, 30.10.2026. The report runs every diagnose* this client may run; on the suite's world, the
+         * module's whole start-up on the harness's Foundry and Daggerheart, none of them may throw (a part that
+         * throws is "failed" in the report, with its message), and the report is read, not posted. Here as the
+         * GM: every part ok, the chat as it was, and `diagnose({ show: false })` answers the same parts' text.
+         * Red before C4: no gatherReport.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && typeof game.drpg?.diagnose === "function", "no gatherReport, or no game.drpg.diagnose");
+        if (typeof D.gatherReport !== "function" || typeof game.drpg?.diagnose !== "function") return;
+        const before = game.messages.size;
+        const report = await D.gatherReport({ gm: true });
+        equal(stableJson(report.sections.filter(s => s.state !== "ok").map(s => [s.id, s.state, s.text.slice(0, 160)])), "[]",
+            "a part of the report failed, or was not run, on the GM of the suite's world");
+        const text = await game.drpg.diagnose({ show: false });
+        equal(game.messages.size, before, "the report posted a chat message");
+        equal(stableJson(report.sections.filter(s => !String(text).includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
+            "game.drpg.diagnose() does not answer the report's text");
+    }],
     ...GRID
 ];
 

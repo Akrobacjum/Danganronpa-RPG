@@ -3489,6 +3489,7 @@ body.drpg-theme-stained-glass {
     --drpg-font-ui: var(--drpg-font-chrome);
 }
 body.drpg-theme-stained-glass .drpg-check-report { font-family: var(--drpg-font-chrome); }
+body.drpg-theme-stained-glass .drpg-diagnose-report { font-family: var(--drpg-font-chrome); }
 /* the report's marks in the theme's evidence colour and its alarm (E20 fix round, G-8) */
 body.drpg-theme-stained-glass .drpg-check-report .drpg-check-ok,
 body.drpg-theme-stained-glass [data-drpg-anon] .drpg-check-ok { color: var(--drpg-sg-evidence); }

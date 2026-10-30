@@ -6,10 +6,11 @@
  *     game.drpg.diagnoseDice()        dice skins
  *     game.drpg.diagnoseDespair()     Despair from rolls
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
+ *     game.drpg.diagnose()            all of them as one report, with Copy report
  */
 
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, STALE_SILENCES, staleSilencesCleared } from "./settings.mjs";
 import { bulletStore, remnantStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax, poolCandidates } from "./despair.mjs";
 import { monokumaFor, students, unassigned, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
@@ -17,7 +18,8 @@ import { studentActors, studentCensus } from "./monokuma.mjs";
 import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug, gmReport, plural } from "./utils.mjs";
+import { isPrimaryGm, log, debug, error, esc, gmReport, plural, dialogContent, sessionFailures } from "./utils.mjs";
+import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow } from "./private-rolls.mjs";
 
@@ -56,7 +58,7 @@ import { rollSubjectNow } from "./private-rolls.mjs";
  * player without anybody having configured anything on purpose. The permissions
  * column below says so outright when it happens.
  */
-function rollAudienceLines() {
+function rollAudienceLines(gm = game.user?.isGM === true) {
     const lines = ["", "Who could see the last rolls:"];
 
     let forced = null;
@@ -67,7 +69,9 @@ function rollAudienceLines() {
     }
     lines.push(`  Forced private rolls: ${forced === null ? "unreadable" : forced ? "on" : "OFF - every roll is public, which is the whole answer"}`);
 
-    const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0).slice(-6);
+    // A player's list holds only the rolls that player may see (E52 C4, E52-15): every browser receives every
+    // message, a whisper to others included, and the report is pasted on.
+    const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0 && (gm || m.visible !== false)).slice(-6);
     if (!rolls.length) {
         lines.push("  No rolls in the log yet.");
         return lines;
@@ -100,24 +104,24 @@ function rollAudienceLines() {
     return lines;
 }
 
-export function diagnoseDice() {
+export function diagnoseDice({ toChat = true, gm = game.user?.isGM === true } = {}) {
     const lines = [];
     const dsn = game.modules.get("dice-so-nice");
 
     lines.push(`Dice So Nice installed: ${dsn ? "yes" : "no"}${dsn ? `, active: ${dsn.active}` : ""}`);
 
     // Before the skins, because it is the question that gets asked at the table.
-    for (const line of rollAudienceLines()) lines.push(line);
+    for (const line of rollAudienceLines(gm)) lines.push(line);
 
     if (!dsn?.active) {
         lines.push("→ Nothing else matters until Dice So Nice is enabled.");
-        return report("Dice diagnostics", lines);
+        return report("Dice diagnostics", lines, { toChat });
     }
 
     const factory = game.dice3d?.DiceFactory;
     if (!factory) {
         lines.push("game.dice3d.DiceFactory is unavailable - Dice So Nice has not finished loading.");
-        return report("Dice diagnostics", lines);
+        return report("Dice diagnostics", lines, { toChat });
     }
 
     const installed = Array.from(factory.systems?.keys?.() ?? []);
@@ -133,7 +137,7 @@ export function diagnoseDice() {
     const dsnConfig = appearance?.diceSoNiceData ?? appearance?.diceSoNice;
     if (!dsnConfig) {
         lines.push("Could not read Daggerheart's Appearance settings.");
-        return report("Dice diagnostics", lines);
+        return report("Dice diagnostics", lines, { toChat });
     }
 
     for (const key of ["hope", "fear"]) {
@@ -148,11 +152,11 @@ export function diagnoseDice() {
     lines.push("");
     lines.push("Fix: Configure Settings → Daggerheart → Appearance → Dice So Nice, and pick a dice system that is in the list above.");
 
-    return report("Dice diagnostics", lines);
+    return report("Dice diagnostics", lines, { toChat });
 }
 
 /** Why a roll with Despair might not be feeding a pool. */
-export function diagnoseDespair() {
+export function diagnoseDespair({ toChat = true } = {}) {
     const lines = [];
 
     const enabled = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls);
@@ -196,7 +200,7 @@ export function diagnoseDespair() {
         lines.push("→ How that roll was read has been logged to the console.");
     }
 
-    return report("Despair diagnostics", lines);
+    return report("Despair diagnostics", lines, { toChat });
 }
 
 /* The tokens the rest of the stylesheet is built out of. If the `:root` block
@@ -597,7 +601,7 @@ function resourceLines(lines) {
     }
 }
 
-export function diagnoseStyles() {
+export function diagnoseStyles({ toChat = true } = {}) {
     const lines = [];
 
     // ---- 1. The page itself -------------------------------------------------
@@ -613,10 +617,10 @@ export function diagnoseStyles() {
         lines.push("");
     }
 
-    lines.push(`Page: ${location.origin} (${location.protocol})`);
+    lines.push(`Page: ${window.location?.origin} (${window.location?.protocol})`);
     lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
     lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
-    lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
+    lines.push(`Other active modules: ${[...game.modules.values()].filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
     lines.push("");
 
     styleSheetLines(lines);
@@ -648,7 +652,7 @@ export function diagnoseStyles() {
     lines.push("");
     resourceLines(lines);
 
-    return report("Style diagnostics", lines);
+    return report("Style diagnostics", lines, { toChat });
 }
 
 /**
@@ -720,13 +724,13 @@ export function verifyStylesheet() {
  * frame - a fixed-width face on labels laid out in pixels, a UI scale, a
  * `.form-group` that cannot wrap, and a `.window-content` that cannot scroll.
  */
-export function diagnoseWindows() {
+export function diagnoseWindows({ toChat = true } = {}) {
     const lines = [];
 
     const css = stylesheetVersion();
     const version = moduleVersion();
     lines.push(`Foundry ${game.version}, ${game.system.id} ${game.system.version}`);
-    lines.push(`Host: ${location.origin}`);
+    lines.push(`Host: ${window.location?.origin}`);
     lines.push(`Running: Danganronpa RPG v${version}, stylesheet v${css || "(NOT ON THIS PAGE)"}`
         + (css && css !== version ? "   ← THIS PAGE IS HOLDING AN OLDER STYLESHEET" : ""));
 
@@ -752,7 +756,7 @@ export function diagnoseWindows() {
 
     if (!windows.length) {
         lines.push("No config window is open. Open Token Config or Scene Config and run this again.");
-        return report("Window diagnostics", lines);
+        return report("Window diagnostics", lines, { toChat });
     }
 
     for (const win of windows) {
@@ -791,7 +795,7 @@ export function diagnoseWindows() {
         lines.push("");
     }
 
-    return report("Window diagnostics", lines);
+    return report("Window diagnostics", lines, { toChat });
 }
 
 /**
@@ -1003,7 +1007,7 @@ export async function fileSizes() {
 
     lines.push(`Danganronpa RPG v${moduleVersion()}, `
         + `stylesheet v${stylesheetVersion() || "(none)"}`);
-    lines.push(`Host: ${location.origin}`);
+    lines.push(`Host: ${window.location?.origin}`);
     lines.push(`${files.length} files: the manifest's stylesheets and languages, and the scripts crawled from module.mjs`);
     lines.push("");
 
@@ -1036,7 +1040,7 @@ export async function fileSizes() {
  *
  *     game.drpg.diagnoseTruthBullets()
  */
-export function diagnoseTruthBullets() {
+export function diagnoseTruthBullets({ toChat = true } = {}) {
     const lines = [];
 
     if (!game.user.isGM) {
@@ -1110,7 +1114,7 @@ export function diagnoseTruthBullets() {
         lines.push("      still zero with a sheet open means the injection point moved.");
     }
 
-    return report("Truth Bullet diagnostics", lines);
+    return report("Truth Bullet diagnostics", lines, { toChat });
 }
 
 /**
@@ -1884,4 +1888,197 @@ async function frameCostRun({ seconds, frames, holdMs, toChat }) {
     lines.push("A frame budget is 16.7 ms at 60 Hz. \"ms less\" is one reading against one other on this machine;");
     lines.push("run it twice and read the two together.");
     return report("Danganronpa RPG - where the frame goes", lines, { toChat });
+}
+
+/* ==========================================================================
+ * ONE REPORT (E52 C4, E52-14..16; audit S17-51, S01-62)
+ * --------------------------------------------------------------------------
+ * Eighteen diagnose* commands in ten files, each printed on its own and some
+ * whispered as a card: a GM asked "what does it say" had to know which. Here
+ * every one this browser may run is a part of one plain text, with the data
+ * migration, the contract and this session's failures; the window shows it
+ * with Copy report and lists the silences this browser keeps, each with Show
+ * again. The text is English like the console: it is pasted to whoever helps.
+ *
+ * WHAT A PLAYER'S REPORT LEAVES OUT (E52-15). A part that reads what only the
+ * GMs may know - a GM store, the traces' or the traps' ledger, every student's
+ * checklist, the rooms of tokens the player cannot see - is `gmOnly`: on a
+ * player it is named and not run. The rest reads this browser alone.
+ * ========================================================================== */
+
+/* A value as report text: strings as they are, anything else as JSON (a reference met twice is cut). */
+function asText(value) {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && value.every(line => typeof line === "string")) return value.join("\n");
+    if (value === undefined || value === null) return "(nothing)";
+    const seen = new WeakSet();
+    return JSON.stringify(value, (key, v) => {
+        if (v && typeof v === "object") {
+            if (seen.has(v)) return "(seen above)";
+            seen.add(v);
+        }
+        return v;
+    }, 2);
+}
+
+/* The contract's run as lines: the counts, then each failed and unknown row with where it lives. */
+function contractText(contract) {
+    const line = r => `  ${r.state.padEnd(7)} ${r.id}: ${r.target} (${r.where}) - ${r.note}${r.state === "failed" ? `; instead: ${r.fallback}` : ""}`;
+    return [`${contract.rows.length} rows: ${contract.ok.length} ok, ${contract.failed.length} failed, ${contract.unknown.length} unknown`
+        + " (unknown is a warning, never a pass)", ...contract.failed.map(line), ...contract.unknown.map(line)].join("\n");
+}
+
+/* This session's failures as the debug log copies them (gm-panel.mjs `openFailureLog`), whole stacks. */
+function failureText() {
+    const rows = sessionFailures();
+    if (!rows.length) return "Nothing has failed since this page loaded.";
+    return rows.map(r => [`[${new Date(r.at).toISOString()}] (${r.level}${r.count > 1 ? ` x${r.count}` : ""}) ${r.message}`,
+        ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])].join("\n")).join("\n");
+}
+
+/* The silences part: the live one and every stale one, by id. */
+function silenceText() {
+    const live = systemWarningSilence();
+    const cleared = staleSilencesCleared();
+    return [`systemWarningSilenced: ${live ? `the newer-Daggerheart warning is silenced for ${live.version}; Show again is in this window` : "not silenced"}`,
+        ...STALE_SILENCES.map(id => `${id}: the silence of a window the module no longer has; ${cleared.includes(id) ? "cleared at this load" : "not held here"}`)
+    ].join("\n");
+}
+
+const part = (id, title, covers, run, { gmOnly = false } = {}) => Object.freeze({ id, title, covers: Object.freeze(covers), run, gmOnly });
+
+/**
+ * The report's parts, in the order the text gives them: `{ id, title, covers, run, gmOnly }`. `covers` names
+ * the diagnose* each reads (R1550 holds every exported one to a part); `run({ gm })` answers a string, lines or
+ * a value; `gmOnly` parts are not run on a player (R1551).
+ */
+export const REPORT_SECTIONS = Object.freeze([
+    part("contract", "The contract with Foundry, Daggerheart and the modules", ["diagnosePatches"],
+        async () => contractText((await import("./patches.mjs")).runContract())),
+    part("migration", "Data migration", [], async () => (await import("./migrate.mjs")).migrationStatus()),
+    part("failures", "Failures since this page loaded", [], () => failureText()),
+    part("silences", "Silenced warnings", [], () => silenceText()),
+    part("dice", "Dice", ["diagnoseDice"], ({ gm }) => diagnoseDice({ toChat: false, gm })),
+    part("despair", "Despair", ["diagnoseDespair"], () => diagnoseDespair({ toChat: false }), { gmOnly: true }),
+    part("styles", "Styles", ["diagnoseStyles"], () => diagnoseStyles({ toChat: false })),
+    part("windows", "Windows", ["diagnoseWindows"], () => diagnoseWindows({ toChat: false })),
+    part("truthBullets", "Truth Bullets", ["diagnoseTruthBullets"], () => diagnoseTruthBullets({ toChat: false }), { gmOnly: true }),
+    part("gmStores", "GM stores", ["diagnoseGmStores"], () => diagnoseGmStores(), { gmOnly: true }),
+    part("voice", "Voice", ["diagnoseVoice"], () => voiceDiagnosis()),
+    part("characters", "Characters", ["diagnoseCharacters"], () => diagnoseCharacters({ toChat: false }), { gmOnly: true }),
+    part("scenes", "Scenes", ["diagnoseScenes"], async () => (await import("./fog.mjs")).diagnoseScenes(), { gmOnly: true }),
+    part("fog", "Fog", ["diagnoseFog"], async ({ gm }) => (await import("./fog.mjs")).diagnoseFog({ gm })),
+    part("visibility", "Room visibility", ["diagnoseVisibility"], async () => (await import("./visibility.mjs")).diagnoseVisibility(), { gmOnly: true }),
+    part("ownRings", "Token frames", ["diagnoseOwnRings"], async ({ gm }) => {
+        const rings = (await import("./own-ring.mjs")).diagnoseOwnRings();
+        // A player's rows only for the tokens that player sees (E52-15): a hidden token's name is the GMs'.
+        return gm ? rings : { ...rings, tokens: (rings?.tokens ?? []).filter(row => row.visible) };
+    }),
+    part("live", "Windows that keep themselves true", ["diagnoseLive"], async () => (await import("./live.mjs")).diagnoseLive()),
+    part("music", "Music", ["diagnoseMusic"], async () => (await import("./music.mjs")).diagnoseMusic({ toChat: false }), { gmOnly: true }),
+    part("sfx", "Sound effects", ["diagnoseSfx"], async () => (await import("./sfx.mjs")).diagnoseSfx()),
+    part("secrets", "Private cards", ["diagnoseSecrets"], async () => (await import("./secret.mjs")).diagnoseSecrets()),
+    part("traps", "Traps", ["diagnoseTraps"], async () => (await import("./traps.mjs")).diagnoseTraps(), { gmOnly: true })
+]);
+
+/* The report's first lines: what runs where, the versions a pasted report always arrives without. */
+function reportHeader(gm) {
+    const modules = [...(game.modules?.values?.() ?? [])].filter(m => m.active).map(m => `${m.id} ${m.version ?? "?"}`).sort();
+    return [`Danganronpa RPG ${moduleVersion()} - Foundry ${game.version} - ${game.system?.id ?? "?"} ${game.system?.version ?? "?"}`,
+        `${game.user?.name ?? "?"} (${gm ? "GM" : "player"}) - ${new Date().toISOString()}`,
+        `Active modules: ${modules.join(", ") || "none"}`].join("\n");
+}
+
+/**
+ * Read every part this browser may run, one after another, into one text: `{ text, sections }`, each section
+ * `{ id, title, state, text }` with state ok, failed (it threw: its message) or gmOnly (named, not run). Read
+ * only: no part posts a card. `gm` and `sections` are handed in by R1551.
+ */
+export async function gatherReport({ gm = game.user?.isGM === true, sections = REPORT_SECTIONS } = {}) {
+    const out = [];
+    for (const s of sections) {
+        if (s.gmOnly && !gm) {
+            out.push({ id: s.id, title: s.title, state: "gmOnly", text: game.i18n.localize("DRPG.Diagnose.gmOnly") });
+            continue;
+        }
+        try {
+            out.push({ id: s.id, title: s.title, state: "ok", text: asText(await s.run({ gm })) });
+        } catch (err) {
+            out.push({ id: s.id, title: s.title, state: "failed", text: `This part could not be read: ${err?.message ?? err}` });
+        }
+    }
+    const text = [reportHeader(gm), ...out.map(s => `== ${s.title} ==\n${s.text}`)].join("\n\n");
+    return { text, sections: out };
+}
+
+/**
+ * The silences this browser keeps, each `{ id, label, showAgain }` (E52-16; Q-8: the newer-Daggerheart warning,
+ * the one there is). `system` and `showAgain` are handed in by R1552.
+ */
+export function activeSilences({ system = systemWarningSilence(), showAgain = showSystemWarningAgain } = {}) {
+    if (!system) return [];
+    return [{ id: system.id, label: game.i18n.format("DRPG.Diagnose.silence.systemWarning", { version: system.version }), showAgain: () => showAgain() }];
+}
+
+/**
+ * The report's window: the text, Copy report, and Show again for each silence. Copy and Show again bring the
+ * window back, as the debug log's Copy does; it answers the button that closed it. `wait`, `copy`, `notify` and
+ * `silences` are handed in by R1550 and R1552.
+ */
+export async function openReport(text, { wait = config => foundry.applications.api.DialogV2.wait(config),
+    copy = value => game.clipboard.copyPlainText(value), notify = message => ui.notifications?.info(message),
+    silences = activeSilences() } = {}) {
+    const localize = key => game.i18n.localize(key);
+    let left = [...silences];
+    for (;;) {
+        const listed = left.length
+            ? `<h3>${esc(localize("DRPG.Diagnose.silencesTitle"))}</h3>
+               <ul>${left.map(s => `<li><code>${esc(s.id)}</code> ${esc(s.label)}</li>`).join("")}</ul>`
+            : "";
+        const action = await wait({
+            classes: ["drpg-panel", "drpg-wide", "drpg-window-diagnose"],
+            window: { title: localize("DRPG.Diagnose.title") },
+            content: dialogContent(`<div>
+                <p class="notes">${esc(localize("DRPG.Diagnose.intro"))}</p>
+                ${listed}
+                <pre class="drpg-diagnose-report">${esc(text)}</pre>
+            </div>`),
+            buttons: [
+                { action: "close", label: localize("DRPG.Panel.close"), default: true },
+                { action: "copy", label: localize("DRPG.Diagnose.copy") },
+                ...left.map(s => ({ action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain") }))
+            ],
+            rejectClose: false
+        });
+        if (action === "copy") {
+            try {
+                await copy(text);
+                notify(localize("DRPG.Diagnose.copied"));
+            } catch (err) {
+                error("Could not copy the report", err);
+            }
+            continue;
+        }
+        const silence = left.find(s => action === `again:${s.id}`);
+        if (!silence) return action ?? null;
+        left = left.filter(s => s !== silence);
+        try {
+            await silence.showAgain();
+        } catch (err) {
+            error(`Could not show the warning silenced as ${silence.id} again`, err);
+        }
+    }
+}
+
+/**
+ * `game.drpg.diagnose()`: the report read now, shown in its window (one at a time: a second call raises the
+ * open one), and its text answered at once, so a macro has it without waiting on the window.
+ */
+export async function diagnose({ show = true } = {}) {
+    const { text } = await gatherReport();
+    if (show) {
+        const { alreadyOpen } = await import("./live.mjs");
+        if (!alreadyOpen("drpg-window-diagnose")) openReport(text).catch(err => error("Could not show the report", err));
+    }
+    return text;
 }

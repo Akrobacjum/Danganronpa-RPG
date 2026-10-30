@@ -309,6 +309,30 @@ export async function newerSystemFindings({
 }
 
 /**
+ * The newer-Daggerheart warning's silence on this browser (E52 C4, E52-16): `{ id, version }` while it holds
+ * a version, else null. `read` is handed in by R1552.
+ */
+export function systemWarningSilence(read = () => game.settings.get(MODULE_ID, SETTINGS.systemWarningSilenced)) {
+    let version = "";
+    try {
+        version = String(read() ?? "");
+    } catch {
+        version = "";
+    }
+    return version ? { id: "systemWarningSilenced", version } : null;
+}
+
+/**
+ * Show again (E52 C4, E52-16; S01-62, Q-8): the silence emptied, and the warning asked for now - it shows only
+ * while this Daggerheart is newer than the measured one, as at every load. Both are handed in by R1552.
+ */
+export async function showSystemWarningAgain({ write = value => game.settings.set(MODULE_ID, SETTINGS.systemWarningSilenced, value),
+    announce = announceNewerSystem } = {}) {
+    await write("");
+    await announce();
+}
+
+/**
  * Tell the GM, once per Daggerheart version, that the system is newer than the
  * one this module was measured on.
  *
@@ -321,7 +345,7 @@ export async function newerSystemFindings({
  * its target is named here rather than discovered mid-trial.
  *
  * Silenced per version (`systemWarningSilenced`), per browser, by the checkbox
- * in its own window.
+ * in its own window; undone by Show again in the report's window (E52 C4).
  */
 export async function announceNewerSystem() {
     if (!game.user.isGM) return;

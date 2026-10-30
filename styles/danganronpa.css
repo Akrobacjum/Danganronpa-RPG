@@ -12355,6 +12355,28 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-check-ok { color: var(--drpg-evidence); font-weight: 700; }
 .drpg-check-bad { color: var(--drpg-eye-light); font-weight: 700; }
 
+/* Pre-season's unread rows of the contract: one counted line, the list folded under it (E52 C4, C3's gap). */
+.drpg-check-unknown > summary { cursor: pointer; }
+.drpg-check-unknown > div { opacity: 0.8; padding-left: 1em; }
+
+/* The one report (diagnostics.mjs `openReport`, E52 C4): the whole text in a frame of its own height, as it runs
+   to hundreds of lines; copied whole by Copy report. Its look at a table's size is not measured here. */
+.drpg-diagnose-report {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.4;
+    max-height: 60vh;
+    overflow: auto;
+    padding: 8px 10px;
+    margin: 0;
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    border: 1px solid var(--drpg-line);
+    border-radius: 3px;
+    user-select: text;
+}
+
 /* ==========================================================================
    BLOCKED BY THE ECLIPSE, NOT BY THE PURSE
    --------------------------------------------------------------------------

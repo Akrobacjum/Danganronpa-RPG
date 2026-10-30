@@ -27783,6 +27783,183 @@ const INVARIANTS = [
         equal(stableJson(page.map(([id, a]) => [id, a === null ? "no row" : a.present === false ? "failed on absence" : "found or unknown"])),
             stableJson(PAGE.map(id => [id, "found or unknown"])), "a page anchor not on the page is failed, or has no row");
     }],
+    ["R1550 - game.drpg.diagnose(): one report of every diagnose* this client may run, the data migration, the contract and this session's failures, read without a chat message; its window copies the text once per Copy report (E52 C4, E52-14; S17-51)", async () => {
+        /*
+         * E52 C4, 30.10.2026; audit S17-51, E52-14. The module had eighteen diagnose* commands in ten files, each
+         * printed on its own, several whispered as a chat card; a GM asked "what does it say" had to know which to
+         * run. Now one report holds them (`REPORT_SECTIONS`, diagnostics.mjs), as plain text a GM copies with one
+         * button. Here: every exported diagnose* of scripts/*.mjs is read by a section, the report names each
+         * section and the four the plan lists (contract, migration, failures, silences), it posts no chat message,
+         * and the window's Copy report hands the text to the clipboard once per press and comes back. `wait`,
+         * `copy` and `notify` are handed in, so no window is drawn and the clipboard is not touched.
+         * Red before C4: no gatherReport, no openReport, no game.drpg.diagnose.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && typeof D.openReport === "function" && Array.isArray(D.REPORT_SECTIONS),
+            "diagnostics.mjs has no gatherReport, openReport or REPORT_SECTIONS");
+        if (typeof D.gatherReport !== "function" || typeof D.openReport !== "function" || !Array.isArray(D.REPORT_SECTIONS)) return;
+        equal(typeof game.drpg?.diagnose, "function", "game.drpg has no diagnose");
+
+        const sources = await moduleSources();
+        const named = new Set();
+        for (const [file, src] of sources) {
+            if (/^tests/.test(file)) continue;
+            for (const m of stripComments(src).matchAll(/export\s+(?:async\s+)?function\s+(diagnose\w+)\s*\(/g)) named.add(m[1]);
+        }
+        must(named.size >= 15, `${named.size} exported diagnose* found - this test would read nothing`);
+        const covered = new Set(D.REPORT_SECTIONS.flatMap(s => s.covers ?? []));
+        equal(stableJson([...named].filter(name => !covered.has(name)).sort()), "[]", "an exported diagnose* is read by no section of the report");
+        equal(stableJson(["contract", "migration", "failures", "silences"].filter(id => !D.REPORT_SECTIONS.some(s => s.id === id))), "[]",
+            "the report has no section for the contract, the data migration, this session's failures or the silences");
+
+        const before = game.messages.size;
+        const report = await D.gatherReport();
+        equal(game.messages.size, before, "reading the report posted a chat message");
+        equal(stableJson(D.REPORT_SECTIONS.filter(s => !report.text.includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
+            "a section of the report is not named in its text");
+        equal(stableJson(report.sections.filter(s => !["ok", "failed", "gmOnly"].includes(s.state)).map(s => s.id)), "[]",
+            "a section of the report answered no state of the three");
+
+        const configs = [], copied = [], told = [];
+        const answers = ["copy", "copy", "close"];
+        const result = await D.openReport("R1550 report text", {
+            wait: async config => { configs.push(config); return answers.shift() ?? null; },
+            copy: async text => { copied.push(text); }, notify: text => told.push(String(text)), silences: []
+        });
+        equal(stableJson([copied, configs.length, told.length, result]), stableJson([["R1550 report text", "R1550 report text"], 3, 2, "close"]),
+            "Copy report does not hand the text to the clipboard once per press and come back [copied | windows | told | closed with]");
+        const copyLabel = game.i18n.localize("DRPG.Diagnose.copy");
+        const button = (configs[0]?.buttons ?? []).find(b => b.action === "copy");
+        ok(!copyLabel.startsWith("DRPG.") && button?.label === copyLabel, "the report's window has no Copy report button");
+        const content = configs[0]?.content;
+        ok(String(content?.textContent ?? content ?? "").includes("R1550 report text"), "the report's window does not show the report");
+    }],
+    ["R1551 - on a player the report holds nothing of the GMs': the GM-only parts are not run and are listed as GM only, and no GM store is read (E52 C4, E52-15)", async () => {
+        /*
+         * E52 C4, 30.10.2026; E52-15. A player who copies the report to the GM must not carry the GMs' answer key
+         * in it: the GM stores, the Truth Bullets' and the traces' ledger, the traps, every student's checklist,
+         * where hidden tokens stand. The parts that read those are `gmOnly` in `REPORT_SECTIONS`; on a player they
+         * are named and not run. Here the report is read as a player stands in (`gm: false`) with each GM-only
+         * part's run replaced by one that returns a seeded line and counts its calls, and every GM store's reads
+         * counted (`gmStoreHandles`, put back after). The GM's run of the same table is the control: it runs them.
+         * Red before C4: no gatherReport.
+         */
+        const D = await import("./diagnostics.mjs");
+        ok(typeof D.gatherReport === "function" && Array.isArray(D.REPORT_SECTIONS), "diagnostics.mjs has no gatherReport or REPORT_SECTIONS");
+        if (typeof D.gatherReport !== "function" || !Array.isArray(D.REPORT_SECTIONS)) return;
+        const GM_ONLY = ["despair", "truthBullets", "gmStores", "characters", "scenes", "visibility", "music", "traps"];
+        equal(stableJson(GM_ONLY.filter(id => !D.REPORT_SECTIONS.some(s => s.id === id && s.gmOnly === true))), "[]",
+            "a part of the report that reads the GMs' data runs on a player");
+        const seeded = "R1551 words only the GMs hold";
+        let calls = 0;
+        const sections = D.REPORT_SECTIONS.map(s => (s.gmOnly ? { ...s, run: () => { calls++; return seeded; } } : s));
+        const gmOnlyCount = sections.filter(s => s.gmOnly).length;
+        const { gmStoreHandles } = await import("./gm-store.mjs");
+        const reads = [], undo = [];
+        for (const handle of gmStoreHandles()) {
+            for (const key of ["get", "has", "entries"]) {
+                const original = handle[key];
+                if (typeof original !== "function") continue;
+                undo.push(() => { handle[key] = original; });
+                handle[key] = (...args) => { reads.push(`${handle.name}.${key}`); return original(...args); };
+            }
+        }
+        must(undo.length >= 9, `${undo.length} GM store read(s) watched - this test would read nothing`);
+        let player = null;
+        try {
+            player = await D.gatherReport({ gm: false, sections });
+        } finally {
+            for (const put of undo) put();
+        }
+        // The fog part reads this browser's discovered rooms through settings.mjs `discoveryLedger`, which picks the
+        // GMs' store or the player's own copy by `game.user.isGM` - the GM this stand-in runs on, so its read of
+        // "discovery" is the stand-in's, not a player's (measured 30.10: the only store read here).
+        const notOwn = [...new Set(reads)].filter(read => !read.startsWith("discovery."));
+        equal(stableJson([calls, player.text.includes(seeded), notOwn]), stableJson([0, false, []]),
+            "the player's report ran a GM-only part, holds its words, or read a GM store [runs | words | reads]");
+        const gmOnlyWord = game.i18n.localize("DRPG.Diagnose.gmOnly");
+        ok(!gmOnlyWord.startsWith("DRPG."), "no words for a GM-only part");
+        equal(stableJson(player.sections.filter(s => sections.find(t => t.id === s.id)?.gmOnly)
+            .filter(s => s.state !== "gmOnly" || !player.text.includes(`== ${s.title} ==\n${gmOnlyWord}`)).map(s => s.id)), "[]",
+            "a GM-only part is not listed as GM only in the player's report");
+        const gm = await D.gatherReport({ gm: true, sections });
+        equal(stableJson([calls, gm.text.includes(seeded)]), stableJson([gmOnlyCount, true]), "the GM's report does not run the GM-only parts");
+    }],
+    ["R1552 - the silences the module keeps are listed by id with Show again, which brings the warning back now; the stale recommended-modules silence is cleared and named (E52 C4, E52-16; S01-62, Q-8)", async () => {
+        /*
+         * E52 C4, 30.10.2026; audit S01-62, E52-16 (Q-8). A GM who ticked "do not show again" on the newer-Daggerheart
+         * warning had no way back but the browser's storage. The report's window lists every silence by id
+         * (`activeSilences`) with a Show again button, which empties `systemWarningSilenced` and asks for the
+         * warning now (`showSystemWarningAgain`). The recommended-modules window went in E13 C10 and left its
+         * silence (`recommendsSilenced`) in browsers that stored it; `clearStaleSilences` removes it at start, and
+         * the report's silences part names it. The setting's read, its write, the warning and the storage are
+         * handed in, so nothing of this browser changes. Red before C4: none of the four exists.
+         */
+        const R = await import("./requirements.mjs"), S = await import("./settings.mjs"), D = await import("./diagnostics.mjs");
+        ok(typeof R.systemWarningSilence === "function" && typeof R.showSystemWarningAgain === "function"
+            && typeof S.clearStaleSilences === "function" && typeof D.activeSilences === "function" && typeof D.openReport === "function",
+            "no systemWarningSilence, showSystemWarningAgain, clearStaleSilences, activeSilences or openReport");
+        if (typeof R.systemWarningSilence !== "function" || typeof S.clearStaleSilences !== "function" || typeof D.activeSilences !== "function") return;
+        equal(stableJson([R.systemWarningSilence(() => "9.9.9"), R.systemWarningSilence(() => "")]),
+            stableJson([{ id: "systemWarningSilenced", version: "9.9.9" }, null]), "the newer-Daggerheart silence is not read by id and version");
+        const writes = [];
+        let announced = 0;
+        await R.showSystemWarningAgain({ write: async value => { writes.push(value); }, announce: async () => { announced++; } });
+        equal(stableJson([writes, announced]), stableJson([[""], 1]), "Show again does not empty the silence and ask for the warning now");
+
+        let again = 0;
+        const silences = D.activeSilences({ system: { id: "systemWarningSilenced", version: "9.9.9" }, showAgain: async () => { again++; } });
+        equal(stableJson(silences.map(s => [s.id, String(s.label).includes("9.9.9")])), stableJson([["systemWarningSilenced", true]]),
+            "the silence is not listed by its id, naming the version it holds");
+        equal(D.activeSilences({ system: null }).length, 0, "a silence is listed while nothing is silenced");
+        const configs = [], answers = ["again:systemWarningSilenced", "close"];
+        await D.openReport("R1552 report", { wait: async config => { configs.push(config); return answers.shift() ?? null; },
+            copy: async () => {}, notify: () => {}, silences });
+        const showLabel = game.i18n.localize("DRPG.Diagnose.showAgain");
+        const buttons = configs.map(c => (c.buttons ?? []).filter(b => b.action.startsWith("again:")).map(b => [b.action, b.label]));
+        ok(!showLabel.startsWith("DRPG."), "no words for Show again");
+        equal(stableJson([buttons, again]), stableJson([[[["again:systemWarningSilenced", showLabel]], []], 1]),
+            "the window has no Show again for the silence, does not run it once, or still offers it after [buttons per window | runs]");
+        ok(String(configs[0]?.content?.textContent ?? "").includes("9.9.9"), "the window does not name the silence");
+
+        const held = new Map([["danganronpa-rpg.recommendsSilenced", "true"], ["danganronpa-rpg.systemWarningSilenced", "9.9.9"]]);
+        const storage = { getItem: key => (held.has(key) ? held.get(key) : null), removeItem: key => { held.delete(key); } };
+        equal(stableJson([S.clearStaleSilences(storage), [...held.keys()], S.clearStaleSilences(storage)]),
+            stableJson([["recommendsSilenced"], ["danganronpa-rpg.systemWarningSilenced"], []]),
+            "the stale silence is not cleared, once, leaving the live one [cleared | left | again]");
+        const settingsSrc = (await moduleSources()).get("settings.mjs") ?? "";
+        ok(/clearStaleSilences\s*\(/.test(stripComments(fnSource(settingsSrc, "registerSettings"))), "the stale silence is not cleared at start");
+        const part = D.REPORT_SECTIONS.find(s => s.id === "silences");
+        const text = part ? String(await part.run({ gm: true })) : "";
+        equal(stableJson(["systemWarningSilenced", "recommendsSilenced"].map(id => text.includes(id))), stableJson([true, true]),
+            "the report's silences part does not name the live and the stale silence");
+    }],
+    ["R1553 - Pre-season's contract lines: each failed row its own line, the rows nobody could read one counted line with their list folded under it (E52 C4, C3's gap; E52-05)", async () => {
+        /*
+         * E52 C4, 30.10.2026; C3's gap. On the suite's world about two dozen rows of the register cannot be read
+         * (checks only a table shows, hooks not seen firing yet) and Pre-season listed every one of them on one
+         * line, every world, every time. They are now one counted line, the list folded under it (a <details>,
+         * closed); a failed row is still a line of its own outside the fold. Measured on the report's text with
+         * every folded body taken out, as a closed fold shows it. Red before C4: the targets on the open line.
+         */
+        const mod = await import("./patches.mjs"), SS = await import("./season-setup.mjs");
+        const row = (id, probe) => ({ id, kind: "call", target: `R1553 target ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R1553", when: "always", fallback: `R1553 fallback ${id}`, probe });
+        const rows = [...Array.from({ length: 20 }, (_, i) => row(`blind${i}`, () => ({ present: null }))), row("gone", () => ({ present: false }))];
+        const el = document.createElement("div");
+        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows }) });
+        const full = el.textContent;
+        const shown = el.cloneNode(true);
+        for (const fold of shown.querySelectorAll("details:not([open])")) for (const child of [...fold.children]) if (child.tagName !== "SUMMARY") child.remove();
+        const seen = shown.textContent;
+        const blind = rows.slice(0, 20).map(r => r.target);
+        const counted = game.i18n.format("DRPG.Contract.checksUnknown.other", { n: 20 });
+        must(!counted.startsWith("DRPG."), "no words for the unread rows");
+        equal(stableJson([blind.filter(t => full.includes(t)).length, blind.filter(t => seen.includes(t)).length]), stableJson([20, 0]),
+            "the unread rows are not all in the report, or are shown on the open line [in the report | shown]");
+        equal(stableJson([seen.includes("R1553 target gone"), seen.includes("R1553 fallback gone"), seen.includes(counted)]), stableJson([true, true, true]),
+            "the failed row is not shown with its fallback, or the unread rows are not counted [failed target | its fallback | the count]");
+    }],
 ];
 
 /**

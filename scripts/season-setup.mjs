@@ -1219,10 +1219,15 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
 function contractSection(contract, esc) {
     const failed = contract?.failed ?? [], unknown = contract?.unknown ?? [];
     const lines = failed.map(r => `✗ ${r.target} (${r.where}): ${r.fallback}`);
-    if (unknown.length) lines.push(plural("DRPG.Contract.checksUnknown", { n: unknown.length, targets: unknown.map(r => r.target).join("; ") }));
-    if (!lines.length) lines.push(`✓ ${plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 })}`);
+    if (!lines.length && !unknown.length) lines.push(`✓ ${plural("DRPG.Contract.checksAllOk", { n: contract?.rows?.length ?? 0 })}`);
+    // The unread rows as one counted line, their list folded under it (E52 C4, C3's gap): about two dozen on
+    // every world (table-only checks, hooks not seen firing yet) drowned the failed rows above. Never a check.
+    const fold = unknown.length
+        ? `<details class="drpg-check-report drpg-check-unknown"><summary>${esc(plural("DRPG.Contract.checksUnknown", { n: unknown.length }))}</summary>${
+            unknown.map(r => `<div>${esc(`${r.target} (${r.where}): ${r.note}`)}</div>`).join("")}</details>`
+        : "";
     return `<h3>${esc(game.i18n.localize("DRPG.Contract.checksTitle"))}</h3>
-            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}`;
+            ${lines.map(line => `<p class="drpg-check-report">${checkMarks(esc(line))}</p>`).join("")}${fold}`;
 }
 
 /**
