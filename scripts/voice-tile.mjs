@@ -244,6 +244,28 @@ export function videoUnwatched({ mode = avMode(), available = voiceAvailable(), 
 }
 
 /**
+ * Whether the GM switched the voice tile on in a world whose Audio/Video is off, so no tile can stand (E20 C3, amend
+ * 11.10's pre-season row). With the tile off the GM chose no voice and nothing is said.
+ *
+ * @param {object} [facts]  handed in by R1510; left out, each is read here
+ * @returns {boolean}
+ */
+export function avOffForTile({ mode = avMode(), on = getSetting(SETTINGS.voiceTile) !== false } = {}) {
+    return Boolean(on) && mode === avModes().DISABLED;
+}
+
+/**
+ * Whether the tile is on in a world set to video alone, where nobody sends sound (E20 C3, amend 11.10's pre-season
+ * row; `voiceAvailable` refuses the mode for the same reason).
+ *
+ * @param {object} [facts]  handed in by R1510; left out, each is read here
+ * @returns {boolean}
+ */
+export function videoWithoutAudio({ mode = avMode(), on = getSetting(SETTINGS.voiceTile) !== false } = {}) {
+    return Boolean(on) && mode === avModes().VIDEO;
+}
+
+/**
  * Whether the dock is hidden: only when the tile stands in for it. Off by the GM's switch, or with no voice to
  * show, the dock is Foundry's as it always was.
  *

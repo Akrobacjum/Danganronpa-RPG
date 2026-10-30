@@ -1434,6 +1434,8 @@
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",
+      "stepUpBy": "+{n}",
+      "stepDownBy": "-{n}",
       "atMost": "Najwyżej {n}",
       "atLeast": "Co najmniej {n}",
       "note": "Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.",
@@ -2155,7 +2157,25 @@
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
       "bedroomsIntro": "Czyja jest każda sypialnia. Jeden uczeń, jedna sypialnia. Czy skrytka jest ukryta, ustawiasz na zakładce Skrytki.",
       "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
-      "roomRatio": "{open} wspólnych pokoi otwartych na {living} żyjących uczniów: {per} na głowę, wobec {target}, na których zbudowano ten sezon. To {want} pokoi.",
+      "roomRatio": "{rooms}. Żyjący uczniowie: {living} ({per} pokoju na głowę). Sezon zbudowano na {target} na ucznia, więc ta obsada potrzebuje {want}.",
+      "roomCensus": {
+        "one": "{n} wspólny pokój (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "few": "{n} wspólne pokoje (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "many": "{n} wspólnych pokoi (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
+        "other": "{n} wspólnego pokoju (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)"
+      },
+      "roomCensusLocked": {
+        "one": "Zamknięte z nich: {n}.",
+        "few": "Zamknięte z nich: {n}.",
+        "many": "Zamknięte z nich: {n}.",
+        "other": "Zamknięte z nich: {n}."
+      },
+      "roomCensusUndecided": {
+        "one": "Jeszcze nie liczony: {n} region, o którym nikt nie zdecydował, zaznaczony jako propozycja - Zastosuj zrobi z niego pokój.",
+        "few": "Jeszcze nie liczone: {n} regiony, o których nikt nie zdecydował, zaznaczone jako propozycje - Zastosuj zrobi z nich pokoje.",
+        "many": "Jeszcze nie liczone: {n} regionów, o których nikt nie zdecydował, zaznaczonych jako propozycje - Zastosuj zrobi z nich pokoje.",
+        "other": "Jeszcze nie liczone: {n} regionu, o którym nikt nie zdecydował, zaznaczonego jako propozycja - Zastosuj zrobi z nich pokoje."
+      },
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
       "room": "Pokój",
       "owner": "Czyja sypialnia",
@@ -2237,7 +2257,7 @@
       "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
       "notSharedColumn": "Bez prywatności",
       "notSharedHint": "Nie licz tego regionu do liczby pokoi na gracza. Nie zmienia żadnej zasady.",
-      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
+      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko liczbę pokoi - linię z proporcją powyżej, ten sam wiersz w Ustawieniach sezonu i Kontrolę przed sezonem; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
       "neighboursColumn": "Sąsiedzi",
       "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
       "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
@@ -2952,7 +2972,21 @@
       "gmHintActive": "Ta pora dnia jest zaciemniona. Od tego czasu rozlało się {count} z {max} Despair.",
       "setupIntro": "Despair, który nie mieści się w pełnej puli, przestaje parować i zbiera się tutaj. Gdy sięgnie progu, płaci tyle, zachowuje resztę i losuje jedną rzecz z puli poniżej - nigdy więcej niż jedną.",
       "threshold": "Próg (X)",
-      "thresholdHint": "Sugerowane: 12 + połowa liczby graczy. Szesnastu graczy daje 20, ośmiu 16, czterech 14. Zakres {min}-{max}.",
+      "thresholdHint": "Dowolna wartość od {min} do {max}: decyduje stół.",
+      "suggested": "Sugerowane dla {students} i {pools}: {x}.",
+      "suggestStudents": {
+        "one": "{n} ucznia",
+        "few": "{n} uczniów",
+        "many": "{n} uczniów",
+        "other": "{n} ucznia"
+      },
+      "suggestPools": {
+        "one": "{n} puli",
+        "few": "{n} pul",
+        "many": "{n} pul",
+        "other": "{n} puli"
+      },
+      "suggestNone": "Sugestia pojawi się tu, gdy sezon będzie miał żyjących uczniów.",
       "amount": "o",
       "floorNote": "Żadne z nich nigdy nie schodzi poniżej jednego. Pora dnia bez akcji albo pokój bez Search Tokenów to nie trudniejsza gra - to gracz, który nie ma co robić, dopóki zegar się nie przesunie.",
       "current": "Teraz: {count} z {max}.",
@@ -3693,6 +3727,8 @@
         "other": "{n} uczniów ma jeszcze akcje do wydania."
       },
       "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
+      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne w oknie Ustaw sezon: {step}.",
+      "nextSeasonSetupAside": "Okno Ustaw sezon wciąż czeka na: {step}.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
       "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
@@ -3767,6 +3803,17 @@
       "stateUnchanged": "Nic się nie zmieniło.",
       "checksSetup": "Obsada",
       "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
+      "checksAvOff": "Audio/Wideo jest w tym świecie wyłączone, więc nie ma kafla głosu: włącz je w Konfiguracji ustawień, Rdzeń, Audio/Wideo, albo wyłącz kafel głosu w ustawieniach modułu.",
+      "checksAvVideoOnly": "Ten świat ma ustawione samo wideo: nikt nie wysyła dźwięku. Ustaw tryb A/V na sam dźwięk.",
+      "checksImages": "Zdjęcia pokoi",
+      "checksImagesMissing": "Te zdjęcia pokoi się nie wczytują - wybierz plik jeszcze raz w Ustawieniach pokoi: {rooms}",
+      "checksImagesLarge": "Te zdjęcia pokoi są duże i każdemu graczowi wczytują się powoli - zmniejsz je do najwyżej {side} px na bok i {mb} MB: {rooms}",
+      "checksImagesUnknown": "Nie udało się odczytać rozmiaru pliku tych zdjęć pokoi: {rooms}",
+      "checksImagesLate": "Te zdjęcia pokoi nie wczytały się w ciągu {s} s, więc ich rozmiaru w pikselach nie sprawdzono - nic nie wskazuje, że ich brakuje; uruchom sprawdzenie jeszcze raz na szybszym łączu: {rooms}",
+      "checksImagesWhere": "{room} ({scene})",
+      "checksImagesSized": "{rooms}: {size}",
+      "checksImagesPixels": "{width} x {height} px",
+      "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Kontrola przed sezonem",
       "nextFloorHeld": "{mode} - głos ma {who}.",
       "whoIsAlive": "Uczniowie",
@@ -3879,9 +3926,45 @@
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
       "settingsLocked": "Ustawienia postaci należą do GM-a."
     },
+    "GiveBack": {
+      "menuName": "Ustawienia Foundry",
+      "menuLabel": "Oddaj ustawienia Foundry",
+      "menuHint": "Co ten moduł zmienia w Foundry i Daggerheart, i przycisk, który to przywraca. Naciśnij go, zanim wyłączysz moduł.",
+      "title": "Oddaj ustawienia Foundry",
+      "intro": "Póki działa, ten moduł zmienia te ustawienia Foundry, Daggerheart i modułów, których potrzebuje:",
+      "what": {
+        "automation": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded.",
+        "playerFiles": "Gracze i Zaufani Gracze nie przeglądają ani nie wysyłają plików („Bez przeglądarki plików dla graczy”).",
+        "isoWelcome": "Okno powitalne Isometric Perspective zostaje zamknięte u wszystkich.",
+        "dhWelcome": "Dziennik powitalny Daggerheart nie otwiera się nikomu.",
+        "liveKitInFoundry": "Głos LiveKit zostaje w oknie Foundry u wszystkich.",
+        "rtcDock": "Dok kamer Foundry jest zwinięty, gdy działa kafel głosu, i żadna kamera nie wyskakuje w osobnym oknie.",
+        "sceneVision": "Na scenach z pokojami własne widzenie, mgłę i globalne światło Foundry przejmują pokoje: wyłączenie „Pokoje decydują, co widzą gracze” je oddaje.",
+        "diceLook": "Póki „Jeden wygląd kości przy stole” jest włączony, każdy gracz i Asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera. Oddanie tego nie zmienia i nikomu nie wraca jego dawny wygląd: moduł go nie zachował."
+      },
+      "givenBackState": "Oddane: moduł nie rusza tych ustawień, dopóki znów ich nie przejmiesz.",
+      "filesStay": "Oddanie zostawia uprawnienia do plików takie, jakie są teraz: jeśli gracze mają przeglądać lub wysyłać pliki, nadaj je w uprawnieniach Foundry.",
+      "beforeOff": "Zanim wyłączysz moduł, naciśnij tu „Oddaj je” i wyłącz „Pokoje decydują, co widzą gracze”.",
+      "giveBack": "Oddaj je",
+      "holdAgain": "Przejmij je znowu",
+      "done": "Ustawienia Foundry są oddane.",
+      "heldAgain": "Moduł znów trzyma swoje ustawienia.",
+      "automationOff": "Automatyki Vulnerable i Defeated z Daggerheart są wyłączone: zastępują je Breakdown i Wounded. Żeby je przywrócić, naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
+      "automationUnknown": "Wartości, jakie automatyki Vulnerable i Defeated z Daggerheart miały przed tym modułem, nie są znane: wyłączył je, zanim cokolwiek zachował. „Oddaj je” ustawia domyślne wartości Daggerheart - obie włączone. Jeśli ten świat miał je wyłączone, wyłącz je znowu w ustawieniach Daggerheart.",
+      "fullGmOnly": "Oddać je może tylko pełny Gamemaster: tylko pełny Gamemaster może w Foundry zmienić uprawnienia do plików.",
+      "partly": "Oddane, z wyjątkiem: {parts}. Ta wartość jest dalej zachowana - otwórz to okno jeszcze raz i naciśnij „Oddaj je”.",
+      "part": {
+        "automation": "automatyk Daggerheart",
+        "permissions": "uprawnień do plików"
+      },
+      "failed": "Nie udało się oddać ani przejąć ustawień Foundry. Konsola mówi dlaczego.",
+      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustaw sezon albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
+      "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane.",
+      "notNow": "Nie teraz"
+    },
     "Enforced": {
       "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
-      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry.",
+      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry albo naciśnij „Oddaj ustawienia Foundry” w ustawieniach tego modułu.",
       "lost": {
         "player": "Gracz",
         "trusted": "Zaufany gracz",
@@ -3903,12 +3986,35 @@
       "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",
       "audit": {
         "title": "Kontrola anonimowości arkuszy",
-        "clean": "Każdy arkusz postaci jest prywatny. Nie ma czego naprawiać.",
-        "exposed": "Widoczne dla wszystkich graczy - napraw te:",
+        "clean": "Żaden arkusz nie jest otwarty w całości dla każdego gracza. Nie ma czego naprawiać.",
+        "exposed": "Należą do każdego gracza, więc nic na tych arkuszach nie jest ukryte i każdy gracz czyta je w całości - napraw te:",
+        "fix": "Ustaw je na Obserwatora",
+        "fixed": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć, z ukrytymi sekretami.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć, z ukrytymi sekretami."},
+        "fixedOpen": {"one": "{n} arkusz ustawiony na Obserwatora: każdy gracz może go otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają go w całości.", "few": "{n} arkusze ustawione na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "many": "{n} arkuszy ustawionych na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości.", "other": "{n} arkusza ustawionego na Obserwatora: każdy gracz może je otworzyć. „Anonimowe karty postaci” są wyłączone, więc czytają je w całości."},
+        "switchOff": "„Anonimowe karty postaci” są wyłączone, więc nic na tych arkuszach Obserwatora nie jest ukryte i każdy gracz czyta je w całości - włącz to w ustawieniach modułu:",
+        "closed": "Zamknięte dla pozostałych graczy. Nie ma czego naprawiać, ale nikt nie może otworzyć tych arkuszy, więc nikt nie przeszuka ciała, gdy postać zginie:",
         "assistants": "Należą do Asystenta GM-a. Asystenci czytają każdy arkusz w świecie, co łamie anonimowość - zdegraduj ich do Gracza:",
         "shared": "Należą do więcej niż jednego gracza:",
         "orphaned": "Bez przypisanego właściciela-gracza - oto kto ma dostęp:",
         "nobody": "zupełnie nikt"
+      },
+      "everyone": {
+        "none": "pozostali gracze nie mogą otworzyć arkusza",
+        "limited": "pozostali gracze widzą tylko imię i portret",
+        "observer": "każdy gracz może otworzyć arkusz, z ukrytymi sekretami",
+        "observerOpen": "każdy gracz może otworzyć arkusz i czyta go w całości",
+        "owner": "każdy gracz jest właścicielem arkusza i czyta go w całości"
+      },
+      "level": {
+        "none": "nie może otworzyć arkusza",
+        "limited": "widzi tylko imię i portret",
+        "observer": "może otworzyć arkusz, z ukrytymi sekretami",
+        "observerOpen": "może otworzyć arkusz i czyta go w całości",
+        "owner": "jest właścicielem arkusza"
+      },
+      "role": {
+        "gm": "(GM)",
+        "assistant": "(Asystent GM-a)"
       },
       "reverted": "„{actor}” był udostępniony każdemu graczowi jako Owner, więc wszyscy mogli czytać cały arkusz. Wrócił do Observer. Owner daj tylko jego jednemu graczowi."
     },
@@ -3918,12 +4024,22 @@
     },
     "Requirements": {
       "title": "Danganronpa RPG nie działa",
-      "intro": "Ten moduł wymaga poniższych, a jednego z nich brakuje. Nic innego w module nie wystartowało.",
+      "intro": {
+        "one": "Danganronpa RPG potrzebuje tego modułu i nie wystartował: nic z niego nie działa, dopóki moduł nie wróci. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "few": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "many": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry.",
+        "other": "Danganronpa RPG potrzebuje tych {n} modułów i nie wystartował: nic z niego nie działa, dopóki nie wrócą. To, co zmienił w Foundry, gdy działał wcześniej, zostaje tak, jak to zostawił, dopóki nie zadziała znowu i GM nie naciśnie Oddaj ustawienia Foundry."
+      },
       "state": {
         "absent": "niezainstalowany",
         "disabled": "zainstalowany, ale wyłączony"
       },
-      "how": "Zainstaluj albo włącz je w Zarządzaj modułami - na Forge w liście modułów gry - i przeładuj świat. Nic tu nie zmieniono, więc to cała naprawa.",
+      "reason": {
+        "dice-so-nice": "Każdy rzut pada jako kości 3D, które widzą tylko osoby uprawnione do tego rzutu, w jednym stylu kości, który GM ustawia dla całego stołu.",
+        "isometric-perspective": "Mapy rysowane do gry izometrycznej wyglądają źle na płaskiej siatce.",
+        "avclient-livekit": "Głos idzie za pokojami: słyszysz osoby z pokoju, w którym jest twoja postać, a przejście do innego pokoju zmienia, kto cię słyszy."
+      },
+      "how": "Zainstaluj albo włącz to, co jest na liście, w Zarządzaj modułami (na Forge: w liście modułów gry), potem przeładuj świat. To cała naprawa.",
       "understood": "Rozumiem",
       "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
       "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
@@ -4350,6 +4466,9 @@
       "title": "Motive",
       "banner": "MOTIVE OD MONOKUMY",
       "withdrawn": "Motive wycofany. Nic nad wami nie wisi - na razie.",
+      "none": "Żaden Motive nie obowiązuje.",
+      "withdraw": "Wycofaj",
+      "withdrawNote": "Wycofanie ogłasza wszystkim, że Motive już nie obowiązuje.",
       "deadline": {
         "one": "Jedna pora dnia, by coś z tym zrobić.",
         "few": "{n} pory dnia, by coś z tym zrobić.",
@@ -4452,6 +4571,25 @@
       "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne - wyłącz to rozszerzenie dla tej strony.",
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
       "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle.",
+      "cast": {
+        "students": "Uczniowie: {all}, żyjący: {living}",
+        "starting": "Zasoby na start: {hp} Health, {stress} Sanity, {hope} Hope",
+        "noCast": "Nie ma jeszcze uczniów: najpierw utwórz obsadę, potem uruchom te sprawdzenia jeszcze raz.",
+        "row": "Health maks. {hp}, Sanity maks. {stress}",
+        "notSetUp": "nieprzygotowana",
+        "pending": {"one": "{n} postać nie ma jeszcze zasobów na start.", "few": "{n} postacie nie mają jeszcze zasobów na start.", "many": "{n} postaci nie ma jeszcze zasobów na start.", "other": "{n} postaci nie ma jeszcze zasobów na start."},
+        "fix": "Jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia.",
+        "pendingWhy": "Do tego czasu każda z nich liczy się jako Wounded i w Breakdown: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
+        "allSet": "Każda postać ma zasoby na start.",
+        "ultimate": "Każdy ma Ultimate",
+        "ultimateFix": "Ustaw je na arkuszu, pod imieniem.",
+        "experiences": "Każdy ma {n} doświadczenia",
+        "experiencesFix": "Każde na +2, ustalone przy tworzeniu postaci.",
+        "item": "Każdy nosi swój przedmiot startowy",
+        "itemFix": "Jeden przedmiot poziomu {tier} związany z jego Ultimate: rozdaj go w Daj / zabierz przedmioty.",
+        "pool": "Każdy jest przypisany do puli Despair",
+        "poolFix": "Bez niej Despair z jego rzutów nie ma dokąd trafić. Ustaw to w panelu GM-a, w Despair Flow."
+      },
       "title": {
         "music": "Diagnostyka muzyki",
         "voice": "Plan głosu",
@@ -4480,7 +4618,7 @@
       "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
       "title": "Ustaw sezon",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
-      "introReady": "Wszystko na miejscu. To ta sama lista, którą czyta kontrola przed sezonem, więc wróci zielona.",
+      "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
       "campaignName": "Nazwa kampanii",
       "campaignPlaceholder": "Hope's Peak: Utopione lato",
       "chapter": "Rozdział",
@@ -4512,8 +4650,10 @@
         "secretDoors": "Brak sekretnych drzwi Foundry (zalecane)",
         "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
+        "foundryHeld": "Moduł trzyma ustawienia Foundry (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
-        "despairSplit": "Uczniowie są podzieleni po równo między pule"
+        "despairSplit": "Uczniowie są podzieleni po równo między pule",
+        "overflow": "Próg overflow pasuje do obsady"
       },
       "hint": {
         "name": "Wyświetlana u góry ekranu każdego, nad rozdziałem i zegarem.",
@@ -4523,7 +4663,7 @@
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
         "experiences": "Pierwszy rzut, który chce doświadczenia, to moment, w którym zauważa się jego brak - i to w środku sceny.",
         "items": "Przedmiot startowy. Uczeń z pustą torbą nie ma czym szukać, nie ma co oddać i nie ma czym zabić.",
-        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
+        "assignments": "Despair z rzutów ucznia idzie do puli, do której GM przypisał go w Despair Flow; uczeń, którego nikt nie przypisał, trafia do pierwszej puli i jest tu wymieniony, dopóki nie zostanie przypisany. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
@@ -4533,8 +4673,10 @@
         "secretDoors": "Sekretne drzwi Foundry może otworzyć każdy gracz, a jego postać przez nie przejdzie. Zamień na przejścia robi z każdych zwykłą, zamkniętą ścianę; tam, gdzie stały między dwoma pokojami, także tajne przejście, którego jeszcze nikt nie zna - daj je uczniowi na karcie Przejścia. Drzwi, które nie stały między dwoma pokojami, zostają zwykłą ścianą.",
         "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
+        "foundryHeld": "Po „Oddaj ustawienia Foundry” moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy - także po wyłączeniu i ponownym włączeniu. Otwórz okno i naciśnij „Przejmij je znowu”, chyba że twój stół chce je mieć oddane.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
-        "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd."
+        "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd.",
+        "overflow": "Wzór modułu, 12 + połowa żyjących uczniów, policzony dla tego sezonu. Tylko rada: próg wybierasz sam w zakładce Overflow okna Despair Flow."
       },
       "resetTitle": "Zresetuj sezon",
       "resetWarning": "Tego nie da się cofnąć, ani tym modułem, ani niczym innym.",
@@ -4621,9 +4763,28 @@
       "roomGuide": "Najpierw ściany, potem region na każdy pokój, rysowany do nich z włączonym przyciąganiem; pokój można narysować jako kilka regionów o jednej nazwie. Region jest pokojem dopiero wtedy, gdy GM zaznaczy przy nim „To jest pokój” w Ustawieniach pokoi (karta Drzwi): region, którego nikt nie zaznaczył, przejście (region, który teleportuje żeton albo zmienia jego poziom) i region narysowany przez gracza nie są pokojami i nigdy nie liczą się jako sąsiedzi. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
-      "roomCountLine": "Pokoje: {rooms}. Gracze: {players}. Podręcznik sugeruje około {want}.",
+      "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
+      "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
+      "overflowNow": "{line} Teraz {n}.",
+      "roomsUncovered": "{pct}% sceny {scene} nie należy do żadnego pokoju: narysuj brakujące pokoje albo dociągnij ich regiony do ścian.",
+      "roomsCheckErrors": {
+        "one": "Sprawdzenie pokoi znalazło {n} problem na scenie {scene}: popraw go i sprawdź jeszcze raz.",
+        "few": "Sprawdzenie pokoi znalazło {n} problemy na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "many": "Sprawdzenie pokoi znalazło {n} problemów na scenie {scene}: popraw je i sprawdź jeszcze raz.",
+        "other": "Sprawdzenie pokoi znalazło {n} problemu na scenie {scene}: popraw je i sprawdź jeszcze raz."
+      },
+      "roomsJudged": {
+        "one": "Oceniana scena: {scene}. Pokoje ma {n} scena.",
+        "few": "Oceniana scena: {scene}. Pokoje mają {n} sceny.",
+        "many": "Oceniana scena: {scene}. Pokoje ma {n} scen.",
+        "other": "Oceniana scena: {scene}. Pokoje ma {n} sceny."
+      },
+      "noNamedRegions": "Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
+      "campaignBlock": "Ta kampania",
+      "startHereTitle": "Od czego zacząć",
+      "startHereText": "Zacznij tutaj: panel GM-a > Ustaw sezon. Jego lista prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
       "fixedCursor": {
         "one": "Wyłączono udostępnianie kursora dla {n} roli.",
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",
@@ -4830,15 +4991,88 @@
         "many": "{n} nazwanych regionów nie jest pokojami",
         "other": "{n} nazwanego regionu nie jest pokojem"
       },
+      "lastCheckErrors": {
+        "one": "ostatnie sprawdzenie pokoi znalazło {n} problem",
+        "few": "ostatnie sprawdzenie pokoi znalazło {n} problemy",
+        "many": "ostatnie sprawdzenie pokoi znalazło {n} problemów",
+        "other": "ostatnie sprawdzenie pokoi znalazło {n} problemu"
+      },
+      "checkNoScene": {
+        "problem": "Na płótnie nie ma sceny",
+        "detail": "Otwórz scenę, którą chcesz sprawdzić, i sprawdź jeszcze raz."
+      },
+      "checkNoRooms": {
+        "problem": "Na tej scenie nie ma pokoi",
+        "detail": "Zaznacz „To jest pokój” przy jej regionach w Ustawieniach pokoi (karta Drzwi) i sprawdź jeszcze raz."
+      },
       "secretDoor": {
         "problem": "Sekretne drzwi Foundry",
         "detail": "Każdy gracz może je otworzyć. W Ustawieniach sezonu Zamień na przejścia w wierszu Brak sekretnych drzwi Foundry robi z nich ścianę, a tam, gdzie stoją między dwoma pokojami, także tajne przejście."
       },
       "notRoom": {
         "problem": "Ma nazwę, ale nie jest pokojem",
-        "passage": "Ma zachowanie {type}, więc jest przejściem, nie pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
-        "player": "Narysował go gracz, więc nigdy nie jest pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
-        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”), więc mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi."
+        "passage": "Ma zachowanie {type}: to przejście.",
+        "player": "Narysował go gracz.",
+        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”).",
+        "why": "Mgła nie rysuje obrysu ani odsłonięcia dla regionu, który nie jest pokojem, i nie prowadzą do niego żadne drzwi."
+      },
+      "uncoveredShare": "{pct}% mapy nie należy do żadnego pokoju",
+      "uncoveredShareFloor": "{pct}% piętra {floor} nie należy do żadnego pokoju",
+      "sceneFloor": "{scene} ({floor})",
+      "check": {
+        "showOnMap": "Pokaż na mapie",
+        "unnamed": {
+          "room": "(bez nazwy)",
+          "problem": "Region bez nazwy",
+          "why": "Pokoje rozpoznaje się po nazwie, więc region bez niej nie jest pokojem: nigdy nie liczy się jako sąsiad, a to jeden z cichych sposobów na drzwi, które prowadzą donikąd."
+        },
+        "defaultName": {
+          "problem": "Pokój wciąż ma nazwę nadaną przez Foundry",
+          "why": "Pokój to jego nazwa: gracze czytają ją na mapie, a klucze, schowki i Ustawienia pokoi ją podają. Nadaj mu własną nazwę przed grą."
+        },
+        "piecesDiffer": {
+          "problem": "Części tego pokoju są ustawione różnie",
+          "fact": "Różni się między częściami: {what}",
+          "why": "Pokój narysowany z kilku części czyta każde ustawienie z pierwszej części, która je ma, więc ustawienie innej części nie jest ustawieniem pokoju. W Ustawieniach pokoi zmień ustawienie pokoju, zastosuj, potem przywróć je i zastosuj: wszystkie części dostaną to samo. Wysokość ustaw w ustawieniach regionu każdej części.",
+          "field": {
+            "notShared": "Bez prywatności",
+            "owner": "czyja sypialnia",
+            "elevation": "wysokość"
+          }
+        },
+        "noShape": {
+          "problem": "Brak kształtu, który mgła umie odczytać",
+          "why": "Region istnieje, ale jego kształt wrócił pusty: nic z tego pokoju nie zostanie narysowane."
+        },
+        "overlap": {
+          "title": "Pokoje na siebie nachodzą",
+          "problem": "Nachodzi na „{other}”",
+          "fact": "Około {squares} kratki podłogi należy do obu pokoi.",
+          "deep": "Około {squares} kratki podłogi należy do obu pokoi, sięgając {depth} kratki w głąb.",
+          "why": "Tam, gdzie dwa pokoje na siebie nachodzą, granica jednego biegnie przez podłogę drugiego bez ściany w pobliżu, a cała wspólna granica wygląda jak jedne drzwi. Pokoje powinny się stykać; pasek cieńszy niż ćwierć kratki jest pomijany."
+        },
+        "adrift": {
+          "problem": "Granica odbiega od ścian",
+          "fact": "{squares} kratki granicy bez ściany.",
+          "why": "Granica narysowana z dala od ściany, którą opisuje, zamienia cały ten bok pokoju w drzwi: ściana nie zostaje znaleziona, więc nic go nie zamyka."
+        },
+        "sealed": {
+          "title": "Brak wyjścia: ściany dookoła",
+          "problem": "Brak wyjścia",
+          "fact": "Każdy odcinek granicy ma ścianę.",
+          "why": "Nic nie świeci jako drzwi. Jeśli pokój jest zamknięty celowo, zostaw go; jeśli nie, brakuje drzwi."
+        },
+        "isolated": {
+          "title": "Brak wyjścia: żadnego pokoju obok",
+          "problem": "Brak wyjścia",
+          "fact": "Żaden pokój nie leży bliżej niż kratkę od granicy.",
+          "why": "Najbliższy pokój jest dalej niż kratkę, więc te dwa nigdy nie spotykają się w drzwiach. Pokoje powinny się stykać wzdłuż wspólnej krawędzi."
+        },
+        "lattice": {
+          "problem": "Narożniki poza siatką mapy",
+          "fact": {"one": "{n} narożnik przesunięty do {px} px.", "few": "{n} narożniki przesunięte do {px} px.", "many": "{n} narożników przesuniętych do {px} px.", "other": "{n} narożnika przesuniętego do {px} px."},
+          "why": "Reszta mapy jest narysowana na siatce co pół kratki. Rysuj z przyciąganiem: narożnik przesunięty o ułamek kratki jest niewidoczny gołym okiem, a wystarczy, żeby dwa pokoje na siebie nachodziły albo się mijały."
+        }
       }
     },
     "Rooms": {

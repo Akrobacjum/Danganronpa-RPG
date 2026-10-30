@@ -47371,7 +47371,9 @@ const SCENARIOS = [
             return [made.length, doc.includes(title), doc.includes(phrase), made[0]?.whisper ?? null, words.includes(title), words.includes(phrase)];
         };
         const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"), "music follows the game state");
-        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"), "Monokumas excluded");
+        // The cast report's starting-resources line: its first line no longer says "Monokumas excluded" (E20 fix round, G-5).
+        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"),
+            game.i18n.localize("DRPG.Diagnostics.cast.starting").split("{")[0]);
         const want = [1, false, false, [game.user.id], true, true];
         equal(stableJson([music, season]), stableJson([want, want]),
             "a report's words are in its document, or not in this GM's store");
@@ -60322,7 +60324,10 @@ const SCENARIOS = [
                 };
                 await V.openRoomSetupDialog();
                 school = await scene("SUITE E13 C5 the school");
-                await school.createEmbeddedDocuments("Region", [region("SUITE E13 C5 a classroom", 0, true)]);
+                // Wall to wall since E20 C1: the rooms row also asks that at most UNCOVERED_LIMIT_PCT of the map is in no room.
+                const map = school.dimensions?.sceneRect ?? { x: 0, y: 0, width: 2000, height: 1000 };
+                await school.createEmbeddedDocuments("Region", [{ ...region("SUITE E13 C5 a classroom", 0, true),
+                    shapes: [{ type: "rectangle", x: map.x, y: map.y, width: map.width, height: map.height }] }]);
                 hall = await Scene.create({ name: "SUITE E13 C5 the hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
                     fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } },
                     flags: { "isometric-perspective": { isometricEnabled: true } } });
@@ -74777,6 +74782,467 @@ const SCENARIOS = [
             + "[the grants after Next over a kept boundary, the actions not refilled again]}");
     }],
 
+    ["E20-T1 - Pre-season's Set them to Observer sets Observer on a student every player owned, and the audit no longer asks for a fix (E20 C2, E20-07; S11-19)", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S11-19): the audit named sheets "visible to all players - fix these" and offered
+         * no fix, so a GM had to find each in Configure Ownership. One student of the suite's cast is handed to every
+         * player as Owner - with the anonymity setting off, as a table that turned it off does, since with it on the
+         * module refuses the raise - then `auditAnonymity` (no chat) is read, its Set them to Observer pressed as drawn
+         * into a detached element (`wireAnonymityFix` on the world's actors), and the audit read again. The student's
+         * default level and the setting are put back.
+         */
+        needs(env.primaryGm());
+        const A = await import("./anonymity.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const [student] = cast(1);
+        const levelWas = student.ownership?.default ?? L.NONE;
+        const enforcedWas = game.settings.get(MODULE_ID, SETTINGS.enforceAnonymity);
+        const exposed = found => (found?.exposed ?? []).map(i => i.actor?.id).includes(student.id);
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.enforceAnonymity, false);
+            await student.update({ "ownership.default": L.OWNER });
+            await settle();
+            const before = await A.auditAnonymity({ toChat: false });
+            const root = document.createElement("div");
+            root.innerHTML = before?.body ?? "";
+            const wired = A.wireAnonymityFix?.(root) ?? null;
+            root.querySelector("[data-drpg-anon-fix]")?.click();
+            await wired?.done?.();
+            await settle();
+            const after = await A.auditAnonymity({ toChat: false });
+            read = [exposed(before), student.ownership?.default ?? null, exposed(after)];
+        } finally {
+            if ((student.ownership?.default ?? L.NONE) !== levelWas) await student.update({ "ownership.default": levelWas });
+            await game.settings.set(MODULE_ID, SETTINGS.enforceAnonymity, enforcedWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, L.OBSERVER, false]),
+            "[the student owned by every player under 'fix these', its default level after Set them to Observer, still under 'fix these' after]");
+    }],
+    ["E20-T2 - Pre-season checks on the suite's world name a room whose picture does not load and say the A/V rows the world's mode calls for (E20 C3, E20-11; amend 11.10)", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (amend 11.10): a room picture that does not load, or a voice tile that cannot
+         * stand, was found by a player at the table, not by the GM before it. Every piece of one room of the scene on
+         * screen is given a picture path of the module's that no file answers, the window's body (`preSessionReport`)
+         * is drawn from the world as it is, and the pieces' pictures are put back. Headless, the probe Image has no
+         * decode, so what names the picture here is the server's 404 to the HEAD request; a real browser's decode is
+         * R1510's stand-in, not measured here. The A/V rows are held to the world's own mode and tile setting, by the
+         * rows amend 11.10 names for each mode.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("sceneOnScreen", 1));
+        const [{ roomPieces }, { VAULT_FLAGS }, SS] = await Promise.all([import("./rooms.mjs"), import("./vault.mjs"), import("./season-setup.mjs")]);
+        const scene = canvas.scene;
+        const room = roomPieces(scene)[0]?.name ?? null;
+        ok(room, "the scene on screen has no room - the suite's world holds one, so this measured nothing");
+        if (!room) return;
+        const pieces = roomPieces(scene).filter(r => r.name === room);
+        const before = pieces.map(piece => [piece, piece.getFlag(MODULE_ID, VAULT_FLAGS.image)]);
+        const PATH = "modules/danganronpa-rpg/e20-t2-no-such-picture.webp";
+        let text = "", lines = [];
+        try {
+            for (const piece of pieces) await piece.setFlag(MODULE_ID, VAULT_FLAGS.image, PATH);
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = await SS.preSessionReport?.() ?? "";
+            text = root.textContent;
+            lines = [...root.querySelectorAll("p.drpg-check-report")].map(p => p.textContent);
+        } finally {
+            for (const [piece, was] of before) {
+                if (was === undefined || was === null) await piece.unsetFlag(MODULE_ID, VAULT_FLAGS.image);
+                else await piece.setFlag(MODULE_ID, VAULT_FLAGS.image, was);
+            }
+            await settle();
+        }
+        const { DISABLED = 0, VIDEO = 2 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const mode = game.webrtc?.mode ?? game.webrtc?.settings?.world?.mode ?? DISABLED;
+        const on = getSetting(SETTINGS.voiceTile) !== false;
+        const missing = game.i18n.localize("DRPG.Panel.checksImagesMissing").split("{rooms}")[0];
+        const named = game.i18n.format("DRPG.Panel.checksImagesWhere", { room, scene: scene.name });
+        equal(stableJson({
+            picture: [lines.some(line => line.startsWith(missing)), lines.some(line => line.startsWith(missing) && line.includes(named))],
+            voice: [text.includes(game.i18n.localize("DRPG.Panel.checksAvOff")), text.includes(game.i18n.localize("DRPG.Panel.checksAvVideoOnly"))]
+        }), stableJson({
+            picture: [true, true],
+            voice: [on && mode === DISABLED, on && mode === VIDEO]
+        }), "Pre-season checks on the suite's world [the pictures-that-do-not-load line, the room named | the A/V-off row, the video-only row, "
+            + `for mode ${mode} with the tile ${on ? "on" : "off"}]`);
+    }],
+
+    ["E20-T4 - Give back Foundry's settings puts Daggerheart's automations and the file permissions back as the module found them, and the module stops writing them (E20 C6, E20-19; S03-37, Q-5)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S03-37): the module switched Daggerheart's Vulnerable and Defeated automations
+         * off and took the file permissions from players at every start, kept nothing of what it found and gave nothing
+         * back. On the suite's world, as the module first finds a world: the automations on, Players allowed to upload,
+         * no value kept. The module's own writes run (`suppressSystemAutomation`, the permissions' hold through
+         * `applyEnforced`), then `giveBackFoundry`, Foundry's values are read, the writers are asked again, and
+         * everything is put back: the given-back switch first, its re-hold waited for (`onGivenBackChanged`, queued behind the switch's own), then the
+         * automations, the permissions, the kept values and the whispers the writes posted.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function" && "foundryBefore" in SETTINGS,
+            "enforced.mjs giveBackFoundry, states.mjs suppressSystemAutomation or the kept values' setting is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function" || !("foundryBefore" in SETTINGS)) return;
+        const R = CONST.USER_ROLES;
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const automation = () => { const a = plain(game.settings.get("daggerheart", "Automation")); return [a.vulnerableAutomation, a.defeated?.enabled]; };
+        const upload = () => plain(game.settings.get("core", "permissions")).FILES_UPLOAD ?? null;
+        const open = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        // The file permissions are held only with their switch on (the suite's world has it on by default); read, not set.
+        const filesOn = getSetting(SETTINGS.enforcePlayerFiles) !== false;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await game.settings.set("core", "permissions", { ...permsWas, FILES_UPLOAD: open });
+            await settle();
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            const held = { automation: automation(), upload: upload(), kept: plain(getSetting(SETTINGS.foundryBefore)) };
+            await E.giveBackFoundry();
+            await settle();
+            const back = { automation: automation(), upload: upload(), flag: getSetting(SETTINGS.foundryGivenBack), kept: plain(getSetting(SETTINGS.foundryBefore)) };
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            await settle();
+            const after = { automation: automation(), upload: upload() };
+            read = { held: [held.automation, held.upload, held.kept.automation ?? null, held.kept.permissions?.FILES_UPLOAD ?? null],
+                back: [back.automation, back.upload, back.flag, back.kept], after: [after.automation, after.upload] };
+        } finally {
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            held: [[false, false], filesOn ? [R.ASSISTANT, R.GAMEMASTER] : open, { vulnerableAutomation: true, defeated: true }, filesOn ? open : null],
+            back: [[true, true], open, true, {}],
+            after: [[true, true], open]
+        }), `[file permissions held: ${filesOn}] [held: the automations, Players' upload, the automations kept, the upload kept | given back: the automations, the upload, the switch, "
+            + "the kept values cleared | asked again after: the automations, the upload]`);
+    }],
+    ["E20-T5 - the rules manager's Withdraw takes the motive in force away and tells the table (E20 C6, E20-21; S10-55)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S10-55): a motive could be withdrawn only from the console. On the suite's world
+         * a motive is announced (`setMotive`), the rules manager's Motive section is drawn into a detached element from
+         * the world (`motiveSection(motive())`), its Withdraw pressed as wired (`wireMotiveWithdraw` with its own
+         * withdrawal), and the motive and the chat read. The motive setting and the chat are put back.
+         */
+        needs(env.primaryGm());
+        const R = await import("./rules.mjs");
+        ok(typeof R.motiveSection === "function" && typeof R.wireMotiveWithdraw === "function", "rules.mjs motiveSection or wireMotiveWithdraw is missing");
+        if (typeof R.motiveSection !== "function" || typeof R.wireMotiveWithdraw !== "function") return;
+        const was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const withdrawn = game.i18n.localize("DRPG.Motive.withdrawn");
+        let read = null;
+        try {
+            await R.setMotive({ text: "E20-T5 demand", timesOfDay: 3, consequence: "E20-T5 price" });
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = R.motiveSection(R.motive());
+            const shown = root.textContent.includes("E20-T5 demand");
+            const wired = R.wireMotiveWithdraw(root);
+            root.querySelector("[data-drpg-motive-withdraw]")?.click();
+            await wired?.done?.();
+            await settle();
+            const told = game.messages.filter(m => !chatWas.has(m.id)).some(m => String(m.content ?? "").includes(withdrawn));
+            read = [shown, R.motive(), told];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.motive, was);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, null, true]), "[the section shows the motive announced, the motive after Withdraw, the table told it is withdrawn]");
+    }],
+    ["E20-T6 - Give back Foundry's settings is a full Gamemaster's, gives back each part on its own and forgets only what it wrote, and a player's setting already as the module holds it is kept as that player's own (E20 fix round, the correctness review's C-6 and C-9)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harms: (C-6) an Assistant GM could press Give back; the switch was written and
+         * Daggerheart's automations given back, then the file permissions - a full Gamemaster's setting - threw: half done,
+         * the kept values never cleared, and a full GM later read "Given back". (C-9) a client row already at the value the
+         * module holds when it first started was never kept, so Give back wrote the setting's registered default over the
+         * player's own choice (Isometric Perspective's welcome: false came back true). On the suite's world, as the module
+         * first finds it (the automations on, Players allowed to upload, nothing kept): Isometric Perspective's welcome set
+         * to the held value with nothing kept for it, and its row held; Give back asked as an Assistant GM (a user handed
+         * in); then as this full GM while Foundry refuses the write of `core.permissions` (the settings' `set` wrapped for
+         * that key alone). Everything is put back as E20-T4 puts it back, and this browser's kept record and the welcome.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function", "enforced.mjs giveBackFoundry or states.mjs suppressSystemAutomation is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function") return;
+        const R = CONST.USER_ROLES;
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const iso = E.ENFORCED.find(r => r.id === "isoWelcome");
+        const isoKey = `${iso.module}.${iso.key}`;
+        ok(Boolean(game.settings.settings.get(isoKey)), `${isoKey} is not registered on the suite's world - the client row cannot be read`);
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const clientWas = plain(getSetting(SETTINGS.foundryBeforeClient));
+        const isoWas = game.settings.get(iso.module, iso.key);
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const automation = () => { const a = plain(game.settings.get("daggerheart", "Automation")); return [a.vulnerableAutomation, a.defeated?.enabled]; };
+        const keptParts = () => Object.keys(plain(getSetting(SETTINGS.foundryBefore))).sort();
+        const open = [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER];
+        const filesOn = getSetting(SETTINGS.enforcePlayerFiles) !== false;
+        const assistant = { id: game.user.id, name: "E20-T6 assistant", isGM: true, role: R.ASSISTANT };
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const realSet = game.settings.set;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await game.settings.set("core", "permissions", { ...permsWas, FILES_UPLOAD: open });
+            // C-9: the player already has the welcome off, and nothing is kept for it yet.
+            const client = plain(getSetting(SETTINGS.foundryBeforeClient));
+            delete client[isoKey];
+            if (Array.isArray(client["@given"])) client["@given"] = client["@given"].filter(k => k !== isoKey);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBeforeClient, client);
+            await game.settings.set(iso.module, iso.key, iso.value);
+            await settle();
+            await E.applyEnforced([iso]);
+            const isoKept = Object.prototype.hasOwnProperty.call(plain(getSetting(SETTINGS.foundryBeforeClient)), isoKey)
+                ? plain(getSetting(SETTINGS.foundryBeforeClient))[isoKey] : "nothing kept";
+            await S.suppressSystemAutomation();
+            await E.applyEnforced([row]);
+            await settle();
+            // C-6: an Assistant GM presses Give back.
+            let asAssistant;
+            try { asAssistant = await E.giveBackFoundry({ user: assistant }); } catch (err) { asAssistant = `threw: ${err?.message}`; }
+            await settle();
+            const byAssistant = [asAssistant ?? null, getSetting(SETTINGS.foundryGivenBack) === true, automation(), keptParts()];
+            // C-6: a full GM presses it while Foundry refuses the file permissions' write.
+            let partly;
+            game.settings.set = function (namespace, key, ...rest) {
+                if (namespace === "core" && key === "permissions") return Promise.reject(new Error("E20-T6: the permissions refused"));
+                return realSet.call(this, namespace, key, ...rest);
+            };
+            try { partly = await E.giveBackFoundry(); } catch (err) { partly = `threw: ${err?.message}`; } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            }
+            await settle();
+            const byGm = [partly ?? null, getSetting(SETTINGS.foundryGivenBack) === true, automation(), keptParts()];
+            read = { isoKept, byAssistant, byGm };
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBeforeClient, clientWas);
+            await game.settings.set(iso.module, iso.key, isoWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            isoKept: iso.value,
+            byAssistant: [null, false, [false, false], filesOn ? ["automation", "permissions"] : ["automation"]],
+            byGm: [{ given: ["automation"], failed: filesOn ? ["permissions"] : [] }, true, [true, true], filesOn ? ["permissions"] : []]
+        }), `[file permissions held: ${filesOn}] [the welcome already off: the value kept | an Assistant's Give back: the answer, the switch, the automations, `
+            + "the parts still kept | a full GM's with the permissions refused: the answer, the switch, the automations, the parts still kept]");
+    }],
+    ["E20-T7 - when the module switches Daggerheart's Vulnerable and Defeated automations off it tells the GMs once, in a private card to the GMs alone, in the words of lang/en.json and lang/pl.json (E20 C6, E20-19; S03-37)", async () => {
+        /*
+         * E20 fix round, 30.10.2026 (the ledger's E20-19: "the one-time GM notice instead of the log alone" was read in the
+         * code only). On the suite's world, as the module first finds it (the automations on, nothing kept, not given
+         * back): `suppressSystemAutomation` called as the primary GM's `ready` calls it, then again as the next `ready`
+         * finds the automations it switched off, then once more after Give back Foundry's settings. Read after each call:
+         * what it answered and the new cards whose words are `DRPG.GiveBack.automationOff`; of the one card, who it is
+         * whispered to (every GM, nobody else) and whether the document every browser receives carries the words (it holds
+         * secret.mjs's stub). Read off lang/en.json and lang/pl.json: the key in both, the card's words this language's
+         * file's sentence. A GM who turns the automations on again by hand is told again at the next start: the notice is
+         * once per switching off, which is what the code promises, not once per world. Put back as E20-T4 puts it back.
+         */
+        needs(env.primaryGm());
+        let E = null, S = null, W = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); W = await import("./secret.mjs"); } catch { E = null; }
+        ok(typeof E?.giveBackFoundry === "function" && typeof S?.suppressSystemAutomation === "function" && typeof W?.wordsOf === "function",
+            "enforced.mjs giveBackFoundry, states.mjs suppressSystemAutomation or secret.mjs wordsOf is missing");
+        if (typeof E?.giveBackFoundry !== "function" || typeof S?.suppressSystemAutomation !== "function" || typeof W?.wordsOf !== "function") return;
+        const KEY = "DRPG.GiveBack.automationOff";
+        const text = html => { const box = document.createElement("div"); box.innerHTML = String(html ?? ""); return box.textContent.replace(/\s+/g, " ").trim(); };
+        const files = {};
+        for (const lang of ["en", "pl"]) {
+            const raw = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            files[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(raw))[KEY] ?? null;
+        }
+        const lang = game.i18n.lang === "pl" ? "pl" : "en";
+        const sentence = text(files[lang]);
+        const row = E.ENFORCED.find(r => r.kind === "permissions");
+        const plain = value => foundry.utils.deepClone(value?.toObject?.() ?? value ?? {});
+        const autoWas = plain(game.settings.get("daggerheart", "Automation"));
+        const permsWas = plain(game.settings.get("core", "permissions"));
+        const keptWas = plain(getSetting(SETTINGS.foundryBefore));
+        const backWas = getSetting(SETTINGS.foundryGivenBack) === true;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const gms = game.users.filter(u => u.isGM).map(u => u.id).sort();
+        const told = async (from, answer) => {
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const words = (await Promise.all(fresh.map(m => W.wordsOf(m, 2000)))).map(text);
+            const cards = fresh.filter((m, i) => words[i] === sentence);
+            return { answer, cards: cards.length,
+                to: cards.map(m => stableJson([...(m.whisper ?? [])].sort()) === stableJson(gms)),
+                bare: cards.map(m => W.isStub(m.content) && !text(m.content).includes(sentence)) };
+        };
+        const call = async () => {
+            const from = new Set(game.messages.map(m => m.id));
+            const answer = await S.suppressSystemAutomation();
+            await settle();
+            return told(from, answer);
+        };
+        let read = null;
+        try {
+            if (backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, {});
+            await game.settings.set("daggerheart", "Automation", { ...autoWas, vulnerableAutomation: true, defeated: { ...(autoWas.defeated ?? {}), enabled: true } });
+            await settle();
+            const first = await call();
+            const again = await call();
+            await E.giveBackFoundry();
+            await settle();
+            const givenBack = await call();
+            read = { first, again, givenBack };
+        } finally {
+            if ((getSetting(SETTINGS.foundryGivenBack) === true) !== backWas) {
+                await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, backWas);
+                await settle();
+                await E.onGivenBackChanged?.();
+            }
+            await game.settings.set("daggerheart", "Automation", autoWas);
+            await game.settings.set("core", "permissions", permsWas);
+            await settle();
+            await E.applyEnforced([row]);
+            await game.settings.set(MODULE_ID, SETTINGS.foundryBefore, keptWas);
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson({ ...read, lang: [typeof files.en === "string", typeof files.pl === "string", files.en !== files.pl, sentence.length > 0,
+            text(game.i18n.localize(KEY)) === sentence] }), stableJson({
+            first: { answer: true, cards: 1, to: [true], bare: [true] },
+            again: { answer: false, cards: 0, to: [], bare: [] },
+            givenBack: { answer: false, cards: 0, to: [], bare: [] },
+            lang: [true, true, true, true, true]
+        }), `[${lang}] [each call: its answer, the cards with the notice's words, each whispered to every GM and nobody else, each document without the words `
+            + "| the first switching off | the next start | after Give back] [the key in en.json, in pl.json, the two differ, the sentence not empty, this browser's text the file's]");
+    }],
+    ["E20-T8 - the Next line judges the rooms on the school, not on a side map on screen (E20 fix round, the correctness review's C-7)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-7): the rooms row judged the scene on screen, so a GM viewing a side map
+         * of two rooms was told by the Next line that the season was not set up. R1523 read the default list of
+         * `firstOutstandingStep` by a pattern over its source; this calls it. On scenes of the suite's own: a side map of
+         * 2000 x 1000 with one room of 200 x 200 (98 % in no room), on screen; a school wall to wall in one room, then a
+         * school with the side map's small room, each linked as the school in turn (the scene roles). Read with each:
+         * `firstOutstandingStep()` called as the GM panel calls it, the list it judged taken as it reads it (the one array
+         * with a rooms row it calls `find` on, caught for that synchronous call alone), that list's rooms row and what
+         * the uncovered share it names, and the Next line's step with every other row of that list taken as done (the
+         * world's other rows are the world's, as R1523 hands them done). The control: `steps()` with no scene given, as
+         * the checklist judges the map on screen, finds the rooms row not done. Put back: the roles, the camera, the
+         * scenes and any card.
+         */
+        needs(env.primaryGm());
+        const SS = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        ok(typeof SS.firstOutstandingStep === "function" && typeof SS.steps === "function" && typeof R.schoolScene === "function",
+            "season-setup.mjs firstOutstandingStep or steps, or rooms.mjs schoolScene, is missing");
+        if (typeof SS.firstOutstandingStep !== "function" || typeof SS.steps !== "function") return;
+        const KEY = SETTINGS.sceneRoles;
+        must(game.settings.settings.has(`${MODULE_ID}.${KEY}`), "the scene roles are not a setting - no school could be linked");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+        const viewing = canvas?.scene ?? null;
+        const chatWas = new Set(game.messages.map(m => m.id));
+        const made = [];
+        const scene = async (name, room) => {
+            const doc = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            made.push(doc);
+            const map = doc.dimensions?.sceneRect ?? { x: 0, y: 0, width: 2000, height: 1000 };
+            await doc.createEmbeddedDocuments("Region", [{ name: `${name} room`, behaviors: [], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } },
+                shapes: [{ type: "rectangle", x: map.x, y: map.y, width: room === "wall to wall" ? map.width : 200, height: room === "wall to wall" ? map.height : 200 }] }]);
+            return doc;
+        };
+        const judged = school => {
+            const realFind = Array.prototype.find;
+            let list = null, first = null;
+            Array.prototype.find = function (...args) {
+                if (list === null && Array.isArray(this) && realFind.call(this, step => step?.key === "rooms")) list = this;
+                return realFind.apply(this, args);
+            };
+            try { first = SS.firstOutstandingStep(); } finally { Array.prototype.find = realFind; }
+            const rooms = list?.find(step => step.key === "rooms") ?? null;
+            return {
+                caught: Boolean(rooms) && SS.firstOutstandingStep(list)?.key === (first?.key ?? undefined),
+                done: rooms?.done ?? null,
+                names: (rooms?.missing?.() ?? []).some(line => line.includes(school.name)),
+                next: list ? SS.firstOutstandingStep(list.map(step => (step.key === "rooms" ? step : { ...step, done: true })))?.key ?? null : "no list"
+            };
+        };
+        let read = null;
+        try {
+            const side = await scene("SUITE E20-T8 a side map", "small");
+            const covered = await scene("SUITE E20-T8 the school wall to wall", "wall to wall");
+            const bare = await scene("SUITE E20-T8 the school mostly no room", "small");
+            await side.view();
+            await settle();
+            must(canvas?.scene === side, "the camera did not move to the suite's side map - the scene on screen would be another");
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, school: covered.id });
+            await settle();
+            must(R.schoolScene() === covered, "the suite's school is not linked as the school");
+            const onScreen = SS.steps().find(step => step.key === "rooms")?.done ?? null;
+            const schoolCovered = judged(covered);
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, school: bare.id });
+            await settle();
+            must(R.schoolScene() === bare, "the suite's second school is not linked as the school");
+            const schoolUncovered = judged(bare);
+            read = { onScreen, schoolCovered, schoolUncovered };
+        } finally {
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            await viewing?.view();
+            for (const doc of made) await doc?.delete();
+            const posted = game.messages.filter(m => !chatWas.has(m.id)).map(m => m.id);
+            if (posted.length) await ChatMessage.deleteDocuments(posted);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            onScreen: false,
+            schoolCovered: { caught: true, done: true, names: false, next: null },
+            schoolUncovered: { caught: true, done: false, names: true, next: "rooms" }
+        }), "[the checklist's rooms row on the side map on screen | with the school wall to wall, then mostly in no room: the list the Next line judged "
+            + "caught, its rooms row done, its line naming the school, the Next line's step with every other row done]");
+    }],
     ...GRID
 ];
 

@@ -430,6 +430,17 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         catch (e) { return "threw:" + e.message; }
     `, { timeout: 60000 });
     check("ANONYMITY: self-audit runs", !String(anon).startsWith("threw"), String(anon));
+    /* E20 C2 (S11-19, Q-6): the audit put every Observer character under "fix these", the level the module sets so the
+       redaction can run. Read on this world's characters: those at Observer, and which of them the audit asks to fix. */
+    const anonLevels = await gm.eval(`
+        const A = await import("${repoUrl}/scripts/anonymity.mjs");
+        const found = await A.auditAnonymity({ toChat: false });
+        const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+        const observers = game.actors.filter(a => a.type === "character" && a.ownership?.default === OBSERVER).map(a => a.id);
+        return { observers, flagged: (found.exposed ?? []).map(i => i.actor.id).filter(id => observers.includes(id)) };
+    `, { timeout: 60000 });
+    check("ANONYMITY: no character at Observer is under 'fix these' (E20 C2, S11-19)",
+        anonLevels.observers.length > 0 && anonLevels.flagged.length === 0, JSON.stringify(anonLevels));
 
     // --- a sheet that is not yours (E05 C15, S03-06) ---
     // p2 opens Aiko's sheet (p1's) with a Call armed on it. The harness registers no

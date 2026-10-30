@@ -23,10 +23,10 @@ import {
     monokumas, poolLabel, setPoolLabel, poolCandidates, extraPoolUserIds, addPool, removePool,
     getDespair
 } from "./despair.mjs";
-import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
+import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
-import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm } from "./overflow.mjs";
+import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
@@ -499,7 +499,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
         { key: "pools", label: game.i18n.localize("DRPG.Despair.poolsTitle"), html: poolSection },
         { key: "monokumas", label: game.i18n.localize("DRPG.Monokuma.panelTitle"), html: monokumaSection },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Assign.title"), html: assignSection }] : []),
-        { key: "overflow", label: game.i18n.localize("DRPG.Overflow.title"), html: overflowSection() }
+        { key: "overflow", label: game.i18n.localize("DRPG.Overflow.title"), html: overflowSection({ suggestion: overflowSuggestionNow() }) }
     ]);
 
     // Built as an element, not a string: DialogV2 runs a string `content`
@@ -508,6 +508,15 @@ function buildContent(actors, gms, roster, candidates, removable) {
     // textarea keeps its hint - the same reason every other form in this module
     // goes through `dialogContent()`.
     return dialogContent(`<form>${body}</form>`);
+}
+
+/**
+ * The overflow threshold suggested for the season as it is (E20 C6, S02-59, D21): its living students and its pools,
+ * or the line that waits for the cast. Beside the threshold's field in the Overflow tab.
+ */
+export function overflowSuggestionNow() {
+    const living = studentCensus().count;
+    return living > 0 ? overflowSuggestionLine(living, monokumas().length) : game.i18n.localize("DRPG.Overflow.suggestNone");
 }
 
 /** A never-assigned student's "(fallback)" option: Save writes no row for it (`readAssignmentForm` skips ""). */

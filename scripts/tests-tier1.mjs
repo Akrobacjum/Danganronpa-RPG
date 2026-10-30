@@ -1923,7 +1923,8 @@ const INVARIANTS = [
         // The season checklist checks what it says it checks.
         const season = src("season-setup.mjs");
         ok(/some\(a => isMonokuma\(a\)\)/.test(season), "'At least one Monokuma' is satisfied by a GM account alone again");
-        ok(/feedsNobody\(a\) \|\| monokumaFor\(a\)/.test(season),
+        // Since E20 C1 the row asks the assignment by hand (`explicitPool`), not the fallback (`monokumaFor`).
+        ok(/nobody\(a\) \|\| byHand\(a\)/.test(season) && /const nobody = a => feedsNobody\(a, assigned\)/.test(season),
             "a student set to nobody on purpose is a red cross on the checklist again");
 
         // The killers still cleaning up are not the witnesses who find the body.
@@ -6288,8 +6289,10 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
         const diagnostics = stripComments(sources.get("diagnostics.mjs") ?? "");
-        ok(/liveKitSecretWarning\(liveKitConnectionSettings\(\)\)[\s\S]{0,80}key: "liveKitSecret",\s*hintKey: "DRPG\.Voice\.liveKitSecret"/
-            .test(bodyOf(season, "function steps(", { until: "\n}\n" })),
+        // E20 fix round (C-1): `steps` takes the setting as an argument, the world's by default (R1523 hands one).
+        const stepsSource = bodyOf(season, "function steps(", { until: "\n}\n" });
+        ok(/liveKit = liveKitConnectionSettings\(\)/.test(stepsSource)
+            && /liveKitSecretWarning\(liveKit\)[\s\S]{0,80}key: "liveKitSecret",\s*hintKey: "DRPG\.Voice\.liveKitSecret"/.test(stepsSource),
             "the season checklist does not ask the rule, or its row does not carry the warning's sentence");
         ok(/game\.user\.isGM \? liveKitSecretWarning\(liveKitConnectionSettings\(\)\) : null/
             .test(bodyOf(diagnostics, "export function voiceDiagnosis(", { until: "\n}\n" })),
@@ -12907,7 +12910,7 @@ const INVARIANTS = [
              - `writeVoiceSetting` refuses any other key, a mode avclient-livekit does not have, and a value that is not
                a string;
              - `videoUnwatched`: true only in audio-and-video mode while the tile stands in for the dock; and
-               `runPreSessionChecks` asks it (season-setup.mjs, read in the source).
+               `preSessionReport` asks it (season-setup.mjs, read in the source; `runPreSessionChecks` until E20 C3).
            Red before C5: there was no voice-panel.mjs (by `ok`). */
         const P = await import("./voice-panel.mjs").catch(() => null);
         const T = await import("./voice-tile.mjs");
@@ -12943,7 +12946,8 @@ const INVARIANTS = [
         const video = [[AUDIO_VIDEO, true, true], [AUDIO, true, true], [VIDEO, true, true], [AUDIO_VIDEO, false, true], [AUDIO_VIDEO, true, false]]
             .map(([mode, available, on]) => T.videoUnwatched({ mode, available, on }));
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
-        const asks = /\bvideoUnwatched\(\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "runPreSessionChecks"));
+        // E20 C3: the report's body moved to `preSessionReport`, which hands the A/V facts in (R1510 reads the rows).
+        const asks = /\bvideoUnwatched\(/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "preSessionReport"));
         equal(JSON.stringify([controls, chosen, changed, unnamedRead, refusals, video, asks]), JSON.stringify([
             ["voice:audioSrc", "voice:audioSink", "voice:mode"], ["R542MIC2", "R542OUT1", "ptt", true],
             ["client.audioSrc=R542MIC1", "client.voice.mode=always"], [true, ["voice:mode"], "always"],
@@ -12952,7 +12956,7 @@ const INVARIANTS = [
         "[the Voice section's controls; the stored microphone, output and mode chosen and the key's line; a change of the microphone and of the mode "
             + "writes | before the browser names its microphones and with no output: the line, the controls, the mode | writeVoiceSetting: muteAll, a "
             + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
-            + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
+            + "with the tile; audio; video; no voice; the tile off | preSessionReport asks videoUnwatched]");
     }],
     ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room at once on an empty tile and a change of speaker after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
         /*
@@ -19223,6 +19227,8 @@ const INVARIANTS = [
         const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"}`);
         const store = game.settings.storage.get("client");
         const had = store.getItem(FULL);
+        // The hold keeps this browser's value before its first write (E20 C6): that record is put back too.
+        const KEPT = `${MODULE_ID}.foundryBeforeClient`, hadKept = store.getItem(KEPT);
         const stub = globalThis.__liveKit, avModule = game.modules.get(AV), wasActive = avModule.active;
         const value = () => game.settings.get(AV, KEY);
         const entry = () => game.settings.settings.get(FULL);
@@ -19247,6 +19253,8 @@ const INVARIANTS = [
             globalThis.__liveKit = stub;
             if (had === null) store.removeItem(FULL);
             else store.setItem(FULL, had);
+            if (hadKept === null) store.removeItem(KEPT);
+            else store.setItem(KEPT, hadKept);
         }
         equal(stableJson(seen), stableJson([
             [AV, KEY, false, null, "liveKitInFoundry", "world", true, true, true],
@@ -25719,6 +25727,1678 @@ const INVARIANTS = [
             + "the decision: its line, each button [op, actor, time]; Resume [op, the rest]; after the vote; outside a trial; the Reveal: the count, a button per row, the no-trace marks, "
             + "nothing to say, outside a trial; roundLength]");
     }],
+    ["R1500 - one census of rooms and students, read by the Doors tab, the season checklist and Pre-season checks (E20 C1, E20-01, E20-24; S07-38, Q-3): vault.mjs `roomCensus` (marked, no owner, not No privacy, locked counted), monokuma.mjs `studentCensus` (the living), the Doors tab's line off its form, the checklist's roomCount line and Pre-season's scene line give one number, in one wording", async () => {
+        /*
+         * E20 C1, 29.10.2026; the owner's Q-3. The harm (S07-38): one map read "17 shared rooms open for 3 living
+         * students" in the Doors tab (locked rooms left out, the living), "Rooms: 17. Players: 4" on the checklist
+         * (locked counted, the dead too) and "18 rooms" in Pre-season checks (every marked room, bedrooms included),
+         * and "The guide suggests" named a document a GM does not have. Here one scene of plain objects (three shared
+         * rooms, one of them locked, a bedroom, a No privacy corridor, a region nobody marked) and four students of
+         * the suite's own (one dead) are read by the three readers: the Doors tab's line drawn by `wireRoomRatio` off
+         * a form of the same rows, the checklist's roomCount row and Pre-season's `diagnoseScenes`. E20-24: the
+         * predicates E51's "First session" builds on are exported. Nothing is written. Red at the parent: none of
+         * the names was exported (the first assertion).
+         */
+        let V = null, M = null, SS = null, F = null, A = null, U = null;
+        try {
+            [V, M, SS, F, A, U] = await Promise.all(["./vault.mjs", "./monokuma.mjs", "./season-setup.mjs", "./fog.mjs", "./assignments.mjs", "./utils.mjs"].map(p => import(p)));
+        } catch { V = null; }
+        const exported = { roomCensus: typeof V?.roomCensus, roomCensusOf: typeof V?.roomCensusOf, roomRatioLine: typeof V?.roomRatioLine,
+            wireRoomRatio: typeof V?.wireRoomRatio, studentCensus: typeof M?.studentCensus, explicitPool: typeof A?.explicitPool,
+            sceneUncoveredPercent: typeof F?.sceneUncoveredPercent };
+        equal(stableJson(exported), stableJson(Object.fromEntries(Object.keys(exported).map(k => [k, "function"]))),
+            "E20's predicates are not all exported (E51's First session reads them)");
+        const fx = await e20Fixture();
+        const rows = [["R1500 Hall A", {}], ["R1500 Hall B", { locked: true }], ["R1500 Gym", {}], ["R1500 Dorm", { owner: "R1500owner" }],
+            ["R1500 Corridor", { notShared: true }], ["R1500 Shed", { room: false }]];
+        const scene = fx.scene("R1500 school", rows.map(([name, over], i) => fx.region(`R1500r${i}`, name, { ...over, rect: [i * 100, 0, 100, 100] })));
+        const students = [fx.actor("R1500a"), fx.actor("R1500b"), fx.actor("R1500c"), fx.actor("R1500d", { dead: true })];
+        const census = V.roomCensus(scene);
+        const people = M.studentCensus(students);
+
+        const box = document.createElement("div");
+        box.innerHTML = `<p data-drpg-ratio></p><form>${rows.map(([name, over]) => `
+            <input type="checkbox" name="isroom:${name}"${over.room === false ? "" : " checked"}>
+            <select name="owner:${name}"><option value=""></option><option value="R1500owner"${over.owner ? " selected" : ""}>o</option></select>
+            <input type="checkbox" name="notshared:${name}"${over.notShared ? " checked" : ""}>
+            <input type="checkbox" name="locked:${name}"${over.locked ? " checked" : ""}>`).join("")}</form>`;
+        V.wireRoomRatio({ element: box }, rows.map(([name]) => name), people.count);
+        const doors = box.querySelector("[data-drpg-ratio]").textContent;
+
+        const row = SS.steps({ roster: students, scenes: [scene], roomScene: scene, assigned: {}, lastChecks: new Map() }).find(r => r.key === "roomCount");
+        const notes = document.createElement("div");
+        notes.innerHTML = row?.extra?.() ?? "";
+        const checklist = notes.textContent.trim();
+        const phrase = U.plural("DRPG.Vault.roomCensus", { n: 3 });
+        const pre = F.diagnoseScenes({ scenes: [scene], lastChecks: new Map() });
+        const words = [game.i18n.localize("DRPG.Vault.roomRatio"), phrase, U.plural("DRPG.Vault.roomCensusLocked", { n: 1 })].join(" ");
+        equal(stableJson({
+            census: [census.count, census.rooms, census.locked, census.bedrooms, census.noPrivacy],
+            people: [people.all.length, people.count],
+            doors: [doors === V.roomRatioLine(census, 3), doors.includes(phrase)],
+            checklist: checklist === doors,
+            pre: pre.includes(`R1500 school - ${phrase}`),
+            words: /\bguide\b/i.test(words)
+        }), stableJson({
+            census: [3, ["R1500 Hall A", "R1500 Hall B", "R1500 Gym"], ["R1500 Hall B"], ["R1500 Dorm"], ["R1500 Corridor"]],
+            people: [4, 3],
+            doors: [true, true],
+            checklist: true,
+            pre: true,
+            words: false
+        }), "the three readers do not give one census [the rooms: count, counted, locked among them, bedrooms, No privacy; the students: all, living; "
+            + "the Doors tab's line: the shared sentence, the census phrase; the checklist's line is the Doors tab's; Pre-season's line names the census; 'the guide' in the words]");
+    }],
+    ["R1501 - a checklist row that checked nothing never ticks (E20 C1, E20-02; S06-28): with no student the rows over the students wait - not done, a dash, \"waiting for the cast\", no button; the rooms row is not done with no room, roomsMarked not with no named region; the cursor row reads the permissions in force; the Monokuma row asks the assignment by hand and names the pool a student falls back to", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S06-28): on an empty world "Starting Health", "Everybody has an Ultimate" and
+         * four more rows read done (`.every` on an empty list), roomCount wanted 0 rooms of 0 students, "Every named
+         * region is decided" ticked with none drawn, the cursor row ticked on a world that never stored SHOW_CURSOR
+         * (Foundry's default shows every pointer), and "Every student has a Monokuma watching" ticked for everybody once
+         * one pool existed (`monokumaFor` falls back to the first). `steps()` is handed an empty cast, no scene and an
+         * assignment map of the suite's own; the rows are drawn by `setupRows` on a detached element. Nothing is
+         * written. Red at the parent: neither `setupRows` nor `cursorRoles` was exported (the first assertion), and
+         * `steps` took no argument and read the world.
+         */
+        let SS = null, D = null, A = null, K = null;
+        try { [SS, D, A, K] = await Promise.all(["./season-setup.mjs", "./despair.mjs", "./assignments.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
+        ok(typeof SS?.setupRows === "function" && typeof SS?.cursorRoles === "function", "season-setup.mjs exports no setupRows or cursorRoles");
+        const DASH = String.fromCharCode(0x2013);
+        const over = ["resources", "ultimate", "experiences", "items", "assignments", "despairSplit", "roomCount"];
+        const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
+        const pick = key => empty.find(r => r.key === key);
+        const box = document.createElement("ul");
+        box.innerHTML = SS.setupRows(over.map(pick).filter(Boolean));
+        const drawn = [...box.querySelectorAll(".drpg-setup-step")].map(li => [li.querySelector(".drpg-setup-mark")?.textContent,
+            li.classList.contains("waiting"), li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
+        const R = CONST.USER_ROLES;
+        const cursor = [SS.cursorRoles({}, { SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
+            SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
+        const sources = await K.moduleSources();
+        must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const readsInForce = /cursorRoles\([^;]*permissionsInForce\(\)\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "gmRolesSharingCursor"));
+        const pool = D.monokumas()[0] ?? null;
+        must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
+        const fx = await e20Fixture();
+        const loose = fx.actor("R1501loose"), byHand = fx.actor("R1501hand"), nobody = fx.actor("R1501nobody");
+        const watch = assigned => {
+            const row = SS.steps({ roster: [loose, byHand, nobody], scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
+            return [row?.done, row?.done ? [] : row?.missing?.()];
+        };
+        equal(stableJson({
+            waiting: over.map(k => [k, pick(k)?.done, Boolean(pick(k)?.waiting)]),
+            drawn,
+            rooms: [pick("rooms")?.done, pick("roomsMarked")?.done, pick("roomsMarked")?.missing?.()],
+            cursor, readsInForce,
+            watch: [watch({ [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA }),
+                watch({ [loose.id]: pool.id, [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA })]
+        }), stableJson({
+            waiting: over.map(k => [k, false, true]),
+            drawn: over.map(() => [DASH, true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
+            rooms: [false, false, [game.i18n.localize("DRPG.Season.noNamedRegions")]],
+            cursor: [[R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], [R.PLAYER]], readsInForce: true,
+            watch: [[false, [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })]], [true, []]]
+        }), "a row ticks having checked nothing [the rows over the students with no student: done, waiting; each drawn: mark, waiting, the line, a button; "
+            + "rooms and roomsMarked with no scene: done, done, the line; the cursor's roles: nothing stored, stored; the cursor row reads the permissions in force; "
+            + "the Monokuma row: one student on the fallback, all by hand or nobody]");
+    }],
+    ["R1502 - Pre-season's cast lines ask the checklist's predicates (E20 C1, E20-03; S01-18): `diagnoseCharacters` reads a student's resources by `needsStartingResources` and the Despair pool line by `feedsNobody` and `explicitPool`, so a student on \"- nobody -\" reads the same in both, a student nobody assigned is named with the pool they fall back to, and the Despair report calls no Assistant GM \"no pool by design\"", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S01-18): a GM who set the Mastermind to "- nobody -" was ticked by the checklist
+         * and told by Pre-season checks "Everybody is assigned to a Despair pool" was failed, with advice to undo it,
+         * while a student nobody assigned passed through the fallback; the resources were judged by a copy of the
+         * predicate; and the Despair report called an Assistant GM granted a pool "no pool by design". Three students
+         * of the suite's own (on nobody, nobody assigned and below the starting numbers, assigned by hand) and an
+         * assignment map are handed to `diagnoseCharacters` (no chat) and to the checklist's `steps`; the Despair
+         * report whispers, so its source is read. Nothing is written. Red at the parent: `diagnoseCharacters` read the
+         * world's cast, so the suite's students were in neither line.
+         */
+        let SS = null, Dg = null, D = null, A = null, C = null, K = null;
+        try { [SS, Dg, D, A, C, K] = await Promise.all(["./season-setup.mjs", "./diagnostics.mjs", "./despair.mjs", "./assignments.mjs", "./character.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
+        const pool = D.monokumas()[0] ?? null;
+        must(pool, "no Despair pool in this world (every full Gamemaster holds one) - the fallback cannot be read");
+        const fx = await e20Fixture();
+        const nobody = fx.actor("R1502nobody"), loose = fx.actor("R1502loose", { set: false }), byHand = fx.actor("R1502hand");
+        const roster = [nobody, loose, byHand];
+        const assigned = { [nobody.id]: A.NO_MONOKUMA, [byHand.id]: pool.id };
+        const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned });
+        const lines = text.split("\n");
+        const marks = roster.map(a => lines.find(l => l.includes(` ${a.name} - `))?.trim().slice(0, 1) ?? null);
+        const poolLine = lines.find(l => l.includes("Everybody is assigned to a Despair pool")) ?? "";
+        const listed = /^\s*✗ .* - \d+: (.*)$/.exec(poolLine)?.[1]?.split(", ") ?? [];
+        const row = SS.steps({ roster, scenes: [], roomScene: null, assigned, lastChecks: new Map() }).find(r => r.key === "assignments");
+        const sources = await K.moduleSources();
+        must(sources.get("diagnostics.mjs")?.length, "diagnostics.mjs is not among the module's sources - this would measure nothing");
+        const despair = fnSource(stripComments(sources.get("diagnostics.mjs")), "diagnoseDespair");
+        equal(stableJson({
+            marks, predicate: roster.map(a => (C.needsStartingResources(a) ? "✗" : "✓")),
+            listed, checklist: row?.done ? [] : row?.missing?.() ?? null,
+            despair: [/\bpoolCandidates\(\)/.test(despair), /no pool by design/.test(despair)]
+        }), stableJson({
+            marks: ["✓", "✗", "✓"], predicate: ["✓", "✗", "✓"],
+            listed: [`${loose.name} (falls back to ${pool.name})`], checklist: [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })],
+            despair: [true, false]
+        }), "Pre-season's cast lines and the checklist read differently [each student's resources mark, the predicate's; Pre-season's unassigned, the checklist's; "
+            + "the Despair report asks poolCandidates, says 'no pool by design']");
+    }],
+    ["R1503 - Pre-season's \"ok\" on a scene and the checklist's rooms tick need the uncovered share at most UNCOVERED_LIMIT_PCT and no error from the scene's last room check (E20 C1, E20-04; S06-28)", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S06-28): Pre-season checks wrote "ok" beside 67% of a map in no room, and
+         * "The map has rooms" kept its tick after the room check had found three border errors - a GM trusts the
+         * tick. Scenes of plain objects ready for room vision: one covered wall to wall, one covered by half, the
+         * first again with two errors on its last room check (the record handed in, as the window hands its own),
+         * and one covered whole but still on Foundry's vision (the control). Each is read by `diagnoseScenes` and by
+         * the checklist's rooms row. Nothing is written. Red at the parent: config.mjs stated no limit (the first
+         * assertion), and `diagnoseScenes` and `steps` read the world's scenes.
+         */
+        let SS = null, F = null, U = null, CFG = null;
+        try { [SS, F, U, CFG] = await Promise.all(["./season-setup.mjs", "./fog.mjs", "./utils.mjs", "./config.mjs"].map(p => import(p))); } catch { SS = null; }
+        ok(Number.isFinite(CFG?.UNCOVERED_LIMIT_PCT), "config.mjs states no UNCOVERED_LIMIT_PCT");
+        const fx = await e20Fixture();
+        const full = fx.scene("R1503 full", [fx.region("R1503a", "R1503 Hall", { rect: [0, 0, 4000, 3000] })]);
+        const half = fx.scene("R1503 half", [fx.region("R1503b", "R1503 Hall", { rect: [0, 0, 2000, 3000] })]);
+        const dark = fx.scene("R1503 dark", [fx.region("R1503c", "R1503 Hall", { rect: [0, 0, 4000, 3000] })], { ready: false });
+        const errors = new Map([[full.id, 2]]);
+        const line = (scene, lastChecks = new Map()) => F.diagnoseScenes({ scenes: [scene], lastChecks });
+        const rooms = (scene, lastChecks = new Map()) => {
+            const row = SS.steps({ roster: [], scenes: [scene], roomScene: scene, assigned: {}, lastChecks }).find(r => r.key === "rooms");
+            return [row?.done, row?.done ? [] : row?.missing?.()];
+        };
+        equal(stableJson({
+            pre: [line(full).slice(0, 2), line(half).slice(0, 2), line(full, errors).slice(0, 2), line(dark).slice(0, 2),
+                line(full, errors).includes(U.plural("DRPG.Fog.lastCheckErrors", { n: 2 }))],
+            rooms: [rooms(full), rooms(half), rooms(full, errors)]
+        }), stableJson({
+            pre: ["✓ ", "✗ ", "✗ ", "✗ ", true],
+            rooms: [[true, []], [false, [game.i18n.format("DRPG.Season.roomsUncovered", { scene: half.name, pct: 50 })]],
+                [false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 2, scene: full.name })]]]
+        }), "a scene is ok or ticked unchecked [Pre-season: covered, half, covered with two errors, on Foundry's vision, the errors named; "
+            + "the rooms row: covered, half, covered with two errors]");
+    }],
+    ["R1504 - \"outside rooms\" over the scene's own rect (E20 C1, E20-05; S07-13): `sceneUncoveredPercent` measures against `sceneRect`, not the padded canvas, cuts each polygon to it and takes a room's hole off its floor - a 4000x3000 map covered wall to wall in a 6000x4500 canvas reads 0", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S07-13): the share was taken of the canvas, the padding included, so a map
+         * covered wall to wall read about 57% "outside rooms" in Room Setup and Pre-season checks, and a GM learnt to
+         * ignore the line; a hole in a room counted as floor. Scenes of plain objects at Foundry's default padding
+         * of 0.25 (the map 4000x3000 at 1000,750 in a 6000x4500 canvas), each region carrying `polygons` as v14's do:
+         * covered whole; covered by a region that runs from the padding on the left to the map's middle; covered by
+         * an outline with a 1000x1000 hole (the tree's hole node and, as v14's alias does, both in `polygons`).
+         * Nothing is written. Red at the parent: [56, 67, 52] - the canvas, the padding counted as cover, the hole
+         * counted as floor twice over.
+         */
+        let F = null;
+        try { F = await import("./fog.mjs"); } catch { F = null; }
+        ok(typeof F?.sceneUncoveredPercent === "function", "fog.mjs exports no sceneUncoveredPercent");
+        const fx = await e20Fixture();
+        const dims = { width: 6000, height: 4500, sceneX: 1000, sceneY: 750, sceneWidth: 4000, sceneHeight: 3000,
+            sceneRect: { x: 1000, y: 750, width: 4000, height: 3000 } };
+        const rect = (x, y, w, h) => [x, y, x + w, y, x + w, y + h, x, y + h];
+        const covered = fx.scene("R1504 covered", [fx.region("R1504a", "R1504 Hall", { polygons: [rect(1000, 750, 4000, 3000)] })], { dims });
+        const padded = fx.scene("R1504 padded", [fx.region("R1504b", "R1504 Hall", { polygons: [rect(0, 750, 3000, 3000)] })], { dims });
+        const outline = rect(1000, 750, 4000, 3000), hole = rect(2000, 1750, 1000, 1000);
+        const holed = fx.scene("R1504 holed", [fx.region("R1504c", "R1504 Hall", { polygons: [outline, hole],
+            tree: [{ points: outline, isHole: false }, { points: hole, isHole: true }] })], { dims });
+        equal(stableJson([F.sceneUncoveredPercent(covered), F.sceneUncoveredPercent(padded), F.sceneUncoveredPercent(holed)]), stableJson([0, 50, 8]),
+            "[a map covered wall to wall, a region half on the map and half in the padding, an outline with a 1000x1000 hole] - percent outside rooms");
+    }],
+    ["R1505 - Check rooms says what it checked (E20 C1, E20-06; S07-33): with no scene \"No scene on the canvas\", on a scene with no room \"No rooms on this scene\", never an empty list the window reads as clean; the rooms row names the scene it judged and counts every scene with rooms", async () => {
+        /*
+         * E20 C1, 29.10.2026. The harm (S07-33): on a new world with no scene the button answered an empty list, shown
+         * as "Nothing to report - the rooms on this scene are clean", and a scene holding only a region nobody marked
+         * read the same; a GM viewing the trial hall saw "The map has rooms" red though the school had eighteen.
+         * `checkRegions` is handed no scene, then a scene of plain objects with one named region nobody marked; the
+         * checklist's rooms row is read over three scenes, two with rooms, judging the first. Nothing is written. Red
+         * at the parent: `checkRegions` took no argument and read the scene on the canvas.
+         */
+        let F = null, SS = null, U = null;
+        try { [F, SS, U] = await Promise.all(["./fog.mjs", "./season-setup.mjs", "./utils.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const none = F.checkRegions(null);
+        const bare = fx.scene("R1505 bare", [fx.region("R1505a", "R1505 Shed", { room: false, rect: [0, 0, 400, 400] })]);
+        const unmarked = F.checkRegions(bare).map(r => [r.level, r.problem]);
+        const a = fx.scene("R1505 school", [fx.region("R1505b", "R1505 Hall", { rect: [0, 0, 4000, 3000] })]);
+        const b = fx.scene("R1505 annex", [fx.region("R1505c", "R1505 Lab", { rect: [0, 0, 4000, 3000] })]);
+        const row = SS.steps({ roster: [], scenes: [a, b, bare], roomScene: a, assigned: {}, lastChecks: new Map() }).find(r => r.key === "rooms");
+        const notes = document.createElement("div");
+        notes.innerHTML = row?.extra?.() ?? "";
+        const problem = key => game.i18n.localize(`DRPG.Fog.${key}.problem`);
+        equal(stableJson({
+            none: none.map(r => [r.level, r.problem]),
+            unmarked: unmarked.filter(([, p]) => p === problem("checkNoRooms")).length,
+            rooms: [row?.done, notes.textContent.includes(U.plural("DRPG.Season.roomsJudged", { n: 2, scene: a.name }))]
+        }), stableJson({
+            none: [["warning", problem("checkNoScene")]],
+            unmarked: 1,
+            rooms: [true, true]
+        }), "Check rooms or the rooms row says nothing of what it checked [no scene: its rows; a scene with no room: its no-rooms rows; "
+            + "the rooms row over three scenes: done, the line naming the judged scene and two scenes with rooms]");
+    }],
+    ["R1506 - the anonymity audit asks for a fix only above Observer (E20 C2, E20-07; S11-19, Q-6): a sheet every player owns is under \"fix these\", one open to every player as Observer is not, one closed to them is an info line (no loot from that body); the levels are words, never Foundry's names; Set them to Observer sets Observer on the exposed sheets alone and draws the audit again", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S11-19): the audit put every Observer character under "Visible to all players -
+         * fix these:" - the level the module sets on purpose so the redaction can run - listed raw API names ("default is
+         * OBSERVER"), and offered no fix; a GM either learnt to ignore it or "fixed" sheets the module then put back.
+         * Four characters of plain objects, read by `auditAnonymity` (no chat): owned by every player, Observer, closed
+         * (None), and Observer with no player owner. The Fix is pressed on the audit drawn into a detached element, its
+         * writes caught on the fixtures. Nothing is written to the world. Red at the parent: `auditAnonymity` read the
+         * world's actors and took no list, so none of the four was in any section, and no Fix existed.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let A = null;
+        try { A = await import("./anonymity.mjs"); } catch { A = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const written = [];
+        const open = fx.sheet("R1506open", L.OWNER, { owner: player.id, written });
+        const seen = fx.sheet("R1506seen", L.OBSERVER, { owner: player.id, written });
+        const closed = fx.sheet("R1506closed", L.NONE, { owner: player.id, written });
+        const loose = fx.sheet("R1506loose", L.OBSERVER, { written });
+        const actors = [open, seen, closed, loose];
+        const found = await A.auditAnonymity({ toChat: false, actors });
+        const names = list => (list ?? []).map(i => i.actor?.name);
+        const root = document.createElement("div");
+        root.innerHTML = found?.body ?? "";
+        const text = root.textContent;
+        const words = key => game.i18n.localize(key);
+        const wired = A.wireAnonymityFix?.(root, { actors }) ?? null;
+        const button = root.querySelector("[data-drpg-anon-fix]");
+        button?.click();
+        await wired?.done?.();
+        equal(stableJson({
+            exposed: names(found?.exposed), closed: names(found?.closed), orphaned: names(found?.orphaned),
+            words: [text.includes(words("DRPG.Anonymity.audit.exposed")), text.includes(`${open.name} - ${words("DRPG.Anonymity.everyone.owner")}`),
+                text.includes(`${closed.name} - ${words("DRPG.Anonymity.everyone.none")}`),
+                text.includes(`${player.name}: ${words("DRPG.Anonymity.level.observer")}`), /\b(OWNER|OBSERVER|LIMITED|NONE)\b/.test(text)],
+            fix: [Boolean(button), written, root.querySelector("[data-drpg-anon-fix]") === null, root.textContent.includes(words("DRPG.Anonymity.audit.exposed"))]
+        }), stableJson({
+            exposed: [open.name], closed: [closed.name], orphaned: [loose.name],
+            words: [true, true, true, true, false],
+            fix: [true, [[open.id, { "ownership.default": L.OBSERVER }]], true, false]
+        }), "the audit asks for the wrong fix or none [exposed, closed, no owner; the words: the exposed heading, the owned line, the closed line, "
+            + "the player's level in words, a Foundry level name; the fix: its button, the writes, the button gone and the heading gone after it]");
+    }],
+    ["R1507 - Pre-season checks and Check rooms speak the table's language and name no console command (E20 C2, E20-08; S01-23, S07-36): drawn with lang/pl.json's DRPG block, the cast report, the scene line, the anonymity audit and the room check's rows and legend hold none of a fixed list of English literals and no \"game.drpg.\"", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S01-23, S07-36): a Polish table's GM opened Pre-season checks and Check rooms and
+         * read them in English, with "or run game.drpg.initCharacter(actor) for each" - a console command - as the fix.
+         * Polish is lang/pl.json's DRPG block put in place of this browser's for the drawing alone and put back after
+         * (R902's way); the plural forms are chosen by the module's language setting, which this test does not write.
+         * Read: `diagnoseCharacters` (no chat) on a student below the starting numbers and on none, `diagnoseScenes` on
+         * a half-covered scene, `auditAnonymity` (no chat) on three sheets, `checkRegions` on a scene of three rooms with
+         * Foundry's names, a region with no name and a room with no shape, and `roomCheckHtml` over its rows - all
+         * fixtures of plain objects. The fix sentence of pl.json is looked for, so the swap is shown to have drawn
+         * Polish. Red at the parent: "Students (Monokumas excluded)", "Health max", "game.drpg." and the rest.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let Dg = null, F = null, FD = null, A = null;
+        try { [Dg, F, FD, A] = await Promise.all(["./diagnostics.mjs", "./fog.mjs", "./fog-diagnostics.mjs", "./anonymity.mjs"].map(p => import(p))); } catch { Dg = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const roster = [fx.actor("R1507a", { set: false }), fx.actor("R1507b")];
+        const half = fx.scene("R1507 half", [fx.region("R1507h", "R1507 Hall", { rect: [0, 0, 2000, 3000] })]);
+        const map = fx.scene("R1507 map", [fx.region("R1507r1", "Region", { rect: [0, 0, 400, 400] }), fx.region("R1507r2", "Region (2)", { rect: [1000, 0, 400, 400] }),
+            fx.region("R1507r3", "R1507 Lab", { rect: [2000, 0, 400, 400] }), fx.region("R1507u", "", { rect: [3000, 0, 400, 400] }), fx.region("R1507e", "R1507 Void")]);
+        const sheets = [fx.sheet("R1507open", L.OWNER, { owner: player.id }), fx.sheet("R1507closed", L.NONE, { owner: player.id }), fx.sheet("R1507loose", L.OBSERVER)];
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const own = game.i18n.translations;
+        let texts = [];
+        try {
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            const audit = document.createElement("div");
+            audit.innerHTML = (await A.auditAnonymity({ toChat: false, actors: sheets }))?.body ?? "";
+            const rows = F.checkRegions(map);
+            const check = document.createElement("div");
+            check.innerHTML = FD.roomCheckHtml?.(rows, map.id) ?? "";
+            texts = [Dg.diagnoseCharacters({ toChat: false, roster, assigned: {} }), Dg.diagnoseCharacters({ toChat: false, roster: [], assigned: {} }),
+                F.diagnoseScenes({ scenes: [half] }), audit.textContent, rows.map(r => `${r.problem} ${r.detail}`).join("\n"), check.textContent];
+        } finally {
+            game.i18n.translations = own;
+        }
+        const ENGLISH = ["Students (Monokumas excluded)", "Starting resources", "Health max", "not set up", "Everybody", "Fix:", "game.drpg.",
+            "No students yet", "belongs to no room", "default is", "(Assistant GM)", "Visible to all players", "Region with no name",
+            "Room still has the name", "No geometry", "Overlaps", "Border runs away", "No way out", "Corners off", "grid square", "Show on map", "falls back to"];
+        const found = texts.map(text => ENGLISH.filter(literal => String(text).includes(literal)));
+        equal(stableJson({ drawn: texts.map(t => String(t).trim().length > 0), polish: String(texts[0]).includes(pl.DRPG.Diagnostics?.cast?.fix ?? "\u0000"), found }),
+            stableJson({ drawn: [true, true, true, true, true, true], polish: true, found: [[], [], [], [], [], []] }),
+            "a report drawn in Polish holds English [each drawn, the Polish fix sentence in the cast report; the English literals in: the cast report, "
+            + "the cast report with no student, the scene line, the anonymity audit, the room check's rows, the room check as drawn]");
+    }],
+    ["R1508 - Check rooms says each explanation once, above the list, and every row is a short fact with Show on map (E20 C2, E20-09; S07-14): `roomCheckHtml` draws one legend entry per kind of finding and one row per finding with no coordinates; a row's Show on map pans the canvas to its point and marks it", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S07-14): on a school of eighteen rooms the check printed the same two-sentence
+         * explanation under every room, with raw coordinates ("(1840, 960)") a GM had no use for, and "the second way" a
+         * side turns into a doorway, which named a first way nobody had been told. Three rooms of plain objects with
+         * Foundry's own names, apart, on a scene with no walls - each draws the same kinds of finding - are read by
+         * `checkRegions`, drawn by `roomCheckHtml` into a detached element and wired by `wireShowOnMap` with a canvas of
+         * the test's own that records its pans and pings. Nothing is written. What the mark looks like on a real canvas
+         * is not measured here (a table's check; E20 C7 writes it into AUDIT 9.2). Red at the parent: no `roomCheckHtml`, no kinds on the rows.
+         */
+        let F = null, FD = null;
+        try { [F, FD] = await Promise.all(["./fog.mjs", "./fog-diagnostics.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const scene = fx.scene("R1508 school", [fx.region("R1508a", "Region", { rect: [0, 0, 400, 400] }),
+            fx.region("R1508b", "Region (2)", { rect: [1000, 0, 400, 400] }), fx.region("R1508c", "Region (3)", { rect: [2000, 0, 400, 400] })]);
+        const rows = F.checkRegions(scene);
+        const kinds = [...new Set(rows.map(r => r.kind).filter(Boolean))];
+        const root = document.createElement("div");
+        root.innerHTML = FD.roomCheckHtml?.(rows, scene.id) ?? "";
+        const text = root.textContent;
+        const why = kind => rows.find(r => r.kind === kind)?.why || " ";
+        const times = (hay, needle) => hay.split(needle).length - 1;
+        /* The goal review's G-4 (E20 fix round, 30.10.2026): v14's `canvas.ping` broadcasts the ping to every client (and a
+           Shift pans every player's screen), so the mark is drawn on this canvas's own controls layer (`drawPing`) and the
+           broadcasting ping is never called. */
+        const pans = [], pings = [], marks = [];
+        const board = { scene: { id: scene.id }, animatePan: o => { pans.push([o.x, o.y]); return Promise.resolve(true); }, ping: p => { pings.push([p.x, p.y]); return Promise.resolve(true); },
+            controls: { drawPing: p => { marks.push([p.x, p.y]); return Promise.resolve(true); } } };
+        FD.wireShowOnMap?.(root, { board, sceneId: scene.id });
+        const buttons = [...root.querySelectorAll("[data-drpg-show-at]")];
+        buttons[1]?.click();
+        await settle();
+        const second = rows.filter(r => r.at)[1]?.at ?? null;
+        equal(stableJson({
+            named: rows.filter(r => r.kind === "defaultName").map(r => r.room),
+            legend: [root.querySelectorAll("[data-drpg-legend] li").length, kinds.length, kinds.map(k => times(text, why(k)))],
+            rows: [root.querySelectorAll("tbody tr").length, buttons.length, buttons.map(b => b.dataset.drpgShowAt)],
+            words: [/\(\d+, \d+\)/.test(text), /second way/i.test(text)],
+            shown: [pans, pings, marks]
+        }), stableJson({
+            named: ["Region", "Region (2)", "Region (3)"],
+            legend: [kinds.length, kinds.length, kinds.map(() => 1)],
+            rows: [rows.length, rows.filter(r => r.at).length, rows.filter(r => r.at).map(r => `${r.at.x},${r.at.y}`)],
+            words: [false, false],
+            shown: [[[second?.x, second?.y]], [], [[second?.x, second?.y]]]
+        }), "Check rooms repeats itself or shows nothing on the map [the rooms named by Foundry; the legend's entries, the kinds, each explanation's count in the text; "
+            + "the rows drawn, the buttons, their points; raw coordinates, 'the second way'; the second button: the pans, the broadcasting pings (none), the local marks]");
+    }],
+    ["R1509 - the CAST report is no fixed-height frame and starts with its fix (E20 C2, E20-10; S01-20): no rule of either theme gives the Pre-season report block a max-height or an overflow, and the cast report's \"Fix:\" sentence comes before the first student's line", async () => {
+        /*
+         * E20 C2, 29.10.2026. The harm (S01-20): the CAST section was a 16rem box with its own scrollbar inside the
+         * window's, and the sentence saying what to do sat at the bottom of it, under a cut line, out of sight. Read:
+         * the cascade of the module's sheets from their text (`styleCascade`), on a `pre.drpg-check-report` in a
+         * Pre-season window built on a body of its own, in both themes; and `diagnoseCharacters` (no chat) on two
+         * students of plain objects, one below the starting numbers. Whether the window scrolls whole at 1366x768 is
+         * not measured here (a table's check; E20 C7 writes it into AUDIT 9.2). Red at the parent: max-height 16rem and overflow auto; the fix after the list.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-panel drpg-wide"><section class="window-content"><div>
+                <h3>R1509</h3><pre class="drpg-check-report">R1509</pre></div></section></div>`;
+            const pre = body.querySelector("pre");
+            const value = names => C.winner(pre, names)?.value ?? null;
+            return [value("max-height"), value(["overflow", "overflow-y"])];
+        };
+        let Dg = null;
+        try { Dg = await import("./diagnostics.mjs"); } catch { Dg = null; }
+        const fx = await e20Fixture();
+        const roster = [fx.actor("R1509a"), fx.actor("R1509b", { set: false })];
+        const lines = Dg.diagnoseCharacters({ toChat: false, roster, assigned: {} }).split("\n");
+        const fixAt = lines.findIndex(l => l.includes(game.i18n.localize("DRPG.Diagnostics.cast.fix")));
+        const firstRow = lines.findIndex(l => l.includes(` ${roster[0].name} - `));
+        const okOverflow = v => v === null || v === "visible";
+        const frames = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
+        equal(stableJson({ frames: frames.map(([max, overflow]) => [max, okOverflow(overflow)]), fix: [fixAt >= 0, fixAt < firstRow] }),
+            stableJson({ frames: [[null, true], [null, true]], fix: [true, true] }),
+            "the CAST report is a frame of its own or hides its fix [Monokuma Legacy, Stained Glass: the max-height that wins, no overflow of its own; "
+            + "the fix sentence found, before the first student's line]");
+    }],
+    ["R1510 - Pre-season checks keep the rows amend 11.10 asked for (E20 C3, E20-11): \"A/V is off: no voice tile\" with the tile on and A/V off, \"video-only: nobody sends sound\" in video mode, each only then, and a room picture that does not decode is named under the room pictures, each picture probed once", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (amend 11.10, A8): a GM with the voice tile switched on and Audio/Video off in
+         * Foundry, or in video-only mode, sat down to a session with no voice and no word why; a room picture that does
+         * not load showed players the tile's empty glass and the GM learnt of it only when a player pressed it. Read:
+         * the two predicates over the four A/V modes with the tile on and off, then `preSessionReport` (season-setup.mjs,
+         * the window's body) drawn on facts handed in - A/V off, then video-only - over a scene of plain objects with
+         * three rooms whose pictures are two paths, one that a stand-in Image fails to decode, and a HEAD stand-in. The
+         * stand-in Image goes on globalThis, as R505's does. Nothing is written. Red at the parent: no `avOffForTile`,
+         * no `videoWithoutAudio`, no `preSessionReport`.
+         */
+        let T = null, SS = null;
+        try { [T, SS] = await Promise.all([import("./voice-tile.mjs"), import("./season-setup.mjs")]); } catch { T = null; }
+        const { DISABLED = 0, AUDIO = 1, VIDEO = 2, AUDIO_VIDEO = 3 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const modes = [DISABLED, AUDIO, VIDEO, AUDIO_VIDEO];
+        const table = fn => typeof fn === "function" ? [true, false].map(on => modes.map(mode => fn({ mode, on }))) : null;
+        const fx = await e20Fixture();
+        const scene = fx.scene("R1510 school", [
+            fx.region("R1510a", "R1510 Hall", { rect: [0, 0, 1000, 1000], image: "worlds/suite/r1510-hall.webp" }),
+            fx.region("R1510b", "R1510 Gym", { rect: [1000, 0, 1000, 1000], image: "worlds/suite/r1510-gone.webp" }),
+            fx.region("R1510c", "R1510 Lab", { rect: [2000, 0, 1000, 1000], image: "worlds/suite/r1510-hall.webp" })]);
+        const probed = [];
+        const RealImage = globalThis.Image;
+        let reports = [];
+        try {
+            globalThis.Image = class {
+                set src(path) { probed.push(path); this.path = path; this.naturalWidth = 1200; this.naturalHeight = 800; }
+                async decode() { if (this.path.includes("gone")) throw new Error("R1510: the stand-in does not decode"); }
+            };
+            const head = async () => ({ status: 200, bytes: 400000 });
+            const draw = async av => {
+                const html = await SS?.preSessionReport?.({ av, scenes: [scene], head });
+                const root = document.createElement("div");
+                root.innerHTML = html ?? "";
+                return root.textContent;
+            };
+            reports = [await draw({ mode: DISABLED, on: true, available: false }), await draw({ mode: VIDEO, on: true, available: false })];
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const has = (text, key, data = null) => text.includes(data ? game.i18n.format(key, data) : game.i18n.localize(key));
+        const gone = game.i18n.format("DRPG.Panel.checksImagesWhere", { room: "R1510 Gym", scene: "R1510 school" });
+        const hall = game.i18n.format("DRPG.Panel.checksImagesWhere", { room: "R1510 Hall", scene: "R1510 school" });
+        const once = [...new Set(probed)];
+        equal(stableJson({
+            avOff: table(T?.avOffForTile), videoOnly: table(T?.videoWithoutAudio),
+            reports: reports.map(text => [has(text, "DRPG.Panel.checksAvOff"), has(text, "DRPG.Panel.checksAvVideoOnly"),
+                has(text, "DRPG.Panel.checksImagesMissing", { rooms: gone }), text.includes(hall)]),
+            probed: [once, probed.length]
+        }), stableJson({
+            avOff: [[true, false, false, false], [false, false, false, false]],
+            videoOnly: [[false, false, true, false], [false, false, false, false]],
+            reports: [[true, false, true, false], [false, true, true, false]],
+            probed: [["worlds/suite/r1510-gone.webp", "worlds/suite/r1510-hall.webp"], 4]
+        }), "Pre-season checks miss a row amend 11.10 keeps [A/V off with the tile on, then off; video-only with the tile on, then off - "
+            + "over disabled, audio, video, audio and video | the report with A/V off, then video-only: the A/V-off row, the video-only row, "
+            + "the Gym under pictures that do not load, the Hall named anywhere | the paths probed, and how many probes over two reports]");
+    }],
+    ["R1511 - a room picture over 4096 px on a side or 8 MB warns, a file whose size the server does not give is said so, and Check rooms warns when one room's pieces differ in No privacy, owner or height (E20 C3, E20-12; E77 D5, Q-7)", async () => {
+        /*
+         * E20 C3, 29.10.2026. The harm (E77 D5): a 6000 px or 12 MB room picture loads slowly in every player's browser
+         * each time the tile shows it, and nothing told the GM; a room drawn in two pieces where only one carries No
+         * privacy or the bedroom's owner reads as the first piece says, so the GM's setting on the other was silently
+         * lost (the readers take the first piece that carries a value, rooms.mjs `flagOver`). Read: `checkRoomImages`
+         * (room-tile.mjs) over a scene of plain objects with four pictures - one 5000x3000, one 9 MB, one 1 MB and small,
+         * one the HEAD stand-in gives no length for - with stand-ins for Image and HEAD; then `checkRegions` on a scene
+         * with a Kitchen whose second piece differs in all three, a Hall of two equal pieces, and a Stair whose pieces on
+         * two floors stand at two heights. Nothing is written. Red at the parent: no `checkRoomImages`, no pieces row.
+         */
+        let RT = null, F = null, C = null;
+        try { [RT, F, C] = await Promise.all([import("./room-tile.mjs"), import("./fog.mjs"), import("./config.mjs")]); } catch { RT = null; }
+        const fx = await e20Fixture();
+        const MB = 1024 * 1024;
+        const sizes = { big: [5000, 3000, 2 * MB], heavy: [2000, 2000, 9 * MB], small: [1000, 1000, MB], nolength: [1000, 1000, null] };
+        const pictures = fx.scene("R1511 pictures", Object.keys(sizes).map((name, i) =>
+            fx.region(`R1511p${i}`, `R1511 ${name}`, { rect: [i * 1000, 0, 1000, 1000], image: `worlds/suite/r1511-${name}.webp` })));
+        const size = src => sizes[String(src).match(/r1511-(\w+)\.webp/)?.[1]] ?? [0, 0, null];
+        const RealImage = globalThis.Image;
+        let images = null;
+        try {
+            globalThis.Image = class {
+                set src(path) { [this.naturalWidth, this.naturalHeight] = size(path); }
+                async decode() {}
+            };
+            images = await RT?.checkRoomImages?.({ scenes: [pictures], head: async src => ({ status: 200, bytes: size(src)[2] }) });
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const roomsOf = list => (list ?? []).map(entry => entry.rooms.map(r => r.room)).flat().sort();
+        const pieces = fx.scene("R1511 pieces", [
+            fx.region("R1511k1", "R1511 Kitchen", { rect: [0, 0, 1000, 1000] }),
+            fx.region("R1511k2", "R1511 Kitchen", { rect: [1000, 0, 1000, 1000], notShared: true, owner: "R1511owner", elevation: { bottom: 10, top: 20 } }),
+            fx.region("R1511h1", "R1511 Hall", { rect: [0, 1000, 1000, 1000], owner: "R1511owner", elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511h2", "R1511 Hall", { rect: [1000, 1000, 1000, 1000], owner: "R1511owner", elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511s1", "R1511 Stair", { rect: [0, 2000, 1000, 1000], levels: ["R1511L1"], elevation: { bottom: 0, top: 10 } }),
+            fx.region("R1511s2", "R1511 Stair", { rect: [1000, 2000, 1000, 1000], levels: ["R1511L2"], elevation: { bottom: 10, top: 20 } })]);
+        const differ = F.checkRegions(pieces).filter(r => r.kind === "piecesDiffer").map(r => [r.level, r.room, r.detail]);
+        const what = game.i18n.format("DRPG.Fog.check.piecesDiffer.fact", { what: ["notShared", "owner", "elevation"]
+            .map(k => game.i18n.localize(`DRPG.Fog.check.piecesDiffer.field.${k}`)).join(", ") });
+        equal(stableJson({
+            limits: [C?.ROOM_IMAGE_LIMITS?.side, C?.ROOM_IMAGE_LIMITS?.bytes],
+            large: (images?.large ?? []).map(e => [e.rooms.map(r => r.room).join(), e.pixels, e.heavy]).sort(),
+            unknownSize: roomsOf(images?.unknownSize), missing: roomsOf(images?.missing),
+            differ
+        }), stableJson({
+            limits: [4096, 8 * MB],
+            large: [["R1511 big", true, false], ["R1511 heavy", false, true]],
+            unknownSize: ["R1511 nolength"], missing: [],
+            differ: [["warning", "R1511 Kitchen", what]]
+        }), "a room picture's size or a room's differing pieces go unsaid [the limits; the large pictures and why (pixels, bytes); "
+            + "the pictures whose size is unknown; those that do not load | Check rooms' pieces-differ rows: level, room, what differs]");
+    }],
+    ["R1512 - the GM panel's Next line sends a season not set up to Season setup's first row not done, never to the Eclipse, until the required rows hold (E20 C4, E20-13; S10-57, Q-8)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S10-57): a GM new to the module opens the panel on a fresh world - no student,
+         * no room - and its Next line says "Everyone has spent their actions. Start the Eclipse" with a Do it that
+         * starts an Eclipse over nobody. Read: `nextStep` in Daily Life handed three checklists - the real one of an
+         * empty world (`steps()` with no cast and no scene), one whose first required row not done is "The cast
+         * exists" behind an optional row not done, and one whose required rows all hold - and the panel's lookup
+         * holding the Season setup tile the line's Do it names. Nothing is written. Red at the parent: no
+         * `firstOutstandingStep`, and the empty world's line was the Eclipse's. The line is asked with no incident
+         * and no Eclipse open, handed: the suite runs tier 1 with an incident open too (01-runtests A1), and there
+         * the world's incident answered first (red on CI at e52a60ef).
+         */
+        let SS = null, GP = null, CFG = null;
+        try { [SS, GP, CFG] = await Promise.all([import("./season-setup.mjs"), import("./gm-panel.mjs"), import("./config.mjs")]); } catch { SS = null; }
+        ok(typeof SS?.firstOutstandingStep === "function", "season-setup.mjs exports no firstOutstandingStep");
+        // A season not started (E20 fix round, the owner's Q-8 amended): in a game under way the setup row goes under the Daily
+        // Life line (R1522), and the world's clock here may be under way.
+        const clock = { ...getClock(), phase: "dailyLife", chapter: 1, day: 1, session: 1, timeOfDay: CFG.TIMES_OF_DAY[0], refilledFor: null };
+        const row = (key, done, optional = false) => ({ key, done, optional, missing: () => [] });
+        const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
+        const pending = [row("name", true), row("despairSplit", false, true), row("cast", false), row("resources", false)];
+        const held = [row("name", true), row("cast", true), row("despairSplit", false, true)];
+        const line = list => { const s = GP.nextStep(clock, { setupList: list, incident: false, eclipse: false });
+            return [s?.text ?? null, s?.action ?? null]; };
+        const emptyFirst = SS.firstOutstandingStep(empty);
+        const setupLine = key => [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${key}`) }), "seasonSetup"];
+        const sources = await moduleSources();
+        must(sources.get("gm-panel.mjs")?.length, "gm-panel.mjs is not among the module's sources - this would measure nothing");
+        const tile = /key:\s*"seasonSetup"/.test(stripComments(sources.get("gm-panel.mjs")));
+        const heldLine = line(held);
+        equal(stableJson({
+            empty: [emptyFirst ? [emptyFirst.done, Boolean(emptyFirst.optional)] : null, line(empty)[1], stableJson(line(empty)) === stableJson(setupLine(emptyFirst?.key))],
+            pending: line(pending), first: SS.firstOutstandingStep(pending)?.key ?? null,
+            held: [SS.firstOutstandingStep(held), heldLine[1] === "seasonSetup", heldLine[1] === "eclipse" || heldLine[1] === null],
+            tile
+        }), stableJson({
+            empty: [[false, false], "seasonSetup", true],
+            pending: setupLine("cast"), first: "cast",
+            held: [null, false, true],
+            tile: true
+        }), "a season not set up is sent to the Eclipse, or one set up is held at Season setup [the empty world: its first row not done (done, optional), "
+            + "the line's action, the line names that row | the first required row not done behind an optional one: the line, the row | every required "
+            + "row holding: no row, the setup line, a Daily Life line | the panel's Season setup tile]");
+    }],
+    ["R1513 - a GM's first start on a world with no campaign name and no student says once where to start, with a button to Season setup (E20 C4, E20-14; S01-61)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-61): a GM new to the module turns it on, sees the new look and a GM button,
+         * and nothing says that a season is built in Set the season up. Read: `offerStartHere` with a settings
+         * stand-in and an `ask` that counts, on a GM with an empty world twice, then with a cast, with a campaign name
+         * and as a player (the stand-in's store cleared before each); the client setting as registered; the ready
+         * hook's call. Nothing is written: the stand-in holds what the setting would. Red at the parent: no
+         * `offerStartHere`.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(typeof SS?.offerStartHere === "function", "season-setup.mjs exports no offerStartHere");
+        const store = new Map();
+        const settings = { get: (scope, key) => store.get(`${scope}.${key}`), set: async (scope, key, value) => { store.set(`${scope}.${key}`, value); return value; } };
+        let asked = 0;
+        const ask = async () => { asked++; };
+        const fx = await e20Fixture();
+        const offer = async (user, campaignName, roster) => {
+            const before = asked;
+            const answer = await SS.offerStartHere({ user, clock: { campaignName }, roster, settings, ask });
+            return [answer, asked - before];
+        };
+        const gm = { isGM: true }, player = { isGM: false };
+        const twice = [await offer(gm, "", []), await offer(gm, "", [])];
+        const kept = [...store.entries()];
+        store.clear();
+        const withCast = await offer(gm, "", [fx.actor("R1513a")]);
+        store.clear();
+        const named = await offer(gm, "R1513 season", []);
+        store.clear();
+        const asPlayer = await offer(player, "", []);
+        const registered = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.startHereShown}`) ?? null;
+        const sources = await moduleSources();
+        must(sources.get("module.mjs")?.length, "module.mjs is not among the module's sources - this would measure nothing");
+        const ready = bodyOf(stripComments(sources.get("module.mjs")), "Hooks.once(\"ready\"", { until: "\n});" });
+        equal(stableJson({
+            twice, kept, withCast, named, asPlayer,
+            registered: registered ? [registered.scope, registered.config, registered.default] : null,
+            ready: /offerStartHere\(/.test(ready)
+        }), stableJson({
+            twice: [[true, 1], [false, 0]], kept: [[`${MODULE_ID}.${SETTINGS.startHereShown}`, true]],
+            withCast: [false, 0], named: [false, 0], asPlayer: [false, 0],
+            registered: ["client", false, false],
+            ready: true
+        }), "a new GM is told where to start more than once, or told on a world in play [a GM on an empty world, twice: shown, asked; what the setting "
+            + "keeps | with a cast | with a campaign name | a player | the client setting: scope, in the settings window, default | the ready hook calls it]");
+    }],
+    ["R1514 - Set the season up opens at its top on its first field, the campaign fields in a block above the list, and a window a row's Open opened is brought in front of it (E20 C4, E20-15; S01-19, S06-30)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-19, S06-30): the window opened scrolled to the bottom - Save is the
+         * default button, autofocused in the pinned footer - so the campaign name and the safeword were out of sight
+         * and Save saved fields nobody saw; and a row's Open (a sheet, a window already open) showed nothing, because
+         * the checklist came back over what it had opened. Read: `seasonOpening` on a window of the suite's own,
+         * attached to the page for the focus and taken off again; `campaignFieldsHtml` drawn on a detached element;
+         * `windowsOpenedSince` and `raiseOpened` over stand-in windows (a new sheet, a window raised by the errand,
+         * one untouched, one closed, the checklist itself). Whether the window shows at its top at 1366x768 is not
+         * measured here (no layout). Nothing is written. Red at the parent: none of the four was exported.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(["seasonOpening", "campaignFieldsHtml", "windowStack", "windowsOpenedSince", "raiseOpened"].every(n => typeof SS?.[n] === "function"),
+            "season-setup.mjs exports no seasonOpening, campaignFieldsHtml, windowStack, windowsOpenedSince or raiseOpened");
+        const root = document.createElement("div");
+        root.className = "application dialog drpg-window-season";
+        root.innerHTML = `<section class="window-content"><form><p>R1514</p>${SS.campaignFieldsHtml({ campaignName: "R1514" }, "R1514word")}
+            <ul class="drpg-setup-list"><li><button type="button">R1514 row</button></li></ul></form></section>
+            <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1514 save</button></footer>`;
+        let opening = null;
+        document.body.append(root);
+        try {
+            opening = [SS.seasonOpening(root)?.name ?? null, document.activeElement?.name ?? null,
+                root.querySelector("footer [autofocus]") ? "footer" : null];
+        } finally {
+            root.remove();
+        }
+        const block = root.querySelector(".drpg-setup-campaign");
+        const fields = [...(block?.querySelectorAll("input[name]") ?? [])].map(i => [i.name, i.hasAttribute("autofocus")]);
+        const app = (id, z, classes = []) => ({ id, rendered: true, element: { isConnected: true }, position: { zIndex: z }, options: { classes },
+            raised: 0, bringToFront() { this.raised++; } });
+        const panel = app("r1514panel", 10), raisedOne = app("r1514old", 5), sheet = app("r1514sheet", 40),
+            season = app("r1514season", 50, ["drpg-window-season"]), gone = { ...app("r1514gone", 60), rendered: false };
+        const before = SS.windowStack([panel, raisedOne, gone]);
+        raisedOne.position.zIndex = 30;
+        const apps = [panel, raisedOne, sheet, season, gone];
+        const opened = SS.windowsOpenedSince(before, apps).map(a => a.id);
+        const raised = SS.raiseOpened(before, apps).map(a => a.id);
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const open = fnSource(src, "openSeasonSetup"), wire = fnSource(src, "wireSetupSteps");
+        equal(stableJson({
+            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("drpg-setup-list"),
+            opened, raised, counts: apps.map(a => a.raised),
+            // E20 fix round (C-2): the opener hands the place a round trip carried as a second argument (R1524).
+            wired: [/seasonOpening\(dialog\.element\b/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
+        }), stableJson({
+            opening: ["campaignName", "campaignName", null],
+            fields: [["campaignName", true], ["chapter", false], ["safeword", false]], blockFirst: true,
+            opened: ["r1514old", "r1514sheet"], raised: ["r1514old", "r1514sheet"], counts: [0, 1, 1, 0, 0],
+            wired: [true, true, true]
+        }), "Set the season up opens away from its top, or a row's Open stays behind it [the opening: focused, the page's focus, an autofocus left in "
+            + "the footer | the campaign block's fields, autofocus | the block before the list | the windows the errand opened or raised; raised; each "
+            + "window's raises | the window calls the opening and the raise, the row takes the stack before it acts]");
+    }],
+    ["R1515 - Set the season up reads left-aligned at the module's base size, its names line in the row's state, and a done row steps back by its title and mark, in both themes (E20 C4, E20-16; S01-21, S06-30, S12-20, Q-4)", async () => {
+        /*
+         * E20 C4, 29.10.2026. The harm (S01-21, S06-30, S12-20): the hints were 13 px, dimmed and centred (the season
+         * window, `drpg-wide`, was left out of the "Left, not centred" rule), the line naming who a row waits on was
+         * 11 px in the alarm red even on a row that only waits, and a done row was 0.55 opacity whole - its hint and its
+         * button at about 2:1 (the audit's reading, not measured here). Read: the cascade of the module's sheets from
+         * their text (`styleCascade`), on a season window built on a body of its own, in both themes: the intro, a
+         * hint, a missing row's names line, a waiting row's, a done row and its title and mark, the window's content
+         * box; the hint's colour, each theme's dim. Contrast and the drawn sizes are not measured here (no layout). Red at the parent: the hint at
+         * text-sm and centred, the names line at text-xs in red on both rows, the done row at opacity 0.55.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-wide drpg-window-season"><section class="window-content">
+                <form class="dialog-form"><div class="dialog-content"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
+                <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
+                <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
+                    <div class="drpg-setup-missing">R1515</div></div></li>
+                <li class="drpg-setup-step optional waiting"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong>
+                    <div class="drpg-setup-missing">R1515</div></div></li>
+                </ul></div></form></section></div>`;
+            const q = s => body.querySelector(s);
+            const value = (el, names) => C.winner(el, names)?.value ?? null;
+            const hint = q(".r1515missing .notes"), done = q(".drpg-setup-step.done");
+            return {
+                intro: value(q(".r1515intro"), "text-align"),
+                hint: [value(hint, "font-size"), value(hint, "text-align"), value(hint, "color")],
+                names: [value(q(".r1515missing .drpg-setup-missing"), "font-size"), value(q(".r1515missing .drpg-setup-missing"), "color"),
+                    value(q(".waiting .drpg-setup-missing"), "color")],
+                done: [value(done, "opacity"), value(done.querySelector("strong"), "color"), value(done.querySelector(".drpg-setup-mark"), "opacity"),
+                    value(done.querySelector(".notes"), "font-size")],
+                scroll: [value(q(".window-content"), ["overflow-y", "overflow"]), value(q(".window-content"), "scrollbar-gutter")]
+            };
+        };
+        const themes = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
+        const want = (hintColour) => ({
+            intro: "left",
+            hint: ["var(--drpg-text-base)", "left", hintColour],
+            names: ["var(--drpg-text-sm)", "var(--drpg-eye-light)", "var(--drpg-dim)"],
+            done: [null, "var(--drpg-dim)", "0.55", "var(--drpg-text-base)"],
+            scroll: ["auto", "stable"]
+        });
+        equal(stableJson(themes), stableJson([want("var(--drpg-dim)"), want("var(--drpg-sg-bone-dim)")]),
+            "Set the season up is small, centred or faded whole [Monokuma Legacy, Stained Glass: the intro's alignment | a hint's size, alignment, colour | the "
+            + "names line's size and colour on a missing row, its colour on a waiting row | a done row's opacity, its title's colour, its mark's opacity, "
+            + "its hint's size | the content box's overflow, its scrollbar gutter]");
+    }],
+    ["R1516 - a module that did not start leaves Foundry as it was: its stylesheets taken off the page, its import-time render hooks idle, and nothing held (E20 C5, E20-17; S01-41, D19)", async () => {
+        /*
+         * E20 C5, 29.10.2026. The harm (S01-41): a world missing Dice So Nice, Isometric Perspective or LiveKit stopped the
+         * module at `init`, but the module's six stylesheets stayed on the page (the hotbar, the scene navigation and the
+         * players list hidden, Foundry's windows restyled), and settings.mjs's render hooks, registered when the file is
+         * imported, read a setting nobody registered and threw on every window drawn - while the GM's window said
+         * "Nothing else in the module has started". Read: requirements.mjs `removeModuleStyles` over a fixture document
+         * of stand-in sheets (an inline sheet of imports - the module's two, another module's, a lookalike's - and a
+         * style rule; a linked sheet of the module's; two that refuse their rules, one of the module's), because jsdom
+         * parses no sheet in a document of the suite's own (probed 29.10.2026) and none is attached to this page;
+         * settings.mjs `settingsRegistered` over an empty settings map and this world's; with comments blanked, the
+         * render hooks' first statement, `init`'s branch that stops, and where the held settings start. How Foundry v14
+         * attaches module CSS at a table is not measured here; 00-boot reads a client that stopped. Nothing is written.
+         * Red at the parent: neither function was exported.
+         */
+        let R = null, S = null;
+        try { R = await import("./requirements.mjs"); S = await import("./settings.mjs"); } catch { R = null; }
+        const ours = file => `modules/${MODULE_ID}/styles/${file}`;
+        const node = () => ({ removed: 0, remove() { this.removed++; } });
+        const sheet = (href, rules) => ({ href, ownerNode: node(), cssRules: rules, deleteRule(i) { this.cssRules.splice(i, 1); } });
+        const imported = href => ({ href, styleSheet: { href: null, cssRules: [] } });
+        const refusing = href => ({ href, ownerNode: node(), get cssRules() { throw new Error("R1516: another origin's sheet"); } });
+        const inline = sheet(null, [imported(ours("r1516-a.css")), imported("modules/r1516-other/styles/other.css"),
+            imported(`modules/${MODULE_ID}-r1516/styles/lookalike.css`), imported(ours("r1516-b.css")), { selectorText: ".r1516" }]);
+        const linked = sheet(`https://r1516.example/${ours("r1516-c.css")}`, [{ selectorText: ".r1516-linked" }]);
+        const opaqueOurs = refusing(`https://r1516.example/${ours("r1516-d.css")}`), opaqueOther = refusing("https://r1516.example/other.css");
+        const rules = () => inline.cssRules.map(rule => rule.href ?? rule.selectorText);
+        const before = rules();
+        const removed = typeof R?.removeModuleStyles === "function"
+            ? R.removeModuleStyles({ styleSheets: [inline, linked, opaqueOurs, opaqueOther] }) : null;
+        const registered = typeof S?.settingsRegistered === "function"
+            ? [S.settingsRegistered(new Map()), S.settingsRegistered(game.settings.settings)] : null;
+
+        const sources = new Map(await otherSources());
+        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        const module = stripComments(sources.get("module.mjs") ?? "");
+        must(settings.length && module.length, "settings.mjs or module.mjs is not among the module's sources - this would measure nothing");
+        const firstLine = body => (body.match(/\{\s*([^\n]*)/)?.[1] ?? "").trim();
+        const init = bodyOf(module, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const setup = bodyOf(module, 'Hooks.once("setup"', { until: 'Hooks.once("ready"' });
+        const setupStop = setup.indexOf("if (!requirementsMet()) return;");
+        equal(stableJson({ before, removed, after: rules(), taken: [inline, linked, opaqueOurs, opaqueOther].map(s => s.ownerNode.removed), registered,
+            scale: firstLine(fnSource(settings, "scaleWindow")), config: firstLine(bodyOf(settings, 'Hooks.on("renderSettingsConfig"', { length: 400 })),
+            stopRemoves: /\bremoveModuleStyles\(\)/.test(bodyOf(init, "if (!requirementsMet())", { until: "return;" })),
+            held: [init.includes("registerEnforced"), setupStop >= 0 && setup.indexOf("registerEnforced") > setupStop, /\b(applyEnforced|holdRtcDock)\b/.test(module)] }),
+        stableJson({
+            before: [ours("r1516-a.css"), "modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ours("r1516-b.css"), ".r1516"],
+            removed: 4, after: ["modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ".r1516"], taken: [0, 1, 1, 0],
+            registered: [false, true], scale: "if (!settingsRegistered()) return;", config: "if (!settingsRegistered()) return;",
+            stopRemoves: true, held: [false, true, false]
+        }), "a module that stopped still styles Foundry or throws on its windows [the inline sheet's rules before | sheets and imports removed | "
+            + "its rules after | each sheet's element taken off: inline, linked, refusing ours, refusing another's | settings registered: none, this "
+            + "world's | scaleWindow's first line | the settings window hook's first line | init's stop takes the sheets off | the held settings: "
+            + "named in init, started after setup's stop, started anywhere else in module.mjs]");
+    }],
+    ["R1517 - the requirements window speaks the table's language, its reasons say what each module is for, and one missing module is not counted as two (E20 C5, E20-18; S01-45, S13-43, D19)", async () => {
+        /*
+         * E20 C5, 29.10.2026. The harm (S01-45, S13-43): the window a GM gets when a required module is missing read its
+         * reasons from module.json, in English only - Dice So Nice's "thrown in front of the table" against private
+         * rolls, Isometric Perspective's "academy maps" -, its intro said "one of them is not available" whatever the
+         * count, and a Polish table read all of it in English, because the module's language file is loaded by the
+         * module that did not start. Read: requirements.mjs `requirementsLanguage` over stored and core languages;
+         * `requirementsWords` fetching each language file the module serves; `requirementsContent` over rows for one,
+         * two and an unknown module; the served module.json's reasons against en.json's. Whether Foundry shows this at
+         * a real table is not measured here. Nothing is written. Red at the parent: none of the three was exported.
+         */
+        let R = null;
+        try { R = await import("./requirements.mjs"); } catch { R = null; }
+        const ready = ["requirementsLanguage", "requirementsWords", "requirementsContent"].every(n => typeof R?.[n] === "function");
+        const fetchJson = async path => { try { const res = await fetch(path); return res.ok ? await res.json() : null; } catch { return null; } };
+        const manifest = await fetchJson(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+        const files = { en: await fetchJson(`/modules/${MODULE_ID}/lang/en.json`), pl: await fetchJson(`/modules/${MODULE_ID}/lang/pl.json`) };
+        must(manifest && files.en && files.pl, "module.json or a language file did not load - this would measure nothing");
+        const requires = [...(manifest.relationships?.requires ?? [])];
+        const reason = (lang, id) => foundry.utils.getProperty(foundry.utils.expandObject(files[lang]), "DRPG.Requirements.reason")?.[id] ?? null;
+        const row = (id, state = "absent") => ({ id, title: id, state, reason: requires.find(e => e.id === id)?.reason ?? "" });
+        const out = { langs: null, pl: null, en: null, two: null, unknown: null };
+        if (ready) {
+            out.langs = [R.requirementsLanguage({ stored: null, core: "pl" }), R.requirementsLanguage({ stored: "en", core: "pl" }),
+                R.requirementsLanguage({ stored: null, core: "de" }), R.requirementsLanguage({ stored: "pl", core: "en" })];
+            const words = { en: await R.requirementsWords("en"), pl: await R.requirementsWords("pl") };
+            const pl = R.requirementsContent([row("dice-so-nice")], words.pl, "pl");
+            const en = R.requirementsContent([row("isometric-perspective", "disabled")], words.en, "en");
+            const two = R.requirementsContent([row("dice-so-nice"), row("avclient-livekit")], words.en, "en");
+            const unknown = R.requirementsContent([{ id: "r1517-mod", title: "R1517", state: "absent", reason: "R1517 manifest reason" }], words.en, "en");
+            const text = c => [c.title, c.intro, c.how, ...c.rows.flatMap(r => [r.state, r.reason])].join(" | ");
+            out.pl = { reason: pl.rows[0].reason === reason("pl", "dice-so-nice") && Boolean(reason("pl", "dice-so-nice")), state: pl.rows[0].state,
+                count: /(^|\P{L})(dwa|dwie|dwóch|2)(?!\p{L})/iu.test(text(pl)), english: /\b(the|not installed|needs)\b/.test(text(pl)) };
+            out.en = { reason: en.rows[0].reason, state: en.rows[0].state, count: /\b(two|2)\b/i.test(text(en)), promise: /academy|demo/i.test(text(en)) };
+            out.two = /\b2\b/.test(two.intro);
+            out.unknown = unknown.rows[0].reason;
+        }
+        equal(stableJson({ ready, ...out, manifest: requires.map(e => [e.id, e.reason === reason("en", e.id), Boolean(reason("pl", e.id))]),
+            d19: reason("en", "dice-so-nice") }), stableJson({
+            ready: true, langs: ["pl", "en", "en", "pl"],
+            pl: { reason: true, state: "niezainstalowany", count: false, english: false },
+            en: { reason: "Maps drawn for isometric play will look wrong on a flat grid.", state: "installed, but switched off", count: false, promise: false },
+            two: true, unknown: "R1517 manifest reason",
+            manifest: [["dice-so-nice", true, true], ["isometric-perspective", true, true], ["avclient-livekit", true, true]],
+            d19: "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table."
+        }), "the requirements window speaks English to a Polish table, promises what the module does not do, or counts wrong [the three exported | "
+            + "the language: stored none + Polish Foundry, stored English, stored none + a language the module lacks, stored Polish | Polish, Dice So "
+            + "Nice missing: its reason from pl.json, the state, a count of two, an English word | English, Isometric switched off: its reason, the "
+            + "state, a count of two, academy maps or a demo | two missing: the intro counts 2 | a module with no key: the manifest's reason | each "
+            + "required module: module.json's reason is en.json's, pl.json has one | Dice So Nice's reason in English]");
+    }],
+    ["R1518 - what the module changes in Foundry is listed, the value before its first write is kept, and Give back Foundry's settings writes it back and stops the writes (E20 C6, E20-19; S03-37, Q-5)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S03-37): at every start the module switched Daggerheart's Vulnerable and Defeated
+         * automations off and held Foundry's file permissions, Isometric Perspective's welcome and LiveKit's separate
+         * window, said so in the log alone, kept none of the values it found and gave none back, so a GM who tried the
+         * module in a played world was left with settings nobody had chosen. Read: enforced.mjs `keptOriginal` (the
+         * first value kept, never overwritten), `permissionsOriginal` and `permissionsGivenBack` over a stored value the
+         * hold changed, `clientOriginalFor` (the kept value, else the setting's registered default), `clientGiveBack`
+         * (given back once, then a value its owner sets is left alone), `FOUNDRY_WRITES`
+         * against every held row, `giveBackContent` with and without the given-back state; states.mjs
+         * `automationOriginal` and `automationGivenBack` over Daggerheart's fields; with comments blanked, where each
+         * writer keeps the value before its write and asks whether the settings were given back. Nothing is written
+         * (E20-T4 writes, gives back and reads Foundry's values). Red at the parent: none of these was exported.
+         */
+        let E = null, S = null;
+        try { E = await import("./enforced.mjs"); S = await import("./states.mjs"); } catch { E = null; }
+        const ready = ["keptOriginal", "permissionsOriginal", "permissionsGivenBack", "clientOriginalFor", "clientGiveBack", "giveBackContent", "giveBackFoundry", "foundryGivenBack"]
+            .every(n => typeof E?.[n] === "function") && Array.isArray(E?.FOUNDRY_WRITES)
+            && ["automationOriginal", "automationGivenBack"].every(n => typeof S?.[n] === "function");
+        const out = { kept: null, permissions: null, client: null, automation: null, writes: null, words: null, content: null };
+        const R = CONST.USER_ROLES;
+        const stored = () => ({ FILES_BROWSE: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], R1518_OTHER: [R.GAMEMASTER] });
+        if (ready) {
+            const first = E.keptOriginal({}, "r1518.key", true), second = E.keptOriginal(first, "r1518.key", false);
+            out.kept = [first["r1518.key"], second === first, E.keptOriginal(second, "r1518.other", undefined) === second];
+            const row = E.ENFORCED.find(r => r.kind === "permissions");
+            const kept = E.permissionsOriginal(stored(), row);
+            const held = E.heldPermissions(stored(), {}, row);
+            out.permissions = { kept, held: [held.FILES_BROWSE, held.FILES_UPLOAD], back: E.permissionsGivenBack(held, kept, row) };
+            out.client = [E.clientOriginalFor({ "r1518.a": false }, "r1518.a", { default: true }), E.clientOriginalFor({}, "r1518.a", { default: true }),
+                E.clientOriginalFor({}, "r1518.a", null)];
+            const given = E.clientGiveBack({ "r1518.a": false, "r1518.b": 1 }, "r1518.a", { default: true }, true);
+            const again = E.clientGiveBack(given.record, "r1518.a", { default: true }, false);
+            out.client.push([given.write ?? "none", given.record], [again.write ?? "none", again.record === given.record]);
+            const found = { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 };
+            const before = S.automationOriginal(found);
+            const suppressed = { vulnerableAutomation: false, defeated: { enabled: false, overlay: false }, r1518: 5 };
+            out.automation = { before, back: S.automationGivenBack(suppressed, before), unknown: S.automationGivenBack(suppressed, null) };
+            const ids = E.FOUNDRY_WRITES.map(w => w.id);
+            // The census widened in the E20 fix round (the goal review's G-7): the one dice look dice-sync.mjs forces on every
+            // player and Assistant GM is a change in what Foundry draws for them, and the window and the handbook name it.
+            out.writes = [...E.ENFORCED.map(r => r.id), "automation", "sceneVision", "diceLook"].filter(id => !ids.includes(id));
+            out.words = E.FOUNDRY_WRITES.filter(w => !game.i18n.has(w.text)).map(w => w.id);
+            const text = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
+            const back = text(E.giveBackContent({ givenBack: true })), open = text(E.giveBackContent({ givenBack: false }));
+            const state = game.i18n.localize("DRPG.GiveBack.givenBackState");
+            out.content = [E.FOUNDRY_WRITES.every(w => open.includes(game.i18n.localize(w.text))), open.includes(state), back.includes(state),
+                open.includes(game.i18n.localize("DRPG.GiveBack.beforeOff"))];
+        }
+        const sources = new Map(await otherSources());
+        const enforced = stripComments(sources.get("enforced.mjs") ?? ""), states = stripComments(sources.get("states.mjs") ?? "");
+        must(enforced.length && states.length, "enforced.mjs or states.mjs is not among the module's sources - this would measure nothing");
+        const keepsFirst = (body, keep, write) => { const k = body.indexOf(keep), w = body.indexOf(write); return k >= 0 && w > k; };
+        const apply = fnSource(enforced, "applyEnforced"), hold = fnSource(enforced, "holdPermissions"), auto = fnSource(states, "suppressSystemAutomation");
+        const roads = {
+            client: keepsFirst(apply, "keepClientOriginal(", "game.settings.set(row.module"),
+            permissions: keepsFirst(hold, 'keepOriginal("permissions"', 'game.settings.set("core", "permissions"'),
+            automation: keepsFirst(auto, 'keepOriginal("automation"', "game.settings.set(DH"),
+            stops: [/foundryGivenBack\(\)/.test(fnSource(enforced, "wanted")), /foundryGivenBack\(\)/.test(auto)]
+        };
+        equal(stableJson({ ready, ...out, roads }), stableJson({
+            ready: true, kept: [true, true, true],
+            permissions: { kept: { FILES_BROWSE: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], FILES_UPLOAD: null },
+                held: [[R.ASSISTANT, R.GAMEMASTER], [R.ASSISTANT, R.GAMEMASTER]], back: stored() },
+            client: [false, true, null, [false, { "@given": ["r1518.a"], "r1518.b": 1 }], ["none", true]],
+            automation: { before: { vulnerableAutomation: true, defeated: true },
+                back: { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 },
+                unknown: { vulnerableAutomation: true, defeated: { enabled: true, overlay: false }, r1518: 5 } },
+            writes: [], words: [], content: [true, false, true, true],
+            roads: { client: true, permissions: true, automation: true, stops: [true, true] }
+        }), "the module changes Foundry's settings without keeping or giving back what it found [the functions exported | the first value kept, "
+            + "not overwritten, nothing kept for undefined | the permissions kept, held, given back | a client setting's value given back: kept, the "
+            + "registered default, none, given back once (the write and the record), not again | Daggerheart's automations kept, given back, given back with nothing kept (Daggerheart's defaults) | held rows "
+            + "missing from the list | list rows with no words | the window: every row named, the given-back line while not given back, while given "
+            + "back, the switch-off advice | each writer keeps the value before writing: client rows, permissions, automations | the held rows and the "
+            + "automations stop when given back]");
+    }],
+    ["R1519 - the overflow threshold is suggested from the season's own cast, 12 + half the living students, and the default stays 20 (E20 C6, E20-20; S02-59, D21)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S02-59): the overflow threshold's default, 20, is tuned for sixteen players; a
+         * table of five left it there and the darkening fired two or three times less often than the module's own
+         * formula means, and the hint beside the field gave the formula in words for other counts, not the table's.
+         * Read: overflow.mjs `overflowSuggestion` for 0, 4, 5, 8, 16 and 200 students, `overflowSuggestionLine` for 4
+         * students and 1 pool, Despair Flow's `overflowSuggestionNow` and the Overflow tab's markup (`overflowSection`)
+         * against the line for this world's living students and pools, the window handing the tab its line, and Season
+         * setup's `overflow` row: optional, its line the same, and with no student not
+         * done and waiting. D21: the default unchanged. Nothing is written. Red at the parent: neither function was
+         * exported and no row was there.
+         */
+        let O = null, SS = null, M = null, D = null, GT = null;
+        try {
+            [O, SS, M, D, GT] = await Promise.all([import("./overflow.mjs"), import("./season-setup.mjs"), import("./monokuma.mjs"), import("./despair.mjs"),
+                import("./gm-team-dialog.mjs")]);
+        } catch { O = null; }
+        const { plural } = await import("./utils.mjs");
+        const ready = typeof O?.overflowSuggestion === "function" && typeof O?.overflowSuggestionLine === "function" && typeof GT?.overflowSuggestionNow === "function";
+        const out = { values: null, line: null, section: null, row: null, empty: null };
+        if (ready) {
+            out.values = [0, 4, 5, 8, 16, 200].map(n => O.overflowSuggestion(n));
+            out.line = O.overflowSuggestionLine(4, 1) === game.i18n.format("DRPG.Overflow.suggested", {
+                students: plural("DRPG.Overflow.suggestStudents", { n: 4 }), pools: plural("DRPG.Overflow.suggestPools", { n: 1 }), x: 14 });
+            const living = M.studentCensus().count, pools = D.monokumas().length;
+            const line = living > 0 ? O.overflowSuggestionLine(living, pools) : game.i18n.localize("DRPG.Overflow.suggestNone");
+            const pane = document.createElement("div");
+            pane.innerHTML = O.overflowSection({ suggestion: GT.overflowSuggestionNow() });
+            out.section = [GT.overflowSuggestionNow() === line, pane.textContent.includes(line)];
+            const row = SS.steps().find(r => r.key === "overflow");
+            out.row = row ? [row.optional === true, living > 0 ? row.missing().join(" ").includes(line) : row.waiting === true] : null;
+            const empty = SS.steps({ roster: [] }).find(r => r.key === "overflow");
+            out.empty = empty ? [empty.done, empty.waiting === true] : null;
+        }
+        const sources = new Map(await otherSources());
+        const dialog = stripComments(sources.get("gm-team-dialog.mjs") ?? "");
+        must(dialog.length, "gm-team-dialog.mjs is not among the module's sources - this would measure nothing");
+        const tab = dialog.includes("overflowSection({ suggestion: overflowSuggestionNow() })");
+        equal(stableJson({ ready, ...out, threshold: OVERFLOW.threshold, tab }), stableJson({
+            ready: true, values: [null, 14, 15, 16, 20, 60], line: true, section: [true, true], row: [true, true], empty: [false, true], threshold: 20,
+            tab: true
+        }), "the overflow threshold is not suggested from this season's cast [the two exported | the suggestion for 0, 4, 5, 8, 16, 200 students "
+            + "(the range's top) | the line for 4 students and 1 pool | Despair Flow's line for this world is the line for its living students "
+            + "and pools (or the one that waits for the cast), and the Overflow tab draws it | Season setup's overflow row: optional, says the "
+            + "line or waits | with no student: not done, waiting | the default | the window hands the tab its line]");
+    }],
+    ["R1520 - the rules manager shows the motive in force with its time left and a Withdraw that withdraws it (E20 C6, E20-21; S10-55)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S10-55): a motive Monokuma had carried out hung on the HUD and in the Event panel,
+         * the handbook said "until you withdraw it", and nothing a GM could open withdrew it - the console's
+         * `setMotive(null)` was the only road. Read: rules.mjs `motiveSection` with no motive and with one (its text,
+         * its time left, its price, the Withdraw button), `wireMotiveWithdraw` on a detached element with a stand-in for
+         * the withdrawal, pressed twice, and, with comments blanked, the manager drawing and wiring the section. Nothing
+         * is written (E20-T5 withdraws on the suite's world). Red at the parent: neither was exported.
+         */
+        let R = null;
+        try { R = await import("./rules.mjs"); } catch { R = null; }
+        const { plural } = await import("./utils.mjs");
+        const ready = typeof R?.motiveSection === "function" && typeof R?.wireMotiveWithdraw === "function";
+        const out = { none: null, some: null, calls: null };
+        if (ready) {
+            const draw = html => { const el = document.createElement("div"); el.innerHTML = html; return el; };
+            const none = draw(R.motiveSection(null));
+            out.none = [none.textContent.includes(game.i18n.localize("DRPG.Motive.none")), Boolean(none.querySelector("[data-drpg-motive-withdraw]"))];
+            const some = draw(R.motiveSection({ text: "R1520 demand", remaining: 3, consequence: "R1520 price", due: false }));
+            out.some = [some.textContent.includes("R1520 demand"), some.textContent.includes(plural("DRPG.Motive.left", { n: 3 })),
+                some.textContent.includes("R1520 price"), some.querySelector("[data-drpg-motive-withdraw]")?.textContent.trim() === game.i18n.localize("DRPG.Motive.withdraw")];
+            let calls = 0;
+            const wired = R.wireMotiveWithdraw(some, { withdraw: async () => { calls++; } });
+            const button = some.querySelector("[data-drpg-motive-withdraw]");
+            button?.click();
+            button?.click();
+            await wired?.done?.();
+            out.calls = [calls, button?.disabled === true];
+        }
+        const sources = new Map(await otherSources());
+        const rules = stripComments(sources.get("rules.mjs") ?? "");
+        must(rules.length, "rules.mjs is not among the module's sources - this would measure nothing");
+        const manager = fnSource(rules, "openRulesManager");
+        equal(stableJson({ ready, ...out, manager: [manager.includes("motiveSection("), manager.includes("wireMotiveWithdraw(")] }), stableJson({
+            ready: true, none: [true, false], some: [true, true, true, true], calls: [1, true], manager: [true, true]
+        }), "the motive cannot be withdrawn from the rules manager [the two exported | no motive: says so, no button | a motive: its text, its time "
+            + "left, its price, the Withdraw button | pressed twice: withdrawn once, the button off | the manager draws and wires it]");
+    }],
+    ["R1521 - a number field's - and + say the step they move by, \"One more / One fewer\" only at a step of 1 (E20 C6, E20-22; S01-48)", async () => {
+        /*
+         * E20 C6, 30.10.2026. The harm (S01-48): the debate length's field moves by 10 (trial-floor-ui.mjs, step="10"),
+         * and its buttons said "One more" and "One fewer". Read: chrome.mjs `stepLabels` over fields of step 10, 1,
+         * none, 0.5 and "any", and, with comments blanked, the stepper taking its labels from it. Nothing is written.
+         * Red at the parent: the function was not exported.
+         */
+        let C = null;
+        try { C = await import("./chrome.mjs"); } catch { C = null; }
+        const field = step => { const input = document.createElement("input"); input.type = "number"; if (step !== null) input.step = step; return input; };
+        const labels = typeof C?.stepLabels === "function"
+            ? ["10", "1", null, "0.5", "any"].map(step => { const l = C.stepLabels(field(step)); return [l.down, l.up]; }) : null;
+        const sources = new Map(await otherSources());
+        const chrome = stripComments(sources.get("chrome.mjs") ?? ""), floor = sources.get("trial-floor-ui.mjs") ?? "";
+        must(chrome.length && floor.length, "chrome.mjs or trial-floor-ui.mjs is not among the module's sources - this would measure nothing");
+        const one = [game.i18n.localize("DRPG.Look.stepDown"), game.i18n.localize("DRPG.Look.stepUp")];
+        equal(stableJson({ labels, dress: fnSource(chrome, "dressNumberField").includes("stepLabels("), debate: /name="seconds"[^>]*step="10"/.test(floor) }), stableJson({
+            labels: [["-10", "+10"], one, one, ["-0.5", "+0.5"], one], dress: true, debate: true
+        }), "the stepper's buttons say a step of one whatever the field moves by [the labels for step 10, 1, none, 0.5, any | the stepper reads "
+            + "them | the debate length moves by 10]");
+    }],
+    ["R1522 - in a game under way the Next line keeps \"N students still have actions\" first and a required Season setup row not done comes under it as a second, quieter line; before the season starts the row replaces the line (the owner's Q-8 amended, 30.10.2026; E20 fix round)", async () => {
+        /*
+         * E20 fix round, 30.10.2026; the owner's words after C7: "w trwającej grze 'N students still have actions' zostaje
+         * na górze, a niezrobiony setup idzie pod spodem jako druga, cichsza linia; zastępuje ją tylko przed startem
+         * sezonu." The harm: C4's line put a required row not done (a student added mid-season with no Ultimate, a room
+         * check that found a fault) in place of the one number a GM running a time of day reads. Read: `nextStep` in
+         * Daily Life with no incident and no Eclipse, handed two clocks of the suite's own - a fresh one (the clock a new
+         * world and a season reset hold) and one a day on - and two checklists, one with a required row not done and one
+         * whose required rows all hold; the Daily Life line it answers for the second is this world's (its students'
+         * actions) and is read, not assumed. `seasonUnderway` over clocks moved one field each; `nextLineHtml` drawn on
+         * a detached element; the second line's size and colour in both themes by the cascade read from the sheets'
+         * text (`styleCascade`, as R1515). Nothing is written. Red at 689040ee: neither function was exported.
+         */
+        let GP = null, SET = null, CFG = null;
+        try { [GP, SET, CFG] = await Promise.all(["./gm-panel.mjs", "./settings.mjs", "./config.mjs"].map(p => import(p))); } catch { GP = null; }
+        ok(typeof GP?.seasonUnderway === "function" && typeof GP?.nextLineHtml === "function", "gm-panel.mjs exports no seasonUnderway or nextLineHtml");
+        const fresh = { ...SET.DEFAULT_CLOCK, phase: "dailyLife" };
+        const running = { ...fresh, day: 2 };
+        const row = (key, done, optional = false) => ({ key, done, optional, missing: () => [] });
+        const pending = [row("name", true), row("cast", true), row("despairSplit", false, true), row("ultimate", false)];
+        const held = [row("name", true), row("cast", true), row("despairSplit", false, true)];
+        const ask = (clock, list) => GP.nextStep(clock, { setupList: list, incident: false, eclipse: false });
+        const daily = ask(running, held), before = ask(fresh, pending), during = ask(running, pending);
+        const name = game.i18n.localize("DRPG.Season.step.ultimate");
+        const plain = html => { const d = document.createElement("div"); d.innerHTML = html ?? ""; return d.textContent.trim(); };
+        const box = document.createElement("div");
+        box.innerHTML = GP.nextLineHtml(during);
+        const next = box.querySelector(".drpg-gmp-next"), second = next?.querySelector(".drpg-gmp-next-setup");
+        const drawn = [plain(next?.querySelector(".drpg-gmp-next-text")?.innerHTML) === plain(daily.text), next?.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null,
+            second?.querySelector(".drpg-gmp-next-setup-text")?.textContent.trim() ?? null, second?.querySelector("[data-drpg-run]")?.dataset?.drpgRun ?? null,
+            Boolean(second && next.querySelector(".drpg-gmp-next-text").compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)];
+        const T = CFG.TIMES_OF_DAY;
+        const underway = [fresh, { ...fresh, timeOfDay: T[1] }, { ...fresh, day: 2 }, { ...fresh, session: 2 }, { ...fresh, chapter: 2 },
+            { ...fresh, refilledFor: "R1522" }, { ...fresh, phase: "investigation" }, null].map(c => GP.seasonUnderway(c));
+        const C = await styleCascade();
+        const look = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-gm-panel-window"><section class="window-content">${GP.nextLineHtml(during)}</section></div>`;
+            const quiet = body.querySelector(".drpg-gmp-next-setup");
+            return [C.winner(quiet, "font-size")?.value ?? null, C.winner(quiet, "color")?.value ?? null];
+        };
+        equal(stableJson({
+            before: [before?.text ?? null, before?.action ?? null, Boolean(before?.setup)],
+            during: [during?.text === daily.text, during?.action === daily.action, during?.setup?.text ?? null, during?.setup?.action ?? null],
+            held: Boolean(daily?.setup),
+            drawn, underway,
+            looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look)
+        }), stableJson({
+            before: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: name }), "seasonSetup", false],
+            during: [true, true, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonSetup"],
+            held: false,
+            drawn: [true, daily.action ?? null, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonSetup", true],
+            underway: [false, true, true, true, true, true, true, false],
+            looks: [["var(--drpg-text-sm)", "var(--drpg-dim)"], ["var(--drpg-sg-floor)", "var(--drpg-sg-bone-dim)"]]
+        }), "the Next line puts Season setup over a running game's line, or not over a fresh season's [a fresh clock, a row not done: the line, its action, "
+            + "a second line | a clock a day on: the Daily Life line kept, its action kept, the second line, its action | every row holding: a second line | "
+            + "drawn: the first line's text, its Do it, the second line, its Open, the second after the first | started: fresh, a time of day on, a day, a "
+            + "session, a chapter, refilled, the Investigation, no clock | the second line's size and colour: Monokuma Legacy, Stained Glass]");
+    }],
+    ["R1523 - the Next line waits on no row the module cannot finish and judges the rooms on the school (E20 fix round, the correctness review's C-1 and C-7): a self-hosted LiveKit's secret is a row drawn crossed and marked external, never the Next line's first step; `firstOutstandingStep` reads the checklist with the school as the rooms' scene", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-1): `liveKitSecret` is a required row with no fix and nothing to open -
+         * the repair is avclient-livekit's - so with a self-hosted LiveKit the first row not done never ran out and the
+         * GM panel's Next line never offered the Eclipse. (C-7): the rooms row judges the scene on screen, so a GM viewing
+         * a side map of two rooms was told by the Next line that the season was not set up. Read: `steps()` handed an
+         * avclient-livekit setting of the suite's own (a custom server with a secret, then The Forge's tavern), every
+         * other row of it taken as done, `firstOutstandingStep` and `setupRows` over it; with comments blanked, the
+         * default list `firstOutstandingStep` reads. Nothing is written. Red at 689040ee: `steps` took no LiveKit setting
+         * (the world's has none here, so no row), and the default list judged the scene on screen.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(typeof SS?.firstOutstandingStep === "function" && typeof SS?.setupRows === "function", "season-setup.mjs exports no firstOutstandingStep or setupRows");
+        const list = liveKit => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), liveKit });
+        const custom = list({ serverType: "custom", password: "R1523secret", url: "wss://r1523.example" });
+        const secret = custom.find(r => r.key === "liveKitSecret") ?? null;
+        const rest = custom.map(r => (r.key === "liveKitSecret" ? r : { ...r, done: true }));
+        const drawn = document.createElement("ul");
+        drawn.innerHTML = secret ? SS.setupRows([secret]) : "";
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const school = /firstOutstandingStep\(list = steps\(\{ roomScene: homeScene\(\) \}\)\)/.test(fnSource(src, "firstOutstandingStep"));
+        equal(stableJson({
+            secret: [Boolean(secret), secret?.external === true, secret?.done ?? null],
+            first: SS.firstOutstandingStep(rest)?.key ?? null,
+            mark: drawn.querySelector(".drpg-setup-mark")?.textContent ?? null,
+            tavern: list({ serverType: "tavern", password: "R1523secret" }).some(r => r.key === "liveKitSecret"),
+            school
+        }), stableJson({
+            secret: [true, true, false],
+            first: null,
+            mark: "✗",
+            tavern: false,
+            school: true
+        }), "the Next line waits on a row nobody here can finish, or judges the scene on screen [the LiveKit secret row: there, external, done | the first "
+            + "step with every other row done | its mark | a tavern server's secret: a row | the default list judges the school]");
+    }],
+    ["R1524 - a Season setup round trip comes back where the GM was (E20 fix round, the correctness review's C-2; S06-30): `readDraft` carries the window's scroll and the row acted on or the footer button pressed, `seasonOpening` puts the scroll back and focuses that row's button or that footer button; only a fresh open goes to the top and the campaign name", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-2, S06-30 again): `seasonOpening` ran on every render, so after a row's
+         * Do it or Open, or after Pre-season checks, the window came back at its top with the caret in Campaign name and
+         * the row just acted on below the fold. Read: three windows of the suite's own on the page (taken off again): one
+         * scrolled 420 px, read by `readDraft` for a row's press and for Pre-season checks; two copies that come back,
+         * opened by `seasonOpening` with each place; one fresh. jsdom keeps a scroll it is given and lays nothing out,
+         * so whether the row is in view at a table is not measured here. With comments blanked, the row and the footer
+         * hand the place on and the opener reads it. Nothing is written. Red at 689040ee: `readDraft` was not exported.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(typeof SS?.readDraft === "function" && typeof SS?.seasonOpening === "function", "season-setup.mjs exports no readDraft or seasonOpening");
+        const rows = [{ key: "ultimate", done: false, missing: () => ["R1524 a"], open: () => null }, { key: "items", done: false, missing: () => ["R1524 b"], open: () => null }];
+        const make = () => {
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-window-season";
+            root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
+                <ul class="drpg-setup-list">${SS.setupRows(rows)}</ul></form></section>
+                <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
+            document.body.append(root);
+            return root;
+        };
+        const made = [];
+        let out = null;
+        try {
+            const first = make(); made.push(first);
+            first.querySelector(".window-content").scrollTop = 420;
+            const row = SS.readDraft(first, { step: "items" }), checks = SS.readDraft(first, { action: "checks" });
+            const opened = place => {
+                const back = make(); made.push(back);
+                const focused = SS.seasonOpening(back, place);
+                return [focused?.dataset?.step ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
+                    back.querySelector(".window-content").scrollTop, Boolean(back.querySelector("footer [autofocus]"))];
+            };
+            out = { place: [row?.place ?? null, checks?.place ?? null], fields: [row?.campaignName, row?.safeword],
+                row: opened(row?.place), checks: opened(checks?.place), fresh: opened(null) };
+        } finally {
+            for (const root of made) root.remove();
+        }
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const wired = [/readDraft\(dialog\.element, \{ step: step\.key \}\)/.test(fnSource(src, "wireSetupSteps")),
+            /readDraft\(d\.element, \{ action: "checks" \}\)/.test(fnSource(src, "openSeasonSetup")),
+            /seasonOpening\(dialog\.element, draft\?\.place \?\? null\)/.test(fnSource(src, "openSeasonSetup"))];
+        equal(stableJson({ ...out, wired }), stableJson({
+            place: [{ scrollTop: 420, step: "items", action: null }, { scrollTop: 420, step: null, action: "checks" }],
+            fields: ["R1524", "R1524word"],
+            row: ["items", true, 420, false],
+            checks: ["checks", true, 420, false],
+            fresh: ["campaignName", true, 0, false],
+            wired: [true, true, true]
+        }), "a round trip of Set the season up comes back at its top [what the copy that closed carries: a row's press, Pre-season checks | the fields | "
+            + "a copy back after the row: focused, the page's focus, its scroll, an autofocus left in the footer | after Pre-season checks | a fresh open | "
+            + "the row hands its place, Pre-season checks hands its place, the opener reads it]");
+    }],
+    ["R1525 - the share of a map in no room is read floor by floor, the worst floor answers by name (E20 fix round, the correctness review's C-4): a school whose first floor is covered whole and whose second by half reads 50% on Floor 2, in the rooms row and Pre-season's scene line", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-4): `sceneUncoveredPercent` added every floor's room areas against the
+         * one rect, so Floor 1 covered whole and Floor 2 by half read 0% - and the share decides the checklist's rooms tick
+         * and Pre-season's mark; its note said it was "computed once when a GM opens a management window" while the GM
+         * panel's Next line asks it on every redraw. Read: scenes of plain objects with two floors (a room piece on each,
+         * one piece standing on no floor), one with a single floor; `sceneUncoveredShare`, `sceneUncoveredPercent`, the
+         * rooms row and `diagnoseScenes` over them; the note read off the file as served. Nothing is written. Red at
+         * 689040ee: no `sceneUncoveredShare`.
+         */
+        let FD = null, F = null, SS = null;
+        try { [FD, F, SS] = await Promise.all(["./fog-diagnostics.mjs", "./fog.mjs", "./season-setup.mjs"].map(p => import(p))); } catch { FD = null; }
+        ok(typeof FD?.sceneUncoveredShare === "function", "fog-diagnostics.mjs exports no sceneUncoveredShare");
+        const fx = await e20Fixture();
+        const floors = [{ id: "R1525L1", name: "R1525 Floor 1", elevation: 0 }, { id: "R1525L2", name: "R1525 Floor 2", elevation: 10 }];
+        const two = fx.scene("R1525 two", [fx.region("R1525a", "R1525 Hall", { rect: [0, 0, 4000, 3000], levels: ["R1525L1"] }),
+            fx.region("R1525b", "R1525 Lab", { rect: [0, 0, 2000, 3000], levels: ["R1525L2"] })], { levels: floors });
+        const every = fx.scene("R1525 every", [fx.region("R1525c", "R1525 Atrium", { rect: [0, 0, 4000, 3000] }),
+            fx.region("R1525d", "R1525 Attic", { rect: [0, 0, 1000, 3000], levels: ["R1525L2"] })], { levels: floors });
+        const one = fx.scene("R1525 one", [fx.region("R1525e", "R1525 Hall", { rect: [0, 0, 2000, 3000] })]);
+        const rooms = SS.steps({ roster: [], scenes: [two], roomScene: two, assigned: {}, lastChecks: new Map() }).find(r => r.key === "rooms");
+        const pre = F.diagnoseScenes({ scenes: [two], lastChecks: new Map() });
+        const sources = await moduleSources();
+        const raw = sources.get("fog-diagnostics.mjs") ?? "";
+        must(raw.length, "fog-diagnostics.mjs is not among the module's sources - this would measure nothing");
+        equal(stableJson({
+            two: [FD.sceneUncoveredShare(two), F.sceneUncoveredPercent(two)],
+            every: FD.sceneUncoveredShare(every).pct,
+            one: FD.sceneUncoveredShare(one),
+            rooms: [rooms?.done, rooms?.done ? [] : rooms?.missing?.()],
+            pre: [pre.slice(0, 2), pre.includes(game.i18n.format("DRPG.Fog.uncoveredShareFloor", { pct: 50, floor: "R1525 Floor 2" }))],
+            note: raw.includes("computed once when a GM opens a management")
+        }), stableJson({
+            two: [{ pct: 50, floor: "R1525 Floor 2" }, 50],
+            every: 0,
+            one: { pct: 50, floor: null },
+            rooms: [false, [game.i18n.format("DRPG.Season.roomsUncovered", { pct: 50,
+                scene: game.i18n.format("DRPG.Fog.sceneFloor", { scene: "R1525 two", floor: "R1525 Floor 2" }) })]],
+            pre: ["✗ ", true],
+            note: false
+        }), "the share in no room adds the floors together [two floors, the second half covered: the share and its floor, the percent | a piece on no floor "
+            + "covering both | one floor | the rooms row: done, its line | Pre-season: the mark, the floor's share | the stale note]");
+    }],
+    ["R1526 - Check rooms counts what breaks the fog, not only its errors, and draws the rooms row again (E20 fix round, the goal review's G-1; S06-28): `roomCheckProblems` counts the errors and the adrift, isolated and pieces-differ warnings, the window records that count, and `repaintStep` redraws the row's mark, line and button while Check rooms' findings stay", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-1, S06-28's case): Check rooms recorded its errors alone, and "Border runs
+         * away from the walls", "No way out" and a room whose pieces differ are warnings - so the rooms tick, Pre-season's
+         * mark and the Next line stayed done over a map whose fog breaks; and the open window kept the mark it opened with
+         * after the check. Read: findings of the suite's own (one of each kind that counts, and the warnings and the note
+         * that do not); the rooms row over a covered scene of plain objects with one problem on record; a rooms row drawn
+         * done on a detached list, Check rooms' output in it, then redrawn not done by `repaintStep`; with comments
+         * blanked, the window's check and its rows' listener. Nothing is written. Red at 689040ee: neither function was
+         * exported.
+         */
+        let FD = null, SS = null, U = null;
+        try { [FD, SS, U] = await Promise.all(["./fog-diagnostics.mjs", "./season-setup.mjs", "./utils.mjs"].map(p => import(p))); } catch { FD = null; }
+        ok(typeof FD?.roomCheckProblems === "function" && typeof SS?.repaintStep === "function", "no roomCheckProblems in fog-diagnostics.mjs or no repaintStep in season-setup.mjs");
+        const f = (level, kind) => ({ level, kind, room: "R1526 Hall", problem: kind });
+        const counted = [f("error", "overlap"), f("error", "noShape"), f("warning", "adrift"), f("warning", "isolated"), f("warning", "piecesDiffer")];
+        const advice = [f("warning", "sealed"), f("warning", "defaultName"), f("warning", "secretDoor"), f("info", "lattice"), f("info", "notRoom")];
+        const fx = await e20Fixture();
+        const full = fx.scene("R1526 full", [fx.region("R1526a", "R1526 Hall", { rect: [0, 0, 4000, 3000] })]);
+        const roomsRow = lastChecks => SS.steps({ roster: [], scenes: [full], roomScene: full, assigned: {}, lastChecks }).find(r => r.key === "rooms");
+        const done = roomsRow(new Map()), faulty = roomsRow(new Map([[full.id, FD.roomCheckProblems([f("warning", "adrift")])]]));
+        const list = document.createElement("ul");
+        list.innerHTML = SS.setupRows([done]);
+        const li = list.querySelector(".drpg-setup-step");
+        const out = li?.querySelector("[data-drpg-check-out]");
+        if (out) out.innerHTML = "<p>R1526 findings</p>";
+        const was = [li?.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li?.querySelector(":scope > .drpg-setup-do"))];
+        SS.repaintStep(li, faulty);
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const check = fnSource(src, "wireRoomCheck"), wire = fnSource(src, "wireSetupSteps");
+        equal(stableJson({
+            count: [FD.roomCheckProblems(counted), FD.roomCheckProblems(advice), FD.roomCheckProblems([...counted, ...advice])],
+            rows: [done?.done, faulty?.done, faulty?.done ? [] : faulty?.missing?.()],
+            was,
+            now: [li?.dataset?.drpgStep ?? null, li?.querySelector(".drpg-setup-mark")?.textContent ?? null, li?.classList.contains("done"),
+                li?.querySelector(":scope > .drpg-setup-body > .drpg-setup-missing")?.textContent ?? null,
+                li?.querySelector(":scope > .drpg-setup-do")?.dataset?.step ?? null, li?.querySelector("[data-drpg-check-out]") === out && out?.textContent === "R1526 findings"],
+            wired: [/roomCheckProblems\(findings\)/.test(check), /repaintStep\(/.test(check), /closest\?\.\("\.drpg-setup-do"\)/.test(wire)]
+        }), stableJson({
+            count: [5, 0, 5],
+            rows: [true, false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 1, scene: full.name })]],
+            was: ["✓", false],
+            now: ["rooms", "✗", false, U.plural("DRPG.Season.roomsCheckErrors", { n: 1, scene: full.name }), "rooms", true],
+            wired: [true, true, true]
+        }), "Check rooms leaves the rooms row done over a fault that breaks the fog [problems counted: what breaks the fog, the advice, both | the rooms row: "
+            + "no check, one adrift border on record, its line | the row drawn before: mark, button | after the redraw: key, mark, done, line, button, "
+            + "the findings kept | the window records the problems, redraws the row, and its list's one listener runs the buttons]");
+    }],
+    ["R1527 - Pre-season's cast line counts all the students and the living, as the checklist does (E20 fix round, the goal review's G-5): `diagnoseCharacters` reads `studentCensus`", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-5): Pre-season checks wrote "Students (Monokumas excluded): 4" with one of
+         * them dead, while the checklist and the Doors tab said "Living students: 3" - and the handbook promises the same
+         * rules in both. Read: three students of the suite's own, one dead, handed to `diagnoseCharacters` (no chat) and to
+         * `studentCensus`. Nothing is written. Red at 689040ee: the line counted the roster and named no living.
+         */
+        let Dg = null, M = null;
+        try { [Dg, M] = await Promise.all(["./diagnostics.mjs", "./monokuma.mjs"].map(p => import(p))); } catch { Dg = null; }
+        const fx = await e20Fixture();
+        const roster = [fx.actor("R1527a"), fx.actor("R1527b"), fx.actor("R1527c", { dead: true })];
+        const text = Dg.diagnoseCharacters({ toChat: false, roster, assigned: {} });
+        const census = M.studentCensus(roster);
+        equal(stableJson({ census: [census.all.length, census.count], first: text.split("\n").find(line => line.trim()) ?? null }),
+            stableJson({ census: [3, 2], first: game.i18n.format("DRPG.Diagnostics.cast.students", { all: 3, living: 2 }) }),
+            "Pre-season's cast line counts otherwise than the checklist [the census: all, living | the report's first line]");
+    }],
+    ["R1528 - the Doors tab counts no room nobody decided (E20 fix round, the correctness review's C-10): a named region not decided yet is ticked as a suggestion and counted only once the GM changes its box in the window; the line says how many are left apart", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-10): on a fresh map every named region is undecided, and Room Setup draws
+         * its "This is a room" box ticked as a suggestion - so the Doors tab's line read 12 rooms where the checklist, which
+         * reads the flags, read 0. Read: `wireRoomRatio` on a form of the suite's own - one room decided, two regions not
+         * decided yet with their boxes ticked - then one of those boxes changed, as a GM's click sends it; with comments
+         * blanked, Room Setup marks an undecided box. Nothing is written. Red at 689040ee: three rooms counted.
+         */
+        let V = null, U = null;
+        try { [V, U] = await Promise.all(["./vault.mjs", "./utils.mjs"].map(p => import(p))); } catch { V = null; }
+        const names = ["R1528 Hall", "R1528 Gym", "R1528 Lab"];
+        const box = document.createElement("div");
+        box.innerHTML = `<p data-drpg-ratio></p><form>
+            <input type="checkbox" name="isroom:R1528 Hall" checked>
+            <input type="checkbox" name="isroom:R1528 Gym" checked data-drpg-undecided>
+            <input type="checkbox" name="isroom:R1528 Lab" checked data-drpg-undecided></form>`;
+        V.wireRoomRatio({ element: box }, names, 2);
+        const line = () => box.querySelector("[data-drpg-ratio]").textContent;
+        const first = line();
+        box.querySelector('[name="isroom:R1528 Gym"]').dispatchEvent(new Event("change", { bubbles: true }));
+        const after = line();
+        const want = (rooms, pending) => `${V.roomRatioLine(V.roomCensusOf(rooms.map(name => ({ name, room: true }))), 2)} ${U.plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`;
+        const sources = new Map(await otherSources());
+        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        must(vault.length, "vault.mjs is not among the module's sources - this would measure nothing");
+        equal(stableJson({ first, after, marked: /data-drpg-undecided/.test(fnSource(vault, "roomCells")) }),
+            stableJson({ first: want(["R1528 Hall"], 2), after: want(["R1528 Hall", "R1528 Gym"], 1), marked: true }),
+            "the Doors tab counts regions nobody decided as rooms [the line as the window opens | after the GM changes one box | Room Setup marks an undecided box]");
+    }],
+    ["R1529 - with no living student Season setup's overflow row says a suggestion comes with living students, never \"null\" (E20 fix round, C-8 = G-10)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-8, G-10): a cast whose students are all dead made the overflow row print
+         * "Suggested for 0 students and 1 pool: null. Now 20." Read: the checklist's overflow row over one dead student of
+         * the suite's own, drawn by `setupRows` on a detached element; `overflowSuggestionLine` for none and for four (the
+         * control). Nothing is written. Red at 689040ee: the line printed null.
+         */
+        let SS = null, O = null;
+        try { [SS, O] = await Promise.all(["./season-setup.mjs", "./overflow.mjs"].map(p => import(p))); } catch { SS = null; }
+        const fx = await e20Fixture();
+        const row = SS.steps({ roster: [fx.actor("R1529a", { dead: true })], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() }).find(r => r.key === "overflow");
+        const drawn = document.createElement("ul");
+        drawn.innerHTML = row ? SS.setupRows([row]) : "";
+        const text = drawn.querySelector(".drpg-setup-missing")?.textContent ?? null;
+        const none = game.i18n.localize("DRPG.Overflow.suggestNone");
+        equal(stableJson({ row: [row?.done ?? null, text, /\bnull\b/.test(text ?? "")], none: O.overflowSuggestionLine(0, 1), four: O.overflowSuggestionLine(4, 1).includes("14") }),
+            stableJson({ row: [false, game.i18n.format("DRPG.Season.overflowNow", { line: none, n: O.overflowThreshold() }), false], none, four: true }),
+            "the overflow row prints a suggestion for nobody [the row over a dead cast: done, its line, 'null' in it | the line for no student | for four: 14]");
+    }],
+    ["R1530 - Pre-season's report marks a check in each theme's evidence colour and a cross in its alarm, and Set the season up promises no green report (E20 fix round, the goal review's G-8; E20-07's \"reads green\")", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-8): the cast report's, the scenes' and the audit's marks were the text's
+         * own colour in both themes, so a line that passed read as one that did not; and "Everything is in place ... the
+         * pre-season checks ... will come back green" was promised by a list that checks less than the report. Read:
+         * `checkMarks` over escaped text and over markup with a mark in an attribute; the marks' colour by the cascade read
+         * from the sheets' text (`styleCascade`), in a report block and in the audit's, both themes; the ready line; with
+         * comments blanked, the report's three blocks. Nothing is written. Red at 689040ee: no `checkMarks`.
+         */
+        let SS = null;
+        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        ok(typeof SS?.checkMarks === "function", "season-setup.mjs exports no checkMarks");
+        const read = html => { const d = document.createElement("div"); d.innerHTML = html; return d; };
+        const text = read(SS.checkMarks(foundry.utils.escapeHTML("✓ R1530 <a>\n   ✗ R1530 b - ✓")));
+        const attr = read(SS.checkMarks('<button type="button" title="✓ R1530">R1530 ✗</button>'));
+        const C = await styleCascade();
+        const look = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-wide"><section class="window-content"><pre class="drpg-check-report">${SS.checkMarks("✓ ✗")}</pre>
+                <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530</p>")}</div></section></div>`;
+            const colour = el => C.winner(el, "color")?.value ?? null;
+            return [colour(body.querySelector("pre .drpg-check-ok")), colour(body.querySelector("pre .drpg-check-bad")), colour(body.querySelector("[data-drpg-anon] .drpg-check-ok"))];
+        };
+        const sources = await moduleSources();
+        const src = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        equal(stableJson({
+            text: [text.textContent, text.querySelectorAll(".drpg-check-ok").length, text.querySelectorAll(".drpg-check-bad").length],
+            attr: [attr.querySelector("button")?.getAttribute("title"), attr.querySelectorAll(".drpg-check-bad").length],
+            looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look),
+            ready: game.i18n.localize("DRPG.Season.introReady").includes(game.i18n.localize("DRPG.Panel.seasonChecks")),
+            report: (fnSource(src, "preSessionReport").match(/checkMarks\(/g) ?? []).length
+        }), stableJson({
+            text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
+            attr: ["✓ R1530", 1],
+            looks: [["var(--drpg-evidence)", "var(--drpg-eye-light)", "var(--drpg-evidence)"],
+                ["var(--drpg-sg-evidence)", "var(--drpg-sg-gm-light)", "var(--drpg-sg-evidence)"]],
+            ready: true,
+            report: 3
+        }), "Pre-season's marks are uncoloured, or the ready line promises a green report [escaped text: kept, checks, crosses | a mark in an attribute: "
+            + "kept, the text's | colour of a check, a cross, the audit's check: Monokuma Legacy, Stained Glass | the ready line names Pre-season checks "
+            + "as more | the report's three blocks marked]");
+    }],
+    ["R1531 - the Give back window says plainly what it cannot know and what it does not give back, and only a full Gamemaster gives back (E20 fix round; the owner's answer of 30.10 on the automations, the goal review's G-7, the correctness review's C-6): with no value of Daggerheart's automations kept it says the values from before the module are not known; it names the one dice look and says nobody's own look comes back; an Assistant GM reads that a full Gamemaster gives them back; a part not written stays kept", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harms: (the owner, 30.10: "przy powrocie automatyzacji do domyslnych Daggerhearta
+         * okno ma mowic wprost, ze wartosci sprzed modulu nie sa znane") a world whose automations an earlier version
+         * switched off has nothing kept, and Give back sets Daggerheart's defaults without a word; (G-7) the window and
+         * the handbook did not name the Dice So Nice look the module forces on every player and Assistant GM, which Give
+         * back does not touch; (C-6) an Assistant GM could press Give back, the switch and the automations were written
+         * and the file permissions - a full Gamemaster's setting - threw: half done, and the kept values never cleared.
+         * Read: enforced.mjs `giveBackFacts` over kept records and users of plain objects, `giveBackContent` with and
+         * without the unknown line and as an Assistant, `canGiveBack`, `keptAfterGiveBack`, lang/pl.json's twins, and,
+         * with comments blanked, where the window takes its facts and where Give back asks who presses it. Nothing is
+         * written (E20-T6 gives back as an Assistant and with a part that fails). Red at c72c43ff: none of the three
+         * functions, no line, no dice look row.
+         */
+        let E = null;
+        try { E = await import("./enforced.mjs"); } catch { E = null; }
+        const R = CONST.USER_ROLES;
+        const ready = ["giveBackFacts", "canGiveBack", "keptAfterGiveBack", "giveBackContent"].every(n => typeof E?.[n] === "function");
+        const text = html => { const el = document.createElement("div"); el.innerHTML = html; return el.textContent; };
+        const words = key => game.i18n.localize(key);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const gm = { isGM: true, role: R.GAMEMASTER }, assistant = { isGM: true, role: R.ASSISTANT }, player = { isGM: false, role: R.PLAYER };
+        const auto = { vulnerableAutomation: true, defeated: true }, perms = { FILES_BROWSE: null, FILES_UPLOAD: null };
+        const out = { facts: null, content: null, who: null, kept: null };
+        if (ready) {
+            const pick = f => [f.givenBack, f.filesStay, f.automationUnknown, f.fullGm, f.retry];
+            out.facts = [E.giveBackFacts({ kept: {}, givenBack: false, user: gm, filesWanted: true }),
+                E.giveBackFacts({ kept: { automation: auto, permissions: perms }, givenBack: false, user: gm, filesWanted: true }),
+                E.giveBackFacts({ kept: { permissions: perms }, givenBack: true, user: assistant, filesWanted: true })].map(pick);
+            const unknown = text(E.giveBackContent({ givenBack: false, automationUnknown: true })), known = text(E.giveBackContent({ givenBack: false }));
+            const asAssistant = text(E.giveBackContent({ givenBack: false, fullGm: false }));
+            out.content = [unknown.includes(words("DRPG.GiveBack.automationUnknown")), known.includes(words("DRPG.GiveBack.automationUnknown")),
+                [unknown, known].every(t => t.includes(words("DRPG.GiveBack.what.diceLook"))),
+                asAssistant.includes(words("DRPG.GiveBack.fullGmOnly")), known.includes(words("DRPG.GiveBack.fullGmOnly"))];
+            out.who = [gm, assistant, player, null].map(u => E.canGiveBack(u));
+            out.kept = [E.keptAfterGiveBack({ automation: auto, permissions: perms }, ["automation"]), E.keptAfterGiveBack({ automation: auto, permissions: perms }, ["automation", "permissions"])];
+        }
+        const has = key => game.i18n.has(key) && key.split(".").reduce((o, k) => o?.[k], pl)?.length > 0;
+        const lines = {
+            keys: ["DRPG.GiveBack.automationUnknown", "DRPG.GiveBack.what.diceLook", "DRPG.GiveBack.fullGmOnly", "DRPG.GiveBack.partly"].map(has),
+            plain: [words("DRPG.GiveBack.automationUnknown").includes("not known"), String(pl.DRPG?.GiveBack?.automationUnknown ?? "").includes("nie są znane")],
+            dice: [words("DRPG.GiveBack.what.diceLook").includes(words("DRPG.Settings.forceDiceLook.name")),
+                String(pl.DRPG?.GiveBack?.what?.diceLook ?? "").includes(pl.DRPG?.Settings?.forceDiceLook?.name ?? "\u0000")]
+        };
+        const sources = new Map(await otherSources());
+        const enforced = stripComments(sources.get("enforced.mjs") ?? "");
+        must(enforced.length, "enforced.mjs is not among the module's sources - this would measure nothing");
+        const give = fnSource(enforced, "giveBackFoundry");
+        const asks = give.indexOf("canGiveBack("), writes = give.indexOf("SETTINGS.foundryGivenBack, true");
+        const roads = [fnSource(enforced, "openGiveBackFoundry").includes("giveBackFacts("), asks >= 0 && writes > asks];
+        equal(stableJson({ ready, ...out, lines, roads }), stableJson({
+            ready: true,
+            facts: [[false, true, true, true, false], [false, false, false, true, false], [true, false, false, false, true]],
+            content: [true, false, true, true, false],
+            who: [true, false, false, false],
+            kept: [{ permissions: perms }, {}],
+            lines: { keys: [true, true, true, true], plain: [true, true], dice: [true, true] },
+            roads: [true, true]
+        }), "the Give back window keeps quiet about what it cannot know or give back, or lets an Assistant half give back [the functions exported | "
+            + "the facts (given back, files stay, automations unknown, full GM, a part left to retry): nothing kept, both kept, an Assistant after a part "
+            + "failed | the window: the unknown line with it, without it, the dice look row, an Assistant's line, a full GM's | who may: GM, Assistant, "
+            + "player, nobody | the record after: the automations written, both | the words EN/PL; 'not known' in both; the dice look names its setting | "
+            + "the window reads the facts; Give back asks who presses it before the switch]");
+    }],
+    ["R1532 - after Give back, a module switched off and on again says it holds nothing and offers Hold them again (E20 fix round, the goal review's G-2): a GM is asked at each start while the settings are given back, Season setup has a row and Pre-season checks a line for it, and the handbook's box says to press Hold them again", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-2): a GM who gave Foundry's settings back and switched the module off and on
+         * again found it holding nothing - the given-back switch stays true, so the held settings and Daggerheart's
+         * automations are left alone - and nothing on screen said so. Read: enforced.mjs `offerHoldAgain` with users,
+         * the switch, the question and the hold handed in (a stand-in that counts); season-setup.mjs `steps` and
+         * `preSessionReport` with the switch handed in (no room picture, no A/V); with comments blanked, that module.mjs's
+         * `ready` asks it; the GM handbooks' IMPORTANT box, EN and PL. Nothing is written. Red at c72c43ff: no
+         * `offerHoldAgain`, no row, no line.
+         */
+        let E = null, SS = null;
+        try { [E, SS] = await Promise.all(["./enforced.mjs", "./season-setup.mjs"].map(p => import(p))); } catch { E = null; }
+        const words = key => game.i18n.localize(key);
+        const asked = [], held = [];
+        const hold = async () => { held.push(1); return true; };
+        const answer = choice => async () => { asked.push(choice); return choice; };
+        let offers = null;
+        if (typeof E?.offerHoldAgain === "function") {
+            offers = [await E.offerHoldAgain({ user: { isGM: true }, givenBack: true, ask: answer("hold"), hold }),
+                await E.offerHoldAgain({ user: { isGM: true }, givenBack: true, ask: answer("close"), hold }),
+                await E.offerHoldAgain({ user: { isGM: true }, givenBack: false, ask: answer("hold"), hold }),
+                await E.offerHoldAgain({ user: { isGM: false }, givenBack: true, ask: answer("hold"), hold })];
+        }
+        const row = givenBack => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), givenBack }).find(r => r.key === "foundryHeld") ?? null;
+        const rows = [row(true), row(false)].map(r => (r ? [r.done, r.optional === true, typeof r.open === "function"] : null));
+        const report = async givenBack => {
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), givenBack });
+            return el.textContent.includes(words("DRPG.GiveBack.preSeason"));
+        };
+        const lines = [await report(true), await report(false)];
+        const sources = new Map(await otherSources());
+        const module = stripComments(sources.get("module.mjs") ?? "");
+        must(module.length, "module.mjs is not among the module's sources - this would measure nothing");
+        const ready = bodyOf(module, 'Hooks.once("ready"', { until: "\n});" });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const box = async (lang, marker, label) => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            const md = res.ok ? await lfText(res) : "";
+            return md.includes(marker) ? bodyOf(md, marker, { until: "\n\n" }).includes(`**${label}**`) : null;
+        };
+        equal(stableJson({ offers, asked, held: held.length, rows, lines, ready: ready.includes("offerHoldAgain("),
+            keys: ["DRPG.GiveBack.preSeason", "DRPG.GiveBack.heldNothing", "DRPG.Season.step.foundryHeld", "DRPG.Season.hint.foundryHeld"]
+                .map(k => game.i18n.has(k) && k.split(".").reduce((o, p) => o?.[p], pl)?.length > 0),
+            books: [await box("en", "**Before you switch the module off**", words("DRPG.GiveBack.holdAgain")),
+                await box("pl", "**Zanim wyłączysz moduł**", pl.DRPG?.GiveBack?.holdAgain ?? "\u0000")] }), stableJson({
+            offers: [true, true, false, false], asked: ["hold", "close"], held: 1,
+            rows: [[false, true, true], [true, true, true]], lines: [true, false], ready: true,
+            keys: [true, true, true, true], books: [true, true]
+        }), "a module holding nothing after Give back says nothing [asked: given back and Hold, given back and Not now, not given back, a player | "
+            + "the questions | the holds | Season setup's row given back, not (done, optional, opens) | Pre-season's line given back, not | ready asks | "
+            + "the words EN/PL | the handbooks' box names Hold them again, EN and PL]");
+    }],
+    ["R1533 - a module that did not start says what it changed before stays until it runs again and a GM gives it back, never that Foundry is as it was without it (E20 fix round, the goal review's G-6): the requirements window's intro EN/PL and the GM handbooks", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-6): in a world the module ran in before, the stopped module's window said
+         * "Your world and Foundry are as they were without it" and the handbook "a module that did not start changes
+         * nothing in Foundry" - false: what it held (Daggerheart's automations, the file permissions, the players' held
+         * settings) stays as it held it. Read: lang/en.json's and lang/pl.json's `DRPG.Requirements.intro` forms and the
+         * GM handbooks' line about a module that did not start, as served. Nothing is written. Red at c72c43ff: the old
+         * sentence in every form.
+         */
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        const forms = lang => Object.values(lang.DRPG?.Requirements?.intro ?? {});
+        const read = (lang, old) => {
+            const all = forms(lang);
+            must(all.length > 0, "no DRPG.Requirements.intro forms - this would measure nothing");
+            return [all.length, all.filter(t => t.includes(old)).length, all.filter(t => t.includes(lang.DRPG?.GiveBack?.menuLabel ?? "\u0000")).length];
+        };
+        const line = async (lang, marker, old) => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            const md = res.ok ? await lfText(res) : "";
+            must(md.includes(marker), `gm-handbook.${lang}.md no longer has "${marker}" - this would measure nothing`);
+            const text = lineAround(md, md.indexOf(marker));
+            return [text.includes(old), text.includes(lang === "en" ? en.DRPG.GiveBack.menuLabel : pl.DRPG.GiveBack.menuLabel)];
+        };
+        const enRead = read(en, "as they were without it"), plRead = read(pl, "takie jak bez niego");
+        equal(stableJson({ en: enRead, pl: plRead,
+            books: [await line("en", "a module that did not start", "changes nothing in Foundry"), await line("pl", "który nie wystartował, ni", "niczego w Foundry nie zmienia")] }),
+        stableJson({ en: [enRead[0], 0, enRead[0]], pl: [plRead[0], 0, plRead[0]], books: [[false, true], [false, true]] }),
+        "a stopped module says Foundry is as it was without it [EN, PL: the forms, those with the old sentence, those naming Give back Foundry's settings | "
+            + "the handbooks EN, PL: the old sentence, Give back named]");
+    }],
+    ["R1534 - with Keep character sheets anonymous off the anonymity audit lists the Observer sheets every player reads whole and names the switch, and says no secret is hidden (E20 fix round, the goal review's G-3; S11-19)", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (G-3): with the switch off the redaction never runs, so an Observer sheet is
+         * read whole by every player - but the audit left Observer out ("Nothing to fix") and its words said "its secrets
+         * hidden", and Set them to Observer said the same. R1506 ran only with the switch on. Read: `auditAnonymity` (no
+         * chat) with the switch handed in, on three characters of plain objects - Observer with a player owner, owned by
+         * every player, Observer with no player owner - and `wireAnonymityFix` with the switch off, its notice caught.
+         * Nothing is written. Red at c72c43ff: the audit read the world's switch and had no such list.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account the sheets are owned by");
+        let A = null;
+        try { A = await import("./anonymity.mjs"); } catch { A = null; }
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const player = game.users.find(u => !u.isGM);
+        const fx = await e20Fixture();
+        const words = key => game.i18n.localize(key);
+        const make = () => [fx.sheet("R1534seen", L.OBSERVER, { owner: player.id }), fx.sheet("R1534open", L.OWNER, { owner: player.id }), fx.sheet("R1534loose", L.OBSERVER)];
+        const drawn = async enforced => {
+            const actors = make();
+            const found = await A.auditAnonymity({ toChat: false, actors, enforced });
+            const el = document.createElement("div");
+            el.innerHTML = found?.body ?? "";
+            return { found, text: el.textContent, el, actors };
+        };
+        const off = await drawn(false), on = await drawn(true);
+        const hidden = [words("DRPG.Anonymity.everyone.observer"), words("DRPG.Anonymity.level.observer")];
+        const told = [];
+        const notices = ui.notifications;
+        let fixed = null;
+        try {
+            ui.notifications = { ...notices, info: message => { told.push(String(message)); }, warn: notices?.warn?.bind(notices), error: notices?.error?.bind(notices) };
+            const wired = A.wireAnonymityFix?.(off.el, { actors: off.actors, enforced: false }) ?? null;
+            off.el.querySelector("[data-drpg-anon-fix]")?.click();
+            await wired?.done?.();
+            fixed = told[0] ?? null;
+        } finally {
+            ui.notifications = notices;
+        }
+        const names = list => (list ?? []).map(i => i.actor?.name).sort();
+        equal(stableJson({
+            off: [names(off.found?.unredacted), off.text.includes(words("DRPG.Anonymity.audit.switchOff")), off.text.includes(words("DRPG.Settings.enforceAnonymity.name")),
+                hidden.map(h => off.text.includes(h)), off.text.includes(words("DRPG.Anonymity.audit.clean")), off.text.includes(`${player.name}: ${words("DRPG.Anonymity.level.observerOpen")}`)],
+            on: [names(on.found?.unredacted), on.text.includes(words("DRPG.Anonymity.audit.switchOff")), on.text.includes(`${player.name}: ${hidden[1]}`)],
+            fixed: [fixed === game.i18n.format("DRPG.Anonymity.audit.fixedOpen.one", { n: 1 }), hidden.some(h => String(fixed).includes(h))]
+        }), stableJson({
+            off: [["R1534loose student", "R1534seen student"], true, true, [false, false], false, true],
+            on: [[], false, true],
+            fixed: [true, false]
+        }), "the audit with the switch off says the Observer sheets hide their secrets [off: the Observer sheets listed, the switch's line, the switch "
+            + "named, 'its secrets hidden' in either form, 'Nothing to fix', the player's level in the open words | on: no such list, no switch line, the "
+            + "player's level as before | Set them to Observer's notice with the switch off: the open words, no 'secrets hidden']");
+    }],
+    ["R1535 - Check rooms' Show on map goes to the finding's floor (E20 fix round, the correctness review's C-5 = the goal review's G-9): each finding carries its floor's id, its row names the floor, its button carries the floor, and a press views the scene at that floor before it marks and pans", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-5, G-9): on a school of two floors a finding on Floor 2 was drawn with no floor,
+         * and Show on map panned on whichever floor was on screen, where nothing of the finding is drawn. Read: `checkRegions`
+         * on a scene of plain objects with a room on each of two floors and no wall, `roomCheckHtml` into a detached element,
+         * `wireShowOnMap` with a canvas of the test's own on Floor 1 and a scene that records `view`; both floors' buttons
+         * pressed. Nothing is written; how a real canvas draws the floor is AUDIT 9.2 B-E20-5. Red at c72c43ff: no floor on a row's
+         * button, no view of the floor.
+         */
+        let F = null, FD = null;
+        try { [F, FD] = await Promise.all(["./fog.mjs", "./fog-diagnostics.mjs"].map(p => import(p))); } catch { F = null; }
+        const fx = await e20Fixture();
+        const floors = [{ id: "R1535L1", name: "R1535 Floor 1", elevation: 0 }, { id: "R1535L2", name: "R1535 Floor 2", elevation: 10 }];
+        const scene = fx.scene("R1535 two", [fx.region("R1535a", "R1535 Lab", { rect: [0, 0, 400, 400], levels: ["R1535L1"] }),
+            fx.region("R1535b", "R1535 Gym", { rect: [1000, 0, 400, 400], levels: ["R1535L2"] })], { levels: floors });
+        const rows = F.checkRegions(scene);
+        const onFloor = id => rows.find(r => r.at && r.floor === floors.find(f => f.id === id).name) ?? null;
+        const up = onFloor("R1535L2"), down = onFloor("R1535L1");
+        must(up && down, "checkRegions drew no finding with a point on each floor - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = FD.roomCheckHtml(rows, scene.id);
+        const log = [];
+        const viewed = { id: scene.id, levels: floors, view: async options => { log.push(["view", options?.level ?? null]); } };
+        const board = { scene: { id: scene.id }, level: { id: "R1535L1" }, ping: () => { log.push(["ping"]); },
+            controls: { drawPing: p => { log.push(["mark", p.x, p.y]); } }, animatePan: o => { log.push(["pan", o.x, o.y]); return Promise.resolve(true); } };
+        FD.wireShowOnMap(root, { board, sceneId: scene.id, scenes: new Map([[scene.id, viewed]]) });
+        const buttonAt = row => [...root.querySelectorAll("[data-drpg-show-at]")].find(b => b.dataset.drpgShowAt === `${row.at.x},${row.at.y}`) ?? null;
+        const press = async row => { log.length = 0; buttonAt(row)?.click(); await settle(); return [...log]; };
+        const cell = row => buttonAt(row)?.closest("tr")?.children?.[1]?.textContent ?? "";
+        equal(stableJson({
+            ids: [up.floorId ?? null, down.floorId ?? null],
+            buttons: [buttonAt(up)?.dataset?.drpgLevel ?? null, buttonAt(down)?.dataset?.drpgLevel ?? null],
+            named: [cell(up).includes("R1535 Floor 2"), cell(down).includes("R1535 Floor 1")],
+            up: await press(up), down: await press(down)
+        }), stableJson({
+            ids: ["R1535L2", "R1535L1"], buttons: ["R1535L2", "R1535L1"], named: [true, true],
+            up: [["view", "R1535L2"], ["mark", up.at.x, up.at.y], ["pan", up.at.x, up.at.y]],
+            down: [["mark", down.at.x, down.at.y], ["pan", down.at.x, down.at.y]]
+        }), "Show on map ignores the finding's floor [the findings' floor ids | the buttons' floors | the rows name their floor | Floor 2's press from "
+            + "Floor 1: view, mark, pan | Floor 1's press: mark, pan]");
+    }],
+    ["R1536 - a room picture that only took long to load is not called missing, and the pictures are probed a few at a time (E20 fix round, the correctness review's C-3): missing only on a decode that fails or a server's 404/410; a decode past its time with the file there is 'not checked in time', heavy when the server's length says so", async () => {
+        /*
+         * E20 fix round, 30.10.2026. The harm (C-3): a decode not finished within the probe's time was reported "do not
+         * load - pick the file again" even with the server's 200 and a length, and every picture was probed at once
+         * sharing one connection (eighteen 3 MB pictures at 30 Mbit/s all "missing"). Read: `checkRoomImages` over a scene
+         * of plain objects with seven pictures - one that loads, one whose decode fails, one the server says is gone, four
+         * whose decode never ends (a length under the limit, over it, none, no answer at all) - with stand-ins for Image
+         * and HEAD (the HEAD counts how many run at once) and a probe time of 30 ms; Pre-season's line for the late ones.
+         * Nothing is written. Red at c72c43ff: the late ones missing after 8 s each, all seven at once.
+         */
+        let RT = null, C = null, SS = null;
+        try { [RT, C, SS] = await Promise.all([import("./room-tile.mjs"), import("./config.mjs"), import("./season-setup.mjs")]); } catch { RT = null; }
+        const fx = await e20Fixture();
+        const MB = 1024 * 1024;
+        const pics = { ok: ["load", 200, MB], broken: ["fail", 200, MB], gone: ["load", 404, null], slow: ["hang", 200, 2 * MB],
+            slowheavy: ["hang", 200, 9 * MB], slownolength: ["hang", 200, null], slownohead: ["hang", null, null] };
+        const scene = fx.scene("R1536 pictures", Object.keys(pics).map((name, i) =>
+            fx.region(`R1536p${i}`, `R1536 ${name}`, { rect: [i * 500, 0, 500, 500], image: `worlds/suite/r1536-${name}.webp` })));
+        const of = src => pics[String(src).match(/r1536-(\w+)\.webp/)?.[1]] ?? ["fail", null, null];
+        let running = 0, most = 0;
+        const head = async src => {
+            running++;
+            most = Math.max(most, running);
+            await new Promise(resolve => setTimeout(resolve, 10));
+            running--;
+            const [, status, bytes] = of(src);
+            return { status, bytes };
+        };
+        const RealImage = globalThis.Image;
+        let found = null, line = null;
+        try {
+            globalThis.Image = class {
+                set src(path) { this.how = of(path)[0]; this.naturalWidth = 1000; this.naturalHeight = 1000; }
+                decode() { return this.how === "load" ? Promise.resolve() : this.how === "fail" ? Promise.reject(new Error("R1536: broken")) : new Promise(() => {}); }
+            };
+            found = await RT.checkRoomImages({ scenes: [scene], head, probeMs: 30 });
+            const el = document.createElement("div");
+            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [scene], head, probeMs: 30 });
+            line = el.textContent;
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const rooms = list => (list ?? []).map(e => e.rooms.map(r => r.room.replace("R1536 ", ""))).flat().sort();
+        equal(stableJson({
+            missing: rooms(found?.missing), late: rooms(found?.late), large: (found?.large ?? []).map(e => [e.rooms[0].room.replace("R1536 ", ""), e.pixels, e.heavy]),
+            unknownSize: rooms(found?.unknownSize), most, atOnce: C?.ROOM_IMAGE_LIMITS?.atOnce ?? null,
+            said: game.i18n.has("DRPG.Panel.checksImagesLate") && String(line).includes(game.i18n.format("DRPG.Panel.checksImagesLate",
+                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }))
+        }), stableJson({
+            missing: ["broken", "gone"], late: ["slow", "slowheavy", "slownohead", "slownolength"], large: [["slowheavy", false, true]],
+            unknownSize: [], most: 3, atOnce: 3, said: true
+        }), "a slow room picture is called missing, or all are probed at once [missing | not checked in time | large (pixels, bytes) | size unknown | "
+            + "the most HEAD requests at once | the limit | Pre-season's line for the late ones]");
+    }],
 ];
 
 /**
@@ -25771,6 +27451,9 @@ const LITERAL_KEYS = [
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
+    // requirements.mjs `requirementsContent` (E20 C5): each required module's reason by its id, and the intro by its count.
+    ...["dice-so-nice", "isometric-perspective", "avclient-livekit"].map(id => `DRPG.Requirements.reason.${id}`),
+    "DRPG.Requirements.intro.one", "DRPG.Requirements.intro.other",
     // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons, and
     // the dead channel's (E19 C3).
     ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline", "deadAlone"].map(reason => `DRPG.Voice.held.${reason}`),
@@ -26053,6 +27736,64 @@ function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
             art: tile.querySelector(".drpg-voice-tile-art").style.getPropertyValue("background-image"),
             more: tile.querySelector(".drpg-voice-tile-more").textContent
         })
+    };
+}
+
+/**
+ * E20 C1's fixtures (R1500-R1505; R1510, R1511 since C3): scenes, regions and students of plain objects, read by the
+ * module's readers and never written. A region carries the room flag unless `room` is false, and the owner, No privacy,
+ * lock and picture flags it is handed; its shape is a rectangle `rect` ([x, y, width, height]) as raw shapes, or v14's `polygons` and `tree` (the
+ * `polygonTree` nodes) when handed. A scene is ready for room vision unless `ready` is false; its `dimensions` are a
+ * 4000x3000 map with no padding unless handed. A student is a character with no Monokuma flag, dead with `dead`, and
+ * at the starting resources unless `set` is false.
+ */
+async function e20Fixture() {
+    const [{ VAULT_FLAGS }, { ROOM_FLAGS }, { ROOM_FLAG }, { STARTING }] = await Promise.all([
+        import("./vault.mjs"), import("./movement.mjs"), import("./rooms.mjs"), import("./config.mjs")]);
+    const flagged = flags => (scope, key) => (scope === MODULE_ID ? flags[key] : undefined);
+    return {
+        region(id, name, { room = true, owner = null, notShared = false, locked = false, rect = null, polygons = null, tree = null,
+            image = null, elevation = undefined, levels = undefined } = {}) {
+            const flags = { [ROOM_FLAG]: room ? true : undefined, [VAULT_FLAGS.owner]: owner ?? undefined,
+                [VAULT_FLAGS.notShared]: notShared || undefined, [ROOM_FLAGS.locked]: locked || undefined, [VAULT_FLAGS.image]: image ?? undefined };
+            return {
+                id, name, behaviors: [], getFlag: flagged(flags),
+                // E20 C3 (R1511): v14's `elevation` {bottom, top} and the floors a piece stands on, only when handed.
+                ...(elevation !== undefined ? { elevation } : {}), ...(levels ? { levels: new Set(levels) } : {}),
+                shapes: rect ? [{ type: "rectangle", x: rect[0], y: rect[1], width: rect[2], height: rect[3] }] : [],
+                ...(polygons ? { polygons: polygons.map(points => ({ points })) } : {}),
+                ...(tree ? { polygonTree: tree } : {})
+            };
+        },
+        // Ready: Foundry's vision off and the light on; `fog` names no mode, which `diagnoseScenes` reads as off.
+        // Its floors `levels` (`{ id, name, elevation }`) when handed (E20 fix round, R1525).
+        scene(name, regions, { ready = true, dims = null, levels = [] } = {}) {
+            return {
+                id: `e20${name.replace(/[^A-Za-z0-9]/g, "")}`.slice(0, 16), name, regions, walls: [], levels,
+                dimensions: dims ?? { width: 4000, height: 3000, sceneX: 0, sceneY: 0, sceneWidth: 4000, sceneHeight: 3000,
+                    sceneRect: { x: 0, y: 0, width: 4000, height: 3000 } },
+                tokenVision: !ready, environment: { globalLight: { enabled: ready } }, fog: {}
+            };
+        },
+        /* A character sheet for the anonymity audit (R1506, R1507): its default level, one player owner unless none, every
+           GM an owner as Foundry reads them; `update` writes onto the fixture and into `written`, never to the world. */
+        sheet(id, level, { owner = null, written = [] } = {}) {
+            const sheet = {
+                id, name: `${id} student`, type: "character", ownership: { default: level, ...(owner ? { [owner]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } : {}) },
+                getUserLevel: user => (user.isGM || user.id === owner ? CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER : sheet.ownership.default),
+                update: async data => {
+                    written.push([id, data]);
+                    if ("ownership.default" in data) sheet.ownership.default = data["ownership.default"];
+                    return sheet;
+                }
+            };
+            return sheet;
+        },
+        actor(id, { dead = false, set = true } = {}) {
+            const resources = set ? { hitPoints: { max: STARTING.hp }, stress: { max: STARTING.stress } } : { hitPoints: { max: 0 }, stress: { max: 0 } };
+            return { id, name: `${id} student`, type: "character", items: [], system: { resources, experiences: {} },
+                getFlag: flagged({ [FLAGS.deceased]: dead ? { chapter: 1 } : undefined }) };
+        }
     };
 }
 

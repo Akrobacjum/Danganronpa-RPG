@@ -1442,6 +1442,8 @@
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",
+      "stepUpBy": "+{n}",
+      "stepDownBy": "-{n}",
       "atMost": "At most {n}",
       "atLeast": "At least {n}",
       "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
@@ -2110,7 +2112,19 @@
       "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
       "bedroomsIntro": "Whose bedroom each room is. One student, one bedroom. Whether a stash is hidden is set on the Stashes tab.",
       "doorsIntro": "Which doors are locked right now, and which start a season locked. A season reset puts every door back to its start column.",
-      "roomRatio": "{open} shared rooms open for {living} living students: {per} each, against the {target} this season was built on. That is {want} rooms.",
+      "roomRatio": "{rooms}. Living students: {living} ({per} rooms each). This season was built on {target} per student, so this cast wants {want}.",
+      "roomCensus": {
+        "one": "{n} shared room (bedrooms and “No privacy” rooms left out, locked rooms counted)",
+        "other": "{n} shared rooms (bedrooms and “No privacy” rooms left out, locked rooms counted)"
+      },
+      "roomCensusLocked": {
+        "one": "{n} of them is locked.",
+        "other": "{n} of them are locked."
+      },
+      "roomCensusUndecided": {
+        "one": "Not counted yet: {n} region nobody has decided, ticked as a suggestion - Apply makes it a room.",
+        "other": "Not counted yet: {n} regions nobody has decided, ticked as suggestions - Apply makes them rooms."
+      },
       "searchIntro": "What searching each room draws from, how many search tokens it has left, and what it is a sensible place to look for.",
       "room": "Room",
       "owner": "Whose bedroom",
@@ -2190,7 +2204,7 @@
       "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
       "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
+      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
       "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
@@ -2853,7 +2867,17 @@
       "gmHintActiveFull": "This time of day is darkened. {count} of {max} spilled Despair is waiting, and fires when this time of day ends.",
       "setupIntro": "Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.",
       "threshold": "Threshold (X)",
-      "thresholdHint": "Suggested: 12 + half your player count. Sixteen players makes 20, eight makes 16, four makes 14. Range {min}-{max}.",
+      "thresholdHint": "Any value from {min} to {max}: the table decides.",
+      "suggested": "Suggested for {students} and {pools}: {x}.",
+      "suggestStudents": {
+        "one": "{n} student",
+        "other": "{n} students"
+      },
+      "suggestPools": {
+        "one": "{n} pool",
+        "other": "{n} pools"
+      },
+      "suggestNone": "A suggestion appears here once the season has living students.",
       "amount": "by",
       "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
@@ -3559,6 +3583,8 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
+      "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
+      "nextSeasonSetupAside": "Set the season up still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
@@ -3624,6 +3650,17 @@
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Cast",
       "checksAvVideo": "This world sends video nobody watches: set the A/V mode to audio only.",
+      "checksAvOff": "Audio/Video is off in this world, so there is no voice tile: turn it on in Configure Settings, Core, Audio/Video, or switch the voice tile off in the module's settings.",
+      "checksAvVideoOnly": "This world is set to video only: nobody sends sound. Set the A/V mode to audio only.",
+      "checksImages": "Room pictures",
+      "checksImagesMissing": "These room pictures do not load - pick the file again in Room Setup: {rooms}",
+      "checksImagesLarge": "These room pictures are large and slow to load for every player - make them at most {side} px on a side and {mb} MB: {rooms}",
+      "checksImagesUnknown": "The file size of these room pictures could not be read: {rooms}",
+      "checksImagesLate": "These room pictures did not finish loading within {s} seconds, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}",
+      "checksImagesWhere": "{room} ({scene})",
+      "checksImagesSized": "{rooms}: {size}",
+      "checksImagesPixels": "{width} x {height} px",
+      "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Pre-season checks",
       "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
@@ -3731,9 +3768,45 @@
       "tabLocked": "Theirs to tell you, not yours to read.",
       "settingsLocked": "The character's settings are the GM's."
     },
+    "GiveBack": {
+      "menuName": "Foundry's settings",
+      "menuLabel": "Give back Foundry's settings",
+      "menuHint": "What this module changes in Foundry and Daggerheart, and the button that puts it back. Press it before you switch the module off.",
+      "title": "Give back Foundry's settings",
+      "intro": "While it runs, this module changes these settings of Foundry, Daggerheart and the modules it needs:",
+      "what": {
+        "automation": "Daggerheart's Vulnerable and Defeated automations are off: Breakdown and Wounded take their place.",
+        "playerFiles": "Players and Trusted Players cannot browse or upload files ('Keep players out of the file browser').",
+        "isoWelcome": "Isometric Perspective's welcome window stays closed for everyone.",
+        "dhWelcome": "Daggerheart's welcome journal does not open for anyone.",
+        "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
+        "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
+        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back.",
+        "diceLook": "While 'One dice look for the table' is on, every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
+      },
+      "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
+      "filesStay": "Give back leaves the file permissions as they are now: if players should browse or upload files, grant it in Foundry's permissions.",
+      "beforeOff": "Before you switch the module off, press Give them back here and turn 'Rooms decide what players can see' off.",
+      "giveBack": "Give them back",
+      "holdAgain": "Hold them again",
+      "done": "Foundry's settings are given back.",
+      "heldAgain": "The module holds its settings again.",
+      "automationOff": "Daggerheart's Vulnerable and Defeated automations are switched off: Breakdown and Wounded take their place. To have them back, press Give back Foundry's settings in this module's settings.",
+      "automationUnknown": "The values Daggerheart's Vulnerable and Defeated automations had before this module are not known: it switched them off before it kept anything. Give them back sets Daggerheart's defaults - both on. If this world had them off, switch them off again in Daggerheart's settings.",
+      "fullGmOnly": "Only a full Gamemaster can give these back: Foundry lets only a full Gamemaster change the file permissions.",
+      "partly": "Given back, except: {parts}. Its value is still kept - open this window again and press Give them back.",
+      "part": {
+        "automation": "Daggerheart's automations",
+        "permissions": "the file permissions"
+      },
+      "failed": "Foundry's settings could not be given back or held. The console says why.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
+      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back.",
+      "notNow": "Not now"
+    },
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
-      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions.",
+      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions, or press Give back Foundry's settings in this module's settings.",
       "lost": {
         "player": "Player",
         "trusted": "Trusted Player",
@@ -3755,12 +3828,35 @@
       "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
       "audit": {
         "title": "Sheet Anonymity Audit",
-        "clean": "Every character sheet is private. Nothing to fix.",
-        "exposed": "Visible to all players - fix these:",
+        "clean": "No sheet is open in full to every player. Nothing to fix.",
+        "exposed": "Owned by every player, so nothing on these sheets is hidden and every player reads them whole - fix these:",
+        "fix": "Set them to Observer",
+        "fixed": {"one": "{n} sheet set to Observer: every player can open it, its secrets hidden.", "other": "{n} sheets set to Observer: every player can open them, their secrets hidden."},
+        "fixedOpen": {"one": "{n} sheet set to Observer: every player can open it. 'Keep character sheets anonymous' is off, so they read it whole.", "other": "{n} sheets set to Observer: every player can open them. 'Keep character sheets anonymous' is off, so they read them whole."},
+        "switchOff": "'Keep character sheets anonymous' is off, so nothing on these Observer sheets is hidden and every player reads them whole - switch it on in the module's settings:",
+        "closed": "Closed to the other players. Nothing to fix, but nobody can open these sheets, so nobody can loot the body when the character dies:",
         "assistants": "Owned by an Assistant GM. Assistants read every sheet in the world, which breaks anonymity - drop them to Player:",
         "shared": "Owned by more than one player:",
         "orphaned": "No player owner assigned - here is who does have access:",
         "nobody": "nobody at all"
+      },
+      "everyone": {
+        "none": "the other players cannot open the sheet",
+        "limited": "the other players see the name and portrait only",
+        "observer": "every player can open the sheet, its secrets hidden",
+        "observerOpen": "every player can open the sheet and read it whole",
+        "owner": "every player owns the sheet and reads it whole"
+      },
+      "level": {
+        "none": "cannot open the sheet",
+        "limited": "sees the name and portrait only",
+        "observer": "can open the sheet, its secrets hidden",
+        "observerOpen": "can open the sheet and read it whole",
+        "owner": "owns the sheet"
+      },
+      "role": {
+        "gm": "(GM)",
+        "assistant": "(Assistant GM)"
       },
       "reverted": "“{actor}” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner to their one player only."
     },
@@ -3770,12 +3866,20 @@
     },
     "Requirements": {
       "title": "Danganronpa RPG is not running",
-      "intro": "This module needs the following, and one of them is not available. Nothing else in the module has started.",
+      "intro": {
+        "one": "Danganronpa RPG needs this module and has not started: nothing of it runs until the module is back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings.",
+        "other": "Danganronpa RPG needs these {n} modules and has not started: nothing of it runs until they are back. What it changed in Foundry while it ran before stays as it left it until it runs again and a GM presses Give back Foundry's settings."
+      },
       "state": {
         "absent": "not installed",
         "disabled": "installed, but switched off"
       },
-      "how": "Install or enable them in Manage Modules - on the Forge, in the game's module list - then reload the world. Nothing has been changed here, so that is the whole of the repair.",
+      "reason": {
+        "dice-so-nice": "Every roll is thrown as 3D dice, seen only by the people allowed to see that roll, in the one dice style the GM sets for the table.",
+        "isometric-perspective": "Maps drawn for isometric play will look wrong on a flat grid.",
+        "avclient-livekit": "Voice follows the rooms: you hear the people in the room your character is in, and moving to another room changes who hears you."
+      },
+      "how": "Install or switch on what is listed in Manage Modules (on the Forge, in the game's module list), then reload the world. That is the whole repair.",
       "understood": "Understood",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",
@@ -4188,6 +4292,9 @@
       "title": "Motive",
       "banner": "MONOKUMA'S MOTIVE",
       "withdrawn": "The motive is withdrawn. Nothing hanging over you - for now.",
+      "none": "No motive in force.",
+      "withdraw": "Withdraw",
+      "withdrawNote": "Withdraw tells everyone the motive is off.",
       "deadline": {
         "one": "One time of day to do something about it.",
         "other": "{n} times of day to do something about it."
@@ -4284,6 +4391,25 @@
       "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark - turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves.",
+      "cast": {
+        "students": "Students: {all}, living: {living}",
+        "starting": "Starting resources: {hp} Health, {stress} Sanity, {hope} Hope",
+        "noCast": "No students yet: create the cast first, then run these checks again.",
+        "row": "Health max {hp}, Sanity max {stress}",
+        "notSetUp": "not set up",
+        "pending": {"one": "{n} character still needs the starting resources.", "other": "{n} characters still need the starting resources."},
+        "fix": "To fix it: open the sheet and press the wand beside the name.",
+        "pendingWhy": "Until then each of them counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
+        "allSet": "Every character has the starting resources.",
+        "ultimate": "Everybody has an Ultimate",
+        "ultimateFix": "Set it on the sheet, under the name.",
+        "experiences": "Everybody has {n} experiences",
+        "experiencesFix": "Each at +2, agreed at character creation.",
+        "item": "Everybody carries their opening item",
+        "itemFix": "One Tier {tier} item tied to their Ultimate: hand it out from Give / take items.",
+        "pool": "Everybody is assigned to a Despair pool",
+        "poolFix": "Without one, Despair from their rolls has nowhere to go. Set it in the GM panel, under Despair Flow."
+      },
       "title": {
         "music": "Music diagnostics",
         "voice": "Voice plan",
@@ -4310,7 +4436,7 @@
       "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
       "title": "Set the season up",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
-      "introReady": "Everything is in place. This list is the same one the pre-season checks read, so they will come back green.",
+      "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
       "campaignName": "Campaign name",
       "campaignPlaceholder": "Hope's Peak: Drowned Summer",
       "chapter": "Chapter",
@@ -4364,8 +4490,11 @@
       "hint.items": "The opening item. A student with an empty bag has nothing to search with, nothing to give away and nothing to kill with.",
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
+      "step.overflow": "The overflow threshold suits the cast",
+      "hint.overflow": "The module's formula, 12 + half the living students, worked out for this season. Advisory: the threshold is yours to choose in Despair Flow's Overflow tab.",
+      "overflowNow": "{line} Now {n}.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+      "hint.assignments": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",
       "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
       "step.liveKitSecret": "The voice server's secret is not in the world",
@@ -4385,6 +4514,8 @@
       "hint.rulers": "While a player drags a token, the whole table sees the route it takes - through a secret passage too. Hide takes the ruler from the Player and Trusted Player roles, and Show gives it back. The GM roles keep theirs.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and the Final Truth Remnants that prove it. A season without a Mastermind is a legal season - this row never turns red.",
+      "step.foundryHeld": "The module holds Foundry's settings (optional)",
+      "hint.foundryHeld": "After Give back Foundry's settings the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings - also after it was switched off and on again. Open the window and press Hold them again, unless your table wants them given back.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
       "resetGoes": "This goes:",
@@ -4522,9 +4653,23 @@
       "checkClean": "Nothing to report - the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
-      "roomCountLine": "Rooms: {rooms}. Players: {players}. The guide suggests around {want}.",
+      "waitingForCast": "Waiting for the cast: create the students first.",
+      "fallsBackTo": "{name} (falls back to {pool})",
+      "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
+      "roomsCheckErrors": {
+        "one": "The room check found {n} problem on {scene}: fix it and check again.",
+        "other": "The room check found {n} problems on {scene}: fix them and check again."
+      },
+      "roomsJudged": {
+        "one": "Judged on {scene}. {n} scene holds rooms.",
+        "other": "Judged on {scene}. {n} scenes hold rooms."
+      },
+      "noNamedRegions": "No scene has a named region yet: draw each room as a Scene Region first.",
       "safeword": "Safeword",
-      "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default."
+      "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
+      "campaignBlock": "This campaign",
+      "startHereTitle": "Where to start",
+      "startHereText": "Start here: GM panel > Set the season up. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
@@ -4608,15 +4753,86 @@
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
       },
+      "lastCheckErrors": {
+        "one": "the last room check found {n} problem",
+        "other": "the last room check found {n} problems"
+      },
+      "checkNoScene": {
+        "problem": "No scene on the canvas",
+        "detail": "Open the scene you want checked, then check again."
+      },
+      "checkNoRooms": {
+        "problem": "No rooms on this scene",
+        "detail": "Tick “This is a room” for its regions in Room Setup (the Doors tab), then check again."
+      },
       "secretDoor": {
         "problem": "A Foundry secret door",
         "detail": "Any player can open it. In Season setup, the No Foundry secret doors row's Convert to passages makes it a wall, and a secret passage where it stands between two rooms."
       },
       "notRoom": {
         "problem": "Named, but not a room",
-        "passage": "It carries a {type} behaviour, so it is a passage, not a room: the fog draws no outline or reveal for it and no doorway leads into it.",
-        "player": "A player drew it, so it is never a room: the fog draws no outline or reveal for it and no doorway leads into it.",
-        "unmarked": "It is not marked as a room (Room Setup, the Doors tab, “This is a room”), so the fog draws no outline or reveal for it and no doorway leads into it."
+        "passage": "It carries a {type} behaviour: a passage.",
+        "player": "A player drew it.",
+        "unmarked": "Not marked as a room (Room Setup, the Doors tab, “This is a room”).",
+        "why": "The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it."
+      },
+      "uncoveredShare": "{pct}% of the map belongs to no room",
+      "uncoveredShareFloor": "{pct}% of {floor} belongs to no room",
+      "sceneFloor": "{scene} ({floor})",
+      "check": {
+        "showOnMap": "Show on map",
+        "unnamed": {
+          "room": "(no name)",
+          "problem": "Region with no name",
+          "why": "Rooms are matched by name, so a region with none is not a room: it never counts as a neighbour, which is one quiet way to get a doorway that leads nowhere."
+        },
+        "defaultName": {
+          "problem": "Room still has the name Foundry gave it",
+          "why": "A room is its name: players read it on the map, and keys, stashes and Room Setup all name it. Give it the room's own name before play."
+        },
+        "piecesDiffer": {
+          "problem": "Pieces of this room are set up differently",
+          "fact": "Differs between pieces: {what}",
+          "why": "A room drawn in several pieces reads each setting from the first piece that has it, so another piece's setting is not the room's. In Room Setup change the room's setting, Apply, then set it back and Apply: that gives every piece the same. Set the height in each piece's region settings.",
+          "field": {
+            "notShared": "No privacy",
+            "owner": "whose bedroom",
+            "elevation": "height"
+          }
+        },
+        "noShape": {
+          "problem": "No geometry the fog can read",
+          "why": "The region exists but its shape came back empty: nothing about this room will be drawn."
+        },
+        "overlap": {
+          "title": "Rooms overlap",
+          "problem": "Overlaps \"{other}\"",
+          "fact": "About {squares} squares of floor belong to both rooms.",
+          "deep": "About {squares} squares of floor belong to both rooms, reaching {depth} squares in.",
+          "why": "Where two rooms overlap, one room's border runs across the other's floor with no wall near it, and the whole shared border reads as one doorway. Rooms should touch; a sliver thinner than a quarter square is ignored."
+        },
+        "adrift": {
+          "problem": "Border runs away from the walls",
+          "fact": "{squares} squares of border with no wall.",
+          "why": "A border drawn away from the wall it stands for turns that whole side of the room into a doorway: the wall is never found, so nothing closes it."
+        },
+        "sealed": {
+          "title": "No way out: walled all round",
+          "problem": "No way out",
+          "fact": "Every stretch of the border is walled.",
+          "why": "Nothing glows as a doorway. If the room is sealed on purpose, leave it; if not, the door is missing."
+        },
+        "isolated": {
+          "title": "No way out: no room beside it",
+          "problem": "No way out",
+          "fact": "No room within a square of the border.",
+          "why": "The next room is more than a square away, so the two never meet at a doorway. Rooms should touch along the edge they share."
+        },
+        "lattice": {
+          "problem": "Corners off the map's own lattice",
+          "fact": {"one": "{n} corner up to {px} px off.", "other": "{n} corners up to {px} px off."},
+          "why": "The rest of the map is drawn to a half-square lattice. Draw with snapping on: a corner a fraction of a square out cannot be seen by eye and is enough to make two rooms overlap or miss."
+        }
       }
     },
     "Rooms": {

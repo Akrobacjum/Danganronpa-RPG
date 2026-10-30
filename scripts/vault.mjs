@@ -1186,13 +1186,57 @@ export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(sc
  * two answers, and neither of them was the guide's.
  */
 export function sharedRooms(scene) {
-    const out = [];
-    for (const [name, pieces] of piecesByName(scene)) {
-        if (flagOver(pieces, VAULT_FLAGS.owner)) continue;
-        if (flagOver(pieces, VAULT_FLAGS.notShared)) continue;
-        out.push(name);
+    return roomCensus(scene).rooms;
+}
+
+/*
+ * ONE CENSUS, THREE READERS (E20 C1, S07-38; the owner's Q-3, 29.10.2026). The Doors tab left
+ * locked rooms out and counted the living, the season checklist counted locked rooms and every
+ * student, and Pre-season checks counted every marked room, bedrooms included: one map read
+ * "17", "17" and "18" with three different cast sizes beside them. The rule is stated once here:
+ * a room counts when a GM marked it, nobody owns it (a bedroom) and it is not "No privacy";
+ * a locked room counts (the owner's answer), and is listed apart so a window can say how many
+ * of them are shut. `roomCensusOf` takes the rows, so the Doors tab applies the rule to the boxes
+ * on screen and `roomCensus` to the flags; `roomRatioLine` is the one sentence both print.
+ */
+
+/** The census of rows `{ name, room, owner, notShared, locked }`: `rooms` (the count), `locked` among them, `bedrooms`, `noPrivacy`. */
+export function roomCensusOf(rows) {
+    const out = { rooms: [], locked: [], bedrooms: [], noPrivacy: [] };
+    for (const row of rows ?? []) {
+        if (!row?.room) continue;
+        if (row.owner) out.bedrooms.push(row.name);
+        else if (row.notShared) out.noPrivacy.push(row.name);
+        else {
+            out.rooms.push(row.name);
+            if (row.locked) out.locked.push(row.name);
+        }
     }
-    return out;
+    return { ...out, count: out.rooms.length };
+}
+
+/** The census of this scene's rooms as their flags stand (see above); every piece of a room read as one (`flagOver`). */
+export function roomCensus(scene) {
+    return roomCensusOf([...piecesByName(scene)].map(([name, pieces]) => ({
+        name,
+        room: true,
+        owner: flagOver(pieces, VAULT_FLAGS.owner),
+        notShared: flagOver(pieces, VAULT_FLAGS.notShared),
+        locked: flagOver(pieces, ROOM_FLAGS.locked)
+    })));
+}
+
+/** The rooms-per-student sentence of the Doors tab and the season checklist: a census against the living students. */
+export function roomRatioLine(census, living) {
+    const want = roomsWantedFor(living);
+    const line = game.i18n.format("DRPG.Vault.roomRatio", {
+        rooms: plural("DRPG.Vault.roomCensus", { n: census.count }),
+        living,
+        per: living ? (census.count / living).toFixed(1) : "-",
+        target: ROOMS_PER_PLAYER,
+        want
+    });
+    return census.locked.length ? `${line} ${plural("DRPG.Vault.roomCensusLocked", { n: census.locked.length })}` : line;
 }
 
 /**
@@ -2775,14 +2819,16 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
          * never decided, leaves the box reading what the GM decided of the rest.
          */
         const possible = pieces.length > 0;
-        const isRoomNow = pieces.length && pieces.every(roomDecided)
-            ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        const decided = pieces.length > 0 && pieces.every(roomDecided);
+        const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
+        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart.
+        const undecidedMark = possible && !decided ? " data-drpg-undecided" : "";
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
             owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
-                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
+                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
@@ -3057,15 +3103,19 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
  * witnesses to anything.
  *
  * Deliberately not a mechanic - the GM closes wings by hand, which is
- * what the locks below are for. This is the number they need while
- * doing it, and it follows the boxes as they are ticked rather than
- * reporting the state the window opened in.
+ * what the locks below are for. The line follows the boxes as they are
+ * ticked rather than reporting the state the window opened in.
  *
- * Bedrooms are left out of the count because G-36 counts shared
- * rooms: a bedroom belongs to one person whether or not anybody else
- * can get into it.
+ * ONE CENSUS (E20 C1; the owner's Q-3, 29.10.2026). The count is
+ * `roomCensusOf`'s, the rule the checklist and Pre-season checks read off
+ * the flags: marked, no owner, not "No privacy", and a locked room
+ * counted - this line used to drop it, so a locked room and a dead
+ * student made it disagree with the checklist about one map. How many
+ * of the counted rooms are locked is said after the ratio, so closing a
+ * wing still shows here. Exported for R1500, which reads it on a form of
+ * its own.
  */
-function wireRoomRatio(dialog, rooms, living) {
+export function wireRoomRatio(dialog, rooms, living) {
     const ratio = dialog.element.querySelector("[data-drpg-ratio]");
     if (ratio) {
         const paintRatio = () => {
@@ -3073,38 +3123,38 @@ function wireRoomRatio(dialog, rooms, living) {
             /*
              * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
              *
-             * Both exclusions are columns the GM is looking at right
-             * now - the owner on the Bedrooms tab, "Counts as a room"
-             * on this one - so the line has to follow the ticks rather
-             * than the saved state, exactly as it already followed the
-             * locks. `sharedRooms()` is the same rule read from the
-             * flags, and is what the season checklist uses; this is
-             * that rule applied to what is on screen.
+             * Every column the census asks is one the GM is looking at
+             * right now - the owner on the Bedrooms tab, "This is a room",
+             * "No privacy" and the lock on this one - so the line follows
+             * the ticks rather than the saved state.
              */
-            const ticked = (prefix, room) =>
-                Boolean(form?.querySelector(
-                    `[name="${CSS.escape(`${prefix}:${room}`)}"]`)?.checked);
-            const ownedNow = room => Boolean(form?.querySelector(
-                `[name="${CSS.escape(`owner:${room}`)}"]`)?.value);
-
-            const open = rooms.filter(room =>
-                !ownedNow(room)
-                && !ticked("notshared", room)
-                && !ticked("locked", room));
-            const want = roomsWantedFor(living);
-            ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
-                open: open.length,
-                living,
-                per: living ? (open.length / living).toFixed(1) : "?",
-                target: ROOMS_PER_PLAYER,
-                want
-            });
-            ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
+            const field = (prefix, room) => form?.querySelector(`[name="${CSS.escape(`${prefix}:${room}`)}"]`);
+            const ticked = (prefix, room) => Boolean(field(prefix, room)?.checked);
+            /* A box drawn off is a name no piece of which may be a room (`roomCells`). A box nobody decided yet is ticked
+               as a suggestion (`data-drpg-undecided`), and counted only once the GM has changed it in this window: on a
+               fresh map every named region read as a room here, 12 against the checklist's 0 (E20 fix round, the
+               correctness review's C-10). The suggestions are said apart, after the ratio. */
+            const box = room => field("isroom", room);
+            const open = room => Boolean(box(room) && !box(room).disabled && box(room).checked);
+            const suggested = room => open(room) && box(room).hasAttribute("data-drpg-undecided") && !changed.has(room);
+            const census = roomCensusOf(rooms.map(room => ({
+                name: room,
+                room: open(room) && !suggested(room),
+                owner: field("owner", room)?.value ?? "",
+                notShared: ticked("notshared", room),
+                locked: ticked("locked", room)
+            })));
+            const pending = rooms.filter(suggested).length;
+            ratio.textContent = pending ? `${roomRatioLine(census, living)} ${plural("DRPG.Vault.roomCensusUndecided", { n: pending })}`
+                : roomRatioLine(census, living);
+            ratio.classList.toggle("drpg-warning", living > 0 && census.count > roomsWantedFor(living));
         };
+        const changed = new Set();
         dialog.element.addEventListener("change", ev => {
             const name = String(ev.target?.name ?? "");
+            if (name.startsWith("isroom:")) changed.add(name.slice("isroom:".length));
             if (name.startsWith("locked:") || name.startsWith("notshared:")
-                || name.startsWith("owner:")) paintRatio();
+                || name.startsWith("owner:") || name.startsWith("isroom:")) paintRatio();
         });
         paintRatio();
     }
@@ -3608,13 +3658,13 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const scenesTab = await import("./trial-scene.mjs");
     const passagesTab = await import("./passages-tab.mjs");
 
-    const { studentActors } = await import("./monokuma.mjs");
+    const { studentActors, studentCensus } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
     const { discoveredFor, applyDiscoveryChanges, sceneUncoveredPercent } =
         await import("./fog.mjs");
     const students = studentActors();
-    const { isDeceased } = await import("./chapter.mjs");
-    const living = students.filter(a => !isDeceased(a)).length;
+    // The living as the checklist counts them (E20 C1, `studentCensus`): `isDeceased` here missed a death the GMs keep.
+    const living = studentCensus(students).count;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
     // rolls and are never a room's stock - see `roomStockTables` in tables.mjs:
     // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar

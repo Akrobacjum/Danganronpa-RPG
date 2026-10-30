@@ -25,7 +25,7 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
+import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -987,7 +987,41 @@ export function overflowNowLine() {
         : game.i18n.format("DRPG.Overflow.current", { count: status.count, max: status.threshold });
 }
 
-export function overflowSection() {
+/**
+ * THE THRESHOLD SUGGESTED FOR THIS CAST (E20 C6, 30.10.2026; S02-59, D21). The default, 20, is tuned for sixteen
+ * players, and a table of five that kept it sees the darkening less often than the module's own formula means (two to
+ * three times less, as S02-59 reads it; not measured here); the hint beside the field gave the formula in words for
+ * other counts. The formula, 12 + half the
+ * living students, rounded and held to the field's range, is now worked out for this season; the GM decides, and the
+ * default stays until the rebalance after the first sessions (D21). Null with no student: nothing to suggest from.
+ * The pools are named in the line and are not in the formula (the formula of the config's header, unchanged).
+ */
+export function overflowSuggestion(students) {
+    const n = Number(students) || 0;
+    if (n <= 0) return null;
+    const { min, max } = OVERFLOW.range;
+    return Math.min(max, Math.max(min, Math.round(12 + n / 2)));
+}
+
+/**
+ * "Suggested for {n} students and {p} pools: {x}"; with no living student the line that says a suggestion comes with
+ * the cast (E20 fix round, C-8 = G-10: it printed "Suggested for 0 students and 1 pool: null").
+ */
+export function overflowSuggestionLine(students, pools) {
+    if (overflowSuggestion(students) === null) return game.i18n.localize("DRPG.Overflow.suggestNone");
+    return game.i18n.format("DRPG.Overflow.suggested", {
+        students: plural("DRPG.Overflow.suggestStudents", { n: students }),
+        pools: plural("DRPG.Overflow.suggestPools", { n: pools }),
+        x: overflowSuggestion(students)
+    });
+}
+
+/**
+ * The Overflow tab's markup. `suggestion` is the line for this season's cast, worked out by the window that draws the
+ * tab (gm-team-dialog.mjs `overflowSuggestionNow`): this file reads no cast, since despair.mjs and monokuma.mjs, which
+ * count it, import this one (R161 holds the import graph free of cycles).
+ */
+export function overflowSection({ suggestion = "" } = {}) {
     const status = overflowStatus();
     const { min, max } = OVERFLOW.range;
 
@@ -1037,6 +1071,7 @@ export function overflowSection() {
             <input type="number" name="ovf-threshold" value="${status.threshold}"
                    min="${min}" max="${max}">
         </label>
+        ${suggestion ? `<p class="notes drpg-overflow-suggested">${esc(suggestion)}</p>` : ""}
         <p class="notes">${esc(game.i18n.format("DRPG.Overflow.thresholdHint", { min, max }))}</p>
 
         <h4>${esc(game.i18n.localize("DRPG.Overflow.pool"))}</h4>

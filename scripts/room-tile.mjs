@@ -68,9 +68,9 @@ import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
-import { trialScene } from "./rooms.mjs";
+import { trialScene, roomNames } from "./rooms.mjs";
 import { hallRoom, HALL_ROOM_FLAG } from "./trial-scene.mjs";
 
 const TILE_ID = "drpg-room-tile";
@@ -531,24 +531,145 @@ function buildSearchPips({ max, left, sealed }) {
  * @returns {Promise<object|null>} the window, or null when nothing opened
  */
 export async function openRoomImage(path, room) {
-    const src = safeRoomImage(path);
-    if (!src) return null;
-    try {
-        // globalThis.Image, not a bare Image: the lint config declares no browser Image (13.10.2026, no-undef),
-        // and a test's stand-in goes on the same object.
-        const probe = new globalThis.Image();
-        probe.src = src;
-        if (typeof probe.decode === "function") await probe.decode();
-    } catch {
+    const picture = await decodeImage(path);
+    if (!picture.src) return null;
+    if (!picture.ok) {
         ui.notifications?.warn(game.i18n.localize("DRPG.Room.imageMissing"));
         return null;
     }
+    const src = picture.src;
     const popout = new foundry.applications.apps.ImagePopout({
         src, classes: [POPOUT_CLASS], window: { title: game.i18n.localize("DRPG.Room.tileLabel"), controls: [] }, showTitle: true
     });
     await popout.render({ force: true });
     if (popout.window?.title?.nodeType === 1) popout.window.title.textContent = room;
     return popout;
+}
+
+/**
+ * The decode probe the tile's window and Pre-season checks share (E20 C3, from `openRoomImage`): the path judged
+ * again (`safeRoomImage`), then a probe `Image` asked to decode it. Answers `{ ok, src, width, height, late }` - `src`
+ * null when the path is refused, `ok` false when the picture does not decode or `ms` passes first (`late` true then:
+ * nothing failed, it only took longer - E20 fix round, C-3), its natural size when it does. A probe without `decode`
+ * (jsdom has none) is not waited on and answers `ok` with whatever size it holds.
+ *
+ * @param {string} path
+ * @param {object} [options]
+ * @param {number|null} [options.ms]  how long the decode may take; null (the tile's window) waits as long as it takes
+ * @returns {Promise<{ok: boolean, src: string|null, width: number, height: number, late: boolean}>}
+ */
+export async function decodeImage(path, { ms = null } = {}) {
+    const src = safeRoomImage(path);
+    if (!src) return { ok: false, src: null, width: 0, height: 0, late: false };
+    let timer = null;
+    const LATE = Symbol("late");
+    try {
+        // globalThis.Image, not a bare Image: the lint config declares no browser Image (13.10.2026, no-undef),
+        // and a test's stand-in goes on the same object.
+        const probe = new globalThis.Image();
+        probe.src = src;
+        if (typeof probe.decode === "function") {
+            const late = Number.isFinite(ms) ? new Promise(resolve => { timer = setTimeout(() => resolve(LATE), ms); }) : null;
+            if ((late ? await Promise.race([probe.decode(), late]) : await probe.decode()) === LATE) {
+                return { ok: false, src, width: 0, height: 0, late: true };
+            }
+        }
+        return { ok: true, src, width: Number(probe.naturalWidth) || 0, height: Number(probe.naturalHeight) || 0, late: false };
+    } catch {
+        return { ok: false, src, width: 0, height: 0, late: false };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/**
+ * What this server says of a picture's file, by a HEAD request bounded by `ROOM_IMAGE_LIMITS.probeMs`: its status
+ * and its length in bytes, `bytes` null when no length came (a server may send none; another host may refuse the
+ * request) and `status` null when no answer came. What a real Foundry server and The Forge send is not measured here.
+ *
+ * @param {string} src  a path `safeRoomImage` accepted
+ * @returns {Promise<{status: number|null, bytes: number|null}>}
+ */
+async function headOfImage(src, { ms = ROOM_IMAGE_LIMITS.probeMs } = {}) {
+    const abort = typeof globalThis.AbortController === "function" ? new globalThis.AbortController() : null;
+    const timer = setTimeout(() => abort?.abort(), ms);
+    try {
+        const answer = await fetch(src, { method: "HEAD", signal: abort?.signal });
+        const length = answer.headers?.get?.("content-length");
+        const bytes = length === null || length === undefined || length === "" ? null : Number(length);
+        return { status: Number.isFinite(answer.status) ? answer.status : null, bytes: Number.isFinite(bytes) ? bytes : null };
+    } catch {
+        return { status: null, bytes: null };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/**
+ * Every room picture of every scene, checked for Pre-season checks on the GM's browser (E20 C3; amend 11.10's
+ * decode row, E77 D5's size warning, the owner's Q-7): each path once, whichever rooms show it. A picture does not
+ * load when it does not decode or the server answers it is not there (404, 410 - the headless harness's Image has
+ * no decode, so there the HEAD is what tells); it is large over `ROOM_IMAGE_LIMITS`' pixels on a side (`pixels`) or
+ * bytes (`heavy`); its size is unknown when the server sent no length. Each entry is `{ path, rooms: [{ room,
+ * scene }], width, height, bytes }`, in the order the scenes and their rooms are read.
+ *
+ * SLOW IS NOT MISSING, AND A FEW AT A TIME (E20 fix round, the correctness review's C-3). A decode that did not end
+ * within the probe's time was "does not load - pick the file again" even with the server's 200 and a length, and
+ * every picture was probed at once on one connection, so a school of eighteen 3 MB pictures on a 30 Mbit/s line read
+ * all missing. Now a picture is missing only on a decode that fails or the server's 404/410; one whose decode ran out
+ * of time otherwise is `late` ("not checked in time": its pixels unread), and `large` as well when the server's length
+ * is over the limit. The pictures are probed `ROOM_IMAGE_LIMITS.atOnce` at a time.
+ *
+ * @param {object} [options]
+ * @param {Iterable<Scene>} [options.scenes]  every scene unless handed in (R1510, R1511 hand scenes of plain objects)
+ * @param {function(string): Promise<{status: number|null, bytes: number|null}>} [options.head]  the HEAD request
+ * @param {number} [options.probeMs]  how long each decode and HEAD may take (R1536 hands 30 ms)
+ * @returns {Promise<{missing: object[], large: object[], unknownSize: object[], late: object[], checked: number}>}
+ */
+export async function checkRoomImages({ scenes = game.scenes, probeMs = ROOM_IMAGE_LIMITS.probeMs, head = src => headOfImage(src, { ms: probeMs }) } = {}) {
+    const byPath = new Map();
+    for (const scene of scenes ?? []) {
+        for (const room of roomNames(scene)) {
+            const path = roomImage(room, scene);
+            if (!path) continue;
+            if (!byPath.has(path)) byPath.set(path, []);
+            byPath.get(path).push({ room, scene: scene.name ?? "" });
+        }
+    }
+    const { side, bytes: heavyBytes, atOnce } = ROOM_IMAGE_LIMITS;
+    const probe = async ([path, rooms]) => {
+        const [picture, answer] = await Promise.all([decodeImage(path, { ms: probeMs }), head(path).catch(() => ({ status: null, bytes: null }))]);
+        const gone = (!picture.ok && !picture.late) || answer?.status === 404 || answer?.status === 410;
+        const bytes = Number.isFinite(answer?.bytes) ? answer.bytes : null;
+        return { path, rooms, width: picture.width, height: picture.height, bytes, gone, late: !gone && picture.late === true };
+    };
+    // `atOnce` workers, each taking the next picture; `read` keeps the scenes' order.
+    const all = [...byPath];
+    const read = new Array(all.length);
+    let next = 0;
+    const worker = async () => {
+        while (next < all.length) {
+            const i = next++;
+            read[i] = await probe(all[i]);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(atOnce, all.length)) }, worker));
+    const out = { missing: [], large: [], unknownSize: [], late: [], checked: read.length };
+    for (const { gone, late, ...entry } of read) {
+        if (gone) {
+            out.missing.push(entry);
+            continue;
+        }
+        if (late) {
+            out.late.push(entry);
+            if (entry.bytes !== null && entry.bytes > heavyBytes) out.large.push({ ...entry, pixels: false, heavy: true });
+            continue;
+        }
+        const pixels = entry.width > side || entry.height > side, heavy = entry.bytes !== null && entry.bytes > heavyBytes;
+        if (pixels || heavy) out.large.push({ ...entry, pixels, heavy });
+        if (entry.bytes === null) out.unknownSize.push(entry);
+    }
+    return out;
 }
 
 /**

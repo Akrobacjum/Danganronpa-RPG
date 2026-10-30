@@ -72,9 +72,22 @@ export function monokumaFor(actor) {
     return gms.find(u => u.id === assignedId) ?? gms[0];
 }
 
-/** True when this student deliberately feeds no Despair pool. */
-export function feedsNobody(actor) {
-    return assignments()[actor?.id] === NO_MONOKUMA;
+/**
+ * The pool a GM assigned this student to by hand, or null (E20 C1, S06-28). `monokumaFor` falls back
+ * to the first pool, so the checklist's "Every student has a Monokuma watching" asked it and was
+ * true of every student the moment one pool existed - a row that checked nothing. This reads the
+ * assignment alone: a pool holder named in Despair Flow, never the fallback. `unassigned` is its
+ * complement over the students who do not feed nobody. `map` as `feedsNobody`'s.
+ */
+export function explicitPool(actor, map = assignments()) {
+    const assignedId = map?.[actor?.id];
+    if (!assignedId || assignedId === NO_MONOKUMA) return null;
+    return monokumas().find(u => u.id === assignedId) ?? null;
+}
+
+/** True when this student deliberately feeds no Despair pool. `map` is Despair Flow's unless handed in (E20 C1, R1502). */
+export function feedsNobody(actor, map = assignments()) {
+    return map?.[actor?.id] === NO_MONOKUMA;
 }
 
 /** Characters looked after by one Monokuma, fallback included. */
@@ -84,7 +97,7 @@ export function studentsOf(userId) {
 
 /** Characters explicitly excluded from every Despair pool. */
 export function excludedStudents() {
-    return students().filter(feedsNobody);
+    return students().filter(a => feedsNobody(a));
 }
 
 /** Assign one character. GM only. */
@@ -146,9 +159,7 @@ export async function autoAssign() {
  * deliberately excluded are not "unassigned" - that was a decision.
  */
 export function unassigned() {
-    const map = assignments();
-    const gmIds = new Set(monokumas().map(u => u.id));
-    return students().filter(a => map[a.id] !== NO_MONOKUMA && !gmIds.has(map[a.id]));
+    return students().filter(a => !feedsNobody(a) && !explicitPool(a));
 }
 
 /** Drop assignments for actors or users that no longer exist. */

@@ -3662,13 +3662,14 @@ const REGRESSIONS = [
         const season = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
         ok(/function readDraft\(/.test(season) && /function paintDraft\(/.test(season),
             "the window cannot carry what was typed across a reopen");
-        ok(/openSeasonSetup\(\{ draft = null \} = \{\}\)/.test(season),
+        // E20 C4 (S06-30) hands the opener the window stack too (`opened`), after the draft.
+        ok(/openSeasonSetup\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
             "the opener cannot be handed a draft");
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
         const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft \}\)\)/.test(rows),
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
             "the row still closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
@@ -9082,6 +9083,8 @@ const REGRESSIONS = [
             ["READ room-tile.mjs#roomFacts#roomDescription -> which", "the room and scene `viewerRoom` gives: the viewer's own token's, at the spot its last settled route left it (R504, scenario 66 W1)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> src", "`roomImage` answers `safeRoomImage` of the stored value on every read, null when refused (R504 reads a refused value as null)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> which", "as the description: the viewer's own room on its own scene (R504, scenario 66 W1)"],
+            ["READ room-tile.mjs#checkRoomImages#roomImage -> src", "Pre-season checks' probe and HEAD request, on the GM's browser: `roomImage`'s answer, `safeRoomImage` of the stored value, and `decodeImage` judges it again (E20 C3; R1510, R1511)"],
+            ["READ room-tile.mjs#checkRoomImages#roomImage -> which", "every room of every scene, for the GM's own report (Pre-season checks); never a player's view and nothing drawn but the rooms' names (R1510)"],
             ["READ room-tile.mjs#tileView#hallRoom -> text", "the hall's name and words, handed to `hallView` as strings; the tile sets them as text only (R509, R582)"],
             ["READ room-tile.mjs#tileView#hallRoom -> src", "`hallRoom` answers `safeRoomImage` of the stored value on every read, and `hallView` and the paint judge it again (R582 reads another host's and a `javascript:` picture as none)"],
             ["READ room-tile.mjs#tileView#hallRoom -> which", "the hall linked as the trial hall (`trialScene()`), the same for every viewer, and only while `viewerRoom` says `trial` (scenario 41 N6)"],
@@ -9102,7 +9105,7 @@ const REGRESSIONS = [
             ["HOOK room-tile.mjs#registerRoomTile#updateScene -> which", "a repaint when the module's `hallRoom` flag of the linked hall changes (E79 C11); the event chooses no room, `tileView` does (scenario 41 N6)"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion -> which", "a repaint of `viewerRoom` (a GM's edit of the room's words or picture, or of its shape); the event chooses no room (scenario 74 A)"],
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
-            ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
+            ["SRC room-tile.mjs#decodeImage#src -> src", "the probe that decodes the picture before the tile's window opens and for Pre-season checks (moved from `openRoomImage`, E20 C3), only from `safeRoomImage` of the path, judged again inside it (R505, R1510)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> text", "the window's title: asked for under the tile's own label, then the room's name written as `textContent` of the heading at `window.title` (R505, a stand-in: the harness has no ImagePopout); how Foundry draws an option's title is not read here (LIVE-E77-04)"],
             ["SRC room-tile.mjs#paintTileRow#src -> src", "the narrow row's 78x44 thumbnail (E77 C8): `img.src` only from `safeRoomImage` of the view's path, the path `paintRoomTile` gives the art layer; R505 reads it as that path and paints a `javascript:` picture with no thumbnail"],
@@ -12372,8 +12375,10 @@ const REGRESSIONS = [
         const rooms = code("rooms.mjs"), movement = code("movement.mjs"), fog = code("fog.mjs"), diag = code("fog-diagnostics.mjs");
         const { crossingCost } = await import("./movement.mjs");
         const onLevel = fnSource(rooms, "onLevel"), offer = fnSource(fog, "floorOffer"), check = fnSource(diag, "checkRegions");
-        const FINDINGS = ["Region with no name", "DRPG.Fog.notRoom.problem", "No geometry the fog can read", "Overlaps \"",
-            "Border runs away from the walls", "No way out", "Corners off the map's own lattice", "Room still has the name Foundry gave it"];
+        // Keyed since E20 C2 (S01-23): each finding by its kind, `finding("<kind>"` (fog-diagnostics.mjs), or its key; the pieces row since E20 C3.
+        const FINDINGS = ["finding(\"unnamed\"", "DRPG.Fog.notRoom.problem", "finding(\"noShape\"", "finding(\"overlap\"",
+            "finding(\"adrift\"", "\"sealed\" : \"isolated\"", "finding(\"lattice\"", "finding(\"defaultName\"",
+            "finding(\"piecesDiffer\""];
         const facts = {
             levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel)
                 && /const id = level\?\.id \?\? level;/.test(onLevel) && /includedInLevel\(id\)/.test(onLevel) && /levels\.has\(id\)/.test(onLevel),
@@ -12402,7 +12407,7 @@ const REGRESSIONS = [
                     noStairs: [/a change of floor between two rooms they do not link is refused, and the refusal names only the room you stand in/],
                     offer: [/offers a player the floors their own tokens stand on and every floor holding a room they have found, lowest first, and a GM or the Mastermind every floor; it appears only on a scene of two floors or more/],
                     sameRule: [/A player sees the rooms their character has discovered on every floor exactly as on their own: under the veil, with nobody else's token in them\. A room they have never been in stays under full fog on every floor\./],
-                    regionCheck: [/\| `checkRegions\(\)` \| checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a room still bearing the name Foundry gave it, a named region that is not a room \(and why\), and corners off the map's own lattice;/],
+                    regionCheck: [/\| `checkRegions\(\)` \| checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a room still bearing the name Foundry gave it, a room whose pieces differ in No privacy, owner or height, a named region that is not a room \(and why\), and corners off the map's own lattice;/],
                     floorColumn: [/`checkRegions\(\)` checks each floor apart and names it in its `floor` column/,
                         /each floor is checked apart and named in the `floor` column \(the `level` column is the finding's weight: error, warning or info\)/]
                 },
@@ -12422,7 +12427,7 @@ const REGRESSIONS = [
                     noStairs: [/zmiana piętra między dwoma pokojami, których schody nie łączą, jest odrzucana, a odmowa wymienia tylko pokój, w którym stoisz/],
                     offer: [/proponuje graczowi piętra, na których stoją jego tokeny, i każde piętro z pokojem, który odkrył, od najniższego, a GMowi i Mastermindowi każde piętro; pojawia się tylko na scenie o co najmniej dwóch piętrach/],
                     sameRule: [/Gracz widzi pokoje odkryte przez swoją postać na każdym piętrze dokładnie tak jak na własnym: za zasłoną, bez cudzych tokenów\. Pokój, w którym nigdy nie był, zostaje pod pełną mgłą na każdym piętrze\./],
-                    regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
+                    regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, pokój, którego części różnią się brakiem prywatności, właścicielem albo wysokością, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
                     floorColumn: [/`checkRegions\(\)` sprawdza każde piętro osobno i podaje je w kolumnie `floor`/,
                         /sprawdza każde piętro osobno i podaje je w kolumnie `floor` \(kolumna `level` to waga ustalenia: error, warning albo info\)/]
                 },

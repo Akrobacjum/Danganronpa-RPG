@@ -5,7 +5,8 @@
  * real shape in the layer's space (`regionShapes`, traced by
  * `traceRegionPathsAt`), a polyline's length, resampling, smoothing and trimming,
  * a point's distance to a segment, whether a point lies inside polygons, a
- * polygon's area, and `clamp01`. Each takes what it reads as arguments and
+ * polygon's area, a polygon cut to a rect and a region's area inside one (`clipToRect`,
+ * `regionAreaIn`, E20 C1), and `clamp01`. Each takes what it reads as arguments and
  * returns numbers or points; the one that draws, `traceRegionPathsAt`, draws
  * only onto the Graphics it is handed. What it does not hold: anything that
  * knows about doorways, the fog's layer, the ledger, a room's reveal or the map's
@@ -432,4 +433,60 @@ export function polygonArea(flat) {
         area += x1 * y2 - x2 * y1;
     }
     return Math.abs(area) / 2;
+}
+
+/**
+ * A flat polygon cut to an axis-aligned rect `{ x, y, width, height }` (Sutherland-Hodgman, one
+ * edge of the rect at a time). The rect is convex, so the area of what is left is the area of the
+ * polygon inside it, a concave polygon included (E20 C1, S07-13: `sceneUncoveredPercent`).
+ */
+export function clipToRect(flat, rect) {
+    const x0 = rect.x, y0 = rect.y, x1 = rect.x + rect.width, y1 = rect.y + rect.height;
+    // Each edge of the rect: which points it keeps, and where a segment crosses it.
+    const sides = [
+        { keeps: p => p[0] >= x0, cut: (a, b) => { const t = (x0 - a[0]) / (b[0] - a[0]); return [x0, a[1] + t * (b[1] - a[1])]; } },
+        { keeps: p => p[0] <= x1, cut: (a, b) => { const t = (x1 - a[0]) / (b[0] - a[0]); return [x1, a[1] + t * (b[1] - a[1])]; } },
+        { keeps: p => p[1] >= y0, cut: (a, b) => { const t = (y0 - a[1]) / (b[1] - a[1]); return [a[0] + t * (b[0] - a[0]), y0]; } },
+        { keeps: p => p[1] <= y1, cut: (a, b) => { const t = (y1 - a[1]) / (b[1] - a[1]); return [a[0] + t * (b[0] - a[0]), y1]; } }
+    ];
+    let points = [];
+    for (let i = 0; i + 1 < flat.length; i += 2) points.push([flat[i], flat[i + 1]]);
+    for (const side of sides) {
+        const out = [];
+        for (let i = 0; i < points.length; i++) {
+            const cur = points[i], prev = points[(i + points.length - 1) % points.length];
+            if (side.keeps(cur)) {
+                if (!side.keeps(prev)) out.push(side.cut(prev, cur));
+                out.push(cur);
+            } else if (side.keeps(prev)) out.push(side.cut(prev, cur));
+        }
+        points = out;
+        if (!points.length) break;
+    }
+    return points.flat();
+}
+
+/**
+ * The area of a region's shapes inside `rect`, holes taken off (E20 C1, S07-13). `polygonTree`
+ * first, as `regionShapes` reads it: an outline adds, a hole node subtracts - `regionShapes` skips
+ * holes to fill an outline whole, which over an area would count a courtyard as floor. With no
+ * tree, the shapes `regionShapes` reads, which carry no holes.
+ */
+export function regionAreaIn(region, rect) {
+    const origin = { x: 0, y: 0 };
+    const tree = region?.polygonTree ?? region?.object?.polygonTree;
+    if (tree?.[Symbol.iterator]) {
+        let area = 0, read = false;
+        for (const node of tree) {
+            const flat = flattenPoints(node?.points ?? node?.polygon?.points, origin);
+            if (!flat) continue;
+            read = true;
+            const inside = polygonArea(clipToRect(flat, rect));
+            area += node?.isHole ? -inside : inside;
+        }
+        if (read) return Math.max(0, area);
+    }
+    let area = 0;
+    for (const flat of regionShapes(region, origin)) area += polygonArea(clipToRect(flat, rect));
+    return area;
 }
