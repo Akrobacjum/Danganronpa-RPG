@@ -23314,6 +23314,131 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ inside: "open", outside: "leaving", afterOutside: "closed", twice: "open", row: [true, "leaving"], afterRow: "closed", warned: true, left: 0 }),
             "[after three clicks inside; at the body's click, and after it; after two opens; a row clicked (found, then the roster), and after; whether openMessenger said 'not a player' for the stand-in; the roster's click listeners left on the document]");
     }],
+    ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
+        /*
+         * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).
+         * `musicMapRows` offered every playlist, the cue playlist (SITUATIONAL_PLAYLIST, matched by name) among them, and
+         * a state mapped onto it played the GM's cues as that state's music. Stand-ins only: three playlists (the cue
+         * playlist by its name, two others) handed to `musicMapRows`, `playlistFor` and `dropCueMappings`, a map of three
+         * keys one of them on the cue playlist, and a write that records instead of writing. Nothing of the world is read
+         * but the map `musicMapRows` marks as selected. Red at C3's parent: no export of `musicMapRows` or
+         * `dropCueMappings`, and `playlistFor` reading the world's map, not the one handed to it.
+         */
+        const M = await import("./music.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const cue = { id: "R1067CuePlaylist", name: ` ${SITUATIONAL_PLAYLIST.toUpperCase()} ` };
+        const a = { id: "R1067PlaylistA01", name: "R1067 A" }, b = { id: "R1067PlaylistB01", name: "R1067 B" };
+        const all = [a, cue, b];
+        const playlists = { get: id => all.find(p => p.id === id) };
+        const map = { "time.morning": cue.id, "time.noon": a.id, search: b.id };
+        const read = { exports: ["musicMapRows", "dropCueMappings"].filter(name => typeof M[name] !== "function") };
+        if (typeof M.musicMapRows === "function") {
+            const tpl = document.createElement("template");
+            tpl.innerHTML = `<table><tbody>${M.musicMapRows(all)}</tbody></table>`;
+            const selects = [...tpl.content.querySelectorAll("select[name^='state:']")];
+            const values = new Set(selects.flatMap(s => [...s.options].map(o => o.value)));
+            read.offered = { rows: selects.length === M.MUSIC_STATES.length, cue: values.has(cue.id), others: values.has(a.id) && values.has(b.id) };
+        }
+        read.playlistFor = [M.playlistFor("time.morning", { map, playlists })?.id ?? null, M.playlistFor("time.noon", { map, playlists })?.id ?? null];
+        if (typeof M.dropCueMappings === "function") {
+            const run = async primary => {
+                let stored = { ...map };
+                const writes = [];
+                const write = next => { writes.push({ ...next }); stored = { ...next }; };
+                const first = await M.dropCueMappings({ primary, map: stored, playlists, write });
+                const second = await M.dropCueMappings({ primary, map: stored, playlists, write });
+                return { first, second, writes };
+            };
+            read.primary = await run(true);
+            read.other = await run(false);
+        }
+        equal(stableJson(read), stableJson({
+            exports: [],
+            offered: { rows: true, cue: false, others: true },
+            playlistFor: [null, a.id],
+            primary: { first: ["time.morning"], second: [], writes: [{ "time.noon": a.id, search: b.id }] },
+            other: { first: [], second: [], writes: [] }
+        }), "[the exports missing]; [the Music tab's selects: one a state, the cue playlist offered, the others offered]; [playlistFor of the key on the cue "
+            + "playlist and of a key on another]; [as the primary: the keys the first call dropped, the second's, every write]; [the same on a GM who is not the primary]");
+    }],
+    ["R1068 - the times of day on the Music tab read in the table's language: each time row's label is TIME_OF_DAY_LABELS as it stands when the row is drawn, after i18n.mjs swapped the table at i18nInit (E50 C3; E50-24)", async () => {
+        /*
+         * E50 C3, 30.10.2026 (found reading for E50). `MUSIC_STATES`' time rows took `label: TIME_OF_DAY_LABELS[time]` at
+         * import, before `localizeConfig` swaps config.mjs's tables in place at `i18nInit`, so a Polish table read
+         * "Morning" in the Sound window. Here the table is swapped to stand-in words for the length of the reading (put
+         * back in `finally`, as the language swap does in place), and the rows' labels and the drawn rows' first cells
+         * read. Red at C3's parent: the English words of import time.
+         */
+        const M = await import("./music.mjs");
+        const C = await import("./config.mjs");
+        const saved = { ...C.TIME_OF_DAY_LABELS };
+        const words = Object.fromEntries(C.TIMES_OF_DAY.map((time, i) => [time, `R1068 stand-in ${i}`]));
+        const read = {};
+        try {
+            Object.assign(C.TIME_OF_DAY_LABELS, words);
+            read.labels = M.MUSIC_STATES.filter(s => s.key.startsWith("time.")).map(s => s.label);
+            if (typeof M.musicMapRows === "function") {
+                const tpl = document.createElement("template");
+                tpl.innerHTML = `<table><tbody>${M.musicMapRows([])}</tbody></table>`;
+                read.drawn = [...tpl.content.querySelectorAll("tr")].map(tr => tr.querySelector("td")?.textContent.trim()).filter(t => t.startsWith("R1068"));
+            } else read.drawn = "no musicMapRows";
+        } finally {
+            Object.assign(C.TIME_OF_DAY_LABELS, saved);
+        }
+        read.back = M.MUSIC_STATES.filter(s => s.key.startsWith("time.")).map(s => s.label);
+        equal(stableJson(read), stableJson({ labels: Object.values(words), drawn: Object.values(words), back: C.TIMES_OF_DAY.map(t => saved[t]) }),
+            "[the time rows' labels with the table swapped]; [the drawn rows' first cells]; [the labels with the table put back]");
+    }],
+    ["R1069 - the Music slider shows and writes Foundry's own number: a position p is the volume inputToVolume(p) and a volume v the position volumeToInput(v), through Foundry's AudioHelper where it has them and Foundry's curve (x ** 1.5) where it does not, so 50 writes 0.3536 and 0.3536 shows 50; the Sound slider stays linear (E50 C3; S11-41, E50-25, LIVE-E50-03)", async () => {
+        /*
+         * E50 C3, 30.10.2026; audit S11-41. The Music slider wrote `core.globalPlaylistVolume` as the position it stood
+         * at and showed `Math.round(volume * 100)`, where Foundry's own playlist slider shows and writes through
+         * AudioHelper's curve (`volumeToInput(v) = v ** (1 / 1.5)`, `inputToVolume(x) = x ** 1.5`, read in fvtt-types
+         * 14.366, not in v14's code: LIVE-E50-03), so one volume read as two numbers. Stand-ins: an AudioHelper with a
+         * curve of its own (its numbers must come back), none (the formula), and `game.settings.get`/`set` for the two
+         * volumes (a read answers 0.3536 for the music and { sound: 0.25 } for the module's, a write is recorded and not
+         * made), put back in `finally`. Red at C3's parent: no such functions, the slider at 35, and 0.5 written.
+         */
+        const S = await import("./sfx.mjs");
+        const r4 = n => (Number.isFinite(n) ? Math.round(n * 1e4) / 1e4 : null);
+        const helper = { inputToVolume: x => x / 4, volumeToInput: v => v * 4 };
+        const read = { missing: ["musicInputToVolume", "musicVolumeToInput"].filter(name => typeof S[name] !== "function") };
+        read.formula = [r4(S.musicInputToVolume?.(0.5, null)), r4(S.musicVolumeToInput?.(0.3536, null))];
+        read.helper = [S.musicInputToVolume?.(0.5, helper) ?? null, S.musicVolumeToInput?.(0.125, helper) ?? null];
+        const settings = game.settings;
+        const hadGet = Object.prototype.hasOwnProperty.call(settings, "get"), hadSet = Object.prototype.hasOwnProperty.call(settings, "set");
+        const realGet = settings.get, realSet = settings.set;
+        const writes = [];
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === "core" && key === "globalPlaylistVolume") return 0.3536;
+                if (ns === MODULE_ID && key === SETTINGS.sfxVolumes) return { sound: 0.25 };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value) {
+                if ((ns === "core" && key === "globalPlaylistVolume") || (ns === MODULE_ID && key === SETTINGS.sfxVolumes)) {
+                    writes.push([`${ns}.${key}`, typeof value === "number" ? r4(value) : value]);
+                    return value;
+                }
+                throw new Error(`R1069 wrote ${ns}.${key}, which this test does not stand in`);
+            };
+            const tpl = document.createElement("template");
+            tpl.innerHTML = S.soundSlidersHtml();
+            read.shown = ["music", "sound"].map(key => tpl.content.querySelector(`input[name="vol:${key}"]`)?.value ?? null);
+            await S.setSfxVolume("music", 0.5);
+            await S.setSfxVolume("sound", 0.5);
+        } finally {
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            if (hadSet) settings.set = realSet; else delete settings.set;
+        }
+        read.writes = writes;
+        equal(stableJson(read), stableJson({
+            missing: [], formula: [0.3536, 0.5], helper: [0.125, 0.5],
+            shown: ["50", "25"],
+            writes: [["core.globalPlaylistVolume", 0.3536], [`${MODULE_ID}.${SETTINGS.sfxVolumes}`, { sound: 0.5 }]]
+        }), "[the functions missing]; [position 0.5 to a volume and 0.3536 back, with no AudioHelper]; [the same through a stand-in "
+            + "AudioHelper]; [the Music and Sound sliders drawn at 0.3536 and 0.25]; [what the Music and Sound sliders write at 50]");
+    }],
     ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
         /*
          * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie

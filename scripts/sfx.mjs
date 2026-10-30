@@ -402,6 +402,29 @@ function foundryMusicVolume() {
     }
 }
 
+/*
+ * THE MUSIC SLIDER IS FOUNDRY'S OWN NUMBER (E50 C3; audit S11-41, Q-E50-4). Foundry's playlist volume slider shows
+ * and writes through AudioHelper's curve - the position is `volumeToInput(volume)`, the volume `inputToVolume(position)`
+ * - and this slider wrote the position as the volume and showed the volume as the position, so one volume read as
+ * two numbers (Foundry's 50 here was 35). Foundry's own functions where it has them, else the same curve
+ * (`v ** (1 / 1.5)`, `x ** 1.5`, read in fvtt-types 14.366, not in v14's code: LIVE-E50-03). The Sound slider is this
+ * module's own and stays linear. `helper` stands in for Foundry's AudioHelper in a test; `null` is "Foundry has none".
+ */
+export function musicVolumeToInput(volume, helper = globalThis.foundry?.audio?.AudioHelper) {
+    const v = clamp(Number(volume) || 0, 0, 1);
+    return typeof helper?.volumeToInput === "function" ? helper.volumeToInput(v) : v ** (1 / 1.5);
+}
+
+export function musicInputToVolume(position, helper = globalThis.foundry?.audio?.AudioHelper) {
+    const x = clamp(Number(position) || 0, 0, 1);
+    return typeof helper?.inputToVolume === "function" ? helper.inputToVolume(x) : x ** 1.5;
+}
+
+/** Where a slider stands, 0-1, for a volume: the Music slider on Foundry's curve, every other one linear. */
+function volumeToSlider(slider, volume) {
+    return SFX_SLIDERS[slider]?.proxiesFoundryMusic ? musicVolumeToInput(volume) : volume;
+}
+
 /**
  * How loud a slider is on this browser, 0–1.
  *
@@ -418,13 +441,14 @@ export function sfxVolume(slider = "sound") {
 }
 
 /**
- * Move a slider. Client-scoped, so this is never an act on anybody else's ears.
+ * Move a slider to a position, 0-1. Client-scoped, so this is never an act on anybody else's ears. The Music slider's
+ * position is written as Foundry's volume for it (`musicInputToVolume`, E50 C3); every other slider's is its volume.
  */
 export async function setSfxVolume(slider, value) {
     const level = clamp(Number(value) || 0, 0, 1);
 
     if (SFX_SLIDERS[slider]?.proxiesFoundryMusic) {
-        return game.settings.set("core", "globalPlaylistVolume", level);
+        return game.settings.set("core", "globalPlaylistVolume", musicInputToVolume(level));
     }
     if (!SFX_VOLUME_KEYS.includes(slider)) {
         error(`Asked to set an unknown volume slider "${slider}".`);
@@ -1034,22 +1058,22 @@ export async function testSfx(key) {
     if (!event) {
         return {
             played: false,
-            why: `No such event. Known keys: ${Object.keys(SFX_EVENTS).join(", ")}`
+            why: game.i18n.format("DRPG.Sound.why.noEvent", { keys: Object.keys(SFX_EVENTS).join(", ") })
         };
     }
 
     const src = soundFor(key);
-    if (!src) return { played: false, key, why: "No file is mapped to this event yet." };
+    if (!src) return { played: false, key, why: game.i18n.localize("DRPG.Sound.why.noFile") };
 
     const volume = event.ignoresVolume ? 1 : sfxVolume("sound");
-    if (volume <= 0) return { played: false, key, src, why: "The Sound slider is at zero." };
+    if (volume <= 0) return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.soundZero") };
 
     const interfaceVolume = (() => {
         try { return Number(game.settings.get("core", "globalInterfaceVolume")); }
         catch { return null; }
     })();
     if (interfaceVolume === 0) {
-        return { played: false, key, src, why: "Foundry's own Interface volume is at zero." };
+        return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.interfaceZero") };
     }
 
     // Checked HERE rather than left to `force`, and the reason is measured:
@@ -1060,13 +1084,12 @@ export async function testSfx(key) {
     if (game.audio?.locked) {
         return {
             played: false, key, src,
-            why: "This browser has not been allowed to play audio yet. "
-                + "Click anywhere on the page first, then try again."
+            why: game.i18n.localize("DRPG.Sound.why.locked")
         };
     }
 
     const sent = fire(key, true);
-    if (!sent) return { played: false, key, src, why: "The audio layer refused it." };
+    if (!sent) return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.refused") };
 
     // The one thing a Test button has to be able to say, and the only one that
     // cannot be answered from settings: whether the file is really there.
@@ -1076,10 +1099,10 @@ export async function testSfx(key) {
         new Promise(resolve => setTimeout(() => resolve(timeout), TEST_TIMEOUT_MS))
     ]);
     if (sound === timeout) {
-        return { played: false, key, src, why: "The file did not finish loading." };
+        return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.timeout") };
     }
     if (sound?.failed) {
-        return { played: false, key, src, why: "Foundry could not load that file." };
+        return { played: false, key, src, why: game.i18n.localize("DRPG.Sound.why.failed") };
     }
     return { played: true, key, src, volume, interfaceVolume };
 }
@@ -1235,14 +1258,17 @@ export function refreshSoundLauncher() {
 
 /** The two sliders. The whole of the window for a player - see `openSoundDialog`. */
 export function soundSlidersHtml() {
-    const rows = Object.entries(SFX_SLIDERS).map(([key, slider]) => `
+    const rows = Object.entries(SFX_SLIDERS).map(([key, slider]) => {
+        const position = Math.round(volumeToSlider(key, sfxVolume(key)) * 100);
+        return `
         <label class="drpg-sound-slider" data-drpg-slider="${key}">
             <span class="drpg-sound-slider-name">${foundry.utils.escapeHTML(slider.label)}</span>
             <input type="range" min="0" max="100" step="1"
-                   name="vol:${key}" value="${Math.round(sfxVolume(key) * 100)}" />
-            <output>${Math.round(sfxVolume(key) * 100)}%</output>
+                   name="vol:${key}" value="${position}" />
+            <output>${position}%</output>
             <span class="notes">${foundry.utils.escapeHTML(slider.hint)}</span>
-        </label>`).join("");
+        </label>`;
+    }).join("");
 
     /*
      * The variation switch rides with the sliders and is GM-only.
@@ -1472,7 +1498,7 @@ export function wireSoundPanel(root) {
         row.querySelector("[data-drpg-sfx-test]")?.addEventListener("click", async () => {
             const result = await testSfx(key);
             if (result?.played) return;
-            ui.notifications.warn(`${SFX_EVENTS[key]?.label ?? key}: ${result?.why ?? ""}`);
+            ui.notifications.warn(game.i18n.format("DRPG.Sound.testFailed", { label: SFX_EVENTS[key]?.label ?? key, why: result?.why ?? "" }));
         });
 
         row.querySelector("[data-drpg-sfx-clear]")?.addEventListener("click", () => write(null));

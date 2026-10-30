@@ -1474,7 +1474,18 @@
       "testHint": "Play it here, now.",
       "clearHint": "Empty this row: the event goes silent.",
       "groupAssigned": "{n} of {total} assigned",
-      "autosave": "Changes here save as you make them: this tab has no Apply button."
+      "autosave": "Changes save as you make them: this window has no Apply button.",
+      "testFailed": "{label}: {why}",
+      "why": {
+        "noEvent": "No such event. Known keys: {keys}",
+        "noFile": "No file is mapped to this event yet.",
+        "soundZero": "The Sound slider is at zero.",
+        "interfaceZero": "Foundry's own Interface volume is at zero.",
+        "locked": "This browser has not been allowed to play audio yet. Click anywhere on the page first, then try again.",
+        "refused": "The audio layer refused it.",
+        "timeout": "The file did not finish loading.",
+        "failed": "Foundry could not load that file."
+      }
     },
     "Vote": {
       "openTitle": "The vote",
@@ -1609,10 +1620,6 @@
       "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there. When a body is found and nothing is mapped to it, the silence stops your own track too.",
       "when": "When",
       "playlist": "Plays",
-      "saved": {
-        "one": "{n} state mapped to a playlist.",
-        "other": "{n} states mapped to a playlist."
-      },
       "noPlaylists": "This world has no playlists, so there is nothing to map to yet. Make them in the Playlists sidebar; the cue playlist on the Play tab can be made from here.",
       "state": {
         "murder": "A killing - heard only by the students in it, and the GM",
@@ -1637,7 +1644,41 @@
       "noSituational": "No playlist called “{name}”. Create it below.",
       "makeSituational": "Create the “{name}” playlist",
       "situationalMade": "“{name}” exists now. Put your scene tracks in it from the Playlists sidebar - stings, reveals, the quiet bits - and they will appear here.",
-      "makeFailed": "The playlist could not be created. See the console."
+      "makeFailed": "The playlist could not be created. See the console.",
+      "saveState": {
+        "saving": "Saving...",
+        "saved": "Saved",
+        "failed": "Not saved - see the console"
+      },
+      "diag": {
+        "enabled": "Setting \"music follows the game state\": {value}",
+        "on": "on",
+        "off": "OFF",
+        "yes": "yes",
+        "no": "no",
+        "drives": "This browser drives playback: {value}",
+        "clock": "Clock: phase={phase} time of day={time} eclipse={eclipse} paused={paused}",
+        "unset": "(unset)",
+        "playlists": "Playlists in this world: {n}",
+        "cue": "Cue playlist (\"{name}\"): {value}",
+        "cueTracks": "tracks: {n}",
+        "cueMissing": "MISSING - the Play button has nothing to draw from",
+        "cueRunning": "A cue is running: {value}",
+        "cueHolding": ", holding playlists: {n}",
+        "colState": "state",
+        "colApplies": "applies",
+        "colPlaylist": "playlist",
+        "testError": "error: {message}",
+        "playingHere": "playing here",
+        "perClient": "per browser",
+        "missingPlaylist": "MAPPED TO A MISSING PLAYLIST",
+        "onCue": "{name} - the cue playlist, never played for a state",
+        "emptyPlaylist": "{name} - EMPTY, nothing to play",
+        "wins": " <- wins",
+        "randomTrack": " (random track)",
+        "noState": "No state applies at all - nothing will play.",
+        "unmapped": "\"{state}\" is the active state but has no playlist to play, so the music is left alone. Map one: GM panel, Sound, Music."
+      }
     },
     "Cleanup": {
       "title": "Cleaning up",

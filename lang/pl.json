@@ -1469,7 +1469,18 @@
       "testHint": "Odtwórz tutaj, teraz.",
       "clearHint": "Opróżnij ten wiersz: zdarzenie ucichnie.",
       "groupAssigned": "przypisano {n} z {total}",
-      "autosave": "Zmiany zapisują się od razu: ta karta nie ma przycisku Zastosuj."
+      "autosave": "Zmiany zapisują się od razu: to okno nie ma przycisku Zastosuj.",
+      "testFailed": "{label}: {why}",
+      "why": {
+        "noEvent": "Nie ma takiego zdarzenia. Znane klucze: {keys}",
+        "noFile": "Do tego zdarzenia nie przypisano jeszcze pliku.",
+        "soundZero": "Suwak Dźwięk stoi na zerze.",
+        "interfaceZero": "Głośność interfejsu w samym Foundry stoi na zerze.",
+        "locked": "Ta przeglądarka nie pozwoliła jeszcze odtwarzać dźwięku. Najpierw kliknij gdziekolwiek na stronie, potem spróbuj ponownie.",
+        "refused": "Warstwa dźwięku odmówiła.",
+        "timeout": "Plik nie zdążył się wczytać.",
+        "failed": "Foundry nie mogło wczytać tego pliku."
+      }
     },
     "Vote": {
       "openTitle": "Głosowanie",
@@ -1622,12 +1633,6 @@
       "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
       "playlist": "Gra",
-      "saved": {
-        "one": "{n} stan przypisany do playlisty.",
-        "few": "{n} stany przypisane do playlist.",
-        "many": "{n} stanów przypisanych do playlist.",
-        "other": "{n} stanów przypisanych do playlist."
-      },
       "noPlaylists": "Ten świat nie ma playlist, więc nie ma jeszcze do czego przypisywać. Stwórz je w panelu Playlisty; playlistę sygnałów z zakładki Odtwarzanie można stworzyć stąd.",
       "state": {
         "murder": "Zabójstwo - słyszą tylko uczniowie, którzy w nim są, i GM",
@@ -1652,7 +1657,41 @@
       "noSituational": "Brak playlisty o nazwie „{name}”. Utwórz ją poniżej.",
       "makeSituational": "Utwórz playlistę „{name}”",
       "situationalMade": "„{name}” już istnieje. Wrzuć do niej utwory scen z panelu Playlisty - stingery, odkrycia, ciche momenty - i pojawią się tutaj.",
-      "makeFailed": "Nie udało się utworzyć playlisty. Zajrzyj do konsoli."
+      "makeFailed": "Nie udało się utworzyć playlisty. Zajrzyj do konsoli.",
+      "saveState": {
+        "saving": "Zapisywanie...",
+        "saved": "Zapisano",
+        "failed": "Nie zapisano - zajrzyj do konsoli"
+      },
+      "diag": {
+        "enabled": "Ustawienie „Muzyka podąża za stanem gry”: {value}",
+        "on": "włączone",
+        "off": "WYŁĄCZONE",
+        "yes": "tak",
+        "no": "nie",
+        "drives": "Ta przeglądarka steruje odtwarzaniem: {value}",
+        "clock": "Zegar: faza={phase} pora dnia={time} eclipse={eclipse} pauza={paused}",
+        "unset": "(brak)",
+        "playlists": "Playlisty w tym świecie: {n}",
+        "cue": "Playlista sygnałów („{name}”): {value}",
+        "cueTracks": "utwory: {n}",
+        "cueMissing": "BRAK - przycisk Odtwórz nie ma z czego wybierać",
+        "cueRunning": "Gra sygnał: {value}",
+        "cueHolding": ", wstrzymane playlisty: {n}",
+        "colState": "stan",
+        "colApplies": "pasuje",
+        "colPlaylist": "playlista",
+        "testError": "błąd: {message}",
+        "playingHere": "gra tutaj",
+        "perClient": "osobno",
+        "missingPlaylist": "PRZYPISANA PLAYLISTA NIE ISTNIEJE",
+        "onCue": "{name} - playlista sygnałów, nigdy nie gra dla stanu",
+        "emptyPlaylist": "{name} - PUSTA, nie ma czego grać",
+        "wins": " <- wygrywa",
+        "randomTrack": " (losowy utwór)",
+        "noState": "Żaden stan nie pasuje - nic nie zagra.",
+        "unmapped": "„{state}” to aktywny stan, ale nie ma playlisty do grania, więc muzyka zostaje bez zmian. Przypisz ją: panel GM-a, Dźwięk, Muzyka."
+      }
     },
     "Cleanup": {
       "title": "Sprzątanie",

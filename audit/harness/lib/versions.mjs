@@ -75,8 +75,10 @@ export const UNCONFIRMED = [
     "LIVE-E89-02", "LIVE-E89-03",
     /* E50's (C1, 30.10.2026): the window in front, `ui.activeWindow`, set by a first render and `bringToFront` and
        cleared by a close (lib/shim.mjs), what the messenger reads for "seen" (01); a page hidden and shown again,
-       `document.visibilityState` and its `visibilitychange` (client-entry.mjs `__pageVisibility`, 02). */
-    "LIVE-E50-01", "LIVE-E50-02"
+       `document.visibilityState` and its `visibilitychange` (client-entry.mjs `__pageVisibility`, 02). E50 C3: the
+       Music slider's curve, AudioHelper's `volumeToInput`/`inputToVolume` read in fvtt-types 14.366 - the harness's
+       AudioHelper has neither, so the module's fallback of the same curve runs here (03). */
+    "LIVE-E50-01", "LIVE-E50-02", "LIVE-E50-03"
 ];
 
 function readJson(file) {

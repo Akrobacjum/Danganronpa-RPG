@@ -28,8 +28,23 @@
  *     B2 the roster on gm and on gm2: three clicks inside leave it open, the outside click after them closes it,
  *        two opens in a row leave one roster.
  *
- * Red at 419d3b42 (E50 C1's parent) for part A and at cbe52a4e's module code (E50 C2's parent) for part B, measured
- * 30.10.2026: see each commit's message.
+ *   C (E50 C3; E50-20 to E50-22, E50-25) - the Sound window saves as you go, and the primary follows:
+ *     C0 Foundry's curve for the Music slider (AudioHelper, read in fvtt-types) is listed as unconfirmed (LIVE-E50-03).
+ *     C1 the music switched on and two fixture playlists made on gm; gm2 opens its Sound window and maps the current
+ *        state to one of them (no Apply: its row says saved): gm, the primary, plays it after MAP_SETTLE_MS and the
+ *        settle, p1 reads it playing, and gm2 runs no `apply` of its own (its `music.apply` counter, read past the
+ *        time its own follow would have run) and calls no Playlist write to start or stop anything (its prototype's
+ *        playAll, stopAll, playSound, stopSound and update counted). The count is what tells two drivers apart: a
+ *        second driver arriving after the primary finds the playlist playing and writes nothing.
+ *     C2 gm and gm2 each change a different row of their open windows; gm2's next read of the map is stood in by the
+ *        map before gm's write (the read two GMs make in one tick, which a harness of separate processes cannot hit
+ *        on purpose), so gm2's write takes gm's row away: gm writes it again on the echo, and both rows are stored on
+ *        both browsers (gm hears the writes gm, gm2, gm).
+ *     C3 p1 sets its Music slider to 50: `core.globalPlaylistVolume` 0.3536, and 50 again when the window is drawn
+ *        again. The map, the switch, the volume and the playlists are put back.
+ *
+ * Red at 419d3b42 (E50 C1's parent) for part A, at cbe52a4e's module code (E50 C2's parent) for part B and at
+ * 83ca7142's (E50 C3's parent) for part C, measured 30.10.2026: see each commit's message.
  */
 export const layers = ["ci"];
 export const timeoutMs = 240000;
@@ -298,4 +313,131 @@ export async function run({ gm, gm2, p1, check, phase, settle, environment, IDS,
     const b2Want = J({ inside: true, closed: true, twice: 1, after: true });
     check("B2: on gm and on gm2 the roster stays open through clicks inside, closes on the outside click after them, and two opens leave one (S11-44, E50-13)",
         J(b2.gm) === b2Want && J(b2.gm2) === b2Want, J(b2), { flow: "messenger" });
+
+    /* ------------------------------ C. the Sound window and the primary's playback ------------------------------ */
+    const MU = `const MU = await import("${repoUrl}/scripts/music.mjs"); const ST = await import("${repoUrl}/scripts/settings.mjs");`;
+    // The Sound window on this browser: drawn as a real window (`__dialogWindows`), opened, and a select or slider found.
+    const SOUND = `const root = () => document.querySelector(".drpg-window-sound");
+        const windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const closeSound = async () => { root()?.querySelector('footer.form-footer button[data-action="close"]')?.click(); await until(() => !root(), 3000); };`;
+    const SELECT = (key, value) => `const s = root()?.querySelector('select[name="state:${key}"]');
+        if (s) { s.value = ${J(value)}; s.dispatchEvent(new Event("change", { bubbles: true })); }
+        const marker = () => s?.closest("tr")?.querySelector("[data-drpg-save]")?.dataset.drpgSave ?? null;`;
+    const MAP = `${MU} return ST.getSetting(ST.SETTINGS.musicMap) ?? {};`;
+
+    phase("C0: what the harness assumes of Foundry's Music slider");
+    check("C0: Foundry's curve for the Music slider (AudioHelper, read in fvtt-types 14.366) is listed as unconfirmed on v14 (LIVE-E50-03; E50-25)",
+        unconfirmed.includes("LIVE-E50-03"), J(unconfirmed.filter(id => id.startsWith("LIVE-E50"))));
+
+    phase("C1: gm2 maps the current state in its Sound window; gm, the primary, plays it");
+    const c1Setup = await gm.eval(`${MU}
+        globalThis.__s87Music = { map: ST.getSetting(ST.SETTINGS.musicMap) ?? {}, on: ST.getSetting(ST.SETTINGS.musicEnabled) };
+        await ST.setSetting(ST.SETTINGS.musicEnabled, true);
+        const made = [];
+        for (const name of ["S87 C1 the state's playlist", "S87 C2 a playlist"]) {
+            made.push((await Playlist.create({ name, sounds: [{ name: name + " - its track", path: "sounds/lock.wav" }] })).id);
+        }
+        const state = MU.currentState();
+        const free = MU.MUSIC_STATES.map(s => s.key).filter(k => k !== state && k !== "murder" && !globalThis.__s87Music.map[k]);
+        return { state, made, free, on: ST.getSetting(ST.SETTINGS.musicEnabled) };`, { timeout: 60000 });
+    const [C1_PLAYLIST, C2_PLAYLIST] = c1Setup.made;
+    await settle(600);
+    // gm2's own playback calls, counted from here: every Playlist write it would make to start or stop music.
+    await gm2.eval(`const proto = Object.getPrototypeOf(game.playlists.get(${J(C1_PLAYLIST)}));
+        const C = await import("${repoUrl}/scripts/perf-counters.mjs");
+        globalThis.__s87Applies = C.snapshot()["music.apply"] ?? 0;
+        globalThis.__s87Calls = []; globalThis.__s87Wrapped = [];
+        for (const name of ["playAll", "stopAll", "playSound", "stopSound", "update"]) {
+            const real = proto[name], own = Object.prototype.hasOwnProperty.call(proto, name);
+            globalThis.__s87Wrapped.push([name, real, own]);
+            proto[name] = function (...args) { globalThis.__s87Calls.push(name + " " + this.name); return real.apply(this, args); };
+        }
+        return true;`);
+    const c1Change = await gm2.eval(`${MU} ${UNTIL} ${SOUND}
+        try {
+            MU.openSoundDialog();
+            await until(() => root()?.querySelector("select[name^='state:']"));
+            ${SELECT(c1Setup.state, C1_PLAYLIST)}
+            const saved = await until(() => marker() === "saved", 4000);
+            return { opened: Boolean(s), saved: Boolean(saved), at: Date.now() };
+        } finally { globalThis.__dialogWindows = windows; }`, { timeout: 60000 });
+    const c1Play = await gm.eval(`${UNTIL} const playing = await until(() => game.playlists.get(${J(C1_PLAYLIST)})?.playing, 5000);
+        return { playing: Boolean(playing), at: Date.now() };`, { timeout: 60000 });
+    // Past the time gm2's own follow would have run (MAP_SETTLE_MS and the settle after its write), had it one.
+    await settle(1200);
+    const c1Seen = { p1: await p1.eval(`return game.playlists.get(${J(C1_PLAYLIST)})?.playing === true;`),
+        gm2Applies: await gm2.eval(`const C = await import("${repoUrl}/scripts/perf-counters.mjs");
+            const n = (C.snapshot()["music.apply"] ?? 0) - globalThis.__s87Applies; delete globalThis.__s87Applies; return n;`),
+        gm2Calls: await gm2.eval(`const calls = globalThis.__s87Calls; for (const [name, real, own] of globalThis.__s87Wrapped) {
+            const proto = Object.getPrototypeOf(game.playlists.get(${J(C1_PLAYLIST)})); if (own) proto[name] = real; else delete proto[name]; }
+            delete globalThis.__s87Calls; delete globalThis.__s87Wrapped; return calls;`) };
+    const c1Wait = c1Play.at - c1Change.at;
+    check("C1: gm2 maps the current state to a playlist in its Sound window (no Apply) and gm, the primary, plays it after the settle; p1 hears it; gm2 runs no apply of its own and starts or stops no playlist (S11-34, E50-22)",
+        Boolean(c1Setup.state) && c1Setup.on === true && c1Change.opened && c1Change.saved && c1Play.playing && c1Wait >= 1400 && c1Wait <= 1500 + 400 + 1500
+            && c1Seen.p1 === true && c1Seen.gm2Applies === 0 && J(c1Seen.gm2Calls) === J([]),
+        J({ c1Setup, c1Change, c1Play, c1Wait, c1Seen }));
+
+    phase("C2: gm and gm2 change a different row each, gm2 reading the map gm's write has not reached yet");
+    const [KA, KB] = c1Setup.free;
+    const OPEN_SOUND = `${MU} ${UNTIL} ${SOUND} MU.openSoundDialog(); const opened = Boolean(await until(() => root()?.querySelector("select[name^='state:']"))); globalThis.__dialogWindows = windows; return opened;`;
+    const c2Open = { gm: await gm.eval(OPEN_SOUND), gm2: await gm2.eval(OPEN_SOUND) };
+    // gm's musicMap writes heard from here: its own, gm2's, and the one gm writes again for the key gm2's write took away.
+    await gm.eval(`globalThis.__s87Writes = []; globalThis.__s87Hook = Hooks.on("updateSetting", (setting, changed, options, userId) => {
+        if (setting?.key === "danganronpa-rpg.musicMap") globalThis.__s87Writes.push(userId === game.user.id ? "gm" : "gm2"); }); return true;`);
+    // The map as gm2 reads it now, before gm's write: gm2's write is made from it - the read two GMs make in one tick.
+    await gm2.eval(`${MU} globalThis.__s87Stale = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.musicMap) ?? {}); return true;`);
+    // gm2's next read of the map, armed just before its change, answers the map it read before gm's write landed.
+    const STALE = `const settings = game.settings, own = Object.prototype.hasOwnProperty.call(settings, "get"), real = settings.get;
+        const unarm = () => { if (settings.get !== real) { if (own) settings.get = real; else delete settings.get; } };
+        settings.get = function (ns, key, ...rest) {
+            if (ns === "danganronpa-rpg" && key === "musicMap") { unarm(); return foundry.utils.deepClone(globalThis.__s87Stale); }
+            return real.call(this, ns, key, ...rest);
+        };`;
+    const CHANGE = (key, value, arm = "") => `${UNTIL} const root = () => document.querySelector(".drpg-window-sound"); ${arm}
+        try {
+            ${SELECT(key, value)}
+            return { found: Boolean(s), saved: Boolean(await until(() => marker() === "saved", 4000)) };
+        } finally { ${arm ? "unarm(); delete globalThis.__s87Stale;" : ""} }`;
+    const c2Gm = await gm.eval(CHANGE(KA, C2_PLAYLIST), { timeout: 60000 });
+    const c2Gm2 = await gm2.eval(CHANGE(KB, C2_PLAYLIST, STALE), { timeout: 60000 });
+    await settle(1500);
+    const c2Maps = { gm: await gm.eval(MAP), gm2: await gm2.eval(MAP) };
+    const c2Writes = await gm.eval(`Hooks.off("updateSetting", globalThis.__s87Hook); const w = globalThis.__s87Writes; delete globalThis.__s87Writes; delete globalThis.__s87Hook; return w;`);
+    const both = map => map[KA] === C2_PLAYLIST && map[KB] === C2_PLAYLIST && map[c1Setup.state] === C1_PLAYLIST;
+    check("C2: gm and gm2 each change a different row, gm2's write made from the map before gm's: both rows stored on both browsers, gm writing its row once more (E50-21)",
+        Boolean(KA && KB) && c2Open.gm && c2Open.gm2 && c2Gm.saved && c2Gm2.saved && both(c2Maps.gm) && both(c2Maps.gm2) && J(c2Writes) === J(["gm", "gm2", "gm"]),
+        J({ KA, KB, c2Open, c2Gm, c2Gm2, c2Maps, c2Writes }));
+    for (const client of [gm, gm2]) await client.eval(`${UNTIL} ${SOUND} await closeSound(); globalThis.__dialogWindows = windows; return true;`);
+
+    phase("C3: p1 sets the Music slider to 50");
+    const c3 = await p1.eval(`${MU} ${UNTIL} ${SOUND}
+        const was = game.settings.get("core", "globalPlaylistVolume");
+        const slider = () => root()?.querySelector('input[name="vol:music"]');
+        try {
+            MU.openSoundDialog();
+            await until(() => slider());
+            const input = slider();
+            if (input) { input.value = "50"; input.dispatchEvent(new Event("input", { bubbles: true })); }
+            await until(() => game.settings.get("core", "globalPlaylistVolume") !== was, 3000);
+            const written = Math.round(Number(game.settings.get("core", "globalPlaylistVolume")) * 1e4) / 1e4;
+            await closeSound();
+            MU.openSoundDialog();
+            await until(() => slider());
+            const shown = slider()?.value ?? null;
+            await closeSound();
+            return { was, written, shown };
+        } finally {
+            globalThis.__dialogWindows = windows;
+            await game.settings.set("core", "globalPlaylistVolume", was);
+        }`, { timeout: 60000 });
+    check("C3: p1's Music slider at 50 writes Foundry's 0.3536 and reads 50 again when the window is drawn again (S11-41, E50-25)",
+        c3.written === 0.3536 && c3.shown === "50", J(c3));
+
+    // Put back: the map, the switch, the playlists.
+    await gm.eval(`${MU} const was = globalThis.__s87Music; delete globalThis.__s87Music;
+        await ST.setSetting(ST.SETTINGS.musicMap, was.map);
+        await ST.setSetting(ST.SETTINGS.musicEnabled, was.on);
+        for (const id of ${J(c1Setup.made)}) { const p = game.playlists.get(id); if (p?.playing) await p.stopAll(); await p?.delete(); }
+        return true;`, { timeout: 60000 });
+    await settle(600);
 }

@@ -16316,6 +16316,61 @@ const REGRESSIONS = [
         equal(JSON.stringify(["advanceFloorNow", "extendFloor", "endFloor", "migrate1_2_0"].map(key => surface.aliases?.[key]?.target ?? null)),
             JSON.stringify(["skipStep", "adjustTime", "endMode", "migrate"]), "an older name is not the alias of the key that does its work now");
     }],
+    ["R1070 - the Sound window's reasons and the music report's lines are the table's words: testSfx's reasons, the Test button's warning and diagnoseMusic's lines hold no string literal of two words or more outside an i18n key or a console call, and every DRPG.Sound and DRPG.Music key they name is in lang/en.json and lang/pl.json (E50 C3; E50-26, the plan's amendment 05.10 B)", async () => {
+        /*
+         * E50 C3, 30.10.2026; the owner's amendment of 05.10 (B): `testSfx`'s eight reasons, shown in the Test button's
+         * warning, and `diagnoseMusic`'s lines, shown in a GM's report window, were English sentences in the code. Read in
+         * the two files, comments blanked: the three bodies cut by `fnSource` and `bodyOf`, each literal's text with its
+         * `${}` holes and its HTML tags taken out, the calls to console and to the module's log helpers (`log`, `warn`,
+         * `error`, `debug`) left out first (the console stays English). A literal is a key when its whole text is one.
+         * The reader is run first on a planted body. Red at C3's parent: the eight reasons, the warning's join and the
+         * report's lines.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const [sfx, music] = await Promise.all([read("sfx.mjs"), read("music.mjs")]);
+        must(sfx.length > 1000 && music.length > 1000, "sfx.mjs or music.mjs was not served - this test reads nothing until it is");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const KEY = /^DRPG\.[\w.]+$/;
+        /* Each call to console.* or to a log helper blanked, by its own parentheses. */
+        const unlogged = body => {
+            let out = body;
+            for (;;) {
+                const call = /\bconsole\.\w+\(|(?<![\w.])(?:log|warn|error|debug)\(/.exec(out);
+                if (!call) return out;
+                const at = call.index;
+                let i = at + call[0].length, depth = 1;
+                while (i < out.length && depth) { if (out[i] === "(") depth++; else if (out[i] === ")") depth--; i++; }
+                out = out.slice(0, at) + " ".repeat(i - at) + out.slice(i);
+            }
+        };
+        const words = text => (text.replace(/\$\{\}/g, " ").replace(/<[^>]*>/g, " ").match(/[A-Za-z][A-Za-z'-]+/g) ?? []).length;
+        const scan = body => {
+            const lits = stringLiterals(unlogged(body)).map(l => l.text);
+            return { prose: lits.filter(t => !KEY.test(t) && words(t) >= 2), keys: lits.filter(t => KEY.test(t) && /^DRPG\.(?:Sound|Music)\./.test(t)) };
+        };
+        const planted = scan('function f() { console.log(`two words ${x}`); warn("Kept English here"); const k = "DRPG.Sound.why.none"; '
+            + 'return `<pre style="a:b">${t}</pre>` + "Left in English" + "one" + `x ${"An inner literal"}`; }');
+        equal(JSON.stringify(planted), JSON.stringify({ prose: ["Left in English", "An inner literal"], keys: ["DRPG.Sound.why.none"] }),
+            "the reader does not find the planted literals: it reads nothing it can be trusted on");
+        const wire = fnSource(sfx, "wireSoundPanel");
+        const bodies = {
+            testSfx: fnSource(sfx, "testSfx"),
+            testWarning: bodyOf(wire, "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }),
+            diagnoseMusic: fnSource(music, "diagnoseMusic")
+        };
+        const at = (tree, key) => key.split(".").reduce((node, part) => (node && typeof node === "object" ? node[part] : undefined), tree);
+        const found = Object.fromEntries(Object.entries(bodies).map(([name, body]) => {
+            const { prose, keys } = scan(body);
+            return [name, { prose, missing: [...new Set(keys)].filter(key => at(en, key) === undefined || at(pl, key) === undefined) }];
+        }));
+        const keyed = Object.values(bodies).map(body => scan(body).keys.length);
+        equal(JSON.stringify({ found, keyed: keyed.map(n => n > 0) }), JSON.stringify({
+            found: Object.fromEntries(Object.keys(bodies).map(name => [name, { prose: [], missing: [] }])),
+            keyed: [true, true, true]
+        }), "[per body: the literals of two words or more outside a key or a console call; the keys it names missing from en.json or pl.json]; "
+            + "[whether each body names a DRPG.Sound or DRPG.Music key at all]");
+    }],
 ];
 
 

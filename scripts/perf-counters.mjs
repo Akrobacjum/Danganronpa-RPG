@@ -63,6 +63,9 @@
  *                                                                       and a read of this browser's read map (messenger.mjs,
  *                                                                       E50 C2: one each for a launcher and a roster drawn
  *                                                                       together)
+ *   music.apply                                                         one `apply()` of the music asked (music.mjs
+ *                                                                       `runApply`, E50 C3: one for a burst of mapping
+ *                                                                       writes, after their settle)
  */
 
 const counts = new Map();

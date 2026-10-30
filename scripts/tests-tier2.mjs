@@ -75636,6 +75636,142 @@ const SCENARIOS = [
         equal(stableJson(report.sections.filter(s => !String(text).includes(`== ${s.title} ==`)).map(s => s.id)), "[]",
             "game.drpg.diagnose() does not answer the report's text");
     }],
+    ["E50-T1 - the Sound window saves as you go: no Apply on any tab and one Close on each, a mapping select's change writes its one key at once into the map read at that moment, its row says saved, a key another GM wrote meanwhile survives, two changes in one tick both land, and Close says nothing and leaves the map as written (E50 C3; D45, E50-20, E50-21)", async () => {
+        /*
+         * E50 C3, 30.10.2026; D45 (option 1) and audit S11-34. The Music tab waited for Apply, which wrote the whole map
+         * as the window had drawn it - so a key another GM had written since the window opened was lost - and the
+         * window's other tabs saved as they were touched. Here, as the GM: a fixture playlist, the Sound window opened,
+         * each tab's footer read; then on the Music tab five states that are not the current one and map nothing: the
+         * first changed (the setting read before the window closes, its row's marker), a second written straight into
+         * the setting (the second GM's stand-in), a third changed, and two more changed in one tick; then Close.
+         * `ui.notifications.info` is recorded (and still shown) while the window is open. The map, the playlist and the
+         * notifications are put back. Red at C3's parent: an Apply button on the Music tab and nothing written before it.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its selects changed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const state = M.currentState();
+        const keys = M.MUSIC_STATES.map(s => s.key).filter(key => key !== state && key !== "murder" && !mapBefore[key]);
+        must(keys.length >= 5, `only ${keys.length} music states are free to map here`);
+        const [k1, k2, k3, k4, k5] = keys;
+        const infos = [], realInfo = ui.notifications.info;
+        let playlist = null, answer = null;
+        const read = {};
+        const map = () => getSetting(SETTINGS.musicMap) ?? {};
+        try {
+            playlist = await Playlist.create({ name: "Suite E50-T1 fixture" });
+            must(playlist, "the fixture playlist was not made");
+            ui.notifications.info = function (...args) { infos.push(String(args[0])); return realInfo.apply(this, args); };
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            const footer = () => [...root().querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
+            read.tabs = {};
+            for (const tab of ["play", "music", "effects"]) {
+                root().querySelector(`[data-drpg-gmt-tab="${tab}"]`)?.click();
+                read.tabs[tab] = footer();
+            }
+            read.save = root().querySelectorAll('[data-action="save"]').length;
+            const select = key => root().querySelector(`select[name="state:${key}"]`);
+            const marker = key => select(key)?.closest("tr")?.querySelector("[data-drpg-save]")?.dataset.drpgSave ?? null;
+            const change = key => { const s = select(key); s.value = playlist.id; s.dispatchEvent(new Event("change", { bubbles: true })); };
+            const drawn = root();
+            change(k1);
+            read.first = [await until(() => map()[k1] === playlist.id && marker(k1) === "saved", 3000) ? true : [map()[k1] ?? null, marker(k1)],
+                Boolean(root()), root() === drawn];
+            await setSetting(SETTINGS.musicMap, { ...map(), [k2]: playlist.id });
+            change(k3);
+            read.other = await until(() => map()[k3] === playlist.id, 3000) ? [map()[k2] === playlist.id, marker(k3)] : ["not written", map()[k3] ?? null];
+            change(k4);
+            change(k5);
+            read.tick = await until(() => map()[k4] === playlist.id && map()[k5] === playlist.id && marker(k4) === "saved" && marker(k5) === "saved", 3000)
+                ? true : [map()[k4] ?? null, map()[k5] ?? null, marker(k4), marker(k5)];
+            read.sameWindow = root() === drawn;
+            const close = root().querySelector('footer.form-footer button[data-action="close"]');
+            close?.click();
+            const done = await Promise.race([answer, wait(3000).then(() => "still open")]);
+            read.closed = done !== "still open" && Boolean(await until(() => !root(), 2000));
+            await settle();
+            read.toasts = infos;
+            const want = { ...mapBefore, [k1]: playlist.id, [k2]: playlist.id, [k3]: playlist.id, [k4]: playlist.id, [k5]: playlist.id };
+            read.map = stableJson(map()) === stableJson(want) ? "as written" : map();
+        } finally {
+            ui.notifications.info = realInfo;
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            tabs: { play: ["close"], music: ["close"], effects: ["close"] }, save: 0,
+            first: [true, true, true], other: [true, "saved"], tick: true, sameWindow: true, closed: true, toasts: [], map: "as written"
+        }), "[the footer's buttons on each tab]; [Apply buttons in the window]; [the first change stored with its row saying saved, the window open, "
+            + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
+            + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]");
+    }],
+    ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
+        /*
+         * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with
+         * the murder music alone, and the writer scheduled only its own browser, where nothing plays unless it is the
+         * primary GM - so a second GM's mapping was never followed. Here, on the primary GM, with the music switched on:
+         * the switch's own refresh let past, the current state mapped to a fixture playlist and that followed (it plays);
+         * then three writes within 200 ms, each keeping the current state on that playlist and moving a state that is not
+         * current between a second fixture and nothing, so that each is a write; `music.apply` read before and 1500 + 400 + 700 ms after the last.
+         * The map, the switch and the playlists are put back. Red at C3's parent: nothing follows (the fixture never
+         * plays, and no apply).
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "the music is the primary GM's to drive");
+        const M = await import("./music.mjs");
+        const C = await import("./perf-counters.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        const state = M.currentState();
+        must(state && state !== "murder", `no world state owns the music here (${state})`);
+        const other = M.MUSIC_STATES.map(s => s.key).find(key => key !== state && key !== "murder");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        const musicWasOn = getSetting(SETTINGS.musicEnabled);
+        let main = null, spare = null;
+        const read = {};
+        const applies = () => C.snapshot()["music.apply"] ?? 0;
+        const sounding = () => [main?.playing === true, spare?.playing === true,
+            stableJson(Array.from(main?.sounds ?? []).filter(s => s.playing).map(s => s.id).sort())];
+        try {
+            main = await Playlist.create({ name: "Suite E50-T2 fixture", sounds: [{ name: "E50-T2 one", path: "sounds/lock.wav" }] });
+            spare = await Playlist.create({ name: "Suite E50-T2 spare", sounds: [{ name: "E50-T2 two", path: "sounds/notify.wav" }] });
+            must(main && spare, "the fixture playlists were not made");
+            // The switch first, and its own refresh let past (settings.mjs `onChange`: `refreshMusic`), so that what plays
+            // next is the map's write followed, not the switch's.
+            await setSetting(SETTINGS.musicEnabled, true);
+            await wait(900);
+            await setSetting(SETTINGS.musicMap, { ...mapBefore, [state]: main.id });
+            read.followed = Boolean(await until(() => main.playing, 4000));
+            await wait(400);
+            const before = { applies: applies(), sounding: sounding() };
+            for (const step of [{ [other]: spare.id }, {}, { [other]: spare.id }]) {
+                const next = { ...mapBefore, [state]: main.id, ...step };
+                if (!step[other]) delete next[other];
+                await setSetting(SETTINGS.musicMap, next);
+                await wait(60);
+            }
+            await wait(1500 + 400 + 700);
+            read.applies = applies() - before.applies;
+            read.unchanged = stableJson(sounding()) === stableJson(before.sounding) ? true : [before.sounding, sounding()];
+        } finally {
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            await setSetting(SETTINGS.musicEnabled, musicWasOn);
+            for (const playlist of [main, spare]) {
+                try { if (playlist?.playing) await playlist.stopAll(); } catch { /* it was not playing */ }
+                if (playlist) await playlist.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ followed: true, applies: 1, unchanged: true }),
+            "[the current state's new playlist played on the primary]; [applies after three writes in 200 ms]; [what plays the same after them]");
+    }],
     ...GRID
 ];
 
