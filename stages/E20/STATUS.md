@@ -1,6 +1,6 @@
 # E20 - status
 
-Base: 60ef9a97 (claude/fervent-sagan-gme4vt-b). Spec: STAGE.md (answered 29.10.2026).
+Base: 60ef9a97 (line B's branch). Spec: STAGE.md (answered 29.10.2026).
 
 ## Commits
 | C | sha | QUICK |
@@ -37,42 +37,41 @@ All exported; R1500 reads the exports.
 - `diagnoseScenes({ lastChecks, scenes })` - scripts/fog.mjs: Pre-season's scene lines; `checkRegions(scene)` -
   fog.mjs: the map check, with "No scene on the canvas" / "No rooms on this scene" rows.
 
+## CI and the close (30.10.2026)
+- CI on 04417f8f: green, run 40999636058 (https://github.com/Akrobacjum/Danganronpa-RPG/actions/runs/40999636058): 19 jobs success, "crlf" skipped. This covers the scenario-65 rerun C6 left to CI.
+- LEDGER.md: ANSWERED 23, OPEN 1 (E20-19: the one-time chat notice of the automations' switch-off, scripts/states.mjs :176, has no test reading it), LIVE 0 rows (B-E20-1..7 not measured at a table). The 18 end-review findings are all fixed (LEDGER.md, second section).
+- Registry: next free R1537 (`node tools/registry.mjs --next` at 04417f8f); line B used R1500-R1536.
+
 ## Open
-- C1 gap: UNCOVERED_LIMIT_PCT = 10 is a choice, not measured on a real map (a LIVE row for the owner's school map) - C7 (LIVE rows) / the owner
-- C1 gap: the Doors tab's "too many rooms" warning counts locked rooms (Q-3), so closing a wing no longer clears it - the review / the owner
+Closed by the fixes and dropped from this list: C4's question on the Next line (answered by the owner, Q-8 amended, c72c43ff R1522); C5's language question (the owner: it stands); C3's Q-7 readings (8 MiB, 8 s, same floors: the owner: they stand); C3's "new Pre-season rows still need C7's text" and C5's "GM handbook's requirements table" (C7 689040ee, gm-handbook.en.md :32, :138-:139); C6's "scenario 65 not rerun" (CI above); C6's "worlds changed by an earlier version" for the automations and held player settings (04417f8f R1531, E20-T6); C7's "next free R1522" (now R1537); the C6 for C7 line (done in C7).
+- E20-19 test gap: nothing reads the automations' chat notice (`DRPG.GiveBack.automationOff`, scripts/states.mjs :176) - the orchestrator / line B's next fix
+- C1 gap: UNCOVERED_LIMIT_PCT = 10 is a choice, not measured on a real map - B-E20-7 / the owner
+- C1 gap: the Doors tab's "too many rooms" warning counts locked rooms (Q-3 stands), so closing a wing no longer clears it - the owner
 - C1 gap: the last Check rooms is kept per scene in the GM's browser only until a reload; console game.drpg.checkRegions() records none - the review
-- C1 gap: registry's "Next free" read R1506 (R1510 after C2) (line B's R1500-R1505 are the highest numbers); line A takes its own R1049+ by hand - the orchestrator
+- C1 gap: line A takes its own R1049+ by hand while line B holds R1500-R1536 - the orchestrator
 - C1 gap: quick.sh on Git Bash: the flock shim shifts 2 for "flock -w N LOCK" (runs the lock path, exit 127) and ps -eo is cygwin-unsupported (reap does nothing); run with a PATH flock stand-in at /c/Users/chrob/qbin - the orchestrator (tools)
-- C2 gap: "Show on map" (pan and mark) not measured on a real canvas - C7 writes it to AUDIT 9.2 as B-E20-5
-- C2 gap: the Pre-season window's scroll at 1366x768 not measured - C7 (B-E20-1)
-- C2 gap: `diagnoseDespair` (console report) still English - the review
+- C2 gap: Show on map (the local mark, the floor switch) not measured on a real canvas - B-E20-5
+- C2 gap: the Pre-season window's scroll at 1366x768 not measured - B-E20-1
+- C2 gap: `diagnoseDespair` (console report, scripts/diagnostics.mjs :155) still English - the review
 - C2 gap: the anonymity audit still counts Monokuma like any character (unchanged behaviour) - the review
-- C2 note: Pre-season's scene marks are now check/cross signs instead of "ok"/"!!"; the room-check findings' English titles kept (scenario 66 reads them)
-- C3 gap: a real browser's image decode not measured (harness: a stand-in in R1510, the server's 404 in E20-T2) - C7 LIVE
-- C3 gap: the HEAD request's size on a real Foundry server / The Forge not measured (LIVE-E20-04); 8 s per picture is the implementer's choice; "8 MB" read as 8 MiB - C7 / the review
-- C3 gap (Q-7 reading, for the review): height compared only between pieces on the same floors; the trial hall's picture not checked (not a room)
-- C3 note: the GM handbooks' `checkRegions()` row (EN/PL) already names the new finding (R387 reads it); the new Pre-season rows still need C7's text
-- C4 question for the owner (default: as Q-8 says): a running world with a required Season setup row not done shows the setup line in Daily Life instead of "N students still have actions"
-- C4 gap: opening at the top and the scroll at 1366x768 / 1920x1080 not measured (LIVE-E20-01) - C7
-- C4 gap: "bring to front" after a row's Open not measured against Foundry's real window stacking (the harness has none) - C7 / the review
+- C2 note: Pre-season's scene marks are check/cross signs instead of "ok"/"!!"; the room-check findings' English titles kept (scenario 66 reads them)
+- C3 gap: a real browser's image decode and the HEAD request's size on a real Foundry server / The Forge not measured; 3 probes at a time on a real server not measured - B-E20-4
+- C3 gap: the trial hall's picture is not checked (not a room)
+- C4 gap: opening at the top and the scroll at 1366x768 / 1920x1080, and "bring to front" against Foundry's real window stacking, not measured - B-E20-1
 - C4 gap: the checklist's cost per redraw of the GM panel's Next line not measured - the review
 - C4 lesson: quick's t01 was green on e52a60ef and CI's 01-runtests red - a test that reads world state (an open incident) passes alone and fails in the whole run
-- C5 gap: a real v14 client without Dice So Nice not measured (LIVE-E20-02) - C7
-- C5 gap: the GM handbook's requirements table keeps the old Isometric/LiveKit wording - C7
+- C5 gap: a real v14 client without Dice So Nice not measured (00-boot E20-T3 is a headless boot) - B-E20-2
 - C5 gap: a comment in gm-panel.mjs explains the GM's chrome stamp by a stylesheet left on the page (the stamp stays, R470) - the review
 - C5 note: no recommendations window at HEAD (removed 1.2.73); for S13-43 only the requirements window's counted intro was fixed
-- C5 question for the owner (default: as built): with no module language stored, the requirements window follows Foundry's language (the module's setting cannot change while the module is stopped); S01-63's English default waits for E66
-- C6 gap: scenario 65 not rerun after C6's last two fixes (import cycle, save order) - CI
 - C6 note: the overflow line is worked out in gm-team-dialog.mjs (in overflow.mjs it made an import cycle, R161); R808 restores the player-side settings record its hold writes; the module saves the old value after its own write (scenario 15)
-- C6 gap: "Give back Foundry's settings" in a real v14 settings window not measured (the harness's menu registration does nothing) - C7 LIVE
-- C6 gap: worlds changed by an earlier version: file permissions stay (the window says so); automations go back to Daggerheart 2.6.5's defaults (2.10.x not read); a held player-side setting goes back to its registered default - the review
-- C6 gap: scenes get their vision back from turning off "Rooms decide what players can see", not from the button - the review
-- C6 for C7: the GM handbooks' list of what the module changes, "press it before switching the module off", the pointer from "until you withdraw it" to the Motive section
-- C7: AUDIT 9.2 B-E20-1..7 (LIVE-E20-01..07) appended after item 342, unnumbered; C4's window stacking in 01, C3's image decode in 04, new 06 (Give back Foundry's settings on v14), 07 (C1's 10% limit on the owner's school map); none measured at a table
-- C7 gap: README's requirements table keeps the old Isometric / Dice So Nice wording - README is line A's file
-- C7 note: stages.json E20 `touches: []`, planned 1.2.104, not shipped; next free R1522
-- fix A reading: "the season started" = the clock past chapter 1, day 1, session 1, the first time of day (the owner's Q-8 words read by the fixer)
-- fix A gap: the restored scroll and focus of a round trip not measured on a real Foundry (no layout in the harness) - B-E20-1's table run
+- C6 gap: "Give back Foundry's settings" in a real v14 settings window not measured (the harness's menu registration does nothing) - B-E20-6
+- C6 gap: automations go back to Daggerheart 2.6.5's defaults (2.10.x not read); file permissions stay for a world an earlier version changed (the window says so) - the review
+- C6 gap: scenes get their vision back from turning off "Rooms decide what players can see", not from the button (the handbook's box says so) - the review
+- C7 note: AUDIT 9.2 B-E20-1..7 (LIVE-E20-01..07) at AUDIT-1.2.42.md :1090-:1102, none measured at a table; stages.json E20 `touches: []`, planned 1.2.104, not shipped
+- C7 gap: README's requirements table keeps the old Isometric / Dice So Nice wording - README is line A's file; the owner (30.10): README stays
+- fix A reading: "the season started" = the clock past chapter 1, day 1, session 1, the first time of day (the fixer's reading of the owner's Q-8 words; not confirmed by the owner)
+- fix A gap: the restored scroll and focus of a round trip not measured on a real Foundry (no layout in the harness) - B-E20-1
 - fix A gap: Room Setup's fog tab shows the worst floor's percentage without naming the floor
+- fix A gap: R1523 reads the Next line's school default (`firstOutstandingStep`) by a source pattern, not by a call with a side map on screen - the review
 - fix B note: C-9 also covers worlds an earlier version wrote to - a player setting already at the held value is kept as the player's own, Give back leaves it
-- fix B gap: the local mark and the floor switch on a real v14 canvas, and 3-at-a-time probes on a real server - added to AUDIT 9.2 B-E20-4, -5, -6
+- fix B gap: the local mark and the floor switch on a real v14 canvas, and 3-at-a-time probes on a real server - B-E20-4, -5, -6
