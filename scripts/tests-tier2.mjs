@@ -77302,6 +77302,187 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ placed: "framed", retyped: "framed", dropped: "hidden", back: "framed", hidden: "hidden", shown: "framed" }),
             "the ring at each step: framed (shown, in its row's colour), stale (shown, another colour), hidden, none");
     }],
+    ["E51-T25 - a GM's outline stays round the room its own Monokuma stands in: a second token of it placed in another room and deleted brings the outline back to a room a token of it stands in, and a trace placed in a third room after it, and a step of the first inside its room, draw nothing (E51 fix FG2; the owner's item 2 of 31.10)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10 ("the GM's room outline sometimes on another room than the
+         * GM's token"), the goal review's measurement (s-gm-outline: a second Monokuma token placed and deleted, then a
+         * player's step - the GM's outline on the player's room). fog.mjs `ownArrival` outlined the room of whichever
+         * token called once the GM's set of rooms had changed, and a deleted token never told it the set had changed.
+         * Here, on a GM's browser: a token of this GM's Monokuma placed in room A, a second placed in room B and deleted,
+         * then a trace (`placeRemnant`, a token the GM owns and no Monokuma) placed in room C, then the first token
+         * stepped half a square inside A. Read: the room outlined after each - after the deletion, a room a token of the
+         * Monokuma stands in (A, or where the world's own token of it stands: the outline is drawn again for the first
+         * of them, with no sound) - and whether the step drew the outline again. Every token is taken away. The two roads a harness alone can drive (a Monokuma move held for its
+         * waypoints, another GM's Monokuma) are scenario 66 GO's. Red at 99226e59: the outline gone after the deletion
+         * (null), and the trace's room outlined.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the tokens are placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 4), "three rooms no Monokuma stands in");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma, poolUserFor } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene, grid = canvas.grid?.size ?? 100;
+        const monokumas = game.actors.filter(a => a.type === "character" && isMonokuma(a));
+        const mono = monokumas.find(a => poolUserFor(a)?.id === game.user.id) ?? monokumas[0];
+        const [A, B, C] = M.allRooms(scene).filter(r => !F.myCurrentRooms().has(r));
+        const spot = room => (room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null);
+        must(mono && C && spot(A) && spot(B) && spot(C), "no Monokuma, or not three rooms with a place no Monokuma stands in - this would measure nothing");
+        const place = async (room, name) => (await scene.createEmbeddedDocuments("Token", [{ name, actorId: mono.id, actorLink: true,
+            ...spot(room), width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]))[0];
+        const made = [], standing0 = new Set(F.myCurrentRooms());
+        let trace = null, read = null;
+        try {
+            const first = await place(A, "SUITE E51-T25 Monokuma");
+            made.push(first);
+            await until(() => FR.roomOutline?.room === A, 2000);
+            const seen = { placed: FR.roomOutline?.room ?? null };
+            const second = await place(B, "SUITE E51-T25 Monokuma two");
+            made.push(second);
+            await until(() => FR.roomOutline?.room === B, 2000);
+            seen.second = FR.roomOutline?.room ?? null;
+            await second.delete();
+            await settle();
+            await until(() => FR.roomOutline, 1000);
+            // A room a token of the Monokuma stands in: A, or one the world's own tokens of it stood in before.
+            const back = FR.roomOutline?.room ?? null;
+            seen.deleted = back === A || standing0.has(back);
+            trace = await placedTrace("E51-T25", { ...spot(C) });
+            must(trace, "no trace was placed");
+            await settle();
+            await settle();
+            seen.trace = [M.roomOfToken(trace) === C, FR.roomOutline?.room === back];
+            const standing = FR.roomOutline;
+            await first.update({ x: first.x + grid / 2 }, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+            await settle();
+            seen.step = [M.roomOfToken(first) === A, FR.roomOutline !== standing];
+            read = seen;
+        } finally {
+            if (trace) await dropTrace(trace);
+            for (const token of made) if (scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ placed: A, second: B, deleted: true, trace: [true, true], step: [true, false] }),
+            `[the room outlined after the Monokuma's token was placed in ${A}; after its second token was placed in ${B}; after that one was deleted, a `
+                + `room a token of the Monokuma stands in; the trace stood in ${C} and the outline stayed where it was; the step stayed in ${A} and drew `
+                + "the outline again]");
+    }],
+    ["E51-T26 - a wall made beside the room a GM's Monokuma stands in, moved away from it, or deleted there draws the standing outline again; a wall made far from it, or deleted there, does not (E51 fix FG2; the correctness review's F2)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the correctness review's F2. The standing outline (its gaps and its glow) was drawn
+         * again on `updateWall` alone, judged where the wall runs after the change: a wall made on the room's border or
+         * deleted from it, and one dragged away from it, left the outline as the map no longer was until the next
+         * arrival. Here, on a GM's browser, with a token of the Monokuma placed in a room A: a wall made along A's top
+         * edge, moved four squares away, deleted there; another made along the edge and deleted there; a third made four
+         * squares away. Read after each: whether the outline was drawn again (a new outline object, fog-reveal.mjs
+         * `roomOutline`). What the redraw shows - the gap closed, the glow gone - is not read (no renderer headless; at a
+         * table, LIVE-E51-03's look). Every wall and token is taken away. Red at 99226e59: drawn again for none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the token and the walls are placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 2), "a room no Monokuma stands in");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene, grid = canvas.grid?.size ?? 100;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const room = M.allRooms(scene).find(r => !F.myCurrentRooms().has(r));
+        const spot = room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null;
+        const box = room ? M.boundsOf([...scene.regions].find(r => r.name === room)) : null;
+        must(mono && room && spot && box, "no Monokuma, or no room with a place and a box no Monokuma stands in - this would measure nothing");
+        const away = box.y >= 5 * grid ? box.y - 4 * grid : box.y + box.h + 4 * grid;
+        const edge = [box.x, box.y, box.x + Math.min(box.w, 2 * grid), box.y];
+        const far = [box.x, away, box.x + Math.min(box.w, 2 * grid), away];
+        let token = null, read = null;
+        const walls = [];
+        try {
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T26 Monokuma", actorId: mono.id, actorLink: true,
+                ...spot, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+            await until(() => FR.roomOutline?.room === room, 2000);
+            must(FR.roomOutline?.room === room, `the Monokuma's token placed in ${room} drew no outline of it`);
+            const redrawn = async write => {
+                const standing = FR.roomOutline;
+                await write();
+                await settle();
+                return FR.roomOutline !== standing && FR.roomOutline?.room === room;
+            };
+            const make = async c => { const [w] = await scene.createEmbeddedDocuments("Wall", [{ c, move: 20, sight: 20, light: 20, sound: 20 }]); walls.push(w); return w; };
+            const seen = [];
+            let w = null;
+            seen.push(await redrawn(async () => { w = await make(edge); }));
+            seen.push(await redrawn(() => w.update({ c: far })));
+            seen.push(await redrawn(() => w.delete()));
+            seen.push(await redrawn(async () => { w = await make(edge); }));
+            seen.push(await redrawn(() => w.delete()));
+            seen.push(await redrawn(async () => { w = await make(far); }));
+            read = seen;
+        } finally {
+            const left = walls.filter(w => scene.walls.get(w.id)).map(w => w.id);
+            if (left.length) await scene.deleteEmbeddedDocuments("Wall", left);
+            if (token && scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, false, true, true, false]),
+            "[drawn again: a wall made along the room's edge, moved four squares away, deleted there, made along the edge again, deleted there, made four squares away]");
+    }],
+    ["E51-T27 - a seal or a chain written draws the standing outline again, and so does each put back (E51 fix FG2; the goal review's G8)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the goal review's G8. The doorway glow asks the veto (D43c = 2), which shuts on a
+         * sealed room (call-world.mjs `isSealed`) and on a chain (`isChained`), both world settings no listener of the
+         * outline heard: a Hope Call's Seal on the room beyond left its glow lit beside a door the veto refused, until
+         * the next arrival. Here, on a GM's browser, with a token of the Monokuma placed in a room: `sealedRooms` written
+         * with a second room and put back, `restrictions` written with a row of this test's and put back. Read after
+         * each: whether the outline was drawn again. Whether the redraw shuts the glow is the veto's (R1113, scenario 76
+         * DV), not read here. Red at 99226e59: drawn again for none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the token is placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 2), "a room no Monokuma stands in, and one to seal");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const room = M.allRooms(scene).find(r => !F.myCurrentRooms().has(r));
+        const other = M.allRooms(scene).find(r => r !== room);
+        const spot = room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null;
+        must(mono && room && other && spot, "no Monokuma, or no room to stand in and another to seal - this would measure nothing");
+        const sealedWas = [...(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? [])];
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        let token = null, read = null;
+        try {
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T27 Monokuma", actorId: mono.id, actorLink: true,
+                ...spot, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+            await until(() => FR.roomOutline?.room === room, 2000);
+            must(FR.roomOutline?.room === room, `the Monokuma's token placed in ${room} drew no outline of it`);
+            const redrawn = async write => {
+                const standing = FR.roomOutline;
+                await write();
+                await settle();
+                return FR.roomOutline !== standing && FR.roomOutline?.room === room;
+            };
+            read = [
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...sealedWas, other])),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas)),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.restrictions, { ...restrictionsWas, SUITEE51T27000000: { chained: true } })),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas))
+            ];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            if (token && scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, true]),
+            "[drawn again: a room sealed, the seal put back, a chain written, the chain put back]");
+    }],
     ...GRID
 ];
 

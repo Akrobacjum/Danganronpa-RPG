@@ -45,7 +45,7 @@ import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
-    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
+    colourOf, GLOW_NAME, doorwayEdges, doorwayLight, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
     gmPassageGaps, withPassageGhosts, traceGhostStretches, passageCutKey, floorWalls, MAX_FOG_TEXTURE
 } from "./fog-doorways.mjs";
 // E88 C1: the halos drawn once count what they bake, share, leave live and free (perf-counters.mjs, a leaf).
@@ -1345,8 +1345,9 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     const light = glass ? group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region })) : null;
 
     group.addChild(outline, label);
-    // Under the outline and the name, so neither is softened by it.
-    addDoorwayGlow(group, region, edges, rect);
+    // Under the outline and the name, so neither is softened by it. Cut to where its light reaches: the first wall, the
+    // end of the room it falls into (`doorwayLight`; E51 fix FG3, LIVE-E51-03).
+    addDoorwayGlow(group, region, edges, rect, doorwayLight(region, level, { actor, elevation }));
     // The tunnel ends this character knows in the room, marked for it alone (E80 C1); a redraw keeps them.
     addTunnelMarks(group, tunnelMarks(actor, region, region?.parent, level, { elevation }), rect);
     group.setChildIndex(outline, group.children.length - 1);
