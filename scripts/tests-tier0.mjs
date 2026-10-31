@@ -17,7 +17,7 @@ import {
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
-    TEXT_BASELINES, textAgainstBaseline, textStaleRow
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -17035,13 +17035,13 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, and every baseline row is well formed and matched as the matcher's own case says (E65 C1, C2; E65-03, E65-06, E65-07, E65-08)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, and every baseline row is well formed and matched as the matcher's own case says (E65 C1, C2, C3; E65-03, E65-06, E65-07, E65-08, E65-09)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
          * seen to catch what it is for). It grows with the stage: C1 has T1's two halves and T2, C2 T3
          * (familyFormats) and T6 (dashesIn) with their baselines, and each later commit of E65 adds its detectors to
-         * the list below. The last reads are the self-check's own controls: a detector stubbed to flag nothing and
+         * the list below; C3 T14 (tableWordProblems). The last reads are the self-check's own controls: a detector stubbed to flag nothing and
          * read nothing - the shape every detector had before it was written (the red runs of C1 and C2) - is two
          * mismatches, not silence; and the two that read code, handed no lexer (tests-text.mjs imports none; this
          * file hands the kit's, which are tests-lint.mjs's), throw and are seen. The selfCheck also holds every
@@ -17060,11 +17060,12 @@ const REGRESSIONS = [
             baselines: Object.keys(TEXT_BASELINES).sort().map(n => [n, TEXT_BASELINES[n].length]),
             problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, unlexed
         }), JSON.stringify({
-            names: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
-            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
-            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
-            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"]],
-            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["pairParity", 5, 5], ["pluralForms", 4, 4]],
+            names: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
+            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
+            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
+            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"],
+                ["tableWordProblems", "T14", "fail"]],
+            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["pairParity", 5, 5], ["pluralForms", 4, 4], ["tableWordProblems", 4, 4]],
             baselines: [["dashesIn", 11], ["familyFormats", 1]],
             problems: [], caught: 2, unlexed: ["dashesIn", "familyFormats"]
         }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
@@ -17118,6 +17119,77 @@ const REGRESSIONS = [
             ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
+    }],
+
+    ["R1060 - an item table's words are held: every word config.mjs TABLE_NAME_WORDS carried at E65's Base is today's or in tables.mjs's legacy list of its category or kind, those lists only grow, and with lang/pl.json put over config.mjs every name tableName builds and the first of tableNameCandidates is the English one, every name a client in Polish built a candidate (E65 C3; T14, DB13, E65-09)", async () => {
+        /*
+         * E65 C3, 31.10.2026; the plan's T14 (DB13, N5). Two halves. (1) tests-text.mjs `tableWordProblems` - the
+         * function `node tools/check.mjs text` runs in Node - over this install's config.mjs `TABLE_NAME_WORDS` and the
+         * legacy lists read off the tables.mjs it serves (`legacyListsFrom`: the lists are not exported), against the
+         * frozen copy of what the names carried at 419d3b42 (TABLE_WORDS_AT_BASE): a reworded plural or kind whose old
+         * word is in no legacy list, a category gone, or a legacy word dropped, and a world's tables stop being found.
+         * (2) R972's reading, at tier 0: lang/pl.json, as served, put over config.mjs the way i18n.mjs `localizeConfig`
+         * puts it (`walkConfigProse`, each field it would set), the names read with no await between, everything put
+         * back. On a client already in Polish nothing is set and the Polish is read where it already is (R972's fix
+         * e1-G7 is why the English side comes from TABLE_NAME_WORDS here, never from the live plural). Read: whether
+         * `tableName` and the first of `tableNameCandidates` are the English name - built here from TABLE_NAME_WORDS, a
+         * goal with no kind word falling back to `USABLE_GOALS` as `goalWordOf` does - for every category, tier and goal
+         * the installer builds; and whether each name a client in Polish built before E14 (pl.json's plural, the goal's
+         * English label) is a candidate. Why both tiers keep it: R972 is E14's (tier 1, with the read-back by
+         * classifyTableName and the flags), R1060 is the plan's T14, a FAIL test of the text lint, in tier 0 beside
+         * R1058 and R1059. Read on 52eacb9c in Node: the words and lists of Base unchanged, (1) nothing found. Nothing
+         * is written to the world.
+         */
+        const C = await import("./config.mjs");
+        const t = await import("./tables.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const sources = await moduleSources();
+        must(sources.has("tables.mjs"), "tables.mjs was not served - T14 has no legacy lists to read");
+        const lists = textLegacyLists(sources.get("tables.mjs"));
+        const held = textTableWords({ words: C.TABLE_NAME_WORDS, ...lists });
+
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" });
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const P = flatLang(JSON.parse(await lfText(res)));
+        const plPlural = category => P.get(`DRPG.Config.ITEM_CATEGORIES.${category}.plural`);
+        const shapes = [
+            ...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").flatMap(category => C.ITEM_TIERS.map(tier => ({ category, tier, goal: null }))),
+            ...Object.keys(t.USABLE_GOALS).flatMap(goal => C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal }))),
+            ...C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal: null }))
+        ];
+        must(shapes.length > 0 && shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.TABLE_NAME_WORDS.plural[s.category]),
+            "lang/pl.json carries no Polish plural for a tier pool's category - this reads nothing");
+        const english = s => {
+            const word = s.goal ? C.TABLE_NAME_WORDS.kind[s.goal] ?? t.USABLE_GOALS[s.goal].label : null;
+            return `DRPG ${C.TABLE_NAME_WORDS.plural[s.category]}${word ? ` (${word})` : ""} - Tier ${s.tier}`;
+        };
+        const livePlurals = () => JSON.stringify(Object.entries(C.ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]));
+        const asFound = livePlurals();
+        const undo = [];
+        let polishLive = false, names = [];
+        try {
+            walkConfigProse(C, (key, value, set) => {
+                const next = P.get(key);
+                if (typeof next !== "string" || !next || next === value) return;
+                undo.push(() => set(value));
+                set(next);
+            });
+            polishLive = shapes.every(s => C.ITEM_CATEGORIES[s.category]?.plural === plPlural(s.category));
+            names = shapes.map(s => [t.tableName(s.category, s.tier, s.goal), t.tableNameCandidates(s.category, s.tier, s.goal)[0]]);
+        } finally {
+            for (const back of undo.reverse()) back();
+        }
+        must(polishLive, "pl.json's plurals were not over config.mjs while the names were read - this measured nothing");
+        const notEnglish = shapes.map((s, i) => (names[i][0] === english(s) && names[i][1] === english(s) ? null : `${english(s)} built as ${names[i].join(" / ")}`))
+            .filter(Boolean);
+        const builtInPolish = shapes.map(s => ({ ...s, name: `DRPG ${plPlural(s.category)}${s.goal ? ` (${t.USABLE_GOALS[s.goal].label})` : ""} - Tier ${s.tier}` }));
+        const lost = builtInPolish.filter(s => !t.tableNameCandidates(s.category, s.tier, s.goal).includes(s.name)).map(s => s.name);
+        log(`R1060: ${held.read} word(s) held, ${held.found.length} found; ${shapes.length} names under Polish; ${undo.length} config field(s) set and put back`);
+        equal(JSON.stringify({ words: held.found.map(f => f.what), read: held.read > 0, lists: [lists.legacyPlurals !== null, lists.legacyGoalLabels !== null],
+            notEnglish, lost, putBack: livePlurals() === asFound }),
+        JSON.stringify({ words: [], read: true, lists: [true, true], notEnglish: [], lost: [], putBack: true }),
+        "[T14's findings over the live words and the served lists; whether it read any; both lists found in tables.mjs; the names not "
+            + "built in English under Polish; the Polish-built names that are no candidate; config.mjs put back as found]");
     }],
 
     ["R1138 - a doorway's light stops at the first wall and at the end of the room it falls into: fog-doorways.mjs `doorwayGlowPlan`, handed the walls and rooms beyond (`doorwayLight`'s answer), keeps the glow to a shape whose rays end at a wall 1.0-1.9 squares past an opening, straight or stepped, and where the room beyond ends, a room drawn across a gap reached (E51 fix FG3; the owner's item 4 of 31.10, LIVE-E51-03)", async () => {

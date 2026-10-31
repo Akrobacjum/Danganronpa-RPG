@@ -50,7 +50,10 @@
  * from the first day with no baseline, which is the plan's reason for them.
  * At E65 C2 two more, FAIL with a baseline that only shrinks (BASELINES): T3
  * (`familyFormats`, a plural family formatted as if it were a sentence) and T6
- * (`dashesIn`, an en dash, em dash or minus sign where the module speaks).
+ * (`dashesIn`, an en dash, em dash or minus sign where the module speaks). At
+ * C3 T14 (`tableWordProblems`, an item table's words against what they were,
+ * FAIL with no baseline), its bag `words` (config.mjs TABLE_NAME_WORDS) and
+ * the two legacy lists (`legacyListsFrom` over tables.mjs's text).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -405,6 +408,94 @@ export function dashesIn(bag = {}) {
     return { found, read, sources, counts };
 }
 
+/* ---------------------------------- T14 ------------------------------------ */
+
+/**
+ * WHAT AN ITEM TABLE'S NAME HAS CARRIED, AS IT READ AT 419d3b42 (E65's Base,
+ * 1.2.92): config.mjs `TABLE_NAME_WORDS` (the plural of each category, the
+ * label of each usable kind) and tables.mjs's two legacy lists, copied from a
+ * Node run of both files at 419d3b42 on 31.10.2026 and read again on 52eacb9c,
+ * where all four read the same. A frozen copy, never edited: it is what T14
+ * holds the live words against. A word that comes and goes after it is held
+ * only by the legacy list it was added to - which T14 does not see.
+ */
+export const TABLE_WORDS_AT_BASE = Object.freeze({
+    plural: Object.freeze({ usable: "Usables", crimeTool: "Murder Weapons", cleaningTool: "Cleaning Tools", tool: "Tools", truthBullet: "Truth Bullets",
+        bedroomKey: "Room Keys" }),
+    kind: Object.freeze({ healing: "Healing", stress: "Sanity Relief" }),
+    legacyPlurals: Object.freeze({ usable: Object.freeze(["Usable Items", "Użytkowe"]), crimeTool: Object.freeze(["Crime Tools", "Narzędzia zbrodni"]),
+        cleaningTool: Object.freeze(["Narzędzia do sprzątania"]), tool: Object.freeze(["Narzędzia"]) }),
+    legacyGoalLabels: Object.freeze({ stress: Object.freeze(["Stress Relief"]) })
+});
+
+/**
+ * tables.mjs's `LEGACY_PLURALS` and `LEGACY_GOAL_LABELS`, read off its text:
+ * each `const NAME = { key: ["...", ...], ... }` at the start of a line (so a
+ * copy in a "//" comment is not it) as an object of string lists, null where
+ * the literal is not there. tables.mjs cannot be imported in Node
+ * ("Hooks is not defined"), and the lists are not exported, so check.mjs and a
+ * tier read the same text the same way.
+ */
+export function legacyListsFrom(text) {
+    const out = {};
+    for (const [name, as] of [["LEGACY_PLURALS", "legacyPlurals"], ["LEGACY_GOAL_LABELS", "legacyGoalLabels"]]) {
+        const m = new RegExp(`(?:^|\\n)const ${name}\\s*=\\s*\\{([^}]*)\\}`).exec(String(text ?? ""));
+        out[as] = m ? Object.fromEntries([...m[1].matchAll(/(\w+)\s*:\s*\[([^\]]*)\]/g)]
+            .map(([, key, body]) => [key, [...body.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(x => x[1])])) : null;
+    }
+    return out;
+}
+
+/**
+ * T14 (plan, DB13): a table is found by its name, and its name is built from
+ * words that are ordinary display copy; every time one was reworded, worlds'
+ * tables stopped being found and `drawItem` fell through to the built-in pools
+ * in silence (tables.mjs, the comment above LEGACY_PLURALS). So every word the
+ * names carried at Base (`known`, TABLE_WORDS_AT_BASE) is today's word or in
+ * the legacy list of its category or kind, and every legacy word of Base is
+ * still in its list - the lists only grow (N5, "Add to this list - do not edit
+ * it"). A category or kind gone from `words` is a finding too: its tables are
+ * no longer named. `words` is config.mjs `TABLE_NAME_WORDS` (the English, frozen
+ * before any language: a client in Polish reads the same), the lists come from
+ * `legacyListsFrom`. The Polish names a client in Polish built before E14
+ * (`LOCALIZED_PLURALS`) are legacy words, candidates, never today's words.
+ * Whether `tableName` and `tableNameCandidates` build from these is R1060's
+ * second half, at a table.
+ */
+export function tableWordProblems({ words, legacyPlurals, legacyGoalLabels, known = TABLE_WORDS_AT_BASE, knownLegacy } = {}) {
+    const found = [];
+    let read = 0;
+    const was = knownLegacy ?? { plurals: known.legacyPlurals ?? {}, goalLabels: known.legacyGoalLabels ?? {} };
+    for (const [list, name] of [[legacyPlurals, "LEGACY_PLURALS"], [legacyGoalLabels, "LEGACY_GOAL_LABELS"]]) {
+        if (!list || typeof list !== "object") found.push({ key: name, kind: "unread", what: `tables.mjs's ${name} could not be read - T14 has nothing to hold the words to` });
+    }
+    const sides = [
+        ["plural", words?.plural, legacyPlurals ?? {}, "LEGACY_PLURALS", w => `"DRPG ${w} - Tier n"`, was.plurals ?? {}],
+        ["kind", words?.kind, legacyGoalLabels ?? {}, "LEGACY_GOAL_LABELS", w => `"DRPG Usables (${w}) - Tier n"`, was.goalLabels ?? {}]
+    ];
+    for (const [side, now, legacy, listName, nameOf, before] of sides) {
+        for (const [key, old] of Object.entries(known[side] ?? {})) {
+            read++;
+            const current = now?.[key];
+            if (typeof current !== "string") {
+                found.push({ key: `${side}.${key}`, kind: "gone", what: `TABLE_NAME_WORDS.${side} has no ${key} now; its tables were named ${nameOf(old)}, and nothing builds that name` });
+            } else if (current !== old && !(legacy[key] ?? []).includes(old)) {
+                found.push({ key: `${side}.${key}`, kind: "lost",
+                    what: `TABLE_NAME_WORDS.${side}.${key} is "${current}" now, and "${old}", which it was, is not in tables.mjs ${listName}.${key}: a world's ${nameOf(old)} is not found any more - add the old word to the list, never rename the table` });
+            }
+        }
+        for (const [key, olds] of Object.entries(before)) {
+            for (const old of olds) {
+                read++;
+                if (!(legacy[key] ?? []).includes(old)) {
+                    found.push({ key: `${listName}.${key}`, kind: "shrunk", what: `tables.mjs ${listName}.${key} no longer holds "${old}" - the lists only grow (N5): a world's ${nameOf(old)} is not found any more` });
+                }
+            }
+        }
+    }
+    return { found, read };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -482,10 +573,11 @@ export const MODES = Object.freeze({
     configPlaceholders: Object.freeze({ test: "T1", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "prose"]) }),
     pairParity: Object.freeze({ test: "T2", mode: "fail", fail: "E65", reads: Object.freeze(["lang"]) }),
     familyFormats: Object.freeze({ test: "T3", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts"]), lexer: true }),
-    dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true })
+    dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
+    tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) })
 });
 
-export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn });
+export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -630,7 +722,27 @@ export const FIXTURES = Object.freeze({
             },
             docs: { "docs/fx.md": "# Title\nA line \u2013 here\n`a \u2212 1` in code\nPlain - line\n" }   // lines 2 and 3 flagged
         }
+    },
+    tableWordProblems: {
+        flags: ["LEGACY_PLURALS.a shrunk", "kind.s lost", "plural.c lost", "plural.d gone"],
+        input: {
+            words: {
+                plural: { a: "Apples", b: "Big Pears", c: "Cherries", e: "Eggs" },   // a the same, b reworded with its old word kept, c reworded, d gone, e new
+                kind: { h: "Healing", s: "Calm" }                                     // h the same, s reworded
+            },
+            legacyPlurals: { a: ["Old Apples"], b: ["Pears"] },                       // a lost "Older Apples"
+            legacyGoalLabels: { s: ["Stress"] },
+            known: { plural: { a: "Apples", b: "Pears", c: "Cherry", d: "Dates" }, kind: { h: "Healing", s: "Relief" } },
+            knownLegacy: { plurals: { a: ["Old Apples", "Older Apples"] }, goalLabels: { s: ["Stress"] } }
+        }
     }
+});
+
+/** `legacyListsFrom`'s own case: both literals, an empty list, a commented-out copy before the real one, and a text with neither. */
+export const LEGACY_TEXT_FIXTURE = Object.freeze({
+    text: ["const LEGACY_PLURALS = {", "    usable: [\"Usable Items\", \"U\u017cytkowe\"],", "    tool: []", "};",
+        "// const LEGACY_GOAL_LABELS = { not: [\"this\"] };", "const LEGACY_GOAL_LABELS = {", "    stress: [\"Stress Relief\"]", "};"].join("\n"),
+    want: { legacyPlurals: { usable: ["Usable Items", "U\u017cytkowe"], tool: [] }, legacyGoalLabels: { stress: ["Stress Relief"] } }
 });
 
 /**
@@ -665,7 +777,8 @@ export const BASELINE_FIXTURE = Object.freeze({
  * file's; check.mjs and R1058 pass none, a planted fault passes its own. `tools`
  * goes into every fixture's bag - the lexer, which a detector that reads code
  * needs and this file cannot import. Then every baseline row is well formed and
- * belongs to a FAIL detector, and the matcher answers its own case.
+ * belongs to a FAIL detector, and `legacyListsFrom` and the matcher answer their
+ * own cases.
  */
 export function selfCheck(detectors = DETECTORS, tools = {}) {
     const out = [];
@@ -691,6 +804,9 @@ export function selfCheck(detectors = DETECTORS, tools = {}) {
             }
         });
     }
+    const lists = [JSON.stringify(legacyListsFrom(LEGACY_TEXT_FIXTURE.text)), JSON.stringify(legacyListsFrom("const OTHER = {};"))];
+    const listsWant = [JSON.stringify(LEGACY_TEXT_FIXTURE.want), JSON.stringify({ legacyPlurals: null, legacyGoalLabels: null })];
+    if (lists[0] !== listsWant[0] || lists[1] !== listsWant[1]) out.push(`legacyListsFrom reads ${lists.join(" and ")} off its fixture, not ${listsWant.join(" and ")} - T14 would read the wrong lists`);
     const b = againstBaseline(BASELINE_FIXTURE.result, BASELINE_FIXTURE.rows);
     const got = JSON.stringify({ left: b.left.map(f => `${f.file} ${f.key}`).sort(), stale: b.stale.map(st => `${st.file} ${st.key ?? st.quote}`).sort(),
         matched: b.matched, rows: b.rows });

@@ -105,7 +105,9 @@
  *             suite's own files out, through tests-lint.mjs's lexer) and every
  *             .md git lists under docs/; red on a finding the baseline does
  *             not hold, and on a baseline row nothing fills ("take it out of
- *             the baseline").
+ *             the baseline"). E65 C3: T14 (tableWordProblems), FAIL: config.mjs's
+ *             TABLE_NAME_WORDS against the words of Base, with tables.mjs's two
+ *             legacy lists read off its text (it does not load in Node).
  */
 
 import fs from "node:fs";
@@ -680,7 +682,8 @@ async function text() {
     if (listed === null || docList === null) { problems.push("not a git checkout: the scripts and docs could not be listed - nothing was read"); return problems; }
     const scripts = new Map(listed.filter(f => f.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(path.basename(f))).map(f => [f, read(f)]));
     const docs = new Map(docList.filter(f => f.endsWith(".md")).map(f => [f, read(f)]));
-    const inputs = { en, pl, prose, scripts, docs, lexer };
+    /* T14's bag (E65 C3): the words a table's name is built from, as config.mjs freezes them, and tables.mjs's legacy lists. */
+    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")) };
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
         const r = T.DETECTORS[name](inputs);
