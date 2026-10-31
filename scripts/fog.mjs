@@ -65,7 +65,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -302,7 +302,7 @@ export function registerFog() {
         // starts empty, so the first move a character makes - even across two
         // feet of the room it woke up in - read as "the set of rooms I occupy
         // has changed" and announced the room a second time.
-        step("remember where we started", () => { lastMineSignature = signatureOf(myCurrentRooms()); });
+        step("remember where we started", () => standWhereWeStand());
         // After it: this writes a world setting, and the paint must not wait
         // on a round trip to the database to put something on screen.
         step("seed discovery", () => seedDiscovery());
@@ -322,9 +322,28 @@ export function registerFog() {
         step("seed discovery", () => seedDiscovery(tokenDoc?.parent ?? null));
     });
     /* A DOOR OPENED OR SHUT, A WALL MOVED (E51 C3; E51-22): the outline standing beside it drawn again, its gaps and glow
-       as the walls now stand, with no sound (`outlineAfterDoor`). A room's flag - a lock, an owner - is `regionChanged`'s. */
+       as the walls now stand, with no sound (`outlineAfterDoor`). A room's flag - a lock, an owner - is `regionChanged`'s.
+       A WALL MADE OR DELETED TOO (E51 fix FG2, 31.10.2026; the correctness review's F2): until the fix only `updateWall`
+       was heard, so a wall drawn on the border, or one deleted, left the outline's gap or line as it was until the next
+       arrival. A deleted wall's `c` is where it stood. */
     Hooks.on("updateWall", (wall, changes) => step("the outline by a door", () => outlineAfterDoor(wall, changes)));
-    Hooks.on("deleteToken", () => repaintFog());
+    Hooks.on("createWall", wall => step("the outline by a wall made", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
+    Hooks.on("deleteWall", wall => step("the outline by a wall deleted", () => outlineAfterDoor(wall, { c: wall?.c }, { placed: true })));
+    /* A SEAL OR A CHAIN SET (E51 fix FG2, 31.10.2026; the goal review's G8). The glow asks the veto (`doorwayEdges`,
+       D43c = 2), and a seal or a chain is a world setting the veto reads, which no listener above hears: a Hope Call's
+       Seal on the room beyond left its glow lit beside a door the veto then refused, until the next arrival. Both
+       settings' writes now draw the standing outline again, with no sound. A Setting is made by its first write
+       (`createSetting`) and changed by every later one (`updateSetting`). */
+    for (const hook of ["createSetting", "updateSetting"]) {
+        Hooks.on(hook, setting => step("the outline by a seal or a chain", () => outlineAfterVeto(setting)));
+    }
+    /* A TOKEN DELETED TELLS WHERE THIS VIEWER STANDS (E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10). The repaint
+       alone left `lastMineSignature` naming the deleted token's room, so the next arrival of any token read "my rooms
+       changed" and outlined that token's room - on a GM, a player's (the goal review's measurement, 31.10). */
+    Hooks.on("deleteToken", tokenDoc => {
+        step("repaint", () => repaintFog());
+        step("where this viewer stands", () => standWhereWeStand({ without: tokenDoc?.id ?? null, redraw: true }));
+    });
 
     /*
      * A ROOM DRAWN IN PLAY (E12 C7, 11.10.2026; audit S07-11, S07-12). Until 1.2.74 nothing
@@ -593,6 +612,11 @@ function regionChanged(region, userId, changes = null) {
     step("scene vision mode", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
     step("the outline by a room's flag", () => outlineAfterRoomFlag(region, changes));
+    /* A room drawn, reshaped, renamed or deleted under this viewer's tokens changes the rooms they stand in with no
+       arrival of theirs (E51 fix FG2; the correctness review's road (d)): read now, so the next arrival of another token
+       does not find "my rooms changed" and outline its room. Nothing is announced - no token of this viewer's moved - and
+       with no outline standing, the room a lead stands in is outlined again, with no sound (`standWhereWeStand`). */
+    step("where this viewer stands", () => standWhereWeStand({ redraw: true }));
 }
 
 /*
@@ -602,13 +626,20 @@ function regionChanged(region, userId, changes = null) {
  * or gave it an owner left a gap or a wall on screen that the map, or the veto (`doorwayEdges` since C3), no longer had
  * until the next arrival. Both answers below ask `redrawOutline` - the one redraw (R560) - for the standing room when
  * the change touches it: a wall, or a region, within a square of the room's box (a lock on the room beyond changes the
- * doors of every room that borders it, and one outline stands at a time). No sound, no reveal (R1114). Not heard: a
- * seal or a chain set (world settings), a key gained, the time of day - each changes the veto's answer and is drawn at
- * the next arrival.
+ * doors of every room that borders it, and one outline stands at a time). No sound, no reveal (R1114).
+ *
+ * WHAT IS HEARD SINCE THE FIX ROUND (E51 fix FG2, 31.10.2026; the correctness review's F2, the goal review's G8). A wall
+ * made or deleted (`createWall`, `deleteWall`), as well as changed. A wall MOVED draws the standing outline again
+ * whatever its new place: `updateWall` hands only where it runs now, and where it ran is not in the change (a
+ * `preUpdateWall` is heard on the browser that wrote it alone), so a wall dragged away from the room's border was never
+ * near enough to redraw it. A seal and a chain set (`sealedRooms`, `restrictions`; `outlineAfterVeto`). Still not heard:
+ * a key gained and the time of day - each changes the veto's answer and is drawn at the next arrival.
  */
-function standingTouched(scene, box) {
+function standingTouched(scene, box, { anywhere = false } = {}) {
     const standing = roomOutline;
-    if (!standing?.region || !box || standing.region.parent !== scene) return null;
+    if (!standing?.region || standing.region.parent !== scene) return null;
+    if (anywhere) return standing.room;
+    if (!box) return null;
     const own = boundsOf(standing.region);
     if (!own) return null;
     const pad = scene?.grid?.size ?? canvas?.grid?.size ?? 100;
@@ -616,13 +647,24 @@ function standingTouched(scene, box) {
     return apart ? null : standing.room;
 }
 
-/** A wall's update (`changes`): a door's state or kind, what it blocks, or where it runs - the standing outline beside it drawn again. */
-function outlineAfterDoor(wall, changes) {
+/** A wall's update (`changes`): a door's state or kind, what it blocks, or where it runs - the standing outline beside it drawn
+    again; `placed`, a wall made or deleted (`changes` its `c`), only beside it. */
+function outlineAfterDoor(wall, changes, { placed = false } = {}) {
     if (!["ds", "door", "move", "c"].some(key => Object.hasOwn(changes ?? {}, key))) return false;
     const c = wall?.c;
     if (!(c?.length >= 4)) return false;
-    const room = standingTouched(wall.parent, { x: Math.min(c[0], c[2]), y: Math.min(c[1], c[3]), w: Math.abs(c[2] - c[0]), h: Math.abs(c[3] - c[1]) });
+    const box = { x: Math.min(c[0], c[2]), y: Math.min(c[1], c[3]), w: Math.abs(c[2] - c[0]), h: Math.abs(c[3] - c[1]) };
+    // A move from wherever it was: the whole scene stands in for the old place, which the change does not hold.
+    const room = !placed && Object.hasOwn(changes, "c") ? standingTouched(wall.parent, null, { anywhere: true }) : standingTouched(wall.parent, box);
     return room ? redrawOutline(room) : false;
+}
+
+/** A world setting written: a seal or a chain (`sealedRooms`, `restrictions`) draws the standing outline again, whichever
+    room it names - a seal shuts the doors into it of every room beside it, a chain every door of the chained one's room. */
+function outlineAfterVeto(setting) {
+    const key = setting?.key;
+    if (key !== `${MODULE_ID}.${SETTINGS.sealedRooms}` && key !== `${MODULE_ID}.${SETTINGS.restrictions}`) return false;
+    return roomOutline ? redrawOutline() : false;
 }
 
 /** A region's update (`changes`) that wrote a flag of the module's - a lock, an owner, a room's mark: the standing outline beside it drawn again. */
@@ -4190,13 +4232,24 @@ function ownArrival(tokenDoc) {
     // primary GM's write and the setting sync that follows it.
     try {
         if (tokenDoc.actor?.isOwner) {
-            // E89 fix FG2 (G3): two walks of the viewer's tokens below, `myCurrentRooms` and `rememberMine`.
+            // E89 fix FG2 (G3): two walks of the viewer's tokens below, `standingNow` and `rememberMine`.
             count("fog.reactToMove.walks", 2);
-            const before = lastMineSignature;
-            const after = signatureOf(myCurrentRooms());
-            const changedRoom = before !== after;
-            lastMineSignature = after;
-            const entered = changedRoom ? roomEnteredByMe(tokenDoc) : null;
+            const now = standingNow();
+            const changedRoom = lastMineSignature !== now.mine;
+            lastMineSignature = now.mine;
+            /*
+             * THE OUTLINE IS THE LEAD'S, WHICHEVER TOKEN CALLED (E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10, the
+             * correctness and goal reviews' measurements). The rooms this viewer stands in were compared, and the room
+             * outlined was the CALLER's - on a GM every token is owned, so a player's step, a trace placed or another
+             * token's arrival outlined its own room whenever the Monokuma's set had changed without its own call first: a
+             * Monokuma move held for its waypoints (`onUpdateToken`), a token of it deleted, a room drawn under it.
+             * Now only a token the outline follows here (`leadsHere`: a player's own character, a GM's own Monokuma) takes
+             * the new set of its rooms and outlines its room; another token's call repaints the fog and leaves the outline
+             * to the lead's own call, which comes (a held move's at rest).
+             */
+            const lead = leadsHere(tokenDoc);
+            const entered = lead && lastLeadSignature !== now.lead ? roomEnteredByMe(tokenDoc) : null;
+            if (lead) lastLeadSignature = now.lead;
 
             // BEFORE the repaint, not after: the whole point is that the room
             // being left is already remembered by the time the layer is
@@ -4218,11 +4271,9 @@ function ownArrival(tokenDoc) {
             // write half below was unreachable: `recordDiscovery` could only
             // ever fire for the GM's own character. The session mirror masked
             // it until the player's first reload, when their rooms vanished.
-            if (changedRoom) {
-                repaintFog();
-                if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
-                else if (entered) announceRoom(entered.room, tokenDoc.actor, tokenDoc.elevation);
-            }
+            if (changedRoom) repaintFog();
+            if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
+            else if (entered) announceRoom(entered.room, tokenDoc.actor, tokenDoc.elevation);
         }
     } catch (err) {
         debug("Fog: could not react to an owned token's move", err);
@@ -4240,7 +4291,8 @@ function revealStartingRooms() {
     if (!scene) return;
 
     for (const token of canvas?.tokens?.placeables ?? []) {
-        if (!isMine(token)) continue;
+        // The tokens the outline follows (`leadsHere`; E51 fix FG2): on a GM's browser another GM's Monokuma is not one.
+        if (!leadsHere(token)) continue;
         const entered = roomEnteredByMe(token.document);
         if (!entered) continue;
         // A room nobody here has seen gets the whole gesture. One already known
@@ -4256,6 +4308,63 @@ function revealStartingRooms() {
 let lastMineSignature = "";
 function signatureOf(rooms) {
     return Array.from(rooms).sort().join("|");
+}
+
+/** The same of the rooms the tokens the outline follows stand in (`leadsHere`; E51 fix FG2). On a player's browser the
+    two are one set; on a GM's, the GM's own Monokuma's rooms against every Monokuma's. */
+let lastLeadSignature = "";
+
+/**
+ * Whose room the outline stands round on this browser (E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10).
+ *
+ * A player's: their own characters, as `isMine` reads them. A GM's: their own Monokuma - a Monokuma whose Despair pool is
+ * this GM's (monokuma.mjs `poolUserFor`, as hud.mjs `viewerActor` reads the GM's character), not every token flagged
+ * Monokuma: with a pool per GM, another GM's Monokuma walking in moved this GM's outline into its room (the correctness
+ * review's road (c), read). A GM with no Monokuma of their own - an Assistant GM with no pool - follows every Monokuma,
+ * as before the fix. The fog itself stays `isMine`'s: every Monokuma clears a GM's rooms.
+ */
+function leadsHere(token, gm = game.user.isGM) {
+    if (!isMine(token, gm)) return false;
+    if (!gm) return true;
+    const me = game.user?.id;
+    if (poolUserFor(token.actor)?.id === me) return true;
+    return !game.actors?.some(a => a?.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === me);
+}
+
+/** The rooms this viewer's tokens stand in now, as `lastMineSignature` and `lastLeadSignature` hold them, in one walk of
+    the drawn tokens; `without`, a token's id left out (a `deleteToken` the placeables may still hold). */
+function standingNow({ without = null } = {}) {
+    const mine = new Set(), lead = new Set();
+    for (const token of canvas?.tokens?.placeables ?? []) {
+        if (without && (token.document?.id ?? token.id) === without) continue;
+        if (!isMine(token)) continue;
+        const room = roomOfToken(token.document);
+        if (!room) continue;
+        mine.add(room);
+        if (leadsHere(token)) lead.add(room);
+    }
+    return { mine: signatureOf(mine), lead: signatureOf(lead) };
+}
+
+/**
+ * Where this viewer's tokens stand, remembered with no arrival (E51 fix FG2, 31.10.2026): the canvas drawn, a token
+ * deleted, a room drawn or changed. Until the fix the canvas alone set it, so a deleted token or a room drawn under one
+ * left `lastMineSignature` stale, and the next arrival of ANY token read "my rooms changed" and outlined its room (the
+ * goal review's measurement: a second Monokuma token placed and deleted, then a player's step - the GM's outline on the
+ * player's room). `redraw`, after a deletion or a room's change: when no outline stands - the repaint took it down from
+ * the deleted token's room, or a room reshaped away from under the lead - and a lead stands in a room, that room is
+ * outlined again, with no sound, as the lead's own walk there drew it.
+ */
+function standWhereWeStand({ without = null, redraw = false } = {}) {
+    const now = standingNow({ without });
+    lastMineSignature = now.mine;
+    lastLeadSignature = now.lead;
+    if (!redraw || roomOutline || !fogEnabled()) return false;
+    const leader = (canvas?.tokens?.placeables ?? []).find(token => (token.document?.id ?? token.id) !== without
+        && leadsHere(token) && roomOfToken(token.document));
+    if (!leader) return false;
+    announceRoom(roomOfToken(leader.document), leader.document.actor, leader.document.elevation, { quiet: true });
+    return true;
 }
 
 /**
@@ -4304,7 +4413,7 @@ function roomEnteredByMe(tokenDoc) {
  * secret passages open in the outline (E79 C3; fog-doorways.mjs `doorwayEdges`), read at
  * `elevation`, its token's height (H81 fix r1; fog-reveal.mjs `flashOutline`).
  */
-function announceRoom(room, actor = null, elevation = null) {
+function announceRoom(room, actor = null, elevation = null, { quiet = false } = {}) {
     /* THE ROOM FOG SWITCHED OFF IS SILENT (E51 C3, 31.10.2026; audit S07-28, the owner's D43b = 1: "everything goes
        silent with the fog; the discovery ledger keeps recording for the projects"). No sound, no outline, no layer
        mounted to draw one in. Asked before the sound, which is the arrival's own (below); the ledger is `reactToMove`'s. */
@@ -4312,7 +4421,8 @@ function announceRoom(room, actor = null, elevation = null) {
     // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
     // event; whether this client can draw the outline for it is a separate
     // question, and a scene without a usable region should not also go silent.
-    playSfx("roomEntered");
+    // `quiet`: no crossing, the outline drawn again where the viewer stands (`standWhereWeStand`).
+    if (!quiet) playSfx("roomEntered");
 
     const fx = fxLayer();
     const scene = canvas?.scene;

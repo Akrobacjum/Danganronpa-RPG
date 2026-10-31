@@ -79,6 +79,10 @@
  *   N13 the room at the move's destination (E79 C14): p1's crossing of one update announced at once on p1 and on the GM,
  *      which owns Aiko, in the room it enters; a hook that reads the token at its start; a drag's pending step and its
  *      last; and the at-rest read announcing again only for another room.
+ *   GO the GM's outline (E51 fix FG2; the owner's item 2 of 31.10): on the GM, whose outline follows its own Monokuma, a
+ *      Monokuma move held for its waypoint while Aiko steps, another held while a trace is placed, a second Monokuma whose
+ *      pool is the second GM's walked between rooms, and the Hall reshaped from under the Monokuma and put back - the
+ *      outline stays round the Monokuma's room through each.
  *   X  what the second review found (E12 fix r2-S2): a tower whose upper floor alone is walled, with a room of Foundry's
  *      name, under the GM's map check and the fog's report on each floor (EARLY-C10-3, O4, EARLY-C10-2); a Teleport
  *      taken off a marked Hall and put back, with p1 looking at it (EARLY-C7-3); a region marked and renamed through its
@@ -151,6 +155,9 @@
  * E17 fix ci-1 (I1-I4 and P2 rewritten for E17 C1's put-back): 70 checks in 142.5-142.8 s, two runs alone under the
  * harness lock on 26.10.2026, and 146.6 s in quick.sh's run; with the audit's rule put-back taken out (a mutant of
  * movement-audit.mjs `auditMove`), 66 of 70 in 163.6 s, I1, I2, I3 and P2 failing.
+ * E51 fix FG2 (GO1-GO5 added before X): GO alone, as a scenario of its own on the seeded world with the second GM's
+ * account, 5 checks in 16.0 s on 31.10.2026, and 1 of 5 in 16.2 s with the fix's fog.mjs, fog-doorways.mjs and
+ * fog-reveal.mjs taken back to 99226e59 (GO1-GO4 failing); the whole file's time is the fix commit's quick run's.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -1984,6 +1991,111 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         + "Porch its update named (E79 C14)",
     givenN[1] === 2 && J(roomsN(restN)) === J([PORCH_N, [true, "Dorm A", true, "Dorm A"]]) && restN.token === "Dorm A",
     J({ givenN, restN }));
+
+    /* ------------------------------ GO. the GM's outline ------------------------------ */
+    phase("GO: the GM's outline stays round its own Monokuma's room - a held move, a trace placed, another GM's Monokuma, a room reshaped under it");
+    /* E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10 ("the GM's room outline sometimes on another room than the GM's
+       token"), the correctness review's roads (a)-(d) (its probe k2-gm-outline, whose two phases are GO1 and GO2). On the
+       GM, where every token is owned and the outline follows the Monokuma: (a) the Monokuma's move from the Hall into the
+       Cafeteria delivered with a waypoint still pending (fog.mjs `onUpdateToken` leaves it to `whenAtRest`) while Aiko,
+       written by the GM, steps inside Dorm A, then its last update; (b) its move back into the Hall held the same way while a
+       trace is placed in the Gym; (c) a second Monokuma whose Despair pool is the second GM's (`setPoolFor`), placed in the
+       Storage and walked into the Gym; (d) the Hall reshaped so the Monokuma stands in no room, Aiko's step, the Hall put back,
+       Aiko's step. Read: `roomOutline.room` on the GM after each. Every token, the actor, the pools and the Hall put back.
+       Red at 99226e59: (a) Dorm A, (b) the Gym, (c) the Storage, (d) Dorm A. */
+    const GO_MOVE = `{ teleport: true, movementAction: "displace", animate: false }`;
+    const GO_VIEW = `const FR = await import("${repoUrl}/scripts/fog-reveal.mjs"); return FR.roomOutline?.room ?? null;`;
+    const goStart = await gm.eval(`${SCENES} const mono = academy.tokens.get("TOKMONOKUMA00000"), aiko = academy.tokens.get("TOKAIKO000000000");
+        globalThis.__s66go = { fog: game.settings.get("${MOD}", "regionFog"), mono: { x: mono.x, y: mono.y }, aiko: { x: aiko.x, y: aiko.y },
+            pools: foundry.utils.deepClone(game.settings.get("${MOD}", "monokumaPools") ?? {}),
+            hall: foundry.utils.deepClone(academy.regions.get("REGHALL000000000").shapes.map(s => s.toObject?.() ?? s)) };
+        if (!globalThis.__s66go.fog) await game.settings.set("${MOD}", "regionFog", true);
+        await aiko.update({ x: 300, y: 300 }, ${GO_MOVE});
+        await mono.update({ x: 2300, y: 300 }, ${GO_MOVE});
+        return true;`, { timeout: 60000 });
+    await settle(1200);
+    const goHall = await gm.eval(GO_VIEW);
+    // (a) and (b): the correctness review's probe, phase for phase.
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
+        await t.update({ x: 1500, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 1600, y: 300 }] } } } }); return true;`);
+    await settle(150);
+    await gm.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 400 }, ${GO_MOVE}); return true;`);
+    await settle(600);
+    const goMidA = await gm.eval(GO_VIEW);
+    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 1600, y: 300 }, ${GO_MOVE}); return true;`);
+    await settle(3000);
+    const goAfterA = await gm.eval(GO_VIEW);
+    check("GO1: the Monokuma's move into the Cafeteria held for its waypoint while Aiko steps inside Dorm A - the GM's outline is never Dorm A, "
+        + "and stands round the Cafeteria after the move (E51 fix FG2, road (a))",
+    goStart === true && goHall === "Hall" && goMidA !== "Dorm A" && goAfterA === "Cafeteria", J({ goHall, goMidA, goAfterA }));
+
+    await gm.eval(`${SCENES} const t = academy.tokens.get("TOKMONOKUMA00000");
+        await t.update({ x: 2300, y: 300 }, { ...${GO_MOVE}, movement: { [t.id]: { pending: { waypoints: [{ x: 2400, y: 300 }] } } } }); return true;`);
+    await settle(150);
+    const goTrace = await gm.eval(`${SCENES} const { placeRemnant } = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = await placeRemnant({ type: "prep", visibility: "evident", x: 1500, y: 1500, scene: academy, note: "66 GO trace" });
+        globalThis.__s66go.trace = t?.id ?? null; return t?.id ?? null;`, { timeout: 60000 });
+    await settle(600);
+    const goMidB = await gm.eval(GO_VIEW);
+    await gm.eval(`${SCENES} await academy.tokens.get("TOKMONOKUMA00000").update({ x: 2400, y: 300 }, ${GO_MOVE}); return true;`);
+    await settle(3000);
+    const goAfterB = await gm.eval(GO_VIEW);
+    check("GO2: the Monokuma's move back into the Hall held for its waypoint while a trace is placed in the Gym - the GM's outline is never the "
+        + "Gym, and stands round the Hall after the move (E51 fix FG2, road (b))",
+    Boolean(goTrace) && goMidB !== "Gym" && goAfterB === "Hall", J({ goTrace, goMidB, goAfterB }));
+
+    // (c) another GM's Monokuma: its pool the second GM's, so it is no token this GM's outline follows.
+    const goOther = await gm.eval(`${SCENES} const { setPoolFor, poolUserFor } = await import("${repoUrl}/scripts/monokuma.mjs");
+        const FR = await import("${repoUrl}/scripts/fog-reveal.mjs");
+        const actor = await Actor.create({ name: "66 GO Monokuma", type: "character", flags: { "${MOD}": { monokuma: true } } });
+        globalThis.__s66go.actor = actor.id;
+        await setPoolFor(actor, "USERGM2000000000");
+        const [t] = await academy.createEmbeddedDocuments("Token", [{ name: "66 GO Monokuma", actorId: actor.id, actorLink: true,
+            x: 2400, y: 1400, width: 1, height: 1, hidden: false, texture: { src: "icons/svg/mystery-man.svg" } }]);
+        globalThis.__s66go.token = t.id;
+        await new Promise(r => setTimeout(r, 1200));
+        const placed = FR.roomOutline?.room ?? null;
+        await t.update({ x: 1500, y: 1400 }, ${GO_MOVE});
+        await new Promise(r => setTimeout(r, 1500));
+        return { pool: poolUserFor(actor)?.id ?? null, own: poolUserFor(game.actors.get("ACTORMONOKUMA000"))?.id === game.user.id,
+            placed, walked: FR.roomOutline?.room ?? null };`, { timeout: 60000 });
+    check("GO3: a second Monokuma whose pool is the second GM's, placed in the Storage and walked into the Gym, leaves this GM's outline round its "
+        + "own Monokuma's Hall (E51 fix FG2, road (c))",
+    goOther.pool === "USERGM2000000000" && goOther.own === true && goOther.placed === "Hall" && goOther.walked === "Hall", J(goOther));
+
+    // (d) the Hall reshaped away from under the Monokuma, then put back.
+    const goShape = await gm.eval(`${SCENES} const FR = await import("${repoUrl}/scripts/fog-reveal.mjs");
+        const hall = academy.regions.get("REGHALL000000000"), aiko = academy.tokens.get("TOKAIKO000000000"), seen = {};
+        await hall.update({ shapes: [{ type: "rectangle", x: 2600, y: 600, width: 200, height: 200 }] });
+        await new Promise(r => setTimeout(r, 600));
+        await aiko.update({ x: 300 }, ${GO_MOVE});
+        await new Promise(r => setTimeout(r, 1200));
+        seen.away = FR.roomOutline?.room ?? null;
+        await hall.update({ shapes: globalThis.__s66go.hall });
+        await new Promise(r => setTimeout(r, 600));
+        seen.back = FR.roomOutline?.room ?? null;
+        await aiko.update({ x: 400 }, ${GO_MOVE});
+        await new Promise(r => setTimeout(r, 1200));
+        seen.step = FR.roomOutline?.room ?? null;
+        return seen;`, { timeout: 60000 });
+    check("GO4: with the Hall reshaped so the Monokuma stands in no room, Aiko's step leaves the GM's outline off Dorm A; the Hall put back draws "
+        + "its outline again with no step of the Monokuma, and Aiko's next step leaves it there (E51 fix FG2, road (d))",
+    goShape.away !== "Dorm A" && goShape.back === "Hall" && goShape.step === "Hall", J(goShape));
+
+    const goBack = await gm.eval(`${SCENES} const was = globalThis.__s66go, { dropRemnantSecret } = await import("${repoUrl}/scripts/remnants.mjs");
+        if (was.trace) { await academy.tokens.get(was.trace)?.delete(); try { await dropRemnantSecret(was.trace); } catch {} }
+        if (was.token) await academy.tokens.get(was.token)?.delete();
+        if (was.actor) await game.actors.get(was.actor)?.delete();
+        await game.settings.set("${MOD}", "monokumaPools", was.pools);
+        await academy.tokens.get("TOKMONOKUMA00000").update(was.mono, ${GO_MOVE});
+        await academy.tokens.get("TOKAIKO000000000").update(was.aiko, ${GO_MOVE});
+        if (!was.fog) await game.settings.set("${MOD}", "regionFog", false);
+        delete globalThis.__s66go;
+        return { actor: game.actors.some(a => a.name === "66 GO Monokuma"), tokens: academy.tokens.filter(t => /66 GO/.test(t.name ?? "")).length,
+            pools: JSON.stringify(game.settings.get("${MOD}", "monokumaPools") ?? {}) === JSON.stringify(was.pools) };`, { timeout: 60000 });
+    await settle(800);
+    check("GO5: put back - the second Monokuma, its token and the trace gone, the pools as they were", goBack.actor === false && goBack.tokens === 0
+        && goBack.pools === true, J(goBack));
 
     /* ------------------------------ X. the second review's findings ------------------------------ */
     phase("X: one floor's walls, a room of Foundry's name, a Teleport taken off and put on, regions in a scene's update, a GM's handover");
