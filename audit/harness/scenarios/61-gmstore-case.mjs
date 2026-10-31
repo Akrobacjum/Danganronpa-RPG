@@ -12,7 +12,8 @@
  * GM closes run last, because only a late account can connect again):
  *   A  the harness's own preconditions: a late GM boots with the storage it was
  *      given, the others see it connect, its storage is read back after it left,
- *      and its clock can be off while the server's is not.
+ *      and its clock can be off while the server's is not; and (A8, E90) on a server
+ *      whose serverTime is its uptime, a store write under an older session's cut lands.
  *   C  the chat cards 1.2.64 left (E06 C12): the primary's clause rewrites a roll naming its
  *      character, a private card's facts and a report's words, and a GM that joins after with
  *      an empty browser holds them rewritten, as a player does.
@@ -225,6 +226,29 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("A7: it comes back with the browser it left, in another world if told, and a clock off by five minutes moves Date.now alone",
         again.held === JSON.stringify({ visit: 2 }) && again.world === "drpg-world-b" && Math.abs(again.skew - 300000) < 2000,
         JSON.stringify(again));
+    await disconnect("gm2");
+    await settle(300);
+
+    /* A8 (E90, 31.10.2026; LIVE-E04-01 answered at the owner's table: Foundry 14.365 on The Forge read
+       game.time.serverTime 2811317 beside Date.now() 1793415993407 - the server's uptime). An empty browser in a
+       world of its own, on a server started 2811317 ms before it connects (cluster.mjs `serverUptimeMs`): its
+       serverTime is that uptime, the module's clock (`serverNow`) and the stores' (`gmStoreNow`) are this machine's
+       epoch clock, and a trace's row written under the owner's highest watermark, 5869492, set at a higher uptime
+       before a restart, is kept. At 248e798e both clocks read the uptime and the row was dropped as older than the cut. */
+    await connect("gm2", { world: "drpg-world-e90", serverUptimeMs: 2811317 });
+    const uptime = await gm2.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 10000;
+        while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await S.remnantStore.mergeIn({ e: {}, t: {}, d: {}, cleared: 5869492 }, { source: "sync" });
+        await S.remnantStore.patch("E90scene.E90uptime", { type: "prep", visibility: "evident" });
+        await E.gmStoresIdle();
+        return { server: game.time.serverTime, now: U.serverNow(), stores: E.gmStoreNow(), local: Date.now(), world: game.world.id,
+            cleared: S.remnantStore.cleared(), kept: S.remnantStore.get("E90scene.E90uptime")?.type ?? null };`);
+    check("A8: on a server whose serverTime is its uptime (2811317 at connect), the module's clock and the stores' are the epoch clock, and a row written under a watermark set at a higher uptime (5869492) is kept",
+        uptime.world === "drpg-world-e90" && uptime.server > 0 && uptime.server < 1e7
+        && Math.abs(uptime.now - uptime.local) < 5000 && Math.abs(uptime.stores - uptime.local) < 5000
+        && uptime.cleared === 5869492 && uptime.kept === "prep", JSON.stringify(uptime));
     await disconnect("gm2");
     await settle(300);
 

@@ -16735,7 +16735,7 @@ const REGRESSIONS = [
          * `drpgTimeOfDayChanged`, whose race with the attribute that file's note on the outline gives. Read on a class of
          * this test's own with two of v13's style methods (`_getSegmentStyle`, `_getGridHighlightStyle`), and the
          * sources with comments stripped. Whether v14's ruler draws the colour, and changes at the hour's turn, is
-         * LIVE-E51-02 (AUDIT 9.2 item 355): the harness has no TokenRuler. Red at f2b503e7: no `hourRulerFor`.
+         * LIVE-E51-02 (AUDIT 9.2 item 356): the harness has no TokenRuler. Red at f2b503e7: no `hourRulerFor`.
          */
         const J = JSON.stringify;
         const D = await import("./fog-doorways.mjs");

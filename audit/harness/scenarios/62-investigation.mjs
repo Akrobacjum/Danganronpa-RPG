@@ -78,7 +78,7 @@
  *   S  (E51 C5) the investigation starts: every client logs the tokens it creates, with the module's files on the stack,
  *      and the GM each creation's user; no student gains a token, and a second token the harness gives Aiko is read
  *      (two on the school, no road of the module's, made by the GM). The owner's doubled token of 27.10 had no road of
- *      the module's to show here: LIVE-E51-04 (AUDIT 9.2 item 357).
+ *      the module's to show here: LIVE-E51-04 (AUDIT 9.2 item 358).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -879,7 +879,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
        token on the school, as whatever made the owner's would, and the GM places a trace, a token made on a road of the
        module's (remnants.mjs), so the stack's reading is shown able to name one. Read: each student's tokens on each scene with their
        `_stats.createdBy`, and every creation logged. Put back: the second token, the trace and its row, and the phase. If no module road shows,
-       the doubled token is LIVE-E51-04's (AUDIT 9.2 item 357) - this reading is what the harness can say. */
+       the doubled token is LIVE-E51-04's (AUDIT 9.2 item 358) - this reading is what the harness can say. */
     const sHook = `globalThis.__s62tok = [];
         globalThis.__s62hooks = [Hooks.on("preCreateToken", (doc, data) => { globalThis.__s62tok.push({ id: doc?.id ?? data?._id ?? null, actor: doc?.actorId ?? data?.actorId ?? null,
             scene: doc?.parent?.id ?? null, files: [...new Set(String(new Error().stack ?? "").split("\\n")

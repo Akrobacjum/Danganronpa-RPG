@@ -2,7 +2,7 @@
  * Danganronpa RPG - shared helpers.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, epochClock } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -242,8 +242,11 @@ export function serialWrite(key, step) {
 }
 
 /**
- * Now, on the server's clock where Foundry gives one (`game.time.serverTime`), else this
- * machine's - the same reading the GMs' store stamps with (gm-store.mjs `now`).
+ * Now, on the server's clock where Foundry gives one as an epoch time (`game.time.serverTime`
+ * at or above config.mjs `EPOCH_FLOOR_MS`), else this machine's - the same reading the GMs'
+ * store stamps with (gm-store.mjs `now`). An uptime is not taken (E90, 31.10.2026): on The
+ * Forge it read 2811317 beside `Date.now()` 1793415993407, and it starts again at each restart
+ * (config.mjs `epochClock` has the reading and the reasoning).
  *
  * FOR A STAMP ONE BROWSER WRITES AND ANOTHER COUNTS FROM (E10 C13, 1.2.71; audit S06-37). The
  * debate's `startedAt` and the time of day's `timeOfDayStartedAt`/`pausedAt` were each written
@@ -254,8 +257,7 @@ export function serialWrite(key, step) {
  * process clock (client-entry.mjs), so the agreement measured here is the harness's.
  */
 export function serverNow() {
-    const t = game.time?.serverTime;
-    return Number.isFinite(t) && t > 0 ? t : Date.now();
+    return epochClock(game.time?.serverTime, Date.now());
 }
 
 /**

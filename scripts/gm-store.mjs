@@ -42,11 +42,16 @@
  * sub-key, so two GMs editing different parts of one object both keep theirs.
  *
  * STAMPS are a hybrid logical clock over `game.time.serverTime` where Foundry
- * gives one, else `Date.now()`: each stamp is at least the last one plus one, and
- * every stamp this client merges is observed, capped at ten minutes ahead of
- * now. Two GM machines whose clocks disagree therefore no longer decide the
- * order between them (the skew hole the design's judges found). Whether v14's
- * `serverTime` is present and follows the server is LIVE-E04-01.
+ * gives one as an epoch time, else `Date.now()`: each stamp is at least the last one
+ * plus one, and every stamp this client merges is observed, capped at ten minutes
+ * ahead of now. Two GM machines whose clocks disagree therefore no longer decide the
+ * order between them (the skew hole the design's judges found). LIVE-E04-01 asked
+ * whether v14's `serverTime` follows the server, and the owner's table answered no on
+ * 31.10.2026 (E90): on The Forge it is the server's uptime, 2811317 beside
+ * `Date.now()` 1793415993407, and every stamp after a restart fell under the
+ * watermarks of the session before and was dropped. An uptime is not taken now
+ * (config.mjs `epochClock`), and every stamp the epoch clock makes is above every
+ * uptime-based one a store holds.
  *
  * WEAK. A value derived from absence - a migration's default, an unstamped
  * legacy row - is written at the section's watermark plus a half (`weakOf`): it
@@ -74,7 +79,7 @@
  * Foundry; R170 runs three over a fake bus and a fake clock.
  */
 
-import { MODULE_ID, TIMING } from "./config.mjs";
+import { MODULE_ID, TIMING, epochClock } from "./config.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** The four packets GM clients exchange. Side channels between GMs, not bridge requests (E31's M4). */
@@ -1648,10 +1653,8 @@ const engine = createGmStoreEngine({
         try { return structuredClone(game.settings.get(MODULE_ID, key)); } catch { return undefined; }
     },
     upgradeMark: () => deps.upgradeMark?.() ?? null,
-    now: () => {
-        const t = game.time?.serverTime;
-        return Number.isFinite(t) && t > 0 ? t : Date.now();
-    },
+    // The server's clock only where it reads as an epoch time; an uptime falls back at each restart (E90, config.mjs `epochClock`).
+    now: () => epochClock(game.time?.serverTime, Date.now()),
     timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
     clock: () => deps.getClock(),
     log: { warn: (...a) => deps.warn(...a), error: (...a) => deps.error(...a), debug: (...a) => deps.debug(...a) },

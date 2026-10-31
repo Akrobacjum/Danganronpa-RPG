@@ -6,7 +6,7 @@
  * console for it, loaded only when they open it.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
@@ -461,12 +461,14 @@ export async function reopenDebate() {
  * THE TRIAL'S CLOCK (E70 C3, 27.10.2026; S18-80; TR17 = 1). The guide: "Class Trial lacznie powinien trwac 4.5
  * godziny" at 16 players, shortened by N/16. `record` is the trial record (`trialStartedAt` on the server's clock,
  * `trialSize` the players at its start), `now` the server's clock; the answer is the whole minutes since the start and
- * the budget in minutes, null for a trial of nobody, or null for a record with no start (a world from before 1.2.90).
- * An estimate for the GM's console only, which blocks nothing ("to tylko liczby szacunkowe").
+ * the budget in minutes, null for a trial of nobody, or null for a record with no start (a world from before 1.2.90)
+ * or a start on the uptime clock (E90: `game.time.serverTime` on The Forge, config.mjs `epochClock`), which read
+ * against the epoch clock is 56 years; such a trial has no time line to its end. An estimate for the GM's console only,
+ * which blocks nothing ("to tylko liczby szacunkowe").
  */
 export function trialTime(record, now) {
     const start = Number(record?.trialStartedAt);
-    if (!Number.isFinite(start) || start <= 0) return null;
+    if (!Number.isFinite(start) || start <= 0 || staleStamp(start, now)) return null;
     const size = Math.max(Number(record?.trialSize) || 0, 0);
     const used = Math.max(Math.floor((Number(now) - start) / 60_000), 0);
     return { used, budget: size > 0 ? Math.round((Number(TRIAL.modes.budget.minutesAt16) || 270) * size / 16) : null };

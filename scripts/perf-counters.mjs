@@ -18,6 +18,8 @@
  *   refreshToken.visibility | .ownRing | .remnantRing | .remnantIcons   one per run of that `refreshToken` listener
  *   ownRing.rebuilt | .skipped | .kept, remnantRing (the same)         a ring drawn again, a paint that drew none, a
  *                                                                       refresh that kept the drawing standing (E88 C2)
+ *   remnantRing.ledgerPass | .sightPass, remnantRing.passPainted        the next frame's ring pass after a ledger change
+ *                                                                       or a `sightRefresh`, and the tokens it painted (E90)
  *   visibility.applyAll, visibility.applyAll.tokens                     whole passes, and the tokens each flagged
  *   visibility.applyAll.flags                                           the refreshes a whole pass asked of Foundry (E89 C0)
  *   visibility.applyOne                                                 a move that asked its own token alone (E88 C2)

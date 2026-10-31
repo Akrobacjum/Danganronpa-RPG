@@ -30027,6 +30027,156 @@ const INVARIANTS = [
             window: [true, true, true]
         }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
     }],
+    ["R1564 - a GM store write on a server whose serverTime is its uptime is kept: the clock is the epoch clock under the floor, an epoch serverTime is still the server's, and after a restart a write under the last session's watermark lands (E90, LIVE-E04-01)", async () => {
+        /*
+         * E90, 31.10.2026. The owner's table (Foundry 14.365 on The Forge, Daggerheart 2.6.5, the GM's browser):
+         * `game.time.serverTime` 2811317 beside `Date.now()` 1793415993407 - the server's uptime, near zero after each
+         * restart - and the stores' watermarks set in a session 1.6 hours old (the remnants' 5868816, the highest
+         * 5869492). `serverNow()` and the stores' clock took `serverTime` whenever it was finite and above zero, so every
+         * write after the restart was stamped under the cut and dropped (`gmStoreStatus()`: remnants live 0). Driven
+         * with `game.time.serverTime` stubbed on this browser (its own property put back in `finally`; nothing written
+         * to the world): (a) `serverNow()` and `gmStoreNow()` at the uptime 2811317 read this machine's clock, and an
+         * epoch `serverTime` two minutes behind it is still the server's (E10 C13's agreement where there is one);
+         * (b) an engine built with fakes, its clock the module's own (`gmStoreNow`), its ledger at the owner's cut
+         * 5868816: a write is kept; (c) a restart: an engine at the uptime 5869000 writes a row, a reset's cut at
+         * 5869492 takes it (as a reset should); a second engine on the same storage (a reload: its clock starts at
+         * nothing) at the uptime 2811317 writes a row, which is kept. The first engine's clock is the uptime itself, as
+         * 1.2.92 stamped the owner's stores; the others' is the module's. (d) The old key's road back (`reclaim`,
+         * `game.drpg.gmStoreReclaim`): a row of a 1.2.x key claimed on the uptime clock is clamped to the claim's moment
+         * (its own stamp, an epoch time, is ahead of it), a reset's cut takes it, and taken again after the fix it stands
+         * at its old stamp. Red at 248e798e: (a) 2811317, (b) and (c) the row dropped, its fields nowhere in the store's
+         * storage; (d) the key reported added and the row dropped, clamped under the cut again.
+         */
+        const G = await import("./gm-store.mjs");
+        const U = await import("./utils.mjs");
+        const time = game.time;
+        must(time && typeof time === "object", "game.time is not an object - nothing to stub");
+        const own = Object.getOwnPropertyDescriptor(time, "serverTime");
+        const stub = v => Object.defineProperty(time, "serverTime", { get: () => v, configurable: true });
+        const near = (a, b) => Number.isFinite(a) && Math.abs(a - b) < 5000;
+        const engineOn = (store, clock, now = () => G.gmStoreNow(), legacy = () => undefined) => {
+            const flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R1564GM", isGM: () => true, isPrimary: () => true, worldId: () => "R1564WORLD",
+                activeGmIds: () => ["R1564GM"], primaryGmId: () => "R1564GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                readLegacy: k => (k === "r1564Old" ? legacy() : undefined), now,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock, log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+            });
+            return { eng, flushed: () => Promise.all(flushes) };
+        };
+        const spec = { name: "r1564", key: "r1564Key", kind: "ledger", resetGroup: "remnants", sync: false, backup: false };
+        const read = {};
+        try {
+            stub(2811317);
+            read.uptime = [near(U.serverNow(), Date.now()), near(G.gmStoreNow(), Date.now())];
+            const behind = Date.now() - 120000;
+            stub(behind);
+            read.epoch = [U.serverNow() === behind, G.gmStoreNow() === behind];
+
+            stub(2811317);
+            const one = new Map();
+            const a = engineOn(one, () => ({}));
+            const owner = a.eng.define(spec);
+            await a.eng.open();
+            await owner.mergeIn({ e: {}, t: {}, d: {}, cleared: 5868816 }, { source: "sync" });
+            await owner.patch("scene.trace", { type: "prep" });
+            await a.flushed();
+            read.afterCut = [owner.cleared(), owner.get("scene.trace")?.type ?? null, (one.get("r1564Key") ?? "").includes("prep")];
+
+            const disk = new Map();
+            let cuts = {};
+            // 1.2.92's clock, before the restart: the uptime itself, as the owner's stores were stamped.
+            const before = engineOn(disk, () => ({ resetCuts: cuts }), () => 5869000);
+            const first = before.eng.define(spec);
+            await before.eng.open();
+            await first.patch("scene.old", { type: "key" });
+            cuts = { remnants: 5869492 };
+            await before.eng.applyCuts({ resetCuts: cuts });
+            await before.flushed();
+            read.reset = [first.cleared(), first.get("scene.old")];
+            stub(2811317);
+            const after = engineOn(disk, () => ({ resetCuts: cuts }));
+            const second = after.eng.define(spec);
+            await after.eng.open();
+            await second.patch("scene.new", { type: "incident" });
+            await after.flushed();
+            read.restart = [second.cleared(), second.get("scene.new")?.type ?? null, (disk.get("r1564Key") ?? "").includes("incident")];
+
+            // (d) The old key's rows back (`reclaim`, game.drpg.gmStoreReclaim): claimed on the uptime clock, each clamped
+            // to the claim's moment (a 1.2.x stamp is an epoch time), then cut by a reset; taken again after the fix.
+            const oldKey = { "scene.pre": { type: "faint", updated: Date.now() - 30 * 24 * 3600 * 1000 } };
+            const legacySpec = { ...spec, name: "r1564b", key: "r1564KeyB", legacyKey: "r1564Old",
+                claim: old => ({ rows: Object.entries(old).map(([key, row]) => ({ key, fields: { type: row.type }, stamp: row.updated })), left: [] }) };
+            const shelf = new Map();
+            let cutsD = {};
+            const upgraded = engineOn(shelf, () => ({ resetCuts: cutsD }), () => 5867000, () => structuredClone(oldKey));
+            const claimed = upgraded.eng.define(legacySpec);
+            await upgraded.eng.open();
+            await upgraded.flushed();
+            const census = claimed.census();
+            cutsD = { remnants: 5867475 };
+            await upgraded.eng.applyCuts({ resetCuts: cutsD });
+            await upgraded.flushed();
+            read.claim = [census?.claimed ?? null, census?.clamped ?? null, claimed.get("scene.pre")];
+            stub(2811317);
+            const fixed = engineOn(shelf, () => ({ resetCuts: cutsD }), undefined, () => structuredClone(oldKey));
+            const back = fixed.eng.define(legacySpec);
+            await fixed.eng.open();
+            const report = await back.reclaim();
+            await fixed.flushed();
+            read.reclaim = [report?.added ?? null, back.get("scene.pre")?.type ?? null];
+        } finally {
+            if (own) Object.defineProperty(time, "serverTime", own);
+            else delete time.serverTime;
+        }
+        equal(stableJson(read), stableJson({
+            uptime: [true, true], epoch: [true, true],
+            afterCut: [5868816, "prep", true],
+            reset: [5869492, null],
+            restart: [5869492, "incident", true],
+            claim: [1, 1, null],
+            reclaim: [["scene.pre"], "faint"]
+        }), "{uptime: [serverNow, gmStoreNow near Date.now at serverTime 2811317], epoch: [both the server's when it is an epoch time], afterCut: [the watermark, the row written under the owner's cut, in storage], reset: [the cut, the row before it], restart: [the cut, the row written after a restart at a lower uptime, in storage], claim: [claimed, clamped, the row after a reset], reclaim: [the keys taken back, the row]}");
+    }],
+    ["R1565 - a stamp the uptime clock wrote before 1.2.93 is read as unknown, never as 56 years: the time of day's minutes, the primary's ready and unpause, the trial's clock, the boundary's take-back; small stamps of the suite's own are read as before (E90)", async () => {
+        /*
+         * E90, 31.10.2026. Every reader of `serverNow()` that subtracts a stored stamp (the list is in E90's STATUS): a
+         * value the uptime clock wrote (under 1e7 at the owner's table) read against the epoch clock is 1.79e12 ms. Read
+         * pure, at this machine's `Date.now()`, with the owner's 5867475 for every stored stamp: the HUD's minutes line
+         * (`elapsedOf`) prints none; the primary's ready (`readyPatch`), running and paused, and an unpause
+         * (`unpausePatch`) write the time of day as begun now with no pauses; the trial's clock (`trialTime`) has no
+         * time line; the boundary's take-back (`takeBackFor`, `liveMemory`) offers nothing. And a clock of small stamps,
+         * as R996 drives them, reads as it did. Red at 248e798e: elapsedOf 1.79e12 (29.9 million minutes), readyPatch
+         * null, unpausePatch a pause of 56 years, trialTime 29.9 million minutes used.
+         */
+        const H = await import("./hud.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const C = await import("./clock.mjs");
+        const N = Date.now(), OLD = 5867475, M = 60000;
+        const clock = more => ({ timeOfDayStartedAt: OLD, pausedTotalMs: 7 * M, pausedAt: null, writtenAt: N - 1000, eclipse: false, ...more });
+        const memory = { for: "s1", at: OLD, snapshot: { actions: {} } };
+        const read = {
+            elapsed: H.elapsedOf(clock(), { now: N, paused: false }),
+            readyRunning: H.readyPatch(clock(), { paused: false, beat: null, now: N }),
+            readyPaused: H.readyPatch(clock(), { paused: true, beat: N - 1000, now: N }),
+            unpause: H.unpausePatch(clock({ pausedAt: OLD + 1000 }), N),
+            trial: UI.trialTime({ trialStartedAt: OLD, trialSize: 16 }, N),
+            takeBack: [C.takeBackFor({ lastAdvance: memory }, "s1", N), C.liveMemory(memory, N)],
+            small: [H.elapsedOf({ timeOfDayStartedAt: 1000, pausedTotalMs: 0 }, { now: 1000 + 10 * M, paused: false }),
+                UI.trialTime({ trialStartedAt: 1000, trialSize: 16 }, 1000 + 30 * M)?.used ?? null]
+        };
+        equal(stableJson(read), stableJson({
+            elapsed: null,
+            readyRunning: { timeOfDayStartedAt: N, pausedTotalMs: 0, pausedAt: null },
+            readyPaused: { timeOfDayStartedAt: N, pausedTotalMs: 0, pausedAt: N },
+            unpause: { timeOfDayStartedAt: N, pausedTotalMs: 0, pausedAt: null },
+            trial: null,
+            takeBack: [null, null],
+            small: [10 * M, 30]
+        }), "{elapsed, readyRunning, readyPaused, unpause, trial, takeBack: [takeBackFor, liveMemory], small: [elapsedOf, trialTime's minutes on small stamps]} for a stamp the uptime clock wrote");
+    }],
 ];
 
 /**

@@ -233,7 +233,14 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        export (k1c), the scenario 1993 s wall; Actions ran 1.2.68's suite in 1532 s wall (CI
        run 19 on main, 06.10.2026). So 3600, about twice k1c's reading (fix r1-G3), beside
        run-all's 72 minutes (E33 fix r2-G4: 60 until then, which ended a hung run before
-       this bound could name the test). The time is recorded as a note. */
+       this bound could name the test). The fifth: a crlf dispatch runs tier 2 unsharded on
+       one Actions runner, and there it grew to the bound with nothing hung - 1.2.92's run
+       (80bec60f, CI run 41112037572, 30.10.2026) green at 3979 s for the scenario, tier 2
+       about 3490 s of it; 1.2.93's (c0ac849b, run 41169227859, 31.10.2026) ended here at
+       3600 s, the scenario 4094 s. The same commits' eight shards gave tier 2 no new time
+       (shards 2-8 3034 s and 3020 s), so the unsharded run was at its bound, not a test
+       slower. So 5400, about 1.55 times 1.2.92's reading, beside run-all's 108 minutes.
+       The time is recorded as a note. */
     /* THE LOAD'S ANSWERS BEFORE THE WINDOW OPENS (INFRA I2, 18.10.2026). Every player asks the GM
        for its copies as it loads - the fog, its cast, the door, its offers, twice each - and the GM
        answers from the world as it found it. Unsharded, A and B ran for about 640 s before C and the
@@ -266,7 +273,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
         const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id, shard: ${JSON.stringify({ index: SHARD.index, count: SHARD.count })} });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
             shard: r?.shard ?? null, text: (r?.text ?? "").slice(0, 30000) };
-    `, { timeout: 3600000 });
+    `, { timeout: 5400000 });
     note(`gm: the full suite's run${SHARD.count > 1 ? `, shard ${SHARD.index}/${SHARD.count}` : ""}`, `${Math.round((Date.now() - started) / 1000)} s`);
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));

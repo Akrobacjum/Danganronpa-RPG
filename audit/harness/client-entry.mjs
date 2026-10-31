@@ -23,10 +23,19 @@ const send = m => process.send?.(m);
  * move it: `game.time.serverTime` answers it. DRPG_CLOCK_SKEW_MS moves `Date.now` alone,
  * the way a GM's computer whose clock is off moves it while Foundry's server time does
  * not (cluster.mjs `connect`, `clockSkewMs`). How v14 computes serverTime is LIVE-E04-01.
+ *
+ * A SERVER WHOSE CLOCK IS ITS UPTIME (E90, 31.10.2026; LIVE-E04-01 answered at the owner's
+ * table: Foundry 14.365 on The Forge read `game.time.serverTime` 2811317 beside `Date.now()`
+ * 1793415993407). DRPG_SERVER_STARTED_AT, an epoch time in ms, makes `game.time.serverTime`
+ * the milliseconds since it - a server started then, which counts from its own start and
+ * starts again from zero after a restart (cluster.mjs `serverUptimeMs`, DRPG_SERVER_UPTIME_MS).
+ * Unset, it is this process's clock, as before.
  */
 const serverNow = Date.now.bind(Date);
 const CLOCK_SKEW_MS = Number(process.env.DRPG_CLOCK_SKEW_MS ?? 0) || 0;
 if (CLOCK_SKEW_MS) Date.now = () => serverNow() + CLOCK_SKEW_MS;
+const SERVER_STARTED_AT = Number(process.env.DRPG_SERVER_STARTED_AT ?? 0) || 0;
+const serverTimeNow = () => (SERVER_STARTED_AT ? serverNow() - SERVER_STARTED_AT : serverNow());
 const logLine = s => send({ t: "log", line: String(s) });
 
 /*
@@ -902,7 +911,7 @@ const game = {
     },
     keybindings: { register() {}, get: () => [] },
     tooltip: { activate() {}, deactivate() {} },
-    time: { worldTime: 0, get serverTime() { return serverNow(); }, advance: async () => {} },
+    time: { worldTime: 0, get serverTime() { return serverTimeNow(); }, advance: async () => {} },
     canvas: null,
     drpg: undefined,
     data: { version: versions.foundry.version }

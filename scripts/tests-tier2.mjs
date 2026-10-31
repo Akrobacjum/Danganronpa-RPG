@@ -13,7 +13,7 @@ import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
-import { gmStoresIdle } from "./gm-store.mjs";
+import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed
@@ -16748,7 +16748,9 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const locked = game.i18n.localize("DRPG.Eclipse.actionsLocked");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         const real = CONFIG.Dice.randomUniform;
         const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
         let picker = "unasked", out = null, armed = null;
@@ -35825,7 +35827,9 @@ const SCENARIOS = [
         const locked = game.i18n.localize("DRPG.Trial.actionsLocked");
         const callsLocked = game.i18n.localize("DRPG.Trial.callsLocked");
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -38096,7 +38100,9 @@ const SCENARIOS = [
         const was = foundry.utils.deepClone(getClock());
         const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
         const seen = [];
-        const warned = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warned = ui.notifications.warn;
         ui.notifications.warn = text => { seen.push(String(text)); return null; };
 
         try {
@@ -41850,7 +41856,9 @@ const SCENARIOS = [
         const [victim] = cast(1);
 
         const said = [];
-        const info = ui.notifications.info.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const info = ui.notifications.info;
         ui.notifications.info = text => { said.push(String(text)); return null; };
         const before = game.messages.size;
 
@@ -57174,7 +57182,9 @@ const SCENARIOS = [
         const home = canvas?.scene ?? null;
         const AWAY = "SUITE E12 C5 a room of another scene";
         const seen = [];
-        const warn = ui.notifications.warn.bind(ui.notifications);
+        // The function itself, not a bound copy: a copy has none of the module's marks (`__drpgVoicePatched`), so
+        // putting it back left E52-T1's contract reading another function (CRLF run 41081604735, 30.10.2026).
+        const warn = ui.notifications.warn;
         let reading = null, expected = null;
         await G.withGmStoreWorld(`suite-c5-gather-${foundry.utils.randomID(8)}`, async () => {
             let away = null;
@@ -65193,7 +65203,8 @@ const SCENARIOS = [
                 const forged = () => {
                     const value = foundry.utils.deepClone(game.settings.get(MODULE_ID, "diceLookWorld"));
                     value.e[npc.id] = { look: OWN_OVERLAY };
-                    value.t[npc.id] = Math.floor(game.time.serverTime ?? Date.now()) + 60000;
+                    // The stores' own clock (E90): on a server whose serverTime is its uptime, that reading is no stamp's.
+                    value.t[npc.id] = Math.floor(gmStoreNow()) + 60000;
                     return value;
                 };
                 const value = forged();
@@ -76091,7 +76102,7 @@ const SCENARIOS = [
          * Use an item on the knife - the road of the sheet's "use" button (sheet.mjs, `takeCrisisAction(..., "useItem")`).
          * Read: each title against "beat N" of the threshold read just before it. The fight is put back by the fixture,
          * the incident ended and the victim's Health restored. Red at C1's parent: no "beat" in any title. What
-         * Daggerheart's window shows of the title on v14 is LIVE-E51-01 (AUDIT 9.2 item 354).
+         * Daggerheart's window shows of the title on v14 is LIVE-E51-01 (AUDIT 9.2 item 355).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { M, killer, victim, knife, putBack } = await swingFixture();
@@ -77119,6 +77130,127 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([1, true, true, plural("DRPG.Panel.stateSaved", { n: 1 })]),
             "[the count applyAliveStates answered; a Monocub; silenced; the toast's words for that count]");
+    }],
+    ["E90-T1 - a time of day started on the uptime clock prints no 56 years, and the primary's ready writes it as begun now with no pauses (E90)", async () => {
+        /*
+         * E90, 31.10.2026. Until 1.2.93 `timeOfDayStartedAt` was stamped with `game.time.serverTime`, which on The Forge
+         * is the server's uptime (2811317 at the owner's table, beside `Date.now()` 1793415993407). Read against the epoch
+         * clock the HUD's minutes line counted 1.79e12 ms. On this GM as the primary: the clock's start at the owner's
+         * uptime stamp 5867475 with seven minutes of pauses; the line's reading (`elapsedOf`, what `paintElapsed`
+         * prints); the primary's ready (`settleClockAtReady`); the start, the pauses and the line after it. The clock is
+         * put back. Red at 248e798e: the line read 29.9 million minutes before and after the ready, which wrote nothing.
+         */
+        needs(env.primaryGm());
+        const H = await import("./hud.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const M = 60000;
+        const was = foundry.utils.deepClone(getClock()), wasPaused = game.paused;
+        const minutes = c => { const ms = H.elapsedOf({ ...c, eclipse: false }, { now: serverNow(), paused: false }); return ms === null ? null : Math.floor(ms / M); };
+        let read = null;
+        try {
+            if (game.paused) { await game.togglePause(false); await until(() => !game.paused, 3000); }
+            await setClock({ timeOfDayStartedAt: 5867475, pausedTotalMs: 7 * M, pausedAt: null });
+            const before = minutes(getClock());
+            await H.settleClockAtReady();
+            const after = getClock();
+            read = [before, Math.abs(Number(after.timeOfDayStartedAt) - serverNow()) < 10000, after.pausedTotalMs, minutes(after)];
+        } finally {
+            await setClock(was);
+            if (game.paused !== wasPaused) await game.togglePause(wasPaused);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([null, true, 0, 0]),
+            "[the minutes the line read on the uptime start, the start now within 10 s of the clock after the ready, the pauses, the minutes after]");
+    }],
+    ["E90-T2 - a debate started on the uptime clock has its whole time to run, and the primary writes its start on the epoch clock (E90)", async () => {
+        /*
+         * E90, 31.10.2026. The floor's `startedAt` was `game.time.serverTime` until 1.2.93, the server's uptime on The
+         * Forge: read against the epoch clock a debate was 56 years over (the bar red), and an Objection would have been
+         * moved on by the primary's first tick. On this GM as the primary: a debate of 300 s stored at the owner's uptime
+         * stamp 5867475; the seconds left (`secondsLeft`) as every browser reads them through `trialFloor`; the primary's
+         * write (`rebaseStaleFloor`, which its heartbeat runs at the next tick); the stored start and the seconds left
+         * after. A debate, not an Objection: a debate is never due, so the parent's heartbeat cannot move it while this
+         * reads. The floor is put back. Red at 248e798e: -1.79e9 s left, no rebaseStaleFloor, the start as stored.
+         */
+        needs(env.primaryGm());
+        const F = await import("./trial-floor.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { active: true, mode: "debate", seconds: 300, startedAt: 5867475,
+                holderId: null, targetId: null, pending: false, messageId: null, before: [] });
+            await settle();
+            const left = F.secondsLeft();
+            if (typeof F.rebaseStaleFloor === "function") await F.rebaseStaleFloor();
+            const stored = Number(getSetting(SETTINGS.trialQueue)?.startedAt);
+            read = [left >= 290 && left <= 300 ? "whole" : left, Math.abs(stored - serverNow()) < 10000 ? "now" : stored,
+                F.secondsLeft() >= 290 ? "whole" : F.secondsLeft()];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["whole", "now", "whole"]),
+            "[the seconds left on the uptime start, the stored start after the primary's write, the seconds left after]");
+    }],
+    ["E90-T3 - a trace's ring follows its row and its sight with no refresh of its own: a type written into the ledger alone, the row gone, the row back, and the token shown again after a sightRefresh (E90)", async () => {
+        /*
+         * E90, 31.10.2026. A ring's frame is its trace's row (remnant-ring.mjs `frameFor`), and a token is framed only
+         * while visible. Since 1.2.91 (E89 C4, c2fd2931) a `sightRefresh` flags only a token visibility.mjs hid, which on
+         * a GM is none, and a ledger write refreshed the icons alone (remnant-icons.mjs `repaintRemnants`), so a ring whose
+         * first paint ran before its row, or while its token was hidden, stayed as painted. On the GM, a trace on the scene
+         * on screen: its ring's colour after a type written straight into the GMs' store (as another GM's merge lands),
+         * after its row is dropped, after the row is written back; then the token painted hidden by its own refresh, shown
+         * again by hand and a `sightRefresh`. Two frames after each. The trace and its row are taken away. Red at
+         * 248e798e (probe of 31.10.2026): the colour stayed the old type's, the ring stood with no row, and the token
+         * shown again wore its ring hidden.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen to place a trace on");
+        const R = await import("./remnants.mjs");
+        const RR = await import("./remnant-ring.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const frames = async (k = 3) => { for (let i = 0; i < k; i++) await new Promise(r => requestAnimationFrame(() => r())); await wait(50); };
+        const token = await placedTrace("E90 ring");
+        must(token, "no trace was placed");
+        let read = null;
+        try {
+            await settle();
+            await frames();
+            const placed = () => canvas.tokens.placeables.find(t => t.document?.id === token.id) ?? null;
+            const ring = () => {
+                const g = placed()?.drpgRemnantRing;
+                if (!g || g.destroyed) return "none";
+                const colour = RR.frameFor(token, true).colour;
+                return !g.visible ? "hidden" : String(g.drpgRingKey).includes(`|${colour}|`) ? "framed" : "stale";
+            };
+            must(placed(), "the trace has no object on the canvas on screen");
+            const key = R.keyOf(token);
+            const seen = { placed: ring() };
+            await remnantStore.patch(key, { type: "key" });
+            await frames();
+            seen.retyped = ring();
+            await R.dropRemnantSecret(token);
+            await frames();
+            seen.dropped = ring();
+            await remnantStore.patch(key, { type: "prep", visibility: "evident", action: "search", faint: false, reinforced: false });
+            await frames();
+            seen.back = ring();
+            const t = placed();
+            t.visible = false;
+            Hooks.callAll("refreshToken", t, { refreshVisibility: true });
+            await frames(1);
+            seen.hidden = ring();
+            t.visible = true;
+            Hooks.callAll("sightRefresh");
+            await frames();
+            seen.shown = ring();
+            read = seen;
+        } finally {
+            await dropTrace(token);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ placed: "framed", retyped: "framed", dropped: "hidden", back: "framed", hidden: "hidden", shown: "framed" }),
+            "the ring at each step: framed (shown, in its row's colour), stale (shown, another colour), hidden, none");
     }],
     ...GRID
 ];

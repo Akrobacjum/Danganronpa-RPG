@@ -428,6 +428,54 @@ export const TIMING = {
 };
 
 /**
+ * A CLOCK THAT NEVER RUNS BACKWARDS ACROSS A SERVER RESTART (E90, 31.10.2026; LIVE-E04-01, answered).
+ *
+ * Since 1.2.71 (E10 C13) "now" was `game.time.serverTime` wherever it was a finite number above zero, and the GMs'
+ * stores stamped every write with it (gm-store.mjs, STAMPS). Read at the owner's table on 31.10.2026 (Foundry 14.365 on
+ * The Forge, Daggerheart 2.6.5, the GM's browser): `game.time.serverTime` 2811317 while `Date.now()` 1793415993407 - the
+ * server's time since it started, 47 minutes, which falls back to near zero at every restart. The stores' watermarks had
+ * been written in a session about 1.6 hours old (5867475, the remnants' 5868816, the highest 5869492), so after the
+ * restart every write was stamped under them and dropped as older than the cut: `gmStoreStatus()` read remnants live 0,
+ * and every trace placed in that session had no row.
+ *
+ * THE TEST IS A FLOOR, NOT A DISTANCE FROM THIS MACHINE'S CLOCK. A reading at or above `EPOCH_FLOOR_MS` (1e12 ms,
+ * 09.09.2001 01:46:40 UTC) is a time since 1970: an uptime reaches it after 31.7 years of one server process, and the
+ * owner's epoch reading is 1.79e12. A bound around `Date.now()` was the other choice, and it fails exactly where the
+ * server's clock is wanted: on the browser whose own clock is wrong (E10 C13's player a minute fast; a machine a day
+ * off would have had the server's reading thrown away). Below the floor the reading is an uptime and this machine's
+ * `Date.now()` is taken. Every stamp then made (1.79e12 at the table) is above every uptime-based stamp and watermark
+ * already stored (under 1e7 there), so the stores take writes again with nothing of theirs rewritten: R1564.
+ *
+ * WHAT IT GIVES BACK. On a server whose `serverTime` is an uptime, each browser counts on its own clock again: two
+ * machines that disagree read a debate or the time of day apart by their difference (scenario 63 J1 measured 60 s
+ * apart before E10 C13), and the GM stores' order between two GMs is kept by the hybrid clock's `observe` alone
+ * (gm-store.mjs, STAMPS). LIVE-E90-01 asks for the table's reading after the fix.
+ */
+export const EPOCH_FLOOR_MS = 1e12;
+
+/** Whether `t` reads as milliseconds since 1970 (`EPOCH_FLOOR_MS`), not a server's uptime. Pure. */
+export function isEpochStamp(t) {
+    const n = Number(t);
+    return Number.isFinite(n) && n >= EPOCH_FLOOR_MS;
+}
+
+/** Now: the server's `serverTime` where it reads as an epoch time, else this machine's `local`. Pure. */
+export function epochClock(serverTime, local) {
+    return isEpochStamp(serverTime) ? Number(serverTime) : local;
+}
+
+/**
+ * Whether a stored stamp `at` was written on the uptime clock before E90 and is read against an epoch `now`: then
+ * `now - at` is 56 years, not an elapsed time, and the reader takes the stamp as unknown (each reader's own way: the
+ * time of day's and the debate's "started now", a card's ask "ended"). Both small, as the suite's pure tests pass them,
+ * is not stale: those were never on two clocks. Pure.
+ */
+export function staleStamp(at, now) {
+    const n = Number(at);
+    return Number.isFinite(n) && n > 0 && !isEpochStamp(n) && isEpochStamp(now);
+}
+
+/**
  * The character sheet's size, in one place (UI-13). Daggerheart opens it at
  * its own default; `minHeight` is what the Hope Calls panel needs under the
  * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and

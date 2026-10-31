@@ -1639,7 +1639,7 @@ export function outlineColour() {
  * `registerFog`), which sees the hour's attribute itself - not off `drpgTimeOfDayChanged`, which can be heard before
  * the attribute is written (the race that observer's note gives). Only the styles the class has are taken over; a
  * build whose ruler has none of them keeps Foundry's colour. Which styles v14's ruler asks, whether the colour reaches
- * the drawn line and whether it changes at the hour's turn is LIVE-E51-02 (AUDIT 9.2 item 355): the harness has no
+ * the drawn line and whether it changes at the hour's turn is LIVE-E51-02 (AUDIT 9.2 item 356): the harness has no
  * ruler. R1115 reads it on a class of its own; patches.mjs's row "token-ruler" is the contract's.
  */
 const RULER_STYLES = ["_getSegmentStyle", "_getGridHighlightStyle", "_getWaypointStyle"];
