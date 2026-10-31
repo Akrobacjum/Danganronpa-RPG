@@ -30027,6 +30027,34 @@ const INVARIANTS = [
             window: [true, true, true]
         }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
     }],
+    ["R1134 - a discard's ticket is good once, for its student and its item's name, for a minute: sheet-audit.mjs `takeDiscardTrace` answers true for the ticket `noteDiscardTrace` wrote and false the second time, false for another student, another name or a ticket older than `DISCARD_TICKET_MS`, and reads a name as the trace cuts it, to 80 (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The discard stamp stood on the GMs' copy being broken, which a
+         * console sets one write earlier; it stands now on the ticket the primary writes as it places the discard's
+         * trace (gm-bridge.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
+         * this browser's memory, with ids no actor has; the old ticket is written with `Date.now` read 61 s back and
+         * put back at once. Every ticket written here is taken before the end, so nothing is left. Red at the fix's
+         * parent: neither function exported.
+         */
+        const A = await import("./sheet-audit.mjs");
+        must(typeof A.noteDiscardTrace === "function" && typeof A.takeDiscardTrace === "function", "sheet-audit.mjs exports no discard ticket - nothing to read");
+        const one = "R1134STUDENT0001", two = "R1134STUDENT0002", long = "R1134 " + "x".repeat(90);
+        A.noteDiscardTrace(one, "R1134 lockpick");
+        const first = [A.takeDiscardTrace(two, "R1134 lockpick"), A.takeDiscardTrace(one, "R1134 wire"), A.takeDiscardTrace(one, "R1134 lockpick"),
+            A.takeDiscardTrace(one, "R1134 lockpick")];
+        A.noteDiscardTrace(one, long);
+        const cut = A.takeDiscardTrace(one, long.slice(0, 80));
+        const real = Date.now;
+        try {
+            Date.now = () => real() - A.DISCARD_TICKET_MS - 1000;
+            A.noteDiscardTrace(one, "R1134 old gloves");
+        } finally {
+            Date.now = real;
+        }
+        const old = A.takeDiscardTrace(one, "R1134 old gloves");
+        equal(JSON.stringify({ first, cut, old, ms: A.DISCARD_TICKET_MS }), JSON.stringify({ first: [false, false, true, false], cut: true, old: false, ms: 60000 }),
+            "[another student's take, another name's, the ticket's own, the second time; a name past 80 read as cut; a ticket older than the minute; the minute]");
+    }],
     ["R1564 - a GM store write on a server whose serverTime is its uptime is kept: the clock is the epoch clock under the floor, an epoch serverTime is still the server's, and after a restart a write under the last session's watermark lands (E90, LIVE-E04-01)", async () => {
         /*
          * E90, 31.10.2026. The owner's table (Foundry 14.365 on The Forge, Daggerheart 2.6.5, the GM's browser):

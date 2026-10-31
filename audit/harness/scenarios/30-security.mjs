@@ -5,8 +5,11 @@ export const layers = ["ci"];
    r1-G1 286.8 s) and 288.7 s in k1's ci set (e33run/k1/cmp.txt, beside the suite's lane) - 3-6% under
    run-all's shared five minutes. Seven minutes is a hang detector with room for a slower runner; the
    scenario is not shortened. E80 C3 (18.10.2026) adds a console's Find Passage: 235 checks in 319.9 s by run-all's
-   line, one run alone under the harness lock - seven minutes stands. */
-export const timeoutMs = 420000;
+   line, one run alone under the harness lock - seven minutes stands. E51 fix FG5 (31.10.2026) adds a console's discard:
+   374.8 s green and 389.0 s red (each of D1, D3 and D4 waits its 5 s for a row that never comes), one run each alone
+   under the harness lock on 4 cores, against 365 s before it (the end review's run) - 31 s from the bound on a red
+   run, so eight minutes. */
+export const timeoutMs = 480000;
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
@@ -3134,6 +3137,104 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && consoleItems.after.every(v => v === null || JSON.stringify(v) === JSON.stringify([1, "carried", null]))
             && JSON.stringify(consoleItems.told) === JSON.stringify(["sheetPutBack", "sheetPutBack"]),
         JSON.stringify({ itemsSet, consoleItems }), { flow: "sheet-audit" });
+
+    /*
+     * A CONSOLE'S DISCARD (E51 fix FG5, 31.10.2026; the end review's S1, its probe D1-D4). p1's console deletes a module
+     * tool of Aiko's with the discard stamp (resource-guard.mjs `trustedDelete(item, { reason: "discard" })`), past
+     * everything the honest road asks first (use-items.mjs `discardBroken`: the Shadow roll, the trace, no discard in the
+     * Class Trial). D1, the Class Trial, a broken tool; D2, the control, the same with a bare `delete()`; D3, a whole
+     * tool the console sets broken first (a break is a spend, and stands); D4, the Investigation, a broken tool with no
+     * roll and no trace. Each is read on the GM: one row flagged for the tool, one card naming it, no trace placed - and
+     * the GMs' Undo makes the tool again. Then the honest road, in the Investigation: p1's discardBroken of a broken tool
+     * rolls, leaves one trace, and its deletion stands with no row flagged, on the ticket the primary wrote as it placed
+     * the trace (gm-bridge.mjs `handleRemnant`, sheet-audit.mjs `noteDiscardTrace`). Red at the fix's parent: D1, D3 and
+     * D4 gone with no row, no card and no trace (the review's probe on 47b63d64, and this phase on 99226e59).
+     */
+    phase("a console's discard", { flow: "sheet-audit" });
+    const discardClock = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));`);
+    const setPhase = which => gm.eval(`await game.settings.set("${MOD}", "clock", { ...game.settings.get("${MOD}", "clock"), phase: "${which}" }); return true;`);
+    const discardSet = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), out = {};
+        for (const [key, broken] of [["d1", true], ["d2", true], ["d3", false], ["d4", true], ["honest", true]]) {
+            const item = await INV.grantItem(aiko, { name: "E51 FG5 30 " + key, category: "tool", tier: 1, override: true, quiet: true });
+            if (item && broken) await INV.breakItem(item);
+            out[key] = item?.id ?? null;
+        }
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return out;`, { timeout: 60000 });
+    const traceCount = `return canvas.scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length;`;
+    // What the GM holds of one tool after p1's deletion: the rows flagged for it, the cards naming those rows, and the
+    // traces placed since `traces`; with `undo`, the GMs' Undo of the row and whether the tool is back.
+    const discardRead = (itemId, traces, undo) => gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const C = await import("${repoUrl}/scripts/secret.mjs");
+        const rows = () => Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.itemId === ${JSON.stringify(itemId)} && r.verdict === "flagged");
+        const end = Date.now() + 5000;
+        while (!rows().length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle();
+        const flagged = rows().map(([id]) => id);
+        const out = { held: Boolean(game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)})), rows: flagged.length,
+            cards: game.messages.contents.filter(m => flagged.includes(C.cardFlag(m, "sheetFlagged"))).length,
+            traces: canvas.scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length - ${traces} };
+        if (${undo} && flagged.length === 1) {
+            out.undone = (await A.decideWrite(flagged[0], false))?.undone ?? null;
+            await A.sheetAuditIdle();
+            out.back = Boolean(game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)}));
+        }
+        return out;`, { timeout: 30000 });
+    const consoleDiscard = (itemId, stamped) => p1.eval(`const RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const item = game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)});
+        if (!item) return false;
+        ${stamped ? `await RG.trustedDelete(item, { reason: "discard" });` : `await item.delete();`}
+        return true;`, { timeout: 30000 });
+    const discards = {};
+    try {
+        await setPhase("classTrial");
+        await settle(400);
+        for (const [key, stamped] of [["d1", true], ["d2", false], ["d3", true]]) {
+            const traces = await gm.eval(traceCount);
+            if (key === "d3") {
+                await p1.eval(`await game.actors.get("${ids.aiko}").items.get(${JSON.stringify(discardSet.d3)})?.setFlag("${MOD}", "broken", true); return true;`);
+                await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+                await settle(400);
+            }
+            discards[key] = { sent: await consoleDiscard(discardSet[key], stamped) };
+            Object.assign(discards[key], await discardRead(discardSet[key], traces, true));
+        }
+        await setPhase("investigation");
+        await settle(400);
+        const traces4 = await gm.eval(traceCount);
+        discards.d4 = { sent: await consoleDiscard(discardSet.d4, true) };
+        Object.assign(discards.d4, await discardRead(discardSet.d4, traces4, true));
+        const tracesH = await gm.eval(traceCount);
+        discards.honest = { r: await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs"); const actor = game.actors.get("${ids.aiko}");
+            return (await U.discardBroken(actor, actor.items.get(${JSON.stringify(discardSet.honest)}))) ?? null;`, { timeout: 90000 }) };
+        await settle(1500);
+        Object.assign(discards.honest, await discardRead(discardSet.honest, tracesH, false));
+    } finally {
+        await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            await A.sheetAuditIdle();
+            const aiko = game.actors.get("${ids.aiko}");
+            for (const t of R.remnantsOn(canvas.scene).filter(t => String(R.remnantData(t)?.subject ?? "").startsWith("E51 FG5 30 "))) {
+                try { await R.dropRemnantSecret(t); } catch {} await t.delete();
+            }
+            for (const id of ${JSON.stringify(Object.values(discardSet))}) await aiko.items.get(id ?? "")?.delete();
+            await game.settings.set("${MOD}", "clock", ${JSON.stringify(discardClock)});
+            await A.sheetAuditIdle();
+            return true;`, { timeout: 60000 });
+        await settle(400);
+    }
+    const forgedHeld = d => d?.sent === true && d.held === false && d.rows === 1 && d.cards === 1 && d.traces === 0 && d.undone?.length === 1 && d.back === true;
+    check("SECURITY: D1 - a console's discard-stamped delete of a broken tool in the Class Trial is flagged on one card, leaves no trace, and Undo makes it again",
+        Object.values(discardSet).every(Boolean) && forgedHeld(discards.d1), JSON.stringify({ discardSet, d1: discards.d1 }), { flow: "sheet-audit" });
+    check("SECURITY: D2 (control) - a console's bare delete of a broken tool is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d2), JSON.stringify(discards.d2), { flow: "sheet-audit" });
+    check("SECURITY: D3 - a whole tool a console sets broken, then deletes with the discard stamp, is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d3), JSON.stringify(discards.d3), { flow: "sheet-audit" });
+    check("SECURITY: D4 - a console's discard-stamped delete in the Investigation, with no roll and no trace, is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d4), JSON.stringify(discards.d4), { flow: "sheet-audit" });
+    check("SECURITY: the honest discard in the Investigation leaves one trace and its deletion stands with no row flagged and no card (the ticket of its trace)",
+        discards.honest?.r !== null && typeof discards.honest?.r === "object" && discards.honest.held === false && discards.honest.rows === 0
+            && discards.honest.cards === 0 && discards.honest.traces === 1, JSON.stringify(discards.honest), { flow: "sheet-audit" });
 
     /*
      * A CONSOLE'S ITEM RECORDS (E29 fix r1-G2, 05.10.2026; review round 1 sec M3 = cor M5, sec B2). p1's

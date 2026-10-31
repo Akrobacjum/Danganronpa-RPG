@@ -16821,16 +16821,19 @@ const REGRESSIONS = [
             + "remnants.mjs exports traceLabel and isNeutralName; createFind's describe window is handed the stored name]");
     }],
 
-    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and not synced (Q3: the primary's alone); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on the primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
+    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and synced between GMs (E51 fix FG1: a second GM's trace and a handover); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on any GM and asks for no primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
         /*
          * E51 C5, 31.10.2026; audit S05-53. The traces waiting for the GMs' digest were a Map in the memory of the GM
          * that placed them (remnants.mjs `pendingTraces`), so a primary's F5 between a trace and the turn of the time of
          * day lost the digest of every trace before it, and nothing said so. They are a GM store's rows now, a row per
          * trace written when the trace is placed on the primary, and the digest posts and drops them on the primary
-         * alone. The owner's Q3 (default, 30.10): the primary's alone, `sync` off. The row is read off the registry
+         * alone. C5 read the owner's Q3 (default, 30.10) as `sync` off; the end review's G1 and F1 measured what it lost -
+         * a second GM's trace in no digest, a handover's rows unsaid - and the fix round (FG1) synced the store, the row
+         * written by whichever GM places the trace, said by the primary of the moment. The row is read off the registry
          * (gm-store.mjs `gmStoreByName`), the setting off the settings' registry, and the roads off remnants.mjs's source
          * with comments stripped; scenario 61's phase TD reads the digest through a primary's F5 on two GMs. Red at C5's
-         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs.
+         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs; red at FG1's parent: `sync`
+         * false and `announceRemnant` asking for the primary.
          */
         await import("./gm-stores.mjs");
         const E = await import("./gm-store.mjs");
@@ -16850,11 +16853,37 @@ const REGRESSIONS = [
             now: /traceDigestStore\.drop\(/.test(fn("whisperTraceNow")),
             named: game.i18n.has("DRPG.Case.store.traceDigest")
         }), JSON.stringify({
-            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: false },
+            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: true },
             setting: { scope: "client", config: false },
-            pending: false, announce: [true, true], send: [true, true], now: true, named: true
+            pending: false, announce: [true, false], send: [true, true], now: true, named: true
         }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
-            + "announceRemnant writes the row and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+            + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+    }],
+    ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: gm-bridge.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
+         * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
+         * Trial is refused, and its ticket must not be), written before the trace is placed it would cover a trace that
+         * failed, and asked of a GM's own placement it would cover a delete the audit never judges. Read off the two
+         * files' sources with comments stripped; scenario 30's "a console's discard" drives D1-D4 and the honest road.
+         * Red at the fix's parent: no `noteDiscardTrace` in handleRemnant, no `takeDiscardTrace` in itemFindings.
+         */
+        const sources = await moduleSources();
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? ""), audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        must(bridge.length > 10000 && audit.length > 10000, "gm-bridge.mjs or sheet-audit.mjs was not read - this reads nothing");
+        const run = topLevelFunction(bridge, "handleRemnant") ?? "", judge = topLevelFunction(audit, "itemFindings") ?? "";
+        const at = re => { const m = re.exec(run); return m ? m.index : -1; };
+        const note = at(/noteDiscardTrace\(/), trial = at(/phase === "classTrial"\) return \{ refused/), placed = at(/if \(!placed\) return \{ refused/);
+        const noteLine = note >= 0 ? lineAround(run, note) : "";
+        const standLine = judge.split("\n").find(line => /stamp\.reason === "discard"/.test(line)) ?? "";
+        equal(JSON.stringify({
+            notes: (run.match(/noteDiscardTrace\(/g) ?? []).length, order: [trial >= 0 && trial < note, placed >= 0 && placed < note],
+            asks: [/!sender\.isGM/.test(noteLine), /data\.action === "discard"/.test(noteLine), /noteDiscardTrace\(data\.sourceActor, data\.subject\)/.test(noteLine)],
+            stands: [/takeDiscardTrace\(actor\.id, held\.name\)/.test(standLine), /return out;/.test(standLine)],
+            exported: [/^export function noteDiscardTrace\(/m.test(audit), /^export function takeDiscardTrace\(/m.test(audit)]
+        }), JSON.stringify({ notes: 1, order: [true, true], asks: [true, true, true], stands: [true, true], exported: [true, true] }),
+            "[handleRemnant's calls of noteDiscardTrace; after the trial's refusal, after the placed check; its line asks a player, a discard, and names the "
+                + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
     ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
         /*

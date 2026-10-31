@@ -1254,6 +1254,9 @@ async function handleRemnant(payload, sender, ctx) {
     // player's item stays on the sheet.
     const placed = await placeRemnant(data);
     if (!placed) return { refused: "the trace could not be placed" };
+    /* THE DISCARD'S TICKET (E51 fix FG5; the end review's S1): the deletion the discarder's browser makes next stands on
+       this trace placed, once (sheet-audit.mjs `noteDiscardTrace`); a stamped delete with no trace behind it is flagged. */
+    if (!sender.isGM && data.action === "discard") (await import("./sheet-audit.mjs")).noteDiscardTrace(data.sourceActor, data.subject);
     /* WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08). The player's browser is
        answered as before, with no id: a Reroll that retunes or removes this trace is the GM's
        from C4a, and finds it by this fact - the browser's `remnantRef` named none. Written on
@@ -2438,7 +2441,7 @@ export const BRIDGE_ACTIONS = table({
            read off its record of the roll (E08+E28 C15; `traceBandOf`); another action's trace
            names no roll. One roll leaves one trace. */
         rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType); a GM's is placed as written",
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType), refused in the Class Trial, and once placed the ticket its item's deletion stands on (sheet-audit.mjs noteDiscardTrace); a GM's is placed as written",
             rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
