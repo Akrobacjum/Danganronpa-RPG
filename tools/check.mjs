@@ -156,7 +156,11 @@
  *             and by reader, handed to T16 (secondPersonToMany, report: "you"
  *             on a card the room, the incident or the table reads at once);
  *             and the map built once more on planted scripts, each sender and
- *             reader with the answer it must give.
+ *             reader with the answer it must give. E65 C12: the handbook-facts
+ *             tool's self-check (tools/handbook-facts.mjs; red, with a control
+ *             that hands it a split cutting nothing), and every handbook split
+ *             twice, one line each: units by kind, the second split the same,
+ *             and the Polish ids, kinds and lines as the English (readings).
  */
 
 import fs from "node:fs";
@@ -930,6 +934,28 @@ async function text() {
             console.log(`text:   ${m.test} not yet due: ${r.pending.length} finding(s) in ${notDue.length} entr${notDue.length === 1 ? "y" : "ies"}`
                 + (notDue.length ? ` - ${Object.entries(byStage).map(([st, n]) => `${st} ${n}`).join(", ")}: ${notDue.map(e => `${e.id} ${e.hits}`).join(", ")}` : ""));
         }
+    }
+    /* The handbook-facts tool (E65 C12, E65-21): its self-check (the fixture handbook's units, the same on a second split, and
+       `check` naming its planted faults exactly) red here, with its control - the self-check handed a split that cuts nothing
+       must see it; then every handbook split twice, one line each: its units by kind, whether the second split gave the same,
+       what split could not read, and whether the Polish handbook gives the English one's ids, kinds and lines. Those lines
+       are readings for E57, which writes the facts files: none of them is red. */
+    const facts = await import(url.pathToFileURL(path.join(REPO, "tools", "handbook-facts.mjs")).href);
+    problems.push(...facts.selfCheck().map(p => `handbook-facts: ${p}`));
+    if (!facts.selfCheck(() => ({ handbook: null, units: [], counts: {}, problems: [] })).some(p => p.startsWith("split cuts the fixture into []"))) {
+        problems.push("handbook-facts: the self-check does not see a split that cuts nothing - it would pass a broken split");
+    }
+    const cut = {};
+    for (const f of HANDBOOKS) {
+        if (!exists(f)) { problems.push(`handbook-facts: ${f} is missing - nothing was split`); continue; }
+        const once = facts.split(read(f), { file: f }), again = facts.split(read(f), { file: f });
+        cut[f] = once;
+        if (JSON.stringify(once) !== JSON.stringify(again)) problems.push(`handbook-facts: ${f} gives other units on a second split`);
+        const c = once.counts, pair = f.endsWith(".pl.md") ? cut[f.replace(/\.pl\.md$/, ".en.md")] : null;
+        const shape = r => JSON.stringify(r.units.map(u => `${u.id} ${u.kind} ${/line (\d+)$/.exec(u.place)?.[1]}`));
+        console.log(`text: handbook-facts: ${f}: ${c.units} unit(s) - paragraph ${c.paragraph}, row ${c.row}, note ${c.note} - in ${c.sections} section(s); `
+            + `the same on a second split: ${JSON.stringify(once) === JSON.stringify(again) ? "yes" : "no"}; ${once.problems.length} split problem(s)${once.problems.length ? ` (${once.problems.join("; ")})` : ""}`
+            + (pair ? `; ids, kinds and lines as in English: ${shape(once) === shape(pair) ? "yes" : "no"}` : ""));
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
