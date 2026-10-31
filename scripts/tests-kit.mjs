@@ -22,9 +22,11 @@ import {
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
 /* The text lint (E65 C1): handed on as tests-lint.mjs's names are, so R1058 and R1059 run the functions
-   `node tools/check.mjs text` runs, and the crawl reaches the file through this import. */
+   `node tools/check.mjs text` runs, and the crawl reaches the file through this import. C2 adds T3's and T6's
+   baselines and their matcher. */
 import {
-    flatLang, DETECTORS as TEXT_DETECTORS, MODES as TEXT_MODES, FIXTURES as TEXT_FIXTURES, selfCheck as textSelfCheck, itemOf as textItem
+    flatLang, DETECTORS as TEXT_DETECTORS, MODES as TEXT_MODES, FIXTURES as TEXT_FIXTURES, selfCheck as textSelfCheck, itemOf as textItem,
+    BASELINES as TEXT_BASELINES, againstBaseline as textAgainstBaseline, staleRow as textStaleRow
 } from "./tests-text.mjs";
 
 /* ==========================================================================
@@ -1999,7 +2001,7 @@ export {
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
-    flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
+    flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

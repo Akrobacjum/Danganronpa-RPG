@@ -99,7 +99,13 @@
  *             At E65 C1: T1 (pluralForms, configPlaceholders) and T2
  *             (pairParity), all FAIL. `--lang <dir>` reads en.json and pl.json
  *             from <dir> instead of lang/ (config.mjs stays this tree's): how a
- *             scratch copy with a planted fault is shown red.
+ *             scratch copy with a planted fault is shown red. E65 C2: T3
+ *             (familyFormats) and T6 (dashesIn), FAIL with a baseline, read
+ *             the module's scripts as well (git's list under scripts/, the
+ *             suite's own files out, through tests-lint.mjs's lexer) and every
+ *             .md git lists under docs/; red on a finding the baseline does
+ *             not hold, and on a baseline row nothing fills ("take it out of
+ *             the baseline").
  */
 
 import fs from "node:fs";
@@ -651,13 +657,15 @@ async function text() {
     const { walkConfigProse } = await import(url.pathToFileURL(path.join(REPO, "scripts", "i18n-config.mjs")).href);
     const dir = LANG_DIR === null ? path.join(REPO, "lang") : path.resolve(LANG_DIR);
     const where = path.relative(REPO, dir) || ".";
-    const fixtures = T.selfCheck();
+    /* The lexer the detectors that read code are handed: tests-lint.mjs's, which tests-text.mjs cannot import (E65 C2). */
+    const lexer = { blankComments: lint.blankComments, blankLiterals: lint.blankLiterals, callArgs: lint.callArgs };
+    const fixtures = T.selfCheck(T.DETECTORS, { lexer });
     const problems = [...fixtures];
     /* The self-check's own control (R1058 asks the same): a detector stubbed to flag nothing and read nothing,
        the shape of each before it was written, is seen. A self-check that answered [] whatever ran would leave
        this part green over a broken detector. */
     const first = Object.keys(T.MODES)[0];
-    if (T.selfCheck({ ...T.DETECTORS, [first]: () => ({ found: [], read: 0 }) }).filter(p => p.startsWith(`${first} `)).length !== 2) {
+    if (T.selfCheck({ ...T.DETECTORS, [first]: () => ({ found: [], read: 0 }) }, { lexer }).filter(p => p.startsWith(`${first} `)).length !== 2) {
         problems.push(`the self-check does not see ${first} stubbed to flag nothing and read nothing - it would pass a broken detector`);
     }
     const fileOf = name => path.join(dir, name);
@@ -666,18 +674,33 @@ async function text() {
     const en = new Map(langEntries(fileOf("en.json"))), pl = new Map(langEntries(fileOf("pl.json")));
     const prose = new Map();
     walkConfigProse(config, (key, value) => prose.set(key, value));
-    const inputs = { en, pl, prose };
+    /* The scripts the module serves, as git lists them (the suite's own files out: tests.mjs and tests-*.mjs quote
+       what they hunt for, and R1's otherSources leaves them out too), and every .md under docs/ (E65 C2). */
+    const listed = gitFiles("scripts"), docList = gitFiles("docs");
+    if (listed === null || docList === null) { problems.push("not a git checkout: the scripts and docs could not be listed - nothing was read"); return problems; }
+    const scripts = new Map(listed.filter(f => f.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(path.basename(f))).map(f => [f, read(f)]));
+    const docs = new Map(docList.filter(f => f.endsWith(".md")).map(f => [f, read(f)]));
+    const inputs = { en, pl, prose, scripts, docs, lexer };
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
         const r = T.DETECTORS[name](inputs);
-        console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`);
-        if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")} in ${where} - it has proved nothing`);
-        if (m.mode === "fail") { fails += r.found.length; problems.push(...r.found.map(f => `${m.test} (${name}): ${f.what}`)); }
-        else { reports += r.found.length; for (const f of r.found) console.log(`text:   ${m.test} report: ${f.what}`); }
+        const rows = T.BASELINES[name];
+        const b = rows ? T.againstBaseline(r, rows) : null;
+        const counts = Object.entries(r.counts ?? {}).map(([k, n]) => `${k} ${n}`).join(", ");
+        console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`
+            + (b ? `; baseline ${rows.length} row(s), ${b.rows} site(s): ${b.matched} matched, ${b.left.length} new, ${b.stale.length} gone` : "")
+            + (counts ? ` (${counts})` : ""));
+        if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")}${LANG_DIR === null ? "" : ` (the language files of ${where})`} - it has proved nothing`);
+        const live = b ? b.left : r.found;
+        if (m.mode === "fail") {
+            fails += live.length;
+            problems.push(...live.map(f => `${m.test} (${name}): ${f.what}`), ...(b?.stale ?? []).map(s => `${m.test} (${name}): ${T.staleRow(name, s)}`));
+        } else { reports += live.length; for (const f of live) console.log(`text:   ${m.test} report: ${f.what}`); }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
-        + `config.mjs prose ${prose.size}; FAIL found ${fails}, report found ${reports}; ${problems.length} problem(s)`);
+        + `config.mjs prose ${prose.size}; scripts ${scripts.size}, docs ${docs.size}; FAIL found ${fails} beyond the baselines, `
+        + `report found ${reports}; ${problems.length} problem(s)`);
     return problems;
 }
 

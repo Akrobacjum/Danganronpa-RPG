@@ -16,7 +16,8 @@ import {
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
-    apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem
+    apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -17034,42 +17035,57 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, and the self-check sees a detector that flags nothing (E65 C1; E65-03, E65-08)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, and every baseline row is well formed and matched as the matcher's own case says (E65 C1, C2; E65-03, E65-06, E65-07, E65-08)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
-         * seen to catch what it is for). It grows with the stage: C1 has T1's two halves and T2, and each later
-         * commit of E65 adds its detectors to the list below. The last read is the self-check's own control: a
-         * detector stubbed to flag nothing and read nothing - the shape every detector had before it was written
-         * (the red run of C1) - is two mismatches, not silence. Pure data; nothing is fetched or written.
+         * seen to catch what it is for). It grows with the stage: C1 has T1's two halves and T2, C2 T3
+         * (familyFormats) and T6 (dashesIn) with their baselines, and each later commit of E65 adds its detectors to
+         * the list below. The last reads are the self-check's own controls: a detector stubbed to flag nothing and
+         * read nothing - the shape every detector had before it was written (the red runs of C1 and C2) - is two
+         * mismatches, not silence; and the two that read code, handed no lexer (tests-text.mjs imports none; this
+         * file hands the kit's, which are tests-lint.mjs's), throw and are seen. The selfCheck also holds every
+         * baseline row to a file, a site, an issue and the stage that empties it, and the matcher to its own case
+         * (BASELINE_FIXTURE). Pure data; nothing is fetched or written.
          */
         const names = Object.keys(TEXT_MODES).sort();
+        const lexer = { blankComments, blankLiterals, callArgs };
         const stub = () => ({ found: [], read: 0 });
-        const caught = textSelfCheck({ ...TEXT_DETECTORS, pluralForms: stub }).filter(p => p.startsWith("pluralForms "));
+        const caught = textSelfCheck({ ...TEXT_DETECTORS, pluralForms: stub }, { lexer }).filter(p => p.startsWith("pluralForms "));
+        const unlexed = textSelfCheck(TEXT_DETECTORS).filter(p => p.includes("was handed no lexer")).map(p => p.split(" ")[0]).sort();
         equal(JSON.stringify({
             names, fixtures: Object.keys(TEXT_FIXTURES).sort(), detectors: Object.keys(TEXT_DETECTORS).sort(),
             modes: names.map(n => [n, TEXT_MODES[n].test, TEXT_MODES[n].mode]),
-            flagged: names.map(n => [n, TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
-            problems: textSelfCheck(), caught: caught.length
+            flagged: names.map(n => [n, TEXT_DETECTORS[n]({ lexer, ...TEXT_FIXTURES[n].input }).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
+            baselines: Object.keys(TEXT_BASELINES).sort().map(n => [n, TEXT_BASELINES[n].length]),
+            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, unlexed
         }), JSON.stringify({
-            names: ["configPlaceholders", "pairParity", "pluralForms"], fixtures: ["configPlaceholders", "pairParity", "pluralForms"],
-            detectors: ["configPlaceholders", "pairParity", "pluralForms"],
-            modes: [["configPlaceholders", "T1", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"]],
-            flagged: [["configPlaceholders", 4, 4], ["pairParity", 5, 5], ["pluralForms", 4, 4]],
-            problems: [], caught: 2
+            names: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
+            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
+            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms"],
+            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"]],
+            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["pairParity", 5, 5], ["pluralForms", 4, 4]],
+            baselines: [["dashesIn", 11], ["familyFormats", 1]],
+            problems: [], caught: 2, unlexed: ["dashesIn", "familyFormats"]
         }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
-            + "against the fixture's count; the self-check's mismatches (none); the two a stub of pluralForms makes]");
+            + "against the fixture's count; the rows of each baseline; the self-check's mismatches (none); the two a stub of pluralForms "
+            + "makes; the detectors that throw with no lexer]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the language files the module serves find nothing and read something: every English plural family has its four Polish forms, and every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other (E65 C1; T1's language half and T2, E65-04, E65-05, E65-08)", async () => {
+    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {
         /*
-         * E65 C1, 31.10.2026. The functions `node tools/check.mjs text` runs in Node over lang/, here over the files
-         * this Foundry serves - a table's own install, which CI never sees. T1's other half (configPlaceholders) is
-         * Node's alone: at i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose
-         * is not there to read at a table. The FAIL detectors that read only the language files are taken from
-         * MODES, and the list is held to the two of C1, so a third one added later is a change to this test. Read on
-         * 99226e59 in Node: 168 families, 4774 pairs (4438 keys in both files and 336 Polish .few/.many), nothing
-         * found. Nothing is written.
+         * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
+         * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
+         * the two language files, the scripts the crawl from module.mjs reaches (the suite's own files out, as R1's
+         * otherSources has them) and the six handbooks. T1's other half (configPlaceholders) is Node's alone: at
+         * i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose is not there to read
+         * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
+         * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
+         * are taken from MODES, and the list is held to the four of C1 and C2, so another one is a change to this test;
+         * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
+         * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
+         * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
+         * else. Nothing is written.
          */
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -17077,14 +17093,31 @@ const REGRESSIONS = [
             must(res.ok, `${code}.json: HTTP ${res.status}`);
             lang[code] = flatLang(JSON.parse(await lfText(res)));
         }
-        const served = Object.entries(TEXT_MODES).filter(([, m]) => m.mode === "fail" && m.reads.every(r => r === "lang")).map(([name]) => name);
+        const scripts = new Map((await otherSources()).map(([file, text]) => [`scripts/${file}`, text]));
+        const docs = new Map();
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            for (const code of ["en", "pl"]) {
+                const rel = `docs/handbooks/${book}.${code}.md`;
+                const res = await fetch(`/modules/${MODULE_ID}/${rel}`);
+                must(res.ok, `${rel}: HTTP ${res.status}`);
+                docs.set(rel, await lfText(res));
+            }
+        }
+        const lexer = { blankComments, blankLiterals, callArgs };
+        const here = ["lang", "scripts", "docs"];
+        const served = Object.entries(TEXT_MODES).filter(([, m]) => m.mode === "fail" && m.reads.every(r => here.includes(r))).map(([name]) => name);
         const runs = served.map(name => {
-            const r = TEXT_DETECTORS[name]({ en: lang.en, pl: lang.pl });
-            return { name, read: r.read, found: r.found.map(f => f.what) };
+            const r = TEXT_DETECTORS[name]({ en: lang.en, pl: lang.pl, scripts, docs, lexer });
+            const b = TEXT_BASELINES[name] ? textAgainstBaseline(r, TEXT_BASELINES[name]) : null;
+            return { name, read: r.read, sites: b?.rows ?? 0, matched: b?.matched ?? 0,
+                found: (b ? b.left : r.found).map(f => f.what), gone: (b?.stale ?? []).map(s => textStaleRow(name, s)) };
         });
-        log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length}`).join("; ")}; en ${lang.en.size} keys, pl ${lang.pl.size}`);
-        equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.found])), JSON.stringify([["pluralForms", true, []], ["pairParity", true, []]]),
-            "[each FAIL detector that reads only the language files: its name, whether it read anything, what it found]");
+        log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
+            + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
+        equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []]]),
+        "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
+            + "what it found that its baseline does not hold, the baseline rows nothing filled]");
     }],
 
     ["R1138 - a doorway's light stops at the first wall and at the end of the room it falls into: fog-doorways.mjs `doorwayGlowPlan`, handed the walls and rooms beyond (`doorwayLight`'s answer), keeps the glow to a shape whose rays end at a wall 1.0-1.9 squares past an opening, straight or stepped, and where the room beyond ends, a room drawn across a gap reached (E51 fix FG3; the owner's item 4 of 31.10, LIVE-E51-03)", async () => {
