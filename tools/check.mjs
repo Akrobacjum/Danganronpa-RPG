@@ -3,6 +3,7 @@
  * ---------------------------------------------------------------------------
  *     node tools/check.mjs [part ...] [--release vX.Y.Z]   every part when none is named
  *     node tools/check.mjs text --lang <dir>              `text` over <dir>/en.json and <dir>/pl.json
+ *     node tools/check.mjs text --all                     `text` with every report finding printed
  *
  * One entry point, so CI and a release run the same command and a part added
  * later is not a new script somebody forgets to call. Each part prints its own
@@ -118,7 +119,15 @@
  *             its shape (budgetsSchema: the surfaces' targets and limits, the
  *             key-to-surface rules, the allow rows with their `why` and `until`;
  *             missing, unparsed or off-shape: red, "budgets: ..."), and a line
- *             of what it holds.
+ *             of what it holds. E65 C6: five report detectors - T4
+ *             (lengthOver, words against the budgets' surfaces, a key's
+ *             surface read by its name or by the call that posts it), T5
+ *             (patterns, the guide's X rules), T7's part (ruleNumberWords), T21
+ *             (monokumaVoice) and T24 (colonChains) - each with its counts by
+ *             surface and by top-level key group, and a report detector's
+ *             findings one a line up to 25 (`--all`: every one). Two more
+ *             controls: the self-check sees glossarySchema and budgetsSchema
+ *             each stubbed to answer [].
  */
 
 import fs from "node:fs";
@@ -138,6 +147,7 @@ const releaseAt = argv.indexOf("--release");
 const RELEASE = releaseAt >= 0 ? argv[releaseAt + 1] ?? "" : null;
 const langAt = argv.indexOf("--lang");
 const LANG_DIR = langAt >= 0 ? argv[langAt + 1] ?? "" : null;
+const ALL = argv.includes("--all");
 /* LF line ends whatever the checkout has (lint.lf; 1.2.80 train, fix crlf-G1): every reader below matches "\n". */
 const read = rel => lint.lf(fs.readFileSync(path.join(REPO, rel), "utf8"));
 const exists = rel => fs.existsSync(path.join(REPO, rel));
@@ -687,6 +697,14 @@ async function text() {
     if (!T.selfCheck({ ...T.DETECTORS, glossaryHits: blind }, { lexer }).some(p => p.startsWith("glossaryHits flags ") && p.includes("case 2"))) {
         problems.push("the self-check does not see glossaryHits blind to the ledger it is handed - it would pass a broken stage rule");
     }
+    /* And the two schemas' own cases (E65 C6; C5's Open 34): each stubbed to answer [] is one mismatch of the self-check. Its
+       line for either removed, a schema broken to pass everything would leave this part green on a valid file (C5's
+       mutant M13 lived so). */
+    for (const schema of ["glossarySchema", "budgetsSchema"]) {
+        if (!T.selfCheck(T.DETECTORS, { lexer }, { [schema]: () => [] }).some(p => p.startsWith(`${schema} answers [] `))) {
+            problems.push(`the self-check does not see ${schema} stubbed to answer [] - a broken schema would pass its file`);
+        }
+    }
     const fileOf = name => path.join(dir, name);
     for (const name of ["en.json", "pl.json"]) if (!fs.existsSync(fileOf(name))) problems.push(`${path.join(where, name)} is missing - nothing was read`);
     if (problems.some(p => p.endsWith("nothing was read"))) return problems;
@@ -710,11 +728,11 @@ async function text() {
         try { glossary = JSON.parse(read("docs/glossary.json")); } catch (err) { problems.push(`glossary: docs/glossary.json does not parse (${err.message})`); }
         if (glossary) problems.push(...T.glossarySchema(glossary, ledger.stages.map(r => r.id)).map(p => `glossary: ${p}`));
     }
-    /* The budgets (E65 C5): docs/text-budgets.json held to its shape the same way (budgetsSchema: every `until` a ledger row;
-       a fault is red), and one line of what it holds. T4 (E65 C6) reads its numbers; here only its shape is held. */
+    /* The budgets (E65 C5): docs/text-budgets.json held to its shape the same way (budgetsSchema: every `until` and `fail` a
+       ledger row; a fault is red), and one line of what it holds. T4, T5 and T21 (E65 C6) read it as `budgets`. */
+    let budgets = null;
     if (!exists("docs/text-budgets.json")) problems.push("budgets: docs/text-budgets.json is missing - the surfaces' budgets have nothing to read");
     else {
-        let budgets = null;
         try { budgets = JSON.parse(read("docs/text-budgets.json")); } catch (err) { problems.push(`budgets: docs/text-budgets.json does not parse (${err.message})`); }
         if (budgets) {
             const faults = T.budgetsSchema(budgets, ledger.stages.map(r => r.id));
@@ -725,7 +743,12 @@ async function text() {
                 + `${Array.isArray(budgets.allow) ? budgets.allow.length : 0} allow row(s); ${faults.length} schema fault(s)`);
         }
     }
-    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped };
+    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped, budgets };
+    /* Each key's surface, as T4 reads it (the budgets' rules, the senders read off the scripts): C6's report counts every
+       finding by it and by the key's top-level group. A handbook line is "handbook". */
+    const surfaces = T.surfacesOf(inputs);
+    const tally = (list, of) => Object.entries(list.reduce((acc, f) => ({ ...acc, [of(f)]: (acc[of(f)] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1]);
+    const shownTally = (pairs, most) => pairs.slice(0, most).map(([k, n]) => `${k} ${n}`).join(", ") + (pairs.length > most ? `, ${pairs.length - most} more (${pairs.slice(most).reduce((n, [, c]) => n + c, 0)})` : "");
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
         const r = T.DETECTORS[name](inputs);
@@ -740,7 +763,27 @@ async function text() {
         if (m.mode === "fail") {
             fails += live.length;
             problems.push(...live.map(f => `${m.test} (${name}): ${f.what}`), ...(b?.stale ?? []).map(s => `${m.test} (${name}): ${T.staleRow(name, s)}`));
-        } else { reports += live.length; for (const f of live) console.log(`text:   ${m.test} report: ${f.what}`); }
+        } else {
+            reports += live.length;
+            for (const f of ALL ? live : live.slice(0, 25)) console.log(`text:   ${m.test} report: ${f.what}`);
+            if (!ALL && live.length > 25) console.log(`text:   ${m.test} report: ${live.length - 25} more not printed (node tools/check.mjs text --all)`);
+        }
+        /* C6's report detectors (their findings carry `lang`): by surface and by top-level key group, then each one's own. */
+        if (live.length && live.every(f => f.lang)) {
+            const handbook = f => /^docs\//.test(String(f.key));
+            console.log(`text:   ${m.test} by surface: ${shownTally(tally(live, f => (handbook(f) ? "handbook" : surfaces.surfaceOf(f.key) ?? "unclassified")), 14)}`);
+            console.log(`text:   ${m.test} by group: ${shownTally(tally(live, f => (handbook(f) ? String(f.key).split(":")[0] : T.groupOf(f.key))), 10)}`);
+        }
+        if (r.bySurface) {
+            console.log(`text:   ${m.test} strings by surface (over the target / over the limit / allowed): `
+                + Object.entries(r.bySurface).map(([id, c]) => `${id} ${c.strings} (${c.target}/${c.limit}/${c.allowed})`).join(", ")
+                + `; unclassified ${r.counts.unclassified}; over a limit that is red from a stage: ${r.found.filter(f => f.fail).length} (${shownTally(tally(r.found.filter(f => f.fail), f => f.fail), 4) || "none"})`
+                + (r.counts.calls !== undefined ? `; senders read: ${r.counts.calls} call(s), ${r.counts.keyed} with a key, ${r.counts.private} private, ${r.counts.unresolved} key(s) built by a template` : ""));
+        }
+        if (r.byRule) {
+            console.log(`text:   ${m.test} by rule (en/pl): ` + Object.entries(r.byRule).map(([id, c]) => (c.by ? `${id} read by ${c.by}` : `${id} ${c.en}/${c.pl}`)).join(", "));
+        }
+        if (r.byCount) console.log(`text:   ${m.test} strings by colons: ${Object.entries(r.byCount).map(([n, c]) => `${n}: ${c}`).join(", ")}`);
         /* A detector that splits by stage (T8, T28): its debt above, then each entry of a shipped stage that looked and found
            nothing (one that forbids nothing is counted apart: it measured nothing), and what the entries not yet due find, by
            stage - the report each entry's stage starts from (E65-11). */

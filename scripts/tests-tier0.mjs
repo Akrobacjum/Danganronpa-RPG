@@ -17035,7 +17035,7 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, and the glossary's and the budgets' shapes are red on their own cases' faults (E65 C1, C2, C3, C4, C5; E65-03, E65-06 to E65-12, E65-14)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, the glossary's and the budgets' shapes are red on their own cases' faults and the self-check sees either schema stubbed to answer nothing, and every X rule T5 matches has a fixture line of its own (E65 C1, C2, C3, C4, C5, C6; E65-03, E65-06 to E65-12, E65-14, E65-15)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
@@ -17056,7 +17056,13 @@ const REGRESSIONS = [
          * C5 adds budgetsSchema to the selfCheck (BUDGETS_SCHEMA_FIXTURE: an allow row without its `why`, a limit at
          * its target and one over twice it, a rule by both keys and a sender, a surface no rule names and nine faults
          * more, E65-14); docs/text-budgets.json is Node's as the glossary is. A stubbed budgetsSchema is one mismatch
-         * in `problems` (the red run of C5). Pure data; nothing is fetched or written.
+         * in `problems` (the red run of C5). C6 adds the five report detectors of E65-15 - T4 (lengthOver: words against
+         * a fixture's own budgets, a key's surface by its name and by the call that posts it, which reads code and so throws
+         * with no lexer), T5 (patterns: one fixture line for each X rule a matcher reads, which the selfCheck now holds),
+         * T7's part (ruleNumberWords), T21 (monokumaVoice: also a call's reading and the handbooks) and T24 (colonChains)
+         * - and the control C5's Open 34 asked for: glossarySchema and budgetsSchema, each stubbed to answer [], are one
+         * mismatch each (C5's mutant M13, the budgets' line of the selfCheck removed, lived before it). Pure data; nothing
+         * is fetched or written.
          */
         const names = Object.keys(TEXT_MODES).sort();
         const notDue = n => (TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).pending ?? []).length;
@@ -17066,28 +17072,36 @@ const REGRESSIONS = [
         const blind = bag => TEXT_DETECTORS.glossaryHits({ ...bag, shipped: TEXT_FIXTURES.glossaryHits.input.shipped });
         const ledgerBlind = textSelfCheck({ ...TEXT_DETECTORS, glossaryHits: blind }, { lexer }).filter(p => p.startsWith("glossaryHits flags ") && p.includes("case 2")).length;
         const unlexed = textSelfCheck(TEXT_DETECTORS).filter(p => p.includes("was handed no lexer")).map(p => p.split(" ")[0]).sort();
+        const schemaStubs = ["glossarySchema", "budgetsSchema"].map(n => [n, textSelfCheck(TEXT_DETECTORS, { lexer }, { [n]: () => [] }).filter(p => p.startsWith(`${n} answers [] `)).length]);
         equal(JSON.stringify({
             names, fixtures: Object.keys(TEXT_FIXTURES).sort(), detectors: Object.keys(TEXT_DETECTORS).sort(),
             modes: names.map(n => [n, TEXT_MODES[n].test, TEXT_MODES[n].mode]),
             flagged: names.map(n => [n, TEXT_DETECTORS[n]({ lexer, ...TEXT_FIXTURES[n].input }).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
             baselines: Object.keys(TEXT_BASELINES).sort().map(n => [n, TEXT_BASELINES[n].length]),
             notDue: ["glossaryHits", "retiredHits"].map(n => [n, notDue(n), TEXT_FIXTURES[n].pending.length]),
-            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, ledgerBlind, unlexed
+            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, ledgerBlind, unlexed, schemaStubs
         }), JSON.stringify({
-            names: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
-            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
-            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
-            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["pairParity", "T2", "fail"],
-                ["pluralForms", "T1", "fail"], ["retiredHits", "T28", "report"], ["tableWordProblems", "T14", "fail"]],
-            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["pairParity", 5, 5], ["pluralForms", 4, 4],
-                ["retiredHits", 11, 11], ["tableWordProblems", 4, 4]],
+            names: ["colonChains", "configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "lengthOver", "monokumaVoice", "pairParity", "patterns",
+                "pluralForms", "retiredHits", "ruleNumberWords", "tableWordProblems"],
+            fixtures: ["colonChains", "configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "lengthOver", "monokumaVoice", "pairParity", "patterns",
+                "pluralForms", "retiredHits", "ruleNumberWords", "tableWordProblems"],
+            detectors: ["colonChains", "configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "lengthOver", "monokumaVoice", "pairParity", "patterns",
+                "pluralForms", "retiredHits", "ruleNumberWords", "tableWordProblems"],
+            modes: [["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"],
+                ["glossaryHits", "T8", "report"], ["lengthOver", "T4", "report"], ["monokumaVoice", "T21", "report"], ["pairParity", "T2", "fail"],
+                ["patterns", "T5", "report"], ["pluralForms", "T1", "fail"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"],
+                ["tableWordProblems", "T14", "fail"]],
+            flagged: [["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["glossaryHits", 11, 11],
+                ["lengthOver", 8, 8], ["monokumaVoice", 7, 7], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4], ["retiredHits", 11, 11],
+                ["ruleNumberWords", 9, 9], ["tableWordProblems", 4, 4]],
             baselines: [["dashesIn", 11], ["familyFormats", 1]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
-            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats"]
+            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "lengthOver", "monokumaVoice"],
+            schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]]
         }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
             + "against the fixture's count; the rows of each baseline; what T8 and T28 hold back as not yet due against their fixtures' "
             + "count; the self-check's mismatches (none); the two a stub of pluralForms makes; the one T8 blind to its second ledger makes; the "
-            + "detectors that throw with no lexer]");
+            + "detectors that throw with no lexer; the one mismatch each schema stubbed to answer [] makes]");
     }],
 
     ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {

@@ -65,6 +65,16 @@
  * `budgetsSchema`, which holds docs/text-budgets.json (the surfaces' targets and
  * limits of docs/text-style.md, the key-to-surface rules, the allow list) as
  * `glossarySchema` holds the glossary - red in `text`; its reader is T4 (E65 C6).
+ * At C6 the five report detectors of the guide's rules (E65-15), each a candidate
+ * list for a reader, never a verdict, every pattern rebuilt 30.10 as its rule is:
+ * T4 (`lengthOver`, words against docs/text-budgets.json's surfaces, a key's
+ * surface read by its name or by the call that posts it - `surfacesOf`, the
+ * orchestrator's reading of 31.10 until C11's audience map), T5 (`patterns`, one
+ * matcher per X rule of the guide, X_RULES), T7's part (`ruleNumberWords`, a
+ * rule's number written as a word), T21 (`monokumaVoice`, DB1, DB5, PL4) and T24
+ * (`colonChains`, more than two colons in a string). Their bag adds `budgets`
+ * (the parsed file); T4, T5 and T21 read the scripts for the senders when handed
+ * them, with the lexer.
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -622,11 +632,16 @@ export function glossarySchema(doc, stageIds = []) {
  * text of each surface of docs/text-style.md may be, in words: `surfaces`, each with
  * a `target` (what the report holds a text to) and a `limit` (DB11: "limit twardy ok.
  * 1,5 razy cel"; null for a surface that is only ever reported, the GM's diagnostics)
- * and `what` (who reads it, one sentence); `rules`, which keys belong to which surface,
+ * and `what` (who reads it, one sentence), and `fail` (E65 C6: the stage from which a
+ * text over that surface's limit is red - DB11's "FAIL dla tekstów gracza i ustawień",
+ * read by the orchestrator on 31.10 as E71 for the player's and the settings' texts -
+ * or null where it stays a report; a ledger row, and null where the limit is);
+ * `rules`, which keys belong to which surface,
  * the first that names a key winning - by the key (`keys`, a regular expression over
  * the whole key) or by the function that sends it (`sender`, names of SENDERS), never
  * both - and a key no rule names is "unclassified"; `allow`, the exceptions, each
- * silencing one `key` for one `rule` (T4, T16, or an X rule of the guide) with its
+ * silencing one `key` for one `rule` (T4 or an X rule of the guide; not T16, which
+ * has no allow list - the T-table, and the orchestrator on C5's Open 33) with its
  * `why` and the stage that may remove it (`until`, a row of tools/stages.json). A row
  * without its `why` is a fault (DB11: "allowlista z powodem"), and so is a field the
  * file does not know, a surface no rule names (no key could reach its budget) and a
@@ -637,13 +652,13 @@ export function glossarySchema(doc, stageIds = []) {
  */
 const BUDGET_FIELDS = Object.freeze({
     top: Object.freeze({ required: ["$comment", "status", "unit", "surfaces", "rules", "allow"], optional: [] }),
-    surface: Object.freeze({ required: ["target", "limit", "what"], optional: ["note"] }),
+    surface: Object.freeze({ required: ["target", "limit", "what", "fail"], optional: ["note"] }),
     rule: Object.freeze({ required: ["surface"], optional: ["keys", "sender", "note"] }),
     allow: Object.freeze({ required: ["key", "rule", "why", "until"], optional: [] })
 });
 /** The functions a key reaches its reader through (the audience map's senders, E65 C11; utils.mjs, action-rolls.mjs, incident-store.mjs, murder-rules.mjs). */
 export const SENDERS = Object.freeze(["ui.notifications", "announce", "announceCrisis", "whisperToOwner", "whisperToOwnerOnly", "whisperToGms", "roomAudience", "incidentAudienceIds"]);
-const ALLOW_RULE = /^(?:T4|T16|X(?:[1-9]|1\d|2[01]))$/;
+const ALLOW_RULE = /^(?:T4|X(?:[1-9]|1\d|2[01]))$/;
 const KEY_NAME = /^[A-Za-z][\w-]*(?:\.[\w-]+)+$/;
 const wholeAbove0 = n => Number.isInteger(n) && n > 0;
 
@@ -682,6 +697,10 @@ export function budgetsSchema(doc, stageIds = []) {
                 out.push(`${where}'s limit ${s.limit} is not above its target ${s.target} and at most twice it (DB11: about 1.5 times)`);
             }
         }
+        if (Object.hasOwn(s, "fail") && s.fail !== null) {
+            if (!(typeof s.fail === "string" && stages.has(s.fail))) out.push(`${where}'s fail ${JSON.stringify(s.fail)} is neither a row of tools/stages.json nor null`);
+            else if (s.limit === null) out.push(`${where} fails from ${s.fail} and has no limit - a surface reported only is never red`);
+        }
         sentence(s, where, ["what", "note"]);
     }
     const rules = Array.isArray(doc.rules) ? doc.rules : (out.push(`${F} has no list of rules`), []);
@@ -714,7 +733,7 @@ export function budgetsSchema(doc, stageIds = []) {
         if (!isObject(a)) { out.push(`${where} is no object`); return; }
         fields(a, where, BUDGET_FIELDS.allow);
         if (Object.hasOwn(a, "key") && !(typeof a.key === "string" && KEY_NAME.test(a.key))) out.push(`${where}'s key ${JSON.stringify(a.key)} is not a dotted key`);
-        if (Object.hasOwn(a, "rule") && !(typeof a.rule === "string" && ALLOW_RULE.test(a.rule))) out.push(`${where}'s rule ${JSON.stringify(a.rule)} is not T4, T16 or an X rule (X1 to X21)`);
+        if (Object.hasOwn(a, "rule") && !(typeof a.rule === "string" && ALLOW_RULE.test(a.rule))) out.push(`${where}'s rule ${JSON.stringify(a.rule)} is not T4 or an X rule (X1 to X21)`);
         sentence(a, where, ["why"]);
         if (Object.hasOwn(a, "until") && !(typeof a.until === "string" && stages.has(a.until))) out.push(`${where}'s until ${JSON.stringify(a.until)} is no row of tools/stages.json`);
         const pair = `${a.key} ${a.rule}`;
@@ -925,6 +944,434 @@ export function retiredHits(bag = {}) {
         counts: { rows: rows.length, due: split.entries.filter(e => e.due).length, pending: split.pending.length } };
 }
 
+/* ------------------------- the report detectors (C6) ----------------------- */
+
+/**
+ * WHAT C6'S FIVE READ (E65 C6, 31.10.2026): the module's UI strings, one unit a
+ * string - en.json's values and config.mjs's English prose ("en"), pl.json's
+ * values ("pl") - and, where a rule says so, the handbooks a line at a time.
+ * `at` is the key; `where` names the file. The same units for every detector, so
+ * their counts add up over the same ground.
+ */
+function uiUnits(bag) {
+    const out = [];
+    for (const [key, text] of asMap(bag.en)) if (typeof text === "string") out.push({ key, lang: "en", where: `lang/en.json ${key}`, text });
+    for (const [key, text] of asMap(bag.prose)) if (typeof text === "string") out.push({ key, lang: "en", where: `config.mjs's prose ${key}`, text });
+    for (const [key, text] of asMap(bag.pl)) if (typeof text === "string") out.push({ key, lang: "pl", where: `lang/pl.json ${key}`, text });
+    return out;
+}
+
+/** A string's text with its HTML tags and entities blanked to spaces (a tag is htmlTags's: a letter first, so "<-" stays). */
+const untagged = text => String(text ?? "").replace(/<\/?[a-z][a-z0-9]*\b[^<>]*>/gi, " ").replace(/&(?:[a-z]+|#\d+);/gi, " ");
+
+/**
+ * The words of a string, as T4 counts them against a budget: tags and entities
+ * out, a placeholder one word ("{name}" is a name on the screen), a token with no
+ * letter, digit or placeholder in it - a lone "-", "/", "...", an arrow - none.
+ */
+export function wordCount(text) {
+    return untagged(text).split(/\s+/).filter(t => /[\p{L}\p{N}]|\{\w+\}/u.test(t)).length;
+}
+
+/* The family a key is a form of ("DRPG.X.few" -> "DRPG.X"), or the key itself. */
+const familyOf = key => key.replace(/\.(?:zero|one|two|few|many|other)$/, "");
+
+/* A call that posts or shows a text: a toast, one of utils.mjs's and murder-rules.mjs's posters, or ChatMessage.create
+   (read only for the audience it is handed). Not after a "." (a method of something else) or a word character. */
+const SENDER_CALL = /(?<![\w$.])(ui\s*\.\s*notifications\s*\??\.\s*[A-Za-z]+|announce|announceCrisis|whisperToOwner|whisperToOwnerOnly|whisperToGms|ChatMessage\s*\.\s*create)\s*(?:\?\.\s*)?\(/g;
+/* A literal that reads as a key: a capitalised first part ("DRPG", "DAGGERHEART"), then dotted parts. Not checked against
+   the language files, so the reading depends on the scripts alone; a literal that is no key is never asked about. */
+const KEY_LITERAL = /^[A-Z][A-Za-z]*(?:\.[\w-]+)+$/;
+const AUDIENCE_CALL = /(?<![\w$.])(roomAudience|incidentAudienceIds)\s*\(/g;
+
+/**
+ * WHO A KEY IS POSTED BY, READ OFF THE CALLS THAT POST IT (E65 C6; the
+ * orchestrator's decision of 31.10 on C5's Open 31: C6 reads the senders itself,
+ * through docs/text-budgets.json's sender rules, until C11's audience map replaces
+ * this reading). In each script, comments and literals told apart by the lexer, a
+ * call of a sender (SENDERS) is found, and every key written as a literal inside
+ * its arguments - a string, or a template with no `${...}` - is posted by it. A
+ * call whose arguments name `roomAudience(...)` or `incidentAudienceIds(...)` is
+ * that audience's (a card to the room, to the incident's people), whatever posts
+ * it - `ChatMessage.create` is read only so; `announce` handed a `whisper` list and
+ * neither audience is a private card to people this reading does not know, and is
+ * counted (`private`), not assigned. Not read (C11's): a key held in a variable
+ * first and posted through it (`const content = ...; announce({ content })`), a
+ * key a template builds (counted, `unresolved`), and a sender reached through an
+ * alias. Answers `{ senders: Map key -> Set of senders, counts }`, the keys as
+ * written (a family's base stands for its forms: `familyOf`).
+ */
+function sendersOf(bag, name) {
+    const lx = lexerOf(bag, name);
+    const senders = new Map(), counts = { calls: 0, keyed: 0, private: 0, unresolved: 0 };
+    for (const [, text] of asMap(bag.scripts)) {
+        const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
+        const spans = literalSpans(code, blank);
+        for (const m of blank.matchAll(SENDER_CALL)) {
+            if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 12), m.index))) continue;   // its definition
+            const open = m.index + m[0].length - 1, { close } = lx.callArgs(blank, open);
+            const inside = blank.slice(open + 1, close);
+            const callee = m[1].replace(/\s+/g, "");
+            const audience = [...new Set([...inside.matchAll(AUDIENCE_CALL)].map(a => a[1]))];
+            let by;
+            if (audience.length) by = audience;
+            else if (callee === "ChatMessage.create") continue;
+            else if (callee === "announce" && /\bwhisper\b/.test(inside)) { counts.private++; continue; }
+            else by = [callee.startsWith("ui.notifications") ? "ui.notifications" : callee];
+            counts.calls++;
+            let keyed = false;
+            for (const s of spans) {
+                if (s.start <= open || s.end > close || s.kind === "regex") continue;
+                const whole = s.kind === "string" || (code[s.start] === "`" && code[s.end - 1] === "`");
+                const value = literalText(code, s);
+                if (!whole) { if (/^[A-Z][A-Za-z]*\.[\w.]*$/.test(value)) counts.unresolved++; continue; }
+                if (!KEY_LITERAL.test(value)) continue;
+                keyed = true;
+                const set = senders.get(value) ?? new Set();
+                for (const b of by) set.add(b);
+                senders.set(value, set);
+            }
+            if (keyed) counts.keyed++;
+        }
+    }
+    return { senders, counts };
+}
+
+/* One reading of the surfaces per pair of (budgets, scripts) handed in: T4, T5 and T21 read the same, and the scripts
+   are lexed once. Pure: the answer depends only on the two (a Map or object passed again is the same reading). */
+const SURFACE_MEMO = new WeakMap();
+
+/**
+ * Each key's surface (docs/text-budgets.json, section 3 and 4 of the guide): the
+ * first rule that names it - by `keys`, a pattern over the whole key; by `sender`,
+ * one of the senders `sendersOf` read posting it or its family - or null
+ * ("unclassified"). Without `scripts` only the key rules are read (a fixture with
+ * none, a reader that needs no sender). `surfaceOf(key)` and the sender reading's
+ * counts; a bag with no budgets classifies nothing.
+ */
+export function surfacesOf(bag = {}, name = "surfacesOf") {
+    const budgets = bag.budgets;
+    const rules = Array.isArray(budgets?.rules) ? budgets.rules : [];
+    const hold = typeof bag.scripts === "object" && bag.scripts !== null ? bag.scripts : null;
+    if (hold) lexerOf(bag, name);   // before the memo: a reader handed scripts and no lexer throws whatever ran before it
+    let byBudgets = budgets && typeof budgets === "object" ? SURFACE_MEMO.get(budgets) : null;
+    const memo = byBudgets && hold ? byBudgets.get(hold) : null;
+    if (memo) return memo;
+    const read = hold ? sendersOf(bag, name) : { senders: new Map(), counts: null };
+    const tests = rules.map(r => (typeof r?.keys === "string" ? { surface: r.surface, re: new RegExp(r.keys, "u") }
+        : { surface: r?.surface, sender: Array.isArray(r?.sender) ? r.sender : [] }));
+    const cache = new Map();
+    const surfaceOf = key => {
+        if (cache.has(key)) return cache.get(key);
+        const by = new Set([...(read.senders.get(key) ?? []), ...(read.senders.get(familyOf(key)) ?? [])]);
+        const hit = tests.find(t => (t.re ? t.re.test(key) : t.sender.some(s => by.has(s))));
+        cache.set(key, hit?.surface ?? null);
+        return hit?.surface ?? null;
+    };
+    const out = { surfaceOf, counts: read.counts, senders: read.senders };
+    if (budgets && typeof budgets === "object" && hold) {
+        if (!byBudgets) { byBudgets = new WeakMap(); SURFACE_MEMO.set(budgets, byBudgets); }
+        byBudgets.set(hold, out);
+    }
+    return out;
+}
+
+/* The keys an allow row silences for one rule (docs/text-budgets.json `allow`). */
+const allowedFor = (budgets, rule) => new Set((Array.isArray(budgets?.allow) ? budgets.allow : []).filter(a => a?.rule === rule).map(a => a.key));
+/* A key's top-level group, as the report counts by it: its first two parts ("DRPG.Hud", "DAGGERHEART.UI"). */
+export const groupOf = key => String(key).split(".").slice(0, 2).join(".");
+
+/* ---------------------------------- T4 ------------------------------------- */
+
+/**
+ * T4 (plan, DB11; report from E65): a string longer than its surface's budget in
+ * docs/text-budgets.json - over the `target` (the report's number) and over the
+ * `limit` (about 1.5 times it, DB11's hard limit) counted apart: a string over the
+ * limit is a "limit" finding and not also a "target" one. A surface whose limit is
+ * null (the GM's diagnostics, DB11: report only) has target findings alone. An
+ * allow row (`rule: "T4"`) silences its key in both languages, counted. Each
+ * finding names its surface and, for a limit, the stage from which that surface's
+ * limit is red (`fail`, the surface's own field: E71 for the player's and the
+ * settings' texts as the orchestrator read DB11 on 31.10, null where it stays
+ * report only). The numbers are rebuilt 30.10 (the guide's B2) and wait for the
+ * pilot: a count here is a reading of the rebuilt budgets, not a verdict on the
+ * module's texts. `read` is the strings that have a surface; the rest are
+ * `unclassified`, counted.
+ */
+export function lengthOver(bag = {}) {
+    const budgets = bag.budgets;
+    const surfaces = budgets?.surfaces && typeof budgets.surfaces === "object" ? budgets.surfaces : {};
+    const map = surfacesOf(bag, "lengthOver");
+    const allow = allowedFor(budgets, "T4");
+    const found = [], bySurface = {};
+    let read = 0, unclassified = 0, allowed = 0;
+    for (const u of uiUnits(bag)) {
+        const id = map.surfaceOf(u.key), s = id ? surfaces[id] : null;
+        if (!s) { unclassified++; continue; }
+        read++;
+        const row = bySurface[id] ??= { strings: 0, target: 0, limit: 0, allowed: 0 };
+        row.strings++;
+        if (allow.has(u.key)) { allowed++; row.allowed++; continue; }
+        const n = wordCount(u.text);
+        const over = s.limit !== null && n > s.limit ? "limit" : n > s.target ? "target" : null;
+        if (!over) continue;
+        row[over]++;
+        const fail = over === "limit" ? (s.fail ?? null) : null;
+        found.push({ key: u.key, kind: `${u.lang}-${over}`, surface: id, lang: u.lang, words: n, fail,
+            what: `${u.where}: ${n} words, over the ${id} ${over} of ${over === "limit" ? s.limit : s.target} (docs/text-budgets.json, rebuilt 30.10)${fail ? `; red from ${fail}` : ""}` });
+    }
+    return { found, read, counts: { unclassified, allowed, ...(map.counts ?? {}) }, bySurface, sources: ["budgets"] };
+}
+
+/* ---------------------------------- T5 ------------------------------------- */
+
+/* Not a letter on either side, for the Polish words a \b cannot bound (it reads ASCII only). */
+const W = s => `(?<![\\p{L}\\p{N}_])(?:${s})(?![\\p{L}\\p{N}_])`;
+/* The person placeholders: a name the code fills, one person. */
+const PERSON = /\{(?:name|who|actor|target|victim|killer|student|player|speaker|owner)\}/u;
+/* The surfaces where a text tells and no answer is asked (X21): every surface but a window's own controls. */
+const TELLING = Object.freeze(["toast", "player-card", "gm-card", "world-voice", "gm-diagnostics", "settings-hint", "tooltip", "tile-hint", "config-description"]);
+/* What X16 does not read as shouting: acronyms of the module's text, read 31.10 (GM, MG and BN are the Polish GM and NPC). */
+const ACRONYMS = Object.freeze(["GM", "GMs", "MG", "RPG", "DRPG", "HUD", "NPC", "NPCs", "BN", "KB", "MB", "DC", "UI", "API", "PTT", "AV", "OK", "ID", "URL", "PH"]);
+const PLURAL_PRONOUN = new RegExp(W("oni|ich|im|nich|nimi"), "u");
+const firstSentence = text => untagged(text).trim().split(/(?<=[.!?])\s/)[0].replace(/[.!?:\s]+$/, "").trim().toLowerCase();
+
+/**
+ * THE X RULES' MATCHERS (docs/text-style.md section 5, each rebuilt 30.10 and to
+ * confirm in the pilot, as its rule is; so is every pattern here). One row a rule:
+ * `en` and `pl` a pattern for that language's strings (`any` for both), or `test`,
+ * a function of the unit and what the detector knows, for a rule a pattern cannot
+ * state; `surfaces` where a rule reads only some. A rule no matcher here reads says
+ * which detector does (`by`). A finding is a candidate for a reader, never a
+ * verdict: the patterns are heuristics, and an allow row (`rule: "X<n>"`) silences
+ * one key for one rule.
+ */
+export const X_RULES = Object.freeze([
+    { id: "X1", what: "reassurance by denying a loss", en: /\b(?:[Nn]othing (?:was|is|has been|got|gets) (?:spent|lost|used|wasted|taken)|[Nn]o \p{L}+ (?:was|were|is|are) (?:spent|lost|used|wasted))\b/u,
+        pl: new RegExp(W("[Nn]ic nie (?:wydano|stracono|zużyto|przepadło|zostało (?:wydane|stracone|zużyte))|[Nn]ie (?:wydano|stracono|zużyto) (?:nic|niczego)"), "u") },
+    { id: "X2", what: "a design rationale", en: /\b(?:by design|on purpose|deliberately|intentionally)\b/iu, pl: new RegExp(W("celowo|z założenia|zamierzenie"), "iu") },
+    { id: "X3", what: "the antithesis \"X, not Y\"", en: /, not (?:\S+ ){0,4}\S+[.;!?](?:\s|$)/u,
+        /* A Polish ", nie" before a verb is a negation, not an antithesis: the verbs read 31.10 after it are left out. */
+        pl: /, (?:a )?nie (?!(?:można|wolno|ma|mają|jest|są|było|będzie|zostanie|został\p{L}*|trzeba|może|mogą|da|działa|liczy)(?![\p{L}]))(?:\S+ ){0,3}\S+[.;!?](?:\s|$)/u },
+    { id: "X4", what: "a dash that tacks an aside on", en: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{"“(]/u, pl: /[\p{L}\p{N}}.,)"”] - [\p{L}\p{N}{„"(]/u },
+    { id: "X5", what: "a bracketed plural", en: /\p{L}\((?:s|es)\)/u, pl: /\p{L}\((?:y|i|e|ów)\)/u },
+    { id: "X6", what: "telegraph style", by: "T18 (E65 C7, telegraph)" },
+    { id: "X7", what: "a chain of label-colon-value inside a sentence", any: /(?:\p{L}[^.!?:]*: [^.!?:;]+[;,] ){2,}/u },
+    { id: "X8", what: "please or sorry", en: /\b(?:please|sorry)\b/iu, pl: new RegExp(W("proszę|prosimy|przepraszam|przepraszamy"), "iu") },
+    { id: "X9", what: "a doubled space or a space before punctuation", any: /\S {2,}\S| [,.;:!?](?!\.)/u },
+    { id: "X10", what: "a hedge or a filler", en: /\b(?:just|simply|actually)\b/iu, pl: new RegExp(W("po prostu|właściwie"), "iu") },
+    { id: "X11", what: "a passive that hides who acts", en: /\b(?:must|should|can|cannot|can't|may|needs? to) be \p{L}+(?:ed|en)\b/iu, pl: new RegExp(W("należy|trzeba"), "iu") },
+    { id: "X12", what: "a Polish preposition before a colon and a placeholder", pl: new RegExp(`${W("w|we|do|z|ze|na|od|dla|przez|u|po|o|przy|za|nad|pod|przed")}\\s*:\\s*\\{\\w+\\}`, "u") },
+    /* X13 reads the pair: the English says one person ({name}, {who} ...) with "they", and the Polish answers with a plural pronoun. */
+    { id: "X13", what: "a singular they as a Polish plural",
+        test: (u, k) => (u.lang === "pl" && PERSON.test(u.text) && /\b(?:they|their|them|themselves)\b/u.test(k.english(u.key) ?? "")
+            ? PLURAL_PRONOUN.exec(u.text) : null) },
+    { id: "X14", what: "a negated question or a double negation on a button", surfaces: ["button"],
+        test: u => {
+            const no = u.lang === "en" ? /\b(?:not|no|never|don't|can't|won't|isn't)\b|n't\b/giu : new RegExp(W("nie|nigdy|żaden|żadna|żadne"), "giu");
+            const hits = [...u.text.matchAll(no)];
+            return hits.length >= 2 || (hits.length === 1 && u.text.includes("?")) ? hits[0] : null;
+        } },
+    { id: "X15", what: "an exclamation mark", any: /!(?!--|=)/u },
+    { id: "X16", what: "ALL-CAPS emphasis",
+        test: u => (/\.(?:short|abbreviation)$/.test(u.key) ? null
+            : [...untagged(u.text).matchAll(/(?<![\p{L}\p{N}_{])\p{Lu}{2,}s?(?![\p{L}\p{N}_}])/gu)].find(m => !ACRONYMS.includes(m[0])) ?? null) },
+    /* Two qualifiers of another kind in one sentence ("only ... unless", "tylko ... chyba że"). */
+    { id: "X17", what: "stacked qualifiers",
+        test: u => {
+            const q = u.lang === "en" ? /\b(?:only|unless|except|as long as|provided)\b/giu : new RegExp(W("tylko|jedynie|chyba że|z wyjątkiem|oprócz|o ile|pod warunkiem"), "giu");
+            for (const s of untagged(u.text).split(/(?<=[.!?])\s/)) {
+                const kinds = [...s.matchAll(q)];
+                if (new Set(kinds.map(m => m[0].toLowerCase())).size >= 2) return { index: u.text.indexOf(s) + kinds[1].index, 0: kinds[1][0] };
+            }
+            return null;
+        } },
+    { id: "X18", what: "successfully", en: /\bsuccessfully\b/iu, pl: new RegExp(W("pomyśln\\p{L}*"), "iu") },
+    /* A hint whose first sentence is its label (`.hint` beside `.label`, a setting's `.hint` beside its `.name`). */
+    { id: "X19", what: "a hint that restates its label",
+        test: (u, k) => {
+            if (!u.key.endsWith(".hint")) return null;
+            const base = u.key.slice(0, -".hint".length);
+            const label = k.text(u.lang, `${base}.label`) ?? k.text(u.lang, `${base}.name`);
+            return label && firstSentence(u.text) === firstSentence(label) ? { index: 0, 0: label } : null;
+        } },
+    { id: "X20", what: "a Note: or Tip: lead-in", en: /(?:^|[.!?>]\s*)(?:Note|Tip)\s*:/u, pl: /(?:^|[.!?>]\s*)(?:Uwaga|Wskazówka)\s*:/u },
+    { id: "X21", what: "a question where nobody is asked", surfaces: TELLING, any: /\?/u }
+].map(r => Object.freeze(r)));
+
+/**
+ * T5 (plan; report from E65, FAIL from E71 for X5, X9, X15, X16 and X18 - S18-47's
+ * "wzorce jednoznaczne"): every X rule's matcher (X_RULES) over the UI strings of
+ * both languages, one finding a string and rule (`"<key> <rule>-<lang>"`), the first
+ * place it matches quoted. An allow row silences one key for one rule. A rule with a
+ * `surfaces` list reads only those (the budgets' reading, `surfacesOf`); `byRule`
+ * counts each rule's findings by language, and a rule read by another detector
+ * (`by`) is listed with no count. `read` is strings times rules read.
+ */
+export function patterns(bag = {}) {
+    const units = uiUnits(bag);
+    const map = surfacesOf(bag, "patterns");
+    const by = new Map(units.map(u => [`${u.lang} ${u.key}`, u.text]));
+    const k = { text: (lang, key) => by.get(`${lang} ${key}`) ?? null, english: key => by.get(`en ${key}`) ?? null };
+    const found = [], byRule = {};
+    let read = 0, allowed = 0;
+    for (const rule of X_RULES) {
+        const row = byRule[rule.id] = rule.by ? { by: rule.by } : { en: 0, pl: 0, allowed: 0 };
+        if (rule.by) continue;
+        const allow = allowedFor(bag.budgets, rule.id);
+        for (const u of units) {
+            const re = rule[u.lang] ?? rule.any;
+            if (!re && !rule.test) continue;
+            const surface = map.surfaceOf(u.key);
+            if (rule.surfaces && !rule.surfaces.includes(surface)) continue;
+            read++;
+            const m = rule.test ? rule.test(u, k) : re.exec(u.text);
+            if (!m) continue;
+            if (allow.has(u.key)) { allowed++; row.allowed++; continue; }
+            row[u.lang]++;
+            found.push({ key: u.key, kind: `${rule.id}-${u.lang}`, rule: rule.id, lang: u.lang, surface,
+                what: `${u.where}: "${quoted(u.text, m.index ?? 0, String(m[0] ?? "").length)}" - ${rule.id}, ${rule.what} (docs/text-style.md; rebuilt 30.10)` });
+        }
+    }
+    return { found, read, byRule, counts: { rules: X_RULES.length, matched: X_RULES.filter(r => !r.by).length, allowed } };
+}
+
+/* ---------------------------------- T7 ------------------------------------- */
+
+/* A number written as a word (English; Polish in its genders and cases), and the rule nouns after it (E65 C6's slice). */
+const NUMBER_WORD = Object.freeze({
+    en: "(?<!\\b(?:the|no|each|any|every|that|this)\\s)one|two|three|four|five|six|seven|eight|nine|ten",
+    pl: "jeden|jedna|jedno|jedną|jednej|jednego|jednym|dwa|dwie|dwóch|dwoma|dwu|trzy|trzech|trzema|cztery|czterech|pięć|pięciu|sześć|sześciu|siedem|osiem|dziewięć|dziesięć"
+});
+const RULE_NOUN = Object.freeze({
+    en: "dice|die|actions?|Hope|Despair|turns?|Health|Sanity",
+    pl: "kość|kości|kośćmi|akcja|akcje|akcji|akcję|akcjach|akcjami|tura|tury|turę|tur|turze|turach|Hope|Despair|Health|Sanity"
+});
+/* Not read: "one" as a pronoun ("no one", "the one ... that", in NUMBER_WORD), and the module's name for a dice style ("One
+   dice look", „Jeden wygląd kości”, „w jednym stylu kości”). */
+const NUMBER_RE = Object.freeze(Object.fromEntries(["en", "pl"].map(lang => [lang, new RegExp(
+    `${W(NUMBER_WORD[lang])}\\s+(?:(?!of\\b|z\\b|wygląd|styl)[\\p{L}-]+\\s+)?${W(RULE_NOUN[lang])}(?!\\s+(?:look|style|wygląd))`, "giu")])));
+
+/**
+ * T7, its part in E65 (plan; the rest of the rules-parity test is E25's and
+ * E57's): a number written as a word before a rule noun - die or dice, action,
+ * Hope, Despair, turn, Health, Sanity; in Polish kość, akcja, tura in their cases -
+ * where the number is the rule's and belongs in a placeholder (M5, O5: a number in a
+ * text comes from config, not from the prose). One adjective may stand between
+ * ("one free action", "jedną kość kary"); "of" may not ("one of the two dice" is
+ * read at "two dice"). "one" as a pronoun ("no one", "the one") is not read; a
+ * placeholder after the word ("one {item}") is no rule noun; "raz" (once) is no
+ * number word here. Language strings and config.mjs's prose; one finding a string.
+ */
+export function ruleNumberWords(bag = {}) {
+    const found = [];
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        const re = NUMBER_RE[u.lang];
+        re.lastIndex = 0;
+        const m = re.exec(u.text);
+        if (!m) continue;
+        found.push({ key: u.key, kind: u.lang, lang: u.lang,
+            what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - "${m[0]}": a rule's number written as a word; it comes from a placeholder (T7, M5)` });
+    }
+    return { found, read };
+}
+
+/* ---------------------------------- T21 ------------------------------------ */
+
+const MONOKUMA = /Monokum\p{L}*/u;
+/* Text inside quotes, blanked: a handbook's example quotes a line, which is not the handbook speaking. */
+const unquoted = text => text.replace(/“[^”]*”|„[^”]*”|"[^"]*"/gu, m => " ".repeat(m.length));
+
+/**
+ * T21 (rebuilt 30.10 from DB1, DB5 and PL4; report from E65, FAIL from E71):
+ * (1) in English, Monokuma is "they" (DB5): "he", "him", "his", "himself", "she",
+ * "her", "hers" or "herself" after "Monokuma" in the same sentence is a finding
+ * ("en-pronoun"); (2) in Polish, Monokuma is grammatically masculine (PL4): a past
+ * form in "-ła" (nałożyła, zrobiłaś) within two words after "Monokuma" is one
+ * ("pl-feminine"); both in the UI strings and in the handbooks (a line at a time,
+ * a quoted example blanked); (3) the announcements are the world's neutral voice,
+ * with no lines of Monokuma (DB1): a string on the world-voice surface (posted by
+ * `announce` with no whisper list, `surfacesOf`) that speaks in the first person
+ * ("I", "me", "my"; „ja”, „mnie”, „mój” ...) or laughs as Monokuma does ("upupu",
+ * "puhuhu") is one ("<lang>-voice"). Every finding is a candidate: the sentence
+ * may name somebody else after Monokuma.
+ */
+export function monokumaVoice(bag = {}) {
+    const map = surfacesOf(bag, "monokumaVoice");
+    const found = [];
+    let read = 0, voice = 0;
+    const pronoun = { en: /\b(?:he|him|his|himself|she|her|hers|herself)\b/iu };
+    const feminine = /^\s+(?:[\p{L}-]+\s+){0,2}?[\p{L}]+ł(?:a|aś|am|aby)(?![\p{L}])/u;
+    const firstPerson = { en: /\b(?:I|I'm|I'll|I've|me|my|mine|myself)\b/u, pl: new RegExp(W("ja|mnie|mi|mną|mój|moja|moje|moim|mojej|moich"), "iu") };
+    const laugh = /upupu|puhuhu/iu;
+    const look = (u, text) => {
+        for (const m of text.matchAll(new RegExp(MONOKUMA.source, "gu"))) {
+            const after = text.slice(m.index + m[0].length).split(/[.!?](?:\s|$)/)[0];
+            const hit = u.lang === "en" ? pronoun.en.exec(after) : feminine.exec(after);
+            if (!hit) continue;
+            found.push({ key: u.at ?? u.key, kind: `${u.lang}-${u.lang === "en" ? "pronoun" : "feminine"}`, lang: u.lang,
+                what: `${u.where}: "${quoted(text, m.index, m[0].length + hit.index + hit[0].length)}" - ${u.lang === "en" ? "Monokuma is \"they\" (DB5)" : "Monokuma jest rodzaju męskiego (PL4)"} (T21)` });
+            return;
+        }
+    };
+    for (const u of uiUnits(bag)) {
+        read++;
+        if (MONOKUMA.test(u.text)) look(u, untagged(u.text));
+        if (map.surfaceOf(u.key) !== "world-voice") continue;
+        voice++;
+        const m = firstPerson[u.lang].exec(untagged(u.text)) ?? laugh.exec(u.text);
+        if (m) found.push({ key: u.key, kind: `${u.lang}-voice`, lang: u.lang,
+            what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - a line in the first person on the world's voice; the announcements speak in a neutral voice, with no lines of Monokuma (DB1, T21)` });
+    }
+    for (const [file, text] of asMap(bag.docs)) {
+        const lang = file.match(/^docs\/handbooks\/[^/]+\.(en|pl)\.md$/)?.[1];
+        if (!lang) continue;
+        String(text ?? "").split("\n").forEach((line, i) => {
+            read++;
+            if (MONOKUMA.test(line)) look({ at: `${file}:${i + 1}`, lang, where: `${file}:${i + 1}` }, unquoted(line));
+        });
+    }
+    return { found, read, counts: { worldVoice: voice } };
+}
+
+/* ---------------------------------- T24 ------------------------------------ */
+
+/**
+ * The colons T24 counts in a string: its text with tags blanked (an attribute's
+ * "a:b" is markup), less a time ("12:30", a digit on both sides), a URL's "://",
+ * and the colon of a label that opens a table cell or a list item (`<td>`, `<th>`,
+ * `<li>`, `<dt>`, then at most four words and the colon) - a table's or a list's
+ * label is its layout, not a chain. A label at the start of the string counts: the
+ * plan's measure is colons per string.
+ */
+export function colonsIn(text) {
+    const cells = String(text ?? "").replace(/(<(?:td|th|li|dt)\b[^<>]*>\s*(?:[^\s<>:]+\s+){0,3}[^\s<>:]+):/gi, "$1");
+    return (untagged(cells).replace(/\d:\d/g, "").replace(/:\/\//g, "").match(/:/g) ?? []).length;
+}
+
+/**
+ * T24 (rebuilt 30.10 from "T24 powyżej 2"; report from E65, FAIL from E71 above
+ * 2): a UI string with more than two colons (`colonsIn`) - the "łańcuchy
+ * dwukropków" of the plan's risk, of which X7 is the shape inside one sentence.
+ * One finding a string, its count in `colons`; `byCount` how many strings hold
+ * three, four and more.
+ */
+export function colonChains(bag = {}) {
+    const found = [], byCount = {};
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        const n = colonsIn(u.text);
+        if (n <= 2) continue;
+        byCount[n] = (byCount[n] ?? 0) + 1;
+        found.push({ key: u.key, kind: u.lang, lang: u.lang, colons: n,
+            what: `${u.where}: ${n} colons in one string - more than two is a chain of labels (T24, X7)` });
+    }
+    return { found, read, byCount };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -992,7 +1439,8 @@ export const staleRow = (name, s) => `${name}'s baseline row ${s.file} ${s.key ?
  * what it reads. The plan's five FAIL tests are T1, T2, T3, T6 and T14 (its
  * risk: a lint in FAIL from the first day would stop the gate on debt this stage
  * does not make); every other detector reports until the stage named in `fail`.
- * `reads` is what it needs, `also` what it reads when it is handed it (T6 the
+ * `fail` null is a report that stays one (T7's part: the rules-parity test of E25 and
+ * E57 replaces it rather than turning it). `reads` is what it needs, `also` what it reads when it is handed it (T6 the
  * English prose, which only Node has), `lexer` that it takes tests-lint.mjs's.
  * A FAIL detector with a baseline (BASELINES) is red only on what the baseline
  * does not hold, and on a row the files no longer fill.
@@ -1005,10 +1453,16 @@ export const MODES = Object.freeze({
     dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
     tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
     glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
-    retiredHits: Object.freeze({ test: "T28", mode: "report", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) })
+    retiredHits: Object.freeze({ test: "T28", mode: "report", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
+    lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
+    patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
+    ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    monokumaVoice: Object.freeze({ test: "T21", mode: "report", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
+    colonChains: Object.freeze({ test: "T24", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) })
 });
 
-export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits });
+export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
+    lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -1267,6 +1721,203 @@ export const FIXTURES = Object.freeze({
             },
             docs: { "docs/handbooks/fx.en.md": "Lockpicking is gone." }     // flagged
         }
+    },
+    lengthOver: {
+        /* Rebuilt budgets of its own: a label (2, limit 3), the diagnostics (3, no limit), a toast (3, limit 5) by
+           ui.notifications, a card (3, limit 5) by the room's audience or announce; the diagnostics' key rule first. */
+        flags: ["DRPG.Fx.card en-limit", "DRPG.Fx.count.other en-limit", "DRPG.Fx.diag.report en-target", "DRPG.Fx.long.label en-target",
+            "DRPG.Fx.longer.label en-limit", "DRPG.Fx.toast en-target", "DRPG.Fx.toast pl-limit", "DRPG.Fx.toastLong en-limit"],
+        input: {
+            budgets: {
+                surfaces: {
+                    "fx-label": { target: 2, limit: 3, what: "a label", fail: "E01" },
+                    "fx-diag": { target: 3, limit: null, what: "reported only", fail: null },
+                    "fx-toast": { target: 3, limit: 5, what: "a toast", fail: "E01" },
+                    "fx-card": { target: 3, limit: 5, what: "a card", fail: null }
+                },
+                rules: [
+                    { surface: "fx-diag", keys: "^DRPG\\.Fx\\.diag\\." },
+                    { surface: "fx-label", keys: "\\.label$" },
+                    { surface: "fx-toast", sender: ["ui.notifications"] },
+                    { surface: "fx-card", sender: ["roomAudience", "announce"] }
+                ],
+                allow: [{ key: "DRPG.Fx.allowed.label", rule: "T4", why: "a fixture's exception", until: "E01" }]
+            },
+            en: {
+                "DRPG.Fx.ok.label": "Two words",                              // at its target: passes
+                "DRPG.Fx.long.label": "Three words here",                     // over the target, not the limit
+                "DRPG.Fx.longer.label": "<b>Four</b> words {name} here",      // a tag is no word, a placeholder is one: 4, over the limit
+                "DRPG.Fx.dash.label": "One - two",                            // a lone dash is no word: passes
+                "DRPG.Fx.br.label": "Two <br> words",                         // a tag between two words is none: passes
+                "DRPG.Fx.allowed.label": "Far too many words for a label",    // an allow row: passes, counted
+                "DRPG.Fx.diag.report": "one two three four five six",         // no limit: a target finding only
+                "DRPG.Fx.toast": "One two three four",                        // a toast by its sender, over the target
+                "DRPG.Fx.toastLong": "One two three four five six",           // ui.notifications?.warn: over the limit
+                "DRPG.Fx.count.one": "{n} thing",                             // a family posted by its base: passes
+                "DRPG.Fx.count.other": "{n} things are now gone from here",   // over the toast's limit
+                "DRPG.Fx.card": "One two three four five six",                // announce to roomAudience: the card's
+                "DRPG.Fx.private": "One two three four five six",             // announce with a whisper list: unclassified
+                "DRPG.Fx.variable": "One two three four five six",            // posted through a variable: unclassified
+                "DRPG.Fx.method": "One two three four five six",              // a method named announce: unclassified
+                "DRPG.Fx.unread": "One two three four five six"               // in a comment only: unclassified
+            },
+            pl: {
+                "DRPG.Fx.long.label": "Dwa słowa",                            // passes
+                "DRPG.Fx.toast": "Jeden dwa trzy cztery pięć sześć",          // over the limit
+                "DRPG.Fx.count.few": "{n} rzeczy"                             // the family's form: passes
+            },
+            scripts: {
+                "scripts/fx-send.mjs": [
+                    "ui.notifications.info(game.i18n.localize(\"DRPG.Fx.toast\"));",
+                    "ui.notifications?.warn(game.i18n.localize(\"DRPG.Fx.toastLong\"));",
+                    "ui.notifications.info(plural(\"DRPG.Fx.count\", { n }));",
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.card\"), whisper: roomAudience(actor) });",
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.private\"), whisper: gmIds() });",
+                    "const content = game.i18n.localize(\"DRPG.Fx.variable\"); await announce({ content });",
+                    "board.announce(game.i18n.localize(\"DRPG.Fx.method\"));",
+                    "// ui.notifications.info(game.i18n.localize(\"DRPG.Fx.unread\"));"
+                ].join("\n")
+            }
+        }
+    },
+    patterns: {
+        /* One line a matched rule (X6 is T18's), and a line beside most that passes. The budgets name a button, a toast
+           and a window title by key, for X14 and X21. */
+        flags: ["DRPG.Fx.toast.ask X21-en", "DRPG.Fx.tile.hint X19-en", "DRPG.Fx.x14Button X14-en", "DRPG.Fx.x15Title X15-en", "DRPG.Fx.x1 X1-en", "DRPG.Fx.x1 X1-pl",
+            "DRPG.Fx.x10 X10-pl", "DRPG.Fx.x11 X11-en", "DRPG.Fx.x12 X12-pl", "DRPG.Fx.x13 X13-pl", "DRPG.Fx.x16 X16-en", "DRPG.Fx.x17 X17-en", "DRPG.Fx.x18 X18-pl",
+            "DRPG.Fx.x2 X2-en", "DRPG.Fx.x20 X20-en", "DRPG.Fx.x3 X3-en", "DRPG.Fx.x3 X3-pl", "DRPG.Fx.x4 X4-en", "DRPG.Fx.x5 X5-en", "DRPG.Fx.x7 X7-en",
+            "DRPG.Fx.x8 X8-en", "DRPG.Fx.x9 X9-en"],
+        input: {
+            budgets: {
+                surfaces: { button: { target: 4, limit: 6, what: "a button", fail: null }, toast: { target: 20, limit: 30, what: "a toast", fail: null },
+                    "window-title": { target: 5, limit: 8, what: "a title", fail: null } },
+                rules: [{ surface: "button", keys: "Button$" }, { surface: "toast", keys: "^DRPG\\.Fx\\.toast\\." }, { surface: "window-title", keys: "Title$" }],
+                allow: [{ key: "DRPG.Fx.allowed", rule: "X8", why: "a fixture's exception", until: "E01" }]
+            },
+            en: {
+                "DRPG.Fx.x1": "The GM refused. Nothing was spent.",           // X1
+                "DRPG.Fx.x1ok": "You keep your action.",                       // passes
+                "DRPG.Fx.x2": "The light flickers on purpose.",               // X2
+                "DRPG.Fx.x3": "The debate runs from the console, not here.",  // X3
+                "DRPG.Fx.x4": "Tick to opt in - the timing is yours.",        // X4
+                "DRPG.Fx.x4ok": "A well-known room",                           // a hyphen inside a word: passes
+                "DRPG.Fx.x5": "You have {n} pick(s).",                         // X5
+                "DRPG.Fx.x7": "Identified by the crime: {rows}; faint: {faint}; Key: {key}.",   // X7
+                "DRPG.Fx.x8": "Please rule again.",                            // X8
+                "DRPG.Fx.allowed": "Sorry, the room is closed.",               // X8 with an allow row: passes, counted
+                "DRPG.Fx.x9": "Two  spaces here .",                            // X9
+                "DRPG.Fx.x11": "The room can be searched once.",               // X11
+                "DRPG.Fx.x13": "{name} leaves; they take the key.",            // the English of X13's pair
+                "DRPG.Fx.x13ok": "{name} leaves.",                             // no "they": its Polish passes
+                "DRPG.Fx.x14Button": "Don't not save",                         // X14: two negations on a button
+                "DRPG.Fx.okButton": "Save the scene",                          // passes
+                "DRPG.Fx.notAControl": "Do not leave? Not now.",               // no button: X14 does not read it
+                "DRPG.Fx.x15Title": "Nonstop Debate!",                         // X15
+                "DRPG.Fx.x16": "This is NOT a test for the GM.",               // X16
+                "DRPG.Fx.x16ok": "The GM and the NPC open the HUD.",           // acronyms: passes
+                "DRPG.Fx.trait.short": "EYE",                                  // an abbreviation's key: passes
+                "DRPG.Fx.x17": "You may only act unless the GM refuses.",      // X17
+                "DRPG.Fx.x17ok": "Only the GM opens it.",                      // one qualifier: passes
+                "DRPG.Fx.tile.label": "Search",
+                "DRPG.Fx.tile.hint": "Search. Look around the room.",          // X19: its first sentence is its label
+                "DRPG.Fx.tile2.label": "Search",
+                "DRPG.Fx.tile2.hint": "Look around the room for a stash.",     // passes
+                "DRPG.Fx.x20": "Note: the room is sealed.",                    // X20
+                "DRPG.Fx.toast.ask": "Why wait? The door is open.",            // X21: a question on a toast
+                "DRPG.Fx.deleteTitle": "Delete this room?"                     // a window's own question: passes
+            },
+            pl: {
+                "DRPG.Fx.x1": "GM odmówił. Nic nie wydano.",                   // X1
+                "DRPG.Fx.x1ok": "Nie tracisz akcji.",                          // passes
+                "DRPG.Fx.x3": "Debatę prowadzi GM z konsoli, nie stąd.",       // X3
+                "DRPG.Fx.x3ok": "Tego, nie można cofnąć.",                     // a negated verb: passes
+                "DRPG.Fx.x10": "Incydent po prostu się kończy.",               // X10
+                "DRPG.Fx.x12": "Jesteś w: {room}.",                            // X12
+                "DRPG.Fx.x12ok": "Zostało: {n}",                               // a label, no preposition: passes
+                "DRPG.Fx.x13": "{name} wychodzi; oni biorą klucz.",            // X13
+                "DRPG.Fx.x13ok": "{name} wychodzi, ich klucz zostaje.",        // the English has no "they": passes
+                "DRPG.Fx.x18": "Zapisano pomyślnie."                           // X18
+            }
+        }
+    },
+    ruleNumberWords: {
+        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en", "DRPG.Fx.c pl", "DRPG.Fx.h en", "DRPG.Fx.h pl"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "Gain one Hope.",                                // flagged
+                "DRPG.Fx.b": "Down to one action this time of day.",          // flagged
+                "DRPG.Fx.c": "One of the two dice is set to 12.",             // "of" may not stand between: read at "two dice"
+                "DRPG.Fx.d": "Each one turns away.",                          // "one" as a pronoun: passes
+                "DRPG.Fx.e": "Take one {item}.",                              // a placeholder is no rule noun: passes
+                "DRPG.Fx.f": "Gain {n} Hope.",                                // passes
+                "DRPG.Fx.g": "One dice look for the table",                   // the dice style's name: passes
+                "DRPG.Fx.h": "Two free actions",                              // one adjective between: flagged
+                "DRPG.Fx.i": "the one action that counts",                    // "the one": passes
+                "DRPG.Fx.j": "Choose one of Hope or Despair."                 // "of" between: passes
+            },
+            prose: { "DRPG.Config.FX.p": "Survive for the next two turns." },   // flagged
+            pl: {
+                "DRPG.Fx.a": "Zyskujesz jeden Hope.",                         // flagged
+                "DRPG.Fx.b": "Jedna akcja na porę dnia.",                     // flagged
+                "DRPG.Fx.c": "Jedna z dwóch kości.",                          // read at "dwóch kości"
+                "DRPG.Fx.d": "Raz dziennie.",                                 // "raz" is no number word here: passes
+                "DRPG.Fx.e": "Weź {n} kości.",                                // passes
+                "DRPG.Fx.g": "Jeden wygląd kości przy stole",                 // the dice style's name: passes
+                "DRPG.Fx.h": "Dorzuca jedną kość kary."                       // flagged
+            }
+        }
+    },
+    monokumaVoice: {
+        flags: ["DRPG.Fx.fem pl-feminine", "DRPG.Fx.he en-pronoun", "DRPG.Fx.laugh en-voice", "DRPG.Fx.voice en-voice", "DRPG.Fx.voice pl-voice",
+            "docs/handbooks/fx.en.md:1 en-pronoun", "docs/handbooks/fx.pl.md:1 pl-feminine"],
+        input: {
+            budgets: {
+                surfaces: { "world-voice": { target: 30, limit: 45, what: "the world", fail: null } },
+                rules: [{ surface: "world-voice", sender: ["announce"] }],
+                allow: []
+            },
+            en: {
+                "DRPG.Fx.voice": "I have chosen my victim.",                  // the world's voice in the first person: flagged
+                "DRPG.Fx.voiceOk": "A body has been discovered.",             // passes
+                "DRPG.Fx.laugh": "Upupu! A body.",                            // Monokuma's laugh on the world's voice: flagged
+                "DRPG.Fx.privateI": "I told my GM.",                          // a private card, not the world's voice: passes
+                "DRPG.Fx.he": "Monokuma does not clean up after himself.",    // flagged
+                "DRPG.Fx.they": "Monokuma waits for their turn. He leaves.",  // "He" is the next sentence's: passes
+                "DRPG.Fx.other": "{name} sees Monokuma. She waits."           // passes
+            },
+            pl: {
+                "DRPG.Fx.fem": "Monokuma nałożyła karę.",                     // flagged
+                "DRPG.Fx.masc": "Monokuma nałożył karę.",                     // passes
+                "DRPG.Fx.voice": "Wybrałem ofiarę, mówię ja."                 // the world's voice in the first person: flagged
+            },
+            scripts: {
+                "scripts/fx-voice.mjs": [
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.voice\") });",
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.voiceOk\") });",
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.laugh\") });",
+                    "await announce({ content: game.i18n.localize(\"DRPG.Fx.privateI\"), whisper: gmIds() });"
+                ].join("\n")
+            },
+            docs: {
+                "docs/handbooks/fx.en.md": "Monokuma moves his pieces.\nThe GM reads “Monokuma says he is fine.” aloud.",   // line 1 flagged; a quoted line passes
+                "docs/handbooks/fx.pl.md": "Monokuma zrobiła to.",                                                          // flagged
+                "docs/other.md": "Monokuma and his bears."                                                                  // not a handbook: not read
+            }
+        }
+    },
+    colonChains: {
+        flags: ["DRPG.Config.FX.x en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.d en"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "Crime: {a}; faint: {b}; key: {c}; final: {d}.",                   // four: flagged
+                "DRPG.Fx.b": "At 12:30: the bell: rings.",                                       // a time is no colon: two, passes
+                "DRPG.Fx.c": "<table><tr><td>Hope:</td><td>Despair:</td><td>Sanity:</td></tr></table> Total: {n}",   // the cells' labels: one, passes
+                "DRPG.Fx.d": "See https://a.b: one: two: three",                                 // the URL's is not read: three, flagged
+                "DRPG.Fx.e": "<span style=\"a:b;c:d\">Room: {room}</span>"                       // markup is not read: one, passes
+            },
+            prose: { "DRPG.Config.FX.x": "A: b: c: d" },                                          // three: flagged
+            pl: { "DRPG.Fx.a": "Zbrodnia: {a}; słabe: {b}; klucz: {c}." }                          // three: flagged
+        }
     }
 });
 
@@ -1355,19 +2006,22 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
  * pattern that is no regular expression, a rule with both keys and a sender, a sender
  * nobody sends through, a rule naming no surface of the file, a surface no rule names,
  * the slice's allow row without its `why`, a rule that is no lint rule and a stage that
- * is no ledger row, and a key allowed twice for one rule - each one sentence, exactly these.
+ * is no ledger row, and a key allowed twice for one rule; from C6 a surface with no `fail`,
+ * one whose `fail` is no ledger row, one that fails with no limit, and an allow row for
+ * T16 - each one sentence, exactly these.
  */
 export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
     stages: ["E01"],
     doc: {
         $comment: "fixture", status: "fixture", unit: "words", extra: 1,
         surfaces: {
-            "fx-label": { target: 3, limit: 5, what: "a label" },
-            "fx-diag": { target: 60, limit: null, what: "reported only" },
-            "fx-tight": { target: 4, limit: 4, what: "a limit at its target" },
-            "fx-loose": { target: 4, limit: 9, what: "a limit over twice its target" },
-            "fx-none": { limit: 6, what: "no target", colour: "red" },
-            "fx-unread": { target: 10, limit: 15, what: "no rule names it" }
+            "fx-label": { target: 3, limit: 5, what: "a label", fail: "E01" },
+            "fx-diag": { target: 60, limit: null, what: "reported only", fail: null },
+            "fx-tight": { target: 4, limit: 4, what: "a limit at its target", fail: null },
+            "fx-loose": { target: 4, limit: 9, what: "a limit over twice its target", fail: "E99" },
+            "fx-none": { limit: 6, what: "no target", colour: "red", fail: null },
+            "fx-unread": { target: 10, limit: 15, what: "no rule names it" },
+            "fx-never": { target: 60, limit: null, what: "reported only, and red", fail: "E01" }
         },
         rules: [
             { surface: "fx-label", keys: "\\.label$" },
@@ -1375,30 +2029,36 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
             { surface: "fx-tight", keys: "(" },
             { surface: "fx-loose", keys: "x", sender: ["announce"] },
             { surface: "fx-none", sender: ["shout"] },
-            { surface: "fx-gone", keys: "y" }
+            { surface: "fx-gone", keys: "y" },
+            { surface: "fx-never", keys: "z" }
         ],
         allow: [
             { key: "DRPG.Fx.ok", rule: "T4", why: "a reason", until: "E01" },
             { key: "DRPG.Fx.noWhy", rule: "X3", until: "E01" },
             { key: "DRPG.Fx.late", rule: "X22", why: "a reason", until: "E99" },
-            { key: "DRPG.Fx.ok", rule: "T4", why: "again", until: "E01" }
+            { key: "DRPG.Fx.ok", rule: "T4", why: "again", until: "E01" },
+            { key: "DRPG.Fx.second", rule: "T16", why: "T16 has no allow list", until: "E01" }
         ]
     },
     want: [
         "docs/text-budgets.json has a field \"extra\" the budgets do not know",
         "surface fx-tight's limit 4 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
         "surface fx-loose's limit 9 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
+        "surface fx-loose's fail \"E99\" is neither a row of tools/stages.json nor null",
         "surface fx-none has no \"target\"",
         "surface fx-none has a field \"colour\" the budgets do not know",
+        "surface fx-unread has no \"fail\"",
+        "surface fx-never fails from E01 and has no limit - a surface reported only is never red",
         "rule 3's keys \"(\" is no regular expression",
         "rule 4 reads both keys and a sender - one of them, never both",
         "rule 5's sender [\"shout\"] is not a list of the senders tests-text.mjs knows (SENDERS)",
         "rule 6's surface \"fx-gone\" is no surface of the file",
         "surface fx-unread is named by no rule - no key can reach its budget",
         "allow 2 (DRPG.Fx.noWhy) has no \"why\"",
-        "allow 3 (DRPG.Fx.late)'s rule \"X22\" is not T4, T16 or an X rule (X1 to X21)",
+        "allow 3 (DRPG.Fx.late)'s rule \"X22\" is not T4 or an X rule (X1 to X21)",
         "allow 3 (DRPG.Fx.late)'s until \"E99\" is no row of tools/stages.json",
-        "allow 4 (DRPG.Fx.ok): the key \"DRPG.Fx.ok\" is allowed twice for T4"
+        "allow 4 (DRPG.Fx.ok): the key \"DRPG.Fx.ok\" is allowed twice for T4",
+        "allow 5 (DRPG.Fx.second)'s rule \"T16\" is not T4 or an X rule (X1 to X21)"
     ]
 });
 
@@ -1409,10 +2069,14 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
  * goes into every fixture's bag - the lexer, which a detector that reads code
  * needs and this file cannot import. Then every baseline row is well formed and
  * belongs to a FAIL detector, and `legacyListsFrom`, the matcher and the two
- * schemas (the glossary's, the budgets') answer their own cases.
+ * schemas (the glossary's, the budgets') answer their own cases; `schemas` stands
+ * in for the two (E65 C6: how check.mjs and R1058 see that a schema stubbed to
+ * answer [] is caught - C5's mutant M13, the budgets' line of this check removed,
+ * lived until then). Last, every X rule T5 matches has its own fixture line.
  */
-export function selfCheck(detectors = DETECTORS, tools = {}) {
+export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
     const out = [];
+    const gs = schemas.glossarySchema ?? glossarySchema, bs = schemas.budgetsSchema ?? budgetsSchema;
     const names = new Set([...Object.keys(MODES), ...Object.keys(FIXTURES)]);
     for (const name of names) {
         if (!MODES[name]) { out.push(`${name} has a fixture and no mode`); continue; }
@@ -1453,13 +2117,18 @@ export function selfCheck(detectors = DETECTORS, tools = {}) {
     const got = JSON.stringify({ left: b.left.map(f => `${f.file} ${f.key}`).sort(), stale: b.stale.map(st => `${st.file} ${st.key ?? st.quote}`).sort(),
         matched: b.matched, rows: b.rows });
     if (got !== JSON.stringify(BASELINE_FIXTURE.want)) out.push(`againstBaseline answers ${got} on its fixture, not ${JSON.stringify(BASELINE_FIXTURE.want)} - the baseline matcher is broken`);
-    const schema = glossarySchema(GLOSSARY_SCHEMA_FIXTURE.doc, GLOSSARY_SCHEMA_FIXTURE.stages);
+    const schema = gs(GLOSSARY_SCHEMA_FIXTURE.doc, GLOSSARY_SCHEMA_FIXTURE.stages);
     if (JSON.stringify(schema) !== JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)) {
         out.push(`glossarySchema answers ${JSON.stringify(schema)} on its fixture, not ${JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)} - a fault in docs/glossary.json would pass`);
     }
-    const budgets = budgetsSchema(BUDGETS_SCHEMA_FIXTURE.doc, BUDGETS_SCHEMA_FIXTURE.stages);
+    const budgets = bs(BUDGETS_SCHEMA_FIXTURE.doc, BUDGETS_SCHEMA_FIXTURE.stages);
     if (JSON.stringify(budgets) !== JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)) {
         out.push(`budgetsSchema answers ${JSON.stringify(budgets)} on its fixture, not ${JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)} - a fault in docs/text-budgets.json would pass`);
+    }
+    /* T5's matchers (E65 C6): every X rule a matcher of X_RULES reads has a line of its own in T5's fixture, so a matcher
+       broken to match nothing is a fixture mismatch under its own rule number. */
+    for (const r of X_RULES) {
+        if (!r.by && !(FIXTURES.patterns?.flags ?? []).some(f => f.endsWith(` ${r.id}-en`) || f.endsWith(` ${r.id}-pl`))) out.push(`${r.id} has no line of its own in T5's fixture - its matcher is held by nothing`);
     }
     return out;
 }

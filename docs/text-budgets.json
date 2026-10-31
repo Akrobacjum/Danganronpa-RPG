@@ -2,10 +2,11 @@
     "$comment": [
         "How long a text of each surface may be (E65 C5; S18-33, DB11). The surfaces are docs/text-style.md's (section 3), the numbers its section 4: words, counted per string.",
         "DB11 (the owner, binding): a target that goes to the report and a hard limit of about 1.5 times the target, FAIL for the player's and the settings' texts; the GM's diagnostics only reported (limit null); an allow list with a reason.",
+        "`fail` on each surface (E65 C6): the stage from which a string over its limit is red - E71 for the player's and the settings' texts, as the orchestrator read DB11 on 31.10 - or null where the surface stays a report: the GM's card, the GM's diagnostics, and the window surfaces whose reader a key's name does not tell.",
         "The targets are rebuilt 30.10 from DB11 and Appendix A section 4 of the stage's plan, to confirm in the pilot (DB23); each limit is the target times 1.5, rounded up. No text of the module is over a budget by these numbers until the pilot has confirmed them.",
         "`rules`: the first rule that names a key gives its surface; `keys` is a regular expression over the whole key (en.json, pl.json, and config.mjs's prose by its DRPG.Config.* key), `sender` the functions that post it (scripts/tests-text.mjs SENDERS). A key no rule names is \"unclassified\" in the report.",
-        "`allow`: one key silenced for one rule (T4, T16, or an X rule of the guide), with `why` and the stage that may remove it (`until`). A row without `why` is a schema error (tests-text.mjs budgetsSchema, red in `node tools/check.mjs text`).",
-        "Who reads it: T4 (lengthOver, E65 C6) and T5 (the allow list), through `node tools/check.mjs text`. Nothing at a table reads it (export-ignore)."
+        "`allow`: one key silenced for one rule (T4 or an X rule of the guide; T16 has no allow list), with `why` and the stage that may remove it (`until`). A row without `why` is a schema error (tests-text.mjs budgetsSchema, red in `node tools/check.mjs text`).",
+        "Who reads it: T4 (lengthOver, E65 C6: the targets, the limits, `fail` and the rules), T5 (patterns, the X rules' allow rows and the surfaces it reads) and T21 (monokumaVoice, the world voice's surface), through `node tools/check.mjs text`. Nothing at a table reads it (export-ignore)."
     ],
     "status": "rebuilt 30.10 from DB11 and Appendix A section 4, to confirm in the pilot",
     "unit": "words",
@@ -13,68 +14,86 @@
         "tile-label": {
             "target": 3,
             "limit": 5,
-            "what": "The action tile's name: the player acting, and the GM."
+            "what": "The action tile's name: the player acting, and the GM.",
+            "fail": "E71"
         },
         "tile-hint": {
             "target": 30,
             "limit": 45,
-            "what": "What the tile's action does and what it costs, under its name: the player acting."
+            "what": "What the tile's action does and what it costs, under its name: the player acting.",
+            "fail": "E71"
         },
         "config-description": {
             "target": 30,
             "limit": 45,
-            "what": "A description in config.mjs's tables (a Call's effect, a Remnant type, a crisis action): whoever the table is shown to."
+            "what": "A description in config.mjs's tables (a Call's effect, a Remnant type, a crisis action): whoever the table is shown to.",
+            "fail": "E71"
         },
         "button": {
             "target": 4,
             "limit": 6,
-            "what": "A button's label: whoever holds the window."
+            "what": "A button's label: whoever holds the window.",
+            "fail": null,
+            "note": "DB11's FAIL reads the player's and the settings' texts; a key's name does not tell a player's window from a GM's, so this surface stays a report until E71, which turns T4, tells them apart (by C10's screen map; the orchestrator, 31.10, on C5's Open 30)."
         },
         "window-title": {
             "target": 5,
             "limit": 8,
-            "what": "A window's title: whoever holds the window."
+            "what": "A window's title: whoever holds the window.",
+            "fail": null,
+            "note": "DB11's FAIL reads the player's and the settings' texts; a key's name does not tell a player's window from a GM's, so this surface stays a report until E71, which turns T4, tells them apart (by C10's screen map; the orchestrator, 31.10, on C5's Open 30)."
         },
         "tab": {
             "target": 5,
             "limit": 8,
-            "what": "A tab's label inside a window: whoever holds the window."
+            "what": "A tab's label inside a window: whoever holds the window.",
+            "fail": null,
+            "note": "DB11's FAIL reads the player's and the settings' texts; a key's name does not tell a player's window from a GM's, so this surface stays a report until E71, which turns T4, tells them apart (by C10's screen map; the orchestrator, 31.10, on C5's Open 30)."
         },
         "tooltip": {
             "target": 15,
             "limit": 23,
-            "what": "What a control does or what a number means, on hover: whoever points at it."
+            "what": "What a control does or what a number means, on hover: whoever points at it.",
+            "fail": null,
+            "note": "DB11's FAIL reads the player's and the settings' texts; a key's name does not tell a player's window from a GM's, so this surface stays a report until E71, which turns T4, tells them apart (by C10's screen map; the orchestrator, 31.10, on C5's Open 30)."
         },
         "settings-hint": {
             "target": 25,
             "limit": 38,
-            "what": "The hint under a setting: the GM for a world setting, each user for their own client setting."
+            "what": "The hint under a setting: the GM for a world setting, each user for their own client setting.",
+            "fail": "E71"
         },
         "toast": {
             "target": 20,
             "limit": 30,
-            "what": "A notification on this browser alone: the user whose action raised it."
+            "what": "A notification on this browser alone: the user whose action raised it.",
+            "fail": "E71"
         },
         "player-card": {
             "target": 40,
             "limit": 60,
-            "what": "A chat card whispered to a player (and the GMs): the player it is about."
+            "what": "A chat card whispered to a player (and the GMs): the player it is about.",
+            "fail": "E71"
         },
         "gm-card": {
             "target": 40,
             "limit": 60,
-            "what": "A chat card whispered to the GMs alone."
+            "what": "A chat card whispered to the GMs alone.",
+            "fail": null,
+            "note": "The GM's own card: DB11's FAIL reads the player's and the settings' texts, so a GM card stays a report (the orchestrator, 31.10, on C5's Open 30)."
         },
         "world-voice": {
             "target": 30,
             "limit": 45,
-            "what": "A card posted to the whole table: everyone, in the world's neutral voice (DB1)."
+            "what": "A card posted to the whole table: everyone, in the world's neutral voice (DB1).",
+            "fail": "E71"
         },
         "gm-diagnostics": {
             "target": 60,
             "limit": null,
             "what": "The health check, the debug log, the contract notice, the suite's own texts: a GM, or whoever helps one.",
-            "note": "DB11: reported only, never FAIL."
+            "note": "DB11: reported only, never FAIL.",
+            "fail": null
         }
     },
     "rules": [
