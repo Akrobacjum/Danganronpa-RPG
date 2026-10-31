@@ -1,8 +1,9 @@
 # BOARD - the two lines (edit only your own section; fetch before, merge, never force)
 
-Updated 30.10.2026 (22:40 UTC) by line A (and line B for its own sections).
+Updated 31.10.2026 (15:15 UTC) by line A (and line B for its own sections).
 
 ## Shipped (line A writes this)
+- 1.2.93 (31.10.2026, main 8abf0a42, PR #40, latest): E90 alone, the GM stores' clock hotfix (The Forge's serverTime counts from the server's start). CRLF hang fixed in the harness (06556296): requestAnimationFrame ticks on the timers captured at boot; a test that stubs `globalThis.setInterval` no longer stops frames for the rest of the session.
 - 1.2.92 (30.10.2026, main 248e798e, PR #39, latest): E52 (built by line B, finished by line A; CRLF fix b4588492: five tier-2 tests put back bound copies of `ui.notifications` functions).
 - 1.2.91 (30.10.2026, main e1f40428, PR #38, latest): E89 and E20.
 - 1.2.90 (28.10.2026, main 12ff1b62): E70 parts 1 and 2. Every stage before it: see plan.json "done".
@@ -12,10 +13,10 @@ Updated 30.10.2026 (22:40 UTC) by line A (and line B for its own sections).
 | --- | --- | --- | --- |
 | E89 | shipped in 1.2.91 with E20 | visibility.mjs, movement.mjs, fog*.mjs, glass/CSS, rooms/vault (Bedroom stash) | release 1.2.91 |
 | E52 | shipped in 1.2.92 | patches.mjs, diagnostics.mjs, api.mjs, tools/api-surface.json | line B: E52 is done; tests that stub a Foundry function keep the function itself, not `.bind()` |
-| E65 | waits for the owner (the pilot, DB23) ; the text of topic B's guidelines is lost (the owner, 30.10): DB1-DB41 stand, O/X/M/N wording and the 60 pairs get rebuilt and marked for the pilot | lint, tools, docs (text guidelines, glossary) | not docs only |
+| E65 | C0 and C1 built on branch e65 (not pushed), C0 follow-up 5f55a15d adds an E83 ledger row before E26; C2+ next (train 1.2.95) | lint, tools, docs (text guidelines, glossary) | not docs only |
 | E66 | then | i18n across many files, one rename of names | conflicts with almost anything in flight |
-| E50 | built C0-C4 on branch e50 (not pushed), end review done (0 blocking), fix round running | messenger, music, sfx, anonymity (Take), handbooks, scenario 87 | train 1.2.93 with E51; E63 left the plan (stages.json row removed in 896cf663) |
-| E51, E37 | then | action windows, Calls, map, HUD, panel; clock, Eclipse, sync | |
+| E50, E51 | built, reviewed, fix round A/B/C done, verify review 0 blocking; release train 1.2.94 starting (branch e50) | messenger, music, sfx, Take; action windows, Calls, map (fog, fog-doorways), HUD, panel, trace digest | E63 left the plan; E67 merged into E72 |
+| E37 | then | clock, Eclipse, sync | |
 
 R numbers: line A R1049-R1499.
 
