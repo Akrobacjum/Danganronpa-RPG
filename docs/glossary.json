@@ -1161,6 +1161,17 @@
         "note": "The voice of the search texts beside \"ekwipunek\" (the Inventory tab after S13-22); not forbidden."
       },
       {
+        "id": "see-what-they-carry",
+        "en": "See what they carry",
+        "pl": "Zobacz, co nosi",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": ["see what somebody carries"], "scope": ["ui", "handbooks"], "case": "any"}, "pl": {"variants": ["zobacz, co ktoś nosi"], "scope": ["ui", "handbooks"], "case": "any"}},
+        "stage": "E80",
+        "source": ["A11"],
+        "note": "Palm's Frisk row (DRPG.Frisk.rowLabel), and in a sentence with its first letter lowered (the Palm hint, the brochure's and the GM handbook's Palm rows). A11 asked for one Polish form of the row; H81-11 (the owner's 1.2.80 table, item 5, 20.10.2026) set \"Zobacz, co nosi\" and H81's review (H81C2-04) made it the one form, held by R620 (tier 1). The forbidden variants are the forms it replaced. Decided in docs/dev/text-review-E65.md (E65 C13)."
+      },
+      {
         "id": "murder-weapon",
         "en": "Murder Weapon",
         "pl": null,

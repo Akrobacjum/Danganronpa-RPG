@@ -159,8 +159,9 @@
  *             reader with the answer it must give. E65 C12: the handbook-facts
  *             tool's self-check (tools/handbook-facts.mjs; red, with a control
  *             that hands it a split cutting nothing), and every handbook split
- *             twice, one line each: units by kind, the second split the same,
- *             and the Polish ids, kinds and lines as the English (readings).
+ *             twice, one line each: units by kind, the second split the same
+ *             (red when not, or when a handbook is missing), and the Polish
+ *             ids, kinds and lines as the English (a reading).
  */
 
 import fs from "node:fs";
@@ -938,8 +939,9 @@ async function text() {
     /* The handbook-facts tool (E65 C12, E65-21): its self-check (the fixture handbook's units, the same on a second split, and
        `check` naming its planted faults exactly) red here, with its control - the self-check handed a split that cuts nothing
        must see it; then every handbook split twice, one line each: its units by kind, whether the second split gave the same,
-       what split could not read, and whether the Polish handbook gives the English one's ids, kinds and lines. Those lines
-       are readings for E57, which writes the facts files: none of them is red. */
+       what split could not read, and whether the Polish handbook gives the English one's ids, kinds and lines. Red: a
+       handbook missing, or one that gives other units on a second split (the ids E57's facts files point at would not
+       hold). The split problems and the Polish against the English are readings for E57, never red. */
     const facts = await import(url.pathToFileURL(path.join(REPO, "tools", "handbook-facts.mjs")).href);
     problems.push(...facts.selfCheck().map(p => `handbook-facts: ${p}`));
     if (!facts.selfCheck(() => ({ handbook: null, units: [], counts: {}, problems: [] })).some(p => p.startsWith("split cuts the fixture into []"))) {
