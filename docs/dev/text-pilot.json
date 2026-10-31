@@ -63,14 +63,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Search costs one action (ACTIONS.search cost 1), taken by spendAction after the player has picked what to look for and before the Eye roll.",
+        "The player chooses a category and a goal, and may name something specific; the roll is Eye alone.",
+        "The character's token must stand in a room; a sealed room and a room with no Search Tokens left are refused before the action is spent.",
+        "A Search that reaches the dice takes one of the room's Search Tokens after the roll; if another player took the last one first, the action stays spent.",
+        "A Search for something specific is refused before any price when no GM is connected, and the action comes back if the last GM leaves during the roll.",
+        "How many Search Tokens a room holds is a world setting (0 to 10), so the hint does not state the number."
+      ],
       "en": {
         "before": "Loot the room for something you name. Spends one of its search tokens.",
-        "after": null
+        "after": "Search this room for something you pick, or for one specific thing you name. It costs an action, and the roll uses up one of the room's Search Tokens."
       },
       "pl": {
         "before": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.",
-        "after": null
+        "after": "Przeszukaj pokój pod kątem czegoś, co wybierzesz albo nazwiesz. Wydajesz akcję, a po rzucie Eye zabierasz jeden z Search Tokenów pokoju."
       },
       "reviews": {
         "en": null,
@@ -86,18 +93,29 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Observe costs one action (ACTIONS.observe cost 1), spent before the roll; the roll is Eye against the OBSERVE_DC table.",
+        "A hit copies what the observer finds into their inventory as a Neutral Truth Bullet, and the original Remnant stays where it is.",
+        "A miss costs Sanity (OBSERVE_FAIL_STRESS, now 1) through chargeObserveMiss; a character who has no Sanity left to lose takes nothing.",
+        "Some Observes are scored on the GM's client with no human, and naming a target or asking the GM outright goes to a GM who judges it.",
+        "The old text differs: it leaves out the action's price and the Sanity a miss costs."
+      ],
       "en": {
         "before": "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
-        "after": null
+        "after": "Look for evidence in this room. It costs an action. On a hit, you note one Remnant here as a Truth Bullet in your inventory, and the Remnant stays where it is; on a miss, you lose Sanity."
       },
       "pl": {
         "before": "Szukaj dowodów. Kopiuje Remnant do twojego ekwipunku jako Truth Bullet.",
-        "after": null
+        "after": "Szukaj dowodów. Wydajesz akcję; przy trafieniu kopiujesz Remnant do ekwipunku jako Truth Bullet, przy pudle tracisz Sanity."
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "\"you lose Sanity\": how much is not said (proposed: say the amount, or \"you lose some Sanity\") - executor: The amount is OBSERVE_FAIL_STRESS, which the code does not pass to this text as a placeholder; typing it would break O5/M5 and no placeholder may be added. \"some\" adds no fact. The amount needs code (the EN reviewer says the same)."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -109,14 +127,20 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "The Rest tile opens a window with two rows, Short Rest and Long Rest, each with its price and why it is unavailable.",
+        "A Short Rest costs one action and can be taken once per time of day; a Long Rest costs two actions and can be taken once per session (REST.short, REST.long).",
+        "Each rest needs a room the GM marked for that kind of rest in Room Setup; the window names the rooms that allow it.",
+        "The rest restores Health (Sleep), Sanity (Meal) or Hope (Breath); a Long Rest lets the player pick more options and gives more of each.",
+        "When neither rest can be taken, the tile is dimmed and its tooltip gives both reasons, but it stays pressable."
+      ],
       "en": {
         "before": "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
-        "after": null
+        "after": "Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs more actions and recovers more, once each session. Each needs a room the GM has marked for it."
       },
       "pl": {
         "before": "Odzyskaj Health, Sanity albo Hope. Long Rest kosztuje więcej i daje więcej.",
-        "after": null
+        "after": "Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej."
       },
       "reviews": {
         "en": null,
@@ -132,17 +156,29 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Moving the token inside the room it stands in costs nothing; the price is taken when the token arrives in another room.",
+        "Each character has one Free Move per time of day (a flag, FLAGS.freeMoveUsed); the first crossing into another room uses it.",
+        "Once the Free Move is used, a crossing is paid either by a crossing bought earlier with the Sprint Hope Call or by one action; takeMove decides which, and the card names which paid.",
+        "While the Overflow's Fog is in force, the Free Move is not available, and crossings are paid by Sprint crossings or actions.",
+        "When none of these can pay, the token is put back where it was and the crossing does not happen.",
+        "The old text differs: it leaves out the Sprint crossings as a way to pay."
+      ],
       "en": {
         "before": "Crossing into another room costs your free Move, then an action each.",
-        "after": null
+        "after": "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint."
       },
       "pl": {
         "before": "Przejście do innego pokoju kosztuje Free Move, potem akcję za każde.",
-        "after": null
+        "after": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a za każde kolejne płacisz przejściem kupionym wcześniej Callem Sprint albo akcją."
       },
       "reviews": {
-        "en": null,
+        "en": {
+          "verdict": "change",
+          "points": [
+            "M4, O13: the Fog exception (no Free Move while the Overflow's Fog is in force) is lost, as it was in en_before; whether a tile hint must carry it is the owner's call under O13, since the Overflow card announces the Fog. If kept: “Under the Overflow's Fog, there is no Free Move.” (36 words total). - executor: Left out, as the reviewer leaves it to the owner under O13: the Overflow's card announces the Fog where the player meets it (O3). Adding it would also need the Polish form of the Fog's name, which no source read gives."
+          ]
+        },
         "coldEn": null,
         "pl": null
       },
@@ -155,18 +191,29 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Sabotage costs one action (ACTIONS.sabotage cost 1), paid before the roll.",
+        "Only a project tied to the room the character stands in, on that room's scene, can be a target; a frozen project and a repair project cannot (sabotageTargetsIn).",
+        "A roll of 12 or more makes the target need a simple repair project, 18 or more a complex one, and a critical a hidden-difficulty one; below 12 nothing happens to the project.",
+        "Every Sabotage leaves a Remnant, a hidden one even on a failure, and a roll with Despair shows the saboteur to the room.",
+        "The old text differs: it says trace where the glossary has Remnant, and it leaves out the action's price."
+      ],
       "en": {
         "before": "Break a project in this room so it needs a repair project. Always leaves a trace.",
-        "after": null
+        "after": "Break a project in this room so that it needs a repair project. It costs an action, and you always leave a Remnant behind."
       },
       "pl": {
         "before": "Zepsuj projekt w tym pokoju, by wymagał projektu naprawy. Zawsze zostawia ślad.",
-        "after": null
+        "after": "Zepsuj projekt w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant."
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "\"Break a project in this room so that it needs a repair project\": a cold reader does not know what a \"project\" is, and breaking a project to need another project is baffling (proposed: Sabotage something built in this room so that it must be repaired before it works again) - executor: Project is the module's name for the thing (the Project tile, O14), and the fact is that the target needs a repair project, itself a project the table runs; \"something built ... repaired before it works again\" loses that and states a rule the facts do not hold (M2)."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -178,18 +225,30 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Tamper offers erasing a Remnant the character has found in this room (not a reinforced one), or planting a false Remnant that points at somebody else.",
+        "On a critical, the erasing branch can reshape the Remnant instead of wiping it out.",
+        "Its price is a chain (PRICE_CHAINS.tamper): one action, and only when no action is left, one Sanity; the killer on their own night skips the action step.",
+        "A character holding the free clean-up from a critical Finishing blow pays nothing for the next attempt.",
+        "With witnesses in the room a concealment roll comes first, and a character with no Sanity left is refused a watched attempt; the briefing says this separately.",
+        "The old text differs: it says trace where the glossary has Remnant, it offers reshaping without the critical, and it leaves out the price."
+      ],
       "en": {
         "before": "Wipe out, or reshape, a trace you know is here - or plant one pointing at somebody else.",
-        "after": null
+        "after": "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity once you have no action left."
       },
       "pl": {
         "before": "Wymaż albo przekształć ślad, o którym wiesz, że tu jest - albo podłóż taki, który wskazuje na kogoś innego.",
-        "after": null
+        "after": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Płacisz akcją, a gdy nie masz już akcji - Sanity."
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "\"or Sanity once you have no action left\": how much Sanity is not said (proposed: or <n> Sanity if you have no actions left) - executor: The price chain's Sanity step reaches no placeholder of this key, and none may be added (N2); typing the amount would break O5/M5. The amount needs code."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -201,14 +260,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Direct Murder costs one action (ACTIONS.directMurder cost 1).",
+        "Outside an Eclipse it is refused (DRPG.Eclipse.murderOnlyInEclipse); during an Eclipse it declares a killing for later.",
+        "The one exception: in Stage 6, with the killer's partner still standing, the tile turns on that partner instead (performBetrayal).",
+        "During a fight the tile opens the fight's own actions.",
+        "The config description adds that the killing is agreed with the GM beforehand, consented to by the victim's player, and needs the killer alone with the victim.",
+        "The old text differs: it leaves out that the action works only during an Eclipse, and its price."
+      ],
       "en": {
         "before": "Open a direct murder. Agreed with the GM beforehand.",
-        "after": null
+        "after": "During an Eclipse, declare a Direct Murder that you have agreed with the GM beforehand. It costs an action."
       },
       "pl": {
         "before": "Otwórz Direct Murder. Uzgodnione wcześniej z GM-em.",
-        "after": null
+        "after": "Otwórz Direct Murder. Działa tylko podczas Eclipse: wydajesz akcję i zgłaszasz zabójstwo uzgodnione wcześniej z GM-em."
       },
       "reviews": {
         "en": null,
@@ -224,18 +290,29 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "The options are Sleep, which restores Health, Meal, which restores Sanity, and Breath, which grants Hope (REST.options).",
+        "A Long Rest restores all Health or all Sanity and grants 2 Hope; a Short Rest restores half Health or half Sanity and grants 1 Hope.",
+        "The player picks options: two on a Long Rest, one on a Short Rest (REST.long.picks, REST.short.picks).",
+        "A Long Rest costs two actions and is once per session; a Short Rest costs one action and is once per time of day; each needs a room marked for it.",
+        "The old text differs: it says a Meal clears Sanity, where the code restores it as a reserve; it says Breath gives Hope in full or by half, where the code grants a set amount; and it leaves out that the player picks options."
+      ],
       "en": {
         "before": "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope - in full on a Long Rest, by half on a Short.",
-        "after": null
+        "after": "Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much and grants less Hope."
       },
       "pl": {
         "before": "Sen przywraca Health, posiłek oczyszcza Sanity, oddech daje Hope - w całości przy Long Rest, o połowę przy Short.",
-        "after": null
+        "after": "Do wyboru masz sen (Health), posiłek (Sanity) i oddech (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "\"a Breath (Hope)\": \"a Breath\" is odd next to Sleep and a Meal (proposed: a Breather (Hope), or Fresh Air (Hope)) - executor: Breath is the option's name in the code (REST.options) and in the Rest window; one name per mechanic (O14), and renaming an option is the owner's decision, not a text revision."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -247,18 +324,29 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Daily Life is a phase; the day has five times of day: morning, noon, afternoon, evening and night.",
+        "At each new time of day the characters' actions refill to the base count (STARTING.actions, now 2), and the table is told on the time-of-day card.",
+        "A Wounded character is down an action, which only the GMs are told.",
+        "Each character has one Free Move per time of day.",
+        "The old text differs: it types the number of actions into the sentence, while the count comes from STARTING.actions and is lower for a Wounded character."
+      ],
       "en": {
         "before": "You live inside a closed area. Two actions per time of day.",
-        "after": null
+        "after": "You live inside a closed area. At the start of each time of day, your actions refill and your Free Move comes back."
       },
       "pl": {
         "before": "Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia.",
-        "after": null
+        "after": "Żyjecie w zamkniętym miejscu. Dzień dzieli się na pięć pór: poranek, południe, popołudnie, wieczór i noc. Z każdą nową porą dnia akcje się odnawiają, a każdy uczeń ma jeden Free Move."
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unnatural",
+          "points": [
+            "\"You live inside a closed area.\": flat and vague; a player wonders what it means for play (proposed: You are shut inside a closed area you cannot leave.) - executor: No fact of this key says the area cannot be left; \"you cannot leave\" would state a rule the code read does not show (M2). The sentence stays as the old text had it."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -270,14 +358,19 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Relief is a Hope Call priced at 4 Hope (HOPE_CALLS.relief cost); the price is shown on the Call's own tile.",
+        "It takes a Short Rest at once with the same benefits as an ordinary one, costs no action and needs no marked room.",
+        "It neither checks nor uses up the once-per-time-of-day Short Rest, so the character's ordinary Short Rest is still there afterwards.",
+        "Backing out of the picker of what to restore cancels the Call and the Hope comes back."
+      ],
       "en": {
         "before": "Take a Short Rest right now - no action, no marked room, and it does not use up this time of day's.",
-        "after": null
+        "after": "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
       },
       "pl": {
         "before": "Weź Short Rest od razu - bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia.",
-        "after": null
+        "after": "Weź od razu Short Rest z tymi samymi korzyściami co zwykły; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca."
       },
       "reviews": {
         "en": null,
@@ -293,14 +386,20 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It shows when the room the character stands in has no Search Tokens left.",
+        "On a Search it is a warning after the category picker and before the action is spent, so no action is taken.",
+        "It is also the reason written on the dimmed Search tile before anybody presses it; the tile stays pressable.",
+        "The tokens are restocked when the time of day changes, and the time-of-day card says so.",
+        "The old text differs: it does not name the Search Tokens."
+      ],
       "en": {
         "before": "This room is searched out. Try again next time of day.",
-        "after": null
+        "after": "This room has no Search Tokens left. Try again in the next time of day."
       },
       "pl": {
         "before": "Ten pokój jest przeszukany do cna. Spróbuj o następnej porze dnia.",
-        "after": null
+        "after": "W tym pokoju nie ma już Search Tokenów. Pojawią się znowu o następnej porze dnia."
       },
       "reviews": {
         "en": null,
@@ -316,14 +415,19 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It shows when Search, Tamper or Palm is pressed while the character's token stands outside every room.",
+        "In each of the three it comes before any price is taken, so the character keeps the action.",
+        "The player can drag the token into a room and press the tile again.",
+        "The old text differs: it sends the player to the GM, and the code shows no GM step for this."
+      ],
       "en": {
         "before": "Your token is outside every room. Move it into one, or ask the GM.",
-        "after": null
+        "after": "Your character's token isn't in any room. Move it into one and try again; you keep your action."
       },
       "pl": {
         "before": "Twój token jest poza wszystkimi pokojami. Przesuń go do któregoś albo zapytaj GM-a.",
-        "after": null
+        "after": "Twój token stoi poza wszystkimi pokojami. Przesuń go do pokoju i spróbuj jeszcze raz; akcji nie tracisz."
       },
       "reviews": {
         "en": null,
@@ -339,14 +443,18 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It shows on this browser alone when the user opens the GM's picture of a room from the room tile and the picture fails to decode.",
+        "No picture window opens in that case.",
+        "The picture is the GM's, set in Room Setup."
+      ],
       "en": {
         "before": "The picture of this room does not load.",
-        "after": null
+        "after": "This room's picture couldn't be loaded."
       },
       "pl": {
         "before": "Zdjęcie tego pokoju się nie wczytuje.",
-        "after": null
+        "after": "Nie udało się wczytać zdjęcia tego pokoju."
       },
       "reviews": {
         "en": null,
@@ -362,14 +470,18 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It is the line of the card whispered to the observer and the GMs when an Observe misses, or when a GM rules that nothing was there.",
+        "The card's next sentence names the Sanity taken, and it appears only when Sanity was actually taken (a character with none left takes nothing).",
+        "The action was spent before the roll and is not given back."
+      ],
       "en": {
         "before": "Nothing catches your eye.",
-        "after": null
+        "after": "Nothing catches your eye."
       },
       "pl": {
         "before": "Nic nie przykuwa twojej uwagi.",
-        "after": null
+        "after": "Nic nie przykuwa twojej uwagi."
       },
       "reviews": {
         "en": null,
@@ -385,14 +497,18 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It shows on the observer's roll card only when they named a target or asked the GM about anything, and the GM's client has received the roll.",
+        "A sweep of the room is scored on the GM's client without a person, and its card does not show this line.",
+        "The verdict is the GM's to send; the observer's browser does not know the difficulty and says nothing about the result."
+      ],
       "en": {
         "before": "The GM is judging what you found.",
-        "after": null
+        "after": "The GM is judging your Observe and will send you the result."
       },
       "pl": {
         "before": "GM ocenia, co się znalazło.",
-        "after": null
+        "after": "GM oceni twoją akcję Observe i wyśle ci wynik."
       },
       "reviews": {
         "en": null,
@@ -408,14 +524,19 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "{who} is the character who shared the key, and {room} is the room the key opens.",
+        "A copy of the key is added to the receiver's sheet; the giver keeps their own.",
+        "A person can hold one key per room; a second copy is refused and only the giver is told.",
+        "The card goes to the receiver's owner and the GMs; the giver gets a card of their own."
+      ],
       "en": {
         "before": "{who} gave you a copy of the key to {room}.",
-        "after": null
+        "after": "{who} gave you a copy of the key to {room}."
       },
       "pl": {
         "before": "{who} daje ci kopię klucza do: {room}.",
-        "after": null
+        "after": "{who} daje ci kopię klucza do pokoju {room}. Kopia jest już na twoim arkuszu."
       },
       "reviews": {
         "en": null,
@@ -431,14 +552,19 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It is the thief's card when a Palm's steal moved the item from the victim to the thief.",
+        "{item} is the item's name and {who} is the victim's name.",
+        "The next line of the card says whether the victim noticed; a victim who noticed is told who it was.",
+        "The old text differs: it does not put the item's name in quotes, as the glossary asks."
+      ],
       "en": {
         "before": "You lift {item} out of {who}'s pocket.",
-        "after": null
+        "after": "You lift “{item}” out of {who}'s pocket."
       },
       "pl": {
         "before": "Wyciągasz {item} z kieszeni: {who}.",
-        "after": null
+        "after": "Wyciągasz przedmiot „{item}” z kieszeni postaci {who}."
       },
       "reviews": {
         "en": null,
@@ -454,14 +580,19 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It goes to the owner of a character on whom another character's Hope Call was armed; the buyer is not named.",
+        "{what} is what the Call grants the next roll, such as advantage (DRPG.Calls.grants.*).",
+        "The GM armed it and took the buyer's Hope; the next roll applies it, already switched on in the roll window.",
+        "A Despair Call and a Monocub's Call use other sentences."
+      ],
       "en": {
         "before": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
-        "after": null
+        "after": "Another student spent Hope on you: your next roll gets {what}. It is already switched on in your roll window."
       },
       "pl": {
         "before": "Inny uczeń wydał na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
-        "after": null
+        "after": "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma {what}. Okno rzutu ma to już włączone."
       },
       "reviews": {
         "en": null,
@@ -477,14 +608,19 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It is the first line of the Move card whispered to the owner and the GMs after a paid crossing; {room} is the room the token entered.",
+        "The card's header names the room too, and the next line says what the crossing cost: the Free Move, a Sprint crossing or an action.",
+        "The card does not describe the room; the room tile shows the description while the character stands there.",
+        "The old text differs: it tells a crossing that has just happened as an action in progress."
+      ],
       "en": {
         "before": "You enter {room}.",
-        "after": null
+        "after": "You are now in {room}."
       },
       "pl": {
         "before": "Wchodzisz do: {room}.",
-        "after": null
+        "after": "Jesteś teraz w pokoju {room}."
       },
       "reviews": {
         "en": null,
@@ -500,14 +636,20 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It goes to the builder's owner when their Secret Passage project is finished.",
+        "{from} and {to} are the passage's two rooms as the builder may name them: a room they have not been in reads as an unexplored room with a number.",
+        "Each student it was shared with gets another card, without the builder's name; nobody else is told.",
+        "The code read here does not show how the passage is then used or in which direction.",
+        "The old text differs: it says the passage can be walked through, which the code read does not show, and it joins the rooms with a dash."
+      ],
       "en": {
         "before": "Your secret passage is finished: {from} - {to}. You can walk through it.",
-        "after": null
+        "after": "Your Secret Passage project is finished. The passage joins {from} and {to}."
       },
       "pl": {
         "before": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
-        "after": null
+        "after": "Twoje tajne przejście jest gotowe. Łączy dwa pokoje: {from} i {to}."
       },
       "reviews": {
         "en": null,
@@ -523,14 +665,20 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "Reduced motion is a client setting, off by default, shown in Configure Settings.",
+        "Changing it applies the theme again at once, with no reload.",
+        "The code read does not show how it combines with the operating system's own reduced-motion preference.",
+        "The old text differs: it says the setting overrides the operating system, which the code read does not show, and it ends with \"This client only.\" where the guide asks for \"Only affects this browser.\"",
+        "Checked in the code (glass.mjs, REDUCED): motion is turned down when this setting is on OR when the operating system asks for reduced motion; the setting cannot turn motion back on when the operating system asks for less."
+      ],
       "en": {
         "before": "Hold the interface still on this browser, whatever the operating system says. This client only.",
-        "after": null
+        "after": "Reduces animation and motion in the module's interface. If your operating system asks for reduced motion, the module follows it even with this setting off. Takes effect at once. Only affects this browser."
       },
       "pl": {
         "before": "Trzymaj interfejs nieruchomo w tej przeglądarce, niezależnie od ustawień systemu. Tylko ten klient.",
-        "after": null
+        "after": "Ogranicza ruch w interfejsie modułu. Jeśli system operacyjny prosi o mniej ruchu, moduł stosuje się do tego także przy wyłączonym ustawieniu. Zmiana działa od razu, bez przeładowania. Dotyczy tylko tej przeglądarki."
       },
       "reviews": {
         "en": null,
@@ -546,14 +694,19 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a client setting that orders the player's Truth Bullets by chapter or by room; by chapter is the default.",
+        "It is not in Foundry's Configure Settings (config false): the switch is on the inventory, beside the evidence it orders.",
+        "One player's choice does not move another player's inventory.",
+        "The old text differs: it ends with \"this client only\" where the guide asks for \"Only affects this browser.\""
+      ],
       "en": {
         "before": "Whether your pack is cut into chapters or into rooms. The switch is on the inventory itself, over the evidence; this client only.",
-        "after": null
+        "after": "Sorts your Truth Bullets by chapter, the default, or by room. The switch is in your inventory, beside them. Only affects this browser."
       },
       "pl": {
         "before": "Czy twój pakiet jest pocięty na rozdziały, czy na pomieszczenia. Przełącznik siedzi w samym ekwipunku, nad dowodami; tylko ten klient.",
-        "after": null
+        "after": "Układa Truth Bullets w twoim ekwipunku według rozdziałów (domyślnie) albo według pokoi. Przełącznik jest w ekwipunku, przy dowodach. Dotyczy tylko tej przeglądarki."
       },
       "reviews": {
         "en": null,
@@ -569,14 +722,19 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a client setting with English and Polski, English by default, and it needs a reload.",
+        "It sets the language of the module's own sheet, panel, windows and cards; Foundry's core language is left as it is.",
+        "The game's glossary names stay in English in every language.",
+        "The old text differs: it begins with \"This client only.\" where the guide ends a client hint with \"Only affects this browser.\""
+      ],
       "en": {
         "before": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload.",
-        "after": null
+        "after": "Sets the language of this module's character sheet, panel, windows, and cards; Foundry keeps its own language setting. Names such as Truth Bullet, Remnant, and Despair stay in English. Needs a reload. Only affects this browser."
       },
       "pl": {
         "before": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu.",
-        "after": null
+        "after": "Język okien, kart, panelu i arkusza postaci tego modułu; języka Foundry to nie zmienia. Nazwy własne gry, takie jak Truth Bullet, Remnant i Despair, zostają po angielsku. Zmiana zadziała po przeładowaniu. Dotyczy tylko tej przeglądarki."
       },
       "reviews": {
         "en": null,
@@ -592,14 +750,19 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a world setting from 0 to 10 that sets how many Search Tokens each room holds.",
+        "A Search takes one token from its room once the dice are rolled.",
+        "A room with no tokens left refuses a Search before the roll and before the action is spent.",
+        "The tokens are restocked when the time of day changes."
+      ],
       "en": {
         "before": "How many times one room can be searched in a single time of day.",
-        "after": null
+        "after": "How many Search Tokens each room has per time of day. Every Search that reaches the roll uses one; a room with none left cannot be searched."
       },
       "pl": {
         "before": "Ile razy jeden pokój można przeszukać w ciągu jednej pory dnia.",
-        "after": null
+        "after": "Ile Search Tokenów ma każdy pokój, od 0 do 10. Każdy Search zabiera jeden token po rzucie, a w pokoju bez tokenów Search zostaje odrzucony, zanim gracz wyda akcję. Tokeny odnawiają się z każdą nową porą dnia."
       },
       "reviews": {
         "en": null,
@@ -615,14 +778,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a world setting, on by default.",
+        "Moving inside the room the token stands in costs nothing; crossing into another room uses the character's Free Move for that time of day.",
+        "After the Free Move, a crossing is paid by a Sprint crossing or by an action; with neither, the token is put back.",
+        "The code read registers the setting but does not show where it is read; that switching it off stops the charge is taken from its name and the old text.",
+        "The old text differs: it says Scene Region where the players' word is room, and it leaves out the Sprint crossings.",
+        "Checked in the code (movement.mjs, where chargeMovement is read): with the setting off, a crossing between rooms is not charged as movement; a crossing seen during an Eclipse is still charged as an Eclipse crossing."
+      ],
       "en": {
         "before": "Moving inside a room is free. Crossing into another Scene Region spends the Free Move for that time of day, then an action. Turn off to handle movement by hand.",
-        "after": null
+        "after": "Moving inside a room is free. Each time of day, the first crossing between rooms uses the Free Move; later ones cost an action or a crossing bought with Sprint. Turn it off to handle movement yourself."
       },
       "pl": {
         "before": "Ruch wewnątrz pokoju jest darmowy. Przejście do innego regionu sceny zużywa Free Move tej pory dnia, a potem akcję. Wyłącz, by rozliczać ruch ręcznie.",
-        "after": null
+        "after": "Ruch w obrębie pokoju jest darmowy. Pierwsze przejście do innego pokoju o danej porze dnia zużywa Free Move, każde kolejne kosztuje przejście kupione Callem Sprint albo akcję. Wyłącz, by rozliczać ruch ręcznie."
       },
       "reviews": {
         "en": null,
@@ -638,18 +808,33 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It shows after the GM presses Clear in the debug log window.",
+        "The log holds what this browser has failed at since the page loaded, in memory only; clearing empties it on this browser.",
+        "The glossary's name for the window is Debug log; \"Failure log\" is a forbidden variant.",
+        "The old text differs: it says Failure log, and it drops the verb."
+      ],
       "en": {
         "before": "Failure log cleared.",
-        "after": null
+        "after": "The debug log on this browser is now empty."
       },
       "pl": {
         "before": "Dziennik błędów wyczyszczony.",
-        "after": null
+        "after": "Debug log w tej przeglądarce jest teraz pusty."
       },
       "reviews": {
-        "en": null,
-        "coldEn": null,
+        "en": {
+          "verdict": "ok",
+          "points": [
+            "EN6 against the glossary: EN6 asks Title Case for every name, the glossary spells the window “Debug log”; if the window's name is meant, “Debug Log” - the owner should say which wins for window names used in a sentence. - executor: The glossary is the source for words (section 1, source 5) and spells it \"Debug log\" (D33f); in a sentence the lower-case \"debug log\" follows it. Which wins for a window's name in a sentence is the owner's ruling, as the reviewer says."
+          ]
+        },
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"is now empty\": fine; \"has been cleared\" is the more usual confirmation (proposed: The debug log on this browser has been cleared.) - executor: \"has been cleared\" is a passive that hides the GM who pressed Clear (X11); \"is now empty\" says the result the GM sees (O1, O15)."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -661,14 +846,18 @@
       "readers": [
         "gm"
       ],
-      "facts": [],
+      "facts": [
+        "It is the text of a part of the diagnostic report that only a GM's browser runs, when the report is gathered on a browser that is not a GM's.",
+        "That part is named in the report and not run.",
+        "Gathering the same report on a GM's browser runs that part."
+      ],
       "en": {
         "before": "GM only - open the report on a GM's screen for this part.",
-        "after": null
+        "after": "This part of the report can only run in a GM's browser. Open the report in a GM's browser to see it."
       },
       "pl": {
         "before": "Tylko dla MG - tę część pokazuje raport otwarty na ekranie MG.",
-        "after": null
+        "after": "Tę część raportu sprawdza tylko przeglądarka GM-a. Zbierz raport w przeglądarce GM-a, żeby ją zobaczyć."
       },
       "reviews": {
         "en": null,
@@ -684,14 +873,19 @@
       "readers": [
         "gm"
       ],
-      "facts": [],
+      "facts": [
+        "It follows the count of students who were never given the starting resources, and the line that says how to fix it.",
+        "A student the setup has not touched has a maximum of zero Health and zero Sanity, which looks the same as a student beaten unconscious.",
+        "The code read does not show what the rules then do with such a student.",
+        "The old text differs: it says each such student counts as Wounded and in Breakdown, with one action instead of two and disadvantage on every roll, which the code read does not show, and it types numbers into the sentence."
+      ],
       "en": {
         "before": "Until then each of them counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
-        "after": null
+        "after": "Until they are given their starting resources, these students have a maximum Health and Sanity of zero, so they look the same as a student beaten unconscious."
       },
       "pl": {
         "before": "Do tego czasu każda z nich liczy się jako Wounded i w Breakdown: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
-        "after": null
+        "after": "Do tego czasu ich maksymalne Health i Sanity wynoszą zero, więc wyglądają tak samo jak uczniowie pobici do nieprzytomności."
       },
       "reviews": {
         "en": null,
@@ -707,14 +901,21 @@
       "readers": [
         "gm"
       ],
-      "facts": [],
+      "facts": [
+        "It is the fix under the list of students whose Monokuma was neither assigned by hand nor set to nobody on purpose.",
+        "A student in that list who falls back to a pool is named with that pool; one with no fallback has no pool at all.",
+        "Despair from a student's rolls feeds the pool of that student's Monokuma, so with no pool it has nowhere to go.",
+        "The code read does not show where in the module the assignment is made.",
+        "The old text differs: it says Despair has nowhere to go for every student in the list, though some fall back to a pool, and it names a panel the code read does not show.",
+        "Checked in the code (gm-panel.mjs, the panel's tabs): the GM panel has a tab named Despair Flow (DRPG.Panel.despairFlow), where this is set."
+      ],
       "en": {
         "before": "Without one, Despair from their rolls has nowhere to go. Set it in the GM panel, under Despair Flow.",
-        "after": null
+        "after": "Assign each of them a Monokuma by hand, or deliberately assign them none, in the GM panel under Despair Flow. Until then, Despair from their rolls goes to the pool named beside them; where none is named, it goes nowhere."
       },
       "pl": {
         "before": "Bez niej Despair z jego rzutów nie ma dokąd trafić. Ustaw to w panelu GM-a, w Despair Flow.",
-        "after": null
+        "after": "Przypisz każdemu z tych uczniów Monokumę ręcznie albo zaznacz, że celowo nie ma żadnego. Zrobisz to w panelu GM-a, w zakładce Despair Flow. Do tego czasu Despair z rzutów ucznia trafia do puli zapasowej, jeśli jej nazwa stoi przy nim; uczeń bez puli zapasowej nie ma żadnej puli, więc jego Despair nie ma dokąd trafić."
       },
       "reviews": {
         "en": null,
@@ -730,14 +931,20 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It is a permanent error notification on a GM's browser when the GM store, the answer keys, has not opened within the time allowed; {seconds} is that time in seconds.",
+        "It shows once per session on that browser.",
+        "While the store is not open, an Analyze or a handover is refused, and the player is told that the GM has been told.",
+        "The code read does not show what makes the store open later.",
+        "The old text differs: it advises a reload, which the code read does not show, and it names the handover as one of a Truth Bullet, which the code read does not say."
+      ],
       "en": {
         "before": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again.",
-        "after": null
+        "after": "The GM store (the answer keys) still has not opened in this browser after {seconds} seconds. Until it opens, Analyze and handovers are unavailable, and players are told that the GM is aware of the problem."
       },
       "pl": {
         "before": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie.",
-        "after": null
+        "after": "Magazyn GM-a (klucze odpowiedzi) nie otworzył się w tej przeglądarce w ciągu {seconds} s. Dopóki się nie otworzy, Analyze i przekazania są odrzucane, a gracz dowiaduje się, że GM został powiadomiony."
       },
       "reviews": {
         "en": null,
@@ -753,14 +960,19 @@
       "readers": [
         "everyone"
       ],
-      "facts": [],
+      "facts": [
+        "It is the last line of the body-found card posted to the whole table.",
+        "Before the card, the deaths are made public and every token is gathered into the room of the body.",
+        "Finding a body does not change the phase; the phase waits for the GM to start the Investigation.",
+        "The old text differs: it says everyone is called, where the code moves the tokens."
+      ],
       "en": {
         "before": "Everyone is called to the scene. The Investigation has not started yet.",
-        "after": null
+        "after": "Everyone is gathered in the room with the body. The GM will start the Investigation."
       },
       "pl": {
         "before": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",
-        "after": null
+        "after": "Wszystkie tokeny stoją teraz w pokoju z ciałem. Investigation jeszcze nie trwa - rozpocznie je GM."
       },
       "reviews": {
         "en": null,
@@ -776,14 +988,19 @@
       "readers": [
         "everyone"
       ],
-      "facts": [],
+      "facts": [
+        "It is posted to the whole table when the Public Announcement Despair Call is bought; {room} is the room named in the order.",
+        "The tokens are moved at the start of the next time of day, not when the Call is bought; an Eclipse does not move the clock, so the order waits past it.",
+        "The same sentence is the assembly's line in the events list and the Call tile's tooltip while the order stands.",
+        "The old text differs: it drops the verb."
+      ],
       "en": {
         "before": "Everyone to {room}, at the start of the next time of day.",
-        "after": null
+        "after": "At the start of the next time of day, everyone will be gathered in {room}."
       },
       "pl": {
         "before": "Wszyscy do: {room}, na początek następnej pory dnia.",
-        "after": null
+        "after": "Na początku następnej pory dnia wszyscy zbierają się w pokoju {room}."
       },
       "reviews": {
         "en": null,
@@ -799,14 +1016,17 @@
       "readers": [
         "everyone"
       ],
-      "facts": [],
+      "facts": [
+        "It is posted to the whole table when a GM unlocks a room's door in Room Setup; {room} is that room.",
+        "Locking a door is not announced; players learn of it at the door."
+      ],
       "en": {
         "before": "The door to {room} is unlocked.",
-        "after": null
+        "after": "The door to {room} is unlocked."
       },
       "pl": {
         "before": "Drzwi do: {room} są otwarte.",
-        "after": null
+        "after": "Drzwi do pokoju {room} są otwarte."
       },
       "reviews": {
         "en": null,
@@ -822,14 +1042,19 @@
       "readers": [
         "everyone"
       ],
-      "facts": [],
+      "facts": [
+        "It is the last line of the Overflow card posted to the whole table when an Overflow fires.",
+        "The card's earlier lines say how much Despair was paid and which effect was drawn.",
+        "The Despair not spent stays; the code passes that amount to the text as n, which the text does not use, and no placeholder may be added.",
+        "The old text differs: it does not capitalize the Overflow as a mechanic's name and does not name the Despair."
+      ],
       "en": {
         "before": "The overflow keeps what it did not spend.",
-        "after": null
+        "after": "The Overflow keeps its unspent Despair."
       },
       "pl": {
         "before": "Overflow zatrzymuje to, czego nie wydał.",
-        "after": null
+        "after": "Despair, którego Overflow nie wydało, zostaje."
       },
       "reviews": {
         "en": null,
@@ -845,14 +1070,18 @@
       "readers": [
         "everyone"
       ],
-      "facts": [],
+      "facts": [
+        "It is posted to the whole table under the Motive title when the current motive is withdrawn.",
+        "The motive's demand, deadline and consequence are all cleared.",
+        "The old text differs: it speaks to the whole table as \"you\", adds a reassurance after a dash, and does not capitalize the Motive."
+      ],
       "en": {
         "before": "The motive is withdrawn. Nothing hanging over you - for now.",
-        "after": null
+        "after": "The Motive is withdrawn. Its demand, deadline, and consequence no longer apply."
       },
       "pl": {
         "before": "Motive wycofany. Nic nad wami nie wisi - na razie.",
-        "after": null
+        "after": "Wycofano Motive: nie obowiązuje już ani jego żądanie, ani termin, ani konsekwencja."
       },
       "reviews": {
         "en": null,
@@ -868,13 +1097,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a line on the Search's result card, whispered to the searcher and the GMs.",
+        "{room} is the room searched and {n} is how many Search Tokens it has left after this Search.",
+        "The tokens are restocked when the time of day changes.",
+        "The old text differs: it writes search tokens in lower case and puts the room before a colon."
+      ],
       "en": {
         "before": {
           "one": "{room}: {n} search token left this time of day.",
           "other": "{room}: {n} search tokens left this time of day."
         },
-        "after": null
+        "after": {
+          "one": "{room} has {n} Search Token left this time of day.",
+          "other": "{room} has {n} Search Tokens left this time of day."
+        }
       },
       "pl": {
         "before": {
@@ -883,11 +1120,21 @@
           "many": "{room}: zostało {n} Search Tokenów o tej porze dnia.",
           "other": "{room}: zostało {n} Search Tokenów o tej porze dnia."
         },
-        "after": null
+        "after": {
+          "one": "W pokoju {room} został {n} Search Token o tej porze dnia.",
+          "few": "W pokoju {room} zostały {n} Search Tokeny o tej porze dnia.",
+          "many": "W pokoju {room} zostało {n} Search Tokenów o tej porze dnia.",
+          "other": "W pokoju {room} zostało {n} Search Tokenów o tej porze dnia."
+        }
       },
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"{room} has\": with a room name like \"Library\" it reads \"Library has\", missing \"The\"; acceptable as a label, smoother as \"{room}: {n} Search Tokens left this time of day\" - executor: The facts name the room before a colon as the old text's fault (X7), so the colon does not come back; any sentence with {room} meets the article question, which the EN reviewer leaves to a render with real room names."
+          ]
+        },
         "pl": null
       },
       "owner": null
@@ -899,13 +1146,21 @@
       "readers": [
         "browser"
       ],
-      "facts": [],
+      "facts": [
+        "It shows on the acting browser when an action's price is more than the character can pay, before anything is spent.",
+        "{actor} is the character, {left} the actions they have left, and {needed} the actions the price asks.",
+        "A banked Burst pays for a whole action, so for ordinary actions and rests the notice appears only when no Burst is banked either.",
+        "A Monocub's ability checks the normal action budget alone."
+      ],
       "en": {
         "before": {
           "one": "{actor} has {left} action left and needs {needed}.",
           "other": "{actor} has {left} actions left and needs {needed}."
         },
-        "after": null
+        "after": {
+          "one": "{actor} has {left} action left and needs {needed} for this.",
+          "other": "{actor} has {left} actions left and needs {needed} for this."
+        }
       },
       "pl": {
         "before": {
@@ -914,7 +1169,12 @@
           "many": "{actor} ma {left} akcji, a potrzebuje {needed}.",
           "other": "{actor} ma {left} akcji, a potrzebuje {needed}."
         },
-        "after": null
+        "after": {
+          "one": "{actor} ma {left} akcję, a potrzebuje {needed}.",
+          "few": "{actor} ma {left} akcje, a potrzebuje {needed}.",
+          "many": "{actor} ma {left} akcji, a potrzebuje {needed}.",
+          "other": "{actor} ma {left} akcji, a potrzebuje {needed}."
+        }
       },
       "reviews": {
         "en": null,
@@ -930,13 +1190,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a line on the Burst Hope Call's card, whispered to the buyer and the GMs, under the Call's effect.",
+        "{n} is how many free actions the character has banked after this Burst.",
+        "Each banked free action pays for one whole action, however many actions that action costs, such as a Long Rest.",
+        "The Call's effect line above it already says the next action costs nothing."
+      ],
       "en": {
         "before": {
           "one": "Your next action is free - {n} banked.",
           "other": "Your next actions are free - {n} banked."
         },
-        "after": null
+        "after": {
+          "one": "You have {n} free action banked. It pays the whole price of one action, even a Long Rest.",
+          "other": "You have {n} free actions banked. Each pays the whole price of one action, even a Long Rest."
+        }
       },
       "pl": {
         "before": {
@@ -945,7 +1213,12 @@
           "many": "Twoje następne akcje są darmowe - {n} w zapasie.",
           "other": "Twoje następne akcje są darmowe - {n} w zapasie."
         },
-        "after": null
+        "after": {
+          "one": "Masz w zapasie {n} darmową akcję. Pokrywa całą cenę jednej akcji, nawet Long Rest.",
+          "few": "Masz w zapasie {n} darmowe akcje. Każda pokrywa całą cenę jednej akcji, nawet Long Rest.",
+          "many": "Masz w zapasie {n} darmowych akcji. Każda pokrywa całą cenę jednej akcji, nawet Long Rest.",
+          "other": "Masz w zapasie {n} darmowych akcji. Każda pokrywa całą cenę jednej akcji, nawet Long Rest."
+        }
       },
       "reviews": {
         "en": null,
@@ -961,13 +1234,22 @@
       "readers": [
         "owner"
       ],
-      "facts": [],
+      "facts": [
+        "It is the card sent only to the character's owner, veiled, after a crossing during an Eclipse.",
+        "{room} is the room the character crossed into, and {left} is how many crossings they have left this Eclipse.",
+        "Crossings in an Eclipse cost no action; the allowance is ECLIPSE_MOVES, and fewer under a darkening.",
+        "With no allowance (a free-placement Eclipse) another sentence is sent.",
+        "The old text differs: it drops the subject and the verb."
+      ],
       "en": {
         "before": {
           "one": "Now in {room}. {left} crossing left.",
           "other": "Now in {room}. {left} crossings left."
         },
-        "after": null
+        "after": {
+          "one": "You are now in {room}, with {left} crossing left during this Eclipse.",
+          "other": "You are now in {room}, with {left} crossings left during this Eclipse."
+        }
       },
       "pl": {
         "before": {
@@ -976,7 +1258,12 @@
           "many": "Teraz w: {room}. Zostało {left} przejść.",
           "other": "Teraz w: {room}. Zostało {left} przejść."
         },
-        "after": null
+        "after": {
+          "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
+          "few": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostały ci {left} przejścia.",
+          "many": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść.",
+          "other": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejść."
+        }
       },
       "reviews": {
         "en": null,
@@ -992,13 +1279,21 @@
       "readers": [
         "both"
       ],
-      "facts": [],
+      "facts": [
+        "It is a line of the Tamper briefing, shown when somebody else in the room can see the character.",
+        "{n} counts the others in the room, without the killer's accomplices.",
+        "With witnesses a concealment roll comes before the Tamper, and a failure with Despair there costs Sanity on top of the price.",
+        "A character with no Sanity left is refused a watched attempt, with its own notice."
+      ],
       "en": {
         "before": {
           "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",
           "other": "{n} other people are in this room. You will have to cover what you are doing first, and being caught at it costs Sanity."
         },
-        "after": null
+        "after": {
+          "one": "{n} other person in this room can see you. First you roll to hide what you are doing; on a miss with Despair, you lose Sanity on top of the price.",
+          "other": "{n} other people in this room can see you. First you roll to hide what you are doing; on a miss with Despair, you lose Sanity on top of the price."
+        }
       },
       "pl": {
         "before": {
@@ -1007,7 +1302,12 @@
           "many": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
           "other": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity."
         },
-        "after": null
+        "after": {
+          "one": "W tym pokoju jest {n} inna osoba. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.",
+          "few": "W tym pokoju są {n} inne osoby. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.",
+          "many": "W tym pokoju jest {n} innych osób. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity.",
+          "other": "W tym pokoju jest {n} innych osób. Najpierw rzucasz, żeby ukryć, co robisz; przy pudle z Despair tracisz dodatkowo Sanity."
+        }
       },
       "reviews": {
         "en": null,
