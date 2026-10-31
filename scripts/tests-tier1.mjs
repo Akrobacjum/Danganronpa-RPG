@@ -29695,6 +29695,50 @@ const INVARIANTS = [
             + "[overflowActive asks kind state] [the caption: armed, waiting, a Rot drawn this hour not darkened, 23 of 20 drawn as 20/20, a player's masked with armed, the GM's tooltip with one armed: the counter waits] "
             + "[EN's GM hint names no boundary]");
     }],
+    ["R1122 - a new trace takes a spiral spot of its own in the same room: remnants.mjs `spiralSpot(origin, taken, step)` keeps the origin while it is free, else takes the first free spot of the square spiral of steps around it that `accept` lets in, a spot within half a step of a trace counting as taken, and keeps the origin once eight have been tried; `placeRemnant` asks it with the scene's quarter square and a room test (`roomAt` on the origin's floor) for every trace but one put back under its id (E51 C5; E51-33, audit S05-54)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-54. A trace was placed on its character's token, x and y as they stood
+         * (remnants.mjs `dropRemnant`, `narrowPlayerRemnant`), so three Searches in one corner and a Sabotage left four
+         * tokens on one spot and the GM saw one. `spiralSpot` is pure: an origin, the spots taken and a step, and an
+         * `accept` the caller hands it - `placeRemnant`'s asks that the spot is in the origin's room on the origin's
+         * floor, and a trace with no room keeps its origin. Read: ten traces in turn at one origin with nothing refused
+         * (the origin, the eight spots of the first ring, each one step away and each its own, then the origin kept); the
+         * first spot with the spots to the right refused; one with everything refused; one beside a trace a few pixels
+         * off the origin; and `placeRemnant`'s source, comments stripped. Red at C5's parent: no `spiralSpot`.
+         */
+        const R = await import("./remnants.mjs");
+        const spiral = typeof R.spiralSpot === "function" ? R.spiralSpot : null;
+        const o = { x: 1000, y: 1000 }, step = 25;
+        const at = p => (p ? `${p.x},${p.y}` : null);
+        const one = (taken, opts) => (spiral ? spiral(o, taken, step, opts) : null);
+        const filled = [];
+        let taken = [];
+        for (let i = 0; i < 10 && spiral; i++) {
+            const spot = spiral(o, taken, step);
+            filled.push(spot);
+            if (spot) taken = [...taken, spot];
+        }
+        const ring = filled.slice(1, 9);
+        const far = p => Math.max(Math.abs(p.x - o.x), Math.abs(p.y - o.y));
+        const left = one([o], { accept: p => p.x <= o.x });
+        const beside = one([{ x: o.x + 3, y: o.y - 2 }]);
+        const place = fnSource(stripComments((await moduleSources()).get("remnants.mjs") ?? ""), "placeRemnant");
+        equal(JSON.stringify({
+            spiral: Boolean(spiral),
+            first: at(filled[0] ?? null),
+            ring: [ring.length, new Set(ring.map(at)).size, ring.every(p => p && far(p) === step)],
+            tenth: at(filled[9] ?? null),
+            left: left ? [left.x <= o.x, at(left) !== at(o), far(left) === step] : null,
+            none: at(one([o], { accept: () => false })),
+            beside: beside ? [at(beside) !== at(o), far(beside) === step] : null,
+            placed: [/spiralSpot\(/.test(place), /roomAt\(/.test(place), /givenId\s*\|\|[^;]*spiralSpot\(/.test(place)]
+        }), JSON.stringify({
+            spiral: true, first: "1000,1000", ring: [8, 8, true], tenth: "1000,1000",
+            left: [true, true, true], none: "1000,1000", beside: [true, true], placed: [true, true, true]
+        }), "[spiralSpot exported; ten traces at one origin: the first spot, the next eight (how many, how many distinct, each one step away), the tenth; "
+            + "the first spot with the right refused (left of the origin, not the origin, one step away); with everything refused; beside a trace a few "
+            + "pixels off the origin; placeRemnant asks spiralSpot, roomAt, and leaves a trace put back under its id where it was]");
+    }],
 ];
 
 /**

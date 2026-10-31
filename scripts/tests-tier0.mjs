@@ -16775,6 +16775,87 @@ const REGRESSIONS = [
         }), J({ sets: true, registered: true, redrawn: [true, true] }),
         "[registerTokenRuler sets CONFIG.Token.rulerClass from hourRulerFor; registerFog calls it; the body's observer recolours the outline and draws the rulers again]");
     }],
+    ["R1120 - an undescribed trace's name is empty and worded at read time: the key `DRPG.Remnant.tokenName` is localized only in remnants.mjs `traceLabel` and `neutralWords`, nothing compares a name against `traceLabel(`, and observe.mjs `createFind` prefills the GM's describe window from the trace's subject, not from the stored name (E51 C5; E51-30, audit S05-52)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-52. Every trace's `public.name` read "Trace" until a GM described it - the neutral
+         * word, in the language of the browser that wrote or read it (remnants.mjs `defaultPublic`) - and about fifteen
+         * readers asked whether a trace was described by comparing its name against that word in their own language: on a
+         * Polish GM's browser a row an English GM's wrote ("Trace") read as described, and the describe window offered
+         * "Trace" as the name, so a GM pressing Enter gave the players a bullet called "Trace". The stored name is empty now
+         * until somebody describes the trace; `traceLabel(entry)` words it at read time, and `isNeutralName` (through
+         * `neutralWords`, this language and the fallback's) is the one place a name is held against the word - a row a build
+         * before 1.2.93 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
+         * suite's. Red at C5's parent: the key localized in 19 places outside those two functions (git grep, 31.10.2026),
+         * and `createFind` handing `stored?.name` to the window.
+         */
+        const KEY = /["'`]DRPG\.Remnant\.tokenName["'`]/g;
+        const ALLOWED = new Set(["remnants.mjs#traceLabel", "remnants.mjs#neutralWords"]);
+        const owner = (text, at) => {
+            const heads = [...text.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return heads.length ? heads[heads.length - 1][1] : "(top level)";
+        };
+        const found = [], compared = [];
+        let files = 0;
+        for (const [file, raw] of await moduleSources()) {
+            if (/^tests/.test(file)) continue;
+            files++;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(KEY)) {
+                const row = `${file}#${owner(text, m.index)}`;
+                if (!ALLOWED.has(row)) found.push(row);
+            }
+            for (const m of text.matchAll(/[!=]==\s*traceLabel\(|traceLabel\([^()]*(?:\([^()]*\)[^()]*)*\)\s*[!=]==/g)) compared.push(`${file}: ${lineAround(text, m.index).trim().slice(0, 100)}`);
+        }
+        must(files > 50, `only ${files} module files were read - the reader is not reaching the module`);
+        const sources = await moduleSources();
+        const remnants = stripComments(sources.get("remnants.mjs") ?? "");
+        const createFind = fnSource(stripComments(sources.get("observe.mjs") ?? ""), "createFind");
+        const describe = /describeFind\(([^;]*)\);/.exec(createFind)?.[1] ?? null;
+        must(describe !== null, "createFind's call of describeFind was not found - this reads nothing of the prefill");
+        equal(JSON.stringify({
+            outside: found, compared,
+            label: /^export function traceLabel\(/m.test(remnants), neutral: /^export function isNeutralName\(/m.test(remnants),
+            prefill: /stored\?\.name/.test(describe)
+        }), JSON.stringify({ outside: [], compared: [], label: true, neutral: true, prefill: false }),
+        "[the files and functions that localize the neutral word outside traceLabel and neutralWords; a name compared against traceLabel; "
+            + "remnants.mjs exports traceLabel and isNeutralName; createFind's describe window is handed the stored name]");
+    }],
+
+    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and not synced (Q3: the primary's alone); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on the primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-53. The traces waiting for the GMs' digest were a Map in the memory of the GM
+         * that placed them (remnants.mjs `pendingTraces`), so a primary's F5 between a trace and the turn of the time of
+         * day lost the digest of every trace before it, and nothing said so. They are a GM store's rows now, a row per
+         * trace written when the trace is placed on the primary, and the digest posts and drops them on the primary
+         * alone. The owner's Q3 (default, 30.10): the primary's alone, `sync` off. The row is read off the registry
+         * (gm-store.mjs `gmStoreByName`), the setting off the settings' registry, and the roads off remnants.mjs's source
+         * with comments stripped; scenario 61's phase TD reads the digest through a primary's F5 on two GMs. Red at C5's
+         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs.
+         */
+        await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        let spec = null;
+        try { spec = E.gmStoreByName("traceDigest")?.spec ?? null; } catch { spec = null; }
+        // By the row's own key, not its SETTINGS name: R171 holds a store's key to the engine (a name read here is a raw read).
+        const setting = spec?.key ? game.settings.settings.get(`${MODULE_ID}.${spec.key}`) ?? null : null;
+        const src = stripComments((await moduleSources()).get("remnants.mjs") ?? "");
+        must(src.length > 10000, "remnants.mjs was not read - this reads nothing of its roads");
+        const fn = name => topLevelFunction(src, name) ?? "";
+        equal(JSON.stringify({
+            row: spec ? { kind: spec.kind, key: spec.key, resetGroup: spec.resetGroup ?? null, backup: spec.backup, sync: spec.sync } : null,
+            setting: setting ? { scope: setting.scope, config: Boolean(setting.config) } : null,
+            pending: /\bpendingTraces\b/.test(src),
+            announce: [/traceDigestStore\.patch\(/.test(fn("announceRemnant")), /isPrimaryGm\(\)/.test(fn("announceRemnant"))],
+            send: [/isPrimaryGm\(\)/.test(fn("sendTraceDigest")), /traceDigestStore\.dropMany\(/.test(fn("sendTraceDigest"))],
+            now: /traceDigestStore\.drop\(/.test(fn("whisperTraceNow")),
+            named: game.i18n.has("DRPG.Case.store.traceDigest")
+        }), JSON.stringify({
+            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: false },
+            setting: { scope: "client", config: false },
+            pending: false, announce: [true, true], send: [true, true], now: true, named: true
+        }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
+            + "announceRemnant writes the row and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+    }],
 ];
 
 

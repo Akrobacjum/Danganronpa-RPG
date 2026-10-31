@@ -75,6 +75,10 @@
  *      English and in Polish, name the Tamper menu's three choices, Observe's five ways of looking
  *      and Stage 6's actions by the labels the module draws. A guard, not a red first: the
  *      handbooks before C17 already used every one of those 22 labels (read 08.10.2026).
+ *   S  (E51 C5) the investigation starts: every client logs the tokens it creates, with the module's files on the stack,
+ *      and the GM each creation's user; no student gains a token, and a second token the harness gives Aiko is read
+ *      (two on the school, no road of the module's, made by the GM). The owner's doubled token of 27.10 had no road of
+ *      the module's to show here: LIVE-E51-04 (AUDIT 9.2 item 357).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -864,9 +868,81 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     verdict("the handbooks name the Tamper menu's three choices, Observe's five ways of looking and Stage 6's actions by the labels the module draws, in English and in Polish",
         lBooks.lang === "en" && lBooks.read === 22 && lBooks.missing.length === 0, J(lBooks));
 
+    /* ------------------------------ S. the investigation starts ------------------------------ */
+
+    begin("S", "the investigation starts, and no road of the module's gives a student a second token", "clock-day");
+    /* E51 C5 (31.10.2026; the owner's session notes of 27.10: a character's token doubled after the investigation
+       started; E51-35, the owner's Q7 on its default). Measured before anything is fixed: every client (the two GMs and
+       two players) logs each token it creates (`preCreateToken`, which runs on the creating client alone) with the
+       module's files on its stack, and the GM logs each creation's user (`createToken`); the GM starts the investigation
+       as the murder window's "Go investigate" does (clock.mjs `setPhase`); then the harness itself gives Aiko a second
+       token on the school, as whatever made the owner's would, and the GM places a trace, a token made on a road of the
+       module's (remnants.mjs), so the stack's reading is shown able to name one. Read: each student's tokens on each scene with their
+       `_stats.createdBy`, and every creation logged. Put back: the second token, the trace and its row, and the phase. If no module road shows,
+       the doubled token is LIVE-E51-04's (AUDIT 9.2 item 357) - this reading is what the harness can say. */
+    const sHook = `globalThis.__s62tok = [];
+        globalThis.__s62hooks = [Hooks.on("preCreateToken", (doc, data) => { globalThis.__s62tok.push({ id: doc?.id ?? data?._id ?? null, actor: doc?.actorId ?? data?.actorId ?? null,
+            scene: doc?.parent?.id ?? null, files: [...new Set(String(new Error().stack ?? "").split("\\n")
+                .map(l => /\\/scripts\\/([\\w-]+\\.mjs)/.exec(l)?.[1]).filter(f => f && !/^tests/.test(f)))] }); }),
+            Hooks.on("createToken", (doc, options, userId) => { globalThis.__s62tok.push({ made: doc?.id ?? null, actor: doc?.actorId ?? null, by: userId ?? null }); })];
+        return true;`;
+    const sRead = `const out = globalThis.__s62tok ?? []; for (const id of globalThis.__s62hooks ?? []) { Hooks.off("preCreateToken", id); Hooks.off("createToken", id); }
+        delete globalThis.__s62tok; delete globalThis.__s62hooks; return out;`;
+    const sClients = { gm, gm2, p1, p2 };
+    for (const client of Object.values(sClients)) await client.eval(sHook);
+    const sTokens = () => gm.eval(`const { studentActors } = await import("${repoUrl}/scripts/monokuma.mjs");
+        const ids = new Set(studentActors().map(a => a.id));
+        const out = {};
+        for (const scene of game.scenes) for (const t of scene.tokens) {
+            if (!ids.has(t.actorId)) continue;
+            (out[t.actorId] ??= {})[scene.id] = [...((out[t.actorId] ?? {})[scene.id] ?? []), t._stats?.createdBy ?? null];
+        }
+        return out;`);
+    const sWas = await gm.eval(`return (await import("${repoUrl}/scripts/clock.mjs")).getClock().phase;`);
+    let sStart = null, sPlanted = null, sTrace = null, sLog = null;
+    try {
+        await gm.eval(`await (await import("${repoUrl}/scripts/clock.mjs")).setPhase("investigation"); return true;`, { timeout: 30000 });
+        await settle(1500);
+        sStart = { phase: await gm.eval(`return (await import("${repoUrl}/scripts/clock.mjs")).getClock().phase;`), tokens: await sTokens() };
+        sPlanted = await gm.eval(`const scene = game.scenes.get("${IDS.scene}");
+            const t = scene.tokens.find(t => t.actorId === "${IDS.aiko}");
+            if (!t) return null;
+            const data = t.toObject(); delete data._id; data.x += 100;
+            const [made] = await scene.createEmbeddedDocuments("Token", [data]);
+            return made?.id ?? null;`, { timeout: 30000 });
+        // And a token made on a road of the module's - a trace, through remnants.mjs - so the stack's reading is shown to find one.
+        sTrace = await gm.eval(`const t = await (await import("${repoUrl}/scripts/remnants.mjs")).placeRemnant({ type: "prep", visibility: "evident",
+            scene: game.scenes.get("${IDS.scene}"), x: 1500, y: 300, note: "S62 S a trace" });
+            return t?.id ?? null;`, { timeout: 30000 });
+        await settle(800);
+        sStart.after = await sTokens();
+    } finally {
+        sLog = {};
+        for (const [who, client] of Object.entries(sClients)) sLog[who] = await client.eval(sRead);
+        await gm.eval(`const scene = game.scenes.get("${IDS.scene}"); const t = ${J(sPlanted)} ? scene.tokens.get(${J(sPlanted)}) : null;
+            if (t) await t.delete();
+            const trace = ${J(sTrace)} ? scene.tokens.get(${J(sTrace)}) : null;
+            if (trace) { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(trace); await trace.delete(); }
+            await (await import("${repoUrl}/scripts/clock.mjs")).setPhase(${J(sWas)});
+            return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    const sMade = Object.entries(sLog).flatMap(([who, rows]) => rows.filter(r => r.files).map(r => ({ who, ...r })));
+    const sStudents = Object.values(sStart?.tokens ?? {});
+    verdict("the investigation's start makes no token on any client, and every student stands on each scene once",
+        sStart?.phase === "investigation" && sStudents.length >= 3 && sStudents.every(scenes => Object.values(scenes).every(list => list.length === 1))
+            && sMade.filter(r => r.id !== sPlanted && r.id !== sTrace).length === 0, J({ sStart, sMade }));
+    const sAiko = sStart?.after?.[IDS.aiko]?.[IDS.scene] ?? [];
+    const sCreatedBy = (sLog?.gm ?? []).filter(r => r.made === sPlanted).map(r => r.by);
+    const sTraceRow = sMade.filter(r => r.id === sTrace).map(r => [r.who, r.files.includes("remnants.mjs")]);
+    verdict("a second token given to a student is read: two on its scene, made on the GM's client by no road of the module's, its creating user the GM; and a trace's token is read made on remnants.mjs's road",
+        Boolean(sPlanted) && sAiko.length === 2 && J(sMade.filter(r => r.id === sPlanted).map(r => [r.who, r.actor, r.files])) === J([["gm", IDS.aiko, []]]) && J(sCreatedBy) === J([IDS.gm])
+            && J(sTraceRow) === J([["gm", true]]),
+        J({ sPlanted, sAiko, sTrace, sTraceRow, sMade, sCreatedBy, note: "_stats.createdBy as each token holds it (null where the harness stamps none)" }));
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L", "S"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

@@ -31,7 +31,7 @@ import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
     confirmClearFaint,
-    traceContextLine
+    traceContextLine, traceLabel
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -515,9 +515,9 @@ export function keyPlanStatus() {
 export function missingKeyRows() {
     if (!game.user?.isGM) return [];
     const status = keyPlanStatus();
-    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
     const placed = new Map(placedKeyRemnants().map(r => [r.token.id, r]));
-    const said = (pub, field) => (pub?.[field] && !(field === "name" && pub.name === neutral) ? String(pub[field]) : "");
+    // A name nobody wrote is empty (remnants.mjs `defaultPublic`, `publicOf`; E51 C5), in every language.
+    const said = (pub, field) => (pub?.[field] ? String(pub[field]) : "");
     const rows = [];
     for (const entry of status.entries) {
         if (entry.found) continue;
@@ -1024,7 +1024,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                 <select name="vis">${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="tname" value="" maxlength="60"
-                       placeholder="${esc(game.i18n.localize("DRPG.Remnant.tokenName"))}" /></label>
+                       placeholder="${esc(traceLabel(null))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceText")}
                 <input type="text" name="ttext" value="" maxlength="400"
                        placeholder="${esc(game.i18n.localize(
@@ -1188,8 +1188,10 @@ async function createKeyRemnant(row, scene) {
         /* NO `subject`, AND NO `action`. Both were carrying the wrong kind of thing.
            `subject` elsewhere says what a Search was ABOUT, and this put the difficulty label
            in it - so the trace card read "Subject: Standardowa", and worse, `createFind` in
-           observe.mjs uses `data.subject` to prefill the name box, so a GM observing a planned
-           clue was offered "Standardowa" as its name and one press away from keeping it. The
+           observe.mjs offers `data.subject` in the name box of a trace nobody has described (it
+           offered the stored name, the neutral word, until E51 C5 - this note was written ahead
+           of it), so a GM observing a planned clue would be offered "Standardowa" as its name and
+           be one press away from keeping it. The
            difficulty lives in the plan, which is where the planner reads it from anyway.
            `action` was "manual", which is not one of `ACTIONS` at all - it is a project trigger
            - so `traceContextLine` printed the raw word and every planned clue read
@@ -1286,7 +1288,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                 <select name="vis">${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="keyname" value=""
-                       placeholder="${esc(game.i18n.localize("DRPG.Remnant.tokenName"))}" /></label>
+                       placeholder="${esc(traceLabel(null))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceText")}
                 <input type="text" name="keytext" value="${esc(note)}"
                        placeholder="${esc(game.i18n.localize(
@@ -1921,7 +1923,7 @@ export function caseKeyRows({ plan, status, placed, limit }) {
         return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
             <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
             <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
-                placeholder="${game.i18n.localize("DRPG.Remnant.tokenName")}" /></td>
+                placeholder="${esc(traceLabel(null))}" /></td>
             <td><textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(shows.text)}</textarea>
@@ -2295,37 +2297,47 @@ function wireCaseFilters(dialog, reading, refresh) {
 /**
  * The footer buttons that open something else. Each comes back to the
  * dashboard afterwards, so the GM lands here rather than on the map - the
- * same pattern the GM panel uses for its tiles. Answers whether it handled one.
+ * same pattern the GM panel uses for its tiles. Answers false for an action
+ * that is none of them, else `{ said }`: what the dashboard it reopens says it
+ * did, or null.
+ *
+ * THE TWO CLEAN-UPS SAY WHAT THEY DID IN THE WINDOW (E51 C5, 31.10.2026; audit
+ * S05-55). Clear Faint and Sweep confirmed with the count and toasted the result,
+ * and the dashboard came back looking as it did before - the toast gone in
+ * seconds. Their count is the dashboard's first line now (`openInvestigationDashboard`'s
+ * `said`), over the region a redraw rebuilds, until the window closes. A cancelled
+ * or empty one says nothing. `tokens` is the suite's (Clear Faint's own fixtures,
+ * remnants.mjs `clearFaintRemnants`); exported for it (tier 2 E51-T15).
  */
-async function runDashboardButton(action) {
+export async function runDashboardButton(action, { tokens = null } = {}) {
     // N-4: the one road to a trace the GM is simply stating exists. It sits with
     // the sweeps rather than on a tab because it is an action, not a view.
     if (action === "newTrace") {
         await openNewTrace();
-        return true;
+        return { said: null };
     }
     if (action === "clearFaint") {
-        await confirmClearFaint();
-        return true;
+        const cleared = await confirmClearFaint({ tokens });
+        return { said: cleared ? plural("DRPG.Panel.faintCleared", { n: cleared }) : null };
     }
     if (action === "sweepBullets") {
-        await confirmSweepBullets();
-        return true;
+        const swept = await confirmSweepBullets();
+        return { said: swept ? plural("DRPG.Panel.sweptBullets", { n: swept }) : null };
     }
     if (action === "autopsy") {
         const { issueAutopsyDialog } = await import("./gm-items.mjs");
         await issueAutopsyDialog();
-        return true;
+        return { said: null };
     }
     if (action === "log") {
         const { openObjectionLog } = await import("./trial.mjs");
         await openObjectionLog();
-        return true;
+        return { said: null };
     }
     if (action === "bodyFound") {
         const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
         await openBodyDiscoveryDialog();
-        return true;
+        return { said: null };
     }
     return false;
 }
@@ -2347,7 +2359,7 @@ async function placeFinalFromDashboard(action) {
     }
 }
 
-export async function openInvestigationDashboard() {
+export async function openInvestigationDashboard({ said = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -2411,7 +2423,8 @@ export async function openInvestigationDashboard() {
 
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
-    const content = dialogContent(buildCase());
+    // What the button that reopened this window did (`runDashboardButton`), over the live region, which a redraw rebuilds.
+    const content = dialogContent(`${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`);
 
     const action = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Investigation.dashboardTitle") },
@@ -2517,7 +2530,8 @@ export async function openInvestigationDashboard() {
 
     if (!action || action === "close") return null;
 
-    if (await runDashboardButton(action)) return openInvestigationDashboard();
+    const ran = await runDashboardButton(action);
+    if (ran) return openInvestigationDashboard({ said: ran.said ?? null });
 
     if (action.finalRoom) await placeFinalFromDashboard(action);
 

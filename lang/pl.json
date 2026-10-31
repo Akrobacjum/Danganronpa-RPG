@@ -6615,6 +6615,7 @@
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",
+        "traceDigest": "Ślady zostawione od ostatniego zestawienia dla GM-ów, podane o następnej porze dnia",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",

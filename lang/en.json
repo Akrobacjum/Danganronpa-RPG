@@ -5230,6 +5230,7 @@
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",
+        "traceDigest": "The traces placed since the last digest to the GMs, said at the next time of day",
         "confusions": "The Confusions armed on a character and not rolled yet",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",

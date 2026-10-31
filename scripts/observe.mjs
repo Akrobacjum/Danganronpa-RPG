@@ -1000,21 +1000,30 @@ async function createFind(actor, entry, isCritical) {
      * of the category (p. 30), so there is genuinely something new to say - and
      * the box opens prefilled with what the trace is already called, so pressing
      * straight through keeps the name identical.
+     *
+     * AN UNDESCRIBED TRACE IS OFFERED ITS SUBJECT (E51 C5, 31.10.2026; audit S05-52). Its
+     * stored name was the neutral word, compared against the word in this browser's
+     * language, and the box opened on "Trace": a busy GM pressing on gave the players
+     * bullets called "Trace" (tier 2 E51-T12 at C5's parent: the box offered the word, and
+     * the copy of a find whose window closed unanswered was named it). An undescribed
+     * trace's name is empty now (remnants.mjs `defaultPublic`), and the box offers what the
+     * trace was about (`fallbackName`: its subject, else the room's default name). The
+     * window answered marks the trace as a GM's (`markRemnantEditedById`), as the
+     * dashboard's Save does, so the reveal a moment later whispers the GMs no "nobody has
+     * said what it is" for the words just written (E51-T13 at the parent: one).
      */
-    const { remnantPublicById, setRemnantPublicById } = await import("./remnants.mjs");
+    const { remnantPublicById, setRemnantPublicById, markRemnantEditedById } = await import("./remnants.mjs");
 
     // A copy already held is no find (H84; `alreadyHeld` below): asked before the GM is asked to describe it.
     if (copiedRemnants(actor).has(entry.tokenId)) return alreadyHeld(actor, entry);
 
     const stored = remnantPublicById(entry.sceneId, entry.tokenId);
-    const neutralName = game.i18n.localize("DRPG.Remnant.tokenName");
-    // Has anybody actually described this yet, or is `stored.name` just the
-    // neutral placeholder every fresh trace starts with?
-    const described = stored?.name && stored.name !== neutralName ? stored : null;
+    // Has anybody described this yet? A trace nobody has has no name (E51 C5).
+    const described = stored?.name ? stored : null;
 
     const written = (described && !isCritical)
         ? described
-        : await describeFind(actor, entry, isCritical, described?.name || stored?.name || fallbackName, described);
+        : await describeFind(actor, entry, isCritical, described?.name || fallbackName, described);
 
     // Written back on the GM's client, where the ledger lives. Only when there
     // is something to write: a dismissed dialog must not overwrite a good
@@ -1029,6 +1038,7 @@ async function createFind(actor, entry, isCritical) {
                 playerText: written.playerText || described?.playerText || "",
                 analyzedText: written.analyzedText || described?.analyzedText || ""
             });
+            await markRemnantEditedById(entry.sceneId, entry.tokenId);
         } catch (err) {
             error("Could not record the description on the Remnant", err);
         }

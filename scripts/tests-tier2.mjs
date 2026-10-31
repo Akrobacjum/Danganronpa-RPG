@@ -76452,6 +76452,260 @@ const SCENARIOS = [
             reopened: { title, sub: call, due: true }
         }), "[a player's card with round 7 open; after the primary recorded their ballot of round 7; the GM's then; a player's once round 8 opened]");
     }],
+    ["E51-T12 - an undescribed trace reads as not described in Polish and in English: its stored name is empty, `traceLabel` words it in the reader's language, the GM's describe window offers the trace's subject, and a find closed unanswered names the copy after the subject; a row seeded with the word reads as undescribed (E51 C5; E51-30, audit S05-52)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-52. A trace nobody described stored the neutral word as its name in the language
+         * of the browser that wrote it, and was compared against the word in the language of the browser that read it:
+         * a row a Polish GM wrote ("Slad") read as described on an English GM's browser, the describe window offered the
+         * word as the name, and a GM pressing on gave the players bullets called "Trace". The harness's clients load
+         * en.json alone, so the Polish client is the GM's own with pl.json's `DRPG.Remnant.tokenName` laid over its
+         * translations (as the test "a trace's when and what read in the client's language" lays its keys), put back
+         * after. One trace where a connected player's character stands, left by that character, with a subject; under
+         * Polish: what the row stores as its name and how it is labelled, then that character's Observe of its own
+         * traces with the GM's describe window closed unanswered (its name box read first); under English the same two
+         * reads; then the row given the English word as a name, as a build before 1.2.93 seeded it. Put back: the copy
+         * and its answer key, the trace and its row, the translation. Red at C5's parent: the row stores the word, no
+         * `traceLabel`, and the window offers the word.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const R = await import("./remnants.mjs");
+        const observe = await import("./observe.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor: finder, where } = await playerInRoom();
+        const response = await fetch(`modules/${MODULE_ID}/lang/pl.json`);
+        must(response.ok, `pl.json: HTTP ${response.status}`);
+        const plWord = foundry.utils.getProperty(foundry.utils.expandObject(await response.json()), "DRPG.Remnant.tokenName");
+        const enWord = game.i18n.localize("DRPG.Remnant.tokenName");
+        must(typeof plWord === "string" && plWord && plWord !== enWord, "pl.json's neutral word is missing or the same as en.json's - this would measure nothing");
+        const family = foundry.utils.getProperty(game.i18n.translations, "DRPG.Remnant");
+        const had = family.tokenName;
+        const SUBJECT = "SUITE E51-T12 a smear on the sill";
+        const label = token => (typeof R.traceLabel === "function" ? R.traceLabel(R.remnantData(token)) : "missing");
+        const items = new Set(finder.items.map(i => i.id));
+        let trace = null;
+        const read = {};
+        try {
+            trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y,
+                sourceActor: finder.id, sourceName: finder.name, room: where.room, subject: SUBJECT, action: "search", note: "SUITE E51-T12" });
+            must(trace, "the trace was not placed - this would measure nothing");
+            family.tokenName = plWord;
+            read.pl = [R.remnantPublic(trace)?.name ?? null, label(trace)];
+            const D = foundry.applications.api.DialogV2;
+            const own = Object.getOwnPropertyDescriptor(D, "wait");
+            const describe = game.i18n.localize("DRPG.Observe.describeTitle");
+            D.wait = cfg => {
+                if (cfg?.window?.title === describe) read.offered = cfg?.content?.querySelector?.('input[name="name"]')?.value ?? null;
+                return Promise.resolve(null);
+            };
+            try {
+                const target = await observe.chooseObserveTarget({ actorId: finder.id, declaration: "followTraces", userId: player.id });
+                must(target?.ok, `the Observe found nothing to aim at where the trace lies: ${stableJson(target)}`);
+                await observe.resolveObserve({ key: target.key, total: 30, isCritical: false });
+                await settle();
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            }
+            const copy = finder.items.find(i => !items.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id) ?? null;
+            must(copy, "the finder's Observe made no copy of this trace - this would measure nothing");
+            read.copy = copy.name;
+            family.tokenName = had;
+            read.en = [R.remnantPublic(trace)?.name ?? null, label(trace)];
+            await R.setRemnantPublic(trace, { name: enWord }, { propagate: false });
+            read.seeded = [R.remnantPublic(trace)?.name ?? null, label(trace)];
+        } finally {
+            family.tokenName = had;
+            for (const item of finder.items.filter(i => !items.has(i.id))) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            if (trace) {
+                await R.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ pl: ["", plWord], offered: SUBJECT, copy: SUBJECT, en: ["", enWord], seeded: ["", enWord] }),
+            "[under Polish: the stored name and the label; the name the describe window offered; the copy's name after the window was closed; "
+                + "under English: the stored name and the label; the row given the English word]");
+    }],
+
+    ["E51-T13 - a found incident trace reaches the GMs like any other, and a described one asks nothing more: a find of an un-hidden `fromIncident` trace makes the finder's copy and whispers the GMs \"a trace was found\", and a find the GM described in the window marks the trace as written on and whispers nothing after (E51 C5; E51-31, audit S05-52)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-52. remnants.mjs `revealRemnantToFinder` returned at once for a token not
+         * hidden, so an incident's trace - created un-hidden for its cast (D11) - was copied with no whisper to the GMs
+         * that nobody had said what it is. And the GM's describe window wrote the trace's words without marking the trace
+         * as a GM's, so the reveal a second later whispered the GMs that nobody had said what it is. Two traces where a
+         * connected player's character stands: one left by another student, then un-hidden and marked `fromIncident`
+         * as an incident's stands while its incident runs, found by that character on observe.mjs `mintFindCopy`, the
+         * road Observe's find takes; one left by that character and found by its Observe of its own traces, the GM's
+         * window answered with a name and words. Read: whether the copy was made and how many "found" whispers each
+         * find raised, and whether the described trace is marked. Put back: the copies, the traces and their rows. Red at
+         * C5's parent: no whisper for the incident's trace, one for the described one, and that one unmarked.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the traces lie where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const R = await import("./remnants.mjs");
+        const observe = await import("./observe.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { player, actor: finder, where } = await playerInRoom();
+        const [other] = cast(3).filter(a => a.id !== finder.id);
+        must(other, "no second student to leave the incident's trace - this would measure nothing");
+        const found = game.i18n.localize("DRPG.Remnant.foundTitle");
+        const items = new Set(finder.items.map(i => i.id));
+        const placed = [];
+        const at = { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, room: where.room, type: "prep", visibility: "evident" };
+        const whispers = async had => (await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000))))
+            .filter(words => String(words ?? "").includes(found)).length;
+        const copyOf = trace => finder.items.find(i => !items.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id) ?? null;
+        const read = {};
+        try {
+            const incident = await R.placeRemnant({ ...at, sourceActor: other.id, sourceName: other.name, note: "SUITE E51-T13 an incident's trace" });
+            must(incident, "the incident's trace was not placed - this would measure nothing");
+            placed.push(incident);
+            await incident.update({ hidden: false, [`flags.${MODULE_ID}.${R.REMNANT_FLAGS.fromIncident}`]: true });
+            let had = new Set(game.messages.map(m => m.id));
+            await observe.mintFindCopy(finder, { tokenId: incident.id, sceneId: where.scene.id, room: where.room, data: R.remnantData(incident) },
+                { name: "SUITE E51-T13 the incident's copy" });
+            await settle();
+            read.incident = [Boolean(copyOf(incident)), await whispers(had)];
+
+            const described = await R.placeRemnant({ ...at, sourceActor: finder.id, sourceName: finder.name, subject: "SUITE E51-T13 a cup",
+                action: "search", note: "SUITE E51-T13 a described trace" });
+            must(described, "the described trace was not placed - this would measure nothing");
+            placed.push(described);
+            const D = foundry.applications.api.DialogV2;
+            const own = Object.getOwnPropertyDescriptor(D, "wait");
+            const title = game.i18n.localize("DRPG.Observe.describeTitle");
+            D.wait = cfg => Promise.resolve(cfg?.window?.title === title
+                ? { name: "SUITE E51-T13 a chipped cup", playerText: "SUITE E51-T13 still warm", analyzedText: "" } : null);
+            had = new Set(game.messages.map(m => m.id));
+            try {
+                const target = await observe.chooseObserveTarget({ actorId: finder.id, declaration: "followTraces", userId: player.id });
+                must(target?.ok, `the Observe found nothing to aim at where the trace lies: ${stableJson(target)}`);
+                await observe.resolveObserve({ key: target.key, total: 30, isCritical: false });
+                await settle();
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            }
+            must(copyOf(described), "the Observe made no copy of the described trace - this would measure nothing");
+            read.described = [copyOf(described).name, await whispers(had), R.remnantGmEdited(described)];
+        } finally {
+            for (const item of finder.items.filter(i => !items.has(i.id))) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ incident: [true, 1], described: ["SUITE E51-T13 a chipped cup", 0, true] }),
+            "[the incident's trace: the finder's copy made, the GMs' \"found\" whispers; the described trace: the copy's name, the whispers after the window, marked as a GM's]");
+    }],
+
+    ["E51-T14 - two traces left at one token stand apart and both in its room: the second takes a spot of the spiral, and one beside the room's edge is not taken (E51 C5; E51-33, audit S05-54)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-54. Every trace of an action was placed on its character's token, so two of them
+         * were one token on the map. The origin here is a spot of the room that stands a quarter square inside its
+         * right-hand edge (walked to from a token in the room, a quarter square at a time, on the token's floor), so the
+         * spiral's first step to the right leaves the room. Two traces placed there through `placeRemnant`, as a GM's
+         * client places a player's. Read: whether the two stand on different spots, and the room each stands in. Put
+         * back: both traces and their rows. Red at C5's parent: both on the origin.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the traces are left in a room with a token in it");
+        const R = await import("./remnants.mjs");
+        const { roomOfToken, roomAt } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        const anchor = Array.from(scene.tokens).find(t => !t.getFlag(MODULE_ID, R.REMNANT_FLAGS.isRemnant) && roomOfToken(t));
+        must(anchor, "no token stands in a room on the scene on screen");
+        const room = roomOfToken(anchor);
+        const size = scene.grid?.size ?? 100, step = size / 4;
+        const here = (x, y) => roomAt(x, y, { parent: scene, width: 1, height: 1, level: anchor.level ?? null });
+        let x = anchor.x;
+        while (here(x + step, anchor.y) === room && x < anchor.x + 60 * size) x += step;
+        const y = anchor.y;
+        must(here(x, y) === room && here(x + step, y) !== room && here(x - step, y) === room,
+            `no edge of ${room} was found to the right of ${anchor.name} - this would measure nothing`);
+        const placed = [];
+        try {
+            for (const n of [1, 2]) {
+                const made = await R.placeRemnant({ type: "prep", visibility: "evident", scene, x, y, room, note: `SUITE E51-T14 trace ${n}` });
+                must(made, `trace ${n} was not placed - this would measure nothing`);
+                placed.push(made);
+            }
+            const [a, b] = placed.map(t => scene.tokens.get(t.id));
+            equal(stableJson([a.x !== b.x || a.y !== b.y, roomOfToken(a), roomOfToken(b)]), stableJson([true, room, room]),
+                `[two traces at one spot stand apart; the first's room; the second's] (the origin ${x},${y}; ${a.x},${a.y} and ${b.x},${b.y})`);
+        } finally {
+            for (const trace of placed) {
+                await R.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+    }],
+
+    ["E51-T15 - Clear Faint says what it cleared in the Investigation Dashboard: the button's run answers \"N Faint Remnants cleared.\" and the dashboard it reopens shows the line above its live region, outside what a redraw rebuilds (E51 C5; E51-34, audit S05-55)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-55. After Clear Faint Remnants the dashboard came back looking as it did before:
+         * the count was a toast, gone in seconds. The button's run (investigation.mjs `runDashboardButton`, exported for
+         * the suite) answers what it did, and the dashboard the button reopens says it above `.drpg-case-live`, outside
+         * what a redraw rebuilds. Clear Faint deletes every Faint trace nobody tied in the world, so the run is handed
+         * this test's one Faint trace (`tokens`, the suite's own fixtures, as `neutralTraceNames` takes them) and the
+         * world's others are counted before and after. The confirm is answered yes; the dashboard is opened as the
+         * button's road reopens it, and its line read with where it stands. Red at C5's parent: no exported
+         * `runDashboardButton`, and no line.
+         */
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        needs(world.atLeast("sceneOnScreen"), "the Faint trace is placed on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const { plural } = await import("./utils.mjs");
+        const scene = canvas?.scene;
+        const faintElsewhere = () => Array.from(game.scenes).flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.faint).map(t => t.id).sort();
+        const before = faintElsewhere();
+        const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: true, tiedToCrime: false, scene, x: 50, y: 50, note: "SUITE E51-T15 a Faint trace" });
+        must(trace, "the Faint trace was not placed - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const said = plural("DRPG.Panel.faintCleared", { n: 1 });
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        const read = {};
+        let answer = null;
+        try {
+            D.confirm = () => Promise.resolve(true);
+            const ran = typeof I.runDashboardButton === "function" ? await I.runDashboardButton("clearFaint", { tokens: [trace] }) : null;
+            read.ran = ran?.said ?? null;
+            read.gone = !scene.tokens.has(trace.id);
+            read.others = stableJson(faintElsewhere()) === stableJson(before);
+            if (ran) {
+                const seen = new Set(open());
+                answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
+                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
+                const app = open().find(a => !seen.has(a)) ?? null;
+                const line = () => app?.element?.querySelector(".drpg-case-result") ?? null;
+                read.shown = [line()?.textContent.trim() ?? null, Boolean(line() && !line().closest(".drpg-case-live"))];
+            }
+            const source = fnSource(stripComments((await moduleSources()).get("investigation.mjs") ?? ""), "openInvestigationDashboard");
+            read.road = /runDashboardButton\(action\)/.test(source) && /said:\s*ran\.said/.test(source);
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            for (const a of open()) await a.close();
+            await answer;
+            if (scene.tokens.has(trace.id)) {
+                await R.dropRemnantSecret(trace);
+                await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            } else await R.dropRemnantSecret(trace);
+        }
+        equal(stableJson(read), stableJson({ ran: said, gone: true, others: true, shown: [said, true], road: true }),
+            "[what the button's run answers; this test's Faint trace gone; the world's other Faint traces as they were; the reopened dashboard's line and whether "
+                + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]");
+    }],
     ...GRID
 ];
 

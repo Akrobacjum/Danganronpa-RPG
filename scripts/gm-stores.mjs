@@ -868,6 +868,23 @@ export const usedToolStore = defineGmStore({
 });
 
 /**
+ * THE TRACES WAITING FOR THE GMS' DIGEST (E51 C5, 31.10.2026; audit S05-53; the owner's Q3 on its default, 30.10: the
+ * primary's alone). A row per trace, keyed as its ledger row is (`sceneId.tokenId`): what the digest's card says of it
+ * by its keys - `type`, `visibility`, `faint`, `reinforced`, `sourceName`, `note`, `room`, `chapter`, `day`,
+ * `timeOfDay` - and `at`, when it was placed. Written by the primary as it places a trace (remnants.mjs
+ * `announceRemnant`), said and dropped by the primary at the turn of the time of day or the end of an Eclipse
+ * (`sendTraceDigest`), and one dropped when its trace is whispered on its own at a find (`whisperTraceNow`). It was a
+ * Map in that GM's memory until 1.2.93, so the primary's F5 between a trace and the hour lost the digest (scenario 61's
+ * TD). Not synced: the rows are the primary's, and a GM who is not the primary says none (Q3); a primary that leaves
+ * for good takes the rows with it, and the next primary's digest has only its own. Backed up, and cut by the reset's
+ * "remnants" group with the traces it names. No player copy - R182 has nothing to ask of it - and no old key.
+ */
+export const traceDigestStore = defineGmStore({
+    name: "traceDigest", key: SETTINGS.gmTraceDigest,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: false
+});
+
+/**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
  * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (vault.mjs `rifleKey`): `{ at }`, the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time

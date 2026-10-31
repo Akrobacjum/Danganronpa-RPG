@@ -17,12 +17,12 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
     BROKEN_ITEMS, observeDc, TIMING } from "./config.mjs";
 // Statically imported: `remnantsInRoom` and `tokenFor` are synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
-import { roomOfToken, locateActor } from "./movement.mjs";
+import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
-import { remnantStore, bulletStore, upgradeMark } from "./gm-stores.mjs";
+import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
 
 /**
  * Everything the guide says a Remnant carries, so an investigation two sessions
@@ -282,6 +282,38 @@ export async function dropRemnant(actor, {
 }
 
 /**
+ * THE SQUARE SPIRAL ROUND A SPOT (E51 C5, 31.10.2026; audit S05-54): each ring `r` of `step`s from (r, 0) clockwise -
+ * on the canvas, where y runs down - to (r, -1), eight spots a ring per step out. Endless; the caller stops it.
+ */
+function* spiralSteps() {
+    for (let r = 1; ; r++) {
+        for (let j = 0; j < r; j++) yield [r, j];
+        for (let i = r; i > -r; i--) yield [i, r];
+        for (let j = r; j > -r; j--) yield [-r, j];
+        for (let i = -r; i < r; i++) yield [i, -r];
+        for (let j = -r; j < 0; j++) yield [r, j];
+    }
+}
+
+/**
+ * Where a new trace stands (E51 C5; audit S05-54, `placeRemnant`): `origin` while no spot of `taken` lies within half
+ * a step of it on both axes, else the first spot of the square spiral round it (`spiralSteps`, a step apart) that no
+ * spot of `taken` lies that near and that `accept` lets in - `placeRemnant`'s asks for the origin's room - and the
+ * origin once `tries` spots have been tried (eight, the first ring). Pure: `{ x, y }` in, a new `{ x, y }` out (R1122).
+ */
+export function spiralSpot(origin, taken = [], step = 25, { tries = 8, accept = () => true } = {}) {
+    const free = at => !(taken ?? []).some(t => Math.abs(t.x - at.x) < step / 2 && Math.abs(t.y - at.y) < step / 2);
+    if (free(origin)) return { x: origin.x, y: origin.y };
+    let tried = 0;
+    for (const [i, j] of spiralSteps()) {
+        if (tried++ >= tries) break;
+        const at = { x: origin.x + i * step, y: origin.y + j * step };
+        if (free(at) && accept(at)) return at;
+    }
+    return { x: origin.x, y: origin.y };
+}
+
+/**
  * Place a Remnant at explicit coordinates. GM-only: creating tokens needs it,
  * so a player action routes through the GM bridge.
  *
@@ -430,8 +462,24 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
     // the token. A player listing the scene read the whole crime scene off the
     // names alone. `label` still exists and still says all of that; it goes into
     // the ledger, where the GM's screens read it from.
-    const publicName = game.i18n.localize("DRPG.Remnant.tokenName");
-    const size = canvas?.grid?.size ?? 100;
+    const publicName = traceLabel(null);
+
+    /*
+     * A SPOT OF ITS OWN, IN THE SAME ROOM (E51 C5, 31.10.2026; audit S05-54). A trace was made on its character's
+     * token, x and y as they stood (`dropRemnant`, `narrowPlayerRemnant`), so three Searches in one corner and a
+     * Sabotage were four tokens on one spot and the GM saw one (tier 2 E51-T14: two traces at one spot, both at its
+     * x and y, at C5's parent). A trace whose spot another trace already takes moves a quarter square at a time
+     * round the square spiral of `spiralSpot`, to the first spot no trace takes whose room - on the origin's floor,
+     * the floor of the source's token on this scene where there is one - is the origin's; after eight spots the
+     * origin is kept. A trace in no room keeps its origin, and so does one put back under its id (`givenId`): it
+     * goes back where it stood.
+     */
+    const step = (target.grid?.size ?? canvas?.grid?.size ?? 100) / 4;
+    const source = sourceActor ? locateActor(game.actors?.get(sourceActor), { sceneId: target.id }) : null;
+    const probe = { parent: target, width: 1, height: 1, level: source?.scene?.id === target.id ? source.level ?? null : null };
+    const home = Number.isFinite(x) && Number.isFinite(y) ? roomAt(x, y, probe) : null;
+    const spot = givenId || !home ? { x, y }
+        : spiralSpot({ x, y }, remnantsOn(target).map(t => ({ x: t.x, y: t.y })), step, { accept: at => roomAt(at.x, at.y, probe) === home });
 
     try {
         const [created] = await target.createEmbeddedDocuments("Token", [{
@@ -439,7 +487,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             name: publicName,
             actorId: actor.id,
             actorLink: false,
-            x, y,
+            x: spot.x, y: spot.y,
             // Full grid square, same as a character.
             //
             // At half size these were genuinely hard to see and harder to click,
@@ -549,7 +597,8 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             error(`A trace put back under its id (${created.id}) has no live row in the ledger.`);
         }
         log(`Remnant placed: ${label} (by ${sourceName || "?"})`);
-        if (created) announceRemnant(created);
+        // Held for the GMs' digest on the primary (E51 C5); a row that could not be written loses the digest line, never the trace.
+        if (created) await announceRemnant(created).catch(err => error("Could not hold the trace for the GMs' digest", err));
         return created ?? null;
     } catch (err) {
         error("Could not place the Remnant", err);
@@ -599,6 +648,16 @@ export function actionLabelOf(action) {
  * So traces are collected and said once, at the turn of the time of day or the
  * end of an Eclipse - the two moments the table already stops at.
  *
+ * COLLECTED IN A GM STORE, ON THE PRIMARY (E51 C5, 31.10.2026; audit S05-53; the
+ * owner's Q3 on its default, 30.10). They were a Map in the memory of the GM that
+ * placed them, so a primary's F5 between a trace and the turn of the time of day
+ * lost every trace before it, and nothing said so (scenario 61's TD at C5's parent:
+ * the primary's trace in no digest). They are rows of `traceDigestStore` now
+ * (gm-stores.mjs), the primary's own and not synced: written when the primary places
+ * a trace (a player's comes to it through the bridge), said and dropped by the
+ * primary alone. A trace a GM who is not the primary places on their own browser is
+ * in no digest: its GM placed it.
+ *
  * THE EXCEPTION IS THE POINT OF THE RULE. A player copying a trace as a Truth
  * Bullet is not noise: it is a question. If the GM has never edited that trace,
  * nobody has decided yet what it says, and the answer has to be written while
@@ -610,9 +669,6 @@ export function actionLabelOf(action) {
  * A trace the GM HAS edited raises nothing extra: they wrote what it says, so
  * a player reading it back tells them nothing they do not know.
  * ========================================================================== */
-
-/** Traces seen this turn, oldest first. Keyed so the reveal can pull one out. */
-const pendingTraces = new Map();
 
 /** Ledger key -> the primary's `deleteToken` tombstone being written (see `placeRemnant`'s `keepId`). */
 const tombstoning = new Map();
@@ -634,18 +690,33 @@ function traceCard(data, { heading = true } = {}) {
 }
 
 /**
- * A Remnant appeared. Hold it for the digest.
+ * A Remnant appeared. Hold it for the digest: a row of `traceDigestStore` under the
+ * trace's ledger key, on the primary alone (E51 C5).
  *
  * The data is read NOW rather than at flush time, because the token can be
  * retuned, transformed or deleted between the two - and what the digest is
- * reporting is what appeared, not what it has since become.
+ * reporting is what appeared, not what it has since become. What the card says,
+ * by its keys (`digestCard` words them at the flush), and `at`, the order.
  */
-function announceRemnant(tokenDoc) {
+async function announceRemnant(tokenDoc) {
+    if (!isPrimaryGm()) return;
     const data = remnantData(tokenDoc);
-    if (!data) return;
     const key = keyOf(tokenDoc);
-    if (!key) return;
-    pendingTraces.set(key, data);
+    if (!data || !key) return;
+    await traceDigestStore.patch(key, {
+        type: data.type ?? null, visibility: data.visibility ?? null, faint: data.faint, reinforced: data.reinforced,
+        sourceName: data.sourceName ?? "", note: data.note ?? "", room: data.room ?? null,
+        chapter: data.chapter ?? null, day: data.day ?? null, timeOfDay: data.timeOfDay ?? null, at: Date.now()
+    });
+}
+
+/** A digest row as `traceCard` reads a trace: its type and band worded in this browser's language. */
+function digestCard(row) {
+    return {
+        ...row,
+        typeLabel: REMNANT_TYPES[row.type]?.label ?? row.type,
+        visibilityLabel: REMNANT_VISIBILITY_LABELS[row.visibility] ?? row.visibility
+    };
 }
 
 /** The digests on their way (E17 fix ci-3): what `traceDigestIdle` waits for. */
@@ -653,9 +724,10 @@ const digesting = new Set();
 
 /**
  * Say the traces collected since the last flush, as one whisper. Answers how
- * many traces it said.
+ * many traces it said. The primary's alone (E51 C5): every GM hears the hour, and
+ * the rows are the primary's.
  *
- * Cleared BEFORE the whisper is sent: an await here is a window in which
+ * Dropped BEFORE the whisper is sent: an await here is a window in which
  * another trace can land, and a queue emptied afterwards would eat it.
  */
 export function flushTraceDigest() {
@@ -676,10 +748,12 @@ export async function traceDigestIdle() {
 }
 
 async function sendTraceDigest() {
-    if (!game.user.isGM || !pendingTraces.size) return 0;
+    if (!game.user.isGM || !isPrimaryGm()) return 0;
+    const rows = Object.entries(traceDigestStore.entries()).sort(([, a], [, b]) => (a?.at ?? 0) - (b?.at ?? 0));
+    if (!rows.length) return 0;
 
-    const batch = [...pendingTraces.values()];
-    pendingTraces.clear();
+    const batch = rows.map(([, row]) => digestCard(row));
+    await traceDigestStore.dropMany(rows.map(([key]) => key));
 
     const { whisperToGms } = await import("./utils.mjs");
     try {
@@ -702,7 +776,7 @@ async function whisperTraceNow(tokenDoc, titleKey) {
     const data = remnantData(tokenDoc);
     if (!data) return;
     const key = keyOf(tokenDoc);
-    if (key) pendingTraces.delete(key);
+    if (key && traceDigestStore.has(key)) await traceDigestStore.drop(key);
 
     const { whisperToGms } = await import("./utils.mjs");
     try {
@@ -1107,10 +1181,11 @@ function defaultPublic(entry) {
         // Search: Cleaning agent", built for the ledger and readable only by a
         // GM. `entry.described`, by contrast, is exactly what a GM has already
         // typed FOR a player on an earlier find, which is safe by construction.
-        // A trace nobody has described yet gets the same neutral name the
-        // token already carries - no more information than "something is
-        // here", which is all a hidden token has ever said.
-        name: entry?.described?.name || game.i18n.localize("DRPG.Remnant.tokenName"),
+        // A trace nobody has described yet has no name: empty, in every language
+        // (E51 C5, 31.10.2026; audit S05-52). It stored the neutral word in the
+        // language of the browser that wrote it, and a reader in another language
+        // read the word as a name; `traceLabel` words it where it is shown.
+        name: entry?.described?.name || "",
         img: ICON,
         playerText: entry?.described?.playerText || "",
         // The second tier: what Analyze says about this same object. Empty is
@@ -1157,7 +1232,37 @@ export function remnantPublic(tokenDoc) {
 export function publicOf(entry) {
     const pub = { ...defaultPublic(entry), ...(entry?.public ?? {}) };
     if (pub.img === OLD_ICON) pub.img = ICON;
+    // The neutral word a build before 1.2.93 stored as the name is no name (E51 C5): read, never rewritten, as the icon is.
+    if (isNeutralName(pub.name)) pub.name = "";
     return pub;
+}
+
+/**
+ * THE NEUTRAL WORD, READ AND NEVER STORED (E51 C5, 31.10.2026; audit S05-52). "Trace" in this browser's language and
+ * in its fallback's - the two words a row or a token written before 1.2.93 may hold as a name, in a world where one
+ * GM's browser runs Polish and another's English (the word another language holds, read on a browser that loads
+ * neither, is not known here). Read by `isNeutralName` and `traceLabel`, and by nothing else (R1120).
+ */
+function neutralWords() {
+    const key = "DRPG.Remnant.tokenName";
+    const words = [game.i18n.localize(key), foundry.utils.getProperty(game.i18n._fallback ?? {}, key)];
+    return new Set(words.filter(word => typeof word === "string" && word && word !== key));
+}
+
+/** Whether a name is only the neutral word (`neutralWords`): no name, for a trace's row, a token or an actor's delta. */
+export function isNeutralName(name) {
+    return typeof name === "string" && neutralWords().has(name.trim());
+}
+
+/**
+ * What a trace is called where it is shown (E51 C5; audit S05-52): its described name, or the neutral word in this
+ * browser's language. `entry` is a `remnantData` record (its `public`), a `public` block (its `name`), or null for the
+ * word alone - the token's own name, the placeholder of a name box. Nothing compares a name against this (R1120); a
+ * reader asking whether a trace is described asks whether its name is empty.
+ */
+export function traceLabel(entry = null) {
+    const name = entry && typeof entry === "object" && "public" in entry ? entry.public?.name : entry?.name;
+    return typeof name === "string" && name.trim() && !isNeutralName(name) ? name : game.i18n.localize("DRPG.Remnant.tokenName");
 }
 
 /**
@@ -1254,7 +1359,7 @@ async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
 
     if (!saysMore(tokenDoc)) return;
     try {
-        await tokenDoc.update({ name: game.i18n.localize("DRPG.Remnant.tokenName"), "texture.src": ICON });
+        await tokenDoc.update({ name: traceLabel(null), "texture.src": ICON });
     } catch (err) {
         error("Could not put the neutral name back on the Remnant token", err);
     }
@@ -1266,11 +1371,12 @@ async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
  * still carries its answer key (`answerKeyOnToken`): its old name is the label the
  * migration moves into the ledger (`migrateRemnantToken`, which then strips the
  * name itself), and a write here would lose it first. The word is this client's
- * language's, as `leftOnToken` reads it.
+ * language's or its fallback's (`isNeutralName`, E51 C5), as `leftOnToken` reads it: a
+ * Polish GM's "Slad" on an English GM's browser was "more" until 1.2.93, and renamed.
  */
 function saysMore(token) {
     if (!token || answerKeyOnToken(token)) return false;
-    return token.name !== game.i18n.localize("DRPG.Remnant.tokenName") || (token.texture?.src ?? ICON) !== ICON;
+    return !isNeutralName(token.name) || (token.texture?.src ?? ICON) !== ICON;
 }
 
 /**
@@ -1294,7 +1400,7 @@ function saysMore(token) {
  */
 export async function neutralTraceNames({ tokens = null } = {}) {
     if (!isPrimaryGm()) return { notPrimary: true };
-    const word = game.i18n.localize("DRPG.Remnant.tokenName");
+    const word = traceLabel(null);
     const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene))).filter(saysMore);
     const found = telling();
     if (!found.length) return null;
@@ -1331,9 +1437,17 @@ export async function neutralTraceNames({ tokens = null } = {}) {
  */
 export async function revealRemnantToFinder(tokenDoc, { tell = true } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
-    if (!tokenDoc.hidden) return tokenDoc;
+    /* AN INCIDENT'S TRACE IS FOUND LIKE ANY OTHER (E51 C5, 31.10.2026; audit S05-52). It is created un-hidden for its
+       cast (D11, `placeRemnant`), and this returned for every token not hidden: a find of one raised no "say what it is"
+       for the GMs (tier 2 E51-T13 at C5's parent: none). Its first find goes on below, un-hidden already, and is written
+       on its row (`incidentFound`) as un-hiding writes a hidden one's: a find calls this twice (truth-bullets.mjs
+       `revealSourceOf` as the copy is made, then observe.mjs `mintFindCopy`), and the second said it again (E51-T13: two
+       whispers, 31.10.2026). Any other trace not hidden was revealed by its first find, and a second finder walks up to it. */
+    const incident = Boolean(tokenDoc.getFlag?.(MODULE_ID, REMNANT_FLAGS.fromIncident));
+    if (!tokenDoc.hidden && (!incident || readRemnantLedger()[keyOf(tokenDoc)]?.incidentFound)) return tokenDoc;
 
-    await tokenDoc.update({ hidden: false });
+    if (tokenDoc.hidden) await tokenDoc.update({ hidden: false });
+    else await setRemnantSecret(tokenDoc, { incidentFound: true }, { ifLive: true });
     /* THE TOKEN KEPT NEUTRAL, AND THE COPIES LEFT (E09 fix r2-G1, 08.10.2026). A reveal changes
        no word of the trace, and it sent every copy the whole record: a trace hidden again with
        copies held - an erase's Reroll places it back hidden - put a reshape's words on the copies
@@ -1620,11 +1734,12 @@ export function registerRemnantLedger() {
      * Eclipse - the two moments the table already stops at, so the whisper
      * lands in a pause rather than across somebody's turn.
      *
-     * Every GM runs this, and every GM would therefore send one. They do not
-     * collide: `pendingTraces` is per-client and only ever holds what THAT
-     * client watched appear, so each GM flushes their own view and a GM who
-     * joined halfway through has nothing to say. `whisperToGms` reaches all of
-     * them either way.
+     * Every GM hears both, and the primary alone sends the digest (E51 C5): the
+     * rows are the primary's (`traceDigestStore`, not synced), so a GM who is not
+     * the primary has nothing to say, and the primary's F5 keeps what it held.
+     * Until 1.2.93 each GM flushed what its own memory had watched appear, and an
+     * F5 lost it. `whisperToGms` reaches all of them either way. The end of an
+     * Eclipse and the hour after it each ask; the second finds the rows gone.
      */
     Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
@@ -2167,16 +2282,10 @@ export async function handTiesOn(from, to) {
  * things" is only a report. Lives here rather than in the GM panel because the
  * button that calls it now sits on the Remnant table.
  */
-export async function confirmClearFaint() {
+export async function confirmClearFaint({ tokens = null } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
 
-    let doomed = 0;
-    for (const scene of game.scenes) {
-        doomed += remnantsOn(scene).filter(t => {
-            const d = remnantData(t);
-            return d?.faint && !d.reinforced && !d.tiedToCrime;
-        }).length;
-    }
+    const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;
 
     if (!doomed) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.faintNone"));
@@ -2192,7 +2301,7 @@ export async function confirmClearFaint() {
     });
     if (!sure) return 0;
 
-    const cleared = await clearFaintRemnants();
+    const cleared = await clearFaintRemnants(null, { tokens });
     ui.notifications.info(plural("DRPG.Panel.faintCleared", { n: cleared }));
     return cleared;
 }
@@ -2485,9 +2594,8 @@ export async function migrateRemnantsOnce({ tokens = null } = {}) {
     if (await remnantStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the traces' answer keys did not arrive; the next load tries again");
     }
-    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
     const flagsOf = token => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
-    const labelledDelta = token => typeof token.delta?.name === "string" && token.delta.name !== "" && token.delta.name !== neutral;
+    const labelledDelta = token => typeof token.delta?.name === "string" && token.delta.name !== "" && !isNeutralName(token.delta.name);
     const found = (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene)))
         .filter(token => ANSWER_KEY_FLAGS.some(flag => flag in flagsOf(token)) || labelledDelta(token));
     if (!found.length) return null;
@@ -2696,7 +2804,7 @@ async function moveIntoLedger(token, live, typed) {
     // has been reading this trace on the map - unless it is already the neutral
     // name, which says nothing about the trace, or the token has no type: a trace
     // placed since the ledger never wore its label as a name.
-    const label = typed && token.name && token.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? token.name : undefined;
+    const label = typed && token.name && !isNeutralName(token.name) ? token.name : undefined;
     if (live) {
         const onToken = {
             type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
@@ -2797,21 +2905,20 @@ async function promoteAtMark(token, promotion, mark) {
 
 /** What is still on a trace's token that the answer key could be in (see `migrateRemnantToken`). */
 function leftOnToken(token, row) {
-    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
     const flags = token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
     const left = Object.entries(flags)
         .filter(([flag, value]) => !TOKEN_KEEPS.includes(flag) && value !== null && value !== undefined)
         .map(([flag]) => flag);
     const shown = row?.public?.name;
-    if (token.name !== neutral && !(shown && !token.hidden && token.name === shown)) left.push("name");
+    if (!isNeutralName(token.name) && !(shown && !token.hidden && token.name === shown)) left.push("name");
     const deltaName = token.delta?.name;
-    if (typeof deltaName === "string" && deltaName && deltaName !== neutral) left.push("delta name");
+    if (typeof deltaName === "string" && deltaName && !isNeutralName(deltaName)) left.push("delta name");
     return left;
 }
 
 /** The answer key off the token, and the name and tint made neutral, in one write where Foundry allows it. */
 async function stripAnswerKey(token, flags) {
-    const neutral = { name: game.i18n.localize("DRPG.Remnant.tokenName"), "texture.tint": TINTS.neutral };
+    const neutral = { name: traceLabel(null), "texture.tint": TINTS.neutral };
     const deletion = forcedDeletion();
     if (deletion) {
         await token.update({ ...Object.fromEntries(flags.map(flag => [`flags.${MODULE_ID}.${flag}`, deletion])), ...neutral });
@@ -2835,9 +2942,9 @@ async function stripAnswerKey(token, flags) {
  *   summed by the caller into the summary line.
  */
 async function neutraliseDeltaName(token) {
-    const safe = game.i18n.localize("DRPG.Remnant.tokenName");
+    const safe = traceLabel(null);
     const deltaName = token.delta?.name;
-    if (typeof deltaName !== "string" || !deltaName || deltaName === safe) return 0;
+    if (typeof deltaName !== "string" || !deltaName || isNeutralName(deltaName)) return 0;
 
     const target = token.actor ?? token.delta;
     if (!target?.update) return 0;
@@ -2925,29 +3032,35 @@ export async function removeRemnant(tokenDoc) {
 }
 
 /**
- * Chapter end: the guide clears every Faint Remnant not tied to a murder,
- * a crime tool or a cleaning tool.
+ * Whether the chapter's end clears a trace: Faint, not reinforced, and not tied to the crime.
+ *
+ * The guide's exception, which `clearFaintRemnants` claimed to honour and did not:
+ * anything left by a crime tool, a cleaning tool or the murder stays. Those are the
+ * traces the trial is built on. One test for the count the confirm says and the
+ * sweep (E51 C5), where each wrote it.
  */
-export async function clearFaintRemnants(scene = null) {
+function clearable(token) {
+    const d = remnantData(token);
+    return Boolean(d?.faint && !d.reinforced && !d.tiedToCrime);
+}
+
+/**
+ * Chapter end: the guide clears every Faint Remnant not tied to a murder,
+ * a crime tool or a cleaning tool. `tokens` is the suite's (E51 C5), as
+ * `neutralTraceNames`' is: its own fixtures, so a run at a table clears none
+ * of the table's traces; every other caller hands none.
+ */
+export async function clearFaintRemnants(scene = null, { tokens = null } = {}) {
     if (!game.user.isGM) return 0;
 
     // Every scene by default, not just the one on screen. A chapter ends for the
     // whole season, and Remnants left in rooms nobody is currently looking at
     // were quietly surviving the sweep.
-    const scenes = scene ? [scene] : Array.from(game.scenes);
+    const scenes = tokens ? [...new Set(tokens.map(t => t.parent).filter(Boolean))] : (scene ? [scene] : Array.from(game.scenes));
     let cleared = 0;
 
     for (const target of scenes) {
-        const doomed = remnantsOn(target).filter(t => {
-            const d = remnantData(t);
-            if (!d?.faint) return false;
-            if (d.reinforced) return false;
-            // The guide's exception, which this function claimed to honour and
-            // did not: anything left by a crime tool, a cleaning tool or the
-            // murder stays. Those are the traces the trial is built on.
-            if (d.tiedToCrime) return false;
-            return true;
-        });
+        const doomed = (tokens ? tokens.filter(t => t.parent === target && target.tokens?.get(t.id)) : remnantsOn(target)).filter(clearable);
 
         if (!doomed.length) continue;
         await target.deleteEmbeddedDocuments("Token", doomed.map(t => t.id));
