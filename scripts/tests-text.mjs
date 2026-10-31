@@ -74,7 +74,16 @@
  * rule's number written as a word), T21 (`monokumaVoice`, DB1, DB5, PL4) and T24
  * (`colonChains`, more than two colons in a string). Their bag adds `budgets`
  * (the parsed file); T4, T5 and T21 read the scripts for the senders when handed
- * them, with the lexer.
+ * them, with the lexer. At C7 the eight report detectors of the language rules
+ * (E65-16), each a candidate list: T11 (`loanGender`) and T12 (`loanDeclension`),
+ * the Polish gender and declension of the glossary's loanwords, which read the
+ * glossary's `declension` (added in C7: DB4's forms by case, `indeclinable`,
+ * `countable`) and the Polish handbooks besides pl.json; T17 (`oxfordComma`), T18
+ * (`telegraph`, the guide's X6, which T5 leaves to it), T19 (`contractions`, with
+ * each surface's shares), T22 (`mirror`, the share of EN/PL pairs with the same
+ * sentence count and punctuation skeleton), T23 (`itemQuotes`, which reads the
+ * scripts with the lexer for the keys the code already quotes) and T25
+ * (`bareLeft`).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -536,10 +545,13 @@ export function tableWordProblems({ words, legacyPlurals, legacyGoalLabels, know
  * `keys` the prefixes), `stage`, `source`, and optionally `pass` (keys left alone,
  * each with its `why`), `case`, `rule` (a named rule below, with its own fields) and
  * `note`. A field the file does not know is red too, so a typo is not read as
- * "nothing forbidden".
+ * "nothing forbidden". From E65 C7 an entry may say how its Polish term declines,
+ * `declension` (DB4, D33c): `{ indeclinable: true }`, or the forms it lists by
+ * case (DECLENSION_CASES: gen, dat, instr, loc, plural), with `countable: true` for
+ * DB4's countable nouns - one or the other, never both; T11, T12 and T18 read it.
  */
 const GLOSSARY_FIELDS = Object.freeze({
-    entry: Object.freeze({ required: ["id", "en", "pl", "gender", "inflection", "forbidden", "stage", "source"], optional: ["open", "note", "rule"] }),
+    entry: Object.freeze({ required: ["id", "en", "pl", "gender", "inflection", "forbidden", "stage", "source"], optional: ["open", "note", "rule", "declension"] }),
     retired: Object.freeze({ required: ["id", "en", "pl", "scope", "stage", "source"], optional: ["keys", "pass", "case", "rule", "button", "note"] }),
     side: Object.freeze({ required: ["variants", "scope"], optional: ["case", "otherCase", "except"] })
 });
@@ -592,6 +604,14 @@ export function glossarySchema(doc, stageIds = []) {
         if (Object.hasOwn(e, "gender") && ![null, "m", "f", "n"].includes(e.gender)) out.push(`${where}'s gender ${JSON.stringify(e.gender)} is not m, f, n or null`);
         if (Object.hasOwn(e, "inflection") && e.inflection !== null && !isText(e.inflection)) out.push(`${where}'s inflection is neither a sentence nor null`);
         if (Object.hasOwn(e, "open") && e.open !== true) out.push(`${where}'s open is not true`);
+        if (Object.hasOwn(e, "declension")) {
+            const d = e.declension, cases = d && typeof d === "object" && !Array.isArray(d) ? DECLENSION_CASES.filter(c => Object.hasOwn(d, c)) : [];
+            const shape = d && typeof d === "object" && !Array.isArray(d) && Object.keys(d).every(k => ["indeclinable", "countable", ...DECLENSION_CASES].includes(k))
+                && [undefined, true].includes(d.indeclinable) && [undefined, true].includes(d.countable) && cases.every(c => isText(d[c]));
+            if (!shape || (d.indeclinable === true) === (cases.length > 0) || (d.countable === true && !cases.length)) {
+                out.push(`${where}'s declension is neither { indeclinable: true } nor the forms it lists by case (${DECLENSION_CASES.join(", ")}), countable or not`);
+            }
+        }
         if (!Object.hasOwn(e, "forbidden")) return;
         const fb = e.forbidden;
         if (!fb || typeof fb !== "object" || Array.isArray(fb)) { out.push(`${where}'s forbidden is no object`); return; }
@@ -1131,8 +1151,10 @@ const W = s => `(?<![\\p{L}\\p{N}_])(?:${s})(?![\\p{L}\\p{N}_])`;
 const PERSON = /\{(?:name|who|actor|target|victim|killer|student|player|speaker|owner)\}/u;
 /* The surfaces where a text tells and no answer is asked (X21): every surface but a window's own controls. */
 const TELLING = Object.freeze(["toast", "player-card", "gm-card", "world-voice", "gm-diagnostics", "settings-hint", "tooltip", "tile-hint", "config-description"]);
-/* What X16 does not read as shouting: acronyms of the module's text, read 31.10 (GM, MG and BN are the Polish GM and NPC). */
-const ACRONYMS = Object.freeze(["GM", "GMs", "MG", "RPG", "DRPG", "HUD", "NPC", "NPCs", "BN", "KB", "MB", "DC", "UI", "API", "PTT", "AV", "OK", "ID", "URL", "PH"]);
+/* What X16 does not read as shouting: acronyms of the module's text, read 31.10 (GM, MG and BN are the Polish GM and NPC), and
+   from E65 C7 "OBJECTION", the game's shout on the HUD's button - a name, as X16 sets names aside (the orchestrator's decision
+   of 31.10 on C6's Open 41). */
+const ACRONYMS = Object.freeze(["GM", "GMs", "MG", "RPG", "DRPG", "HUD", "NPC", "NPCs", "BN", "KB", "MB", "DC", "UI", "API", "PTT", "AV", "OK", "ID", "URL", "PH", "OBJECTION"]);
 const PLURAL_PRONOUN = new RegExp(W("oni|ich|im|nich|nimi"), "u");
 const firstSentence = text => untagged(text).trim().split(/(?<=[.!?])\s/)[0].replace(/[.!?:\s]+$/, "").trim().toLowerCase();
 
@@ -1372,6 +1394,513 @@ export function colonChains(bag = {}) {
     return { found, read, byCount };
 }
 
+/* ----------------------- the language rules (C7) --------------------------- */
+
+/**
+ * WHAT C7'S EIGHT READ (E65 C7, 31.10.2026; E65-16): the language rules of the
+ * guide's sections 6 and 7 - T11 and T12 (the Polish of the glossary's loanwords,
+ * DB4, DB28, DB39), T17 (lists, DB35), T18 (telegraph style, X6), T19
+ * (contractions, DB8), T22 (the mirror, DB26), T23 (an item's name in quotes,
+ * DB31) and T25 (a bare "zostało {n}", PL7). All report, every one a candidate
+ * list for a reader, never a verdict, and every heuristic here rebuilt 30.10 as its
+ * rule is ("rebuilt" in the T-table where only the number survives: T11, T12, T17,
+ * T18, T19, T23) - to confirm in the pilot. The units are C6's (`uiUnits`: en.json
+ * and config.mjs's prose as "en", pl.json as "pl"); T11 and T12 read the Polish
+ * handbooks as well, a line at a time, as the glossary's scopes do.
+ */
+
+/* An abbreviation the module writes, after which a "." ends no sentence: "e.g.", "Ch." (a chapter), "np.", "Maks.", "Rozdz.",
+   "Dz.", "nr" ... - read 31.10 off both files. "etc." and "itd." are left out: they end a list, and often the sentence. */
+const ABBREVIATIONS = "e\\.g|i\\.e|vs|ch|np|tzn|maks|rozdz|dz|godz|zob|por|tj|nr";
+const ABBREVIATION = new RegExp(`(?:^|[\\s(])(?:${ABBREVIATIONS})\\.$`, "iu"), ABBREVIATION_ANY = new RegExp(`(?<![\\p{L}])(?:${ABBREVIATIONS})\\.`, "giu");
+
+/**
+ * The sentences of a string, as T18 and T22 count them: tags and entities
+ * blanked, a sentence ending at ".", "!", "?" or an ellipsis before a space or the
+ * end - not after an ABBREVIATION, and not where the next word opens in lower case
+ * ("e.g. anything", "Loading... please wait" are one). A piece with no letter and no
+ * placeholder is no sentence. The two languages are cut by the same rule, which is
+ * what a mirror needs.
+ */
+export function sentencesOf(text) {
+    const t = untagged(text).replace(/\s+/g, " ").trim(), out = [];
+    let start = 0;
+    for (const m of t.matchAll(/[.!?…]+(?=\s|$)/gu)) {
+        const end = m.index + m[0].length, piece = t.slice(start, end);
+        if (m[0] === "." && ABBREVIATION.test(piece)) continue;
+        if (/^\s*\p{Ll}/u.test(t.slice(end))) continue;
+        out.push(piece.trim());
+        start = end;
+    }
+    const rest = t.slice(start).trim();
+    if (rest) out.push(rest);
+    return out.filter(s => /[\p{L}{]/u.test(s));
+}
+
+/* A glossary term as a whole word: no letter, digit or "_" before it, and none - nor a hyphen or an apostrophe, which
+   would make it a Polish form ("GM-a") - after it. The first letter in either case, the rest as written. */
+const anyFirst = term => `[${escapeRe(term[0].toUpperCase())}${escapeRe(term[0].toLowerCase())}]${escapeRe(term.slice(1))}`;
+const bareTermRe = (term, flags = "gu") => new RegExp(`(?<![\\p{L}\\p{N}_])${anyFirst(term)}(?![\\p{L}\\p{N}_'’-])`, flags);
+
+/* The Polish units T11 and T12 read: pl.json's values, tags blanked, and the Polish handbooks a line at a time, their "**" and
+   backticks blanked (markup, not words). */
+function plUnits(bag) {
+    const out = [];
+    for (const [key, text] of asMap(bag.pl)) if (typeof text === "string") out.push({ key, where: `lang/pl.json ${key}`, text: untagged(text) });
+    for (const [file, text] of asMap(bag.docs)) {
+        if (!/^docs\/handbooks\/[^/]+\.pl\.md$/.test(file)) continue;
+        String(text ?? "").split("\n").forEach((line, i) => out.push({ key: `${file}:${i + 1}`, where: `${file}:${i + 1}`, text: line.replace(/\*\*|`/g, " ") }));
+    }
+    return out;
+}
+
+/* The glossary's entries with a Polish term, and what its `declension` (E65 C7) says: `indeclinable`, the `forms` it lists by
+   case, `countable` (DB4's countable nouns, which T18 reads in English). */
+function loanwords(glossary) {
+    return (Array.isArray(glossary?.entries) ? glossary.entries : []).filter(e => typeof e?.pl === "string" && e.pl.trim() !== "").map(e => {
+        const d = e.declension && typeof e.declension === "object" ? e.declension : {};
+        const forms = Object.fromEntries(DECLENSION_CASES.filter(c => typeof d[c] === "string").map(c => [c, d[c]]));
+        return { id: e.id, en: e.en, pl: e.pl, gender: e.gender, stage: e.stage, indeclinable: d.indeclinable === true, countable: d.countable === true, forms };
+    });
+}
+
+/* --------------------------------- T11 ------------------------------------- */
+
+/**
+ * The words T11 holds to a loanword's gender (DB28, DB39): a closed list of
+ * modifiers - the demonstrative "ten", the possessives, "jeden", "żaden", "sam",
+ * and the adjectives a module text puts before a game noun ("każdy", "nowy",
+ * "jedyny", "cały", "inny", "kolejny", "następny", "pierwszy", "który", "własny",
+ * "ostatni") - each form with the genders it can agree with: m, f, n, and "pl" for a
+ * plural ("twoje" is a neuter singular or a plural; "tym" also a plural's dative).
+ * "to" is left out: "To Truth Bullet" is a copula as often as a demonstrative.
+ */
+const MODIFIERS = (() => {
+    const map = new Map();
+    const put = (forms, genders) => { for (const f of forms.split(" ")) map.set(f, genders); };
+    put("ten twój swój mój nasz wasz jeden żaden sam", "m");
+    put("ta tę tą tej twoja twoją twojej swoja swoją swojej moja moją mojej nasza naszą naszej wasza waszą waszej jedna jedną jednej żadna żadną żadnej sama samą samej", "f");
+    put("jedno samo", "n");
+    put("te same", "pl");
+    put("twoje swoje moje nasze wasze żadne", "n pl");
+    put("tego temu twojego twojemu swojego swojemu mojego mojemu naszego naszemu waszego waszemu jednego jednemu żadnego żadnemu samego samemu", "m n");
+    put("tym twoim swoim moim naszym waszym jednym żadnym samym", "m n pl");
+    const hard = { y: "m", a: "f", "ą": "f", ej: "f", e: "n pl", ego: "m n", emu: "m n", ym: "m n pl" };
+    for (const stem of ["każd", "now", "jedyn", "cał", "inn", "kolejn", "następn", "pierwsz", "któr", "własn"]) for (const [end, g] of Object.entries(hard)) map.set(stem + end, g);
+    for (const [end, g] of Object.entries({ i: "m", ia: "f", "ią": "f", iej: "f", ie: "n pl", iego: "m n", iemu: "m n", im: "m n pl" })) map.set(`ostatn${end}`, g);
+    return new Map([...map].map(([f, g]) => [f, Object.freeze(new Set(g.split(" ")))]));
+})();
+const GENDER_NAMES = Object.freeze({ m: "masculine", f: "feminine", n: "neuter", pl: "plural" });
+/* A word that opens a clause before its subject: a conjunction or a particle; with the modifiers, what may stand before a
+   loanword for it to be the clause's subject, and so the one its predicate agrees with. */
+const OPENERS = new Set("i a ale lub albo oraz gdy kiedy że bo jeśli jeżeli więc ani czy aż dopóki zanim choć jednak też także teraz już wtedy potem nawet tylko".split(" "));
+/* A clause ends at a sentence mark, a comma, a colon, a semicolon, a bracket, a table's "|" or a spaced dash. */
+const CLAUSE_END = /[.!?;:,()|]|\s-\s/u;
+/* A predicate's gender: a past form ("został", "została", "zostało", "-li", "-ły") or a passive participle ("wydany",
+   "postawiony", "zamknięta", "otwarta", "zużyty", "oddalone": -any, -ony, -ęty and -ty after a vowel or "r", six letters at
+   least), right after the subject or after the words PREDICATE_SKIP passes over - negation, particles, "się" and the
+   copulas ("Eclipse nie jest używany"). Any other word ends the reading: "Class Trial toczy się jako otwarta dyskusja" has
+   its predicate in "toczy", and "otwarta" is the discussion's. A bare "-na"/"-ta" is no participle here: "zaczyna",
+   "można", "sprząta", "czyta" are verbs (read 31.10, the first version's false readings). */
+const PAST_FORM = /^\p{Ll}{2,}(ł|ła|ło|li|ły)$/u, PARTICIPLE = /^\p{Ll}{3,}(?:an|on|ęt|yt|it|ut|art|ert|ort)(y|a|e|i)$/u;
+const PREDICATE_SKIP = new Set("nie już jeszcze się wciąż teraz zawsze też także nigdy właśnie znów znowu dopiero jest są będzie będą zostanie zostaje zostają staje bywa".split(" "));
+const PAST_GENDER = Object.freeze({ "ł": ["m"], "ła": ["f"], "ło": ["n"], li: ["pl"], "ły": ["pl"] });
+const PARTICIPLE_GENDER = Object.freeze({ y: ["m"], a: ["f"], e: ["n", "pl"], i: ["pl"] });
+const shownGenders = set => [...set].map(g => GENDER_NAMES[g]).join(" or ");
+
+/**
+ * T11 (rebuilt 30.10 from "rodzaj", S18-33, with DB28 and DB39; report from
+ * E65, FAIL from E71): a Polish word agreeing with a glossary loanword against the
+ * entry's `gender`. Each bare occurrence of a term that has a gender (the term as a
+ * whole word, no Polish ending after it) is held to three neighbours, each in its
+ * own clause: the word right before it, if it is one of MODIFIERS ("before":
+ * "nowa Truth Bullet"); a "który" form right after its comma ("which"); and, when
+ * the term opens its clause (nothing before it there but OPENERS and MODIFIERS), its
+ * predicate - a past form or a participle right after it or after the words
+ * PREDICATE_SKIP passes over, within five words ("after": "Nonstop Debate
+ * został"); any other word ends the reading, so a second loanword in the
+ * sentence is never read as the first one's predicate. A term the entry declines
+ * (`declension` lists its forms, DB4's countable nouns) is singular when bare; any
+ * other may be a plural, so a plural form agrees with it. Every finding is a
+ * candidate: the word may belong to another noun.
+ */
+export function loanGender(bag = {}) {
+    const terms = loanwords(bag.glossary).filter(t => ["m", "f", "n"].includes(t.gender));
+    const found = [];
+    let read = 0;
+    const res = terms.map(t => ({ t, re: bareTermRe(t.pl), allowed: new Set(Object.keys(t.forms).length ? [t.gender] : [t.gender, "pl"]) }));
+    for (const u of plUnits(bag)) {
+        read++;
+        const spans = res.flatMap(r => [...u.text.matchAll(r.re)].map(m => ({ ...r, start: m.index, end: m.index + m[0].length })));
+        for (const s of spans) {
+            const hit = (kind, word, genders) => found.push({ key: u.key, kind: `${s.t.id}-${kind}`, entry: s.t.id, lang: "pl",
+                what: `${u.where}: "${quoted(u.text, s.start, s.end - s.start)}" - "${word}" is ${shownGenders(genders)}, and ${s.t.pl} is ${GENDER_NAMES[s.t.gender]} (DB28, DB39; glossary ${s.t.id}; T11, a candidate)` });
+            const disagrees = genders => ![...genders].some(g => s.allowed.has(g));
+            const before = u.text.slice(0, s.start);
+            const clause = before.split(CLAUSE_END).pop();
+            const words = clause.trim().split(/\s+/).filter(Boolean);
+            const prev = words.at(-1)?.toLowerCase();
+            if (prev && MODIFIERS.has(prev) && disagrees(MODIFIERS.get(prev))) hit("before", words.at(-1), MODIFIERS.get(prev));
+            const after = u.text.slice(s.end);
+            const which = after.match(/^\s*,\s*(któr\p{L}*)(?!\p{L})/u);
+            if (which && MODIFIERS.has(which[1].toLowerCase()) && disagrees(MODIFIERS.get(which[1].toLowerCase()))) hit("which", which[1], MODIFIERS.get(which[1].toLowerCase()));
+            if (!words.every(w => OPENERS.has(w.toLowerCase()) || MODIFIERS.has(w.toLowerCase()))) continue;
+            const rest = after.split(CLAUSE_END)[0];
+            for (const w of rest.trim().split(/\s+/).filter(Boolean).slice(0, 5)) {
+                if (PREDICATE_SKIP.has(w.toLowerCase())) continue;
+                const past = w.match(PAST_FORM), part = past ? null : w.match(PARTICIPLE);
+                if (past || part) {
+                    const genders = new Set(past ? PAST_GENDER[past[1]] : PARTICIPLE_GENDER[part[1]]);
+                    if (disagrees(genders)) hit("after", w, genders);
+                }
+                break;
+            }
+        }
+    }
+    return { found, read, counts: { terms: terms.length } };
+}
+
+/* --------------------------------- T12 ------------------------------------- */
+
+/* The cases a glossary entry may list a form for (`declension`), and the prepositions that govern each with no accusative
+   beside it - a masculine inanimate noun's accusative is its bare form, so "w", "na", "o", "po", "za", "nad", "pod", "przed"
+   and "przez" prove nothing. "z"/"ze" take the genitive or the instrumental: a bare form after them is wrong in both. */
+export const DECLENSION_CASES = Object.freeze(["gen", "dat", "instr", "loc", "plural"]);
+const GOVERNS = Object.freeze({
+    gen: Object.freeze(["bez", "dla", "do", "od", "u", "podczas", "według", "wśród", "obok", "oprócz", "zamiast", "wokół", "około", "spośród", "spod", "sprzed", "zza", "znad", "spoza", "z", "ze"]),
+    dat: Object.freeze(["dzięki", "ku", "przeciw", "przeciwko", "wbrew"]),
+    instr: Object.freeze(["z", "ze"]),
+    loc: Object.freeze(["przy"])
+});
+const CASE_NAMES = Object.freeze({ gen: "genitive", dat: "dative", instr: "instrumental", loc: "locative" });
+/* The Polish case endings a noun takes (DB4's -u of "biletu", -a, -owi, -em, -ie/-zie, -y/-i, -ów, -om, -ami, -ach), read
+   on an indeclinable term as one word with it ("Class Trialu", "safeworda", "Findingsów"). */
+const CASE_ENDINGS = "a|u|owi|em|ie|zie|y|i|ów|om|ami|ach";
+
+/**
+ * T12 (rebuilt 30.10 from "przypadki", with DB4; report from E65, FAIL from
+ * E71): the declension of the glossary's loanwords (`declension`). (1) "ending": an
+ * indeclinable entry (Class Trial, safeword, Findings) written with a case ending,
+ * with or without an apostrophe or hyphen ("Class Trialu", "safeword'a"). (2)
+ * "bare": an entry DB4 declines, written bare after a preposition that governs a
+ * case whose form the entry lists (GOVERNS: "dla Truth Bullet" where DB4 writes
+ * "Truth Bulletu"), one modifier of T11's list allowed between ("do twojego Truth
+ * Bullet"). Both in pl.json and the Polish handbooks. T8 also reads the endings of
+ * the three indeclinable entries, as their forbidden variants; T12 reads every
+ * entry the glossary marks so. Every finding is a candidate.
+ */
+export function loanDeclension(bag = {}) {
+    const terms = loanwords(bag.glossary).filter(t => t.indeclinable || Object.keys(t.forms).length);
+    const found = [];
+    let read = 0;
+    const checks = terms.flatMap(t => (t.indeclinable
+        ? [{ t, kind: "ending", re: new RegExp(`(?<![\\p{L}\\p{N}_])${anyFirst(t.pl)}['’-]?(?:${CASE_ENDINGS})(?![\\p{L}\\p{N}_])`, "gu") }]
+        : Object.keys(GOVERNS).filter(c => t.forms[c]).map(c => ({ t, kind: "bare", case: c,
+            re: new RegExp(`(?<![\\p{L}\\p{N}_])(${GOVERNS[c].join("|")})\\s+(?:(\\p{L}+)\\s+)?${anyFirst(t.pl)}(?![\\p{L}\\p{N}_'’-])`, "giu") }))));
+    for (const u of plUnits(bag)) {
+        read++;
+        const seen = new Set();
+        for (const c of checks) {
+            for (const m of u.text.matchAll(c.re)) {
+                /* One modifier between, never a "który" form: "do której GM przypisał" opens a clause whose subject is the GM. */
+                if (c.kind === "bare" && m[2] !== undefined && (!MODIFIERS.has(m[2].toLowerCase()) || /^któr/iu.test(m[2]))) continue;
+                if (seen.has(`${c.t.id}@${m.index}`)) continue;
+                seen.add(`${c.t.id}@${m.index}`);
+                found.push({ key: u.key, kind: `${c.t.id}-${c.kind}`, entry: c.t.id, lang: "pl",
+                    what: c.kind === "ending"
+                        ? `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - ${c.t.pl} does not decline, "${m[0]}" gives it a case ending (DB4; glossary ${c.t.id}; T12, a candidate)`
+                        : `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - "${m[1]}" takes the ${CASE_NAMES[c.case]}, which DB4 writes "${c.t.forms[c.case]}" (glossary ${c.t.id}; T12, a candidate)` });
+            }
+        }
+    }
+    return { found, read, counts: { terms: terms.length } };
+}
+
+/* --------------------------------- T17 ------------------------------------- */
+
+/* An item of a list: up to three words of letters, digits, placeholders, apostrophes and hyphens. */
+const LIST_ITEM = "[\\p{L}\\p{N}{}'’-]+";
+/* What a list's middle item never opens with, in English (a clause's subject or link: "If you win, you gain Hope and ...") or
+   holds (a finite verb), and the Polish words that open a subordinate clause, whose comma before "i" is the clause's. */
+const EN_NOT_ITEM = new RegExp(`^(?:you|they|it|he|she|we|i|there|then|so|but|yet|not|which|who|whoever|when|if|once|while|as|with)(?![\\p{L}])`, "iu");
+const EN_FINITE_AUX = new RegExp(W("is|are|was|were|has|have|had|do|does|did|can|cannot|could|will|would|shall|should|may|might|must|isn't|aren't|wasn't|weren't|hasn't|haven't|doesn't|don't|didn't|can't|won't|wouldn't"), "iu");
+const PL_SUBORDINATE = new RegExp(W("któr\\p{L}*|gdy|jeśli|jeżeli|że|jak\\p{L}*|aby|żeby|bo|dokąd|gdzie|kiedy|co|kto|czego|kogo|komu|niż|dopóki|zanim|choć|skoro|czy|ile|póki|by"), "iu");
+const EN_LIST = new RegExp(`(${LIST_ITEM}(?: ${LIST_ITEM}){0,2}), ((?:${LIST_ITEM} ){0,2}${LIST_ITEM}) (and|or) (?!not(?![\\p{L}]))(?=[\\p{L}\\p{N}{“"])`, "gu");
+const PL_LIST = new RegExp(`((?:${LIST_ITEM} ){0,2}${LIST_ITEM}), ((?:${LIST_ITEM} ){0,2}${LIST_ITEM}), i (?=\\p{L})`, "u");
+
+/**
+ * T17 (rebuilt 30.10 from "listy", with DB35; report, and it stays one): (1) in
+ * English, a list of three or more with no comma before its "and" or "or"
+ * ("Health, Sanity and Hope", DB35's Oxford comma) - the shape "A, B and C" in one
+ * clause, B at most three words, holding no finite auxiliary and opening with no
+ * subject or link word (EN_NOT_ITEM); "A, B, and C" passes, and so do two items. (2)
+ * In Polish, a comma before the "i" that closes a list ("A, B, i C"), the list's
+ * items short and none opening a subordinate clause - a comma that closes one ("...,
+ * które X, i Y") is Polish punctuation and passes. One finding a string. Lists the
+ * code builds (utils.mjs `listOf`, Intl.ListFormat) are not read here: T20 holds
+ * where they are built.
+ */
+export function oxfordComma(bag = {}) {
+    const found = [], byLang = { en: 0, pl: 0 };
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        const clauses = untagged(u.text).split(/(?<=[.!?:;])\s|\s-\s/u);
+        let m = null;
+        for (const c of clauses) {
+            m = u.lang === "en" ? [...c.matchAll(EN_LIST)].find(x => !EN_FINITE_AUX.test(x[1]) && !EN_FINITE_AUX.test(x[2]) && !EN_NOT_ITEM.test(x[2])) ?? null
+                : (x => (x && !PL_SUBORDINATE.test(x[1]) && !PL_SUBORDINATE.test(x[2]) ? x : null))(c.match(PL_LIST));
+            if (m) break;
+        }
+        if (!m) continue;
+        byLang[u.lang]++;
+        found.push({ key: u.key, kind: u.lang, lang: u.lang,
+            what: `${u.where}: "...${m[0].trim()}..." - ${u.lang === "en" ? "a list with no comma before its last \"and\"/\"or\" (DB35, the Oxford comma)" : "a comma before the \"i\" that closes a list"} (T17, a candidate)` });
+    }
+    return { found, read, counts: byLang };
+}
+
+/* --------------------------------- T18 ------------------------------------- */
+
+/* A finite verb, from a small list (rebuilt 30.10, the risk's "telegrafia"): in English an auxiliary or modal, a contraction,
+   a pronoun subject with a word after it ("You listen"), or one of the verbs the module's texts use most, in any of its
+   finite forms; in Polish a list of the commonest forms, "się", and the endings only a finite verb has here (-uje, the second
+   person's -sz, the past's -ł/-ła/-ło/-li/-ły, the plural's -my/-cie/-ą, the imperative's, the impersonal -no/-to). Both lists
+   were read 31.10 against the strings the first version took for verbless, so a count here is a reading of these lists. */
+const EN_VERB_WORDS = "get|go|take|make|keep|stay|leave|open|close|end|start|begin|become|need|hold|see|know|say|show|count|spend|gain|lose|roll|pick|choose|click|select|add|remove|use|try|ask|wait|set|give|find|look|search|call|let|put|write|tell|play|move|send|save|turn|run|read|change|reach|come|stop|win|pay|return|mark|tick|drag|drop|enter|type|cancel|confirm|clear|check|fill|refill|break|follow|note|fire|apply|happen|work|mean|want|like|sit|stand|bring|carry|reveal|hide|place|draw|post|press|join|act|cost|belong|decide|vote|speak|talk|answer|rule|land|lie|bear|reload|restore|replace|print|describe|install|name|exist|approve";
+const EN_VERB = new RegExp(W(`is|are|was|were|be|been|has|have|had|do|does|did|can|cannot|could|will|would|shall|should|may|might|must|\\p{L}+n['’]t|\\p{L}+['’](?:re|ve|ll|d|m)|(?:it|that|there|here|what|who|where|how|he|she|let)['’]s|(?:${EN_VERB_WORDS})(?:s|es|ed)?|went|took|made|kept|left|held|saw|knew|said|showed|spent|gained|lost|gave|found|told|came|ran|won|paid|got|began|became|brought|drew|sat|stood|put|set|let|read|cut`)
+    + "|\\b(?:I|you|we|they|he|she|it|there|who)\\s+\\p{L}", "iu");
+const PL_VERB = new RegExp(W("jest|są|był|była|było|byli|były|będzie|będą|ma|mają|masz|może|mogą|możesz|można|trzeba|wolno|musi|muszą|musisz|da|wie|chce|zostaje|zostają|zostanie|idzie|wraca|czeka|trwa|działa|liczy|kończy|zaczyna|widzi|słyszy|mówi|robi|daje|bierze|dostaje|traci|wybiera|otwiera|zamyka|trafia|trafi|stawia|przepada|odpala|zostawia|przywraca|zdobywa|wydaje|wydają|dzielą|stoi|stoją|pozwala|pozwalają|dotyczy|wymaga|należy|oznacza|wchodzi|wychodzi|rusza|wisi|zmienia|odbiera|zabiera|krwawi|gaśnie|zadaje|żyje|się"
+    + "|\\p{L}+(?:uje|ują|esz|isz|ysz|asz|cie|my|ł|ła|ło|li|ły|łeś|łaś|łem|łam|ij|aj|uj|yj|dź|erz|ą|ź|ś|ć|ń|órz|nie|ano|ono|ęto|yto|ito)"), "iu");
+const ARTICLE_BEFORE = /^["“„(]?/u;
+
+/**
+ * T18 (rebuilt 30.10 from the risk's "telegrafia", the guide's X6, which T5 leaves
+ * to it; report, and it stays one): (1) "verbless": a string of two or more
+ * sentences (`sentencesOf`) none of which holds a finite verb (EN_VERB, PL_VERB) -
+ * "Projects updated. {n} deleted." / "Motive ogłoszony. Jedna pora dnia na
+ * zegarze."; (2) "article", in English: a full sentence (it ends in ".", "!" or "?")
+ * that opens with a countable glossary noun with no article or determiner before it
+ * and holds no finite verb ("Truth Bullet found.") - the countable nouns are the
+ * entries whose `declension` says `countable` (DB4's list, and the GM). An allow row
+ * for X6 silences one key. One finding a string.
+ */
+export function telegraph(bag = {}) {
+    const countable = loanwords(bag.glossary).filter(t => t.countable && typeof t.en === "string" && t.en.trim() !== "").map(t => t.en);
+    const opens = countable.length ? new RegExp(`${ARTICLE_BEFORE.source}(?:${countable.map(escapeRe).join("|")})(?![\\p{L}\\p{N}_'’-])`, "u") : null;
+    const allow = allowedFor(bag.budgets, "X6");
+    const found = [], counts = { multiSentence: 0, allowed: 0 };
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        const verb = u.lang === "en" ? EN_VERB : PL_VERB;
+        const ss = sentencesOf(u.text);
+        if (ss.length >= 2) counts.multiSentence++;
+        let kind = ss.length >= 2 && ss.every(s => !verb.test(s)) ? "verbless" : null, at = ss.join(" ");
+        if (!kind && u.lang === "en" && opens) {
+            const s = ss.find(x => /[.!?]$/u.test(x) && opens.test(x) && !EN_VERB.test(x));
+            if (s) { kind = "article"; at = s; }
+        }
+        if (!kind) continue;
+        if (allow.has(u.key)) { counts.allowed++; continue; }
+        found.push({ key: u.key, kind: `${u.lang}-${kind}`, lang: u.lang,
+            what: `${u.where}: "${quoted(at, 0, 40)}" - ${kind === "verbless" ? `${ss.length} sentences and no finite verb in any` : "a countable glossary noun opens the sentence with no article, and no verb follows"} (X6, telegraph style; T18, a candidate)` });
+    }
+    return { found, read, counts };
+}
+
+/* --------------------------------- T19 ------------------------------------- */
+
+/* An English contraction (n't, 're, 've, 'll, 'd, 'm, and 's after a pronoun - "Monokuma's" is a possessive), straight or curly. */
+const CONTRACTION = /(?<![\p{L}])(?:\p{L}+n['’]t|\p{L}+['’](?:re|ve|ll|d|m)|(?:it|that|there|here|what|who|where|how|he|she|let)['’]s)(?![\p{L}])/iu;
+/* A full form that could be one (the share DB8's "by default in short messages" is read against). */
+const FULL_FORM = new RegExp(W("(?:do|does|did|is|are|was|were|has|have|had|will|would|should|could|must) not|cannot|(?:it|that|there|here|what|who) is|(?:you|they|we) are|I am|I will|you will|let us"), "iu");
+/* A contraction that states a prohibition: can't, mustn't, mayn't, shan't, and a sentence that opens "Don't". */
+const PROHIBITION = /(?<![\p{L}])(?:ca|must|may|sha)n['’]t(?![\p{L}])|(?:^|[.!?]\s+)Don['’]t(?![\p{L}])/u;
+/* The surfaces that state a rule: the guide's matrix gives the config description "the rule as the code runs it" and the tile
+   hint "what the action does, what it costs and when". A safety text: the safeword's keys, or a string that names it. */
+const RULE_SURFACES = Object.freeze(["config-description", "tile-hint"]);
+const SAFETY = /^DRPG\.Safeword\./u, SAFETY_WORD = /(?<![\p{L}])safeword/iu;
+
+/**
+ * T19 (rebuilt 30.10 from the risk's "100% skrótów", with DB8; report, and it
+ * stays one): in English, (1) per surface (`surfacesOf`), how many strings hold a
+ * contraction and how many a full form that could be one (`perSurface`: DB8's
+ * "contractions by default in short messages" is read off the shares, not judged);
+ * (2) a contraction in a text DB8 wants in full - a prohibition (PROHIBITION, any
+ * surface), a safety text (SAFETY) or a rule (RULE_SURFACES): one finding a string,
+ * "prohibition", "safety" or "rule", the first that holds. Polish has no
+ * contractions; it is not read.
+ */
+export function contractions(bag = {}) {
+    const map = surfacesOf(bag, "contractions");
+    const found = [], perSurface = {};
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        if (u.lang !== "en") continue;
+        read++;
+        const text = untagged(u.text), surface = map.surfaceOf(u.key) ?? "unclassified";
+        const row = perSurface[surface] ??= { strings: 0, contracted: 0, full: 0 };
+        row.strings++;
+        if (FULL_FORM.test(text)) row.full++;
+        const m = CONTRACTION.exec(text);
+        if (!m) continue;
+        row.contracted++;
+        const kind = PROHIBITION.test(text) ? "prohibition" : SAFETY.test(u.key) || SAFETY_WORD.test(text) ? "safety" : RULE_SURFACES.includes(surface) ? "rule" : null;
+        if (!kind) continue;
+        found.push({ key: u.key, kind, lang: "en", surface,
+            what: `${u.where}: "${quoted(text, m.index, m[0].length)}" - "${m[0]}" in a ${kind === "rule" ? `rule (${surface})` : `${kind} text`}; DB8 writes it in full (T19)` });
+    }
+    return { found, read, perSurface };
+}
+
+/* --------------------------------- T22 ------------------------------------- */
+
+/**
+ * A string's punctuation skeleton, as T22 compares the two languages: the marks
+ * that shape its sentences, in order - ".", "!", "?", ":", ";", "(", ")", an
+ * ellipsis, a spaced dash and a quote (any of “ ” „ " « », written "q": each
+ * language has its own) - with tags, a placeholder's braces, a time's colon
+ * ("12:30"), a URL's "://" and an abbreviation's periods ("e.g.", "np.") left out. Commas are left out a priori: Polish
+ * grammar puts a comma before "że", "który", "gdy" where English has none, which is
+ * the language's rule, not a mirror's (read 31.10 beside: with commas 72.3% of the
+ * 4953 pairs are alike, without 92.9%).
+ */
+export function skeletonOf(text) {
+    return (untagged(text).replace(ABBREVIATION_ANY, "A").replace(/\{\w+\}/g, "X").replace(/\d:\d/g, "").replace(/:\/\//g, "").replace(/\.{3}|…/gu, "…")
+        .match(/…|[.!?:;()]|[“”„"«»]| - /gu) ?? []).map(c => (/[“”„"«»]/u.test(c) ? "q" : c.trim())).join("");
+}
+
+/**
+ * T22 (plan, DB26's "z metryką lustra T22"; report, and it stays one): per key
+ * that has a string in both languages (en.json or config.mjs's prose, and pl.json),
+ * whether the two have the same number of sentences (`sentencesOf`) and the same
+ * punctuation skeleton (`skeletonOf`); a plural family's `.one` and `.other` are
+ * pairs of their own, Polish `.few`/`.many` have no English twin. A pair that
+ * differs is one finding: "sentences" when the counts differ, else "skeleton". The
+ * measure is the share (`counts`, and `perSurface` by the budgets' surfaces) - the
+ * plan's reading of 99% alike in sentences and 91% in skeleton is a reading, not a
+ * target; the findings are where a reader looks.
+ */
+export function mirror(bag = {}) {
+    const map = surfacesOf(bag, "mirror");
+    const en = new Map([...asMap(bag.en), ...asMap(bag.prose)]), pl = asMap(bag.pl);
+    const found = [], perSurface = {}, counts = { pairs: 0, sameSentences: 0, sameSkeleton: 0 };
+    let read = 0;
+    for (const [key, e] of en) {
+        const p = pl.get(key);
+        if (typeof e !== "string" || typeof p !== "string") continue;
+        read++;
+        counts.pairs++;
+        const surface = map.surfaceOf(key) ?? "unclassified";
+        const row = perSurface[surface] ??= { pairs: 0, sameSentences: 0, sameSkeleton: 0 };
+        row.pairs++;
+        const a = sentencesOf(e).length, b = sentencesOf(p).length, sa = skeletonOf(e), sb = skeletonOf(p);
+        if (a === b) { counts.sameSentences++; row.sameSentences++; }
+        if (sa === sb) { counts.sameSkeleton++; row.sameSkeleton++; }
+        if (a === b && sa === sb) continue;
+        found.push({ key, kind: a !== b ? "sentences" : "skeleton", lang: "pl", surface,
+            what: a !== b ? `${key}: ${a} sentence(s) in English, ${b} in Polish (T22, the mirror)` : `${key}: the punctuation "${sa}" in English, "${sb}" in Polish (T22, the mirror)` });
+    }
+    const share = n => (counts.pairs ? Math.round(1000 * n / counts.pairs) / 10 : 0);
+    return { found, read, counts: { ...counts, sentencesShare: share(counts.sameSentences), skeletonShare: share(counts.sameSkeleton) }, perSurface };
+}
+
+/* --------------------------------- T23 ------------------------------------- */
+
+/* The quotes DB31 puts around an item's name: “{item}” in English, „{item}” in Polish. */
+const ITEM_QUOTES = Object.freeze({ en: ["“", "”"], pl: ["„", "”"] });
+
+/**
+ * The keys whose `{item}` the code fills with a name already in quotes - an
+ * `item:` property whose value is a string or template that opens with a quote
+ * (“ „ " «) - read off the scripts with the lexer: the key is the nearest key
+ * literal before it in the same statement (a heuristic until C10's screen map,
+ * which shows what fills a key). None on this tree (31.10: 105 `item:` properties,
+ * none quoted).
+ */
+function itemsQuotedByCode(bag, name) {
+    const keys = new Set();
+    if (typeof bag.scripts !== "object" || bag.scripts === null) return keys;
+    const lx = lexerOf(bag, name);
+    for (const [, text] of asMap(bag.scripts)) {
+        const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
+        const spans = literalSpans(code, blank);
+        for (const m of blank.matchAll(/(?<![\w$.])item\s*:/g)) {
+            /* The value's first character, read on the code: in `blank` the literal itself is spaces. */
+            let at = m.index + m[0].length;
+            while (/\s/.test(code[at] ?? "")) at++;
+            const value = spans.find(s => s.start === at && s.kind !== "regex");
+            if (!value || !/^[“„"«]/u.test(literalText(code, value))) continue;
+            const statement = blank.lastIndexOf(";", m.index) + 1;
+            const key = spans.filter(s => s.end <= m.index && s.start >= statement && s.kind === "string").map(s => literalText(code, s)).filter(v => KEY_LITERAL.test(v)).at(-1);
+            if (key) keys.add(key);
+        }
+    }
+    return keys;
+}
+
+/**
+ * T23 (rebuilt 30.10 from DB31; report, and it stays one): an `{item}` placeholder
+ * not inside the quotes DB31 gives it - “{item}” in English, „{item}” in Polish; any
+ * other quote or none is a finding, one a string. A key whose `{item}` the code
+ * already fills in quotes (itemsQuotedByCode) is no finding; it is counted
+ * (`quotedByCode`): the text should not quote it twice, and C10's screen map shows
+ * which keys those are.
+ */
+export function itemQuotes(bag = {}) {
+    const quotedByCode = itemsQuotedByCode(bag, "itemQuotes");
+    const found = [], counts = { withItem: 0, quotedByCode: 0 };
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        if (!u.text.includes("{item}")) continue;
+        counts.withItem++;
+        const [open, close] = ITEM_QUOTES[u.lang];
+        const bad = [...u.text.matchAll(/\{item\}/g)].find(m => u.text[m.index - 1] !== open || u.text[m.index + 6] !== close);
+        if (!bad) continue;
+        if (quotedByCode.has(u.key)) { counts.quotedByCode++; continue; }
+        found.push({ key: u.key, kind: u.lang, lang: u.lang,
+            what: `${u.where}: "${quoted(u.text, bad.index, 6)}" - an item's name stands in ${open}{item}${close} (DB31; T23)` });
+    }
+    return { found, read, counts };
+}
+
+/* --------------------------------- T25 ------------------------------------- */
+
+/* A plural family's form (PL7: the predicate belongs to the family, so "zostały {n} akcje" in `.few` is right), and a facts row:
+   the whole string a label, its colon and one placeholder ("Zostało: {n}"). */
+const FAMILY_FORM = /\.(?:zero|one|two|few|many|other)$/u;
+const FACTS_ROW = /^\s*\p{L}[\p{L} ]*:\s*\{\w+\}\s*$/u;
+const BARE_LEFT = Object.freeze({
+    pl: Object.freeze([/(?<![\p{L}])(?:po)?został[oayi]?\s+\{\w+\}/iu]),
+    en: Object.freeze([/(?<![\p{L}])left:\s*\{\w+\}/iu, /\{\w+\}\s+left(?![\p{L}])/iu])
+});
+
+/**
+ * T25 (plan, S18-36, with PL7; report from E65, FAIL from E71): a count whose
+ * predicate is not the family's, in running text - Polish "zostało {x}", "został
+ * {x}", "zostały {x}", "została {x}" (and "pozostało ..."), English "left: {x}" and
+ * "{x} left" - outside a plural family's forms and not as a facts row ("Zostało:
+ * {n}", a label and its number alone). One finding a string; what a family's forms
+ * and the facts rows hold is counted (`inFamily`, `factsRows`).
+ */
+export function bareLeft(bag = {}) {
+    const found = [], counts = { inFamily: 0, factsRows: 0 };
+    let read = 0;
+    for (const u of uiUnits(bag)) {
+        read++;
+        const text = untagged(u.text);
+        const m = BARE_LEFT[u.lang].map(re => re.exec(text)).find(Boolean);
+        if (!m) continue;
+        if (FAMILY_FORM.test(u.key)) { counts.inFamily++; continue; }
+        if (FACTS_ROW.test(text)) { counts.factsRows++; continue; }
+        found.push({ key: u.key, kind: u.lang, lang: u.lang,
+            what: `${u.where}: "${quoted(text, m.index, m[0].length)}" - a bare count in a sentence: its predicate belongs in a plural family (PL7; T25)` });
+    }
+    return { found, read, counts };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -1458,11 +1987,20 @@ export const MODES = Object.freeze({
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     monokumaVoice: Object.freeze({ test: "T21", mode: "report", fail: "E71", reads: Object.freeze(["lang", "budgets", "scripts"]), also: Object.freeze(["prose", "docs"]), lexer: true }),
-    colonChains: Object.freeze({ test: "T24", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) })
+    colonChains: Object.freeze({ test: "T24", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    loanGender: Object.freeze({ test: "T11", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
+    loanDeclension: Object.freeze({ test: "T12", mode: "report", fail: "E71", reads: Object.freeze(["glossary", "lang"]), also: Object.freeze(["docs"]) }),
+    oxfordComma: Object.freeze({ test: "T17", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    telegraph: Object.freeze({ test: "T18", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "glossary", "budgets"]) }),
+    contractions: Object.freeze({ test: "T19", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
+    mirror: Object.freeze({ test: "T22", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
+    itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
+    bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
-    lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains });
+    lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
+    loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -1815,6 +2353,7 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.x15Title": "Nonstop Debate!",                         // X15
                 "DRPG.Fx.x16": "This is NOT a test for the GM.",               // X16
                 "DRPG.Fx.x16ok": "The GM and the NPC open the HUD.",           // acronyms: passes
+                "DRPG.Fx.x16name": "The OBJECTION button opens the floor.",    // the game's shout, a name: passes
                 "DRPG.Fx.trait.short": "EYE",                                  // an abbreviation's key: passes
                 "DRPG.Fx.x17": "You may only act unless the GM refuses.",      // X17
                 "DRPG.Fx.x17ok": "Only the GM opens it.",                      // one qualifier: passes
@@ -1918,6 +2457,218 @@ export const FIXTURES = Object.freeze({
             prose: { "DRPG.Config.FX.x": "A: b: c: d" },                                          // three: flagged
             pl: { "DRPG.Fx.a": "Zbrodnia: {a}; słabe: {b}; klucz: {c}." }                          // three: flagged
         }
+    },
+    loanGender: {
+        /* A glossary of its own: a countable masculine (singular when bare), a feminine and an indeclinable neuter ("Hope",
+           DB4 and DB28: the slice's edge; the real glossary names no resource), an indeclinable masculine, and Findings,
+           which has no gender and is not read. */
+        flags: ["DRPG.Fx.a fx-bullet-before", "DRPG.Fx.c fx-debate-after", "DRPG.Fx.e fx-bullet-which", "DRPG.Fx.g fx-hope-after", "DRPG.Fx.h fx-bullet-before",
+            "DRPG.Fx.p fx-hope-after", "docs/handbooks/fx.pl.md:1 fx-trial-before"],
+        input: {
+            glossary: { entries: [
+                { id: "fx-bullet", en: "Truth Bullet", pl: "Truth Bullet", gender: "m", declension: { countable: true, gen: "Truth Bulletu" } },
+                { id: "fx-debate", en: "Nonstop Debate", pl: "Nonstop Debate", gender: "f" },
+                { id: "fx-hope", en: "Hope", pl: "Hope", gender: "n", declension: { indeclinable: true } },
+                { id: "fx-trial", en: "Class Trial", pl: "Class Trial", gender: "m", declension: { indeclinable: true } },
+                { id: "fx-findings", en: "Findings", pl: "Findings", gender: null, declension: { indeclinable: true } }
+            ] },
+            pl: {
+                "DRPG.Fx.a": "Nowa Truth Bullet trafia na stół.",                     // a feminine modifier: flagged
+                "DRPG.Fx.b": "Nowy Truth Bullet trafia na stół.",                     // passes
+                "DRPG.Fx.c": "Nonstop Debate został zamknięty.",                      // a masculine predicate: flagged
+                "DRPG.Fx.d": "Nonstop Debate została zamknięta.",                     // passes
+                "DRPG.Fx.e": "Wybierz Truth Bullet, która to dowodzi.",               // "która" after its comma: flagged
+                "DRPG.Fx.f": "Twoje Hope zostało wydane.",                            // neuter both: passes
+                "DRPG.Fx.g": "Hope został wydany.",                                   // flagged
+                "DRPG.Fx.h": "Twoje Truth Bullet jest gotowe.",                       // a bare countable is singular: "twoje" flagged
+                "DRPG.Fx.i": "Wszystkie twoje Nonstop Debate były krótkie.",          // an indeclinable may be plural: passes
+                "DRPG.Fx.j": "Truth Bullet przebił Nonstop Debate, która się skończyła.",   // two genders, each its own words: passes
+                "DRPG.Fx.k": "Class Trial toczy się jako otwarta dyskusja.",          // the predicate is "toczy": passes
+                "DRPG.Fx.l": "Lista Findings została zamknięta.",                     // no gender: passes
+                "DRPG.Fx.m": "W Class Trial wygrała Celestia.",                       // after a preposition, not the subject: passes
+                "DRPG.Fx.n": "Nowe Hope.",                                            // passes
+                "DRPG.Fx.o": "Nonstop Debate nie została zamknięta.",                 // "nie" passed over: passes
+                "DRPG.Fx.p": "Hope nie jest wydany.",                                 // "nie jest" passed over: flagged
+                "DRPG.Fx.q": "Class Trial zaczyna się."                               // "zaczyna" is a verb, no participle: passes
+            },
+            docs: {
+                "docs/handbooks/fx.pl.md": "**Nowa** Class Trial zaczyna się.",       // the markup blanked: flagged
+                "docs/handbooks/fx.en.md": "Nowa Class Trial"                         // not a Polish handbook: not read
+            }
+        }
+    },
+    loanDeclension: {
+        flags: ["DRPG.Fx.a fx-trial-ending", "DRPG.Fx.c fx-word-ending", "DRPG.Fx.d fx-bullet-bare", "DRPG.Fx.g fx-bullet-bare", "DRPG.Fx.i fx-gm-bare",
+            "DRPG.Fx.k fx-burst-bare", "docs/handbooks/fx.pl.md:1 fx-trial-ending"],
+        input: {
+            glossary: { entries: [
+                { id: "fx-trial", en: "Class Trial", pl: "Class Trial", gender: "m", declension: { indeclinable: true } },
+                { id: "fx-word", en: "safeword", pl: "safeword", gender: "n", declension: { indeclinable: true } },
+                { id: "fx-bullet", en: "Truth Bullet", pl: "Truth Bullet", gender: "m", declension: { countable: true, gen: "Truth Bulletu" } },
+                { id: "fx-burst", en: "Burst", pl: "Burst", gender: null, declension: { instr: "Burstem" } },
+                { id: "fx-gm", en: "GM", pl: "GM", gender: null, declension: { countable: true, gen: "GM-a" } },
+                { id: "fx-plain", en: "Monokuma", pl: "Monokuma", gender: "m" }
+            ] },
+            pl: {
+                "DRPG.Fx.a": "W trakcie Class Trialu nie wolno.",                     // flagged
+                "DRPG.Fx.b": "W trakcie Class Trial nie wolno.",                      // passes
+                "DRPG.Fx.c": "Ktoś użył safeword'a.",                                 // an apostrophe before the ending: flagged
+                "DRPG.Fx.d": "Dla Truth Bullet nie ma miejsca.",                      // "dla" takes the genitive: flagged
+                "DRPG.Fx.e": "Dla Truth Bulletu jest miejsce.",                       // passes
+                "DRPG.Fx.f": "Wierzysz w Truth Bullet.",                              // "w" with an accusative: passes
+                "DRPG.Fx.g": "Do twojego Truth Bullet dołącza notatka.",              // a modifier between: flagged
+                "DRPG.Fx.h": "Pisze do GM-a.",                                        // passes
+                "DRPG.Fx.i": "Pisze do GM.",                                          // flagged
+                "DRPG.Fx.j": "Pula, do której GM przypisał ucznia.",                  // "której" opens a clause: passes
+                "DRPG.Fx.k": "Wygrywa z Burst.",                                      // the instrumental Burst lists: flagged
+                "DRPG.Fx.l": "Wygrywa z Burstem.",                                    // passes
+                "DRPG.Fx.m": "Bez Monokumy."                                          // no declension in the entry: not read
+            },
+            docs: { "docs/handbooks/fx.pl.md": "Po Class Trialem." }                  // flagged
+        }
+    },
+    oxfordComma: {
+        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "Spend Health, Sanity and Hope.",                        // flagged
+                "DRPG.Fx.b": "Spend Health, Sanity, and Hope.",                       // passes
+                "DRPG.Fx.c": "Spend Health and Hope.",                                // two items: passes
+                "DRPG.Fx.d": "If you win, you gain Hope and Despair.",                // a clause's comma: passes
+                "DRPG.Fx.e": "Whoever builds it sees it, ticked or not.",             // "or not": passes
+                "DRPG.Fx.f": "Once it ends, it closes and locks."                     // a subject after the comma: passes
+            },
+            prose: { "DRPG.Config.FX.p": "Windows, buttons or the chat." },          // flagged
+            pl: {
+                "DRPG.Fx.a": "Wydaj Health, Sanity, i Hope.",                         // flagged
+                "DRPG.Fx.b": "Wydaj Health, Sanity i Hope.",                          // passes
+                "DRPG.Fx.c": "Weź kartę, którą chcesz, i zagraj."                     // the comma closes a subordinate clause: passes
+            }
+        }
+    },
+    telegraph: {
+        flags: ["DRPG.Fx.a en-verbless", "DRPG.Fx.a pl-verbless", "DRPG.Fx.d en-article"],
+        input: {
+            glossary: { entries: [{ id: "fx-bullet", en: "Truth Bullet", pl: "Truth Bullet", gender: "m", declension: { countable: true, gen: "Truth Bulletu" } }] },
+            budgets: { surfaces: {}, rules: [], allow: [{ key: "DRPG.Fx.allowed", rule: "X6", why: "a fixture's exception", until: "E01" }] },
+            en: {
+                "DRPG.Fx.a": "Projects updated. {n} deleted.",                        // flagged
+                "DRPG.Fx.b": "The project is saved. {n} were deleted.",               // passes
+                "DRPG.Fx.c": "Room sealed.",                                          // one sentence: passes
+                "DRPG.Fx.d": "Truth Bullet analyzed.",                                // no article before a countable noun: flagged
+                "DRPG.Fx.e": "A Truth Bullet is analyzed.",                           // passes
+                "DRPG.Fx.f": "Truth Bullet",                                          // a label, no sentence: passes
+                "DRPG.Fx.g": "e.g. Mud on the windowsill",                            // an abbreviation ends no sentence: passes
+                "DRPG.Fx.h": "You listen. Then nothing.",                             // a pronoun and its verb: passes
+                "DRPG.Fx.i": "Loading... a moment.",                                  // a lower-case word goes on the sentence: passes
+                "DRPG.Fx.j": "Truth Bullet is analyzed.",                             // a verb: passes
+                "DRPG.Fx.k": "A Truth Bullet analyzed.",                              // the noun does not open it: passes
+                "DRPG.Fx.allowed": "Nothing readied. Bare hands."                     // an allow row for X6: passes, counted
+            },
+            pl: {
+                "DRPG.Fx.a": "Motive ogłoszony. Jedna pora dnia na zegarze.",         // flagged
+                "DRPG.Fx.b": "Motive został ogłoszony. Zostaje jedna pora dnia.",     // passes
+                "DRPG.Fx.c": "Usunięto {n}. Projekty zapisane.",                      // an impersonal "-to" is a verb: passes
+                "DRPG.Fx.g": "np. Kuchnia"                                            // passes
+            }
+        }
+    },
+    contractions: {
+        flags: ["DRPG.Config.FX.rule rule", "DRPG.Fx.c prohibition", "DRPG.Fx.d safety", "DRPG.Fx.toast.b prohibition", "DRPG.Safeword.x safety"],
+        input: {
+            budgets: {
+                surfaces: { "config-description": { target: 30, limit: 45, what: "a rule", fail: null }, toast: { target: 20, limit: 30, what: "a toast", fail: null } },
+                rules: [{ surface: "config-description", keys: "^DRPG\\.Config\\." }, { surface: "toast", keys: "^DRPG\\.Fx\\.toast\\." }],
+                allow: []
+            },
+            en: {
+                "DRPG.Fx.toast.a": "You don't have enough Sanity.",                   // a short message: passes, counted
+                "DRPG.Fx.toast.b": "You can't move now.",                             // a prohibition: flagged
+                "DRPG.Fx.c": "Don't say the word.",                                   // flagged
+                "DRPG.Safeword.x": "It's fine to stop.",                              // a safety text by its key: flagged
+                "DRPG.Fx.d": "If you're unsure, say the safeword.",                   // a safety text by its word: flagged
+                "DRPG.Fx.e": "Monokuma's turn.",                                      // a possessive: passes
+                "DRPG.Fx.f": "You do not have enough Hope."                           // a full form: passes, counted
+            },
+            prose: {
+                "DRPG.Config.FX.rule": "You'll lose one Hope.",                       // a rule: flagged
+                "DRPG.Config.FX.ok": "You will lose one Hope.",                       // passes
+                "DRPG.Config.FX.own": "The student's turn ends."                      // a possessive in a rule: passes
+            },
+            pl: { "DRPG.Fx.c": "Nie mów tego słowa." }                               // Polish: not read
+        }
+    },
+    mirror: {
+        flags: ["DRPG.Config.FX.p sentences", "DRPG.Fx.b sentences", "DRPG.Fx.c skeleton"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "The room is sealed. Nobody enters.",                    // passes
+                "DRPG.Fx.b": "The room is sealed. Nobody enters.",                    // two sentences against one: flagged
+                "DRPG.Fx.c": "Spend Hope: once a day.",                               // a colon against none: flagged
+                "DRPG.Fx.d": "You see that it is gone.",                              // a Polish comma before "że": passes
+                "DRPG.Fx.e": "“{item}” is used up.",                                  // each language's quotes: passes
+                "DRPG.Fx.f": "e.g. Kitchen",                                          // passes
+                "DRPG.Fx.g.one": "{n} action left",                                   // a family's form against its own: passes
+                "DRPG.Fx.h": "At 12:30 the bell rings.",                              // a time's colon: passes
+                "DRPG.Fx.only": "No twin."                                            // no Polish: not read
+            },
+            prose: { "DRPG.Config.FX.p": "One sentence." },                          // flagged
+            pl: {
+                "DRPG.Fx.a": "Pokój jest zamknięty. Nikt nie wchodzi.",
+                "DRPG.Fx.b": "Pokój jest zamknięty, nikt nie wchodzi.",
+                "DRPG.Fx.c": "Wydaj Hope raz dziennie.",
+                "DRPG.Fx.d": "Widzisz, że zniknęło.",
+                "DRPG.Fx.e": "„{item}” się zużył.",
+                "DRPG.Fx.f": "np. Kuchnia",
+                "DRPG.Fx.g.one": "Została {n} akcja",
+                "DRPG.Fx.g.few": "Zostały {n} akcje",                                 // no English twin: not read
+                "DRPG.Fx.h": "O wpół do pierwszej dzwoni dzwonek.",              // the time in words: only the English has a colon
+                "DRPG.Config.FX.p": "Jedno zdanie. Drugie zdanie."
+            }
+        }
+    },
+    itemQuotes: {
+        flags: ["DRPG.Fx.b en", "DRPG.Fx.b pl", "DRPG.Fx.c en"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "“{item}” is used up.",                                  // passes
+                "DRPG.Fx.b": "{item} is used up.",                                    // flagged
+                "DRPG.Fx.c": "\"{item}\" is used up.",                                // straight quotes: flagged
+                "DRPG.Fx.d": "Use {item}",                                            // the code quotes it: passes, counted
+                "DRPG.Fx.e": "{items} are gone."                                      // another placeholder: passes
+            },
+            pl: {
+                "DRPG.Fx.a": "„{item}” się zużył.",                                   // passes
+                "DRPG.Fx.b": "“{item}” się zużył.",                                   // the English quotes: flagged
+                "DRPG.Fx.d": "Użyj: {item}"                                           // the code quotes it: passes, counted
+            },
+            scripts: {
+                "scripts/fx-item.mjs": [
+                    "game.i18n.format(\"DRPG.Fx.d\", { item: `“${item.name}”` });",
+                    "game.i18n.format(\"DRPG.Fx.b\", { item: item.name });",
+                    "// game.i18n.format(\"DRPG.Fx.b\", { item: \"“x”\" });"
+                ].join("\n")
+            }
+        }
+    },
+    bareLeft: {
+        flags: ["DRPG.Config.FX.p en", "DRPG.Fx.a en", "DRPG.Fx.a pl", "DRPG.Fx.d en", "DRPG.Fx.f pl"],
+        input: {
+            en: {
+                "DRPG.Fx.a": "That cost an action - {left} left.",                    // flagged
+                "DRPG.Fx.b": "Left: {left}",                                          // a facts row: passes, counted
+                "DRPG.Fx.c.one": "{n} action left",                                   // a family's form: passes, counted
+                "DRPG.Fx.d": "Actions left: {n}. Choose one.",                        // "left:" in running text: flagged
+                "DRPG.Fx.e": "{n} search tokens left"                                 // a noun between: not read
+            },
+            prose: { "DRPG.Config.FX.p": "Roll again; {n} left." },                  // flagged
+            pl: {
+                "DRPG.Fx.a": "To kosztowało akcję - zostało {left}.",                 // flagged
+                "DRPG.Fx.b": "Zostało: {left}",                                       // a facts row: passes
+                "DRPG.Fx.c.few": "Zostały {n} akcje",                                 // a family's form: passes, counted
+                "DRPG.Fx.f": "Pozostało {n} pór dnia."                                // flagged
+            }
+        }
     }
 });
 
@@ -1967,7 +2718,7 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
     doc: {
         $comment: "fixture",
         entries: [
-            { id: "fx-ok", en: "Remnant", pl: "Remnant", gender: "m", inflection: null, stage: "E01", source: ["DB15"],
+            { id: "fx-ok", en: "Remnant", pl: "Remnant", gender: "m", inflection: null, declension: { countable: true, gen: "Remnantu" }, stage: "E01", source: ["DB15"],
                 forbidden: { en: { variants: ["trace"], scope: ["ui"] }, pl: { variants: [{ stem: "ślad", endings: ["", "u"] }], scope: ["ui", "handbooks"] } } },
             { id: "fx-no-stage", en: "A", pl: "A", gender: null, inflection: null, source: ["DB1"],
                 forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
@@ -1975,7 +2726,7 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
                 forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
             { id: "fx-ok", en: "C", pl: "C", gender: "x", inflection: null, stage: "E01", source: ["DB3"], colour: "red",
                 forbidden: { en: { variants: [], scope: ["menus"] }, pl: { variants: [], scope: ["ui"] } } },
-            { id: "fx-open", en: "D", pl: null, gender: null, inflection: null, stage: "E01", source: ["O8"], open: true,
+            { id: "fx-open", en: "D", pl: null, gender: null, inflection: null, declension: { indeclinable: true, gen: "Du" }, stage: "E01", source: ["O8"], open: true,
                 forbidden: { en: { variants: ["d"], scope: ["ui"] }, pl: { variants: [{ stem: "d" }], scope: ["ui"] } } }
         ],
         retired: [
@@ -1991,6 +2742,7 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
         "entry 4 (fx-ok)'s gender \"x\" is not m, f, n or null",
         "entry 4 (fx-ok)'s forbidden.en's scope is not \"ui\", \"handbooks\" or both",
         "entry 5 (fx-open)'s source [\"O8\"] is not a list of decisions (D, DB, DA, DC, DX, TR), amends (A), issues (S) or a plan entry",
+        "entry 5 (fx-open)'s declension is neither { indeclinable: true } nor the forms it lists by case (gen, dat, instr, loc, plural), countable or not",
         "entry 5 (fx-open)'s forbidden.en: an open entry forbids nothing",
         "entry 5 (fx-open)'s forbidden.pl's variants are not phrases or { stem, endings }",
         "entry 5 (fx-open)'s forbidden.pl: an open entry forbids nothing",

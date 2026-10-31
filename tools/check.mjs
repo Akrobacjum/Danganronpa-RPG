@@ -127,7 +127,12 @@
  *             surface and by top-level key group, and a report detector's
  *             findings one a line up to 25 (`--all`: every one). Two more
  *             controls: the self-check sees glossarySchema and budgetsSchema
- *             each stubbed to answer [].
+ *             each stubbed to answer []. E65 C7: eight report detectors of
+ *             the language rules - T11 (loanGender) and T12 (loanDeclension),
+ *             the glossary's loanwords in pl.json and the Polish handbooks;
+ *             T17 (oxfordComma), T18 (telegraph), T19 (contractions, with
+ *             each surface's shares), T22 (mirror, the shares of EN/PL pairs
+ *             alike), T23 (itemQuotes) and T25 (bareLeft).
  */
 
 import fs from "node:fs";
@@ -784,6 +789,11 @@ async function text() {
             console.log(`text:   ${m.test} by rule (en/pl): ` + Object.entries(r.byRule).map(([id, c]) => (c.by ? `${id} read by ${c.by}` : `${id} ${c.en}/${c.pl}`)).join(", "));
         }
         if (r.byCount) console.log(`text:   ${m.test} strings by colons: ${Object.entries(r.byCount).map(([n, c]) => `${n}: ${c}`).join(", ")}`);
+        /* C7's shares (T19, T22): each surface's strings or pairs, then what the detector counts in them. */
+        if (r.perSurface) {
+            console.log(`text:   ${m.test} per surface: ` + Object.entries(r.perSurface).sort((a, b) => (b[1].strings ?? b[1].pairs) - (a[1].strings ?? a[1].pairs))
+                .map(([id, c]) => { const { strings, pairs, ...rest } = c; return `${id} ${strings ?? pairs} (${Object.entries(rest).map(([k, n]) => `${k} ${n}`).join(", ")})`; }).join(", "));
+        }
         /* A detector that splits by stage (T8, T28): its debt above, then each entry of a shipped stage that looked and found
            nothing (one that forbids nothing is counted apart: it measured nothing), and what the entries not yet due find, by
            stage - the report each entry's stage starts from (E65-11). */

@@ -4,6 +4,7 @@
         "Who reads it: scripts/tests-text.mjs, through `node tools/check.mjs text` in Node - T8 (glossaryHits: a forbidden variant where an entry holds) and T28 (retiredHits: a retired name where it is retired); the writers of texts, from docs/text-style.md (E65 C5). Nothing at a table reads it (export-ignore).",
         "The stage rule: an entry holds once its `stage` has shipped (tools/stages.mjs isShipped). An entry whose texts obeyed it when E65 measured it (31.10.2026) has the stage that brought the name, or E65 for a general rule; one T8 found broken has the stage that fixes it - E25 for D33a-D33f and DB residue, E66 for renamed names, E71 for Remnant in a sentence, American spelling, Search Token, the declension of loanwords (T12) and the texts of A8; the names of topics A, C and D the stage that brings them. T8 reports from E65 and fails from E25 (UI and config.mjs, stages up to E25), E71 and E57 (handbooks); T28 fails from E66.",
         "A forbidden variant is a phrase or a stem with its endings, matched as a whole word, in the side's case (`case`: exact unless \"any\"), never inside the entry's own term or a phrase of `except`; `otherCase` finds the term in another case. `open: true` marks an entry no source read decides: it forbids nothing. A retired name comes back only by the owner's decision, and a stage that brings a new name fixes its entry and T28 in the same commit (the plan).",
+        "`declension` (E65 C7): what DB4 and D33c say of an entry's Polish forms, for T11 and T12 and for T18's countable nouns - `indeclinable: true`, or the forms it lists by case (gen, dat, instr, loc, plural) with `countable: true` for DB4's countable nouns (and the GM, D33c); `inflection` keeps the source's words.",
         "Dashes are \"-\". Edited by hand; `node tools/check.mjs text` holds its shape (a schema error is red)."
     ],
     "entries": [
@@ -36,6 +37,7 @@
         "pl": "GM",
         "gender": null,
         "inflection": "GM-a, GM-owie (D33c)",
+        "declension": {"countable": true, "gen": "GM-a", "plural": "GM-owie"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": ["GMa", "GM'a"], "scope": ["ui", "handbooks"]}},
         "stage": "E25",
         "source": ["D33c"]
@@ -90,6 +92,7 @@
         "pl": "Truth Bullet",
         "gender": "m",
         "inflection": "Inflected as a countable noun: Truth Bulletu (DB4).",
+        "declension": {"countable": true, "gen": "Truth Bulletu"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4", "DB16", "DB28", "S18-31"],
@@ -102,6 +105,7 @@
         "pl": "Remnant",
         "gender": "m",
         "inflection": "Inflected as a countable noun: Remnantu (DB4).",
+        "declension": {"countable": true, "gen": "Remnantu"},
         "forbidden": {"en": {"variants": [{"stem": "trace", "endings": ["", "s"]}], "scope": ["ui", "handbooks"], "case": "any", "except": ["Secure a Trace", "Erase a Trace", "Reshape a Trace", "Hide the Traces", "Follow My Traces"]}, "pl": {"variants": [{"stem": "ślad", "endings": ["", "u", "owi", "em", "zie", "y", "ów", "om", "ami", "ach"]}], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E71",
         "source": ["DB15", "DB6", "DB4", "DB28"],
@@ -113,6 +117,7 @@
         "pl": "token",
         "gender": null,
         "inflection": "Inflected: tokenu (DB4).",
+        "declension": {"countable": true, "gen": "tokenu"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4"]
@@ -123,6 +128,7 @@
         "pl": "Search Token",
         "gender": "m",
         "inflection": "Inflected: Search Tokenu (DB4).",
+        "declension": {"countable": true, "gen": "Search Tokenu"},
         "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"], "otherCase": true}, "pl": {"variants": [], "scope": ["ui", "handbooks"], "otherCase": true}},
         "stage": "E71",
         "source": ["DB17", "DB4", "DB28"]
@@ -133,6 +139,7 @@
         "pl": "Call",
         "gender": null,
         "inflection": "Call, Calla (DB4); of the Call names only Reroll and Burst inflect.",
+        "declension": {"countable": true, "gen": "Calla"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4", "DB29"]
@@ -143,6 +150,7 @@
         "pl": "Level Up",
         "gender": null,
         "inflection": "Plural Level Upy (DB4).",
+        "declension": {"countable": true, "plural": "Level Upy"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4"]
@@ -153,6 +161,7 @@
         "pl": "Class Trial",
         "gender": "m",
         "inflection": "Indeclinable, with a preposition: w/podczas Class Trial (DB4).",
+        "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [{"stem": "Class Trial", "endings": ["u", "owi", "em", "ie", "y", "ów", "om", "ami", "ach"]}], "scope": ["ui", "handbooks"]}},
         "stage": "E71",
         "source": ["DB4", "DB28"]
@@ -163,6 +172,7 @@
         "pl": "Reroll",
         "gender": null,
         "inflection": "Rerolla (DB4: of the Call names only Reroll and Burst inflect).",
+        "declension": {"gen": "Rerolla"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4"]
@@ -173,6 +183,7 @@
         "pl": "Burst",
         "gender": null,
         "inflection": "Burstem (DB4).",
+        "declension": {"instr": "Burstem"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4"]
@@ -183,6 +194,7 @@
         "pl": null,
         "gender": "n",
         "inflection": "Resources do not inflect (DB4).",
+        "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
         "source": ["DB4", "DB28"],
@@ -474,6 +486,7 @@
         "pl": "safeword",
         "gender": "n",
         "inflection": "Indeclinable, like \"słowo\": \"Ktoś użył safeword\", \"zmień je\" (DB30).",
+        "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [{"stem": "safeword", "endings": ["a", "u", "owi", "em", "zie", "y", "ów", "om", "ami", "ach"]}], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E71",
         "source": ["DB30"]
@@ -902,6 +915,7 @@
         "pl": "Findings",
         "gender": null,
         "inflection": "Indeclinable; in a sentence \"lista Findings\" (DB39).",
+        "declension": {"indeclinable": true},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [{"stem": "Findings", "endings": ["u", "y", "ów", "em", "ach", "ami", "om"]}], "scope": ["ui", "handbooks"]}},
         "stage": "E70",
         "source": ["DB39"]
