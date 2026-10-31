@@ -419,6 +419,30 @@
         "source": ["DB28"]
       },
       {
+        "id": "hope",
+        "en": "Hope",
+        "pl": "Hope",
+        "gender": "m",
+        "inflection": "Indeclinable (DB4: resources do not inflect); written masculine on this tree (\"twój Hope\", \"każdy Hope\").",
+        "declension": {"indeclinable": true},
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E65",
+        "source": ["DB4", "DB28"],
+        "note": "Added in E65 C9 so that T11 and T12 read it (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 253 occurrences of \"Hope\" in pl.json and the Polish handbooks, none with a case ending; T11 with this entry neuter finds 26 candidates for Hope and Despair together (\"Twój Hope jest nietknięty\", \"każdy Hope\", \"Despair, który\"), masculine none. DB28 makes resources neuter; whether Hope and Despair are among DB4's resources (table 2.11) is not in the sources read, so the gender follows the tree until the owner rules (STATUS Open 61)."
+      },
+      {
+        "id": "despair",
+        "en": "Despair",
+        "pl": "Despair",
+        "gender": "m",
+        "inflection": "Indeclinable (DB4: resources do not inflect); written masculine on this tree (\"swój Despair\", \"cały Despair\").",
+        "declension": {"indeclinable": true},
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E65",
+        "source": ["DB4", "DB28"],
+        "note": "Added in E65 C9 with hope (the orchestrator's decision on C7's Open 46). Read 31.10.2026: 288 occurrences of \"Despair\" in pl.json and the Polish handbooks, none with a case ending, written masculine (\"cały Despair\", \"rozlany Despair\", \"Despair, który\"); DB28's neuter for resources is not applied for the reason given under hope (STATUS Open 61)."
+      },
+      {
         "id": "free-move",
         "en": "Free Move",
         "pl": "Free Move",

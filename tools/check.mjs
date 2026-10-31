@@ -136,7 +136,14 @@
  *             report detectors that read the scripts - T13 (uiLiterals,
  *             English literals in a script that draws UI) and T20
  *             (localeCalls, a list or a date formatted outside utils.mjs's
- *             helpers) - each with its findings counted by file.
+ *             helpers) - each with its findings counted by file. E65 C9:
+ *             T27 (naturalnessBefore, report), the naturalness pairs of
+ *             docs/text-style.md section 12 whose "before" still stands in
+ *             pl.json; the pairs whose before is gone are listed apart, and
+ *             a fault of the guide's pairs table is red ("pairs: ..."), as a
+ *             schema's is. Two more controls: the self-check sees the table's
+ *             parser (naturalnessPairs) stubbed to read nothing, and T27 with
+ *             its gone list and counts emptied.
  */
 
 import fs from "node:fs";
@@ -714,6 +721,17 @@ async function text() {
             problems.push(`the self-check does not see ${schema} stubbed to answer [] - a broken schema would pass its file`);
         }
     }
+    /* And the parser of the guide's naturalness pairs (E65 C9): stubbed to read no pair and no fault, one mismatch. */
+    if (!T.selfCheck(T.DETECTORS, { lexer }, { naturalnessPairs: () => ({ pairs: [], faults: [] }) }).some(p => p.startsWith("naturalnessPairs reads "))) {
+        problems.push("the self-check does not see naturalnessPairs stubbed to read nothing - a broken pairs table would pass");
+    }
+    /* And what T27 lists apart and counts (E65 C9): the detector with its gone list and counts emptied is seen on both, so a
+       self-check that stopped reading either would leave this part green over a T27 that misreads a changed string. */
+    const goneBlind = bag => ({ ...T.DETECTORS.naturalnessBefore(bag), gone: [], counts: {} });
+    const blindSeen = T.selfCheck({ ...T.DETECTORS, naturalnessBefore: goneBlind }, { lexer });
+    if (!blindSeen.some(p => p.startsWith("naturalnessBefore lists nothing ")) || !blindSeen.some(p => p.startsWith("naturalnessBefore counts "))) {
+        problems.push("the self-check does not see naturalnessBefore with its gone pairs and counts emptied - it would pass a T27 that misreads a changed string");
+    }
     const fileOf = name => path.join(dir, name);
     for (const name of ["en.json", "pl.json"]) if (!fs.existsSync(fileOf(name))) problems.push(`${path.join(where, name)} is missing - nothing was read`);
     if (problems.some(p => p.endsWith("nothing was read"))) return problems;
@@ -767,6 +785,8 @@ async function text() {
         console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`
             + (b ? `; baseline ${rows.length} row(s), ${b.rows} site(s): ${b.matched} matched, ${b.left.length} new, ${b.stale.length} gone` : "")
             + (counts ? ` (${counts})` : ""));
+        /* A detector that reads a file E65 writes carries that file's faults (T27: the guide's pairs table, E65 C9): red. */
+        if (Array.isArray(r.faults)) problems.push(...r.faults.map(f => `pairs: docs/text-style.md: ${f}`));
         if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")}${LANG_DIR === null ? "" : ` (the language files of ${where})`} - it has proved nothing`);
         const live = b ? b.left : r.found;
         if (m.mode === "fail") {
@@ -782,6 +802,11 @@ async function text() {
             const handbook = f => /^docs\//.test(String(f.key));
             console.log(`text:   ${m.test} by surface: ${shownTally(tally(live, f => (handbook(f) ? "handbook" : surfaces.surfaceOf(f.key) ?? "unclassified")), 14)}`);
             console.log(`text:   ${m.test} by group: ${shownTally(tally(live, f => (handbook(f) ? String(f.key).split(":")[0] : T.groupOf(f.key))), 10)}`);
+        }
+        /* What a detector lists apart (T27's pairs whose before is gone, E65 C9): every one, they are the table's models. */
+        if (Array.isArray(r.gone)) {
+            console.log(`text:   ${m.test} gone: ${r.gone.length}`);
+            for (const g of r.gone) console.log(`text:   ${m.test} gone: ${g.what}`);
         }
         /* C8's detectors, which read code (T13, T20): their findings carry `file` and no `lang`, counted by file. */
         if (live.length && live.every(f => f.file && !f.lang)) console.log(`text:   ${m.test} by file: ${shownTally(tally(live, f => f.file), 14)}`);

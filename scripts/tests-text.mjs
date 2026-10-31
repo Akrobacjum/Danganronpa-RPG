@@ -88,7 +88,11 @@
  * English literals in a script that draws UI, the console's text, a refusal's
  * reason, a class list, a selector and CSS set aside) and T20 (`localeCalls`,
  * `Intl.ListFormat` and `toLocale*String` outside utils.mjs's `listOf` and
- * `plural`).
+ * `plural`). At C9 T27 (`naturalnessBefore`, E65-18, report, and it stays one): a
+ * naturalness pair's "before" still in pl.json, the pairs read off the guide's own
+ * table (docs/text-style.md section 12, through `naturalnessPairs`, so the guide is
+ * their one source); the pairs whose before is gone are listed apart, and the table's
+ * faults are red in `text`.
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -2088,6 +2092,113 @@ export function localeCalls(bag = {}) {
     return { found, read: counts.files, sources: ["script"], counts };
 }
 
+/* --------------------------------- T27 ------------------------------------- */
+
+/* Where T27's pairs live (E65 C9): the guide's table under "### Pary N1-N<k>", section 12 of docs/text-style.md - the one
+   source of the pairs, so a pair is added, changed or confirmed there and nowhere else. */
+export const NATURALNESS_GUIDE = "docs/text-style.md";
+const PAIRS_HEADING = /^### Pary N1-N(\d+)\s*$/;
+const PAIRS_COLUMNS = Object.freeze(["N", "Klucz", "Przed", "Po", "Reguła", "Status"]);
+const PAIR_KEY = /^`([A-Za-z][\w-]*(?:\.[\w-]+)+)`$/, PLAN_PHRASING = "plan phrasing";
+const PAIR_QUOTE = /^„([\s\S]*\S[\s\S]*)”$/u;
+/* E65-18's status, then the two the owner's reading gives a pair (E65-24): no agent writes either of those. */
+const PAIR_STATUS = /^(?:written 30\.10 for the owner's pilot, not confirmed|(?:confirmed|changed) in the pilot \d\d\.\d\d\.\d{4})$/;
+const pairCells = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+
+/**
+ * The naturalness pairs of the guide's text (E65 C9, E65-18): `{ pairs, faults }`,
+ * each pair `{ id, key, before, after, rule, status, line }` (`key` null for a row
+ * whose key cell is "plan phrasing"), each fault one sentence. The table is the
+ * first one after the heading "### Pary N1-N<k>", up to its first line that is no
+ * table row; its header is PAIRS_COLUMNS, its rows N1, N2, ... in order, each with a
+ * key in backticks or "plan phrasing", a before and an after in „...” (a quote inside
+ * is the string's own: the cell's first „ and last ” are the table's), a rule and a
+ * status of PAIR_STATUS; the heading's k is the number of rows. A row with a key and a
+ * before is a pair even when another of its cells is at fault (T27 still reads it);
+ * the fault is red in `text` all the same, as a schema's is: the guide is a file E65
+ * writes, and a row that silently fell out of the table would never be reported.
+ */
+export function naturalnessPairs(text) {
+    const lines = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+    const at = lines.findIndex(l => PAIRS_HEADING.test(l));
+    if (at < 0) return { pairs: [], faults: ["no heading \"### Pary N1-N<k>\" - the pairs have no table to be read from"] };
+    const declared = Number(lines[at].match(PAIRS_HEADING)[1]);
+    let i = at + 1;
+    while (i < lines.length && !lines[i].trimStart().startsWith("|") && !/^#/.test(lines[i])) i++;
+    if (!(lines[i] ?? "").trimStart().startsWith("|")) return { pairs: [], faults: [`no table under "${lines[at].trim()}"`] };
+    const faults = [], pairs = [], seen = new Map();
+    const header = pairCells(lines[i]);
+    if (!same(header, [...PAIRS_COLUMNS])) faults.push(`the table's columns are ${header.join(", ")}, not ${PAIRS_COLUMNS.join(", ")}`);
+    if (!/^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/.test(lines[i + 1] ?? "")) faults.push("the table has no separator row under its header");
+    let rows = 0;
+    for (let j = i + 2; j < lines.length && lines[j].trimStart().startsWith("|"); j++) {
+        rows++;
+        const where = `line ${j + 1}`, c = pairCells(lines[j]);
+        if (c.length !== PAIRS_COLUMNS.length) { faults.push(`the row at ${where} has ${c.length} cell(s), not ${PAIRS_COLUMNS.length}`); continue; }
+        const [id, keyCell, beforeCell, afterCell, rule, status] = c;
+        const name = `${id || "a row"} (${where})`;
+        if (id !== `N${rows}`) faults.push(`the row at ${where} is numbered ${JSON.stringify(id)}, not N${rows} - the pairs are numbered in order`);
+        const key = keyCell === PLAN_PHRASING ? null : keyCell.match(PAIR_KEY)?.[1];
+        if (key === undefined) faults.push(`${name}'s key ${JSON.stringify(keyCell)} is neither a key in backticks nor "${PLAN_PHRASING}"`);
+        const before = beforeCell.match(PAIR_QUOTE)?.[1], after = afterCell.match(PAIR_QUOTE)?.[1];
+        if (before === undefined) faults.push(`${name}'s before ${JSON.stringify(beforeCell)} is not a quote in „...”`);
+        if (after === undefined) faults.push(`${name}'s after ${JSON.stringify(afterCell)} is not a quote in „...”`);
+        if (!rule) faults.push(`${name} names no rule`);
+        if (!PAIR_STATUS.test(status)) faults.push(`${name}'s status ${JSON.stringify(status)} is not "written 30.10 for the owner's pilot, not confirmed", "confirmed in the pilot <dd.mm.yyyy>" or "changed in the pilot <dd.mm.yyyy>"`);
+        if (key === undefined || before === undefined) continue;
+        const twin = seen.get(`${key} ${before}`);
+        if (twin) faults.push(`${name} repeats ${twin}'s key and before`);
+        else seen.set(`${key} ${before}`, id);
+        pairs.push({ id, key, before, after: after ?? null, rule, status, line: j + 1 });
+    }
+    if (rows !== declared) faults.push(`the heading names N1-N${declared}, and the table holds ${rows} row(s)`);
+    return { pairs, faults };
+}
+
+/**
+ * T27 (the plan's; report from E65, and it stays one): a naturalness pair's
+ * "before" still in pl.json (E65-18). Each pair of the guide's table
+ * (`naturalnessPairs` over NATURALNESS_GUIDE in `docs`) is held to the value of its
+ * key - the before as written, a substring, case and all - or, for a "plan
+ * phrasing" row, to every value; a pair whose before is still there is a finding
+ * (keyed by the value's key), with the other keys whose values hold the same words,
+ * which the batch that applies the pair meets too (`elsewhere`). A before that is no
+ * longer in its key - a later stage changed the string, or the key is gone - is no
+ * finding but `gone`, listed apart: the pair stays in the table as a model (the
+ * slice's edge case). What is found is counted by status, so the pairs the owner
+ * has not read are reported apart (Q-E65-3). The guide's own faults ride along as
+ * `faults`, which `text` makes red. `read` is the pairs read: a guide with no table
+ * has proved nothing.
+ */
+export function naturalnessBefore(bag = {}) {
+    const counts = { pairs: 0, present: 0, gone: 0, keyGone: 0, elsewhere: 0, notConfirmed: 0, confirmed: 0, changed: 0 };
+    const docs = asMap(bag.docs);
+    if (!docs.has(NATURALNESS_GUIDE) || bag.pl === undefined) return { found: [], read: 0, gone: [], faults: [], counts };
+    const { pairs, faults } = naturalnessPairs(docs.get(NATURALNESS_GUIDE));
+    const pl = asMap(bag.pl), values = [...pl].filter(([, v]) => typeof v === "string");
+    const found = [], gone = [];
+    for (const p of pairs) {
+        counts.pairs++;
+        const holders = values.filter(([, v]) => v.includes(p.before)).map(([k]) => k);
+        const key = p.key ?? holders[0];
+        if (key === undefined || !holders.includes(key)) {
+            counts.gone++;
+            if (p.key !== null && !pl.has(p.key)) counts.keyGone++;
+            gone.push({ pair: p.id, key: p.key, what: `${p.id}: "${p.before}" is no longer in ${p.key === null ? "lang/pl.json" : `lang/pl.json ${p.key}${pl.has(p.key) ? "" : " (the key is gone)"}`}`
+                + `${holders.length ? `, and stands in ${holders.join(", ")}` : ""} - the pair stays in the table as a model (T27)` });
+            continue;
+        }
+        const also = holders.filter(k => k !== key);
+        if (also.length) counts.elsewhere++;
+        counts.present++;
+        counts[p.status.startsWith("confirmed") ? "confirmed" : p.status.startsWith("changed") ? "changed" : "notConfirmed"]++;
+        found.push({ key, kind: `${p.id}-present`, pair: p.id, lang: "pl", status: p.status,
+            what: `lang/pl.json ${key}: "${p.before}" - naturalness pair ${p.id} (${p.rule}) is not applied yet`
+                + `${also.length ? `; the same words stand in ${also.join(", ")}` : ""} (${p.status}; docs/text-style.md section 12; T27)` });
+    }
+    return { found, read: counts.pairs, gone, faults, counts };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -2184,13 +2295,14 @@ export const MODES = Object.freeze({
     itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
-    localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true })
+    localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
+    naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
     lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
     loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft,
-    uiLiterals, localeCalls });
+    uiLiterals, localeCalls, naturalnessBefore });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -2925,7 +3037,87 @@ export const FIXTURES = Object.freeze({
                 ].join("\n")
             }
         }
+    },
+    naturalnessBefore: {
+        flags: ["DRPG.Fx.here N1-present", "DRPG.Fx.road N2-present"],
+        gone: ["N3", "N4", "N5", "N6"],
+        counts: { pairs: 6, present: 2, gone: 4, keyGone: 2, elsewhere: 1, notConfirmed: 1, confirmed: 1, changed: 0 },
+        faults: ["N6 (line 18)'s status \"confirmed\" is not \"written 30.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\""],
+        input: {
+            docs: {
+                "docs/text-style.md": [
+                    "## 12. Fx",
+                    "",
+                    "| N | Klucz | Przed | Po | Reguła | Status |",                                                    // a table before the heading: not read
+                    "| --- | --- | --- | --- | --- | --- |",
+                    "| N1 | `DRPG.Fx.decoy` | „Nic tu nie ma.” | „Pusto.” | X6 | written 30.10 for the owner's pilot, not confirmed |",
+                    "",
+                    "### Pary N1-N6",
+                    "",
+                    "Akapit przed tabelą.",
+                    "",
+                    "| N | Klucz | Przed | Po | Reguła | Status |",
+                    "| --- | --- | --- | --- | --- | --- |",
+                    "| N1 | `DRPG.Fx.here` | „Jesteś w: {room}.” | „Jesteś w pokoju {room}.” | X12 | written 30.10 for the owner's pilot, not confirmed |", // in its key, and in DRPG.Fx.twin
+                    "| N2 | plan phrasing | „w drodze do: {to}” | „w drodze do pokoju {to}” | X12 | confirmed in the pilot 01.11.2026 |",            // in DRPG.Fx.road
+                    "| N3 | `DRPG.Fx.changed` | „Nic nie zostało wydane.” | „Nie tracisz akcji.” | X1 | written 30.10 for the owner's pilot, not confirmed |", // gone: the value changed, the words in another key
+                    "| N4 | `DRPG.Fx.removed` | „Brak akcji.” | „Nie masz już akcji.” | X6 | written 30.10 for the owner's pilot, not confirmed |",     // gone: the key is gone
+                    "| N5 | `DRPG.Fx.case` | „widać, jak” | „w pokoju widać, jak” | X12 | changed in the pilot 01.11.2026 |",                       // gone: another case
+                    "| N6 | `DRPG.Fx.dated` | „Bez daty.” | „Z datą.” | X6 | confirmed |",                                                           // a fault: no date; gone: no key
+                    "",
+                    "| N7 | `DRPG.Fx.after` | „Za tabelą.” | „Po tabeli.” | X6 | written 30.10 for the owner's pilot, not confirmed |"                 // after the table: not read
+                ].join("\n")
+            },
+            pl: {
+                "DRPG.Fx.here": "Jesteś w: {room}. Który pokój?", "DRPG.Fx.twin": "Jesteś w: {room}.",
+                "DRPG.Fx.road": "Jesteś w drodze do: {to}.", "DRPG.Fx.changed": "Nie tracisz akcji.", "DRPG.Fx.moved": "Nic nie zostało wydane.", "DRPG.Fx.case": "Widać, jak ktoś grzebie.",
+                "DRPG.Fx.decoy": "Nic tu nie ma.", "DRPG.Fx.after": "Za tabelą."
+            }
+        }
     }
+});
+
+/**
+ * naturalnessPairs on rows at fault (E65 C9): the faults it names, in order, and the
+ * pairs it still reads, off three texts - one table with nine faults, one with no
+ * heading, one whose header is not the table's and has no separator row (its one
+ * row taken for that row, so the table holds none). selfCheck holds the parser to it, as it holds the two schemas to theirs.
+ */
+export const NATURALNESS_TABLE_FIXTURE = Object.freeze({
+    texts: Object.freeze([
+        [
+            "### Pary N1-N4",
+            "| N | Klucz | Przed | Po | Reguła | Status |",
+            "| --- | --- | --- | --- | --- | --- |",
+            "| N1 | `DRPG.Fx.a` | „„{item}” się zużył.” | „„{item}” jest zużyty.” | PL-g | written 30.10 for the owner's pilot, not confirmed |", // a quote inside: whole
+            "| N3 | `DRPG.Fx.b` | „Brak akcji.” | „Nie masz akcji.” | X6 | written 30.10 for the owner's pilot, not confirmed |",            // numbered out of order
+            "| N3 | notakey | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |",                                    // no key: not a pair
+            "| N4 | `DRPG.Fx.c` | „Brak.” | „Nic.” | X6 |",                                                                                // five cells
+            "| N5 | `DRPG.Fx.d` | Brak. | „” |  | confirmed |",                                                                              // no quote, empty after, no rule, a status with no date
+            "| N6 | `DRPG.Fx.a` | „„{item}” się zużył.” | „Inaczej.” | PL-g | confirmed in the pilot 01.11.2026 |"                              // N1's key and before again
+        ].join("\n"),
+        "## 12. Bez tabeli\n\n| N | Klucz | Przed | Po | Reguła | Status |",
+        "### Pary N1-N1\n\n| N | Klucz | Przed | Po | Status |\n| N1 | `DRPG.Fx.e` | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |"
+    ]),
+    want: Object.freeze([
+        {
+            pairs: ["N1 DRPG.Fx.a", "N3 DRPG.Fx.b", "N6 DRPG.Fx.a"],
+            faults: [
+                "the row at line 5 is numbered \"N3\", not N2 - the pairs are numbered in order",
+                "N3 (line 6)'s key \"notakey\" is neither a key in backticks nor \"plan phrasing\"",
+                "the row at line 7 has 5 cell(s), not 6",
+                "N5 (line 8)'s before \"Brak.\" is not a quote in „...”",
+                "N5 (line 8)'s after \"„”\" is not a quote in „...”",
+                "N5 (line 8) names no rule",
+                "N5 (line 8)'s status \"confirmed\" is not \"written 30.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
+                "N6 (line 9) repeats N1's key and before",
+                "the heading names N1-N4, and the table holds 6 row(s)"
+            ]
+        },
+        { pairs: [], faults: ["no heading \"### Pary N1-N<k>\" - the pairs have no table to be read from"] },
+        { pairs: [], faults: ["the table's columns are N, Klucz, Przed, Po, Status, not N, Klucz, Przed, Po, Reguła, Status", "the table has no separator row under its header",
+            "the heading names N1-N1, and the table holds 0 row(s)"] }
+    ])
 });
 
 /** `legacyListsFrom`'s own case: both literals, an empty list, a commented-out copy before the real one, and a text with neither. */
@@ -3081,6 +3273,11 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
  * in for the two (E65 C6: how check.mjs and R1058 see that a schema stubbed to
  * answer [] is caught - C5's mutant M13, the budgets' line of this check removed,
  * lived until then). Last, every X rule T5 matches has its own fixture line.
+ * E65 C9: a fixture may also name what its detector lists apart (`gone`, T27's
+ * pairs whose before is no longer in pl.json) and counts it must give (`counts`),
+ * and the faults of the file it read that its detector carries (`faults`);
+ * `naturalnessPairs` answers its own case (NATURALNESS_TABLE_FIXTURE), and
+ * `schemas.naturalnessPairs` stands in for it as for the two schemas.
  */
 export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
     const out = [];
@@ -3101,6 +3298,19 @@ export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
         if (fx.pending) {
             const held = (r?.pending ?? []).map(itemOf).sort(), notDue = [...fx.pending].sort();
             if (!same(held, notDue)) out.push(`${name} holds back ${held.length ? held.join(", ") : "nothing"} of its fixture as not yet due, not ${notDue.join(", ")} - the stage rule is broken`);
+        }
+        /* What a detector lists apart from its findings (T27's pairs whose before is gone, E65 C9), the counts its fixture
+           names, and the faults it carries of the file it read (`faults`, the fixture's own: T27's names one). */
+        if (fx.gone) {
+            const off = (r?.gone ?? []).map(g => g.pair).sort(), goneWant = [...fx.gone].sort();
+            if (!same(off, goneWant)) out.push(`${name} lists ${off.length ? off.join(", ") : "nothing"} of its fixture as gone, not ${goneWant.join(", ")} - a pair changed by a later stage would be misread`);
+        }
+        for (const [k, n] of Object.entries(fx.counts ?? {})) {
+            if (r?.counts?.[k] !== n) out.push(`${name} counts ${k} ${r?.counts?.[k]} on its fixture, not ${n}`);
+        }
+        if (r?.faults !== undefined || fx.faults) {
+            const carried = JSON.stringify(r?.faults ?? []), faultsWant = JSON.stringify(fx.faults ?? []);
+            if (carried !== faultsWant) out.push(`${name} carries the faults ${carried} of its fixture's file, not ${faultsWant} - a fault in the file it reads would pass`);
         }
         for (const [i, v] of (fx.also ?? []).entries()) {
             let rv;
@@ -3132,6 +3342,13 @@ export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
     const budgets = bs(BUDGETS_SCHEMA_FIXTURE.doc, BUDGETS_SCHEMA_FIXTURE.stages);
     if (JSON.stringify(budgets) !== JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)) {
         out.push(`budgetsSchema answers ${JSON.stringify(budgets)} on its fixture, not ${JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)} - a fault in docs/text-budgets.json would pass`);
+    }
+    /* T27's table (E65 C9): the parser of the guide's pairs on its own case, as the schemas are held to theirs; `schemas`
+       stands in for it the same way (`naturalnessPairs`), so a parser stubbed to read nothing is seen. */
+    const np = schemas.naturalnessPairs ?? naturalnessPairs;
+    const table = NATURALNESS_TABLE_FIXTURE.texts.map(t => np(t)).map(r => ({ pairs: (r?.pairs ?? []).map(p => `${p.id} ${p.key ?? "plan"}`), faults: r?.faults ?? [] }));
+    if (JSON.stringify(table) !== JSON.stringify(NATURALNESS_TABLE_FIXTURE.want)) {
+        out.push(`naturalnessPairs reads ${JSON.stringify(table)} off its fixture, not ${JSON.stringify(NATURALNESS_TABLE_FIXTURE.want)} - a row at fault in the guide's pairs would pass`);
     }
     /* T5's matchers (E65 C6): every X rule a matcher of X_RULES reads has a line of its own in T5's fixture, so a matcher
        broken to match nothing is a fixture mismatch under its own rule number. */
