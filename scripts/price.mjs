@@ -216,6 +216,11 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
  * character is told rather than left believing they were repaid. A Sanity mark is
  * lifted, not healed: it is the same mark going away.
  *
+ * `quiet`: true keeps the "you get it back" whisper for a caller that tells the refund itself; "all" keeps the
+ * "could not come back" one as well, for a caller that words the loss itself (E51 fix round FG7, 31.10.2026; review
+ * correctness F3: a refused Objection whose Hope a darkening held back was told the loss twice, here and in trial.mjs
+ * `objectionRefusedLine`; tier 2's E51-T18 counts the two).
+ *
  * @returns {Promise<boolean>} whether the refund landed.
  */
 export async function refundPrice(actor, receipt, { quiet = false } = {}) {
@@ -247,7 +252,7 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
              * was told they were repaid and was not is worse off than one who
              * knows to ask the GM.
              */
-            if (overflowBlocksHope()) {
+            if (overflowBlocksHope() && quiet !== "all") {
                 await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Price.refundLost",
                     { what: plural("DRPG.Price.label.hope", { n: receipt.amount }) })}</p>`);
             }

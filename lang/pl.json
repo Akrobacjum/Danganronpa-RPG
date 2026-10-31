@@ -1063,7 +1063,7 @@
       "whichCharacterHub": "Który uczeń"
     },
     "Monocub": {
-      "meddleRefused": "Twojego Confusion nie dało się zastosować - akcja i Hope wróciły.",
+      "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",
       "tickFirst": "Najpierw zaznacz Monocub",
       "student": "Uczeń",
       "panelTitle": "Monocub",

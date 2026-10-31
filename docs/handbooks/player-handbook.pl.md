@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.93, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.94, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -208,8 +208,8 @@ Wybierasz, jak patrzysz:
 
 | Sposób | Cel |
 |---|---|
-| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju - rozstrzygają kości |
-| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj - rozstrzygają kości |
+| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju; w pokoju, w którym nie ma nic takiego, GM decyduje, co widzisz |
+| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj i to, czego w tym pokoju w ogóle nie powinno być; gdy nie ma tu nic takiego, decyduje GM |
 | Podążaj za własnymi śladami | wróć po własnych śladach i znajdź to, co zostawiłeś |
 | Skup wzrok | powiedz, czego szukasz; GM decyduje, na czym zatrzyma się twój wzrok |
 | Zbadaj punkt zainteresowania | coś, co nie jest śladem - osoba, maszyna, pogoda; GM rozstrzyga |
@@ -441,7 +441,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**.
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trialu: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trialu nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
@@ -765,7 +765,7 @@ Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, akcja dynamiczna, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Gdy żaden GM nie jest połączony, nic nie zostaje wysłane: czytasz "Żaden GM nie jest połączony.", a to, co akcja kosztowała, wraca do ciebie.
 
-**Przeczytane tylko wtedy, gdy patrzysz** (od 1.2.93). Wiadomość liczy się jako przeczytana tylko wtedy, gdy okno wątku jest na wierzchu, na zakładce Czat, a karta przeglądarki z grą jest tą, na którą patrzysz. Ta, która przyjdzie, gdy okno leży pod innym, jest na zakładce Notatka albo gdy jesteś na innej karcie przeglądarki, pokazuje swoją kartę i zostaje nieprzeczytana, dopóki nie wysuniesz okna na wierzch. Wiadomość, której nie udało się wysłać, zostaje w polu. Odrzucona, zanim wyszła (za długa albo bez połączonego GM-a), mówi tylko dlaczego; ta, która nie wyszła, mówi "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.". W trakcie zabójstwa twoją wiadomość publikuje przeglądarka GM-a, a gdy jej odpowiedź nie przyjdzie na czas, zobaczysz "Wiadomość mogła nie zostać wysłana. Nadal jest w polu - zajrzyj do wątku, zanim wyślesz ją ponownie.": GM-owie mogą ją mimo to mieć. Wiadomość, którą GM usunie, znika też z twojego otwartego okna.
+**Przeczytane tylko wtedy, gdy patrzysz** (od 1.2.94). Wiadomość liczy się jako przeczytana tylko wtedy, gdy okno wątku jest na wierzchu, na zakładce Czat, a karta przeglądarki z grą jest tą, na którą patrzysz. Ta, która przyjdzie, gdy okno leży pod innym, jest na zakładce Notatka albo gdy jesteś na innej karcie przeglądarki, pokazuje swoją kartę i zostaje nieprzeczytana, dopóki nie wysuniesz okna na wierzch. Wiadomość, której nie udało się wysłać, zostaje w polu. Odrzucona, zanim wyszła (za długa albo bez połączonego GM-a), mówi tylko dlaczego; ta, która nie wyszła, mówi "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.". W trakcie zabójstwa twoją wiadomość publikuje przeglądarka GM-a, a gdy jej odpowiedź nie przyjdzie na czas, zobaczysz "Wiadomość mogła nie zostać wysłana. Nadal jest w polu - zajrzyj do wątku, zanim wyślesz ją ponownie.": GM-owie mogą ją mimo to mieć. Wiadomość, którą GM usunie, znika też z twojego otwartego okna.
 
 **Pytanie, na które czekasz** - Call Experience albo Ultimate, akcja dynamiczna, statystyka, z której rzut wymienia dwie, Observe na punkt zainteresowania - mówi na swojej karcie, do kiedy jest otwarte ("Otwarta do 21:40."): pięć minut dla Calla, trzy dla pozostałych. Tę godzinę pisze twoja przeglądarka, w twojej strefie czasowej i twoim języku, tak samo jak zdanie, którym karta się kończy. Jeśli w ciągu ośmiu sekund Calla albo akcji dynamicznej nie przyjmie żadna przeglądarka GM-a, od razu dowiadujesz się, że GM nie odpowiedział, zamiast czekać do końca karty. Jeśli nikt nie odpowie przed czasem karty, karta kończy się u wszystkich słowami "Nikt nie odpowiedział na czas - zapytaj jeszcze raz." i nic nie zostaje wydane; odpowiedź GM-a dana później nie zostaje zachowana, więc zapytaj jeszcze raz, jeśli nadal chcesz. Karta Calla albo akcji dynamicznej podaje decyzję dopiero wtedy, gdy twoja przeglądarka ją ma albo gdy jej użyjesz - Call uzbrojony na zgodzie, rzut akcji dynamicznej na trudności. Trudność, której odbioru twoja przeglądarka nie potwierdziła, kończy się "Odpowiedział: ... - odbiór niepotwierdzony.": obowiązuje, więc nie pytaj jeszcze raz. Jeśli przeładujesz stronę w trakcie czekania, przeglądarka GM-a i tak zakończy kartę chwilę po jej czasie. Jeśli w trakcie czekania przeładuje się przeglądarka GM-a albo stery przejmie inny GM, twoja przeglądarka zapyta jeszcze raz - najwyżej trzy razy - a pytanie zostaje przy swojej jednej karcie.
 

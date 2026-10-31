@@ -48523,7 +48523,10 @@ const SCENARIOS = [
     ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
         /* The GM gives the student two Tools, one broken. The player's discard of the broken one stands with
            no row and no card; the same discard of the whole one is flagged on one card, and the GMs' Undo
-           makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood. */
+           makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood.
+           Since E51 fix FG5 a discard stands on the trace the primary placed for it (sheet-audit.mjs
+           `noteDiscardTrace`, written by gm-bridge.mjs `handleRemnant`): the honest road's ticket is written here
+           as the bridge writes it, and E51-T22 reads the stamp without one. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
         const [student] = cast(1);
         const player = game.users.find(u => !u.isGM);
@@ -48538,6 +48541,7 @@ const SCENARIOS = [
         let read = null;
         try {
             await sheetAuditIdle();
+            (await import("./sheet-audit.mjs")).noteDiscardTrace(student.id, broken.name);
             const thrown = await asPlayerItemWrite("deleteItem", student, broken, player, { reason: "discard" });
             const kept = await asPlayerItemWrite("deleteItem", student, whole, player, { reason: "discard" });
             await sheetAuditIdle();
@@ -48557,6 +48561,52 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(["stands", "flagged", ["flagged:whole"], 1, [`items.${whole.id}`], true, "E29C6WHOLETOOL01", "tool"]),
             "a discard of a broken item raised a row or a card, or a whole item deleted was not flagged once, or Undo did not make it "
                 + "again under its id with its flags (the two verdicts, the rows, the cards, written back, the item back, its identity, its category)");
+    }],
+
+    ["E51-T22 - a discard stands on its trace, not on its stamp: a broken Tool deleted with the discard stamp and the ticket its trace wrote stands with no row; the same stamp with no ticket, with a ticket of another item's name, or a second time on one ticket is flagged on a card each (E51 fix FG5; the end review's S1)", async () => {
+        /* E51 fix FG5, 31.10.2026; the end review's S1. Four broken Tools on one student, each deleted as the player
+           with `{ reason: "discard" }` and judged as the primary judges it (`asPlayerItemWrite`): A on the ticket the
+           primary writes as it places the discard's trace (sheet-audit.mjs `noteDiscardTrace`, by its name), B with no
+           ticket (a console's delete: the review's D1/D4), C on a ticket of another name, D named as A after A's ticket
+           was taken (one use). Then the rows flagged and the cards naming them. Red at the fix's parent: all four stood
+           ("stands" x4, no row, no card), `noteDiscardTrace` exported by nothing - the test read it as absent. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const A = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { CAP_OVERRIDE } = await import("./inventory.mjs");
+        const from = Date.now();
+        const names = ["E51-T22 tool A", "E51-T22 tool B", "E51-T22 tool C", "E51-T22 tool A"];
+        const items = await student.createEmbeddedDocuments("Item", names.map(name => moduleItemData(name, { broken: { at: from } })), { [CAP_OVERRIDE]: true });
+        let read = null;
+        try {
+            await A.sheetAuditIdle();
+            const verdicts = [];
+            const note = typeof A.noteDiscardTrace === "function" ? A.noteDiscardTrace : () => {};
+            note(student.id, names[0]);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[0], player, { reason: "discard" })).verdict);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[1], player, { reason: "discard" })).verdict);
+            note(student.id, "E51-T22 another tool");
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[2], player, { reason: "discard" })).verdict);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[3], player, { reason: "discard" })).verdict);
+            await A.sheetAuditIdle();
+            const ids = items.map(item => item.id);
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === student.id && row.at >= from && ids.includes(row.itemId));
+            const flagged = rows.filter(([, row]) => row.verdict === "flagged");
+            const cards = game.messages.contents.filter(m => flagged.some(([id]) => cardFlag(m, "sheetFlagged") === id)).length;
+            // The ticket "another tool" was never taken: taken now, so nothing is left for a later test.
+            const leftOver = typeof A.takeDiscardTrace === "function" ? A.takeDiscardTrace(student.id, "E51-T22 another tool") : null;
+            read = [verdicts, flagged.map(([, row]) => ids.indexOf(row.itemId)).sort(), cards, leftOver];
+        } finally {
+            await A.sheetAuditIdle();
+            for (const item of items) await student.items.get(item.id)?.delete();
+            await A.sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["stands", "flagged", "flagged", "flagged"], [1, 2, 3], 3, true]),
+            "[the four verdicts: on its ticket, with none, on another name's, a second time on one; the tools flagged, by their place; the cards naming those rows; "
+                + "the ticket of the other name still there, unused]");
     }],
 
     ["the comparison at ready finds nothing on an untouched world: no card, no write", async () => {
@@ -76474,7 +76524,7 @@ const SCENARIOS = [
          * after. One trace where a connected player's character stands, left by that character, with a subject; under
          * Polish: what the row stores as its name and how it is labelled, then that character's Observe of its own
          * traces with the GM's describe window closed unanswered (its name box read first); under English the same two
-         * reads; then the row given the English word as a name, as a build before 1.2.93 seeded it. Put back: the copy
+         * reads; then the row given the English word as a name, as a build before 1.2.94 seeded it. Put back: the copy
          * and its answer key, the trace and its row, the translation. Red at C5's parent: the row stores the word, no
          * `traceLabel`, and the window offers the word.
          */
@@ -76661,7 +76711,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["E51-T15 - Clear Faint says what it cleared in the Investigation Dashboard: the button's run answers \"N Faint Remnants cleared.\" and the dashboard it reopens shows the line above its live region, outside what a redraw rebuilds (E51 C5; E51-34, audit S05-55)", async () => {
+    ["E51-T15 - Clear Faint and Sweep say what they cleared in the Investigation Dashboard: each button's run answers its count (\"N Faint Remnants cleared.\", \"N Truth Bullets swept.\") and the dashboard it reopens shows the line above its live region, outside what a redraw rebuilds (E51 C5; E51-34, audit S05-55; E51 fix FG9)", async () => {
         /*
          * E51 C5, 31.10.2026; audit S05-55. After Clear Faint Remnants the dashboard came back looking as it did before:
          * the count was a toast, gone in seconds. The button's run (investigation.mjs `runDashboardButton`, exported for
@@ -76671,6 +76721,12 @@ const SCENARIOS = [
          * world's others are counted before and after. The confirm is answered yes; the dashboard is opened as the
          * button's road reopens it, and its line read with where it stands. Red at C5's parent: no exported
          * `runDashboardButton`, and no line.
+         *
+         * AND SWEEP (E51 fix round FG9, 31.10.2026; review goal G9: Sweep's answer was read by no test). Sweep deletes
+         * every Truth Bullet the sweep does not spare, every student's, so the run is handed this test's student
+         * (`actors`, as chapter.mjs `sweepTruthBullets` takes them): one of the cast with nothing to sweep is given one
+         * Neutral bullet, the confirm answered yes, and the run's answer, the bullet and the reopened dashboard's line
+         * read as Clear Faint's. Red at the fix round's parent: the run did not hand `actors` on and swept the world's.
          */
         needs(env.dialogs(), "the dashboard is read off its drawn window");
         needs(world.atLeast("sceneOnScreen"), "the Faint trace is placed on the scene on screen");
@@ -76679,6 +76735,13 @@ const SCENARIOS = [
         const { plural } = await import("./utils.mjs");
         const scene = canvas?.scene;
         const faintElsewhere = () => Array.from(game.scenes).flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.faint).map(t => t.id).sort();
+        // Sweep's student, asked of the world before anything is written: one of the cast with nothing the sweep would take.
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const free = [];
+        for (const a of cast(3)) if (!(await C.sweepPlan({ actors: [a] })).remove.length) free.push(a);
+        must(free.length, "every student of the cast holds a bullet the sweep would take - this would measure nothing");
         const before = faintElsewhere();
         const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: true, tiedToCrime: false, scene, x: 50, y: 50, note: "SUITE E51-T15 a Faint trace" });
         must(trace, "the Faint trace was not placed - this would measure nothing");
@@ -76713,9 +76776,39 @@ const SCENARIOS = [
                 await scene.deleteEmbeddedDocuments("Token", [trace.id]);
             } else await R.dropRemnantSecret(trace);
         }
-        equal(stableJson(read), stableJson({ ran: said, gone: true, others: true, shown: [said, true], road: true }),
+        // Sweep, on one student with one Neutral bullet and nothing else to sweep.
+        const [student] = free;
+        const swept = plural("DRPG.Panel.sweptBullets", { n: 1 });
+        let bullet = null, again = null;
+        try {
+            D.confirm = () => Promise.resolve(true);
+            bullet = await T.createTruthBullet(student, { name: "SUITE E51-T15 a bus ticket", playerText: "SUITE E51-T15" });
+            must(bullet, "the fixture's bullet was not made - this would measure nothing");
+            await sheetAuditIdle();
+            const ran = await I.runDashboardButton("sweepBullets", { actors: [student] });
+            read.sweep = [ran?.said ?? null, !student.items.has(bullet.id)];
+            if (ran?.said) {
+                const seen = new Set(open());
+                again = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
+                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
+                const app = open().find(a => !seen.has(a)) ?? null;
+                const line = app?.element?.querySelector(".drpg-case-result") ?? null;
+                read.sweep.push(line?.textContent.trim() ?? null, Boolean(line && !line.closest(".drpg-case-live")));
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            for (const a of open()) await a.close();
+            await again;
+            if (bullet) {
+                if (student.items.has(bullet.id)) await student.items.get(bullet.id).delete();
+                await T.dropSecret(bullet.uuid);
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ ran: said, gone: true, others: true, shown: [said, true], road: true, sweep: [swept, true, swept, true] }),
             "[what the button's run answers; this test's Faint trace gone; the world's other Faint traces as they were; the reopened dashboard's line and whether "
-                + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]");
+                + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]; [Sweep: what its run answers, the "
+                + "bullet gone, the reopened dashboard's line and whether it stands outside the live region]");
     }],
 
     ["E51-T16 - a debate opened with -60 runs 30 s and remembers 30, one opened again from a record of 10 s runs 30, and the API's 5 s runs 30 (E51 C6; E51-36, audit S06-45)", async () => {
@@ -76769,7 +76862,7 @@ const SCENARIOS = [
             + "its floor's budget; startFloor({ seconds: 5 })'s budget]");
     }],
 
-    ["E51-T17 - Set the season up opens the sheet of the student a row waits on, by id: with Ann before Anna in the roster and only Anna without an Ultimate, the row's Open opens Anna's sheet, not Ann's (E51 C6; E51-38, audit S06-46)", async () => {
+    ["E51-T17 - Set the season up opens the sheet of the student a row waits on, by id: with Ann before Anna in the roster and only Anna without an Ultimate, the row's Open opens Anna's sheet, not Ann's; its Save warns of the Eclipse once when it moves the chapter under one and not when the chapter stays; and its Starting resources fix sets a student up with no warning per sheet (E51 C6; E51-38, audit S06-46; E51 fix FG9)", async () => {
         /*
          * E51 C6, 31.10.2026; audit S06-46. `openFirstSheet` took the first student whose name the row's line began
          * with, so a roster of Ann and Anna opened Ann's sheet for Anna's row ("Ann" is the start of "Anna"; the slice's
@@ -76778,6 +76871,16 @@ const SCENARIOS = [
          * Anna none; the "ultimate" row of `steps` over the two, its Open pressed as the checklist presses it
          * (`step.open(step.missing())`), and each sheet's render counted. Names, Ultimates and the sheets' render put
          * back. Red at C6's parent: Ann's sheet opened.
+         *
+         * THE ROW'S OTHER TWO HALVES (E51 fix round FG9, 31.10.2026; review goal G9: "warns of the Eclipse ... fixes
+         * quietly" was read by no test). (b) The window opened (`openSeasonSetup`), answered here (`answerWindows`)
+         * with its Chapter field moved one chapter and Save pressed, in an Eclipse (the clock's `eclipse`); then again
+         * with the chapter left as it is. Read: the warnings `DRPG.Clock.eclipseStillOn` said for each Save. (c) Ann's
+         * Health maximum set one under the start, so the "Starting resources" row waits on her, and the row's fix run as
+         * the checklist runs it (`step.fix()`): what it answers, whether she is set up, and the warnings
+         * `DRPG.Character.startingItemMissing` said (one a sheet before C6's `quiet`). The clock, her resources and
+         * her starting sheet's stamp are put back, and `ui.notifications` is the page's own again. Both green at the
+         * fix round's parent (C6 built them): what they hold is measured by mutants (S/stages/E51/FIX-C.md).
          */
         needs(world.atLeast("livingStudents", 2), "two students to name Ann and Anna");
         const SS = await import("./season-setup.mjs");
@@ -76811,11 +76914,64 @@ const SCENARIOS = [
             }
             await settle();
         }
-        equal(stableJson(read), stableJson({ missing: ["SUITE E51-T17 Anna"], opened: ["Anna"] }),
-            "[the row's line of who has no Ultimate; whose sheet its Open rendered]");
+        // (b) and (c): what was said, by key, while each part ran.
+        const said = [];
+        const notes = ui.notifications;
+        const ownNote = ["warn", "info"].map(kind => [kind, Object.getOwnPropertyDescriptor(notes, kind)]);
+        const realNote = { warn: notes.warn, info: notes.info };
+        const clock = foundry.utils.deepClone(getSetting(SETTINGS.clock));
+        const resources = foundry.utils.deepClone(ann.system.resources);
+        const stamp = foundry.utils.deepClone(ann.getFlag(MODULE_ID, FLAGS.sheetAtStart));
+        const move = { by: 0 };
+        const windows = answerWindows((cfg, root) => {
+            const field = root.querySelector("form [name=chapter]");
+            if (!field || cfg?.window?.title !== game.i18n.localize("DRPG.Season.title")) return "close";
+            field.value = String(Number(field.value) + move.by);
+            return press(cfg, root);
+        });
+        const count = key => said.filter(text => text === game.i18n.localize(key)).length;
+        try {
+            for (const kind of ["warn", "info"]) notes[kind] = function (text, ...rest) { said.push(String(text)); return realNote[kind].call(this, text, ...rest); };
+            const chapter = Number(clock?.chapter ?? 1);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            await settle();
+            move.by = chapter > 1 ? -1 : 1;
+            said.length = 0;
+            await SS.openSeasonSetup();
+            read.moved = [Number(getClock().chapter) === chapter + move.by, count("DRPG.Clock.eclipseStillOn")];
+            move.by = 0;
+            said.length = 0;
+            await SS.openSeasonSetup();
+            read.stayed = count("DRPG.Clock.eclipseStillOn");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+            await ann.update({ "system.resources.hitPoints.max": STARTING.hp - 1 });
+            await settle();
+            const row = SS.steps({ roster: [ann], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() }).find(r => r.key === "resources");
+            must(row?.fix && row.missing().includes(ann.name), "the Starting resources row does not wait on Ann, or has no fix - this would measure nothing");
+            said.length = 0;
+            const n = await row.fix();
+            await settle();
+            read.fixed = [n >= 1, ann.system.resources.hitPoints.max === STARTING.hp, count("DRPG.Character.startingItemMissing")];
+        } finally {
+            windows.restore();
+            for (const [kind, own] of ownNote) { if (own) Object.defineProperty(notes, kind, own); else delete notes[kind]; }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            await trustedWrite(ann, Object.fromEntries(["hitPoints", "stress", "hope"].flatMap(key => ["value", "max"]
+                .filter(field => resources?.[key]?.[field] !== undefined).map(field => [`system.resources.${key}.${field}`, resources[key][field]]))),
+            { reason: "gmRuling" });
+            if (stamp === undefined) { if (ann.getFlag(MODULE_ID, FLAGS.sheetAtStart) !== undefined) await ann.unsetFlag(MODULE_ID, FLAGS.sheetAtStart); }
+            else await ann.setFlag(MODULE_ID, FLAGS.sheetAtStart, stamp);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ missing: ["SUITE E51-T17 Anna"], opened: ["Anna"], moved: [true, 1], stayed: 0, fixed: [true, true, 0] }),
+            "[the row's line of who has no Ultimate; whose sheet its Open rendered]; [a Save moving the chapter in an Eclipse: the chapter moved, the "
+                + "Eclipse warnings]; [a Save leaving it: the Eclipse warnings]; [the Starting resources fix: it set somebody up, Ann's Health maximum the "
+                + "start's, the missing-item warnings]");
     }],
 
-    ["E51-T18 - a refused Objection says what became of its price: refused before the price, nothing was taken; refused after it, the action given back is named; a Hope refund that did not land says so and to tell the GM (E51 C6; E51-39, audit S06-50)", async () => {
+    ["E51-T18 - a refused Objection says what became of its price: refused before the price, nothing was taken; refused after it, the action given back is named; a Hope refund that did not land says so and to tell the GM, once, also while the Despair darkening holds Hope down (E51 C6; E51-39, audit S06-50; E51 fix FG7)", async () => {
         /*
          * E51 C6, 31.10.2026; audit S06-50. A GM's Objection card is judged on the primary (trial.mjs `seizeFloor`), which
          * pays and then gives the price back when the floor did not move - and its whisper said "Nothing was taken from
@@ -76828,6 +76984,12 @@ const SCENARIOS = [
          * `contentOf`. Everything put back: the settings' and the document's writers, her actions, Hope, grants and
          * bullet, the floor, the queue, the clock and every message posted. Red at C6's parent: (2) and (3) whisper
          * "Nothing was taken from you".
+         *
+         * (4) ONE SENTENCE FOR A LOSS (E51 fix round FG7, 31.10.2026; review correctness F3). With the Despair darkening
+         * running for this time of day (the overflow's stamp, `effect: "despair"`, which holds Hope down) and her Hope
+         * write held back as in (3), price.mjs `refundPrice` whispered its own "could not come back" beside the
+         * Objection's "could not be given back" - two whispers of one loss. Read: how many of each she is sent. The
+         * overflow's stamp is put back. Red at the fix round's parent: one of each.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "two participants, one to object and one to be objected to");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -76844,6 +77006,7 @@ const SCENARIOS = [
         must(taking.has(who.id) && taking.has(other.id), "the two cast are not both the trial's participants - this would measure nothing");
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const overflowWas = foundry.utils.deepClone(getSetting(SETTINGS.overflow) ?? {});
         const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max, hope: who.system.resources.hope.value,
             grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
         const seen = new Set(game.messages.map(m => m.id));
@@ -76913,6 +77076,20 @@ const SCENARIOS = [
             const [posted3, words3] = await object();
             read.hope = [posted3, words3.some(t => t.includes(expect.hope)), words3.some(t => t.includes(expect.nothing)),
                 hopeBefore - who.system.resources.hope.value, F.trialFloor()?.mode ?? null];
+
+            // (4) The same, under the Despair darkening.
+            const { overflowBlocksHope } = await import("./overflow.mjs");
+            const { plural } = await import("./utils.mjs");
+            const now = getClock();
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...overflowWas,
+                active: { session: now.session, day: now.day ?? 1, timeOfDay: now.timeOfDay, effect: "despair" } });
+            await settle();
+            must(overflowBlocksHope(), "the Despair darkening was not set running for this time of day - this would measure nothing");
+            const lost = game.i18n.format("DRPG.Price.refundLost", { what: plural("DRPG.Price.label.hope", { n: 1 }) });
+            const mark = new Set(game.messages.map(m => m.id));
+            const [posted4, words4] = await object();
+            read.darkened = [posted4, words4.filter(t => t.includes(expect.hope)).length,
+                game.messages.filter(m => !mark.has(m.id)).map(m => contentOf(m)).filter(t => String(t ?? "").includes(lost)).length];
         } finally {
             if (ownUpdate) Object.defineProperty(who, "update", ownUpdate); else delete who.update;
             if (ownSet) Object.defineProperty(settings, "set", ownSet); else delete settings.set;
@@ -76921,6 +77098,7 @@ const SCENARIOS = [
             if (F.trialFloor()) await F.endFloor();
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
             if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
             else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
             await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.hope.value": before.hope });
@@ -76928,10 +77106,12 @@ const SCENARIOS = [
             await settle();
         }
         must(swallowed >= 2, `the floor's write of the Objection was swallowed ${swallowed} times, not twice - this would measure nothing`);
-        equal(stableJson(read), stableJson({ none: [true, 3], action: [true, true, false, 3, "debate"], hope: [true, true, false, 1, "debate"] }),
+        equal(stableJson(read), stableJson({ none: [true, 3], action: [true, true, false, 3, "debate"], hope: [true, true, false, 1, "debate"],
+            darkened: [true, 1, 0] }),
             "[refused before the price: \"nothing was taken\" said, her actions; refused after the action was paid: the card posted, the action named as given back, "
             + "\"nothing was taken\" said, her actions, the floor; refused after 1 Hope was paid and its refund held back: the card posted, the refund said not to have "
-            + "landed, \"nothing was taken\" said, the Hope still gone, the floor]");
+            + "landed, \"nothing was taken\" said, the Hope still gone, the floor; under the Despair darkening: the card posted, the Objection's sentence of "
+            + "the lost refund, the price's own sentence of it]");
     }],
 
     ["E51-T19 - no discarding in the Class Trial: the sheet's Discard is greyed with the reason as its tooltip, `discardBroken` refuses before any window and rolls nothing, and the item stays; before the trial the same button is lit (E51 C6; E51-41, amend 14.10 (2))", async () => {
@@ -77131,6 +77311,303 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([1, true, true, plural("DRPG.Panel.stateSaved", { n: 1 })]),
             "[the count applyAliveStates answered; a Monocub; silenced; the toast's words for that count]");
     }],
+    ["E51-T28 - the Projects window shows the select of the picked row alone, in both themes, and reads the hidden one after: Work on project shows \"Which project?\", Sabotage \"Sabotage which project?\", Propose neither, and a Work and a Sabotage each throw for the project picked in their own select (E51 fix FG4; the owner's item of 31.10)", async () => {
+        /*
+         * E51 fix round FG4, 31.10.2026; the owner at the table. The Projects window (action-rolls.mjs `performProject`)
+         * drew "Which project?" and "Sabotage which project?" whatever row was picked. A student stood alone in a room
+         * with two projects there, the first demanding Hand and the second Leg, presses Projects twice, free; the window
+         * (answered here, `answerWindows`) is read before it is pressed: its content drawn on a body of its own with each
+         * theme's class, each row checked in turn, and which of the two selects the module's sheets' cascade leaves
+         * drawn (`styleCascade`, the winning `display` of each select's label: the sheets' top-level rules). Then the
+         * row is picked with the SECOND project in its own select and the first in the other, and pressed; the
+         * student's `rollTrait` stands in (it throws nothing, so nothing is paid or rolled) and keeps what each throw
+         * would have thrown - Leg's statistic for a read of the second project, Hand's for the first. Red at the fix's
+         * parent: both selects shown under every row. The throws were right there too (the form is read by name).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { styleCascade } = await import("./tests-kit.mjs");
+        const P = await import("./projects.mjs");
+        const C = await styleCascade();
+        const THEMES = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"];
+        const ROWS = ["work", "start", "sabotage"];
+        const stood = await standAlone(actor);
+        const made = [];
+        const pick = { row: "work" };
+        const shown = [];
+        const drawnOf = (root, theme, row) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            const app = document.createElement("div");
+            app.className = "application drpg-panel";
+            body.append(app);
+            app.innerHTML = root.innerHTML;
+            for (const radio of app.querySelectorAll('input[name="variant"]')) radio.checked = radio.value === row;
+            return ["project", "sabotage"].filter(name => {
+                const label = app.querySelector(`select[name="${name}"]`)?.closest("label");
+                return label && (C.winner(label, "display")?.value ?? "none") !== "none";
+            });
+        };
+        const windows = answerWindows((cfg, root) => {
+            if (!root.querySelector('input[name="variant"][value="work"]')) return "cancel";
+            shown.push(Object.fromEntries(THEMES.map(theme => [theme, Object.fromEntries(ROWS.map(row => [row, drawnOf(root, theme, row)]))])));
+            for (const radio of root.querySelectorAll('input[name="variant"]')) radio.checked = radio.value === pick.row;
+            const own = pick.row === "work" ? "project" : "sabotage";
+            for (const name of ["project", "sabotage"]) {
+                const select = root.querySelector(`select[name="${name}"]`);
+                if (select) select.value = name === own ? made[1] : made[0];
+            }
+            return press(cfg, root);
+        });
+        const thrown = [];
+        try {
+            made.push((await P.createProject({ name: "SUITE E51-T28 demands Hand", target: 4, room: stood.room, trait: "hand" }))?.id);
+            made.push((await P.createProject({ name: "SUITE E51-T28 demands Leg", target: 4, room: stood.room, trait: "leg" }))?.id);
+            must(made.length === 2 && made.every(Boolean), "the two projects could not be made - this would measure nothing");
+            actor.rollTrait = async dh => { thrown.push(dh); return null; };
+            await performAction(actor, "project", { free: true });
+            pick.row = "sabotage";
+            await performAction(actor, "project", { free: true });
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const id of made.filter(Boolean)) await P.deleteProject(id).catch(() => {});
+            await stood.back();
+        }
+        const one = Object.fromEntries(THEMES.map(theme => [theme, { work: ["project"], start: [], sabotage: ["sabotage"] }]));
+        equal(stableJson({ shown, thrown }), stableJson({ shown: [one, one], thrown: [TRAITS.leg.dh, TRAITS.leg.dh] }),
+            "[for each of the two windows, in each theme, the selects drawn with Work, Propose and Sabotage checked]; [what the Work and the Sabotage "
+                + "threw: the second project's statistic is the select of their own row read after the window]");
+    }],
+
+    ["E51-T29 - a Call's confirmation keeps its price true while it stands, and opens once: Sprint's window opened with 1 Hope held reads short with Spend shut, a second opening of it raises the first and answers nothing, and 3 Hope granted while it stands turns the line and Spend live (E51 fix FG7; review goal G2, the owner's amend of 27.10)", async () => {
+        /*
+         * E51 fix round FG7 (G2), 31.10.2026; the owner's amend of 27.10, variant B: "callWindow powstaje na DialogV2 z
+         * keepLive i alreadyOpen". `confirmCall` drew the price line from `held` and shut Spend on `!affordable` once, at
+         * opening (call-pickers.mjs `callWindow` was a bare `DialogV2.wait`), so a Hope the GM granted while the window
+         * stood left Spend shut until it was cancelled and pressed again; and a sheet redrawn while a Call window stood
+         * put a live tile back, which opened a second one. Here, on this GM's browser with real windows (`env.dialogs`):
+         * a student is set to 1 Hope and Sprint's confirmation (2 Hope) is opened for them as the sheet opens it; read
+         * the price line's class and Spend; a second confirmation of the same Call opened at once (what it answers, and
+         * how many such windows stand); the student given 3 Hope by an update of the sheet; the line and Spend read
+         * again once the window has had time to redraw; then Cancel. The student's Hope is put back. Red at the fix's
+         * parent: Spend still shut after the grant, and two windows.
+         */
+        needs(env.dialogs(), "the confirmation is a drawn window, read and pressed");
+        const { confirmCall, hopeHeld } = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const [who] = cast(1);
+        const call = HOPE_CALLS.sprint;
+        const hope = who.system.resources.hope.value;
+        const drawn = () => [...foundry.applications.instances.values()]
+            .filter(a => a.rendered && a.element?.isConnected && a.options?.window?.title === call.label && a.options?.classes?.includes("drpg-hope-dialog"));
+        const state = app => {
+            const spend = app?.element?.querySelector('button[data-action="spend"]');
+            const price = app?.element?.querySelector(".drpg-call-header p:last-child");
+            return [spend ? spend.disabled : "no Spend", price ? price.classList.contains("drpg-warning") : "no price line"];
+        };
+        const read = {};
+        let first = null;
+        try {
+            await who.update({ "system.resources.hope.value": 1 });
+            await settle();
+            must(hopeHeld(who) === 1, `the student holds ${hopeHeld(who)} Hope, not 1 - this would measure nothing`);
+            first = Promise.resolve().then(() => confirmCall(call, { kind: "hope", held: hopeHeld(who), actor: who })).catch(() => "threw");
+            // Not a precondition: the windows are drawn here (`env.dialogs()` above), so one that does not open is the answer.
+            if (!await until(() => drawn().length === 1, 6000)) read.opened = "no window";
+            else {
+                const app = drawn()[0];
+                read.short = state(app);
+                const second = await Promise.race([confirmCall(call, { kind: "hope", held: hopeHeld(who), actor: who }), wait(3000).then(() => "still open")]);
+                read.second = [second, drawn().length];
+                for (const extra of drawn().filter(a => a !== app)) await extra.close();
+                await who.update({ "system.resources.hope.value": 3 });
+                await until(() => state(app)[0] === false, 3000);
+                read.granted = state(app);
+                app.element.querySelector('button[data-action="cancel"]')?.click();
+                read.answer = await Promise.race([first, wait(3000).then(() => "unanswered")]);
+            }
+        } finally {
+            for (const app of drawn()) await app.close();
+            await Promise.race([first, wait(3000)]);
+            await who.update({ "system.resources.hope.value": hope });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ short: [true, true], second: [null, 1], granted: [false, false], answer: null }),
+            "[with 1 Hope: Spend shut, the price line in the warning colour]; [a second opening's answer, the windows of the Call standing]; [after 3 Hope "
+                + "granted: Spend shut, the line in the warning colour]; [the window's answer to Cancel]");
+    }],
+
+    ["E51-T30 - a watched Sabotage that fails with no Fear sounds as it did before E51: the room's one card tells it with no sound, and the saboteur's browser plays the failure's (E51 fix FG7, FG9; review goal G4, row E51-07)", async () => {
+        /*
+         * E51 fix round FG7 (G4) and FG9, 31.10.2026. E51 C1 put the seen sound (`sabotageSeen`) on the room's card of
+         * every watched Sabotage and stopped `soundSabotage` for all of them, where row E51-07 asked one card and one
+         * sound only for a watched one that is ALSO revealed by Fear (E51-T3). So a watched sabotage whose own roll had
+         * no Fear played the seen sound to the room, which it never did, and a failed one no longer played
+         * `sabotageFailed` on the saboteur's browser. Here, as E51-T3 stands it: a student and a witness alone in a
+         * room, a public project of 6 there (Hand), a free Sabotage from the Projects window, every die forced to 2 and
+         * 1 (the cover fails against 16 with Hope, the sabotage misses with Hope). Only `sabotageFailed` is given a
+         * file and this browser's Sound slider is above 0, so the sounds asked of the audio layer (`sfx.played` and
+         * `droppedBeforeFirstClick`) are the failure's alone. Read: the room's cards of it, the sounds the new cards
+         * carry, the failure sounds asked here. The project, its trace, the cards, the tokens, the bookmark, the
+         * student's Hope (each throw with Hope gives one) and the sound settings are put back. Red at the fix's parent:
+         * the card carried `sabotageSeen` and no failure sound was asked.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the saboteur and the witness stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two of them");
+        const { performAction, sabotageWatchedLine } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const SFX = await import("./sfx.mjs");
+        const PC = await import("./perf-counters.mjs");
+        const [actor, witness] = cast(2);
+        const hope = actor.system.resources.hope.value;
+        const stood = await aloneTogether(actor, witness, { asked: true });
+        const seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const volumes = foundry.utils.deepClone(getSetting(SETTINGS.sfxVolumes) ?? {});
+        const asked = () => (PC.snapshot()["sfx.played"] ?? 0) + (SFX.diagnoseSfx().droppedBeforeFirstClick ?? 0);
+        const name = `SUITE E51-T30 ${foundry.utils.randomID(4)}`;
+        const pick = { project: null };
+        const windows = answerWindows((cfg, root) => {
+            const radio = root.querySelector('input[name="variant"][value="sabotage"]');
+            if (radio) for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === radio;
+            for (const field of ["project", "sabotage"]) {
+                const select = root.querySelector(`select[name="${field}"]`);
+                if (select) select.value = pick.project;
+            }
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const made = [];
+        let read = null;
+        try {
+            // The failure's sound alone has a file: what the audio layer is asked is the failure's.
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { sabotageFailed: "sounds/notify.wav" });
+            await SFX.setSfxVolume("sound", 0.8);
+            const id = (await P.createProject({ name, target: 6, room: stood.room, trait: "hand" }))?.id ?? null;
+            must(id, "the fixture project could not be made - this would measure nothing");
+            made.push(id);
+            pick.project = id;
+            const before = asked();
+            globalThis.__forceRoll = { hope: 2, fear: 1 };
+            await performAction(actor, "project", { free: true });
+            await settle(600);
+            const project = P.allProjects().find(p => p.id === id);
+            const told = [sabotageWatchedLine(actor, stood.room, project), game.i18n.format("DRPG.Action.sabotageSeen", {
+                actor: foundry.utils.escapeHTML(actor.name), room: foundry.utils.escapeHTML(stood.room) })];
+            const fresh = game.messages.filter(m => !seen.has(m.id));
+            const words = fresh.map(m => String(contentOf(m) ?? ""));
+            read = {
+                cards: words.filter(w => told.some(line => w.includes(line))).length,
+                sounds: fresh.map(m => SFX.soundFromMessage(m)?.key ?? null).filter(Boolean),
+                failed: asked() - before
+            };
+        } finally {
+            windows.restore();
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const scene of game.scenes) for (const t of remnantsOn(scene).filter(t => remnantData(t)?.subject === name)) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxVolumes, volumes);
+            if (actor.system.resources.hope.value !== hope) await actor.update({ "system.resources.hope.value": hope });
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, sounds: [], failed: 1 }),
+            "[the cards telling the room of the watched sabotage]; [the sounds the new cards carry]; [the failure sounds asked on the saboteur's browser]");
+    }],
+
+    ["E51-T31 - a Dynamic Reroll tells the GMs its result as the first throw does: a miss rerolled into a miss posts the miss's card with the new total and \"needed N\", nothing to press, and a miss rerolled into a success posts the success's card with \"needed N\" (E51 fix FG7; review goal G5, row E51-15)", async () => {
+        /*
+         * E51 fix round FG7 (G5), 31.10.2026; the session notes of 27.10 and E51-T8. E51 C1 gave a Dynamic miss the GMs'
+         * card a success had, the roll and "needed N" (action-rolls.mjs `offerDynamicFind`); the Reroll's road (reroll.mjs
+         * `settleDynamic`) posted the card only for a miss turned into a success, and that one without its number. This
+         * GM takes a Dynamic action for a player's character standing in a room, free, at the second band, on 2 and 1 (a
+         * miss), and rerolls it as its own into 3 and 1 (a miss again); then once more on 2 and 1, rerolled into 11 and
+         * 9 (a success). Read per Reroll: the new cards with the action's title, whether one holds the new total and
+         * "needed N", and their buttons. The cards, the trace, the bookmark and the character's Hope are put back. Red
+         * at the fix's parent: no card for the second miss, and no "needed" on the turned success's.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const R = await import("./reroll.mjs");
+        const { performAction, dynamicBar } = await import("./action-rolls.mjs");
+        const { DYNAMIC_THRESHOLDS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const hope = actor.system.resources.hope.value;
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = "E51-T31 a Dynamic action rerolled";
+            if (tier) tier.value = "1";
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        const needed = foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: dynamicBar(DYNAMIC_THRESHOLDS[1]) }));
+        const title = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.dynamicLabel"));
+        const cardsSince = since => game.messages.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? ""))
+            .filter(w => w.includes(`<h3>${title}</h3>`));
+        const rerolled = async (first, next) => {
+            globalThis.__forceRoll = first;
+            let outcome;
+            try { outcome = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            must(outcome?.success === false, `the first throw did not miss - this would measure nothing: ${stableJson(outcome)}`);
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "dynamic" && message, `the Dynamic action was not kept on its row - this would measure nothing: ${stableJson(row)}`);
+            const stand = rerollableRoll(message, { first, next });
+            try {
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const before = new Set(game.messages.map(m => m.id));
+                const out = await R.rerollOnGm(actor, game.user);
+                await settle(400);
+                const total = next.hope + next.fear;
+                const cards = cardsSince(before);
+                return { stood: Array.isArray(out?.lines), cards: cards.length,
+                    // The suite's roll totals its two faces (`rerollableRoll`), so the new total is known before the card.
+                    said: cards.some(w => w.includes(`<strong>${total}</strong>`) && w.includes(needed)),
+                    buttons: cards.flatMap(w => [...w.matchAll(/data-drpg-call="(\w+)"/g)].map(m => m[1])) };
+            } finally { stand.putBack(); }
+        };
+        const read = {};
+        try {
+            read.missAgain = await rerolled({ hope: 2, fear: 1 }, { hope: 3, fear: 1 });
+            read.turned = await rerolled({ hope: 2, fear: 1 }, { hope: 11, fear: 9 });
+        } finally {
+            forceBack();
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            missAgain: { stood: true, cards: 1, said: true, buttons: [] },
+            turned: { stood: true, cards: 1, said: true, buttons: ["createItem", "giveItem", "reply"] }
+        }), "[per Reroll: it stood; the GMs' Dynamic cards it posted; one says the new roll and needed N; their buttons]");
+    }],
+
     ["E90-T1 - a time of day started on the uptime clock prints no 56 years, and the primary's ready writes it as begun now with no pauses (E90)", async () => {
         /*
          * E90, 31.10.2026. Until 1.2.93 `timeOfDayStartedAt` was stamped with `game.time.serverTime`, which on The Forge
@@ -77251,6 +77728,187 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ placed: "framed", retyped: "framed", dropped: "hidden", back: "framed", hidden: "hidden", shown: "framed" }),
             "the ring at each step: framed (shown, in its row's colour), stale (shown, another colour), hidden, none");
+    }],
+    ["E51-T25 - a GM's outline stays round the room its own Monokuma stands in: a second token of it placed in another room and deleted brings the outline back to a room a token of it stands in, and a trace placed in a third room after it, and a step of the first inside its room, draw nothing (E51 fix FG2; the owner's item 2 of 31.10)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10 ("the GM's room outline sometimes on another room than the
+         * GM's token"), the goal review's measurement (s-gm-outline: a second Monokuma token placed and deleted, then a
+         * player's step - the GM's outline on the player's room). fog.mjs `ownArrival` outlined the room of whichever
+         * token called once the GM's set of rooms had changed, and a deleted token never told it the set had changed.
+         * Here, on a GM's browser: a token of this GM's Monokuma placed in room A, a second placed in room B and deleted,
+         * then a trace (`placeRemnant`, a token the GM owns and no Monokuma) placed in room C, then the first token
+         * stepped half a square inside A. Read: the room outlined after each - after the deletion, a room a token of the
+         * Monokuma stands in (A, or where the world's own token of it stands: the outline is drawn again for the first
+         * of them, with no sound) - and whether the step drew the outline again. Every token is taken away. The two roads a harness alone can drive (a Monokuma move held for its
+         * waypoints, another GM's Monokuma) are scenario 66 GO's. Red at 99226e59: the outline gone after the deletion
+         * (null), and the trace's room outlined.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the tokens are placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 4), "three rooms no Monokuma stands in");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma, poolUserFor } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene, grid = canvas.grid?.size ?? 100;
+        const monokumas = game.actors.filter(a => a.type === "character" && isMonokuma(a));
+        const mono = monokumas.find(a => poolUserFor(a)?.id === game.user.id) ?? monokumas[0];
+        const [A, B, C] = M.allRooms(scene).filter(r => !F.myCurrentRooms().has(r));
+        const spot = room => (room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null);
+        must(mono && C && spot(A) && spot(B) && spot(C), "no Monokuma, or not three rooms with a place no Monokuma stands in - this would measure nothing");
+        const place = async (room, name) => (await scene.createEmbeddedDocuments("Token", [{ name, actorId: mono.id, actorLink: true,
+            ...spot(room), width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]))[0];
+        const made = [], standing0 = new Set(F.myCurrentRooms());
+        let trace = null, read = null;
+        try {
+            const first = await place(A, "SUITE E51-T25 Monokuma");
+            made.push(first);
+            await until(() => FR.roomOutline?.room === A, 2000);
+            const seen = { placed: FR.roomOutline?.room ?? null };
+            const second = await place(B, "SUITE E51-T25 Monokuma two");
+            made.push(second);
+            await until(() => FR.roomOutline?.room === B, 2000);
+            seen.second = FR.roomOutline?.room ?? null;
+            await second.delete();
+            await settle();
+            await until(() => FR.roomOutline, 1000);
+            // A room a token of the Monokuma stands in: A, or one the world's own tokens of it stood in before.
+            const back = FR.roomOutline?.room ?? null;
+            seen.deleted = back === A || standing0.has(back);
+            trace = await placedTrace("E51-T25", { ...spot(C) });
+            must(trace, "no trace was placed");
+            await settle();
+            await settle();
+            seen.trace = [M.roomOfToken(trace) === C, FR.roomOutline?.room === back];
+            const standing = FR.roomOutline;
+            await first.update({ x: first.x + grid / 2 }, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+            await settle();
+            seen.step = [M.roomOfToken(first) === A, FR.roomOutline !== standing];
+            read = seen;
+        } finally {
+            if (trace) await dropTrace(trace);
+            for (const token of made) if (scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ placed: A, second: B, deleted: true, trace: [true, true], step: [true, false] }),
+            `[the room outlined after the Monokuma's token was placed in ${A}; after its second token was placed in ${B}; after that one was deleted, a `
+                + `room a token of the Monokuma stands in; the trace stood in ${C} and the outline stayed where it was; the step stayed in ${A} and drew `
+                + "the outline again]");
+    }],
+    ["E51-T26 - a wall made beside the room a GM's Monokuma stands in, moved away from it, or deleted there draws the standing outline again; a wall made far from it, or deleted there, does not (E51 fix FG2; the correctness review's F2)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the correctness review's F2. The standing outline (its gaps and its glow) was drawn
+         * again on `updateWall` alone, judged where the wall runs after the change: a wall made on the room's border or
+         * deleted from it, and one dragged away from it, left the outline as the map no longer was until the next
+         * arrival. Here, on a GM's browser, with a token of the Monokuma placed in a room A: a wall made along A's top
+         * edge, moved four squares away, deleted there; another made along the edge and deleted there; a third made four
+         * squares away. Read after each: whether the outline was drawn again (a new outline object, fog-reveal.mjs
+         * `roomOutline`). What the redraw shows - the gap closed, the glow gone - is not read (no renderer headless; at a
+         * table, LIVE-E51-03's look). Every wall and token is taken away. Red at 99226e59: drawn again for none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the token and the walls are placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 2), "a room no Monokuma stands in");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene, grid = canvas.grid?.size ?? 100;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const room = M.allRooms(scene).find(r => !F.myCurrentRooms().has(r));
+        const spot = room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null;
+        const box = room ? M.boundsOf([...scene.regions].find(r => r.name === room)) : null;
+        must(mono && room && spot && box, "no Monokuma, or no room with a place and a box no Monokuma stands in - this would measure nothing");
+        const away = box.y >= 5 * grid ? box.y - 4 * grid : box.y + box.h + 4 * grid;
+        const edge = [box.x, box.y, box.x + Math.min(box.w, 2 * grid), box.y];
+        const far = [box.x, away, box.x + Math.min(box.w, 2 * grid), away];
+        let token = null, read = null;
+        const walls = [];
+        try {
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T26 Monokuma", actorId: mono.id, actorLink: true,
+                ...spot, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+            await until(() => FR.roomOutline?.room === room, 2000);
+            must(FR.roomOutline?.room === room, `the Monokuma's token placed in ${room} drew no outline of it`);
+            const redrawn = async write => {
+                const standing = FR.roomOutline;
+                await write();
+                await settle();
+                return FR.roomOutline !== standing && FR.roomOutline?.room === room;
+            };
+            const make = async c => { const [w] = await scene.createEmbeddedDocuments("Wall", [{ c, move: 20, sight: 20, light: 20, sound: 20 }]); walls.push(w); return w; };
+            const seen = [];
+            let w = null;
+            seen.push(await redrawn(async () => { w = await make(edge); }));
+            seen.push(await redrawn(() => w.update({ c: far })));
+            seen.push(await redrawn(() => w.delete()));
+            seen.push(await redrawn(async () => { w = await make(edge); }));
+            seen.push(await redrawn(() => w.delete()));
+            seen.push(await redrawn(async () => { w = await make(far); }));
+            read = seen;
+        } finally {
+            const left = walls.filter(w => scene.walls.get(w.id)).map(w => w.id);
+            if (left.length) await scene.deleteEmbeddedDocuments("Wall", left);
+            if (token && scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, false, true, true, false]),
+            "[drawn again: a wall made along the room's edge, moved four squares away, deleted there, made along the edge again, deleted there, made four squares away]");
+    }],
+    ["E51-T27 - a seal or a chain written draws the standing outline again, and so does each put back (E51 fix FG2; the goal review's G8)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the goal review's G8. The doorway glow asks the veto (D43c = 2), which shuts on a
+         * sealed room (call-world.mjs `isSealed`) and on a chain (`isChained`), both world settings no listener of the
+         * outline heard: a Hope Call's Seal on the room beyond left its glow lit beside a door the veto refused, until
+         * the next arrival. Here, on a GM's browser, with a token of the Monokuma placed in a room: `sealedRooms` written
+         * with a second room and put back, `restrictions` written with a row of this test's and put back. Read after
+         * each: whether the outline was drawn again. Whether the redraw shuts the glow is the veto's (R1113, scenario 76
+         * DV), not read here. Red at 99226e59: drawn again for none.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the token is placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 2), "a room no Monokuma stands in, and one to seal");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the outline is the fog's, and this would measure nothing");
+        const scene = canvas.scene;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const room = M.allRooms(scene).find(r => !F.myCurrentRooms().has(r));
+        const other = M.allRooms(scene).find(r => r !== room);
+        const spot = room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null;
+        must(mono && room && other && spot, "no Monokuma, or no room to stand in and another to seal - this would measure nothing");
+        const sealedWas = [...(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? [])];
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        let token = null, read = null;
+        try {
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T27 Monokuma", actorId: mono.id, actorLink: true,
+                ...spot, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+            await until(() => FR.roomOutline?.room === room, 2000);
+            must(FR.roomOutline?.room === room, `the Monokuma's token placed in ${room} drew no outline of it`);
+            const redrawn = async write => {
+                const standing = FR.roomOutline;
+                await write();
+                await settle();
+                return FR.roomOutline !== standing && FR.roomOutline?.room === room;
+            };
+            read = [
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.sealedRooms, [...sealedWas, other])),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas)),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.restrictions, { ...restrictionsWas, SUITEE51T27000000: { chained: true } })),
+                await redrawn(() => game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas))
+            ];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            if (token && scene.tokens.get(token.id)) await token.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, true]),
+            "[drawn again: a room sealed, the seal put back, a chain written, the chain put back]");
     }],
     ...GRID
 ];

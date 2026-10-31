@@ -29952,37 +29952,58 @@ const INVARIANTS = [
             "the setting (client, not in the window, a string, \"\"), the window opened with \"player-handbook\" stored and a tab pressed, opened with none stored, and the book opened for a player handed the GM's, an unknown one, none, and a GM handed the GM's");
     }],
 
-    ["R1131 - a region's Display Scrolling Text passes and every other caption is answered with a settled Promise: no-scrolling-text.mjs's patch hands a call made from `DisplayScrollingTextRegionBehaviorType` to the original and answers any other with a thenable of null (E51 C8; E51-47, D44e = 1, audit S01-27)", async () => {
+    ["R1131 - a region's Display Scrolling Text passes over a token this browser shows, and every other caption is answered with a settled Promise: no-scrolling-text.mjs's patch hands a call made from `DisplayScrollingTextRegionBehaviorType` at a shown token to the original, and answers any other - a region's over a token hidden here or over no token included - with a thenable of null (E51 C8; E51-47, D44e = 1, audit S01-27; E51 fix FG6, review security S2)", async () => {
         /*
          * E51 C8, 31.10.2026; audit S01-27. The patch answered every caller with null - a region's own "Display
          * Scrolling Text" too, while Foundry's switch read on - and said the original returns null, where the original
          * is async. The original is stood in for by a recorder (the patch calls it through `.original`, put back in a
          * finally), so nothing is drawn: a plain call and a call from a class of the region behaviour's name. v14's
          * own call site is LIVE-E51-05. Red at C8's parent: the plain call answered null, the region's reached nothing.
+         *
+         * OVER A TOKEN SHOWN HERE (E51 fix round FG6, 31.10.2026; review security S2). The region's caption passed whatever
+         * stood under it, and the module hides another room's tokens and, in an Eclipse, every player's by the token's
+         * `visible` on the viewer's browser (visibility.mjs `tokenShownTo`): a caption over a hidden token said that
+         * somebody crossed there. The region's call is made here at a token on the scene on screen as it stands, at the
+         * same token with its `visible` set false on this browser (put back by the token's refresh of its visibility;
+         * nothing is written to the world), and at a point no token covers. Red at the fix round's parent: all three drawn.
          */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a token on the scene on screen for the region's caption to stand over");
         const group = foundry.canvas?.groups?.InterfaceCanvasGroup ?? globalThis.InterfaceCanvasGroup;
         const fn = group?.prototype?.createScrollingText;
         ok(fn?.[Symbol.for("drpgNoScrollingText")] === true, "the scrolling-text patch is not installed on this page - this would measure nothing");
         const N = await import("./no-scrolling-text.mjs");
+        const token = canvas.tokens.placeables.find(t => t.document?.actor?.type === "character" && t.visible);
+        must(token, "no character's token is shown on the scene on screen - this would measure nothing");
+        // Put back by the token's own refresh of its visibility: Foundry's answer, and the room fog's after it.
+        const putBack = () => { token.visible = true; token.renderFlags?.set?.({ refreshVisibility: true }); };
+        const center = { x: token.center.x, y: token.center.y };
         const drawn = [], real = fn.original;
         let read = null;
         try {
             fn.original = function (origin, text) { drawn.push(text); return Promise.resolve("drawn"); };
-            const plain = fn.call({}, { x: 0, y: 0 }, "R1131 a token's caption");
+            const plain = fn.call({}, center, "R1131 a token's caption");
             class DisplayScrollingTextRegionBehaviorType {
-                _handleRegionEvent() { return fn.call({}, { x: 0, y: 0 }, "R1131 a region's caption"); }
+                _handleRegionEvent(at, text) { return fn.call({}, at, text); }
             }
-            const region = new DisplayScrollingTextRegionBehaviorType()._handleRegionEvent();
-            read = { thenable: typeof plain?.then === "function", plain: await plain, region: await region, drawn: drawn.slice(),
+            const behaviour = new DisplayScrollingTextRegionBehaviorType();
+            const region = await behaviour._handleRegionEvent(center, "R1131 a region's caption");
+            token.visible = false;
+            const hidden = await behaviour._handleRegionEvent(center, "R1131 a region's caption over a hidden token");
+            putBack();
+            const nobody = await behaviour._handleRegionEvent({ x: -100000, y: -100000 }, "R1131 a region's caption over no token");
+            read = { thenable: typeof plain?.then === "function", plain: await plain, region, hidden, nobody, drawn: drawn.slice(),
                 reader: typeof N.fromRegionBehavior === "function"
                     ? [N.fromRegionBehavior("Error\n    at DisplayScrollingTextRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)"),
                         N.fromRegionBehavior("Error\n    at createScrollText (daggerheart.mjs:1:1)\n    at ModifyTokenRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)")]
                     : null };
         } finally {
             fn.original = real;
+            if (!token.visible) putBack();
         }
-        equal(JSON.stringify(read), JSON.stringify({ thenable: true, plain: null, region: "drawn", drawn: ["R1131 a region's caption"], reader: [true, false] }),
-            "a token's caption answered with a settled Promise of null, a region's handed to the original, and the stack reader on a region's frame and on another behaviour's");
+        equal(JSON.stringify(read), JSON.stringify({ thenable: true, plain: null, region: "drawn", hidden: null, nobody: null, drawn: ["R1131 a region's caption"],
+            reader: [true, false] }),
+            "a token's caption answered with a settled Promise of null, a region's over a shown token handed to the original, one over a token hidden here and "
+                + "one over no token answered null, and the stack reader on a region's frame and on another behaviour's");
     }],
 
     ["R1132 - Set the season up has a First session screen: season-setup.mjs `steps()` gives hallTokens, scenes, foundryHeld and diceSoNice the group `firstSession`, each optional with its state and, while not done, its Open where it has a window; `firstSessionHtml` draws them under their heading, and the window keeps them out of the checklist's list and wires both lists (E51 C8; E51-48, audit S17-49)", async () => {
@@ -30027,6 +30048,110 @@ const INVARIANTS = [
             window: [true, true, true]
         }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
     }],
+    ["R1134 - a discard's ticket is good once, for its student and its item's name, for a minute: sheet-audit.mjs `takeDiscardTrace` answers true for the ticket `noteDiscardTrace` wrote and false the second time, false for another student, another name or a ticket older than `DISCARD_TICKET_MS`, and reads a name as the trace cuts it, to 80 (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The discard stamp stood on the GMs' copy being broken, which a
+         * console sets one write earlier; it stands now on the ticket the primary writes as it places the discard's
+         * trace (gm-bridge.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
+         * this browser's memory, with ids no actor has; the old ticket is written with `Date.now` read 61 s back and
+         * put back at once. Every ticket written here is taken before the end, so nothing is left. Red at the fix's
+         * parent: neither function exported.
+         */
+        const A = await import("./sheet-audit.mjs");
+        must(typeof A.noteDiscardTrace === "function" && typeof A.takeDiscardTrace === "function", "sheet-audit.mjs exports no discard ticket - nothing to read");
+        const one = "R1134STUDENT0001", two = "R1134STUDENT0002", long = "R1134 " + "x".repeat(90);
+        A.noteDiscardTrace(one, "R1134 lockpick");
+        const first = [A.takeDiscardTrace(two, "R1134 lockpick"), A.takeDiscardTrace(one, "R1134 wire"), A.takeDiscardTrace(one, "R1134 lockpick"),
+            A.takeDiscardTrace(one, "R1134 lockpick")];
+        A.noteDiscardTrace(one, long);
+        const cut = A.takeDiscardTrace(one, long.slice(0, 80));
+        const real = Date.now;
+        try {
+            Date.now = () => real() - A.DISCARD_TICKET_MS - 1000;
+            A.noteDiscardTrace(one, "R1134 old gloves");
+        } finally {
+            Date.now = real;
+        }
+        const old = A.takeDiscardTrace(one, "R1134 old gloves");
+        equal(JSON.stringify({ first, cut, old, ms: A.DISCARD_TICKET_MS }), JSON.stringify({ first: [false, false, true, false], cut: true, old: false, ms: 60000 }),
+            "[another student's take, another name's, the ticket's own, the second time; a name past 80 read as cut; a ticket older than the minute; the minute]");
+    }],
+    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-rolls.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
+        /*
+         * E51 fix round FG4, 31.10.2026; the owner at the table ("Which project?" and "Sabotage which project?" shown at
+         * once whatever row is picked) and the correctness review's "item 1 wider". The Projects window
+         * (`performProject`) drew both selects as `.drpg-specific-note` with no `data-drpg-when`, which the stylesheet
+         * shows always; and Tamper's Reshape trace select (`chooseTamper`) did carry `data-drpg-when="reshape"`, which
+         * `.drpg-specific-note[data-drpg-when]` hides, with no rule naming `reshape` to show it - since E09 C13 the
+         * Reshape row reshaped the first erasable trace whatever the player meant. Read here: every value written in the
+         * sources (comments stripped), each tried in a window of two rows built on a body of its own with each theme's
+         * class (`styleCascade`, the winning `display` of the field: the sheets' top-level rules, no @media), and the
+         * label each named select of the two windows stands in. What a browser draws is not measured here (jsdom lays
+         * nothing out). Red at the fix's parent: `work` and `sabotage` written nowhere, and `reshape` hidden when checked.
+         */
+        const sources = await moduleSources();
+        const written = new Set();
+        for (const [file, raw] of sources) {
+            if (file.startsWith("tests")) continue;
+            const src = stripComments(raw);
+            for (const m of src.matchAll(/data-drpg-when="([\w-]+)"/g)) written.add(m[1]);
+            for (const m of src.matchAll(/requestFieldHtml\(\{[^)]*?\bwhen\s*:\s*"([\w-]+)"/g)) written.add(m[1]);
+        }
+        must(written.size >= 5, `only ${written.size} row-bound values were read in the sources - this would measure nothing`);
+        const C = await styleCascade();
+        const THEMES = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"];
+        const shown = (theme, value, checked) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            const app = document.createElement("div");
+            app.className = "application drpg-panel";
+            body.append(app);
+            app.innerHTML = `<form><div class="drpg-choice-list">
+                <label class="drpg-choice"><input type="radio" name="variant" value="${value}"></label>
+                <label class="drpg-choice"><input type="radio" name="variant" value="drpg-r1142-other"></label>
+            </div><label class="drpg-specific-note" data-drpg-when="${value}"><span>R1142</span><select name="r1142"></select></label></form>`;
+            app.querySelector(`input[value="${checked}"]`).checked = true;
+            return C.winner(app.querySelector("[data-drpg-when]"), "display")?.value ?? null;
+        };
+        const wrong = [];
+        for (const theme of THEMES) for (const value of written) {
+            const own = shown(theme, value, value), other = shown(theme, value, "drpg-r1142-other");
+            if (own === "none" || own === null || other !== "none") wrong.push(`${theme} ${value}: ${own} / ${other}`);
+        }
+        const code = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const labelOf = (fn, name) => {
+            const body = fnSource(code, fn) ?? "";
+            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));
+            return m ? m[1] ?? "always" : "no such select";
+        };
+        equal(JSON.stringify({
+            wrong,
+            projects: [labelOf("performProject", "project"), labelOf("performProject", "sabotage")],
+            tamper: [labelOf("chooseTamper", "trace"), labelOf("chooseTamper", "reshapeTrace"), labelOf("chooseTamper", "who")]
+        }), JSON.stringify({ wrong: [], projects: ["work", "sabotage"], tamper: ["cover", "reshape", "frame"] }),
+            "[a row-bound value not shown with its row, or shown under another (theme value: its row checked / another checked); the rows the Projects "
+                + "window's project and sabotage selects show with; the rows Tamper's trace, Reshape trace and frame selects show with]");
+    }],
+    ["R1144 - the season's resets and fixes report once: season-setup.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
+        /*
+         * E51 fix round FG9, 31.10.2026; review goal G9: row E51-38's "fixes quietly" was read by no test. The reset said
+         * "X is no longer a Monocub" once per cub beside its own report (C6 gave `setMonocub` a `quiet`); the checklist's
+         * Starting resources fix is driven in tier 2's E51-T17. Read here with comments stripped: the deaths part of
+         * `wipeStudent` (from `deaths:` to `items:`), and `setMonocub`'s toast. Green at the fix round's parent (C6 built
+         * it): what it holds is measured by mutants (S/stages/E51/FIX-C.md).
+         */
+        const sources = await moduleSources();
+        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const cub = stripComments(sources.get("monocub.mjs") ?? "");
+        must(setup.length > 1000 && cub.length > 1000, "season-setup.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
+        const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
+        const setter = fnSource(cub, "setMonocub");
+        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths),
+            /if\s*\(!quiet\)\s*ui\.notifications\.info\(/.test(setter)]), JSON.stringify([true, true, true]),
+            "[the reset takes the Monocub off quietly; it revives quietly; setMonocub's toast asks !quiet]");
+    }],
+
     ["R1564 - a GM store write on a server whose serverTime is its uptime is kept: the clock is the epoch clock under the floor, an epoch serverTime is still the server's, and after a restart a write under the last session's watermark lands (E90, LIVE-E04-01)", async () => {
         /*
          * E90, 31.10.2026. The owner's table (Foundry 14.365 on The Forge, Daggerheart 2.6.5, the GM's browser):

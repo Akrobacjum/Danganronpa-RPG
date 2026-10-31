@@ -9724,6 +9724,7 @@ const REGRESSIONS = [
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             // ---- the standing outline drawn again by a door (E51 C3, E51-22)
             ["HOOK fog.mjs#registerFog#updateWall/inline -> record", "no record, no copy: every browser, on its own screen only - a wall's `ds`, `door`, `move` or `c` changed draws the outline standing beside it again by `redrawOutline` (`outlineAfterDoor`), from what this browser holds, with no sound and no write (R1114); a passage's copy is read only through `doorwayEdges`, as the outline's own draw reads it (E51 C3)"],
+            ["HOOK fog.mjs#registerFog#deleteWall/inline -> record", "no record, no copy: every browser, on its own screen only - a wall deleted beside the room outlined draws that outline again by `redrawOutline` (`outlineAfterDoor` with `placed`, from where the wall stood), with no sound and no write (E51 fix FG2; the correctness review's F2; R1141, E51-T26)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); a deleted secret door's state goes with the wall (E80 fix r2-G9: it is a flag on the door, `DOOR_SET`)"],
             // ---- Foundry's secret doors (E80 C5, S16-17)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door - since E80 fix r2-G9 the flag `DOOR_SET` on the door, written with the GM's own change (`stampSecretDoor`) or here, as the put-back's own write, where the change came without it, and deleted when a GM makes the door an ordinary wall (R616); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
@@ -16532,6 +16533,65 @@ const REGRESSIONS = [
                 + "checked hint; the request is read for the hint alone]");
     }],
 
+    ["R1143 - the handbooks say what E51 changed at the table, in both languages: the player's Observe table promises no dice where an empty room goes to the GM; the GM's names the debate's floor of 30 s, the trial console's evidence log, the rules manager's Announce changes, the checklist's First session and a region's Display Scrolling Text, the player's that nothing is thrown away in a Class Trial; and the Polish Confusion refusal promises no refund (E51 fix FG8; review goal G3, G10, STATUS C2's meddleRefused)", async () => {
+        /*
+         * E51 fix round FG8, 31.10.2026. G3: the player handbook's Observe table said "settled by the dice" /
+         * "rozstrzygają kości" of Sweep the room and Look past the obvious, which E51-02 took off the hints (R1102): a
+         * room with nothing of the kind goes to the GM (`ruleObserve`). G10: the handbooks said nothing of E51's table
+         * changes - the debate's budget had no floor ("default 180"), the evidence log was the dashboard's alone, and
+         * "Announce changes", "First session", the refused discard in the trial and a region's caption were nowhere. Each
+         * is read as the module words it (the UI's own labels from lang/*.json, the floor from config.mjs
+         * `TRIAL.debateMinSeconds`), so a label renamed in the UI fails here until the books follow. And pl.json's
+         * `DRPG.Monocub.meddleRefused` said "akcja i Hope wróciły" where en.json and the code give nothing back. Red at the
+         * fix round's parent: both promises standing in both player handbooks, none of the GM's six in either language,
+         * nor the player's refusal, and the Polish refund.
+         */
+        const { TRIAL } = await import("./config.mjs");
+        const text = {}, lang = {};
+        for (const lc of ["en", "pl"]) {
+            lang[lc] = await fetch(`/modules/${MODULE_ID}/lang/${lc}.json`).then(r => r.json());
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lc}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lc}.md did not load`);
+                text[`${book}.${lc}`] = await lfText(res);
+                must(text[`${book}.${lc}`].split("\n").length > 100, `docs/handbooks/${book}.${lc}.md is nearly empty - this test measured nothing`);
+            }
+        }
+        // A key as Foundry reads it: nested, or written flat with its dots (en.json writes some Season keys so).
+        const label = (lc, key) => {
+            let at = lang[lc];
+            const parts = key.split(".");
+            for (let i = 0; i < parts.length && at !== undefined; i++) {
+                const rest = parts.slice(i).join(".");
+                if (typeof at[rest] === "string") return at[rest];
+                at = at[parts[i]];
+            }
+            return typeof at === "string" ? at : null;
+        };
+        const FLOOR = { en: `at least **${TRIAL.debateMinSeconds}**`, pl: `co najmniej **${TRIAL.debateMinSeconds}**` };
+        const read = {};
+        for (const lc of ["en", "pl"]) {
+            const gm = text[`gm-handbook.${lc}`], player = text[`player-handbook.${lc}`];
+            const wanted = { floor: FLOOR[lc], log: label(lc, "DRPG.Trial.logTitle"), announce: label(lc, "DRPG.Rules.announce"),
+                firstSession: label(lc, "DRPG.Season.firstSession"), caption: "Display Scrolling Text" };
+            must(Object.values(wanted).every(w => typeof w === "string" && w.length > 3), `a label is missing from lang/${lc}.json: ${JSON.stringify(wanted)}`);
+            const refusal = label(lc, "DRPG.Items.noDiscardInTrial");
+            must(typeof refusal === "string" && refusal.length > 10, `DRPG.Items.noDiscardInTrial is missing from lang/${lc}.json`);
+            read[lc] = {
+                promise: (player.match(/settled by the dice|rozstrzygaj[aą] ko[sś]ci/gi) ?? []).length,
+                gmMissing: Object.entries(wanted).filter(([, w]) => !gm.includes(w)).map(([k]) => k),
+                refusal: player.includes(refusal)
+            };
+        }
+        const meddle = label("pl", "DRPG.Monocub.meddleRefused") ?? "";
+        must(meddle.length > 10, "pl.json has no DRPG.Monocub.meddleRefused - this would measure nothing");
+        read.meddle = /wr[oó]c|zwr[oó]c|odda/i.test(meddle);
+        equal(JSON.stringify(read), JSON.stringify({ en: { promise: 0, gmMissing: [], refusal: true }, pl: { promise: 0, gmMissing: [], refusal: true }, meddle: false }),
+            "[per language: the player handbook's promises that the dice settle an Observe; what the GM handbook does not name of the debate's floor, the "
+                + "console's evidence log, Announce changes, First session and Display Scrolling Text; the player handbook quotes the Class Trial's discard "
+                + "refusal]; [the Polish Confusion refusal promises a refund]");
+    }],
+
     ["R1105 - a dead student under the Eclipse is told they are dead: in `performAction` the death refusal (`DRPG.Chapter.deadCannotAct`) stands above the Eclipse's (`DRPG.Eclipse.actionsLocked`) (E51 C1; E51-06, audit S02-51 (d))", async () => {
         /*
          * E51 C1, 30.10.2026; audit S02-51 (d). The Eclipse's refusal came first, so a dead student pressing a tile
@@ -16784,7 +16844,7 @@ const REGRESSIONS = [
          * "Trace" as the name, so a GM pressing Enter gave the players a bullet called "Trace". The stored name is empty now
          * until somebody describes the trace; `traceLabel(entry)` words it at read time, and `isNeutralName` (through
          * `neutralWords`, this language and the fallback's) is the one place a name is held against the word - a row a build
-         * before 1.2.93 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
+         * before 1.2.94 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
          * suite's. Red at C5's parent: the key localized in 19 places outside those two functions (git grep, 31.10.2026),
          * and `createFind` handing `stored?.name` to the window.
          */
@@ -16821,16 +16881,19 @@ const REGRESSIONS = [
             + "remnants.mjs exports traceLabel and isNeutralName; createFind's describe window is handed the stored name]");
     }],
 
-    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and not synced (Q3: the primary's alone); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on the primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
+    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and synced between GMs (E51 fix FG1: a second GM's trace and a handover); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on any GM and asks for no primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
         /*
          * E51 C5, 31.10.2026; audit S05-53. The traces waiting for the GMs' digest were a Map in the memory of the GM
          * that placed them (remnants.mjs `pendingTraces`), so a primary's F5 between a trace and the turn of the time of
          * day lost the digest of every trace before it, and nothing said so. They are a GM store's rows now, a row per
          * trace written when the trace is placed on the primary, and the digest posts and drops them on the primary
-         * alone. The owner's Q3 (default, 30.10): the primary's alone, `sync` off. The row is read off the registry
+         * alone. C5 read the owner's Q3 (default, 30.10) as `sync` off; the end review's G1 and F1 measured what it lost -
+         * a second GM's trace in no digest, a handover's rows unsaid - and the fix round (FG1) synced the store, the row
+         * written by whichever GM places the trace, said by the primary of the moment. The row is read off the registry
          * (gm-store.mjs `gmStoreByName`), the setting off the settings' registry, and the roads off remnants.mjs's source
          * with comments stripped; scenario 61's phase TD reads the digest through a primary's F5 on two GMs. Red at C5's
-         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs.
+         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs; red at FG1's parent: `sync`
+         * false and `announceRemnant` asking for the primary.
          */
         await import("./gm-stores.mjs");
         const E = await import("./gm-store.mjs");
@@ -16850,11 +16913,37 @@ const REGRESSIONS = [
             now: /traceDigestStore\.drop\(/.test(fn("whisperTraceNow")),
             named: game.i18n.has("DRPG.Case.store.traceDigest")
         }), JSON.stringify({
-            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: false },
+            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: true },
             setting: { scope: "client", config: false },
-            pending: false, announce: [true, true], send: [true, true], now: true, named: true
+            pending: false, announce: [true, false], send: [true, true], now: true, named: true
         }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
-            + "announceRemnant writes the row and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+            + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+    }],
+    ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: gm-bridge.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
+         * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
+         * Trial is refused, and its ticket must not be), written before the trace is placed it would cover a trace that
+         * failed, and asked of a GM's own placement it would cover a delete the audit never judges. Read off the two
+         * files' sources with comments stripped; scenario 30's "a console's discard" drives D1-D4 and the honest road.
+         * Red at the fix's parent: no `noteDiscardTrace` in handleRemnant, no `takeDiscardTrace` in itemFindings.
+         */
+        const sources = await moduleSources();
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? ""), audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        must(bridge.length > 10000 && audit.length > 10000, "gm-bridge.mjs or sheet-audit.mjs was not read - this reads nothing");
+        const run = topLevelFunction(bridge, "handleRemnant") ?? "", judge = topLevelFunction(audit, "itemFindings") ?? "";
+        const at = re => { const m = re.exec(run); return m ? m.index : -1; };
+        const note = at(/noteDiscardTrace\(/), trial = at(/phase === "classTrial"\) return \{ refused/), placed = at(/if \(!placed\) return \{ refused/);
+        const noteLine = note >= 0 ? lineAround(run, note) : "";
+        const standLine = judge.split("\n").find(line => /stamp\.reason === "discard"/.test(line)) ?? "";
+        equal(JSON.stringify({
+            notes: (run.match(/noteDiscardTrace\(/g) ?? []).length, order: [trial >= 0 && trial < note, placed >= 0 && placed < note],
+            asks: [/!sender\.isGM/.test(noteLine), /data\.action === "discard"/.test(noteLine), /noteDiscardTrace\(data\.sourceActor, data\.subject\)/.test(noteLine)],
+            stands: [/takeDiscardTrace\(actor\.id, held\.name\)/.test(standLine), /return out;/.test(standLine)],
+            exported: [/^export function noteDiscardTrace\(/m.test(audit), /^export function takeDiscardTrace\(/m.test(audit)]
+        }), JSON.stringify({ notes: 1, order: [true, true], asks: [true, true, true], stands: [true, true], exported: [true, true] }),
+            "[handleRemnant's calls of noteDiscardTrace; after the trial's refusal, after the placed check; its line asks a player, a discard, and names the "
+                + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
     ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
         /*
@@ -16996,6 +17085,198 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length}`).join("; ")}; en ${lang.en.size} keys, pl ${lang.pl.size}`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.found])), JSON.stringify([["pluralForms", true, []], ["pairParity", true, []]]),
             "[each FAIL detector that reads only the language files: its name, whether it read anything, what it found]");
+    }],
+
+    ["R1138 - a doorway's light stops at the first wall and at the end of the room it falls into: fog-doorways.mjs `doorwayGlowPlan`, handed the walls and rooms beyond (`doorwayLight`'s answer), keeps the glow to a shape whose rays end at a wall 1.0-1.9 squares past an opening, straight or stepped, and where the room beyond ends, a room drawn across a gap reached (E51 fix FG3; the owner's item 4 of 31.10, LIVE-E51-03)", async () => {
+        /*
+         * E51 fix FG3, 31.10.2026; the owner's item 4 and screenshot of 31.10 (the stage's owner-shot-31.10.webp: pools
+         * of light spilling a square or more past a diagonal border, over the walls of the rooms beyond), the correctness
+         * review's reading: the band reaches `core + span` past an opening's averaged line - 1.44 squares on a straight
+         * border at grid 100, more on a stepped one - while the open test looks 0.95 squares out, and nothing erased the
+         * band past a wall or in another room. Read here on the plan `addDoorwayGlow` draws from, with no renderer: a
+         * Lab whose border is open (its edges as `doorwayEdges` hands them), the glow's reach unclipped (`reach`, and the
+         * far ends of rays cast with no wall and no room), and the far ends of the shape the glow is kept to (`keep`,
+         * `rays`) with a wall across the light at 1.0, 1.3, 1.6 and 1.9 squares past the border - a straight border, and
+         * a staircase of two-square steps, its walls diagonal and measured square from its outer corners - then a Hall
+         * one square deep with a Store behind it and no wall between, and a Hall drawn 0.3 squares off the Lab. What a
+         * table draws from that shape is LIVE-E51-03 (AUDIT 9.2 item 357). Red at 99226e59: no `doorwayGlowPlan`, and
+         * `addDoorwayGlow` erased nothing past a wall or a room.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        must(typeof D.doorwayGlowPlan === "function", "fog-doorways.mjs has no doorwayGlowPlan - the glow's geometry cannot be read");
+        const r2 = v => Math.round(v * 100) / 100;
+        const edgesOf = (ring, open) => {
+            const out = [];
+            const n = ring.length / 2;
+            for (let i = 0; i < n; i++) {
+                const ax = ring[i * 2], ay = ring[i * 2 + 1], bx = ring[((i + 1) % n) * 2], by = ring[((i + 1) % n) * 2 + 1];
+                const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+                out.push({ ax, ay, dx, dy, length, nx: 0, ny: 0, ring: 0, open: open(i) ? [[0, 1]] : [], inner: [], trend: null });
+            }
+            return out;
+        };
+        const lab = (ring, name = "R1138 Lab") => ({ name, shapes: [{ type: "polygon", points: ring }], polygons: [{ points: ring }] });
+        const far = (plan, along) => plan.rays.map(r => along(r.x + r.ox * r.d, r.y + r.oy * r.d));
+        const room = (name, x, y, w, h) => ({ name, rings: [[x, y, x + w, y, x + w, y + h, x, y + h]] });
+        const rect = { x: 0, y: 0 }, grid = 100;
+
+        // A straight border: the Lab 0-400 x 0-400, its bottom edge open from x 100 to 300 onto a Hall 400-800 below.
+        const straight = [0, 0, 400, 0, 400, 400, 0, 400];
+        const sEdges = edgesOf(straight, i => i === 2).map(e => ({ ...e, open: e.open.length ? [[0.25, 0.75]] : [] }));
+        const hall = room("R1138 Hall", -200, 400, 800, 400);
+        const sDown = (x, y) => (y - 400) / grid;
+        const sBase = D.doorwayGlowPlan(lab(straight), sEdges, rect, null, { grid });
+        const sOpen = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: [], rooms: [hall] }, { grid });
+        const across = w => [[-300, 400 + w * grid, 700, 400 + w * grid]];
+        const sWall = [1, 1.3, 1.6, 1.9].map(w => {
+            const plan = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: across(w), rooms: [hall] }, { grid });
+            return [w, r2(Math.max(...far(plan, sDown))), plan.rays.some(r => r.stop === "wall")];
+        });
+
+        // A staircase of two-square steps from (600, 0) down to (0, 600), every step open onto the room beyond it: its
+        // inner corners on x + y = 600, its outer ones on 800, and the walls square to its middle line, x + y = 700, at
+        // w squares from it (x + y = 700 + w * grid * sqrt 2) - the line the band is built about.
+        const stair = [0, 0, 600, 0, 600, 200, 400, 200, 400, 400, 200, 400, 200, 600, 0, 600];
+        const tEdges = edgesOf(stair, i => i >= 1 && i <= 6);
+        const yard = { name: "R1138 Yard", rings: [[600, 0, 2000, 0, 2000, 2000, 0, 2000, 0, 600, 200, 600, 200, 400, 400, 400, 400, 200, 600, 200]] };
+        const tOut = (x, y) => (x + y - 700) / Math.SQRT2 / grid;
+        const tBase = D.doorwayGlowPlan(lab(stair), tEdges, rect, { walls: [], rooms: [yard] }, { grid });
+        const tReach = Math.max(...far(tBase, tOut));
+        const diagonal = w => [[700 + w * grid * Math.SQRT2 + 1000, -1000, 700 + w * grid * Math.SQRT2 - 1000, 1000]];
+        const tWall = [1, 1.3, 1.6, 1.9].map(w => {
+            const plan = D.doorwayGlowPlan(lab(stair), tEdges, rect, { walls: diagonal(w), rooms: [yard] }, { grid });
+            return [w, tReach > w, Math.max(...far(plan, tOut)) <= w + 0.005, plan.rays.some(r => r.stop === "wall")];
+        });
+
+        // The room beyond ends: a Hall one square deep, a Store behind it with no wall; and a Hall drawn 0.3 squares off.
+        const shallow = D.doorwayGlowPlan(lab(straight), sEdges, rect,
+            { walls: [], rooms: [room("R1138 Hall", -200, 400, 800, 100), room("R1138 Store", -200, 500, 800, 400)] }, { grid });
+        const apart = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: [], rooms: [room("R1138 Hall", -200, 430, 800, 100)] }, { grid });
+        const inStore = shallow.rays.filter(r => r.y + r.oy * r.d > 500.5).length;
+
+        equal(J({
+            straight: { reach: r2(sBase.reach / grid), unclipped: r2(Math.max(...far(sOpen, sDown))), keep: sBase.keep, walls: sWall },
+            stair: { reach: r2(tBase.reach / grid), unclipped: r2(tReach), walls: tWall },
+            shallow: { deepest: r2(Math.max(...far(shallow, sDown))), stops: [...new Set(shallow.rays.filter(r => r.stop !== "reach").map(r => r.stop))], inStore },
+            apart: r2(Math.max(...far(apart, sDown)))
+        }), J({
+            straight: { reach: 1.44, unclipped: 1.44, keep: null, walls: [[1, 1, true], [1.3, 1.3, true], [1.6, 1.44, false], [1.9, 1.44, false]] },
+            stair: { reach: 1.63, unclipped: 1.95, walls: [[1, true, true, true], [1.3, true, true, true], [1.6, true, true, true], [1.9, true, true, true]] },
+            shallow: { deepest: 1, stops: ["room"], inStore: 0 },
+            apart: 1.3
+        }), "[a straight border: the band's reach in squares, the farthest a ray goes with nothing in the way, no shape without light, and per wall "
+            + "(squares past the border) how far the light goes and whether a ray stopped at it; a staircase: the band's reach, the farthest a ray "
+            + "goes past its middle line with nothing in the way, and per wall (squares past that line) whether the unclipped light passed it, "
+            + "whether no light passes it now and whether a ray stopped at it; a Hall a square deep: "
+            + "the deepest light, what stopped it, rays ending in the Store behind; a Hall drawn 0.3 squares off: the deepest light]");
+    }],
+    ["R1139 - what a doorway's light may reach is read off the map: fog-doorways.mjs `doorwayLight` hands the walls that stop a move - not one with no movement restriction, not an open door - and every other room on the floor, never the room itself; `addDoorwayGlow` erases what lies outside the plan's shape (`eraseBeyondLight`) and fog-reveal.mjs `flashOutline` hands it the light for its room, floor and character (E51 fix FG3; LIVE-E51-03)", async () => {
+        /*
+         * E51 fix FG3, 31.10.2026 (the owner's item 4 of 31.10). R1138 reads the shape given the walls and rooms; this
+         * reads where they come from and that the shape is used. On a scene of plain objects (a Lab over a Hall, as
+         * R1113's, and a Store beside the Hall): a wall that stops a move, one with none (`move` 0), an open door and a
+         * shut one; `doorwayLight`'s walls and rooms for the Lab with no character (a GM's frame, no passage cut). Then
+         * the sources with comments stripped: the glow is erased outside `keep`, and the outline hands the light in.
+         * What the renderer then draws is LIVE-E51-03 (AUDIT 9.2 item 357). Red at 99226e59: no `doorwayLight`.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        must(typeof D.doorwayLight === "function", "fog-doorways.mjs has no doorwayLight - what the light may reach cannot be read");
+        const region = (name, x, y) => ({ id: `R1139R${name}`, name: `R1139 ${name}`, levels: new Set(), behaviors: [],
+            shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], polygons: [{ points: [x, y, x + 400, y, x + 400, y + 400, x, y + 400] }],
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R1139S", name: "R1139 scene", grid: { size: 100 }, levels: [], walls: [
+            { id: "R1139W1", c: [0, 500, 400, 500], move: 20, door: 0, ds: 0 },
+            { id: "R1139W2", c: [0, 600, 400, 600], move: 0, door: 0, ds: 0 },
+            { id: "R1139W3", c: [0, 700, 400, 700], move: 20, door: 1, ds: 1 },
+            { id: "R1139W4", c: [0, 750, 400, 750], move: 20, door: 1, ds: 0 }
+        ] };
+        const rooms = [region("Lab", 0, 0), region("Hall", 0, 400), region("Store", 400, 400)];
+        for (const r of rooms) r.parent = scene;
+        scene.regions = new Set(rooms);
+        const light = D.doorwayLight(rooms[0], null);
+        equal(J({ walls: light?.walls ?? null, rooms: (light?.rooms ?? []).map(r => [r.name, r.rings.length]) }),
+            J({ walls: [[0, 500, 400, 500], [0, 750, 400, 750]], rooms: [["R1139 Hall", 1], ["R1139 Store", 1]] }),
+            "[the walls the Lab's light stops at: a wall that stops a move and a shut door, not a wall with no movement restriction nor an open door; "
+                + "the rooms beyond it and their rings, the Lab itself not among them]");
+
+        const sources = await moduleSources();
+        const doorways = stripComments(sources.get("fog-doorways.mjs") ?? ""), reveal = stripComments(sources.get("fog-reveal.mjs") ?? "");
+        const glow = topLevelFunction(doorways, "addDoorwayGlow") ?? "", plan = topLevelFunction(doorways, "doorwayGlowPlan") ?? "";
+        const flash = topLevelFunction(reveal, "flashOutline") ?? "";
+        must(glow.length > 500 && plan.length > 500 && flash.length > 500, "addDoorwayGlow, doorwayGlowPlan or flashOutline was not found - this test reads nothing");
+        equal(J({
+            planned: /doorwayGlowPlan\(\s*region\s*,\s*edges\s*,\s*rect\s*,\s*light\s*\)/.test(glow),
+            erased: /if\s*\(\s*keep\s*\)\s*eraseBeyondLight\(/.test(glow),
+            cast: /lightShape\(\s*runs\s*,\s*rect\s*,\s*light\b/.test(plan),
+            handed: /addDoorwayGlow\([^;]*doorwayLight\(\s*region\s*,\s*level\s*,\s*\{\s*actor\s*,\s*elevation\s*\}\s*\)\s*\)/.test(flash)
+        }), J({ planned: true, erased: true, cast: true, handed: true }),
+        "[addDoorwayGlow draws from doorwayGlowPlan with the light; erases outside the shape it keeps; the plan casts the shape from the runs; "
+            + "flashOutline hands the light of its room, floor and character]");
+    }],
+    ["R1140 - the outline follows this viewer's own token, whichever token's arrival runs: fog.mjs `ownArrival` outlines the room of the token that called only when `leadsHere` says the outline follows it (a player's character; a GM's own Monokuma by `poolUserFor`), keeping a second signature for those tokens' rooms, and `standWhereWeStand` reads both on the canvas drawn, a token deleted and a room changed (E51 fix FG2; the owner's item 2 of 31.10)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10 ("the GM's room outline sometimes on another room than the
+         * GM's token"), the correctness review's roads (a)-(d) and the goal review's measurement. `ownArrival` compared
+         * the rooms this viewer stands in (the Monokuma's, on a GM) and outlined the CALLER's room: a player's step, a
+         * trace placed or another Monokuma's walk outlined its own room whenever the GM's set had changed without the
+         * Monokuma's own call first - a move held for its waypoints, a token deleted (the signature never told), a room
+         * drawn under it. Read: fog.mjs's source with comments stripped, and the listeners live (`Hooks.events`). What the
+         * outline does on a GM's browser is E51-T25 and scenario 66 GO; a player's outline is not drawn headless (66's
+         * header). Red at 99226e59: no `leadsHere`, no `standWhereWeStand`, the room outlined whenever the set changed.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const arrival = topLevelFunction(fog, "ownArrival") ?? "", leads = topLevelFunction(fog, "leadsHere") ?? "";
+        const stand = topLevelFunction(fog, "standWhereWeStand") ?? "", register = topLevelFunction(fog, "registerFog") ?? "";
+        const changed = topLevelFunction(fog, "regionChanged") ?? "", reveal = topLevelFunction(fog, "revealStartingRooms") ?? "";
+        must(arrival.length > 200 && register.length > 1000, "ownArrival or registerFog was not found - this test reads nothing");
+        const deleting = (Hooks.events?.deleteToken ?? []).filter(entry => /standWhereWeStand\(/.test(String(entry.fn)));
+        equal(J({
+            lead: /const\s+lead\s*=\s*leadsHere\(\s*tokenDoc\s*\)/.test(arrival),
+            entered: /const\s+entered\s*=\s*lead\s*&&\s*lastLeadSignature\s*!==\s*now\.lead\s*\?\s*roomEnteredByMe\(\s*tokenDoc\s*\)/.test(arrival),
+            kept: /if\s*\(\s*lead\s*\)\s*lastLeadSignature\s*=\s*now\.lead/.test(arrival),
+            pool: /poolUserFor\(\s*token\.actor\s*\)\?\.id\s*===\s*me/.test(leads) && /if\s*\(\s*!isMine\(\s*token\s*,\s*gm\s*\)\s*\)\s*return\s+false/.test(leads),
+            both: /lastMineSignature\s*=\s*now\.mine/.test(stand) && /lastLeadSignature\s*=\s*now\.lead/.test(stand),
+            canvas: /"remember where we started"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
+            deleted: deleting.length,
+            region: /standWhereWeStand\(\s*\{\s*redraw:\s*true\s*\}\s*\)/.test(changed),
+            starting: /leadsHere\(\s*token\s*\)/.test(reveal)
+        }), J({ lead: true, entered: true, kept: true, pool: true, both: true, canvas: true, deleted: 1, region: true, starting: true }),
+        "[ownArrival asks leadsHere of the calling token; outlines only a lead's room when the leads' rooms changed; takes the leads' set only on a "
+            + "lead's call; leadsHere is isMine and, on a GM, the Monokuma whose pool is this GM's; standWhereWeStand sets both signatures; on the "
+            + "canvas drawn; deleteToken listeners that read where the viewer stands; a region change reads it; the reveal at the start follows the leads]");
+    }],
+    ["R1141 - the standing outline is drawn again for a wall made, deleted or moved from anywhere, and for a seal or a chain set: fog.mjs `registerFog` hears `createWall` and `deleteWall` through `outlineAfterDoor` (beside the room), a wall's `c` changed redraws it whatever the place, and `createSetting`/`updateSetting` of `sealedRooms` or `restrictions` call `outlineAfterVeto`, each by `redrawOutline` with no sound (E51 fix FG2; the correctness review's F2, the goal review's G8)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026. F2: `updateWall` alone was heard, and a wall moved was judged at its new place only, so
+         * a wall dragged away from the room's border or deleted left its line standing, and one drawn on the border left
+         * a gap. G8: the glow asks the veto (D43c = 2), and a Seal on the room beyond or a chain left the glow lit beside
+         * a door the veto refused, until the next arrival. Read: the listeners live (`Hooks.events`) and fog.mjs's source
+         * with comments stripped; what is redrawn on a GM's browser is E51-T26 and E51-T27. Red at 99226e59: neither
+         * `createWall` nor `deleteWall` heard, no `outlineAfterVeto`, a move judged at its new place.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const door = topLevelFunction(fog, "outlineAfterDoor") ?? "", veto = topLevelFunction(fog, "outlineAfterVeto") ?? "";
+        const touched = topLevelFunction(fog, "standingTouched") ?? "";
+        must(door.length > 100 && touched.length > 100, "outlineAfterDoor or standingTouched was not found - this test reads nothing");
+        const heard = hook => (Hooks.events?.[hook] ?? []).filter(entry => /outlineAfter(Door|Veto)\(/.test(String(entry.fn))).length;
+        equal(J({
+            listeners: ["updateWall", "createWall", "deleteWall", "createSetting", "updateSetting"].map(heard),
+            placed: /!placed\s*&&\s*Object\.hasOwn\(\s*changes\s*,\s*"c"\s*\)\s*\?\s*standingTouched\([^)]*anywhere:\s*true/.test(door),
+            anywhere: /if\s*\(\s*anywhere\s*\)\s*return\s+standing\.room/.test(touched),
+            keys: /SETTINGS\.sealedRooms/.test(veto) && /SETTINGS\.restrictions/.test(veto),
+            redraws: [/\bredrawOutline\(/.test(door), /\bredrawOutline\(/.test(veto)],
+            sound: [/\bplaySfx\s*\(/.test(door), /\bplaySfx\s*\(/.test(veto)]
+        }), J({ listeners: [1, 1, 1, 1, 1], placed: true, anywhere: true, keys: true, redraws: [true, true], sound: [false, false] }),
+        "[listeners of updateWall, createWall, deleteWall, createSetting and updateSetting that hand on to outlineAfterDoor or outlineAfterVeto; a "
+            + "wall's c changed is judged anywhere on the room's scene; standingTouched answers the standing room for anywhere; outlineAfterVeto reads "
+            + "the seal and the chain; each redraws by redrawOutline; a sound in either]");
     }],
 ];
 

@@ -429,8 +429,9 @@ export const SETTINGS = {
     gmCrossings: "gmCrossings",
     /**
      * THE TRACES WAITING FOR THE GMS' DIGEST (E51 C5, 31.10.2026; audit S05-53): a GM store (gm-stores.mjs
-     * `traceDigestStore`), a row per trace the primary placed since the last digest, said and dropped at the turn of
-     * the time of day. The primary's alone (Q3): not synced, backed up; no player copy.
+     * `traceDigestStore`), a row per trace any GM placed since the last digest, said and dropped by the primary at the
+     * turn of the time of day. Synced between GMs (E51 fix FG1: a second GM's trace and a handover), backed up; no
+     * player copy.
      */
     gmTraceDigest: "gmTraceDigest",
     /**

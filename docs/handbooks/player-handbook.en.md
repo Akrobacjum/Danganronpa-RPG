@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.93, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.94, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -208,8 +208,8 @@ You choose how you are looking:
 
 | Way of looking | What it targets |
 |---|---|
-| Sweep the room | whatever is easiest to spot in this room - settled by the dice |
-| Look past the obvious | the hardest thing here - settled by the dice |
+| Sweep the room | whatever is easiest to spot in this room; in a room with nothing of the kind, the GM decides what you see |
+| Look past the obvious | the hardest thing here, and whatever does not belong in this room at all; with nothing of the kind, the GM decides |
 | Follow my traces | retrace your own steps and find what you left behind |
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
 | Examine point of interest | something that is not a trace - a person, a machine, the weather; the GM rules |
@@ -441,7 +441,7 @@ None of these ever takes you below one action or one search token (a room the GM
 **Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
-> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**.
+> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
 
 ### Categories and what you can carry
 
@@ -765,7 +765,7 @@ The largest of the three buttons in the bottom-right corner, the one on top, ope
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. With no GM connected nothing is posted: you are told "No GM is connected." and what the action cost you comes back.
 
-**Read only when you look** (since 1.2.93). A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
+**Read only when you look** (since 1.2.94). A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
 
 **A question you wait on** - an Experience or Ultimate Call, a Dynamic action, the statistic a roll lists two of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
 

@@ -19,7 +19,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken, roomAt, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
-import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion, serverNow } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
 import { remnantStore, bulletStore, traceDigestStore, upgradeMark } from "./gm-stores.mjs";
@@ -597,7 +597,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
             error(`A trace put back under its id (${created.id}) has no live row in the ledger.`);
         }
         log(`Remnant placed: ${label} (by ${sourceName || "?"})`);
-        // Held for the GMs' digest on the primary (E51 C5); a row that could not be written loses the digest line, never the trace.
+        // Held for the GMs' digest (E51 C5, synced since fix FG1); a row that could not be written loses the digest line, never the trace.
         if (created) await announceRemnant(created).catch(err => error("Could not hold the trace for the GMs' digest", err));
         return created ?? null;
     } catch (err) {
@@ -648,15 +648,19 @@ export function actionLabelOf(action) {
  * So traces are collected and said once, at the turn of the time of day or the
  * end of an Eclipse - the two moments the table already stops at.
  *
- * COLLECTED IN A GM STORE, ON THE PRIMARY (E51 C5, 31.10.2026; audit S05-53; the
- * owner's Q3 on its default, 30.10). They were a Map in the memory of the GM that
- * placed them, so a primary's F5 between a trace and the turn of the time of day
- * lost every trace before it, and nothing said so (scenario 61's TD at C5's parent:
- * the primary's trace in no digest). They are rows of `traceDigestStore` now
- * (gm-stores.mjs), the primary's own and not synced: written when the primary places
- * a trace (a player's comes to it through the bridge), said and dropped by the
- * primary alone. A trace a GM who is not the primary places on their own browser is
- * in no digest: its GM placed it.
+ * COLLECTED IN A GM STORE EVERY GM SHARES, SAID BY THE PRIMARY (E51 C5, 31.10.2026;
+ * audit S05-53; E51 fix FG1, the end review's G1 and F1). They were a Map in the
+ * memory of the GM that placed them, so a primary's F5 between a trace and the turn
+ * of the time of day lost every trace before it, and nothing said so (scenario 61's
+ * TD at C5's parent: the primary's trace in no digest). They are rows of
+ * `traceDigestStore` now (gm-stores.mjs), synced between the GMs: written by
+ * whichever GM places the trace (a player's comes to the primary through the
+ * bridge), said and dropped by the primary of the moment alone. C5 kept them on the
+ * primary unsynced (its reading of Q3), and measured the price in the fix round: a
+ * second GM's own trace was in no digest (61 TD `[true, false]`), and a GM whose id
+ * sorts first joining made it the primary with an empty store while the old
+ * primary's rows waited (review scratch f1-digest-handover). Synced, the new primary
+ * holds them, and a row dropped as it is said is dropped on every GM.
  *
  * THE EXCEPTION IS THE POINT OF THE RULE. A player copying a trace as a Truth
  * Bullet is not noise: it is a question. If the GM has never edited that trace,
@@ -691,7 +695,9 @@ function traceCard(data, { heading = true } = {}) {
 
 /**
  * A Remnant appeared. Hold it for the digest: a row of `traceDigestStore` under the
- * trace's ledger key, on the primary alone (E51 C5).
+ * trace's ledger key, on whichever GM placed it, and through the store on every GM
+ * (E51 C5; fix FG1). `at` is the epoch clock (`serverNow`), so rows two GMs wrote
+ * sort on one clock where the server gives one.
  *
  * The data is read NOW rather than at flush time, because the token can be
  * retuned, transformed or deleted between the two - and what the digest is
@@ -699,14 +705,14 @@ function traceCard(data, { heading = true } = {}) {
  * by its keys (`digestCard` words them at the flush), and `at`, the order.
  */
 async function announceRemnant(tokenDoc) {
-    if (!isPrimaryGm()) return;
+    if (!game.user?.isGM) return;
     const data = remnantData(tokenDoc);
     const key = keyOf(tokenDoc);
     if (!data || !key) return;
     await traceDigestStore.patch(key, {
         type: data.type ?? null, visibility: data.visibility ?? null, faint: data.faint, reinforced: data.reinforced,
         sourceName: data.sourceName ?? "", note: data.note ?? "", room: data.room ?? null,
-        chapter: data.chapter ?? null, day: data.day ?? null, timeOfDay: data.timeOfDay ?? null, at: Date.now()
+        chapter: data.chapter ?? null, day: data.day ?? null, timeOfDay: data.timeOfDay ?? null, at: serverNow()
     });
 }
 
@@ -724,8 +730,11 @@ const digesting = new Set();
 
 /**
  * Say the traces collected since the last flush, as one whisper. Answers how
- * many traces it said. The primary's alone (E51 C5): every GM hears the hour, and
- * the rows are the primary's.
+ * many traces it said. The primary's alone (E51 C5): every GM hears the hour and
+ * holds every row (fix FG1), and one says them. Not waited for: a primary back
+ * from an F5 with rows another primary said meanwhile, whose time of day turns
+ * before the other GMs' copy (and the drop's tombstone) reaches it, says them
+ * again: read in the code, not measured.
  *
  * Dropped BEFORE the whisper is sent: an await here is a window in which
  * another trace can land, and a queue emptied afterwards would eat it.
@@ -1232,14 +1241,14 @@ export function remnantPublic(tokenDoc) {
 export function publicOf(entry) {
     const pub = { ...defaultPublic(entry), ...(entry?.public ?? {}) };
     if (pub.img === OLD_ICON) pub.img = ICON;
-    // The neutral word a build before 1.2.93 stored as the name is no name (E51 C5): read, never rewritten, as the icon is.
+    // The neutral word a build before 1.2.94 stored as the name is no name (E51 C5): read, never rewritten, as the icon is.
     if (isNeutralName(pub.name)) pub.name = "";
     return pub;
 }
 
 /**
  * THE NEUTRAL WORD, READ AND NEVER STORED (E51 C5, 31.10.2026; audit S05-52). "Trace" in this browser's language and
- * in its fallback's - the two words a row or a token written before 1.2.93 may hold as a name, in a world where one
+ * in its fallback's - the two words a row or a token written before 1.2.94 may hold as a name, in a world where one
  * GM's browser runs Polish and another's English (the word another language holds, read on a browser that loads
  * neither, is not known here). Read by `isNeutralName` and `traceLabel`, and by nothing else (R1120).
  */
@@ -1372,7 +1381,7 @@ async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
  * migration moves into the ledger (`migrateRemnantToken`, which then strips the
  * name itself), and a write here would lose it first. The word is this client's
  * language's or its fallback's (`isNeutralName`, E51 C5), as `leftOnToken` reads it: a
- * Polish GM's "Slad" on an English GM's browser was "more" until 1.2.93, and renamed.
+ * Polish GM's "Slad" on an English GM's browser was "more" until 1.2.94, and renamed.
  */
 function saysMore(token) {
     if (!token || answerKeyOnToken(token)) return false;
@@ -1734,12 +1743,13 @@ export function registerRemnantLedger() {
      * Eclipse - the two moments the table already stops at, so the whisper
      * lands in a pause rather than across somebody's turn.
      *
-     * Every GM hears both, and the primary alone sends the digest (E51 C5): the
-     * rows are the primary's (`traceDigestStore`, not synced), so a GM who is not
-     * the primary has nothing to say, and the primary's F5 keeps what it held.
-     * Until 1.2.93 each GM flushed what its own memory had watched appear, and an
-     * F5 lost it. `whisperToGms` reaches all of them either way. The end of an
-     * Eclipse and the hour after it each ask; the second finds the rows gone.
+     * Every GM hears both, and the primary alone sends the digest (E51 C5): every
+     * GM holds every row (`traceDigestStore`, synced since fix FG1), so the primary
+     * of the moment says them all, its F5 keeps them, and a handover leaves the
+     * next primary holding what the last had not said. Until 1.2.94 each GM
+     * flushed what its own memory had watched appear, and an F5 lost it.
+     * `whisperToGms` reaches all of them either way. The end of an Eclipse and
+     * the hour after it each ask; the second finds the rows gone.
      */
     Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
