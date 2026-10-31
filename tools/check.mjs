@@ -9,9 +9,9 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names` and `moves` need `npm ci` in audit/harness (they parse with
- * espree); the rest are bare Node, so release.yml runs `stamps notes` before
- * installing anything.
+ * Only `names`, `moves` and `text` need `npm ci` in audit/harness (they parse
+ * with espree; `text` since E65 C10, for the screen map); the rest are bare
+ * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
  *   stamps    module.json's version, the `--drpg-css-version` stamp in
@@ -143,7 +143,14 @@
  *             a fault of the guide's pairs table is red ("pairs: ..."), as a
  *             schema's is. Two more controls: the self-check sees the table's
  *             parser (naturalnessPairs) stubbed to read nothing, and T27 with
- *             its gone list and counts emptied.
+ *             its gone list and counts emptied. E65 C10: the screen map
+ *             (tools/text-map.mjs, built in memory with espree: a SCREENS row
+ *             that names no unit is red, "screens: ...") with its counts and
+ *             decision 38's split of the window surfaces by reader, its marks
+ *             handed to T19; and T15 (renderChecks, report) over a render made
+ *             in memory (tools/text-render.mjs renderAll), with the
+ *             placeholders it has no fixture for. The files themselves only by
+ *             `node tools/text-map.mjs` and `node tools/text-render.mjs`.
  */
 
 import fs from "node:fs";
@@ -732,6 +739,13 @@ async function text() {
     if (!blindSeen.some(p => p.startsWith("naturalnessBefore lists nothing ")) || !blindSeen.some(p => p.startsWith("naturalnessBefore counts "))) {
         problems.push("the self-check does not see naturalnessBefore with its gone pairs and counts emptied - it would pass a T27 that misreads a changed string");
     }
+    /* And T19's second case (E65 C10): T19 blind to the screen map's marks it is handed is seen on that case, by its flags and its
+       counts, so a self-check that stopped running a fixture's `also` cases, or their counts, would leave this part green. */
+    const unmarked = bag => T.DETECTORS.contractions({ ...bag, marks: undefined });
+    const marksSeen = T.selfCheck({ ...T.DETECTORS, contractions: unmarked }, { lexer }).filter(p => p.startsWith("contractions ") && p.includes("case 2"));
+    if (!marksSeen.some(p => p.startsWith("contractions flags ")) || !marksSeen.some(p => p.startsWith("contractions counts "))) {
+        problems.push("the self-check does not see contractions blind to the screen map's marks - it would pass a T19 that ignores them");
+    }
     const fileOf = name => path.join(dir, name);
     for (const name of ["en.json", "pl.json"]) if (!fs.existsSync(fileOf(name))) problems.push(`${path.join(where, name)} is missing - nothing was read`);
     if (problems.some(p => p.endsWith("nothing was read"))) return problems;
@@ -771,11 +785,34 @@ async function text() {
         }
     }
     const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped, budgets };
+    /* The screen map and the render (E65 C10): tools/text-map.mjs reads the scripts with espree (a SCREENS row that names
+       no unit is red: the hand table is a file E65 writes), tools/text-render.mjs fills every string with its fixtures in
+       memory; T15 reads the render, T19 the map's marks (decision 52). The files themselves only by the two tools. */
+    const textMap = await import(url.pathToFileURL(path.join(REPO, "tools", "text-map.mjs")).href);
+    const textRender = await import(url.pathToFileURL(path.join(REPO, "tools", "text-render.mjs")).href);
+    const espree = textMap.loadEspree(REPO);
+    let screenMap = null;
+    if (!espree) problems.push("screens: espree is not installed - run `npm ci` in audit/harness first (the screen map reads the scripts with it)");
+    else {
+        const configTables = [...new Set([...prose.keys()].map(k => k.split(".")[2]))];
+        screenMap = textMap.buildScreenMap({ scripts, keys: [...en.keys(), ...pl.keys(), ...prose.keys()], espree, configTables });
+        problems.push(...screenMap.problems.map(p => `screens: ${p}`));
+        inputs.marks = textMap.marksOf(screenMap);
+    }
+    inputs.render = textRender.renderAll({ en, pl, prose });
     /* Each key's surface, as T4 reads it (the budgets' rules, the senders read off the scripts): C6's report counts every
        finding by it and by the key's top-level group. A handbook line is "handbook". */
     const surfaces = T.surfacesOf(inputs);
     const tally = (list, of) => Object.entries(list.reduce((acc, f) => ({ ...acc, [of(f)]: (acc[of(f)] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1]);
     const shownTally = (pairs, most) => pairs.slice(0, most).map(([k, n]) => `${k} ${n}`).join(", ") + (pairs.length > most ? `, ${pairs.length - most} more (${pairs.slice(most).reduce((n, [, c]) => n + c, 0)})` : "");
+    if (screenMap) {
+        const c = screenMap.counts, marks = [...inputs.marks.values()];
+        console.log(`text: screens: ${c.screens} screen(s), ${c.hand} by SCREENS; ${c.entries} entry point(s) in ${c.files} script(s); keys ${c.keys}: ${c.assigned} assigned `
+            + `(${c.byPrefixOnly} by prefix or table only), ${c.unassigned} unassigned; marks: rule ${marks.filter(x => x === "rule").length}, safety ${marks.filter(x => x === "safety").length}`);
+        const split = textMap.readerSplit(screenMap, key => surfaces.surfaceOf(key), ["button", "window-title", "tab", "tooltip"]);
+        console.log(`text: screens: the window surfaces by reader (decision 38; gm/player/unknown/unassigned): `
+            + Object.entries(split).map(([id, r]) => `${id} ${r.gm}/${r.player}/${r.unknown}/${r.unassigned}`).join(", "));
+    }
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
         const r = T.DETECTORS[name](inputs);
@@ -808,6 +845,8 @@ async function text() {
             console.log(`text:   ${m.test} gone: ${r.gone.length}`);
             for (const g of r.gone) console.log(`text:   ${m.test} gone: ${g.what}`);
         }
+        /* T15's placeholders with no fixture (E65 C10), each with where it stands. */
+        if (Array.isArray(r.unknown)) console.log(`text:   ${m.test} unknown placeholders: ${r.unknown.length ? r.unknown.map(u => `${u.name} (${u.where.length})`).join(", ") : "none"}`);
         /* C8's detectors, which read code (T13, T20): their findings carry `file` and no `lang`, counted by file. */
         if (live.length && live.every(f => f.file && !f.lang)) console.log(`text:   ${m.test} by file: ${shownTally(tally(live, f => f.file), 14)}`);
         if (r.bySurface) {

@@ -92,7 +92,12 @@
  * naturalness pair's "before" still in pl.json, the pairs read off the guide's own
  * table (docs/text-style.md section 12, through `naturalnessPairs`, so the guide is
  * their one source); the pairs whose before is gone are listed apart, and the table's
- * faults are red in `text`.
+ * faults are red in `text`. At C10 T15 (`renderChecks`, E65-19, report, FAIL from E71):
+ * the render's checks over the strings tools/text-render.mjs fills with its fixtures -
+ * a brace left, a key printed, a family short of an n, a placeholder with no fixture, a
+ * key not rendered - its bag `render` (made in memory by check.mjs; the tool writes the
+ * files); and T19 reads the screen map's marks (`marks`, tools/text-map.mjs: the screens
+ * that state a rule or a safety tool, decision 52 of 31.10) beside its own reading.
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -1739,11 +1744,17 @@ const SAFETY = /^DRPG\.Safeword\./u, SAFETY_WORD = /(?<![\p{L}])safeword/iu;
  * (2) a contraction in a text DB8 wants in full - a prohibition (PROHIBITION, any
  * surface), a safety text (SAFETY) or a rule (RULE_SURFACES): one finding a string,
  * "prohibition", "safety" or "rule", the first that holds. Polish has no
- * contractions; it is not read.
+ * contractions; it is not read. From E65 C10 also a key the screen map marks
+ * (`marks`, key to "rule" or "safety": the screens SCREENS marks, decision 52) - a
+ * rule or a safety text by its screen as well as by its surface; `counts.byMark`
+ * is what the mark alone adds.
  */
 export function contractions(bag = {}) {
     const map = surfacesOf(bag, "contractions");
     const found = [], perSurface = {};
+    /* The screen map's marks (E65 C10, decision 52 of 31.10): a key on a screen SCREENS marks as stating a rule or a safety
+       tool (tools/text-map.mjs `marks`), read beside the key's surface and the safeword's name, never instead of them. */
+    const marks = asMap(bag.marks), counts = { marked: marks.size, byMark: 0 };
     let read = 0;
     for (const u of uiUnits(bag)) {
         if (u.lang !== "en") continue;
@@ -1755,12 +1766,15 @@ export function contractions(bag = {}) {
         const m = CONTRACTION.exec(text);
         if (!m) continue;
         row.contracted++;
-        const kind = PROHIBITION.test(text) ? "prohibition" : SAFETY.test(u.key) || SAFETY_WORD.test(text) ? "safety" : RULE_SURFACES.includes(surface) ? "rule" : null;
+        const mark = marks.get(u.key) ?? null;
+        const safety = SAFETY.test(u.key) || SAFETY_WORD.test(text), rule = RULE_SURFACES.includes(surface);
+        const kind = PROHIBITION.test(text) ? "prohibition" : safety || mark === "safety" ? "safety" : rule || mark === "rule" ? "rule" : null;
         if (!kind) continue;
+        if ((kind === "safety" && !safety) || (kind === "rule" && !rule)) counts.byMark++;
         found.push({ key: u.key, kind, lang: "en", surface,
             what: `${u.where}: "${quoted(text, m.index, m[0].length)}" - "${m[0]}" in a ${kind === "rule" ? `rule (${surface})` : `${kind} text`}; DB8 writes it in full (T19)` });
     }
-    return { found, read, perSurface };
+    return { found, read, perSurface, counts };
 }
 
 /* --------------------------------- T22 ------------------------------------- */
@@ -2101,8 +2115,9 @@ const PAIRS_HEADING = /^### Pary N1-N(\d+)\s*$/;
 const PAIRS_COLUMNS = Object.freeze(["N", "Klucz", "Przed", "Po", "Reguła", "Status"]);
 const PAIR_KEY = /^`([A-Za-z][\w-]*(?:\.[\w-]+)+)`$/, PLAN_PHRASING = "plan phrasing";
 const PAIR_QUOTE = /^„([\s\S]*\S[\s\S]*)”$/u;
-/* E65-18's status, then the two the owner's reading gives a pair (E65-24): no agent writes either of those. */
-const PAIR_STATUS = /^(?:written 30\.10 for the owner's pilot, not confirmed|(?:confirmed|changed) in the pilot \d\d\.\d\d\.\d{4})$/;
+/* E65-18's status with the date the pairs were written (31.10.2026: E65-18 says 30.10, and the orchestrator's decision 62 of
+   31.10 has the true date; E65 C10), then the two the owner's reading gives a pair (E65-24): no agent writes either of those. */
+const PAIR_STATUS = /^(?:written 31\.10 for the owner's pilot, not confirmed|(?:confirmed|changed) in the pilot \d\d\.\d\d\.\d{4})$/;
 const pairCells = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
 
 /**
@@ -2144,7 +2159,7 @@ export function naturalnessPairs(text) {
         if (before === undefined) faults.push(`${name}'s before ${JSON.stringify(beforeCell)} is not a quote in „...”`);
         if (after === undefined) faults.push(`${name}'s after ${JSON.stringify(afterCell)} is not a quote in „...”`);
         if (!rule) faults.push(`${name} names no rule`);
-        if (!PAIR_STATUS.test(status)) faults.push(`${name}'s status ${JSON.stringify(status)} is not "written 30.10 for the owner's pilot, not confirmed", "confirmed in the pilot <dd.mm.yyyy>" or "changed in the pilot <dd.mm.yyyy>"`);
+        if (!PAIR_STATUS.test(status)) faults.push(`${name}'s status ${JSON.stringify(status)} is not "written 31.10 for the owner's pilot, not confirmed", "confirmed in the pilot <dd.mm.yyyy>" or "changed in the pilot <dd.mm.yyyy>"`);
         if (key === undefined || before === undefined) continue;
         const twin = seen.get(`${key} ${before}`);
         if (twin) faults.push(`${name} repeats ${twin}'s key and before`);
@@ -2197,6 +2212,74 @@ export function naturalnessBefore(bag = {}) {
                 + `${also.length ? `; the same words stand in ${also.join(", ")}` : ""} (${p.status}; docs/text-style.md section 12; T27)` });
     }
     return { found, read: counts.pairs, gone, faults, counts };
+}
+
+/* --------------------------------- T15 ------------------------------------- */
+
+/* A family's form at the end of a key (the rule of utils.mjs `plural`, which T15 holds the render to). */
+const RENDER_FAMILY = /\.(?:zero|one|two|few|many|other)$/;
+
+/**
+ * T15 (the plan's, S18-34; report from E65, FAIL from E71): the render's checks (E65 C10, E65-19), over the strings
+ * tools/text-render.mjs `renderAll` filled with its fixtures - `render`: `{ ns, fixtures, rows }`, each row `{ key, lang,
+ * text, n, form, family }` - against the language files it rendered (`en` with config.mjs's English `prose`, `pl`):
+ *   - `brace`: a "{" left in a rendered string that is no placeholder the render has no fixture for (a `{n}` the render
+ *     should have filled, a brace the text itself writes);
+ *   - `unknown`: a `{name}` left whose name has no fixture value (listed by name in `counts.unknownNames` and `unknown`);
+ *   - `key`: "DRPG." in a rendered string (a key printed where its text should stand);
+ *   - `family`: a plural family of the files not rendered at every n of `ns` (`.one`/`.other` in English, with `.few` and
+ *     `.many` in Polish - one finding a family and language, naming the n missing);
+ *   - `unrendered`: a key of the files (a family by its base) with no rendered row at all.
+ * Each kind once a key and language (`<kind>-<lang>`). `read` is the rows read: a render with none has proved nothing.
+ */
+export function renderChecks(bag = {}) {
+    const counts = { rows: 0, keys: 0, families: 0, brace: 0, unknown: 0, key: 0, family: 0, unrendered: 0, unknownNames: 0 };
+    const render = bag.render;
+    if (!render || !Array.isArray(render.rows) || bag.en === undefined || bag.pl === undefined) return { found: [], read: 0, counts, unknown: [] };
+    const fixtures = new Set(render.fixtures ?? []), ns = [...(render.ns ?? [])];
+    const found = [], seen = new Set(), unknown = new Map();
+    const add = (key, kind, lang, what) => {
+        if (seen.has(`${key} ${kind} ${lang}`)) return;
+        seen.add(`${key} ${kind} ${lang}`);
+        counts[kind]++;
+        found.push({ key, kind: `${kind}-${lang}`, lang, what: `${lang} ${key}: ${what} (T15)` });
+    };
+    const rendered = new Map(), atN = new Map();
+    for (const r of render.rows) {
+        counts.rows++;
+        const text = String(r.text ?? ""), lang = r.lang;
+        rendered.set(`${lang} ${r.key}`, true);
+        if (r.family) { const k = `${lang} ${r.key}`; if (!atN.has(k)) atN.set(k, new Set()); atN.get(k).add(r.n); }
+        for (const m of text.matchAll(/\{/g)) {
+            const name = text.slice(m.index).match(/^\{(\w+)\}/)?.[1];
+            if (name !== undefined && !fixtures.has(name)) {
+                if (!unknown.has(name)) unknown.set(name, new Set());
+                unknown.get(name).add(`${lang} ${r.key}`);
+                add(r.key, "unknown", lang, `{${name}} has no fixture value - the render leaves it as written`);
+            } else add(r.key, "brace", lang, `"${text.slice(Math.max(0, m.index - 20), m.index + 20).trim()}" - a brace left after the render${r.n !== null && r.n !== undefined ? ` (n = ${r.n})` : ""}`);
+        }
+        if (text.includes("DRPG.")) add(r.key, "key", lang, `"${text.slice(0, 60)}" - a key printed where its text should stand`);
+    }
+    const sources = { en: new Map([...asMap(bag.en), ...asMap(bag.prose)]), pl: asMap(bag.pl) };
+    for (const lang of ["en", "pl"]) {
+        const bases = new Set();
+        for (const [key, v] of sources[lang]) {
+            if (typeof v !== "string") continue;
+            const base = key.replace(RENDER_FAMILY, "");
+            if (base !== key && sources[lang].has(`${base}.other`)) { bases.add(base); continue; }
+            counts.keys++;
+            if (!rendered.has(`${lang} ${key}`)) add(key, "unrendered", lang, "no rendered string - the render skipped it");
+        }
+        for (const base of bases) {
+            counts.families++;
+            counts.keys++;
+            if (!rendered.has(`${lang} ${base}`)) { add(base, "unrendered", lang, "the family has no rendered string - the render skipped it"); continue; }
+            const missing = ns.filter(n => !atN.get(`${lang} ${base}`)?.has(n));
+            if (missing.length) add(base, "family", lang, `the family is not rendered at n = ${missing.join(", ")} (it should be at ${ns.join(", ")})`);
+        }
+    }
+    counts.unknownNames = unknown.size;
+    return { found, read: counts.rows, counts, unknown: [...unknown].sort((a, b) => a[0].localeCompare(b[0])).map(([name, where]) => ({ name, where: [...where].sort() })) };
 }
 
 /* ------------------------------- baselines --------------------------------- */
@@ -2296,13 +2379,14 @@ export const MODES = Object.freeze({
     bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
     localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
-    naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) })
+    naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),
+    renderChecks: Object.freeze({ test: "T15", mode: "report", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
     lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
     loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft,
-    uiLiterals, localeCalls, naturalnessBefore });
+    uiLiterals, localeCalls, naturalnessBefore, renderChecks });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -2890,7 +2974,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Safeword.x": "It's fine to stop.",                              // a safety text by its key: flagged
                 "DRPG.Fx.d": "If you're unsure, say the safeword.",                   // a safety text by its word: flagged
                 "DRPG.Fx.e": "Monokuma's turn.",                                      // a possessive: passes
-                "DRPG.Fx.f": "You do not have enough Hope."                           // a full form: passes, counted
+                "DRPG.Fx.f": "You do not have enough Hope.",                          // a full form: passes, counted
+                "DRPG.Fx.g": "We're done here."                                       // a contraction in no rule or safety text: passes
             },
             prose: {
                 "DRPG.Config.FX.rule": "You'll lose one Hope.",                       // a rule: flagged
@@ -2898,7 +2983,11 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Config.FX.own": "The student's turn ends."                      // a possessive in a rule: passes
             },
             pl: { "DRPG.Fx.c": "Nie mów tego słowa." }                               // Polish: not read
-        }
+        },
+        /* The screen map's marks (E65 C10): a short message on a screen that states a rule is a rule text; a mark on a key
+           with no contraction adds nothing. */
+        also: [{ input: { marks: { "DRPG.Fx.toast.a": "rule", "DRPG.Fx.f": "safety", "DRPG.Fx.g": "safety" } }, add: ["DRPG.Fx.toast.a rule", "DRPG.Fx.g safety"],
+            counts: { marked: 3, byMark: 2 } }]
     },
     mirror: {
         flags: ["DRPG.Config.FX.p sentences", "DRPG.Fx.b sentences", "DRPG.Fx.c skeleton"],
@@ -3042,7 +3131,7 @@ export const FIXTURES = Object.freeze({
         flags: ["DRPG.Fx.here N1-present", "DRPG.Fx.road N2-present"],
         gone: ["N3", "N4", "N5", "N6"],
         counts: { pairs: 6, present: 2, gone: 4, keyGone: 2, elsewhere: 1, notConfirmed: 1, confirmed: 1, changed: 0 },
-        faults: ["N6 (line 18)'s status \"confirmed\" is not \"written 30.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\""],
+        faults: ["N6 (line 18)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\""],
         input: {
             docs: {
                 "docs/text-style.md": [
@@ -3050,7 +3139,7 @@ export const FIXTURES = Object.freeze({
                     "",
                     "| N | Klucz | Przed | Po | Reguła | Status |",                                                    // a table before the heading: not read
                     "| --- | --- | --- | --- | --- | --- |",
-                    "| N1 | `DRPG.Fx.decoy` | „Nic tu nie ma.” | „Pusto.” | X6 | written 30.10 for the owner's pilot, not confirmed |",
+                    "| N1 | `DRPG.Fx.decoy` | „Nic tu nie ma.” | „Pusto.” | X6 | written 31.10 for the owner's pilot, not confirmed |",
                     "",
                     "### Pary N1-N6",
                     "",
@@ -3058,14 +3147,14 @@ export const FIXTURES = Object.freeze({
                     "",
                     "| N | Klucz | Przed | Po | Reguła | Status |",
                     "| --- | --- | --- | --- | --- | --- |",
-                    "| N1 | `DRPG.Fx.here` | „Jesteś w: {room}.” | „Jesteś w pokoju {room}.” | X12 | written 30.10 for the owner's pilot, not confirmed |", // in its key, and in DRPG.Fx.twin
+                    "| N1 | `DRPG.Fx.here` | „Jesteś w: {room}.” | „Jesteś w pokoju {room}.” | X12 | written 31.10 for the owner's pilot, not confirmed |", // in its key, and in DRPG.Fx.twin
                     "| N2 | plan phrasing | „w drodze do: {to}” | „w drodze do pokoju {to}” | X12 | confirmed in the pilot 01.11.2026 |",            // in DRPG.Fx.road
-                    "| N3 | `DRPG.Fx.changed` | „Nic nie zostało wydane.” | „Nie tracisz akcji.” | X1 | written 30.10 for the owner's pilot, not confirmed |", // gone: the value changed, the words in another key
-                    "| N4 | `DRPG.Fx.removed` | „Brak akcji.” | „Nie masz już akcji.” | X6 | written 30.10 for the owner's pilot, not confirmed |",     // gone: the key is gone
+                    "| N3 | `DRPG.Fx.changed` | „Nic nie zostało wydane.” | „Nie tracisz akcji.” | X1 | written 31.10 for the owner's pilot, not confirmed |", // gone: the value changed, the words in another key
+                    "| N4 | `DRPG.Fx.removed` | „Brak akcji.” | „Nie masz już akcji.” | X6 | written 31.10 for the owner's pilot, not confirmed |",     // gone: the key is gone
                     "| N5 | `DRPG.Fx.case` | „widać, jak” | „w pokoju widać, jak” | X12 | changed in the pilot 01.11.2026 |",                       // gone: another case
                     "| N6 | `DRPG.Fx.dated` | „Bez daty.” | „Z datą.” | X6 | confirmed |",                                                           // a fault: no date; gone: no key
                     "",
-                    "| N7 | `DRPG.Fx.after` | „Za tabelą.” | „Po tabeli.” | X6 | written 30.10 for the owner's pilot, not confirmed |"                 // after the table: not read
+                    "| N7 | `DRPG.Fx.after` | „Za tabelą.” | „Po tabeli.” | X6 | written 31.10 for the owner's pilot, not confirmed |"                 // after the table: not read
                 ].join("\n")
             },
             pl: {
@@ -3074,12 +3163,47 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.decoy": "Nic tu nie ma.", "DRPG.Fx.after": "Za tabelą."
             }
         }
+    },
+    renderChecks: {
+        flags: ["DRPG.Fx.left brace-pl", "DRPG.Fx.code brace-en", "DRPG.Fx.code brace-pl", "DRPG.Fx.shown key-en", "DRPG.Fx.figs family-pl", "DRPG.Fx.odd unknown-en", "DRPG.Fx.skipped unrendered-pl"],
+        counts: { rows: 15, keys: 12, families: 2, brace: 3, unknown: 1, key: 1, family: 1, unrendered: 1, unknownNames: 1 },
+        input: {
+            en: {
+                "DRPG.Fx.left": "{n} left", "DRPG.Fx.shown": "Shown", "DRPG.Fx.odd": "{zzz} here", "DRPG.Fx.code": "runTests({ confirmed })",
+                "DRPG.Fx.figs.one": "{n} fig", "DRPG.Fx.figs.other": "{n} figs"
+            },
+            prose: { "DRPG.Config.FX.a.label": "Search" },
+            pl: {
+                "DRPG.Fx.left": "Zostało: {n}", "DRPG.Fx.shown": "Pokazane", "DRPG.Fx.odd": "{zzz} tutaj", "DRPG.Fx.skipped": "Pominięte", "DRPG.Fx.code": "runTests({ confirmed })",
+                "DRPG.Fx.figs.one": "{n} figa", "DRPG.Fx.figs.few": "{n} figi", "DRPG.Fx.figs.many": "{n} fig", "DRPG.Fx.figs.other": "{n} figi"
+            },
+            render: {
+                ns: [1, 22], fixtures: ["n", "who"],
+                rows: [
+                    { key: "DRPG.Fx.left", lang: "en", text: "1 left", n: 1, family: false },                 // filled: passes
+                    { key: "DRPG.Fx.left", lang: "pl", text: "Zostało: {n}", n: 22, family: false },          // a {n} the render should have filled: brace
+                    { key: "DRPG.Fx.left", lang: "pl", text: "Zostało: {n}", n: 1, family: false },           // the same again: one finding a key and language
+                    { key: "DRPG.Fx.shown", lang: "en", text: "DRPG.Fx.shown", n: null, family: false },       // a key where its text should stand
+                    { key: "DRPG.Fx.shown", lang: "pl", text: "Pokazane", n: null, family: false },
+                    { key: "DRPG.Fx.odd", lang: "en", text: "{zzz} here", n: null, family: false },           // no fixture for zzz: unknown, not a brace
+                    { key: "DRPG.Fx.odd", lang: "pl", text: "coś tutaj", n: null, family: false },
+                    { key: "DRPG.Fx.code", lang: "en", text: "runTests({ confirmed })", n: null, family: false }, // the text's own brace: brace
+                    { key: "DRPG.Fx.code", lang: "pl", text: "runTests({ confirmed })", n: null, family: false }, // in each language: once each
+                    { key: "DRPG.Config.FX.a.label", lang: "en", text: "Search", n: null, family: false },    // prose: rendered, passes
+                    { key: "DRPG.Fx.figs", lang: "en", text: "1 fig", n: 1, form: "one", family: true },
+                    { key: "DRPG.Fx.figs", lang: "en", text: "22 figs", n: 22, form: "other", family: true }, // the whole family in English: passes
+                    { key: "DRPG.Fx.figs", lang: "pl", text: "1 figa", n: 1, form: "one", family: true },     // no n = 22 in Polish: family
+                    { key: "DRPG.Fx.figs", lang: "pl", text: "22 figi", n: 22, family: false },               // a plain string is not the family's form
+                    { key: "DRPG.Fx.skipped", lang: "en", text: "Skipped", n: null, family: false }            // rendered in English only: unrendered in pl
+                ]
+            }
+        }
     }
 });
 
 /**
  * naturalnessPairs on rows at fault (E65 C9): the faults it names, in order, and the
- * pairs it still reads, off three texts - one table with nine faults, one with no
+ * pairs it still reads, off three texts - one table with ten faults (C10: a status of the date before decision 62), one with no
  * heading, one whose header is not the table's and has no separator row (its one
  * row taken for that row, so the table holds none). selfCheck holds the parser to it, as it holds the two schemas to theirs.
  */
@@ -3089,19 +3213,20 @@ export const NATURALNESS_TABLE_FIXTURE = Object.freeze({
             "### Pary N1-N4",
             "| N | Klucz | Przed | Po | Reguła | Status |",
             "| --- | --- | --- | --- | --- | --- |",
-            "| N1 | `DRPG.Fx.a` | „„{item}” się zużył.” | „„{item}” jest zużyty.” | PL-g | written 30.10 for the owner's pilot, not confirmed |", // a quote inside: whole
-            "| N3 | `DRPG.Fx.b` | „Brak akcji.” | „Nie masz akcji.” | X6 | written 30.10 for the owner's pilot, not confirmed |",            // numbered out of order
-            "| N3 | notakey | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |",                                    // no key: not a pair
+            "| N1 | `DRPG.Fx.a` | „„{item}” się zużył.” | „„{item}” jest zużyty.” | PL-g | written 31.10 for the owner's pilot, not confirmed |", // a quote inside: whole
+            "| N3 | `DRPG.Fx.b` | „Brak akcji.” | „Nie masz akcji.” | X6 | written 31.10 for the owner's pilot, not confirmed |",            // numbered out of order
+            "| N3 | notakey | „Brak.” | „Nic.” | X6 | written 31.10 for the owner's pilot, not confirmed |",                                    // no key: not a pair
             "| N4 | `DRPG.Fx.c` | „Brak.” | „Nic.” | X6 |",                                                                                // five cells
             "| N5 | `DRPG.Fx.d` | Brak. | „” |  | confirmed |",                                                                              // no quote, empty after, no rule, a status with no date
-            "| N6 | `DRPG.Fx.a` | „„{item}” się zużył.” | „Inaczej.” | PL-g | confirmed in the pilot 01.11.2026 |"                              // N1's key and before again
+            "| N6 | `DRPG.Fx.a` | „„{item}” się zużył.” | „Inaczej.” | PL-g | confirmed in the pilot 01.11.2026 |",                             // N1's key and before again
+            "| N7 | `DRPG.Fx.f` | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |"                                     // the date before C10's decision 62
         ].join("\n"),
         "## 12. Bez tabeli\n\n| N | Klucz | Przed | Po | Reguła | Status |",
-        "### Pary N1-N1\n\n| N | Klucz | Przed | Po | Status |\n| N1 | `DRPG.Fx.e` | „Brak.” | „Nic.” | X6 | written 30.10 for the owner's pilot, not confirmed |"
+        "### Pary N1-N1\n\n| N | Klucz | Przed | Po | Status |\n| N1 | `DRPG.Fx.e` | „Brak.” | „Nic.” | X6 | written 31.10 for the owner's pilot, not confirmed |"
     ]),
     want: Object.freeze([
         {
-            pairs: ["N1 DRPG.Fx.a", "N3 DRPG.Fx.b", "N6 DRPG.Fx.a"],
+            pairs: ["N1 DRPG.Fx.a", "N3 DRPG.Fx.b", "N6 DRPG.Fx.a", "N7 DRPG.Fx.f"],
             faults: [
                 "the row at line 5 is numbered \"N3\", not N2 - the pairs are numbered in order",
                 "N3 (line 6)'s key \"notakey\" is neither a key in backticks nor \"plan phrasing\"",
@@ -3109,9 +3234,10 @@ export const NATURALNESS_TABLE_FIXTURE = Object.freeze({
                 "N5 (line 8)'s before \"Brak.\" is not a quote in „...”",
                 "N5 (line 8)'s after \"„”\" is not a quote in „...”",
                 "N5 (line 8) names no rule",
-                "N5 (line 8)'s status \"confirmed\" is not \"written 30.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
+                "N5 (line 8)'s status \"confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
                 "N6 (line 9) repeats N1's key and before",
-                "the heading names N1-N4, and the table holds 6 row(s)"
+                "N7 (line 10)'s status \"written 30.10 for the owner's pilot, not confirmed\" is not \"written 31.10 for the owner's pilot, not confirmed\", \"confirmed in the pilot <dd.mm.yyyy>\" or \"changed in the pilot <dd.mm.yyyy>\"",
+                "the heading names N1-N4, and the table holds 7 row(s)"
             ]
         },
         { pairs: [], faults: ["no heading \"### Pary N1-N<k>\" - the pairs have no table to be read from"] },
@@ -3317,6 +3443,9 @@ export function selfCheck(detectors = DETECTORS, tools = {}, schemas = {}) {
             try { rv = run({ ...tools, ...fx.input, ...v.input }); } catch (err) { out.push(`${name} throws on its fixture's case ${i + 2} (${err?.message ?? err})`); continue; }
             const got = (rv?.found ?? []).map(itemOf).sort(), wantAlso = [...fx.flags, ...v.add].sort();
             if (!same(got, wantAlso)) out.push(`${name} flags ${got.length ? got.join(", ") : "none"} of its fixture's case ${i + 2} (${JSON.stringify(v.input)}), not ${wantAlso.join(", ")} - the stage rule is broken`);
+            for (const [k, n] of Object.entries(v.counts ?? {})) {
+                if (rv?.counts?.[k] !== n) out.push(`${name} counts ${k} ${rv?.counts?.[k]} on its fixture's case ${i + 2}, not ${n}`);
+            }
         }
     }
     for (const [name, rows] of Object.entries(BASELINES)) {
