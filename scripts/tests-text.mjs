@@ -61,7 +61,10 @@
  * it - debt where that stage has shipped, the rest not yet due - and
  * `glossarySchema`, which holds the file itself (red in `text`: a file E65 writes).
  * Their bag: `glossary` (the parsed file) and `shipped` (the ids of the stages that
- * have shipped, by tools/stages.mjs's rule, handed in like the lexer).
+ * have shipped, by tools/stages.mjs's rule, handed in like the lexer). At C5
+ * `budgetsSchema`, which holds docs/text-budgets.json (the surfaces' targets and
+ * limits of docs/text-style.md, the key-to-surface rules, the allow list) as
+ * `glossarySchema` holds the glossary - red in `text`; its reader is T4 (E65 C6).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -608,6 +611,115 @@ export function glossarySchema(doc, stageIds = []) {
         if (Object.hasOwn(r, "pass") && !(Array.isArray(r.pass) && r.pass.every(p => isText(p?.key) && isText(p?.why)))) out.push(`${where}'s pass is not a list of { key, why }`);
         if (Object.hasOwn(r, "rule") && !RETIRED_RULES[r.rule]) out.push(`${where}'s rule "${r.rule}" is no rule of tests-text.mjs`);
         if (!r.rule && ![...(r.en ?? []), ...(r.pl ?? [])].length) out.push(`${where} retires no name`);
+    });
+    return out;
+}
+
+/* ------------------------------- the budgets -------------------------------- */
+
+/**
+ * THE BUDGETS' SHAPE (E65 C5; E65-14, DB11). docs/text-budgets.json says how long a
+ * text of each surface of docs/text-style.md may be, in words: `surfaces`, each with
+ * a `target` (what the report holds a text to) and a `limit` (DB11: "limit twardy ok.
+ * 1,5 razy cel"; null for a surface that is only ever reported, the GM's diagnostics)
+ * and `what` (who reads it, one sentence); `rules`, which keys belong to which surface,
+ * the first that names a key winning - by the key (`keys`, a regular expression over
+ * the whole key) or by the function that sends it (`sender`, names of SENDERS), never
+ * both - and a key no rule names is "unclassified"; `allow`, the exceptions, each
+ * silencing one `key` for one `rule` (T4, T16, or an X rule of the guide) with its
+ * `why` and the stage that may remove it (`until`, a row of tools/stages.json). A row
+ * without its `why` is a fault (DB11: "allowlista z powodem"), and so is a field the
+ * file does not know, a surface no rule names (no key could reach its budget) and a
+ * limit that is not above its target and at most twice it. A file E65 writes, so a
+ * fault is red in `node tools/check.mjs text`, as the glossary's is; T4 (E65 C6) reads
+ * the numbers. The numbers themselves are rebuilt 30.10 (Appendix A, section 4) and
+ * wait for the pilot; nothing here holds which they are.
+ */
+const BUDGET_FIELDS = Object.freeze({
+    top: Object.freeze({ required: ["$comment", "status", "unit", "surfaces", "rules", "allow"], optional: [] }),
+    surface: Object.freeze({ required: ["target", "limit", "what"], optional: ["note"] }),
+    rule: Object.freeze({ required: ["surface"], optional: ["keys", "sender", "note"] }),
+    allow: Object.freeze({ required: ["key", "rule", "why", "until"], optional: [] })
+});
+/** The functions a key reaches its reader through (the audience map's senders, E65 C11; utils.mjs, action-rolls.mjs, incident-store.mjs, murder-rules.mjs). */
+export const SENDERS = Object.freeze(["ui.notifications", "announce", "announceCrisis", "whisperToOwner", "whisperToOwnerOnly", "whisperToGms", "roomAudience", "incidentAudienceIds"]);
+const ALLOW_RULE = /^(?:T4|T16|X(?:[1-9]|1\d|2[01]))$/;
+const KEY_NAME = /^[A-Za-z][\w-]*(?:\.[\w-]+)+$/;
+const wholeAbove0 = n => Number.isInteger(n) && n > 0;
+
+/**
+ * docs/text-budgets.json against its shape, every `until` against `stageIds` (the
+ * ledger's rows): one sentence a fault, [] when it holds. `doc` is the parsed file.
+ * A pattern's own error is not quoted: the engines word it differently, and R1058
+ * runs this at a table.
+ */
+export function budgetsSchema(doc, stageIds = []) {
+    const out = [], F = "docs/text-budgets.json";
+    if (!doc || typeof doc !== "object" || Array.isArray(doc)) return [`${F} is no object`];
+    const stages = new Set(stageIds);
+    const isObject = x => x !== null && typeof x === "object" && !Array.isArray(x);
+    const fields = (row, where, shape) => {
+        for (const f of shape.required) if (!Object.hasOwn(row, f)) out.push(`${where} has no "${f}"`);
+        for (const f of Object.keys(row)) if (!shape.required.includes(f) && !shape.optional.includes(f)) out.push(`${where} has a field "${f}" the budgets do not know`);
+    };
+    const sentence = (row, where, names) => { for (const f of names) if (Object.hasOwn(row, f) && !isText(row[f])) out.push(`${where}'s ${f} is not a sentence`); };
+    fields(doc, F, BUDGET_FIELDS.top);
+    const comment = doc.$comment;
+    if (Object.hasOwn(doc, "$comment") && !isText(comment) && !(Array.isArray(comment) && comment.length > 0 && comment.every(isText))) out.push(`${F}'s $comment is not a sentence or a list of them`);
+    sentence(doc, F, ["status"]);
+    if (Object.hasOwn(doc, "unit") && doc.unit !== "words") out.push(`${F}'s unit ${JSON.stringify(doc.unit)} is not "words"`);
+    const surfaces = isObject(doc.surfaces) ? doc.surfaces : {};
+    if (!Object.keys(surfaces).length) out.push(`${F} has no surfaces`);
+    for (const [id, s] of Object.entries(surfaces)) {
+        const where = `surface ${id}`;
+        if (!GLOSSARY_ID.test(id)) out.push(`${where}: the name is not kebab case`);
+        if (!isObject(s)) { out.push(`${where} is no object`); continue; }
+        fields(s, where, BUDGET_FIELDS.surface);
+        if (Object.hasOwn(s, "target") && !wholeAbove0(s.target)) out.push(`${where}'s target ${JSON.stringify(s.target)} is not a whole number of words above 0`);
+        if (Object.hasOwn(s, "limit") && s.limit !== null) {
+            if (!Number.isInteger(s.limit)) out.push(`${where}'s limit ${JSON.stringify(s.limit)} is neither a whole number nor null`);
+            else if (wholeAbove0(s.target) && !(s.limit > s.target && s.limit <= 2 * s.target)) {
+                out.push(`${where}'s limit ${s.limit} is not above its target ${s.target} and at most twice it (DB11: about 1.5 times)`);
+            }
+        }
+        sentence(s, where, ["what", "note"]);
+    }
+    const rules = Array.isArray(doc.rules) ? doc.rules : (out.push(`${F} has no list of rules`), []);
+    const named = new Set();
+    rules.forEach((r, i) => {
+        const where = `rule ${i + 1}`;
+        if (!isObject(r)) { out.push(`${where} is no object`); return; }
+        fields(r, where, BUDGET_FIELDS.rule);
+        if (Object.hasOwn(r, "surface")) {
+            if (typeof r.surface === "string" && Object.hasOwn(surfaces, r.surface)) named.add(r.surface);
+            else out.push(`${where}'s surface ${JSON.stringify(r.surface)} is no surface of the file`);
+        }
+        const byKeys = Object.hasOwn(r, "keys"), bySender = Object.hasOwn(r, "sender");
+        if (byKeys === bySender) out.push(`${where} reads ${byKeys ? "both keys and a sender" : "neither keys nor a sender"} - one of them, never both`);
+        if (byKeys) {
+            let ok = isText(r.keys);
+            if (ok) { try { new RegExp(r.keys, "u"); } catch { ok = false; } }
+            if (!ok) out.push(`${where}'s keys ${JSON.stringify(r.keys)} is no regular expression`);
+        }
+        if (bySender && !(Array.isArray(r.sender) && r.sender.length > 0 && r.sender.every(s => SENDERS.includes(s)))) {
+            out.push(`${where}'s sender ${JSON.stringify(r.sender)} is not a list of the senders tests-text.mjs knows (SENDERS)`);
+        }
+        sentence(r, where, ["note"]);
+    });
+    for (const id of Object.keys(surfaces)) if (!named.has(id)) out.push(`surface ${id} is named by no rule - no key can reach its budget`);
+    const allow = Array.isArray(doc.allow) ? doc.allow : (out.push(`${F} has no allow list`), []);
+    const seen = new Set();
+    allow.forEach((a, i) => {
+        const where = `allow ${i + 1}${isText(a?.key) ? ` (${a.key})` : ""}`;
+        if (!isObject(a)) { out.push(`${where} is no object`); return; }
+        fields(a, where, BUDGET_FIELDS.allow);
+        if (Object.hasOwn(a, "key") && !(typeof a.key === "string" && KEY_NAME.test(a.key))) out.push(`${where}'s key ${JSON.stringify(a.key)} is not a dotted key`);
+        if (Object.hasOwn(a, "rule") && !(typeof a.rule === "string" && ALLOW_RULE.test(a.rule))) out.push(`${where}'s rule ${JSON.stringify(a.rule)} is not T4, T16 or an X rule (X1 to X21)`);
+        sentence(a, where, ["why"]);
+        if (Object.hasOwn(a, "until") && !(typeof a.until === "string" && stages.has(a.until))) out.push(`${where}'s until ${JSON.stringify(a.until)} is no row of tools/stages.json`);
+        const pair = `${a.key} ${a.rule}`;
+        if (seen.has(pair)) out.push(`${where}: the key ${JSON.stringify(a.key)} is allowed twice for ${a.rule}`);
+        seen.add(pair);
     });
     return out;
 }
@@ -1236,13 +1348,68 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
 });
 
 /**
+ * `budgetsSchema`'s own case (E65-14): a surface with a limit and one reported only
+ * (null), a rule by keys and one by sender, an allow row with all four fields - these
+ * pass; then one fault each - a field the file does not know, a limit at its target
+ * and one over twice it, a surface with no target and a field it does not know, a
+ * pattern that is no regular expression, a rule with both keys and a sender, a sender
+ * nobody sends through, a rule naming no surface of the file, a surface no rule names,
+ * the slice's allow row without its `why`, a rule that is no lint rule and a stage that
+ * is no ledger row, and a key allowed twice for one rule - each one sentence, exactly these.
+ */
+export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
+    stages: ["E01"],
+    doc: {
+        $comment: "fixture", status: "fixture", unit: "words", extra: 1,
+        surfaces: {
+            "fx-label": { target: 3, limit: 5, what: "a label" },
+            "fx-diag": { target: 60, limit: null, what: "reported only" },
+            "fx-tight": { target: 4, limit: 4, what: "a limit at its target" },
+            "fx-loose": { target: 4, limit: 9, what: "a limit over twice its target" },
+            "fx-none": { limit: 6, what: "no target", colour: "red" },
+            "fx-unread": { target: 10, limit: 15, what: "no rule names it" }
+        },
+        rules: [
+            { surface: "fx-label", keys: "\\.label$" },
+            { surface: "fx-diag", sender: ["whisperToGms"] },
+            { surface: "fx-tight", keys: "(" },
+            { surface: "fx-loose", keys: "x", sender: ["announce"] },
+            { surface: "fx-none", sender: ["shout"] },
+            { surface: "fx-gone", keys: "y" }
+        ],
+        allow: [
+            { key: "DRPG.Fx.ok", rule: "T4", why: "a reason", until: "E01" },
+            { key: "DRPG.Fx.noWhy", rule: "X3", until: "E01" },
+            { key: "DRPG.Fx.late", rule: "X22", why: "a reason", until: "E99" },
+            { key: "DRPG.Fx.ok", rule: "T4", why: "again", until: "E01" }
+        ]
+    },
+    want: [
+        "docs/text-budgets.json has a field \"extra\" the budgets do not know",
+        "surface fx-tight's limit 4 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
+        "surface fx-loose's limit 9 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
+        "surface fx-none has no \"target\"",
+        "surface fx-none has a field \"colour\" the budgets do not know",
+        "rule 3's keys \"(\" is no regular expression",
+        "rule 4 reads both keys and a sender - one of them, never both",
+        "rule 5's sender [\"shout\"] is not a list of the senders tests-text.mjs knows (SENDERS)",
+        "rule 6's surface \"fx-gone\" is no surface of the file",
+        "surface fx-unread is named by no rule - no key can reach its budget",
+        "allow 2 (DRPG.Fx.noWhy) has no \"why\"",
+        "allow 3 (DRPG.Fx.late)'s rule \"X22\" is not T4, T16 or an X rule (X1 to X21)",
+        "allow 3 (DRPG.Fx.late)'s until \"E99\" is no row of tools/stages.json",
+        "allow 4 (DRPG.Fx.ok): the key \"DRPG.Fx.ok\" is allowed twice for T4"
+    ]
+});
+
+/**
  * Every detector on its fixture: [] when each flags exactly its fixture's items
  * and read something, else one sentence a mismatch. `detectors` defaults to this
  * file's; check.mjs and R1058 pass none, a planted fault passes its own. `tools`
  * goes into every fixture's bag - the lexer, which a detector that reads code
  * needs and this file cannot import. Then every baseline row is well formed and
- * belongs to a FAIL detector, and `legacyListsFrom` and the matcher answer their
- * own cases.
+ * belongs to a FAIL detector, and `legacyListsFrom`, the matcher and the two
+ * schemas (the glossary's, the budgets') answer their own cases.
  */
 export function selfCheck(detectors = DETECTORS, tools = {}) {
     const out = [];
@@ -1289,6 +1456,10 @@ export function selfCheck(detectors = DETECTORS, tools = {}) {
     const schema = glossarySchema(GLOSSARY_SCHEMA_FIXTURE.doc, GLOSSARY_SCHEMA_FIXTURE.stages);
     if (JSON.stringify(schema) !== JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)) {
         out.push(`glossarySchema answers ${JSON.stringify(schema)} on its fixture, not ${JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)} - a fault in docs/glossary.json would pass`);
+    }
+    const budgets = budgetsSchema(BUDGETS_SCHEMA_FIXTURE.doc, BUDGETS_SCHEMA_FIXTURE.stages);
+    if (JSON.stringify(budgets) !== JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)) {
+        out.push(`budgetsSchema answers ${JSON.stringify(budgets)} on its fixture, not ${JSON.stringify(BUDGETS_SCHEMA_FIXTURE.want)} - a fault in docs/text-budgets.json would pass`);
     }
     return out;
 }

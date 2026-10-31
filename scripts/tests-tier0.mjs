@@ -17035,7 +17035,7 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, and the glossary's shape is red on its own case's faults (E65 C1, C2, C3, C4; E65-03, E65-06 to E65-12)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, and the glossary's and the budgets' shapes are red on their own cases' faults (E65 C1, C2, C3, C4, C5; E65-03, E65-06 to E65-12, E65-14)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
@@ -17053,7 +17053,10 @@ const REGRESSIONS = [
          * stage, an unknown stage, an id twice and eight faults more, E65-10), and a T8 blind to the ledger it is handed
          * (the first ledger's stages whatever it is given) is seen on that second case. docs/glossary.json itself is Node's
          * (export-ignore: a table does not serve it); here only the fixtures, which carry their own data, run.
-         * Pure data; nothing is fetched or written.
+         * C5 adds budgetsSchema to the selfCheck (BUDGETS_SCHEMA_FIXTURE: an allow row without its `why`, a limit at
+         * its target and one over twice it, a rule by both keys and a sender, a surface no rule names and nine faults
+         * more, E65-14); docs/text-budgets.json is Node's as the glossary is. A stubbed budgetsSchema is one mismatch
+         * in `problems` (the red run of C5). Pure data; nothing is fetched or written.
          */
         const names = Object.keys(TEXT_MODES).sort();
         const notDue = n => (TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).pending ?? []).length;

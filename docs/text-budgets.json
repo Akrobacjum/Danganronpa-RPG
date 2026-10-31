@@ -1,0 +1,150 @@
+{
+    "$comment": [
+        "How long a text of each surface may be (E65 C5; S18-33, DB11). The surfaces are docs/text-style.md's (section 3), the numbers its section 4: words, counted per string.",
+        "DB11 (the owner, binding): a target that goes to the report and a hard limit of about 1.5 times the target, FAIL for the player's and the settings' texts; the GM's diagnostics only reported (limit null); an allow list with a reason.",
+        "The targets are rebuilt 30.10 from DB11 and Appendix A section 4 of the stage's plan, to confirm in the pilot (DB23); each limit is the target times 1.5, rounded up. No text of the module is over a budget by these numbers until the pilot has confirmed them.",
+        "`rules`: the first rule that names a key gives its surface; `keys` is a regular expression over the whole key (en.json, pl.json, and config.mjs's prose by its DRPG.Config.* key), `sender` the functions that post it (scripts/tests-text.mjs SENDERS). A key no rule names is \"unclassified\" in the report.",
+        "`allow`: one key silenced for one rule (T4, T16, or an X rule of the guide), with `why` and the stage that may remove it (`until`). A row without `why` is a schema error (tests-text.mjs budgetsSchema, red in `node tools/check.mjs text`).",
+        "Who reads it: T4 (lengthOver, E65 C6) and T5 (the allow list), through `node tools/check.mjs text`. Nothing at a table reads it (export-ignore)."
+    ],
+    "status": "rebuilt 30.10 from DB11 and Appendix A section 4, to confirm in the pilot",
+    "unit": "words",
+    "surfaces": {
+        "tile-label": {
+            "target": 3,
+            "limit": 5,
+            "what": "The action tile's name: the player acting, and the GM."
+        },
+        "tile-hint": {
+            "target": 30,
+            "limit": 45,
+            "what": "What the tile's action does and what it costs, under its name: the player acting."
+        },
+        "config-description": {
+            "target": 30,
+            "limit": 45,
+            "what": "A description in config.mjs's tables (a Call's effect, a Remnant type, a crisis action): whoever the table is shown to."
+        },
+        "button": {
+            "target": 4,
+            "limit": 6,
+            "what": "A button's label: whoever holds the window."
+        },
+        "window-title": {
+            "target": 5,
+            "limit": 8,
+            "what": "A window's title: whoever holds the window."
+        },
+        "tab": {
+            "target": 5,
+            "limit": 8,
+            "what": "A tab's label inside a window: whoever holds the window."
+        },
+        "tooltip": {
+            "target": 15,
+            "limit": 23,
+            "what": "What a control does or what a number means, on hover: whoever points at it."
+        },
+        "settings-hint": {
+            "target": 25,
+            "limit": 38,
+            "what": "The hint under a setting: the GM for a world setting, each user for their own client setting."
+        },
+        "toast": {
+            "target": 20,
+            "limit": 30,
+            "what": "A notification on this browser alone: the user whose action raised it."
+        },
+        "player-card": {
+            "target": 40,
+            "limit": 60,
+            "what": "A chat card whispered to a player (and the GMs): the player it is about."
+        },
+        "gm-card": {
+            "target": 40,
+            "limit": 60,
+            "what": "A chat card whispered to the GMs alone."
+        },
+        "world-voice": {
+            "target": 30,
+            "limit": 45,
+            "what": "A card posted to the whole table: everyone, in the world's neutral voice (DB1)."
+        },
+        "gm-diagnostics": {
+            "target": 60,
+            "limit": null,
+            "what": "The health check, the debug log, the contract notice, the suite's own texts: a GM, or whoever helps one.",
+            "note": "DB11: reported only, never FAIL."
+        }
+    },
+    "rules": [
+        {
+            "surface": "gm-diagnostics",
+            "keys": "^DRPG\\.(Diagnostics|Diagnose|Failures|Contract|Tests|GmStore)\\.",
+            "note": "The groups read 31.10: the health check and its report (Diagnostics, Diagnose), the debug log (Failures), the contract notice (Contract), the suite's own texts (Tests), the GM store's faults (GmStore)."
+        },
+        {
+            "surface": "tile-label",
+            "keys": "^DRPG\\.Config\\.ACTIONS\\.[^.]+\\.label$"
+        },
+        {
+            "surface": "tile-hint",
+            "keys": "^DRPG\\.Config\\.ACTIONS\\.[^.]+\\.hint$"
+        },
+        {
+            "surface": "config-description",
+            "keys": "^DRPG\\.Config\\..+\\.(hint|description|effect)$"
+        },
+        {
+            "surface": "settings-hint",
+            "keys": "^DRPG\\.Settings\\.[^.]+\\.hint$"
+        },
+        {
+            "surface": "tooltip",
+            "keys": "(Tooltip|\\.tooltip)$"
+        },
+        {
+            "surface": "button",
+            "keys": "(Button|\\.button)$"
+        },
+        {
+            "surface": "tab",
+            "keys": "\\.tab[A-Z][A-Za-z]*$"
+        },
+        {
+            "surface": "window-title",
+            "keys": "(\\.title|[a-z]Title)$",
+            "note": "By the key's name alone: a card's heading named ...Title is read as a window title by this rule."
+        },
+        {
+            "surface": "toast",
+            "sender": [
+                "ui.notifications"
+            ]
+        },
+        {
+            "surface": "player-card",
+            "sender": [
+                "whisperToOwner",
+                "whisperToOwnerOnly",
+                "roomAudience",
+                "incidentAudienceIds",
+                "announceCrisis"
+            ]
+        },
+        {
+            "surface": "gm-card",
+            "sender": [
+                "whisperToGms"
+            ]
+        },
+        {
+            "surface": "world-voice",
+            "sender": [
+                "announce"
+            ],
+            "note": "A card announce posts with no whisper list; one with a list is private (utils.mjs announce), and goes to the player or GM card by its list."
+        }
+    ],
+    "allow": []
+}

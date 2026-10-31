@@ -10,6 +10,10 @@ docs/changelog-1.2.0.md export-ignore
 docs/dev/ export-ignore
 # docs/glossary.json is a working paper of the text lint (E65 C4): T8 and T28 read it in Node, nothing at a table does.
 docs/glossary.json export-ignore
+# docs/text-style.md and docs/text-budgets.json are the text lint's other working papers (E65 C5): the guide the writers of
+# texts read, and the budgets T4 (E65 C6) reads in Node; nothing at a table reads either.
+docs/text-style.md export-ignore
+docs/text-budgets.json export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
 

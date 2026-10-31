@@ -114,7 +114,11 @@
  *             its stage has shipped (tools/stages.mjs isShipped against
  *             module.json); printed are the debt, one line a finding, then the
  *             rows of a shipped stage that found nothing and what the rows not
- *             yet due find, by stage.
+ *             yet due find, by stage. E65 C5: docs/text-budgets.json held to
+ *             its shape (budgetsSchema: the surfaces' targets and limits, the
+ *             key-to-surface rules, the allow rows with their `why` and `until`;
+ *             missing, unparsed or off-shape: red, "budgets: ..."), and a line
+ *             of what it holds.
  */
 
 import fs from "node:fs";
@@ -705,6 +709,21 @@ async function text() {
     else {
         try { glossary = JSON.parse(read("docs/glossary.json")); } catch (err) { problems.push(`glossary: docs/glossary.json does not parse (${err.message})`); }
         if (glossary) problems.push(...T.glossarySchema(glossary, ledger.stages.map(r => r.id)).map(p => `glossary: ${p}`));
+    }
+    /* The budgets (E65 C5): docs/text-budgets.json held to its shape the same way (budgetsSchema: every `until` a ledger row;
+       a fault is red), and one line of what it holds. T4 (E65 C6) reads its numbers; here only its shape is held. */
+    if (!exists("docs/text-budgets.json")) problems.push("budgets: docs/text-budgets.json is missing - the surfaces' budgets have nothing to read");
+    else {
+        let budgets = null;
+        try { budgets = JSON.parse(read("docs/text-budgets.json")); } catch (err) { problems.push(`budgets: docs/text-budgets.json does not parse (${err.message})`); }
+        if (budgets) {
+            const faults = T.budgetsSchema(budgets, ledger.stages.map(r => r.id));
+            problems.push(...faults.map(p => `budgets: ${p}`));
+            const surfaces = Object.values(budgets.surfaces ?? {}), rules = Array.isArray(budgets.rules) ? budgets.rules : [];
+            console.log(`text: budgets: ${surfaces.length} surface(s), ${surfaces.filter(s => s?.limit !== null).length} with a limit; `
+                + `${rules.length} rule(s), ${rules.filter(r => r && Object.hasOwn(r, "keys")).length} by key and ${rules.filter(r => r && Object.hasOwn(r, "sender")).length} by sender; `
+                + `${Array.isArray(budgets.allow) ? budgets.allow.length : 0} allow row(s); ${faults.length} schema fault(s)`);
+        }
     }
     const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped };
     let fails = 0, reports = 0;
