@@ -2,8 +2,10 @@
  * The render (E65 C10, E65-19): every string of the module filled the way a table fills it, for a reader.
  * ---------------------------------------------------------------------------
  *     node tools/text-render.mjs                 writes text-render.en.md, text-render.pl.md and text-render.pl.html
- *     node tools/text-render.mjs --pilot <file>  also writes text-render.pilot.html: the pilot's keys alone (C14)
- * Both into audit/harness/results/text/ (generated, never committed). The md and the sheet are laid out by the screen
+ *     node tools/text-render.mjs --pilot <file> [--out <html>] [--pl-only]
+ *                                                the pilot's sheet alone (E65 C14): pilot.html, or <html>; --pl-only
+ *                                                leaves the English out (the PL reviewer's sheet, DB26)
+ * Into audit/harness/results/text/ (generated, never committed). The md and the sheet are laid out by the screen
  * map (tools/text-map.mjs, which needs espree from audit/harness: `npm ci` there), screen by screen, then the keys no
  * screen reaches; `renderAll` alone needs nothing but the language files, so `node tools/check.mjs text` runs T15
  * (tests-text.mjs `renderChecks`) on a render made in memory.
@@ -250,19 +252,16 @@ export function markdown(render, map, lang) {
     return out.join("\n");
 }
 
-export function sheet(render, map, { title = "The module's text, English and Polish side by side", keys = null, extra = null } = {}) {
+export function sheet(render, map, { title = "The module's text, English and Polish side by side" } = {}) {
     const { sections, rowsOf } = byScreen(render, map);
-    const only = keys ? new Set(keys) : null;
     const cell = rows => rows.map(r => `<div class="v">${rows.length > 1 ? `<span class="n">${escapeHtml(rowLabel(r))}</span> ` : ""}${r.text}</div>`).join("");
     const body = [];
-    for (const s of only ? [{ id: "pilot", title: "The pilot's strings", keys: [...only], how: new Map() }] : sections) {
-        const rows = s.keys.filter(k => !only || only.has(k));
-        if (!rows.length) continue;
-        body.push(`<h2>${escapeHtml(s.title)}</h2><table><thead><tr><th>Key</th><th>English</th><th>Polski</th>${extra ? "<th>Proposed EN</th><th>Proponowany PL</th>" : ""}</tr></thead><tbody>`);
-        for (const key of rows) {
-            const p = extra?.get(key);
+    for (const s of sections) {
+        if (!s.keys.length) continue;
+        body.push(`<h2>${escapeHtml(s.title)}</h2><table><thead><tr><th>Key</th><th>English</th><th>Polski</th></tr></thead><tbody>`);
+        for (const key of s.keys) {
             body.push(`<tr><td><code>${escapeHtml(key)}</code>${s.how.get(key) && s.how.get(key) !== "literal" ? ` <small>by ${escapeHtml(s.how.get(key))}</small>` : ""}</td>`
-                + `<td>${cell(rowsOf("en", key))}</td><td>${cell(rowsOf("pl", key))}</td>${extra ? `<td>${escapeHtml(p?.en ?? "")}</td><td>${escapeHtml(p?.pl ?? "")}</td>` : ""}</tr>`);
+                + `<td>${cell(rowsOf("en", key))}</td><td>${cell(rowsOf("pl", key))}</td></tr>`);
         }
         body.push("</tbody></table>");
     }
@@ -277,6 +276,164 @@ td:first-child { width: 22%; word-break: break-all; } .v + .v { border-top: 1px 
 </style></head><body>
 <h1>${escapeHtml(title)}</h1>
 <p>Written by <code>node tools/text-render.mjs</code> (E65 C10). Fixtures: PLACEHOLDERS in tools/text-render.mjs; n = ${render.ns.join(", ")}. HTML in a string is rendered as HTML here. Placeholders with no fixture are left as written: ${escapeHtml(render.unknown.map(u => u.name).join(", ") || "none")}.</p>
+${body.join("\n")}
+</body></html>
+`;
+}
+
+/* --------------------------------- the pilot -------------------------------- */
+
+/*
+ * THE PILOT (E65 C14, E65-23; STAGE.md Appendix C). docs/dev/text-pilot.json holds 40 strings, each
+ * `{ key, surface, screen, readers, facts, en: { before, after }, pl: { before, after }, reviews: { en, coldEn, pl },
+ * owner }`, and the owner's `questions` beside them. `pilotSchema` holds the file to that shape against the files of
+ * this tree - `node tools/check.mjs text` makes each problem red - and `pilotSheet` renders it for the owner: each
+ * string at n = 1, 2 and 5 when it counts, with a woman's and a man's name, the three rooms and items of the three
+ * Polish genders, EN and PL before and after, the facts in one line, what the reviewers still hold open, and three
+ * answers (ok, a correction, "nikt tak nie mówi"). An `after` still null reads "not written yet".
+ */
+export const PILOT_SIZE = 40;
+export const PILOT_NS = Object.freeze([1, 2, 5]);
+const PILOT_TOP = Object.freeze(["$comment", "questions", "strings"]);
+const PILOT_FIELDS = Object.freeze(["key", "surface", "screen", "readers", "facts", "en", "pl", "reviews", "owner"]);
+const PILOT_REVIEWS = Object.freeze(["en", "coldEn", "pl"]);
+const QUESTION_FIELDS = Object.freeze(["id", "source", "text", "default"]);
+export const OWNER_VERDICTS = Object.freeze(["ok", "correction", "nikt tak nie mówi"]);
+const FORM_NAMES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
+/* The keys `fromFiles` reads a category's values from: kept in the small render a pilot string gets. */
+const FROM_KEYS = /^DRPG\.(?:Config\.(?:ACTIONS\.[^.]+\.label|TRAITS\.[^.]+\.label|(?:HOPE|DESPAIR)_CALLS\.[^.]+\.label|TIME_OF_DAY_LABELS\.[^.]+)|Calls\.grants\.[^.]+)$/;
+
+const isText = v => typeof v === "string" && v.trim() !== "";
+const sameFields = (o, fields) => o !== null && typeof o === "object" && !Array.isArray(o)
+    && Object.keys(o).length === fields.length && fields.every(f => Object.hasOwn(o, f));
+/** A key's value in a language's words: the string, a plural family's forms as `{ one, other, ... }`, or undefined. */
+export function pilotValue(words, key) {
+    if (words.has(key)) return words.get(key);
+    const forms = {};
+    for (const f of FORM_NAMES) if (words.has(`${key}.${f}`)) forms[f] = words.get(`${key}.${f}`);
+    return Object.hasOwn(forms, "other") ? forms : undefined;
+}
+const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const formsText = v => (typeof v === "string" ? [v] : Object.values(v ?? {}));
+
+/**
+ * The pilot file's problems, `[]` when it holds: `doc` the parsed file; `en` lang/en.json's words with config.mjs's
+ * English prose (where the English of DRPG.Config.* lives), `pl` pl.json's, both Maps of flat keys; `pairs` the
+ * guide's naturalness pairs (tests-text.mjs `naturalnessPairs`), none of whose keys or "befores" a pilot string may
+ * hold (Appendix C: the two sets test different things); `surfaces` the budgets' surface ids, when given.
+ */
+export function pilotSchema(doc, { en = new Map(), pl = new Map(), pairs = [], surfaces = null } = {}) {
+    if (doc === null || typeof doc !== "object" || Array.isArray(doc)) return ["the file is not an object"];
+    const out = [];
+    for (const k of Object.keys(doc)) if (!PILOT_TOP.includes(k)) out.push(`the file has a field "${k}" (it holds ${PILOT_TOP.join(", ")})`);
+    if (!Array.isArray(doc.questions)) out.push("questions is not a list");
+    else {
+        const ids = new Set();
+        doc.questions.forEach((q, i) => {
+            if (!sameFields(q, QUESTION_FIELDS) || !QUESTION_FIELDS.every(f => isText(q[f]))) out.push(`questions[${i}] is not { ${QUESTION_FIELDS.join(", ")} }, each a text`);
+            else if (ids.has(q.id)) out.push(`questions[${i}]: the id ${q.id} twice`);
+            else ids.add(q.id);
+        });
+    }
+    if (!Array.isArray(doc.strings)) return [...out, "strings is not a list"];
+    if (doc.strings.length !== PILOT_SIZE) out.push(`strings holds ${doc.strings.length} string(s), not ${PILOT_SIZE}`);
+    const seen = new Set();
+    doc.strings.forEach((s, i) => {
+        const at = `strings[${i}]${isText(s?.key) ? ` (${s.key})` : ""}`;
+        if (!sameFields(s, PILOT_FIELDS)) { out.push(`${at} is not { ${PILOT_FIELDS.join(", ")} }`); return; }
+        if (!isText(s.key)) { out.push(`${at}: the key is not a text`); return; }
+        if (seen.has(s.key)) out.push(`${at}: the key twice`);
+        seen.add(s.key);
+        const now = { en: pilotValue(en, s.key), pl: pilotValue(pl, s.key) };
+        if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose`);
+        if (!isText(s.surface) || (surfaces && !surfaces.includes(s.surface))) out.push(`${at}: the surface ${JSON.stringify(s.surface)} is not ${surfaces ? "one of docs/text-budgets.json's" : "a text"}`);
+        if (!isText(s.screen)) out.push(`${at}: the screen is not a text`);
+        if (!Array.isArray(s.readers) || !s.readers.length || !s.readers.every(isText)) out.push(`${at}: readers is not a list of texts`);
+        if (!Array.isArray(s.facts) || !s.facts.every(isText)) out.push(`${at}: facts is not a list of texts`);
+        for (const lang of ["en", "pl"]) {
+            const side = s[lang];
+            if (!sameFields(side, ["before", "after"])) { out.push(`${at}: ${lang} is not { before, after }`); continue; }
+            if (now[lang] === undefined) { if (lang === "pl") out.push(`${at}: not a key of lang/pl.json`); continue; }
+            if (!sameValue(side.before, now[lang])) out.push(`${at}: ${lang}.before is not the text of ${lang === "en" ? "lang/en.json or config.mjs" : "lang/pl.json"} (${JSON.stringify(now[lang])})`);
+            const a = side.after;
+            const shaped = a === null || (typeof now[lang] === "string" ? isText(a)
+                : (a !== null && typeof a === "object" && !Array.isArray(a) && sameValue(Object.keys(a).sort(), Object.keys(now[lang]).sort()) && Object.values(a).every(isText)));
+            if (!shaped) out.push(`${at}: ${lang}.after is neither null nor ${typeof now[lang] === "string" ? "a text" : `the forms ${Object.keys(now[lang]).join(", ")}, each a text`}`);
+        }
+        if (!sameFields(s.reviews, PILOT_REVIEWS)) out.push(`${at}: reviews is not { ${PILOT_REVIEWS.join(", ")} }`);
+        else for (const r of PILOT_REVIEWS) {
+            const v = s.reviews[r];
+            if (v !== null && !(sameFields(v, ["verdict", "points"]) && isText(v.verdict) && Array.isArray(v.points) && v.points.every(isText))) out.push(`${at}: reviews.${r} is neither null nor { verdict, points }`);
+        }
+        const o = s.owner;
+        if (o !== null && !(sameFields(o, ["verdict", "text", "date"]) && OWNER_VERDICTS.includes(o.verdict) && typeof o.text === "string" && /^\d\d\.\d\d\.\d{4}$/.test(String(o.date)))) {
+            out.push(`${at}: owner is neither null nor { verdict: ${OWNER_VERDICTS.join(" | ")}, text, date dd.mm.yyyy }`);
+        }
+        for (const p of pairs) {
+            if (p.key !== null && (p.key === s.key || p.key.startsWith(`${s.key}.`))) out.push(`${at}: the key of naturalness pair ${p.id} - the pilot and the 60 pairs test different things`);
+            else if (formsText(now.pl).some(t => typeof t === "string" && t.includes(p.before))) out.push(`${at}: its Polish holds naturalness pair ${p.id}'s before "${p.before}"`);
+        }
+    });
+    return out;
+}
+
+/* A pilot string rendered in one language: `{ label, text }` for each variant, through `renderAll` on a render of this
+   key alone (and the module's own labels a `from` category reads), at PILOT_NS. */
+function pilotVariants(key, value, lang, words) {
+    const sub = new Map([...words].filter(([k]) => FROM_KEYS.test(k)));
+    if (typeof value === "string") sub.set(key, value);
+    else for (const [f, v] of Object.entries(value)) sub.set(`${key}.${f}`, v);
+    const r = renderAll({ [lang]: sub, ns: PILOT_NS });
+    const rows = r.rows.filter(x => x.key === key && x.lang === lang);
+    return rows.map(x => ({ label: rows.length > 1 ? rowLabel(x) : "", text: x.text }));
+}
+
+/** The owner's sheet (E65 C14): HTML. `texts` as `loadTexts` gives them; `plOnly` leaves every English row out. */
+export function pilotSheet(doc, texts, { plOnly = false } = {}) {
+    const words = { en: new Map([...texts.en, ...texts.prose]), pl: texts.pl };
+    const cell = (key, value, lang) => (value === null || value === undefined
+        ? `<div class="v none">not written yet</div>`
+        : pilotVariants(key, value, lang, words[lang]).map(v => `<div class="v">${v.label ? `<span class="n">${escapeHtml(v.label)}</span> ` : ""}${escapeHtml(v.text)}</div>`).join(""));
+    const review = (name, r) => (r === null
+        ? `<li><b>${name}</b>: no review yet</li>`
+        : `<li><b>${name}</b>: ${escapeHtml(r.verdict)}${r.points.length ? `<ul>${r.points.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>` : ""}</li>`);
+    const answers = (name, choices) => `<fieldset class="answer"><legend>Odpowiedź</legend>${choices.map(([value, label]) =>
+        `<label><input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}"> ${escapeHtml(label)}</label>`).join(" ")}
+<textarea name="${escapeHtml(name)}.text" rows="2" placeholder="poprawka albo uwaga"></textarea></fieldset>`;
+    const body = [];
+    if (!plOnly && Array.isArray(doc.questions) && doc.questions.length) {
+        body.push(`<h2>Pytania (${doc.questions.length})</h2>`);
+        for (const q of doc.questions) {
+            body.push(`<section class="q"><h3>${escapeHtml(q.id)} <small>${escapeHtml(q.source)}</small></h3><p>${escapeHtml(q.text)}</p><p><b>Default:</b> ${escapeHtml(q.default)}</p>`
+                + `${answers(`q.${q.id}`, [["default", "as the default"], ["other", "otherwise (write it)"]])}</section>`);
+        }
+    }
+    body.push(`<h2>${plOnly ? "Teksty" : "The strings"} (${doc.strings.length})</h2>`);
+    doc.strings.forEach((s, i) => {
+        const rows = [...(plOnly ? [] : [["EN before", s.en.before, "en"], ["EN after", s.en.after, "en"]]), ["PL przed", s.pl.before, "pl"], ["PL po", s.pl.after, "pl"]];
+        body.push(`<section class="s"><h3>${i + 1}. <code>${escapeHtml(s.key)}</code></h3>`
+            + `<p class="meta">${escapeHtml(s.surface)} · ${escapeHtml(s.screen)} · ${escapeHtml(s.readers.join(", "))}</p>`
+            + `<p class="facts"><b>Facts:</b> ${s.facts.length ? escapeHtml(s.facts.join("; ")) : "not written yet"}</p>`
+            + `<table><tbody>${rows.map(([label, value, lang]) => `<tr><th>${label}</th><td>${cell(s.key, value, lang)}</td></tr>`).join("")}</tbody></table>`
+            + (plOnly ? "" : `<ul class="reviews">${review("EN review", s.reviews.en)}${review("cold EN review", s.reviews.coldEn)}${review("PL review", s.reviews.pl)}</ul>`)
+            + (plOnly ? "" : answers(`s.${s.key}`, OWNER_VERDICTS.map(v => [v, v === "correction" ? "a correction" : v])))
+            + "</section>");
+    });
+    const legend = "n = 1, 2, 5 where the string counts (a family through Intl.PluralRules); #1, #2, #3 fill a person with Aiko, then Daichi (a woman's name, a man's), "
+        + "a room with Warsztat, Biblioteka, Kino and an item with Nóż kuchenny, Lina, Krzesło (masculine, feminine, neuter), each in turn.";
+    return `<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Text pilot</title>
+<style>
+:root { --bg: #fdfdfb; --fg: #1c1c1c; --line: #d8d8d0; --muted: #6a6a64; }
+@media (prefers-color-scheme: dark) { :root { --bg: #18181a; --fg: #e8e8e4; --line: #3a3a3e; --muted: #9a9a94; } }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; margin: 16px; max-width: 980px; }
+section { border-top: 1px solid var(--line); padding: 8px 0 12px; } h3 { margin: 4px 0; font-size: 16px; } h3 small, .meta, .n, .none { color: var(--muted); font-size: 12px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0; } th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+th { width: 7em; font-weight: 600; } code { word-break: break-all; } .v + .v { border-top: 1px dotted var(--line); }
+fieldset.answer { border: 1px solid var(--line); } fieldset.answer label { margin-right: 12px; } textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--fg); }
+</style></head><body>
+<h1>${plOnly ? "Pilot: teksty polskie" : "The text pilot"}</h1>
+<p>Written by <code>node tools/text-render.mjs --pilot</code> (E65 C14) from docs/dev/text-pilot.json. ${escapeHtml(legend)} HTML in a string is shown as written.</p>
 ${body.join("\n")}
 </body></html>
 `;
@@ -297,6 +454,26 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
     const argv = process.argv.slice(2);
     const pilotAt = argv.indexOf("--pilot");
     const texts = await loadTexts();
+    if (pilotAt >= 0) {
+        /* The pilot's sheet alone (E65 C14): the file held to its shape first, as `node tools/check.mjs text` holds it. */
+        const file = argv[pilotAt + 1], outAt = argv.indexOf("--out");
+        if (!file || file.startsWith("--") || (outAt >= 0 && !argv[outAt + 1])) { console.log("text-render: --pilot takes a file, --out a file"); process.exit(2); }
+        let doc;
+        try { doc = JSON.parse(fs.readFileSync(path.resolve(file), "utf8")); } catch (err) { console.log(`text-render: pilot: ${file} does not parse (${err.message})`); process.exit(1); }
+        const { naturalnessPairs } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-text.mjs")).href);
+        const { pairs } = naturalnessPairs(fs.readFileSync(path.join(REPO, "docs", "text-style.md"), "utf8"));
+        const surfaces = Object.keys(JSON.parse(fs.readFileSync(path.join(REPO, "docs", "text-budgets.json"), "utf8")).surfaces ?? {});
+        const problems = pilotSchema(doc, { en: new Map([...texts.en, ...texts.prose]), pl: texts.pl, pairs, surfaces });
+        for (const p of problems) console.log(`text-render: pilot: ${p}`);
+        if (problems.length) process.exit(1);
+        const out = outAt >= 0 ? path.resolve(argv[outAt + 1]) : path.join(REPO, "audit", "harness", "results", "text", "pilot.html");
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(out, pilotSheet(doc, texts, { plOnly: argv.includes("--pl-only") }));
+        const written = side => doc.strings.filter(s => s[side].after !== null).length;
+        console.log(`text-render: pilot: ${doc.strings.length} string(s), ${doc.questions.length} question(s); afters written: en ${written("en")}, pl ${written("pl")}; `
+            + `facts for ${doc.strings.filter(s => s.facts.length).length}; wrote ${path.relative(process.cwd(), out) || out}${argv.includes("--pl-only") ? " (Polish only)" : ""}`);
+        process.exit(0);
+    }
     const render = renderAll(texts);
     const tm = await import(url.pathToFileURL(path.join(HERE, "text-map.mjs")).href);
     const espree = tm.loadEspree(REPO);
@@ -312,14 +489,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
     write("text-render.en.md", markdown(render, map, "en"));
     write("text-render.pl.md", markdown(render, map, "pl"));
     write("text-render.pl.html", sheet(render, map));
-    if (pilotAt >= 0) {
-        const file = argv[pilotAt + 1];
-        if (!file) { console.log("text-render: --pilot takes a file"); process.exit(2); }
-        const pilot = JSON.parse(fs.readFileSync(path.resolve(file), "utf8"));
-        const pairs = Array.isArray(pilot) ? pilot.map(k => (typeof k === "string" ? { key: k } : k)) : (pilot.pairs ?? (pilot.keys ?? []).map(key => ({ key })));
-        const extra = new Map(pairs.filter(p => p?.key).map(p => [p.key, { en: p.en ?? p.after?.en ?? "", pl: p.pl ?? p.after?.pl ?? "" }]));
-        write("text-render.pilot.html", sheet(render, map, { title: "The pilot's strings", keys: [...extra.keys()], extra }));
-    }
     const c = render.counts;
     console.log(`text-render: rendered en ${c.en} key(s), pl ${c.pl} (families ${c.families} across both), ${c.variants} string(s) in all; `
         + `fixtures for ${render.fixtures.length} placeholder name(s), ${render.unknown.length} unknown${render.unknown.length ? ` (${render.unknown.map(u => u.name).join(", ")})` : ""}; `

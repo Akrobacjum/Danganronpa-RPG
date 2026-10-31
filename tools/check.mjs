@@ -164,6 +164,13 @@
  *             not read (red since E65 decision 81: a row that runs into a
  *             blank line, a section number twice, a fence that never closes),
  *             and the Polish ids, kinds and lines as the English (a reading).
+ *             E65 C14: the pilot's working file, docs/dev/text-pilot.json, held to
+ *             its shape (tools/text-render.mjs pilotSchema; red, "pilot: ..."):
+ *             40 strings, each entry's fields, its key one of lang/en.json or of
+ *             config.mjs's English prose, its befores the files' text, its afters
+ *             null or of the before's shape, none the key or "before" of a
+ *             naturalness pair N1-N60; with a control, the schema shown a copy
+ *             with those four faults planted.
  */
 
 import fs from "node:fs";
@@ -963,6 +970,40 @@ async function text() {
         console.log(`text: handbook-facts: ${f}: ${c.units} unit(s) - paragraph ${c.paragraph}, row ${c.row}, note ${c.note} - in ${c.sections} section(s); `
             + `the same on a second split: ${JSON.stringify(once) === JSON.stringify(again) ? "yes" : "no"}; ${once.problems.length} split problem(s)${once.problems.length ? ` (${once.problems.join("; ")})` : ""}`
             + (pair ? `; ids, kinds and lines as in English: ${shape(once) === shape(pair) ? "yes" : "no"}` : ""));
+    }
+    /* The pilot's working file (E65 C14, E65-23): docs/dev/text-pilot.json, the 40 strings the owner reads in C-pilot, held
+       to its shape against this tree's files (tools/text-render.mjs pilotSchema) - a file E65 writes, so a fault is red - and
+       one line of how far it is. Its control: the schema shown a copy of the file with four faults planted (39 strings, an
+       entry with a field missing, a key no language file holds, the key of a naturalness pair) must name each, or a schema
+       broken to pass everything would leave this part green on a malformed pilot. */
+    const PILOT_FILE = "docs/dev/text-pilot.json";
+    if (!exists(PILOT_FILE)) problems.push(`pilot: ${PILOT_FILE} is missing - the pilot has nothing to render`);
+    else {
+        let pilot = null;
+        try { pilot = JSON.parse(read(PILOT_FILE)); } catch (err) { problems.push(`pilot: ${PILOT_FILE} does not parse (${err.message})`); }
+        const { pairs } = T.naturalnessPairs(exists(T.NATURALNESS_GUIDE) ? read(T.NATURALNESS_GUIDE) : "");
+        const against = { en: new Map([...en, ...prose]), pl, pairs, surfaces: Object.keys(budgets?.surfaces ?? {}) };
+        if (pilot !== null) {
+            const faults = textRender.pilotSchema(pilot, against);
+            problems.push(...faults.map(p => `pilot: ${PILOT_FILE}: ${p}`));
+            const strings = Array.isArray(pilot.strings) ? pilot.strings : [];
+            const n = test => strings.filter(x => { try { return test(x); } catch { return false; } }).length;
+            console.log(`text: pilot: ${PILOT_FILE}: ${strings.length} string(s), ${Array.isArray(pilot.questions) ? pilot.questions.length : 0} question(s); `
+                + `facts for ${n(x => x.facts.length > 0)}; afters written en ${n(x => x.en.after !== null)}, pl ${n(x => x.pl.after !== null)}; `
+                + `reviews left open ${n(x => Object.values(x.reviews).some(r => r !== null))}; owner's verdicts ${n(x => x.owner !== null)}; ${faults.length} problem(s)`);
+            const pair = pairs.find(p => p.key && against.en.has(p.key) && pl.has(p.key));
+            if (strings.length >= 3 && pair) {
+                const copy = JSON.parse(JSON.stringify(pilot));
+                copy.strings = copy.strings.slice(0, textRender.PILOT_SIZE - 1);
+                delete copy.strings[0].owner;
+                copy.strings[1].key = "DRPG.Plant.noSuchKey";
+                copy.strings[2] = { ...copy.strings[2], key: pair.key, en: { before: against.en.get(pair.key), after: null }, pl: { before: pl.get(pair.key), after: null } };
+                const seen = textRender.pilotSchema(copy, against);
+                const want = [`strings holds ${textRender.PILOT_SIZE - 1} string(s)`, `(${copy.strings[0].key}) is not {`, "(DRPG.Plant.noSuchKey): not a key", `the key of naturalness pair ${pair.id}`];
+                const unseen = want.filter(w => !seen.some(p => p.includes(w)));
+                if (unseen.length) problems.push(`pilot: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${PILOT_FILE} - it would pass a malformed pilot`);
+            } else problems.push(`pilot: the schema's control has nothing to plant in (${strings.length} string(s), ${pair ? "a" : "no"} naturalness pair with a key in both files)`);
+        }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `

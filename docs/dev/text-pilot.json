@@ -1,0 +1,1020 @@
+{
+  "$comment": [
+    "The pilot's working file (E65 C14, E65-23; STAGE.md Appendix C). 40 strings by the plan's quotas, chosen 31.10.2026 on this tree; the selection's reasoning and counts are in the stage's scratch (selection.md), not here.",
+    "Each string: `key` (a key of lang/en.json, or of config.mjs's English prose for DRPG.Config.*, where the English of a config table lives; a plural family by its base), `surface` (docs/text-budgets.json's; T4's reading, or read by hand where T4 has none), `screen` (tools/text-map.mjs's screen id), `readers` (tools/text-audience.mjs's readers of a key that is sent - owner, browser, everyone ... - else the screen's reader: player, gm or both), `facts` (what the code does, written by the executor from the code first), `en` and `pl` (`before` as lang/ and config.mjs hold it on the day the file was written, a family as its forms; `after` the rewrite, null until written), `reviews` (what the EN reviewer, the cold EN reviewer and the PL reviewer still disagree on after the executor's one revision: null, or { verdict, points }), `owner` (the owner's verdict in C-pilot: null, or { verdict: ok | correction | nikt tak nie mówi, text, date }).",
+    "`questions`: what the owner is asked beside the 40 (each with the default the stage runs on), from STATUS's decisions.",
+    "Held by `node tools/check.mjs text` (tools/text-render.mjs pilotSchema); rendered by `node tools/text-render.mjs --pilot docs/dev/text-pilot.json` to audit/harness/results/text/pilot.html. Nothing in lang/ changes with it: an approved pair goes to the batch that owns its key (E66, E71)."
+  ],
+  "questions": [
+    {
+      "id": "X12-room",
+      "source": "STATUS Open 63, decision (63)",
+      "text": "X12 (no \"w: {room}\" in a Polish sentence): the pairs N1-N8, N10, N15-N20, N23 write the room as a nominative apposition, \"w pokoju {room}\" (as in \"na stacji Warszawa Centralna\"); a room whose name opens with \"Pokój\" (\"Pokój Makoto\") then reads \"w pokoju Pokój Makoto\". The other shape keeps the name in quotes, \"w pokoju „{room}”\", as DRPG.Calls.gatherNoRoom writes it. Which shape does X12 take?",
+      "default": "as built: \"w pokoju {room}\""
+    },
+    {
+      "id": "kafel",
+      "source": "STATUS Open 18, decision of 31.10 on C4",
+      "text": "A7 rules \"kafel\" out as a variant of \"kafelek powiadomień\"; A8 names \"kafelek pokoju\" and \"kafelek głosu\" and says nothing of \"kafel\". The glossary forbids \"kafel pokoju\" and \"kafel głosu\" as an inference from A7 (31 findings of voice-tile rest on it). Does A7's ruling hold for every \"kafelek X\" term?",
+      "default": "as built: \"kafel\" is forbidden for the room tile and the voice tile too"
+    },
+    {
+      "id": "majstrowanie",
+      "source": "STATUS Open 23, decision of 31.10 on C4",
+      "text": "DRPG.Config.REMNANT_TYPES.resolution.hint in Polish says \"... przez majstrowanie - zbyt czysto ...\". DB38 keeps \"majstrowanie\" (Tinker's gloss) to the handbook; here it may be the ordinary word for tampering. Is it Tinker's gloss?",
+      "default": "as built: kept as written, the ordinary word"
+    },
+    {
+      "id": "projekty",
+      "source": "STATUS Open 24, decision of 31.10 on C4",
+      "text": "The glossary's action-names-english forbids the Polish \"Projekty\": the Projects tile's Polish label (DRPG.Config.ACTIONS.project.label), four DAGGERHEART countdown titles and seven DRPG texts (DRPG.Project.manageTitle and others), some of them perhaps the ordinary plural. Is each of them D33a's name, to be \"Projects\"?",
+      "default": "as built: the entry forbids it; C13's review and E66 judge each key"
+    },
+    {
+      "id": "odrzuc",
+      "source": "STATUS Open 28, decision of 31.10 on C4",
+      "text": "\"Odrzuć\" is the refuse entry's (E68) forbidden variant; it stays only at the Monocub's bribe (E72). When E72 writes those keys the entry needs them as an exception. As built?",
+      "default": "as built"
+    },
+    {
+      "id": "settings-name",
+      "source": "STATUS Open 29, decision (29)",
+      "text": "Settings names have no word budget (the plan gives a target for the settings hint, 25, and none for the name); the 34 DRPG.Settings.*.name keys stay \"unclassified\" in T4's report. A target for settings names?",
+      "default": "no target"
+    },
+    {
+      "id": "misiubombo",
+      "source": "STATUS Open 41, decision (41)",
+      "text": "X16 (no ALL-CAPS emphasis; acronyms and names aside) flags MISIUBOMBO, the safeword's example. Is it a name (aside) or emphasis?",
+      "default": "as built: flagged in the report, nothing changed"
+    },
+    {
+      "id": "verb-lists",
+      "source": "STATUS Open 51, decision (51)",
+      "text": "T18 (telegraph style) reads a string as verbless when its only verb is not on its verb lists (EN_VERB_WORDS, PL_VERB, read off the tree 31.10). The pilot's strings show where the lists hold. Keep the lists as the candidate lists they are?",
+      "default": "as built"
+    }
+  ],
+  "strings": [
+    {
+      "key": "DRPG.Config.ACTIONS.search.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Loot the room for something you name. Spends one of its search tokens.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.observe.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
+        "after": null
+      },
+      "pl": {
+        "before": "Szukaj dowodów. Kopiuje Remnant do twojego ekwipunku jako Truth Bullet.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.rest.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
+        "after": null
+      },
+      "pl": {
+        "before": "Odzyskaj Health, Sanity albo Hope. Long Rest kosztuje więcej i daje więcej.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.move.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Crossing into another room costs your free Move, then an action each.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przejście do innego pokoju kosztuje Free Move, potem akcję za każde.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.sabotage.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Break a project in this room so it needs a repair project. Always leaves a trace.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zepsuj projekt w tym pokoju, by wymagał projektu naprawy. Zawsze zostawia ślad.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.tamper.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Wipe out, or reshape, a trace you know is here - or plant one pointing at somebody else.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wymaż albo przekształć ślad, o którym wiesz, że tu jest - albo podłóż taki, który wskazuje na kogoś innego.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.directMurder.hint",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Open a direct murder. Agreed with the GM beforehand.",
+        "after": null
+      },
+      "pl": {
+        "before": "Otwórz Direct Murder. Uzgodnione wcześniej z GM-em.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.rest.description",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope - in full on a Long Rest, by half on a Short.",
+        "after": null
+      },
+      "pl": {
+        "before": "Sen przywraca Health, posiłek oczyszcza Sanity, oddech daje Hope - w całości przy Long Rest, o połowę przy Short.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.PHASES.dailyLife.hint",
+      "surface": "config-description",
+      "screen": "hud",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "You live inside a closed area. Two actions per time of day.",
+        "after": null
+      },
+      "pl": {
+        "before": "Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.relief.effect",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Take a Short Rest right now - no action, no marked room, and it does not use up this time of day's.",
+        "after": null
+      },
+      "pl": {
+        "before": "Weź Short Rest od razu - bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.SearchTokens.exhausted",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": "This room is searched out. Try again next time of day.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ten pokój jest przeszukany do cna. Spróbuj o następnej porze dnia.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.noRoom",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Your token is outside every room. Move it into one, or ask the GM.",
+        "after": null
+      },
+      "pl": {
+        "before": "Twój token jest poza wszystkimi pokojami. Przesuń go do któregoś albo zapytaj GM-a.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Room.imageMissing",
+      "surface": "toast",
+      "screen": "room-tile",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The picture of this room does not load.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zdjęcie tego pokoju się nie wczytuje.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Observe.failed",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Nothing catches your eye.",
+        "after": null
+      },
+      "pl": {
+        "before": "Nic nie przykuwa twojej uwagi.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Observe.sent",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The GM is judging what you found.",
+        "after": null
+      },
+      "pl": {
+        "before": "GM ocenia, co się znalazło.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Vault.keyShared",
+      "surface": "player-card",
+      "screen": "file:scripts/handover.mjs",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "{who} gave you a copy of the key to {room}.",
+        "after": null
+      },
+      "pl": {
+        "before": "{who} daje ci kopię klucza do: {room}.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Steal.cardTook",
+      "surface": "player-card",
+      "screen": "stash",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "You lift {item} out of {who}'s pocket.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wyciągasz {item} z kieszeni: {who}.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Calls.armedForYou",
+      "surface": "player-card",
+      "screen": "calls",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
+        "after": null
+      },
+      "pl": {
+        "before": "Inny uczeń wydał na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Move.entered",
+      "surface": "player-card",
+      "screen": "file:scripts/movement.mjs",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "You enter {room}.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wchodzisz do: {room}.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Passage.card.passageBuilt",
+      "surface": "player-card",
+      "screen": "passages-gm",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Your secret passage is finished: {from} - {to}. You can walk through it.",
+        "after": null
+      },
+      "pl": {
+        "before": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Settings.reducedMotion.hint",
+      "surface": "settings-hint",
+      "screen": "settings",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Hold the interface still on this browser, whatever the operating system says. This client only.",
+        "after": null
+      },
+      "pl": {
+        "before": "Trzymaj interfejs nieruchomo w tej przeglądarce, niezależnie od ustawień systemu. Tylko ten klient.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Settings.bulletSort.hint",
+      "surface": "settings-hint",
+      "screen": "settings",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Whether your pack is cut into chapters or into rooms. The switch is on the inventory itself, over the evidence; this client only.",
+        "after": null
+      },
+      "pl": {
+        "before": "Czy twój pakiet jest pocięty na rozdziały, czy na pomieszczenia. Przełącznik siedzi w samym ekwipunku, nad dowodami; tylko ten klient.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Settings.language.hint",
+      "surface": "settings-hint",
+      "screen": "settings",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload.",
+        "after": null
+      },
+      "pl": {
+        "before": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Settings.searchTokensPerRoom.hint",
+      "surface": "settings-hint",
+      "screen": "settings",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "How many times one room can be searched in a single time of day.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ile razy jeden pokój można przeszukać w ciągu jednej pory dnia.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Settings.chargeMovement.hint",
+      "surface": "settings-hint",
+      "screen": "settings",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Moving inside a room is free. Crossing into another Scene Region spends the Free Move for that time of day, then an action. Turn off to handle movement by hand.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ruch wewnątrz pokoju jest darmowy. Przejście do innego regionu sceny zużywa Free Move tej pory dnia, a potem akcję. Wyłącz, by rozliczać ruch ręcznie.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Failures.cleared",
+      "surface": "gm-diagnostics",
+      "screen": "gm-panel",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Failure log cleared.",
+        "after": null
+      },
+      "pl": {
+        "before": "Dziennik błędów wyczyszczony.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Diagnose.gmOnly",
+      "surface": "gm-diagnostics",
+      "screen": "diagnostics",
+      "readers": [
+        "gm"
+      ],
+      "facts": [],
+      "en": {
+        "before": "GM only - open the report on a GM's screen for this part.",
+        "after": null
+      },
+      "pl": {
+        "before": "Tylko dla MG - tę część pokazuje raport otwarty na ekranie MG.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Diagnostics.cast.pendingWhy",
+      "surface": "gm-diagnostics",
+      "screen": "diagnostics",
+      "readers": [
+        "gm"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Until then each of them counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
+        "after": null
+      },
+      "pl": {
+        "before": "Do tego czasu każda z nich liczy się jako Wounded i w Breakdown: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Diagnostics.cast.poolFix",
+      "surface": "gm-diagnostics",
+      "screen": "diagnostics",
+      "readers": [
+        "gm"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Without one, Despair from their rolls has nowhere to go. Set it in the GM panel, under Despair Flow.",
+        "after": null
+      },
+      "pl": {
+        "before": "Bez niej Despair z jego rzutów nie ma dokąd trafić. Ustaw to w panelu GM-a, w Despair Flow.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.GmStore.notOpen",
+      "surface": "gm-diagnostics",
+      "screen": "gm-stores",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again.",
+        "after": null
+      },
+      "pl": {
+        "before": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Chapter.bodyCalled",
+      "surface": "world-voice",
+      "screen": "chapter",
+      "readers": [
+        "everyone"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Everyone is called to the scene. The Investigation has not started yet.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Calls.gatherBody",
+      "surface": "world-voice",
+      "screen": "calls",
+      "readers": [
+        "everyone"
+      ],
+      "facts": [],
+      "en": {
+        "before": "Everyone to {room}, at the start of the next time of day.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wszyscy do: {room}, na początek następnej pory dnia.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Vault.unlockedAnnounce",
+      "surface": "world-voice",
+      "screen": "stash",
+      "readers": [
+        "everyone"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The door to {room} is unlocked.",
+        "after": null
+      },
+      "pl": {
+        "before": "Drzwi do: {room} są otwarte.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Overflow.cardLeft",
+      "surface": "world-voice",
+      "screen": "file:scripts/overflow.mjs",
+      "readers": [
+        "everyone"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The overflow keeps what it did not spend.",
+        "after": null
+      },
+      "pl": {
+        "before": "Overflow zatrzymuje to, czego nie wydał.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Motive.withdrawn",
+      "surface": "world-voice",
+      "screen": "file:scripts/rules.mjs",
+      "readers": [
+        "everyone"
+      ],
+      "facts": [],
+      "en": {
+        "before": "The motive is withdrawn. Nothing hanging over you - for now.",
+        "after": null
+      },
+      "pl": {
+        "before": "Motive wycofany. Nic nad wami nie wisi - na razie.",
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.tokensLeft",
+      "surface": "player-card",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": {
+          "one": "{room}: {n} search token left this time of day.",
+          "other": "{room}: {n} search tokens left this time of day."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "{room}: został {n} Search Token o tej porze dnia.",
+          "few": "{room}: zostały {n} Search Tokeny o tej porze dnia.",
+          "many": "{room}: zostało {n} Search Tokenów o tej porze dnia.",
+          "other": "{room}: zostało {n} Search Tokenów o tej porze dnia."
+        },
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Actions.notEnough",
+      "surface": "toast",
+      "screen": "action-tiles",
+      "readers": [
+        "browser"
+      ],
+      "facts": [],
+      "en": {
+        "before": {
+          "one": "{actor} has {left} action left and needs {needed}.",
+          "other": "{actor} has {left} actions left and needs {needed}."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "{actor} ma {left} akcję, a potrzebuje {needed}.",
+          "few": "{actor} ma {left} akcje, a potrzebuje {needed}.",
+          "many": "{actor} ma {left} akcji, a potrzebuje {needed}.",
+          "other": "{actor} ma {left} akcji, a potrzebuje {needed}."
+        },
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Calls.burst",
+      "surface": "player-card",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": {
+          "one": "Your next action is free - {n} banked.",
+          "other": "Your next actions are free - {n} banked."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Twoja następna akcja jest darmowa - {n} w zapasie.",
+          "few": "Twoje następne akcje są darmowe - {n} w zapasie.",
+          "many": "Twoje następne akcje są darmowe - {n} w zapasie.",
+          "other": "Twoje następne akcje są darmowe - {n} w zapasie."
+        },
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Eclipse.moved",
+      "surface": "player-card",
+      "screen": "file:scripts/eclipse.mjs",
+      "readers": [
+        "owner"
+      ],
+      "facts": [],
+      "en": {
+        "before": {
+          "one": "Now in {room}. {left} crossing left.",
+          "other": "Now in {room}. {left} crossings left."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Teraz w: {room}. Zostało {left} przejście.",
+          "few": "Teraz w: {room}. Zostały {left} przejścia.",
+          "many": "Teraz w: {room}. Zostało {left} przejść.",
+          "other": "Teraz w: {room}. Zostało {left} przejść."
+        },
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.watched",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "facts": [],
+      "en": {
+        "before": {
+          "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",
+          "other": "{n} other people are in this room. You will have to cover what you are doing first, and being caught at it costs Sanity."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "{n} inna osoba jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
+          "few": "{n} inne osoby są w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
+          "many": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
+          "other": "{n} innych osób jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity."
+        },
+        "after": null
+      },
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null
+      },
+      "owner": null
+    }
+  ]
+}
