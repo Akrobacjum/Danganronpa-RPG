@@ -4735,6 +4735,8 @@
         "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
         "foundryHeld": "Moduł trzyma ustawienia Foundry (opcjonalnie)",
+        "hallTokens": "Sala rozpraw i jej tokeny (opcjonalnie)",
+        "diceSoNice": "Dice So Nice (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
         "despairSplit": "Uczniowie są podzieleni po równo między pule",
         "overflow": "Próg overflow pasuje do obsady"
@@ -4758,6 +4760,8 @@
         "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "foundryHeld": "Po „Oddaj ustawienia Foundry” moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy - także po wyłączeniu i ponownym włączeniu. Otwórz okno i naciśnij „Przejmij je znowu”, chyba że twój stół chce je mieć oddane.",
+        "hallTokens": "Sala rozpraw podpięta na karcie Sceny w Ustawieniach pokoi, bez niczego, przed czym ta karta ostrzega: ucznia, dla którego moduł nie robi tokenu, drugiego albo niepodpiętego tokenu, pokoju, ciemnej sali. Opcjonalne: stół może prowadzić rozprawę na mapie szkoły.",
+        "diceSoNice": "Moduł rysuje rzut każdego gracza w przeglądarce GMa i przechowuje wygląd kości każdego gracza dla Dice So Nice. Bez niego rzuty są te same, tylko nikt nie widzi kości. Przycisk otwiera listę modułów Foundry, gdzie się go włącza.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
         "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd.",
         "overflow": "Wzór modułu, 12 + połowa żyjących uczniów, policzony dla tego sezonu. Tylko rada: próg wybierasz sam w zakładce Overflow okna Despair Flow."
@@ -4864,6 +4868,9 @@
         "other": "Oceniana scena: {scene}. Pokoje ma {n} sceny."
       },
       "noNamedRegions": "Żadna scena nie ma jeszcze nazwanego regionu: najpierw narysuj każdy pokój jako region sceny.",
+      "noHall": "Nie podpięto sali rozpraw.",
+      "firstSession": "Pierwsza sesja",
+      "firstSessionNote": "Ustawiane raz, przed pierwszą sesją: gdzie odbywa się rozprawa, co moduł trzyma z Foundry i kości.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
       "campaignBlock": "Ta kampania",

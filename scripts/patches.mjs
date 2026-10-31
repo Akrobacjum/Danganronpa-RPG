@@ -334,7 +334,7 @@ export const PATCHES = [
         owner: "foundry",
         file: "no-scrolling-text.mjs",
         symbol: "registerNoScrollingText",
-        why: "No floating captions over tokens at all.",
+        why: "No floating captions over tokens; a region's Display Scrolling Text passes (D44e).",
         when: "always",
         fallback: "not installed, and the console says so: captions float over tokens as Foundry draws them",
         probe: () => {

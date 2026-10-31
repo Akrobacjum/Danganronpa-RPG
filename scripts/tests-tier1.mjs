@@ -29867,6 +29867,166 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([3, 0, 1, 0, 4, true, 5, -2, 2, 12]),
             "[\"3.7\"; \"-2\" with min 0; \"x\" with fallback 1; \"\"; null with fallback 4; \"\" with fallback undefined kept; \" 7 \" with max 5; -2.7; \"Infinity\" with fallback 2; \"12\" in 1..12] (null: not exported)");
     }],
+
+    ["R1129 - an open handbook keeps the page's language: with the module's Language setting answering the other language and no reload, handbooks.mjs `handbookPath` and `handbookHtml` read i18n.mjs `pageLanguage()`, the language `init` read, not the setting (E51 C8; E51-45, audit S12-38)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S12-38. A player who picks another language in the Look window and declines the
+         * reload it offers has a page built in the old one: an open handbook kept its tabs in it and loaded the next
+         * book in the new one, because `handbookHtml(id, lang = moduleLanguage())` asked the setting. Here the setting
+         * is answered as the other language for the language key alone (game.settings.get stood in, put back in a
+         * finally), and fetch for one path that names no book: nothing is written, no book is cached (a failed fetch is
+         * not kept). Red at C8's parent: no `pageLanguage`, and both defaults read the setting's language.
+         */
+        const I = await import("./i18n.mjs"), H = await import("./handbooks.mjs");
+        const page = typeof I.pageLanguage === "function" ? I.pageLanguage() : null;
+        const built = page ?? I.moduleLanguage();
+        const other = built === "pl" ? "en" : "pl";
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const realFetch = globalThis.fetch, asked = [];
+        let read = null;
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.language) return other;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            globalThis.fetch = async path => { asked.push(String(path)); return { ok: false, status: 404, text: async () => "" }; };
+            const told = I.moduleLanguage();
+            const path = H.handbookPath("player-brochure");
+            const loaded = await H.handbookHtml("r1129-no-such-book").then(() => "loaded", () => "failed");
+            read = { told, path: path.match(/\.(\w+)\.md$/)?.[1] ?? null, asked: asked.map(p => p.match(/\.(\w+)\.md$/)?.[1] ?? null), loaded,
+                page: typeof I.pageLanguage === "function" ? I.pageLanguage() : null };
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            globalThis.fetch = realFetch;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ told: other, path: built, asked: [built], loaded: "failed", page: built }),
+            `the setting answering "${other}" on a page built in "${built}": the setting is read as told, and the handbook's path and its fetch take the page's language (page null: i18n.mjs exports no pageLanguage)`);
+    }],
+
+    ["R1130 - the handbook opens on the book last read, kept for the browser: a client setting `handbookBook` (not in the settings window) that `openHandbooks()` opens on, a book this user may not open or none opening the first, written when a tab is pressed and not when the window only opens (E51 C8; E51-46, Q6)", async () => {
+        /*
+         * E51 C8, 31.10.2026. The book was a variable of the page (`lastBook`), so an F5 forgot it. Read here with the
+         * setting answered as "player-handbook" (game.settings.get stood in for that key alone) and its writes recorded
+         * and not made (game.settings.set stood in for it alone): the window opens on it and writes nothing; a tab
+         * pressed writes that tab's book; with none stored it opens on the first and writes nothing either. `openingBook` for a player handed the GM's book, an unknown one and none gives
+         * the first. Red at C8's parent: no setting registered, the window opened on the page's last book (the
+         * Brochure), and no `openingBook`.
+         */
+        const H = await import("./handbooks.mjs");
+        const full = `${MODULE_ID}.handbookBook`;
+        const def = game.settings.settings.get(full) ?? null;
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), ownSet = Object.hasOwn(settings, "set");
+        const realGet = settings.get, realSet = settings.set, writes = [];
+        await foundry.applications.instances.get("drpg-handbooks")?.close();
+        let app = null, read = null, stored = "player-handbook";
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === "handbookBook") return stored;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = function (ns, key, value, ...rest) {
+                if (ns === MODULE_ID && key === "handbookBook") { writes.push(value); return Promise.resolve(value); }
+                return realSet.call(this, ns, key, value, ...rest);
+            };
+            app = await H.openHandbooks();
+            const opened = app?.book ?? null, written = writes.slice();
+            app?.element?.querySelector('[data-drpg-book="player-brochure"]')?.click();
+            const pressed = writes.slice(), shown = app?.book ?? null;
+            await app?.close?.();
+            // None stored: the window opens on the first book, and writes nothing either.
+            stored = ""; writes.length = 0;
+            app = await H.openHandbooks();
+            read = { opened, written, pressed, shown, none: [app?.book ?? null, writes.slice()] };
+        } finally {
+            await app?.close?.();
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownSet) settings.set = realSet; else delete settings.set;
+        }
+        const first = typeof H.openingBook === "function"
+            ? [H.openingBook("gm-handbook", { isGM: false }), H.openingBook("gone-book", { isGM: true }), H.openingBook(null, { isGM: true }), H.openingBook("gm-handbook", { isGM: true })]
+            : null;
+        equal(JSON.stringify({ setting: def ? [def.scope, def.config, def.type === String, def.default] : null, read, first }),
+            JSON.stringify({ setting: ["client", false, true, ""], read: { opened: "player-handbook", written: [], pressed: ["player-brochure"], shown: "player-brochure",
+                none: ["player-brochure", []] },
+                first: ["player-brochure", "player-brochure", "player-brochure", "gm-handbook"] }),
+            "the setting (client, not in the window, a string, \"\"), the window opened with \"player-handbook\" stored and a tab pressed, opened with none stored, and the book opened for a player handed the GM's, an unknown one, none, and a GM handed the GM's");
+    }],
+
+    ["R1131 - a region's Display Scrolling Text passes and every other caption is answered with a settled Promise: no-scrolling-text.mjs's patch hands a call made from `DisplayScrollingTextRegionBehaviorType` to the original and answers any other with a thenable of null (E51 C8; E51-47, D44e = 1, audit S01-27)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S01-27. The patch answered every caller with null - a region's own "Display
+         * Scrolling Text" too, while Foundry's switch read on - and said the original returns null, where the original
+         * is async. The original is stood in for by a recorder (the patch calls it through `.original`, put back in a
+         * finally), so nothing is drawn: a plain call and a call from a class of the region behaviour's name. v14's
+         * own call site is LIVE-E51-05. Red at C8's parent: the plain call answered null, the region's reached nothing.
+         */
+        const group = foundry.canvas?.groups?.InterfaceCanvasGroup ?? globalThis.InterfaceCanvasGroup;
+        const fn = group?.prototype?.createScrollingText;
+        ok(fn?.[Symbol.for("drpgNoScrollingText")] === true, "the scrolling-text patch is not installed on this page - this would measure nothing");
+        const N = await import("./no-scrolling-text.mjs");
+        const drawn = [], real = fn.original;
+        let read = null;
+        try {
+            fn.original = function (origin, text) { drawn.push(text); return Promise.resolve("drawn"); };
+            const plain = fn.call({}, { x: 0, y: 0 }, "R1131 a token's caption");
+            class DisplayScrollingTextRegionBehaviorType {
+                _handleRegionEvent() { return fn.call({}, { x: 0, y: 0 }, "R1131 a region's caption"); }
+            }
+            const region = new DisplayScrollingTextRegionBehaviorType()._handleRegionEvent();
+            read = { thenable: typeof plain?.then === "function", plain: await plain, region: await region, drawn: drawn.slice(),
+                reader: typeof N.fromRegionBehavior === "function"
+                    ? [N.fromRegionBehavior("Error\n    at DisplayScrollingTextRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)"),
+                        N.fromRegionBehavior("Error\n    at createScrollText (daggerheart.mjs:1:1)\n    at ModifyTokenRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)")]
+                    : null };
+        } finally {
+            fn.original = real;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ thenable: true, plain: null, region: "drawn", drawn: ["R1131 a region's caption"], reader: [true, false] }),
+            "a token's caption answered with a settled Promise of null, a region's handed to the original, and the stack reader on a region's frame and on another behaviour's");
+    }],
+
+    ["R1132 - Set the season up has a First session screen: season-setup.mjs `steps()` gives hallTokens, scenes, foundryHeld and diceSoNice the group `firstSession`, each optional with its state and, while not done, its Open where it has a window; `firstSessionHtml` draws them under their heading, and the window keeps them out of the checklist's list and wires both lists (E51 C8; E51-48, audit S17-49)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S17-49. What a GM new to the module sets once - the hall and its tokens, the
+         * Scenes, what the module holds of Foundry (enforced.mjs, the ENFORCED rows) and Dice So Nice - was spread over
+         * several windows with nothing to gather it. Read with the steps' facts handed in (no hall, Dice So Nice off,
+         * Foundry's settings given back; then Dice So Nice on and held), drawn into a detached box, and the window's
+         * source with comments blanked. Nothing is written. Red at C8's parent: no row carried a group, and there was
+         * no `firstSessionHtml`.
+         */
+        const SS = await import("./season-setup.mjs");
+        const list = (dsn, givenBack) => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), givenBack, hallScene: null, dsn });
+        const group = rows => rows.filter(r => r.group === "firstSession");
+        const off = group(list(false, true)), on = group(list(true, false));
+        const box = document.createElement("div");
+        box.innerHTML = typeof SS.firstSessionHtml === "function" ? SS.firstSessionHtml(list(false, true)) : "";
+        const section = box.querySelector('section[data-drpg-group="firstSession"]');
+        const drawn = [...(section?.querySelectorAll("li[data-drpg-step]") ?? [])].map(li => [li.dataset.drpgStep,
+            li.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li.querySelector(".drpg-setup-do")),
+            li.querySelector(".drpg-setup-missing")?.textContent ?? null]);
+        const modules = Boolean(foundry.applications?.sidebar?.apps?.ModuleManagement);
+        const DASH = String.fromCharCode(0x2013);
+        const sources = await moduleSources();
+        must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const code = stripComments(sources.get("season-setup.mjs"));
+        const opener = bodyOf(code, "export async function openSeasonSetup(", { until: "export function startHereDue(" });
+        const wiring = bodyOf(code, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
+        equal(JSON.stringify({
+            keys: off.map(r => r.key), optional: off.every(r => r.optional === true),
+            state: [off.map(r => r.done), on.map(r => r.done)],
+            heading: section?.querySelector("h3")?.textContent ?? null, drawn,
+            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)\)/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
+                /querySelectorAll\("\.drpg-setup-list"\)/.test(wiring)]
+        }), JSON.stringify({
+            keys: ["hallTokens", "scenes", "foundryHeld", "diceSoNice"], optional: true,
+            state: [[false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), false, false], [false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), true, true]],
+            heading: game.i18n.localize("DRPG.Season.firstSession"),
+            drawn: [["hallTokens", DASH, true, game.i18n.localize("DRPG.Season.noHall")],
+                ["scenes", SS.steps().find(r => r.key === "scenes")?.done ? "✓" : DASH, !SS.steps().find(r => r.key === "scenes")?.done, null],
+                ["foundryHeld", DASH, true, null], ["diceSoNice", DASH, modules, null]],
+            window: [true, true, true]
+        }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
+    }],
 ];
 
 /**

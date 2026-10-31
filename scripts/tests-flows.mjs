@@ -64,11 +64,11 @@
 export const FLOWS = Object.freeze([
     // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
-        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow", "88-flow-length"], status: "partial", stage: "E39" },
     // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
     // E12 C12 (11.10.2026): its I1-I4 read whom the discovery counts when a student reached the room past the rules.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
@@ -110,14 +110,14 @@ export const FLOWS = Object.freeze([
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
@@ -174,7 +174,7 @@ export const FLOWS = Object.freeze([
     // the card written on p1's receipt and A17 the card p1's clock ended; 30-security's 4b2e (E18 fix e1-G2) forges both from
     // p2's console against p1's open ask, and p1's own expiry ends it.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "covered", stage: "<=1.2.50" },
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
@@ -261,7 +261,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
             "searchTokens.returnToken"],
             sockets: ["search-tokens.mjs"] },
-        scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
     // the primary GM (sheet-audit.mjs), no socket of the module's. 30-security writes a statistic, a maximum, a rule,
     // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic
@@ -352,3 +352,23 @@ export const FLOW_EXEMPT = Object.freeze({
     "bridge-guards.mjs": "the answers to every request (ack, done, refused), heard for whichever flow asked (E31)",
     "sync.mjs": "the world-state echo every flow rides on; 00-boot and 40-flow read it on every client"
 });
+
+/*
+ * THE FLOWS WHOSE LENGTH IS COUNTED (E51 C8, 31.10.2026; audit S17-49; E51-49): what scenario 88-flow-length drives and
+ * holds, in clicks and windows per browser, to audit/harness/flow-length.json. `name` is the baseline's row, `flow` the
+ * flow of FLOWS it is part of (R1133 holds each to one that names 88-flow-length), `from` what stands open when the
+ * count starts. The trial console's mode bar is counted a mode at a time.
+ */
+export const FLOW_LENGTHS = Object.freeze([
+    { name: "search", flow: "search-observe", from: "Aiko's sheet on p1" },
+    { name: "observe", flow: "search-observe", from: "Aiko's sheet on p1" },
+    { name: "analyze", flow: "analyze", from: "Aiko's sheet on p1" },
+    { name: "hopeCall", flow: "hope-call", from: "Botan's sheet on p2; the GM presses the card in p2's thread" },
+    { name: "dynamic", flow: "action-roll", from: "Aiko's sheet on p1; the GM presses the card" },
+    { name: "refund", flow: "crossing-fee-refund", from: "the GM panel on the GM, Aiko's crossing recorded" },
+    { name: "modeBar.testimony", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "modeBar.panic", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "modeBar.closing", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "verdict", flow: "class-trial", from: "the trial console on the GM, the vote not sent" },
+    { name: "levelUp", flow: "class-trial", from: "Aiko's sheet on p1, her offer standing" }
+]);

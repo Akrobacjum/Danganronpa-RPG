@@ -506,6 +506,8 @@ export const SETTINGS = {
     rollDrawWarned: "rollDrawWarned",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
+    /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
+    handbookBook: "handbookBook",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
     readableRolls: "readableRolls",
     /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
@@ -1962,6 +1964,14 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: false
+    });
+    /* The book the handbook window opens on (E51 C8, 31.10.2026; E51-46, Q6's default: a client setting, not
+       localStorage of the module's own): per browser, written by a tab pressed, "" until one is. */
+    game.settings.register(MODULE_ID, SETTINGS.handbookBook, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     /* The roller's own drawn rolls, so a reload still lets them read what they rolled

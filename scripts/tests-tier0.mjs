@@ -16920,6 +16920,30 @@ const REGRESSIONS = [
         }), "[the number fields per file against FIELDS' rows; the type=\"number\" that are no field against LISTED; a field whose reader was not found; "
             + "a line that reads a field's value and does not ask wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
     }],
+
+    ["R1133 - the flows whose length is counted are FLOWS' flows: tests-flows.mjs `FLOW_LENGTHS` names Search, Observe, Analyze, the Hope Call, the Dynamic action, the Refund, the trial console's mode bar a mode at a time, the verdict and the Level Up, each once, each with what stands open when its count starts, and each part of a flow of FLOWS that names 88-flow-length among its scenarios (E51 C8; E51-49, audit S17-49)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S17-49. Scenario 88-flow-length drives these and holds each to
+         * audit/harness/flow-length.json (the harness's half: every name driven, the baseline's rows the same names);
+         * this is the suite's half, which the table can read too: the list is the slice's eight flows and the mode bar,
+         * and a name that leaves FLOWS behind, or a flow that stops naming the scenario, is red here. Read off the
+         * module's own file; nothing is written. Red at C8's parent: no FLOW_LENGTHS.
+         */
+        const F = await import("./tests-flows.mjs");
+        const list = Array.isArray(F.FLOW_LENGTHS) ? F.FLOW_LENGTHS : null;
+        const byId = new Map(FLOWS.map(flow => [flow.id, flow]));
+        const rows = (list ?? []).map(row => [row.name, row.flow, typeof row.from === "string" && row.from.length > 0,
+            byId.get(row.flow)?.scenarios?.includes("88-flow-length") ?? null]);
+        const family = name => String(name).split(".")[0];
+        equal(JSON.stringify({ rows, unique: list ? new Set(list.map(row => row.name)).size === list.length : null,
+            families: list ? [...new Set(list.map(row => family(row.name)))].sort() : null }),
+        JSON.stringify({ rows: [["search", "search-observe", true, true], ["observe", "search-observe", true, true], ["analyze", "analyze", true, true],
+            ["hopeCall", "hope-call", true, true], ["dynamic", "action-roll", true, true], ["refund", "crossing-fee-refund", true, true],
+            ["modeBar.testimony", "class-trial", true, true], ["modeBar.panic", "class-trial", true, true], ["modeBar.closing", "class-trial", true, true],
+            ["verdict", "class-trial", true, true], ["levelUp", "class-trial", true, true]], unique: true,
+            families: ["analyze", "dynamic", "hopeCall", "levelUp", "modeBar", "observe", "refund", "search", "verdict"] }),
+        "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
+    }],
 ];
 
 

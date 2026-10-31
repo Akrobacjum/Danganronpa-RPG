@@ -53,6 +53,8 @@ import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
+// The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
+import { scenesReportOf } from "./trial-scene.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite, wholeNumber } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
@@ -257,10 +259,12 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
  * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,
  * `assigned` Despair Flow's map, `lastChecks` the room checks by scene id (how many problems each found,
  * `roomCheckProblems`), `liveKit` avclient-livekit's connection setting (R1523 hands one), `givenBack` whether
- * Foundry's settings are given back (enforced.mjs `foundryGivenBack`; R1532 hands it).
+ * Foundry's settings are given back (enforced.mjs `foundryGivenBack`; R1532 hands it), `hallScene` the trial hall
+ * and `dsn` whether Dice So Nice is on (R1132 hands both; null reads the module list).
  */
 export function steps({ roster = studentActors(), scenes = Array.from(game.scenes ?? []), roomScene: judged,
-    assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings(), givenBack = foundryGivenBack() } = {}) {
+    assigned = assignments(), lastChecks = lastRoomChecks, liveKit = liveKitConnectionSettings(), givenBack = foundryGivenBack(),
+    hallScene = trialScene(), dsn = null } = {}) {
     const clock = getClock();
     /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
        11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
@@ -284,6 +288,10 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
     const anyNamed = scenes.some(scene => namedRegions(scene).length > 0);
     const nobody = a => feedsNobody(a, assigned);
     const byHand = a => explicitPool(a, assigned);
+    // The First session screen's facts (E51 C8): the hall's report, Dice So Nice's state, and Foundry's module list.
+    const hall = hallReady(hallScene);
+    const diceSoNice = dsn ?? Boolean(game.modules?.get?.("dice-so-nice")?.active);
+    const modulesWindow = foundry.applications?.sidebar?.apps?.ModuleManagement ?? null;
 
     return [
         {
@@ -522,6 +530,20 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         },
         {
             /*
+             * THE HALL AND ITS TOKENS (E51 C8, 31.10.2026; audit S17-49; E51-48), the First session screen's first row:
+             * a trial hall linked, and nothing the Scenes tab warns of in it - a student with no token the module can
+             * make, a second token, an unlinked one, a room region, a dark hall (trial-scene.mjs `sceneReport`). Optional,
+             * as the Scenes row under it: a table may hold its trial on the school's map. Open is that tab.
+             */
+            key: "hallTokens",
+            group: FIRST_SESSION,
+            optional: true,
+            done: hall.done,
+            missing: () => hall.missing,
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
+        },
+        {
+            /*
              * THE SCHOOL AND THE TRIAL HALL LINKED (E13 C5; plan-E13 C5, D7). With both linked
              * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
              * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
@@ -529,6 +551,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
              * has decided something. The button opens Room Setup on the Scenes tab.
              */
             key: "scenes",
+            group: FIRST_SESSION,
             optional: true,
             done: Boolean(schoolScene() && trialScene()),
             missing: () => [],
@@ -603,10 +626,25 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
            forgets. Optional: a table may want Daggerheart's automations; Open is the Give back window, Hold them again. */
         {
             key: "foundryHeld",
+            // The First session screen's ENFORCED row (E51 C8): what enforced.mjs holds of Foundry's settings.
+            group: FIRST_SESSION,
             optional: true,
             done: !givenBack,
             missing: () => [],
             open: () => openGiveBackFoundry()
+        },
+        /* DICE SO NICE (E51 C8, 31.10.2026; audit S17-49; E51-48). The module draws every player's throw on the GM
+           (roll-draw.mjs) and keeps each player's dice look (dice-sync.mjs) for it; a table without it rolls, and sees
+           no dice. Optional. Open is Foundry's module list, where it is switched on - offered only where this Foundry
+           has the window under the name v13 gives it (`foundry.applications.sidebar.apps.ModuleManagement`, from
+           memory, not read on v14); the row says its state either way. */
+        {
+            key: "diceSoNice",
+            group: FIRST_SESSION,
+            optional: true,
+            done: diceSoNice,
+            missing: () => [],
+            ...(modulesWindow ? { open: () => new modulesWindow().render({ force: true }) } : {})
         },
         /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
            `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
@@ -637,6 +675,33 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             open: async () => (await import("./mastermind.mjs")).openMastermindDialog()
         }
     ];
+}
+
+/* THE FIRST SESSION SCREEN (E51 C8, 31.10.2026; audit S17-49; E51-48). What a GM new to the module sets once before
+   the first session, beyond the season's own rows - the hall and its tokens, the Scenes, what the module holds of
+   Foundry (ENFORCED) and Dice So Nice - in several windows, which nothing gathered: rows of the checklist marked with
+   this group, drawn under their own heading (`firstSessionHtml`), each with its state and Open as any row. */
+export const FIRST_SESSION = "firstSession";
+
+/** The hall's row: done when a hall is linked and its report is empty; the report's lines, as text, otherwise. */
+function hallReady(hall) {
+    if (!hall) return { done: false, missing: [game.i18n.localize("DRPG.Season.noHall")] };
+    let rows = [];
+    try { rows = scenesReportOf(schoolScene(), hall); } catch (err) { error("Could not read the trial hall's report", err); }
+    // The report's lines are markup (names escaped for the Scenes tab); the row escapes what it is handed.
+    const text = html => { const box = document.createElement("template"); box.innerHTML = html; return box.content.textContent; };
+    return { done: rows.length === 0, missing: rows.map(row => text(row.text)) };
+}
+
+/** The First session screen: its heading, its note and its rows, drawn as the checklist's. Exported for R1132. */
+export function firstSessionHtml(list) {
+    const rows = list.filter(step => step.group === FIRST_SESSION);
+    if (!rows.length) return "";
+    return `<section class="drpg-setup-first" data-drpg-group="${FIRST_SESSION}">
+            <h3>${esc(game.i18n.localize("DRPG.Season.firstSession"))}</h3>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Season.firstSessionNote"))}</p>
+            <ul class="drpg-setup-list">${setupRows(rows)}</ul>
+        </section>`;
 }
 
 /**
@@ -949,8 +1014,8 @@ function wireRoomCheck(dialog) {
 function wireSetupSteps(dialog, onHandOff) {
     /* One listener on the list, not one per button (E20 fix round, G-1): Check rooms draws the rooms row again in place
        (`repaintStep`), and a button the redraw brings was wired by nobody. */
-    const list = dialog.element.querySelector(".drpg-setup-list");
-    list?.addEventListener("click", async ev => {
+    // Each list: the checklist's and the First session screen's (E51 C8).
+    for (const list of dialog.element.querySelectorAll(".drpg-setup-list")) list.addEventListener("click", async ev => {
         const button = ev.target?.closest?.(".drpg-setup-do");
         if (!button || !list.contains(button)) return;
         ev.preventDefault();
@@ -1015,7 +1080,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     const clock = getClock();
     const list = steps();
 
-    const rows = setupRows(list);
+    // The First session screen's rows under their own heading, the rest as they were (E51 C8).
+    const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION));
 
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
@@ -1035,6 +1101,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             ${campaignFieldsHtml(clock, safeword())}
 
             <ul class="drpg-setup-list">${rows}</ul>
+            ${firstSessionHtml(list)}
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`),
         buttons: [
