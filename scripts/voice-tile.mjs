@@ -906,7 +906,7 @@ export function onVoiceApplying() {
 /**
  * The microphone button's state, from this browser's own facts (E78 C4; the design's step 6, Q1, Q15): `micHold`
  * (voice.mjs, never GmStore) and this browser's client settings. One of
- *   - "held": the module holds the microphone (`micHold`'s `held`: the Eclipse room; E67 adds its own) - grey and
+ *   - "held": the module holds the microphone (`micHold`'s `held`: the Eclipse room; E72 (part A, formerly E67) adds its own) - grey and
  *     struck, the reason shown;
  *   - "gmBlock": a GM blocked it for everybody - struck in the normal colours, with a lock, never grey (Q15);
  *   - "offline": no connected Room, or avclient-livekit's own window ("external") - not struck, a dot, the reason shown;

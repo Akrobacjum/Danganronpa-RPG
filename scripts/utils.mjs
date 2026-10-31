@@ -622,13 +622,19 @@ async function privately(payload) {
  *   colour for everything, which is the same as taking none. Callers that
  *   cannot say leave it out and keep the neutral gold.
  * @param {?string} slots.trait   carried on the element, shown on hover.
+ * @param {?(number|string)} slots.dc  the number the total was measured against, a ladder as text ("12 / 18"):
+ *   "needed N" beside the total (E51 C1; the owner's amendment of 14.10), the roll window's "beat N" told again on
+ *   the card. Printed only with a total; the card goes to whom it went before.
  * @returns {string} the `<p>`, or "" when there is nothing to put in it.
  */
-export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null } = {}) {
+export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null, dc = null } = {}) {
+    const hasTotal = total != null && total !== "";
+    const needed = hasTotal && dc != null && dc !== ""
+        ? ` <small class="drpg-card-needed">${esc(game.i18n.format("DRPG.Action.needed", { n: dc }))}</small>` : "";
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
-        total != null && total !== "" ? `<span class="drpg-card-total">${esc(total)}</span>` : null,
+        hasTotal ? `<span class="drpg-card-total">${esc(total)}</span>${needed}` : null,
         result
             ? `<span class="drpg-card-result"${
                 resultKind ? ` data-kind="${esc(resultKind)}"` : ""}>${esc(result)}</span>`
@@ -658,6 +664,24 @@ export function resolveThreshold(total, tiers) {
 /** Clamp helper. */
 export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * A NUMBER FIELD READ AS A WHOLE NUMBER IN ITS RANGE (E51 C7, 31.10.2026; audit S10-61). The GM's number fields were
+ * read with `Number(v) || 1` and the like, so the input's `min="1" step="1"` held nothing a typed value did not: "Day
+ * -2" or "Day 2.5" went to the clock as typed, and a donation of 1.5 took 1.5 Despair and gave 1.5 Hope. Truncated
+ * toward zero, then held to `min`..`max`; what is no finite number ("", "x", null, "Infinity") is `fallback`, returned
+ * as given and not clamped, so a reader for which an emptied field means "no edit" passes `fallback: undefined`.
+ * Every GM number field reads through this (R1127); R1128 holds the arithmetic.
+ */
+export function wholeNumber(value, options = {}) {
+    const { min = -Infinity, max = Infinity } = options;
+    // Read by presence, not by a default: a destructuring default would turn `fallback: undefined` into 0 (R1128).
+    const fallback = "fallback" in options ? options.fallback : 0;
+    if (value === null || value === undefined || String(value).trim() === "") return fallback;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return clamp(Math.trunc(n), min, max);
 }
 
 /**

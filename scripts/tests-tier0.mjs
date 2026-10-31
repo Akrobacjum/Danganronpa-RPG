@@ -6600,8 +6600,10 @@ const REGRESSIONS = [
         // C12b (04.10.2026) until E29 fix r1-G10, whose table of sources (`TRAIT_SOURCES`) reads each
         // definition's list whole and takes a statistic from it only where it lists one; Tamper's door
         // takes Tamper's first with a `slice`, as `cleanupTrait` takes it - no `[0]` for this to read.
+        // E51 C1 added `palmHand`, the hand's statistic in a Palm's window title (`palmTitle`), off Palm's one trait.
         const FIRSTS = {
             "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
+            "action-rolls.mjs palmHand": ACTIONS.palm,
             "action-rolls.mjs performPalm": ACTIONS.palm,
             "cleanup.mjs cleanupTrait": ACTIONS.tamper
         };
@@ -8283,7 +8285,7 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "out of scope as a judge: repaints and records a discovery on a move; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
-            ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
+            ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule; since E51 C3 a token of this viewer's own placed in a room plays the arrival a walk into it plays (`ownArrival`), on this browser alone"],
             ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateScene:inline", "out of scope: repaints this client's room tile when the trial hall's `hallRoom` flag changes (E79 C11); the paint reads `hallRoom` and decides no rule"],
@@ -9101,7 +9103,7 @@ const REGRESSIONS = [
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
-            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
+            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
             ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
@@ -9635,6 +9637,9 @@ const REGRESSIONS = [
          * the first); neither stands among the 21. What neither reads: an option taken by destructuring
          * (`const { teleport } = options`) or by a quoted key (`options["teleport"]`), and a name handed to a helper -
          * the audit's own test measures the audit's results (E79 C4).
+         * E51 C3 (31.10.2026) adds 1 HOOK: fog.mjs's updateWall listener, which draws the standing outline again by a
+         * door (`outlineAfterDoor`, R1114). Red without the row: that place unclassified (the quick gate at f2b503e7
+         * with the commit's edits).
          * Measured 14.10.2026 on C0's working tree (db6c51d and these files): this reader, run in Node on every
          * scripts/*.mjs outside the suite's own files (a probe kept with the plan, outside the repository), found the 21
          * roads against the 21 rows, none either side - the same 21 keys as the parse-only census at the same tree,
@@ -9652,7 +9657,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
-            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it"],
+            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -9717,6 +9722,9 @@ const REGRESSIONS = [
             ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
+            // ---- the standing outline drawn again by a door (E51 C3, E51-22)
+            ["HOOK fog.mjs#registerFog#updateWall/inline -> record", "no record, no copy: every browser, on its own screen only - a wall's `ds`, `door`, `move` or `c` changed draws the outline standing beside it again by `redrawOutline` (`outlineAfterDoor`), from what this browser holds, with no sound and no write (R1114); a passage's copy is read only through `doorwayEdges`, as the outline's own draw reads it (E51 C3)"],
+            ["HOOK fog.mjs#registerFog#deleteWall/inline -> record", "no record, no copy: every browser, on its own screen only - a wall deleted beside the room outlined draws that outline again by `redrawOutline` (`outlineAfterDoor` with `placed`, from where the wall stood), with no sound and no write (E51 fix FG2; the correctness review's F2; R1141, E51-T26)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); a deleted secret door's state goes with the wall (E80 fix r2-G9: it is a flag on the door, `DOOR_SET`)"],
             // ---- Foundry's secret doors (E80 C5, S16-17)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door - since E80 fix r2-G9 the flag `DOOR_SET` on the door, written with the GM's own change (`stampSecretDoor`) or here, as the put-back's own write, where the change came without it, and deleted when a GM makes the door an ordinary wall (R616); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
@@ -10500,7 +10508,12 @@ const REGRESSIONS = [
          * `subjectActor`'s one line, which reads the selection only under `game.user.isGM` and otherwise returns
          * `viewerActor()`; `viewerRoom` asks `viewerActor()`; no file of the module names `hudActor` any more.
          * `game.actors` is not in the list: hud.mjs reads an actor by id for the trial's speaker (read in the code,
-         * 13.10.2026), which is not the viewer. The reader is run first on a fixture of the three files, and on
+         * 13.10.2026), which is not the viewer.
+         * E51 C4 (31.10.2026; E51-25) changes the rule and keeps the shape: a player's viewer is monokuma.mjs
+         * `chooseOwnStudent`'s (the assigned character, else the one owned student, else the controlled one of several,
+         * else the first by name), asked with `ownedStudents()`, the assignment and the controlled tokens inside
+         * `viewerActor` - so `viewerActor` must ask `chooseOwnStudent(` where it asked `ownStudent()`, and either of
+         * the two is a second reader anywhere else in the three files; the fixture asks it as the code does. The reader is run first on a fixture of the three files, and on
          * the same fixture with the GM's gate taken off the selection and with a second reader of the student.
          * E77 C3 (13.10.2026) adds the markup clauses: room-tile.mjs, which draws another user's words, has no
          * `innerHTML` write, no `insertAdjacentHTML(`, no `enrichHTML(` and no data-tooltip in any literal (Foundry's
@@ -10534,7 +10547,7 @@ const REGRESSIONS = [
          * gone too. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under the
          * module's path and a logo under an assets folder planted.
          */
-        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bchooseOwnStudent\(|\bownedStudents\(|\bpoolUserFor\(|\.controlled\b/;
         const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
             /\b(?:insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(/]
             .map(part => part.source).join("|"));
@@ -10544,7 +10557,7 @@ const REGRESSIONS = [
             const rest = [["hud.mjs", hud.replace(viewer, "")], ["explain.mjs", explain.replace(subject, "")], ["room-tile.mjs", tile]]
                 .filter(([, text]) => READS.test(text)).map(([file]) => file);
             return [
-                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bownStudent\(\)/.test(viewer),
+                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bchooseOwnStudent\(/.test(viewer),
                 /=\s*game\.user\.isGM \? canvas\?\.tokens\?\.controlled\?\.\[0\]\?\.actor \?\? null : null;/.test(subject)
                     && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
                 /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
@@ -10555,7 +10568,7 @@ const REGRESSIONS = [
         };
         const FIXTURE = new Map([
             ["hud.mjs", "export function viewerActor() {\n    if (game.user.isGM) return game.actors.find(a => poolUserFor(a)?.id === game.user.id) ?? null;\n"
-                + "    return ownStudent();\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
+                + "    return chooseOwnStudent(ownedStudents(), { assigned: game.user.character ?? null });\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
             ["explain.mjs", "function subjectActor() {\n    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;\n"
                 + "    return selected ?? viewerActor();\n}\n"],
             ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"
@@ -14146,6 +14159,9 @@ const REGRESSIONS = [
          * name's fade (`fadeLabel`) runs over `OUTLINE_MS`, a number of its own, 5400 - the name is read over
          * the room, it holds nothing shut, so it keeps 1.2.80's time. How long the token takes to come to rest
          * before this starts (movement.mjs `whenAtRest`) is not read here; whether it feels right: a table.
+         * E51 C3, 31.10.2026 (D43b = 1): the room fog switched off is silent, so the function's first statement is that
+         * question (`if (!fogEnabled()) return;`) and the sound is its second - read as the two first lines since then,
+         * where the sound alone was read before; with the fog on it still plays as the reveal starts.
          */
         const J = JSON.stringify;
         const R = await import("./fog-reveal.mjs");
@@ -14159,12 +14175,12 @@ const REGRESSIONS = [
         equal(J({
             parts: parts.every(n => Number.isFinite(n) && n > 0),
             opening: opening <= 450, whole: R.DISCOVERY_MS <= 1100,
-            sound: play.split("\n").slice(1).map(line => line.trim()).find(Boolean) ?? null,
+            sound: play.split("\n").slice(1).map(line => line.trim()).filter(Boolean).slice(0, 2),
             waits: /^async |\bawait\b|setTimeout|\bpause\(/.test(play),
             curtain: /duration:\s*DISCOVERY_MS\b/.test(play),
             name: [/duration:\s*OUTLINE_MS\b/.test(fade), /^const OUTLINE_MS = (\d+);/m.exec(reveal)?.[1] ?? null]
-        }), J({ parts: true, opening: true, whole: true, sound: 'playSfx("roomDiscovered");', waits: false, curtain: true, name: [true, "5400"] }),
-        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first statement; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
+        }), J({ parts: true, opening: true, whole: true, sound: ["if (!fogEnabled()) return;", 'playSfx("roomDiscovered");'], waits: false, curtain: true, name: [true, "5400"] }),
+        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first two statements, the fog's question and the sound; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
     }],
     ["R906 - the sheet's 'Known passages' and Experience stand in from the rail as the Equipped block's line does (H81-09): one rule gives what both sections hold under their heading the inline padding of `.drpg-equipped-empty`, and no other rule of the module's sheets gives either section or its content another", async () => {
         /*
@@ -14491,7 +14507,7 @@ const REGRESSIONS = [
             ["action-rolls.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
             ["action-rolls.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
             ["action-rolls.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
-            ["action-rolls.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2): the success is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
+            ["action-rolls.mjs#offerDynamicFind", "player", null, "a Dynamic success's card for the GMs, after the dice (E16 C2), and a miss's since E51 C1: the result is the roll's and stands, so nothing is handed back; with no GM the refusal is said once (`callGm`)"],
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
@@ -14562,7 +14578,8 @@ const REGRESSIONS = [
          * primary rules a card, so its row asks `gmOnly` first and takes the card's id and the step, nothing else; a
          * `claims` line says who judges the id (the claim reads the card and the GMs' row of it on the primary).
          * `claimCard` is the one export later stages call for their own cards (E67, E68, E72): its doc comment names
-         * them. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
+         * them. E50 C0, 30.10.2026: E67's part became E72 part A; the doc says "E72 (part A, formerly E67: ...)", so
+         * the three names are still read there. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
          * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
          * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
          * ruling runs. Read in the module's files with comments and literals blanked.
@@ -16314,6 +16331,898 @@ const REGRESSIONS = [
             "[]", "a key E70, A7 or E52 names is not a function of the file's keys");
         equal(JSON.stringify(["advanceFloorNow", "extendFloor", "endFloor", "migrate1_2_0"].map(key => surface.aliases?.[key]?.target ?? null)),
             JSON.stringify(["skipStep", "adjustTime", "endMode", "migrate"]), "an older name is not the alias of the key that does its work now");
+    }],
+    ["R1070 - the Sound window's reasons and the music report's lines are the table's words: testSfx's reasons, the Test button's warning and diagnoseMusic's lines hold no string literal of two words or more outside an i18n key or a console call, and every DRPG.Sound and DRPG.Music key they name is in lang/en.json and lang/pl.json (E50 C3; E50-26, the plan's amendment 05.10 B)", async () => {
+        /*
+         * E50 C3, 30.10.2026; the owner's amendment of 05.10 (B): `testSfx`'s eight reasons, shown in the Test button's
+         * warning, and `diagnoseMusic`'s lines, shown in a GM's report window, were English sentences in the code. Read in
+         * the two files, comments blanked: the three bodies cut by `fnSource` and `bodyOf`, each literal's text with its
+         * `${}` holes and its HTML tags taken out, the calls to console and to the module's log helpers (`log`, `warn`,
+         * `error`, `debug`) left out first (the console stays English). A literal is a key when its whole text is one.
+         * The reader is run first on a planted body. Red at C3's parent: the eight reasons, the warning's join and the
+         * report's lines.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const [sfx, music] = await Promise.all([read("sfx.mjs"), read("music.mjs")]);
+        must(sfx.length > 1000 && music.length > 1000, "sfx.mjs or music.mjs was not served - this test reads nothing until it is");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const KEY = /^DRPG\.[\w.]+$/;
+        /* Each call to console.* or to a log helper blanked, by its own parentheses. */
+        const unlogged = body => {
+            let out = body;
+            for (;;) {
+                const call = /\bconsole\.\w+\(|(?<![\w.])(?:log|warn|error|debug)\(/.exec(out);
+                if (!call) return out;
+                const at = call.index;
+                let i = at + call[0].length, depth = 1;
+                while (i < out.length && depth) { if (out[i] === "(") depth++; else if (out[i] === ")") depth--; i++; }
+                out = out.slice(0, at) + " ".repeat(i - at) + out.slice(i);
+            }
+        };
+        const words = text => (text.replace(/\$\{\}/g, " ").replace(/<[^>]*>/g, " ").match(/[A-Za-z][A-Za-z'-]+/g) ?? []).length;
+        const scan = body => {
+            const lits = stringLiterals(unlogged(body)).map(l => l.text);
+            return { prose: lits.filter(t => !KEY.test(t) && words(t) >= 2), keys: lits.filter(t => KEY.test(t) && /^DRPG\.(?:Sound|Music)\./.test(t)) };
+        };
+        const planted = scan('function f() { console.log(`two words ${x}`); warn("Kept English here"); const k = "DRPG.Sound.why.none"; '
+            + 'return `<pre style="a:b">${t}</pre>` + "Left in English" + "one" + `x ${"An inner literal"}`; }');
+        equal(JSON.stringify(planted), JSON.stringify({ prose: ["Left in English", "An inner literal"], keys: ["DRPG.Sound.why.none"] }),
+            "the reader does not find the planted literals: it reads nothing it can be trusted on");
+        const wire = fnSource(sfx, "wireSoundPanel");
+        const bodies = {
+            testSfx: fnSource(sfx, "testSfx"),
+            testWarning: bodyOf(wire, "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }),
+            diagnoseMusic: fnSource(music, "diagnoseMusic")
+        };
+        const at = (tree, key) => key.split(".").reduce((node, part) => (node && typeof node === "object" ? node[part] : undefined), tree);
+        const found = Object.fromEntries(Object.entries(bodies).map(([name, body]) => {
+            const { prose, keys } = scan(body);
+            return [name, { prose, missing: [...new Set(keys)].filter(key => at(en, key) === undefined || at(pl, key) === undefined) }];
+        }));
+        const keyed = Object.values(bodies).map(body => scan(body).keys.length);
+        equal(JSON.stringify({ found, keyed: keyed.map(n => n > 0) }), JSON.stringify({
+            found: Object.fromEntries(Object.keys(bodies).map(name => [name, { prose: [], missing: [] }])),
+            keyed: [true, true, true]
+        }), "[per body: the literals of two words or more outside a key or a console call; the keys it names missing from en.json or pl.json]; "
+            + "[whether each body names a DRPG.Sound or DRPG.Music key at all]");
+    }],
+    ["R1100 - every action window goes through `chooseVariant` or a `drpg-panel`: each DialogV2 wait, confirm, prompt or input, each `tableDialog` and each `new ...Application(` in the action files names the class `drpg-panel` in its own call (E51 C1; E51-10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the plan's goal ("every action window goes through `chooseVariant` or a `drpg-panel`").
+         * Read in the files whose windows a player meets while acting - action-rolls, observe, frisk, search-tokens,
+         * use-items, murder-ui, projects-ui, monocub (Confusion's window) and cleanup (Tamper's) - comments blanked: each
+         * opening of a window, its call's own parentheses cut by `callArgs`, and the class named inside them.
+         * `chooseVariant` is one of those calls, so a window built by it passes with it. `KEPT` lists a window allowed
+         * without the class, with why: none at C1. The reader is run first on a planted source. A GUARD: green at C1's
+         * parent (the crawl found 31 windows, every one with the class); its power is the plant - `drpg-panel` taken off
+         * `cubAbilityDialog`'s classes in a scratch copy turned it red (C1's message). Since E51 C2 Confusion's window is
+         * drawn by call-pickers.mjs `callWindow`, which names `drpg-panel` for every Call window (R1110 holds both), so
+         * this crawl reads 30 (counted 30.10.2026) and the plant's place is any of the other windows.
+         */
+        const FILES = ["action-rolls.mjs", "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
+            "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
+        const KEPT = {};
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2|tableDialog|new\s+\w*Application\w*)\s*\(/g;
+        const read = (file, raw) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const out = [];
+            for (const m of blank.matchAll(OPENS)) {
+                const { close } = callArgs(blank, m.index + m[0].length - 1);
+                const top = tops.findLast(t => t.at <= m.index)?.name ?? "(top level)";
+                out.push({ at: `${file}#${top}`, panel: /["'`]drpg-panel["'`]/.test(blank.slice(m.index, close + 1)) });
+            }
+            return out;
+        };
+        const planted = read("planted.mjs", 'async function a() { return DialogV2.wait({ classes: ["drpg-panel"] }); }\n'
+            + 'async function b() { await tableDialog({ classes: ["drpg-other"] }); /* DialogV2.wait( */ }\n'
+            + 'function c() { return new DialogV2({ window: {} }).render(true); }\n');
+        equal(JSON.stringify(planted), JSON.stringify([{ at: "planted.mjs#a", panel: true }, { at: "planted.mjs#b", panel: false },
+            { at: "planted.mjs#c", panel: false }]), "the reader does not read the planted windows as planted - the crawl below would measure the wrong calls");
+        const found = [];
+        for (const file of FILES) {
+            const raw = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(raw.length > 1000, `${file} was not served - this test reads nothing until it is`);
+            found.push(...read(file, raw));
+        }
+        must(found.length >= 20, `the crawl found ${found.length} window(s) in the action files - it is not reading them`);
+        const bare = found.filter(f => !f.panel && !KEPT[f.at]).map(f => f.at);
+        equal(JSON.stringify(bare), "[]", `an action window that names no drpg-panel (and is not kept with a reason) - ${found.length} read`);
+    }],
+
+    ["R1101 - every action roll with a threshold in the rules hands it to the roll window: each `rollTrait(` in the action files whose action key has a number in config passes `dc`, the crisis, the opening and an item used in an incident among them; Observe and an Analyze's identification are kept with their reasons (E51 C1; E51-11, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner, 14.10: "modul w zaden sposob nie informuje ani gracza, ani gma o thresholdach
+         * akcji". `rollTrait`'s `dc` is what puts "beat N" on the roll window and, since C1, "needed N" on its card.
+         * Read in action-rolls, frisk, murder-rules, cleanup, use-items and observe, comments blanked: each call's own
+         * parentheses (`callArgs`), its literal `actionKey`, and whether it names `dc:`. An action key's rules hold a
+         * number when config gives one: ACTIONS' `threshold`, `thresholds`, `hintThresholds`, `stashThreshold` or
+         * `passageThreshold`, Observe's table (OBSERVE_DC), Palm's parts for `steal`, `rummage` and `frisk`, the crisis
+         * table for `crisis` (the sheet's "use" on an item goes through `takeCrisisAction`, sheet.mjs, read below) and
+         * MURDER_OPENING for `murderOpening`. KEPT: Observe (the trace's visibility is the answer key, and the window
+         * shows no number on purpose) - measured as no `dc` on any Observe roll - and an Analyze's identification (no
+         * dc in the rules: the bullet's real type is what the roll finds) - measured as the Analyze roll's `dc`
+         * answering null for a bullet. A call whose action key is no literal must stand in `performGeneric`, whose
+         * claim is that every ACTIONS key has a performer of its own (performAction's switch, read). Red at C1's
+         * parent: crisis and murderOpening passed none.
+         */
+        const FILES = ["action-rolls.mjs", "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
+        const palm = ACTIONS.palm;
+        const num = v => Number.isFinite(v);
+        const RULED = {
+            ...Object.fromEntries(Object.entries(ACTIONS).map(([key, def]) => [key, num(def.threshold) || Boolean(def.thresholds?.length)
+                || Boolean(def.hintThresholds?.length) || num(def.stashThreshold) || num(def.passageThreshold)])),
+            observe: Object.keys(OBSERVE_DC ?? {}).length > 0,
+            steal: num(palm?.threshold), rummage: num(palm?.rummage?.threshold), frisk: num(palm?.frisk?.threshold),
+            palm: num(palm?.unseen?.threshold),
+            crisis: Object.values(CRISIS_ACTIONS).some(def => num(def.threshold)),
+            murderOpening: num(MURDER_OPENING?.killer?.threshold) && num(MURDER_OPENING?.victim?.threshold)
+        };
+        const KEPT = { observe: "the trace's visibility is the answer key", analyzeIdentify: "no dc in the rules" };
+        const calls = [];
+        for (const file of FILES) {
+            const raw = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(raw.length > 1000, `${file} was not served - this test reads nothing until it is`);
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            for (const m of blank.matchAll(/\brollTrait\s*\(/g)) {
+                if (/function\s*$|\.\s*$/.test(blank.slice(Math.max(0, m.index - 12), m.index)) && !/A\.\s*$/.test(blank.slice(Math.max(0, m.index - 3), m.index))) continue;
+                const { close } = callArgs(blank, m.index + m[0].length - 1);
+                const args = blank.slice(m.index, close + 1);
+                const key = /\bactionKey\s*:\s*"(\w+)"/.exec(args)?.[1] ?? (/\bactionKey\b/.test(args) ? "(variable)" : null);
+                const top = tops.findLast(t => t.at <= m.index)?.name ?? "(top level)";
+                calls.push({ at: `${file}#${top}`, key, dc: /\bdc\s*:/.test(args), args });
+            }
+        }
+        must(calls.length >= 15, `the crawl found ${calls.length} rollTrait call(s) - it is not reading the action files`);
+        const missing = calls.filter(c => c.key && c.key !== "(variable)" && RULED[c.key] && !c.dc && !KEPT[c.key]).map(c => `${c.at} (${c.key})`);
+        const variable = calls.filter(c => c.key === "(variable)").map(c => c.at);
+        const observe = calls.filter(c => c.key === "observe");
+        const analyze = calls.filter(c => c.key === "analyze");
+        const perform = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText)), "performAction");
+        const performers = Object.keys(ACTIONS).filter(key => !new RegExp(`case\\s+"${key}"\\s*:`).test(perform));
+        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const useItem = /takeCrisisAction\(\s*app\.document\s*,\s*"useItem"/.test(sheet) && !/rollTrait\s*\(/.test(bodyOf(sheet, '"useItem"', { length: 400 }));
+        equal(JSON.stringify({
+            missing, variable, performers,
+            crisis: calls.filter(c => c.key === "crisis").map(c => c.dc), opening: calls.filter(c => c.key === "murderOpening").map(c => c.dc), useItem,
+            observeKept: observe.length > 0 && observe.every(c => !c.dc), analyzeKept: analyze.length > 0 && analyze.every(c => /:\s*null\s*,/.test(c.args)),
+            kept: Object.keys(KEPT)
+        }), JSON.stringify({
+            missing: [], variable: ["action-rolls.mjs#performGeneric"], performers: [],
+            crisis: [true], opening: [true], useItem: true, observeKept: true, analyzeKept: true, kept: ["observe", "analyzeIdentify"]
+        }), "[the rolls whose rules hold a number and whose window is not handed it; the calls with no literal action key; ACTIONS keys with no "
+            + "performer of their own; the crisis and the opening rolls' dc; the sheet's item button going through takeCrisisAction; Observe kept "
+            + "with no dc; Analyze's dc null for a bullet]");
+    }],
+
+    ["R1102 - no Observe hint promises the dice settle it: the general, non-obvious and follow-traces hints in lang/en.json and lang/pl.json hold no \"Settled by the dice\" nor \"Rozstrzygaja kosci\" (E51 C1; E51-02, audit S02-50)", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-50. The three ways of looking that the table settles each ended "Settled by
+         * the dice." - and an empty room hands the roll to a GM (`ruleObserve`), so the promise did not hold. Each hint
+         * says what the way of looking is for. Read in both language files; red at C1's parent: all six held it.
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const KEYS = ["generalHint", "nonObviousHint", "followTracesHint"];
+        const hints = [en, pl].flatMap(lang => KEYS.map(key => lang?.DRPG?.Observe?.[key]));
+        must(hints.every(h => typeof h === "string" && h.length > 10), `an Observe hint is missing from a language file: ${JSON.stringify(hints)}`);
+        const promising = hints.filter(h => /settled by the dice|rozstrzygaj[aą] ko[sś]ci/i.test(h));
+        equal(JSON.stringify(promising), "[]", "an Observe hint still promises that the dice settle it");
+    }],
+
+    ["R1103 - Analyze's request field shows with Hint alone: `askWhatToAnalyze`'s request block carries `data-drpg-when=\"hint\"` and the stylesheet's rule that shows the checked row's block covers `hint` (E51 C1; E51-04, audit S02-51 (a))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (a). The GM's hint is the one Analyze row a person reads, and the box for
+         * it was shown under every row - a stash hunt or a passage asked for a sentence no GM would read. The block is
+         * hidden by `.drpg-specific-note[data-drpg-when]` and shown by the rule that names the checked row's value
+         * (styles/danganronpa.css, the variant menu). The slice calls the picker `chooseAnalyze`; it is
+         * `askWhatToAnalyze` here. Red at C1's parent: no `when` on the block, and no rule for `hint`.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const picker = fnSource(src, "askWhatToAnalyze");
+        const field = fnSource(src, "requestFieldHtml");
+        const block = bodyOf(picker, "requestFieldHtml(", { until: "}`" });
+        const css = await moduleStyles();
+        equal(JSON.stringify([/\bwhen\s*:\s*"hint"/.test(block), /data-drpg-when="\$\{esc\(when\)\}"/.test(field),
+            /:has\(input\[value="hint"\]:checked\)\s*~\s*\[data-drpg-when="hint"\]/.test(css),
+            /picked\.value\s*===\s*"hint"\s*\?\s*readRequestField\(picked\.form\)/.test(picker)]),
+            JSON.stringify([true, true, true, true]),
+            "[the Analyze request block names when: \"hint\"; requestFieldHtml writes it as data-drpg-when; the stylesheet shows it on a "
+                + "checked hint; the request is read for the hint alone]");
+    }],
+
+    ["R1143 - the handbooks say what E51 changed at the table, in both languages: the player's Observe table promises no dice where an empty room goes to the GM; the GM's names the debate's floor of 30 s, the trial console's evidence log, the rules manager's Announce changes, the checklist's First session and a region's Display Scrolling Text, the player's that nothing is thrown away in a Class Trial; and the Polish Confusion refusal promises no refund (E51 fix FG8; review goal G3, G10, STATUS C2's meddleRefused)", async () => {
+        /*
+         * E51 fix round FG8, 31.10.2026. G3: the player handbook's Observe table said "settled by the dice" /
+         * "rozstrzygają kości" of Sweep the room and Look past the obvious, which E51-02 took off the hints (R1102): a
+         * room with nothing of the kind goes to the GM (`ruleObserve`). G10: the handbooks said nothing of E51's table
+         * changes - the debate's budget had no floor ("default 180"), the evidence log was the dashboard's alone, and
+         * "Announce changes", "First session", the refused discard in the trial and a region's caption were nowhere. Each
+         * is read as the module words it (the UI's own labels from lang/*.json, the floor from config.mjs
+         * `TRIAL.debateMinSeconds`), so a label renamed in the UI fails here until the books follow. And pl.json's
+         * `DRPG.Monocub.meddleRefused` said "akcja i Hope wróciły" where en.json and the code give nothing back. Red at the
+         * fix round's parent: both promises standing in both player handbooks, none of the GM's six in either language,
+         * nor the player's refusal, and the Polish refund.
+         */
+        const { TRIAL } = await import("./config.mjs");
+        const text = {}, lang = {};
+        for (const lc of ["en", "pl"]) {
+            lang[lc] = await fetch(`/modules/${MODULE_ID}/lang/${lc}.json`).then(r => r.json());
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lc}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lc}.md did not load`);
+                text[`${book}.${lc}`] = await lfText(res);
+                must(text[`${book}.${lc}`].split("\n").length > 100, `docs/handbooks/${book}.${lc}.md is nearly empty - this test measured nothing`);
+            }
+        }
+        // A key as Foundry reads it: nested, or written flat with its dots (en.json writes some Season keys so).
+        const label = (lc, key) => {
+            let at = lang[lc];
+            const parts = key.split(".");
+            for (let i = 0; i < parts.length && at !== undefined; i++) {
+                const rest = parts.slice(i).join(".");
+                if (typeof at[rest] === "string") return at[rest];
+                at = at[parts[i]];
+            }
+            return typeof at === "string" ? at : null;
+        };
+        const FLOOR = { en: `at least **${TRIAL.debateMinSeconds}**`, pl: `co najmniej **${TRIAL.debateMinSeconds}**` };
+        const read = {};
+        for (const lc of ["en", "pl"]) {
+            const gm = text[`gm-handbook.${lc}`], player = text[`player-handbook.${lc}`];
+            const wanted = { floor: FLOOR[lc], log: label(lc, "DRPG.Trial.logTitle"), announce: label(lc, "DRPG.Rules.announce"),
+                firstSession: label(lc, "DRPG.Season.firstSession"), caption: "Display Scrolling Text" };
+            must(Object.values(wanted).every(w => typeof w === "string" && w.length > 3), `a label is missing from lang/${lc}.json: ${JSON.stringify(wanted)}`);
+            const refusal = label(lc, "DRPG.Items.noDiscardInTrial");
+            must(typeof refusal === "string" && refusal.length > 10, `DRPG.Items.noDiscardInTrial is missing from lang/${lc}.json`);
+            read[lc] = {
+                promise: (player.match(/settled by the dice|rozstrzygaj[aą] ko[sś]ci/gi) ?? []).length,
+                gmMissing: Object.entries(wanted).filter(([, w]) => !gm.includes(w)).map(([k]) => k),
+                refusal: player.includes(refusal)
+            };
+        }
+        const meddle = label("pl", "DRPG.Monocub.meddleRefused") ?? "";
+        must(meddle.length > 10, "pl.json has no DRPG.Monocub.meddleRefused - this would measure nothing");
+        read.meddle = /wr[oó]c|zwr[oó]c|odda/i.test(meddle);
+        equal(JSON.stringify(read), JSON.stringify({ en: { promise: 0, gmMissing: [], refusal: true }, pl: { promise: 0, gmMissing: [], refusal: true }, meddle: false }),
+            "[per language: the player handbook's promises that the dice settle an Observe; what the GM handbook does not name of the debate's floor, the "
+                + "console's evidence log, Announce changes, First session and Display Scrolling Text; the player handbook quotes the Class Trial's discard "
+                + "refusal]; [the Polish Confusion refusal promises a refund]");
+    }],
+
+    ["R1105 - a dead student under the Eclipse is told they are dead: in `performAction` the death refusal (`DRPG.Chapter.deadCannotAct`) stands above the Eclipse's (`DRPG.Eclipse.actionsLocked`) (E51 C1; E51-06, audit S02-51 (d))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (d). The Eclipse's refusal came first, so a dead student pressing a tile
+         * in an Eclipse read that the Eclipse locks actions - true, and not the reason. Read in `performAction`,
+         * comments stripped; R42 holds the trial gate below both. Red at C1's parent: the death refusal stood after.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const body = fnSource(src, "performAction");
+        const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
+        const eclipse = body.indexOf("DRPG.Eclipse.actionsLocked");
+        must(dead > 0 && eclipse > 0, "performAction no longer holds both refusals - the order below has nothing to measure");
+        ok(dead < eclipse, "the Eclipse's refusal stands above the death's: a dead student is told the Eclipse locks actions");
+    }],
+
+    ["R1106 - one project-name formatter: the action window's project list, the Call picker and the project manager each name a project through projects.mjs `projectLabel`, and none writes `current}/${...start` by hand (E51 C1; E51-08, audit S02-51 (f))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (f). Three readers wrote a project's progress each in its own shape:
+         * action-rolls.mjs `projectOptionsHtml`, call-pickers.mjs `pickProject` and projects-ui.mjs (the manager's cell
+         * and its live refresh). Read with comments stripped: each file brings `projectLabel` in from projects.mjs and
+         * calls it, and none holds a template of `current` over `start`. The formatter itself is tier 2's to call; this
+         * reads its shape in projects.mjs. Red at C1's parent: no `projectLabel`, and four hand-built templates.
+         */
+        const read = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
+        const files = ["action-rolls.mjs", "call-pickers.mjs", "projects-ui.mjs"];
+        const srcs = await Promise.all(files.map(read));
+        const projects = await read("projects.mjs");
+        const BY_HAND = /\.current\s*\}\s*\/\s*\$\{\s*[\w?.]*\.start\b/;
+        const label = topLevelFunction(projects, "projectLabel");
+        equal(JSON.stringify({
+            exported: /^export function projectLabel\(/m.test(projects) && Boolean(label) && /\.current\b/.test(label ?? "") && /\.start\b/.test(label ?? ""),
+            files: Object.fromEntries(files.map((file, i) => [file, {
+                imports: /\bprojectLabel\b[^;]*?from\s*"\.\/projects\.mjs"|\{[^}]*\bprojectLabel\b[^}]*\}\s*=\s*await\s+import\(\s*"\.\/projects\.mjs"\s*\)/.test(srcs[i]),
+                calls: (srcs[i].match(/\bprojectLabel\(/g) ?? []).length > 0,
+                byHand: BY_HAND.test(srcs[i])
+            }]))
+        }), JSON.stringify({
+            exported: true,
+            files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
+        }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
+    }],
+    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and drpg-gm-route; each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
+        /*
+         * E51 C2, 30.10.2026; audit S17-48. The Call windows were built in seven places, each with its own classes:
+         * the pickers (`pickText`, `pickMotive`, `choose`) under one module `let pendingHeader` that `pickTarget` set and
+         * cleared - so two pickers open at once shared one header, and a picker that awaited an import before its window
+         * could open under the other Call's - `choose` with no Hope or Despair class at all, the pickers' confirm saying
+         * "Do it" (`DRPG.Action.proceed`), `confirmCall` and `askHopeCallApproval` with classes of their own, the
+         * Confusion window a plain panel and the sheet's "call off the assembly" a bare DialogV2.confirm. Read here with
+         * comments blanked: each opening of a window in those four regions (call-pickers.mjs and calls.mjs whole;
+         * `cubAbilityDialog`, `runCall`), its top-level function, and the `callWindow(` calls; the builder's own classes;
+         * the key. The reader is run first on a planted source. Tier 1's R1111 opens the windows and reads what they
+         * hold. Red at C2's parent: `pendingHeader` there, no `callWindow`, seven windows opened outside it and three
+         * "Do it" buttons.
+         */
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2)\s*\(/g;
+        const read = (file, raw, only = null) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const topAt = i => tops.findLast(t => t.at <= i)?.name ?? "(top level)";
+            const inRegion = i => !only || only.includes(topAt(i));
+            return {
+                opens: [...blank.matchAll(OPENS)].filter(m => inRegion(m.index)).map(m => `${file}#${topAt(m.index)}`),
+                builds: [...blank.matchAll(/(?<![\w$.])callWindow\s*\(/g)].filter(m => inRegion(m.index)
+                    && !/function\s*$/.test(blank.slice(Math.max(0, m.index - 10), m.index))).map(m => topAt(m.index)),
+                proceed: [...blank.matchAll(/DRPG\.Action\.proceed/g)].filter(m => inRegion(m.index)).map(m => `${file}#${topAt(m.index)}`),
+                pending: (blank.match(/\bpendingHeader\b/g) ?? []).length
+            };
+        };
+        const planted = read("planted.mjs", 'export function callWindow(o) { return DialogV2.wait({ classes: ["drpg-panel"] }); }\n'
+            + 'async function p() { /* DialogV2.wait( */ await callWindow({}); return foundry.applications.api.DialogV2.confirm({ label: "DRPG.Action.proceed" }); }\n'
+            + 'function q() { let pendingHeader = ""; return callWindow({}); }\n', ["callWindow", "p"]);
+        equal(JSON.stringify(planted), JSON.stringify({ opens: ["planted.mjs#callWindow", "planted.mjs#p"], builds: ["p"],
+            proceed: ["planted.mjs#p"], pending: 1 }), "the reader does not read the planted source as planted - the crawl below would measure the wrong calls");
+
+        const src = {};
+        for (const file of ["call-pickers.mjs", "calls.mjs", "monocub.mjs", "sheet.mjs"]) {
+            src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(src[file].length > 1000, `${file} was not served - this test reads nothing until it is`);
+        }
+        const regions = [read("call-pickers.mjs", src["call-pickers.mjs"]), read("calls.mjs", src["calls.mjs"]),
+            read("monocub.mjs", src["monocub.mjs"], ["cubAbilityDialog"]), read("sheet.mjs", src["sheet.mjs"], ["runCall"])];
+        const opens = regions.flatMap(r => r.opens);
+        const builder = topLevelFunction(blankComments(src["call-pickers.mjs"]), "callWindow") ?? "";
+        const builds = regions.flatMap(r => r.builds);
+        const WINDOWS = ["pickText", "pickMotive", "choose", "confirmCall", "askHopeCallApproval", "cubAbilityDialog", "runCall"];
+        equal(JSON.stringify({
+            pendingHeader: regions[0].pending,
+            outside: opens.filter(at => at !== "call-pickers.mjs#callWindow"),
+            inBuilder: opens.includes("call-pickers.mjs#callWindow"),
+            exported: /^export (?:async )?function callWindow\(/m.test(src["call-pickers.mjs"]),
+            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-gm-route"].filter(c => !builder.includes(`"${c}"`)),
+            unbuilt: WINDOWS.filter(fn => !builds.includes(fn)),
+            proceed: regions.flatMap(r => r.proceed)
+        }), JSON.stringify({ pendingHeader: 0, outside: [], inBuilder: true, exported: true, classes: [], unbuilt: [], proceed: [] }),
+            "[pendingHeader in call-pickers.mjs; a Call window opened outside callWindow; callWindow opens one; it is exported; a class it does not "
+            + "name; a Call window that does not call it; a button labelled DRPG.Action.proceed]");
+    }],
+    ["R1113 - a doorway into a room the veto keeps shut does not glow (D43c = 2): movement.mjs `passageOpenFor` answers a door `{ door: true, to }` by `restrictedFrom` with no `via` - shut into a GM's lock and another's bedroom, open into the viewer's own bedroom, into another's on a GM's browser and for a Monokuma; fog-doorways.mjs `doorwayEdges` asks it for the room beyond each open stretch when it draws for a character, and an edge it says is shut is drawn as wall (E51 C3; E51-21, audit S07-29)", async () => {
+        /*
+         * E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2 ("no glow; the border looks like a wall; the predicate
+         * is the veto's"). The doorway glow and the outline's gaps were read off the walls and the doors alone
+         * (`doorwayEdges` -> `wallAlongEdge`, `nothingInTheWay`), so a room a GM locked, a sealed room or another's
+         * bedroom glowed as a way through that the veto then refused. Read here on a scene of plain objects (a Lab over
+         * a Hall, as R557's): the predicate's answers for a door (the suite runs on a GM's browser, so `mover` stands in
+         * for a player where the bedroom is asked), and the two sources with comments stripped. What a door then looks
+         * like on a player's browser is scenario 76's phase DV (the harness's polygons contain no point, so no doorway
+         * opens here; 76 gives them an inside test for the call). The seal is 76's alone: it is a world setting, and
+         * tier 0 writes nothing. Red at f2b503e7: `passageOpenFor` answered false for every door (it took only a
+         * passage's id), and `doorwayEdges` never called it.
+         */
+        const J = JSON.stringify;
+        const M = await import("./movement.mjs");
+        const { FLAGS, ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const R = await import("./rooms.mjs");
+        must(game.user.isGM, "the suite runs on a GM's browser - the bedroom's GM clause would measure a player's");
+        const region = (name, y, flags = {}) => ({ id: `R1113R${name}`, name: `R1113 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x: 0, y, width: 400, height: 400 }, shapes: [{ type: "rectangle", x: 0, y, width: 400, height: 400 }],
+            testPoint: p => p.x >= 0 && p.x <= 400 && p.y >= y && p.y <= y + 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (hall = {}) => {
+            const scene = { id: "R1113S", name: "R1113 scene", grid: { size: 100 }, levels: [], walls: [] };
+            const rooms = [region("Lab", 0), region("Hall", 400, hall)];
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            return scene;
+        };
+        const A = { id: "R1113A", name: "R1113 A", items: [], getFlag: () => undefined };
+        const MONO = { id: "R1113K", name: "R1113 Monokuma", items: [], getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined) };
+        const player = { gm: false, mastermind: false };
+        const door = { door: true, to: "R1113 Hall" }, from = "R1113 Lab";
+        const open = sceneWith(), locked = sceneWith({ [M.ROOM_FLAGS.locked]: true });
+        const theirs = sceneWith({ [ROOM_OWNER_FLAG]: "R1113B" }), mine = sceneWith({ [ROOM_OWNER_FLAG]: "R1113A" });
+        equal(J([
+            M.passageOpenFor(A, door, open, { from }),
+            M.passageOpenFor(A, door, locked, { from }),
+            M.passageOpenFor(A, door, theirs, { from, mover: player }),
+            M.passageOpenFor(A, door, mine, { from, mover: player }),
+            M.passageOpenFor(A, door, theirs, { from }),
+            M.passageOpenFor(MONO, door, locked, { from }),
+            M.passageOpenFor(A, { door: true, to: from }, locked, { from }),
+            M.passageOpenFor(A, { door: true, to: null }, locked, { from })
+        ]), J([true, false, false, true, true, true, true, true]),
+        "[a door into an open room, into a GM's lock, into another's bedroom for a player, into the viewer's own, into another's on a GM's browser, "
+            + "a Monokuma into the lock, a door into the room itself, a door into no room] - passageOpenFor");
+
+        const sources = await moduleSources();
+        const doorways = sources.get("fog-doorways.mjs"), movement = sources.get("movement.mjs");
+        must(doorways && movement, "fog-doorways.mjs or movement.mjs did not load - this test reads nothing");
+        const edges = stripComments(topLevelFunction(doorways, "doorwayEdges") ?? "");
+        const verdict = stripComments(topLevelFunction(movement, "passageOpenFor") ?? "");
+        must(edges.length > 500 && verdict.length > 200, "doorwayEdges or passageOpenFor was not found - this test reads nothing");
+        equal(J({
+            asks: /passageOpenFor\(\s*actor\s*,\s*\{\s*door:\s*true\s*,\s*to\b/.test(edges),
+            forACharacter: /if\s*\(\s*!actor\b/.test(edges),
+            joined: /isOpen\s*=\s*Boolean\(beyond\)[^;]*\bdoorOpen\(/.test(edges),
+            door: /passage\??\.door\s*===\s*true/.test(verdict),
+            veto: /!restrictedFrom\(\s*actor\s*,\s*to\s*,\s*scene\s*,\s*mover\s*\)/.test(verdict)
+        }), J({ asks: true, forACharacter: true, joined: true, door: true, veto: true }),
+        "[doorwayEdges asks passageOpenFor for a door into the room beyond; only when it draws for a character; the answer is part of a sample's "
+            + "isOpen; passageOpenFor reads a door; and answers it by restrictedFrom with no via]");
+    }],
+    ["R1114 - a door or a room's flag changed draws the standing outline again by fog.mjs `redrawOutline`, with no sound: one `updateWall` listener of fog.mjs's (`outlineAfterDoor`) and `regionChanged`'s `outlineAfterRoomFlag`, each calling `redrawOutline` and neither `playSfx` nor `flashOutline` (E51 C3; E51-22)", async () => {
+        /*
+         * E51 C3, 31.10.2026 (E51-22; the E79 plan's A10-9: E51's outline refresher takes `redrawOutline` over rather
+         * than writing a second, R560). The outline standing round the room a character is in was drawn on arrival and
+         * on a change of the passages only: a GM who opened or shut a door beside it, locked the room beyond or gave it
+         * an owner left a gap or a wall on screen that the map no longer had until the next arrival. Read: the
+         * listeners registered for `updateWall` (live, `Hooks.events`), fog.mjs's source with comments stripped -
+         * `registerFog` registers one listener that hands the wall to `outlineAfterDoor`, `regionChanged` calls
+         * `outlineAfterRoomFlag`, each of the two calls `redrawOutline` and neither plays a sound or draws an outline
+         * of its own. Which rooms a change touches is read by the two (a wall or a region within a square of the
+         * standing room's box); what is redrawn on screen is not read here (no renderer). Red at f2b503e7: no such
+         * listener and neither function.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const register = topLevelFunction(fog, "registerFog") ?? "";
+        const door = topLevelFunction(fog, "outlineAfterDoor") ?? "";
+        const flag = topLevelFunction(fog, "outlineAfterRoomFlag") ?? "";
+        const changed = topLevelFunction(fog, "regionChanged") ?? "";
+        const listeners = (Hooks.events?.updateWall ?? []).filter(entry => /outlineAfterDoor/.test(String(entry.fn)));
+        equal(J({
+            listeners: listeners.length,
+            registered: (register.match(/Hooks\.on\(\s*"updateWall"[^;]*outlineAfterDoor\(/g) ?? []).length,
+            fromRegion: /outlineAfterRoomFlag\(\s*region\s*,\s*changes\s*\)/.test(changed),
+            redraws: [/\bredrawOutline\(/.test(door), /\bredrawOutline\(/.test(flag)],
+            sound: [/\bplaySfx\s*\(/.test(door), /\bplaySfx\s*\(/.test(flag)],
+            ownDraw: [/\bflashOutline\s*\(/.test(door), /\bflashOutline\s*\(/.test(flag)]
+        }), J({ listeners: 1, registered: 1, fromRegion: true, redraws: [true, true], sound: [false, false], ownDraw: [false, false] }),
+        "[updateWall listeners that hand the wall on; registerFog's registrations of it; regionChanged hands the change on; each redraws by redrawOutline; "
+            + "a sound in either; an outline drawn by either itself]");
+    }],
+    ["R1115 - the token ruler takes the hour's colour (amend 11.10): fog-doorways.mjs `hourRulerFor(Base)` overrides each of Base's ruler styles it finds with `outlineColour()` and keeps the rest of the style, adds none Base lacks, answers null for no class; `registerTokenRuler` sets it as `CONFIG.Token.rulerClass` from `registerFog`, and the body's observer that recolours the outline draws the rulers again (E51 C3; E51-23)", async () => {
+        /*
+         * E51 C3, 31.10.2026; the owner's report of 11.10 with screenshots: the token's movement line had Foundry's own
+         * colour (turquoise) and should have the hour's. No module code set it (git grep ruler, TokenRuler, waypoint at
+         * Base: nothing). The colour is the outline's (`outlineColour`: the hour's seam colour under Stained Glass, bone
+         * under Monokuma Legacy), read each time a style is asked, so a ruler drawn after the hour turns wears the new
+         * hour; one standing is drawn again by the observer of the body's hour attributes (registerFog), not off
+         * `drpgTimeOfDayChanged`, whose race with the attribute that file's note on the outline gives. Read on a class of
+         * this test's own with two of v13's style methods (`_getSegmentStyle`, `_getGridHighlightStyle`), and the
+         * sources with comments stripped. Whether v14's ruler draws the colour, and changes at the hour's turn, is
+         * LIVE-E51-02 (AUDIT 9.2 item 356): the harness has no TokenRuler. Red at f2b503e7: no `hourRulerFor`.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        must(typeof D.outlineColour === "function", "fog-doorways.mjs has no outlineColour - the colour it would be compared with");
+        const make = D.hourRulerFor;
+        const Base = class { constructor(token) { this.token = token; }
+            _getSegmentStyle(waypoint) { return { width: 4, color: 0x00ffee, alpha: 1, of: waypoint?.k ?? null }; }
+            _getGridHighlightStyle(waypoint, offset) { return { color: 0x00ffee, alpha: 0.3, offset }; } };
+        const Ruler = typeof make === "function" ? make(Base) : null;
+        const ruler = Ruler ? new Ruler("R1115 token") : null;
+        const hour = D.outlineColour();
+        equal(J({
+            made: typeof Ruler === "function" && ruler instanceof Base, name: Ruler?.name ?? null,
+            segment: ruler?._getSegmentStyle({ k: 1 }) ?? null,
+            highlight: ruler?._getGridHighlightStyle({ k: 2 }, { i: 1, j: 2 }) ?? null,
+            waypoint: typeof ruler?._getWaypointStyle === "function",
+            token: ruler?.token ?? null,
+            none: typeof make === "function" ? [make(null), make({})] : null
+        }), J({
+            made: true, name: "HourTokenRuler",
+            segment: { width: 4, color: hour, alpha: 1, of: 1 },
+            highlight: { color: hour, alpha: 0.3, offset: { i: 1, j: 2 } },
+            waypoint: false, token: "R1115 token", none: [null, null]
+        }), "[a subclass of Base, its name; the segment's style and the grid highlight's, the colour the outline's and the rest kept; a style Base has "
+            + "not added; the constructor's argument handed on; no class and an object]");
+
+        const sources = await moduleSources();
+        const doorways = stripComments(sources.get("fog-doorways.mjs") ?? ""), fog = stripComments(sources.get("fog.mjs") ?? "");
+        const register = topLevelFunction(doorways, "registerTokenRuler") ?? "";
+        const registerFog = topLevelFunction(fog, "registerFog") ?? "";
+        const observer = /new MutationObserver\(([\s\S]*?)\)\.observe\(document\.body/.exec(registerFog)?.[1] ?? "";
+        must(observer.length > 20, "registerFog's body observer was not found - this test reads nothing of it");
+        equal(J({
+            sets: /CONFIG\.Token\.rulerClass\s*=\s*\w+/.test(register) && /hourRulerFor\(/.test(register),
+            registered: /registerTokenRuler\(\)/.test(registerFog),
+            redrawn: [/recolourRoomOutline\(/.test(observer), /refreshTokenRulers\(/.test(observer)]
+        }), J({ sets: true, registered: true, redrawn: [true, true] }),
+        "[registerTokenRuler sets CONFIG.Token.rulerClass from hourRulerFor; registerFog calls it; the body's observer recolours the outline and draws the rulers again]");
+    }],
+    ["R1120 - an undescribed trace's name is empty and worded at read time: the key `DRPG.Remnant.tokenName` is localized only in remnants.mjs `traceLabel` and `neutralWords`, nothing compares a name against `traceLabel(`, and observe.mjs `createFind` prefills the GM's describe window from the trace's subject, not from the stored name (E51 C5; E51-30, audit S05-52)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-52. Every trace's `public.name` read "Trace" until a GM described it - the neutral
+         * word, in the language of the browser that wrote or read it (remnants.mjs `defaultPublic`) - and about fifteen
+         * readers asked whether a trace was described by comparing its name against that word in their own language: on a
+         * Polish GM's browser a row an English GM's wrote ("Trace") read as described, and the describe window offered
+         * "Trace" as the name, so a GM pressing Enter gave the players a bullet called "Trace". The stored name is empty now
+         * until somebody describes the trace; `traceLabel(entry)` words it at read time, and `isNeutralName` (through
+         * `neutralWords`, this language and the fallback's) is the one place a name is held against the word - a row a build
+         * before 1.2.94 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
+         * suite's. Red at C5's parent: the key localized in 19 places outside those two functions (git grep, 31.10.2026),
+         * and `createFind` handing `stored?.name` to the window.
+         */
+        const KEY = /["'`]DRPG\.Remnant\.tokenName["'`]/g;
+        const ALLOWED = new Set(["remnants.mjs#traceLabel", "remnants.mjs#neutralWords"]);
+        const owner = (text, at) => {
+            const heads = [...text.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return heads.length ? heads[heads.length - 1][1] : "(top level)";
+        };
+        const found = [], compared = [];
+        let files = 0;
+        for (const [file, raw] of await moduleSources()) {
+            if (/^tests/.test(file)) continue;
+            files++;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(KEY)) {
+                const row = `${file}#${owner(text, m.index)}`;
+                if (!ALLOWED.has(row)) found.push(row);
+            }
+            for (const m of text.matchAll(/[!=]==\s*traceLabel\(|traceLabel\([^()]*(?:\([^()]*\)[^()]*)*\)\s*[!=]==/g)) compared.push(`${file}: ${lineAround(text, m.index).trim().slice(0, 100)}`);
+        }
+        must(files > 50, `only ${files} module files were read - the reader is not reaching the module`);
+        const sources = await moduleSources();
+        const remnants = stripComments(sources.get("remnants.mjs") ?? "");
+        const createFind = fnSource(stripComments(sources.get("observe.mjs") ?? ""), "createFind");
+        const describe = /describeFind\(([^;]*)\);/.exec(createFind)?.[1] ?? null;
+        must(describe !== null, "createFind's call of describeFind was not found - this reads nothing of the prefill");
+        equal(JSON.stringify({
+            outside: found, compared,
+            label: /^export function traceLabel\(/m.test(remnants), neutral: /^export function isNeutralName\(/m.test(remnants),
+            prefill: /stored\?\.name/.test(describe)
+        }), JSON.stringify({ outside: [], compared: [], label: true, neutral: true, prefill: false }),
+        "[the files and functions that localize the neutral word outside traceLabel and neutralWords; a name compared against traceLabel; "
+            + "remnants.mjs exports traceLabel and isNeutralName; createFind's describe window is handed the stored name]");
+    }],
+
+    ["R1121 - the trace digest is a GM store: gm-stores.mjs `traceDigestStore` is a ledger under `SETTINGS.gmTraceDigest`, registered as a client setting, in the reset group \"remnants\", backed up and synced between GMs (E51 fix FG1: a second GM's trace and a handover); remnants.mjs keeps no `pendingTraces`, `announceRemnant` writes the row on any GM and asks for no primary, the digest is sent on the primary and drops what it says, and the one-off whisper drops its row; the case's windows name it (E51 C5; E51-32, audit S05-53)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-53. The traces waiting for the GMs' digest were a Map in the memory of the GM
+         * that placed them (remnants.mjs `pendingTraces`), so a primary's F5 between a trace and the turn of the time of
+         * day lost the digest of every trace before it, and nothing said so. They are a GM store's rows now, a row per
+         * trace written when the trace is placed on the primary, and the digest posts and drops them on the primary
+         * alone. C5 read the owner's Q3 (default, 30.10) as `sync` off; the end review's G1 and F1 measured what it lost -
+         * a second GM's trace in no digest, a handover's rows unsaid - and the fix round (FG1) synced the store, the row
+         * written by whichever GM places the trace, said by the primary of the moment. The row is read off the registry
+         * (gm-store.mjs `gmStoreByName`), the setting off the settings' registry, and the roads off remnants.mjs's source
+         * with comments stripped; scenario 61's phase TD reads the digest through a primary's F5 on two GMs. Red at C5's
+         * parent: no store of that name, no setting, `pendingTraces` in remnants.mjs; red at FG1's parent: `sync`
+         * false and `announceRemnant` asking for the primary.
+         */
+        await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        let spec = null;
+        try { spec = E.gmStoreByName("traceDigest")?.spec ?? null; } catch { spec = null; }
+        // By the row's own key, not its SETTINGS name: R171 holds a store's key to the engine (a name read here is a raw read).
+        const setting = spec?.key ? game.settings.settings.get(`${MODULE_ID}.${spec.key}`) ?? null : null;
+        const src = stripComments((await moduleSources()).get("remnants.mjs") ?? "");
+        must(src.length > 10000, "remnants.mjs was not read - this reads nothing of its roads");
+        const fn = name => topLevelFunction(src, name) ?? "";
+        equal(JSON.stringify({
+            row: spec ? { kind: spec.kind, key: spec.key, resetGroup: spec.resetGroup ?? null, backup: spec.backup, sync: spec.sync } : null,
+            setting: setting ? { scope: setting.scope, config: Boolean(setting.config) } : null,
+            pending: /\bpendingTraces\b/.test(src),
+            announce: [/traceDigestStore\.patch\(/.test(fn("announceRemnant")), /isPrimaryGm\(\)/.test(fn("announceRemnant"))],
+            send: [/isPrimaryGm\(\)/.test(fn("sendTraceDigest")), /traceDigestStore\.dropMany\(/.test(fn("sendTraceDigest"))],
+            now: /traceDigestStore\.drop\(/.test(fn("whisperTraceNow")),
+            named: game.i18n.has("DRPG.Case.store.traceDigest")
+        }), JSON.stringify({
+            row: { kind: "ledger", key: "gmTraceDigest", resetGroup: "remnants", backup: true, sync: true },
+            setting: { scope: "client", config: false },
+            pending: false, announce: [true, false], send: [true, true], now: true, named: true
+        }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
+            + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
+    }],
+    ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: gm-bridge.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
+         * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
+         * Trial is refused, and its ticket must not be), written before the trace is placed it would cover a trace that
+         * failed, and asked of a GM's own placement it would cover a delete the audit never judges. Read off the two
+         * files' sources with comments stripped; scenario 30's "a console's discard" drives D1-D4 and the honest road.
+         * Red at the fix's parent: no `noteDiscardTrace` in handleRemnant, no `takeDiscardTrace` in itemFindings.
+         */
+        const sources = await moduleSources();
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? ""), audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        must(bridge.length > 10000 && audit.length > 10000, "gm-bridge.mjs or sheet-audit.mjs was not read - this reads nothing");
+        const run = topLevelFunction(bridge, "handleRemnant") ?? "", judge = topLevelFunction(audit, "itemFindings") ?? "";
+        const at = re => { const m = re.exec(run); return m ? m.index : -1; };
+        const note = at(/noteDiscardTrace\(/), trial = at(/phase === "classTrial"\) return \{ refused/), placed = at(/if \(!placed\) return \{ refused/);
+        const noteLine = note >= 0 ? lineAround(run, note) : "";
+        const standLine = judge.split("\n").find(line => /stamp\.reason === "discard"/.test(line)) ?? "";
+        equal(JSON.stringify({
+            notes: (run.match(/noteDiscardTrace\(/g) ?? []).length, order: [trial >= 0 && trial < note, placed >= 0 && placed < note],
+            asks: [/!sender\.isGM/.test(noteLine), /data\.action === "discard"/.test(noteLine), /noteDiscardTrace\(data\.sourceActor, data\.subject\)/.test(noteLine)],
+            stands: [/takeDiscardTrace\(actor\.id, held\.name\)/.test(standLine), /return out;/.test(standLine)],
+            exported: [/^export function noteDiscardTrace\(/m.test(audit), /^export function takeDiscardTrace\(/m.test(audit)]
+        }), JSON.stringify({ notes: 1, order: [true, true], asks: [true, true, true], stands: [true, true], exported: [true, true] }),
+            "[handleRemnant's calls of noteDiscardTrace; after the trial's refusal, after the placed check; its line asks a player, a discard, and names the "
+                + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
+    }],
+    ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
+         * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
+         * Edit campaign, and a donation of 1.5 took 1.5 Despair from a pool and gave a Monocub 1.5 Hope. Now one
+         * reader, `wholeNumber(value, { min, max, fallback })`, holds each to a whole number in its range, and the one
+         * door the donations share truncates too. FIELDS is chosen by hand: a field (the file and its name as the
+         * template writes it) and the regex that finds where its value is read; the census holds the table to the
+         * source, so a new number field fails here until it gets a row. Not counted as readers: trial-floor-ui.mjs's
+         * round window repaints its length from the field as typed (`field.value`, a read-out), and season-setup.mjs
+         * `readDraft` carries the typed chapter across a reopen as a string (the write reads it in `readSeasonForm`).
+         * Comments blanked. Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it.
+         */
+        const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
+        must(src.size > 50, "the module's sources were not read - this would measure nothing");
+        const FIELDS = [
+            ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
+            ["gm-panel.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            ["gm-panel.mjs", "day", /\bform\.day\.value\b/g],
+            ["gm-panel.mjs", "session", /\bform\.session\.value\b/g],
+            ["mastermind.mjs", "amount", /\[name=amount\]"\)\?\.value/g],
+            ["messenger-app.mjs", "${name}", /\bf\.elements\[key\]\?\.value/g],
+            ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
+            ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
+            ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
+            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
+        ];
+        // A `type="number"` that is not a field of a window: its reason.
+        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value" };
+        const census = {}, listed = {};
+        for (const [file, text] of src) {
+            const inputs = (text.match(/<input\s+type="number"/g) ?? []).length;
+            const all = (text.match(/type="number"/g) ?? []).length;
+            if (inputs) census[file] = inputs;
+            if (all > inputs) listed[file] = all - inputs;
+        }
+        const rows = {};
+        for (const [file] of FIELDS) rows[file] = (rows[file] ?? 0) + 1;
+        const unread = [], bare = [];
+        for (const [file, name, reader] of FIELDS) {
+            const text = src.get(file) ?? "";
+            const reads = [...text.matchAll(reader)];
+            if (!reads.length) unread.push(`${file} ${name}`);
+            for (const m of reads) {
+                const line = lineAround(text, m.index);
+                if (!line.includes("wholeNumber(")) bare.push(`${file}:${lineAt(text, m.index)} ${name}`);
+            }
+        }
+        const utils = src.get("utils.mjs") ?? "";
+        const whole = topLevelFunction(utils, "wholeNumber");
+        const convert = topLevelFunction(src.get("despair.mjs") ?? "", "convertDespairToHope") ?? "";
+        must(convert.length > 200, "despair.mjs convertDespairToHope was not read - this would measure nothing of the donations' door");
+        equal(JSON.stringify({
+            census: Object.fromEntries(Object.entries(census).sort()), listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            whole: whole ? [/^export function wholeNumber\(/.test(whole), /\bclamp\(/.test(whole)] : null,
+            convert: /\bwholeNumber\(amount\b/.test(convert)
+        }), JSON.stringify({
+            census: Object.fromEntries(Object.entries(rows).sort()), listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])), unread: [], bare: [],
+            whole: [true, true], convert: true
+        }), "[the number fields per file against FIELDS' rows; the type=\"number\" that are no field against LISTED; a field whose reader was not found; "
+            + "a line that reads a field's value and does not ask wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
+    }],
+
+    ["R1133 - the flows whose length is counted are FLOWS' flows: tests-flows.mjs `FLOW_LENGTHS` names Search, Observe, Analyze, the Hope Call, the Dynamic action, the Refund, the trial console's mode bar a mode at a time, the verdict and the Level Up, each once, each with what stands open when its count starts, and each part of a flow of FLOWS that names 88-flow-length among its scenarios (E51 C8; E51-49, audit S17-49)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S17-49. Scenario 88-flow-length drives these and holds each to
+         * audit/harness/flow-length.json (the harness's half: every name driven, the baseline's rows the same names);
+         * this is the suite's half, which the table can read too: the list is the slice's eight flows and the mode bar,
+         * and a name that leaves FLOWS behind, or a flow that stops naming the scenario, is red here. Read off the
+         * module's own file; nothing is written. Red at C8's parent: no FLOW_LENGTHS.
+         */
+        const F = await import("./tests-flows.mjs");
+        const list = Array.isArray(F.FLOW_LENGTHS) ? F.FLOW_LENGTHS : null;
+        const byId = new Map(FLOWS.map(flow => [flow.id, flow]));
+        const rows = (list ?? []).map(row => [row.name, row.flow, typeof row.from === "string" && row.from.length > 0,
+            byId.get(row.flow)?.scenarios?.includes("88-flow-length") ?? null]);
+        const family = name => String(name).split(".")[0];
+        equal(JSON.stringify({ rows, unique: list ? new Set(list.map(row => row.name)).size === list.length : null,
+            families: list ? [...new Set(list.map(row => family(row.name)))].sort() : null }),
+        JSON.stringify({ rows: [["search", "search-observe", true, true], ["observe", "search-observe", true, true], ["analyze", "analyze", true, true],
+            ["hopeCall", "hope-call", true, true], ["dynamic", "action-roll", true, true], ["refund", "crossing-fee-refund", true, true],
+            ["modeBar.testimony", "class-trial", true, true], ["modeBar.panic", "class-trial", true, true], ["modeBar.closing", "class-trial", true, true],
+            ["verdict", "class-trial", true, true], ["levelUp", "class-trial", true, true]], unique: true,
+            families: ["analyze", "dynamic", "hopeCall", "levelUp", "modeBar", "observe", "refund", "search", "verdict"] }),
+        "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
+    }],
+    ["R1138 - a doorway's light stops at the first wall and at the end of the room it falls into: fog-doorways.mjs `doorwayGlowPlan`, handed the walls and rooms beyond (`doorwayLight`'s answer), keeps the glow to a shape whose rays end at a wall 1.0-1.9 squares past an opening, straight or stepped, and where the room beyond ends, a room drawn across a gap reached (E51 fix FG3; the owner's item 4 of 31.10, LIVE-E51-03)", async () => {
+        /*
+         * E51 fix FG3, 31.10.2026; the owner's item 4 and screenshot of 31.10 (the stage's owner-shot-31.10.webp: pools
+         * of light spilling a square or more past a diagonal border, over the walls of the rooms beyond), the correctness
+         * review's reading: the band reaches `core + span` past an opening's averaged line - 1.44 squares on a straight
+         * border at grid 100, more on a stepped one - while the open test looks 0.95 squares out, and nothing erased the
+         * band past a wall or in another room. Read here on the plan `addDoorwayGlow` draws from, with no renderer: a
+         * Lab whose border is open (its edges as `doorwayEdges` hands them), the glow's reach unclipped (`reach`, and the
+         * far ends of rays cast with no wall and no room), and the far ends of the shape the glow is kept to (`keep`,
+         * `rays`) with a wall across the light at 1.0, 1.3, 1.6 and 1.9 squares past the border - a straight border, and
+         * a staircase of two-square steps, its walls diagonal and measured square from its outer corners - then a Hall
+         * one square deep with a Store behind it and no wall between, and a Hall drawn 0.3 squares off the Lab. What a
+         * table draws from that shape is LIVE-E51-03 (AUDIT 9.2 item 357). Red at 99226e59: no `doorwayGlowPlan`, and
+         * `addDoorwayGlow` erased nothing past a wall or a room.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        must(typeof D.doorwayGlowPlan === "function", "fog-doorways.mjs has no doorwayGlowPlan - the glow's geometry cannot be read");
+        const r2 = v => Math.round(v * 100) / 100;
+        const edgesOf = (ring, open) => {
+            const out = [];
+            const n = ring.length / 2;
+            for (let i = 0; i < n; i++) {
+                const ax = ring[i * 2], ay = ring[i * 2 + 1], bx = ring[((i + 1) % n) * 2], by = ring[((i + 1) % n) * 2 + 1];
+                const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+                out.push({ ax, ay, dx, dy, length, nx: 0, ny: 0, ring: 0, open: open(i) ? [[0, 1]] : [], inner: [], trend: null });
+            }
+            return out;
+        };
+        const lab = (ring, name = "R1138 Lab") => ({ name, shapes: [{ type: "polygon", points: ring }], polygons: [{ points: ring }] });
+        const far = (plan, along) => plan.rays.map(r => along(r.x + r.ox * r.d, r.y + r.oy * r.d));
+        const room = (name, x, y, w, h) => ({ name, rings: [[x, y, x + w, y, x + w, y + h, x, y + h]] });
+        const rect = { x: 0, y: 0 }, grid = 100;
+
+        // A straight border: the Lab 0-400 x 0-400, its bottom edge open from x 100 to 300 onto a Hall 400-800 below.
+        const straight = [0, 0, 400, 0, 400, 400, 0, 400];
+        const sEdges = edgesOf(straight, i => i === 2).map(e => ({ ...e, open: e.open.length ? [[0.25, 0.75]] : [] }));
+        const hall = room("R1138 Hall", -200, 400, 800, 400);
+        const sDown = (x, y) => (y - 400) / grid;
+        const sBase = D.doorwayGlowPlan(lab(straight), sEdges, rect, null, { grid });
+        const sOpen = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: [], rooms: [hall] }, { grid });
+        const across = w => [[-300, 400 + w * grid, 700, 400 + w * grid]];
+        const sWall = [1, 1.3, 1.6, 1.9].map(w => {
+            const plan = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: across(w), rooms: [hall] }, { grid });
+            return [w, r2(Math.max(...far(plan, sDown))), plan.rays.some(r => r.stop === "wall")];
+        });
+
+        // A staircase of two-square steps from (600, 0) down to (0, 600), every step open onto the room beyond it: its
+        // inner corners on x + y = 600, its outer ones on 800, and the walls square to its middle line, x + y = 700, at
+        // w squares from it (x + y = 700 + w * grid * sqrt 2) - the line the band is built about.
+        const stair = [0, 0, 600, 0, 600, 200, 400, 200, 400, 400, 200, 400, 200, 600, 0, 600];
+        const tEdges = edgesOf(stair, i => i >= 1 && i <= 6);
+        const yard = { name: "R1138 Yard", rings: [[600, 0, 2000, 0, 2000, 2000, 0, 2000, 0, 600, 200, 600, 200, 400, 400, 400, 400, 200, 600, 200]] };
+        const tOut = (x, y) => (x + y - 700) / Math.SQRT2 / grid;
+        const tBase = D.doorwayGlowPlan(lab(stair), tEdges, rect, { walls: [], rooms: [yard] }, { grid });
+        const tReach = Math.max(...far(tBase, tOut));
+        const diagonal = w => [[700 + w * grid * Math.SQRT2 + 1000, -1000, 700 + w * grid * Math.SQRT2 - 1000, 1000]];
+        const tWall = [1, 1.3, 1.6, 1.9].map(w => {
+            const plan = D.doorwayGlowPlan(lab(stair), tEdges, rect, { walls: diagonal(w), rooms: [yard] }, { grid });
+            return [w, tReach > w, Math.max(...far(plan, tOut)) <= w + 0.005, plan.rays.some(r => r.stop === "wall")];
+        });
+
+        // The room beyond ends: a Hall one square deep, a Store behind it with no wall; and a Hall drawn 0.3 squares off.
+        const shallow = D.doorwayGlowPlan(lab(straight), sEdges, rect,
+            { walls: [], rooms: [room("R1138 Hall", -200, 400, 800, 100), room("R1138 Store", -200, 500, 800, 400)] }, { grid });
+        const apart = D.doorwayGlowPlan(lab(straight), sEdges, rect, { walls: [], rooms: [room("R1138 Hall", -200, 430, 800, 100)] }, { grid });
+        const inStore = shallow.rays.filter(r => r.y + r.oy * r.d > 500.5).length;
+
+        equal(J({
+            straight: { reach: r2(sBase.reach / grid), unclipped: r2(Math.max(...far(sOpen, sDown))), keep: sBase.keep, walls: sWall },
+            stair: { reach: r2(tBase.reach / grid), unclipped: r2(tReach), walls: tWall },
+            shallow: { deepest: r2(Math.max(...far(shallow, sDown))), stops: [...new Set(shallow.rays.filter(r => r.stop !== "reach").map(r => r.stop))], inStore },
+            apart: r2(Math.max(...far(apart, sDown)))
+        }), J({
+            straight: { reach: 1.44, unclipped: 1.44, keep: null, walls: [[1, 1, true], [1.3, 1.3, true], [1.6, 1.44, false], [1.9, 1.44, false]] },
+            stair: { reach: 1.63, unclipped: 1.95, walls: [[1, true, true, true], [1.3, true, true, true], [1.6, true, true, true], [1.9, true, true, true]] },
+            shallow: { deepest: 1, stops: ["room"], inStore: 0 },
+            apart: 1.3
+        }), "[a straight border: the band's reach in squares, the farthest a ray goes with nothing in the way, no shape without light, and per wall "
+            + "(squares past the border) how far the light goes and whether a ray stopped at it; a staircase: the band's reach, the farthest a ray "
+            + "goes past its middle line with nothing in the way, and per wall (squares past that line) whether the unclipped light passed it, "
+            + "whether no light passes it now and whether a ray stopped at it; a Hall a square deep: "
+            + "the deepest light, what stopped it, rays ending in the Store behind; a Hall drawn 0.3 squares off: the deepest light]");
+    }],
+    ["R1139 - what a doorway's light may reach is read off the map: fog-doorways.mjs `doorwayLight` hands the walls that stop a move - not one with no movement restriction, not an open door - and every other room on the floor, never the room itself; `addDoorwayGlow` erases what lies outside the plan's shape (`eraseBeyondLight`) and fog-reveal.mjs `flashOutline` hands it the light for its room, floor and character (E51 fix FG3; LIVE-E51-03)", async () => {
+        /*
+         * E51 fix FG3, 31.10.2026 (the owner's item 4 of 31.10). R1138 reads the shape given the walls and rooms; this
+         * reads where they come from and that the shape is used. On a scene of plain objects (a Lab over a Hall, as
+         * R1113's, and a Store beside the Hall): a wall that stops a move, one with none (`move` 0), an open door and a
+         * shut one; `doorwayLight`'s walls and rooms for the Lab with no character (a GM's frame, no passage cut). Then
+         * the sources with comments stripped: the glow is erased outside `keep`, and the outline hands the light in.
+         * What the renderer then draws is LIVE-E51-03 (AUDIT 9.2 item 357). Red at 99226e59: no `doorwayLight`.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        must(typeof D.doorwayLight === "function", "fog-doorways.mjs has no doorwayLight - what the light may reach cannot be read");
+        const region = (name, x, y) => ({ id: `R1139R${name}`, name: `R1139 ${name}`, levels: new Set(), behaviors: [],
+            shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], polygons: [{ points: [x, y, x + 400, y, x + 400, y + 400, x, y + 400] }],
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R1139S", name: "R1139 scene", grid: { size: 100 }, levels: [], walls: [
+            { id: "R1139W1", c: [0, 500, 400, 500], move: 20, door: 0, ds: 0 },
+            { id: "R1139W2", c: [0, 600, 400, 600], move: 0, door: 0, ds: 0 },
+            { id: "R1139W3", c: [0, 700, 400, 700], move: 20, door: 1, ds: 1 },
+            { id: "R1139W4", c: [0, 750, 400, 750], move: 20, door: 1, ds: 0 }
+        ] };
+        const rooms = [region("Lab", 0, 0), region("Hall", 0, 400), region("Store", 400, 400)];
+        for (const r of rooms) r.parent = scene;
+        scene.regions = new Set(rooms);
+        const light = D.doorwayLight(rooms[0], null);
+        equal(J({ walls: light?.walls ?? null, rooms: (light?.rooms ?? []).map(r => [r.name, r.rings.length]) }),
+            J({ walls: [[0, 500, 400, 500], [0, 750, 400, 750]], rooms: [["R1139 Hall", 1], ["R1139 Store", 1]] }),
+            "[the walls the Lab's light stops at: a wall that stops a move and a shut door, not a wall with no movement restriction nor an open door; "
+                + "the rooms beyond it and their rings, the Lab itself not among them]");
+
+        const sources = await moduleSources();
+        const doorways = stripComments(sources.get("fog-doorways.mjs") ?? ""), reveal = stripComments(sources.get("fog-reveal.mjs") ?? "");
+        const glow = topLevelFunction(doorways, "addDoorwayGlow") ?? "", plan = topLevelFunction(doorways, "doorwayGlowPlan") ?? "";
+        const flash = topLevelFunction(reveal, "flashOutline") ?? "";
+        must(glow.length > 500 && plan.length > 500 && flash.length > 500, "addDoorwayGlow, doorwayGlowPlan or flashOutline was not found - this test reads nothing");
+        equal(J({
+            planned: /doorwayGlowPlan\(\s*region\s*,\s*edges\s*,\s*rect\s*,\s*light\s*\)/.test(glow),
+            erased: /if\s*\(\s*keep\s*\)\s*eraseBeyondLight\(/.test(glow),
+            cast: /lightShape\(\s*runs\s*,\s*rect\s*,\s*light\b/.test(plan),
+            handed: /addDoorwayGlow\([^;]*doorwayLight\(\s*region\s*,\s*level\s*,\s*\{\s*actor\s*,\s*elevation\s*\}\s*\)\s*\)/.test(flash)
+        }), J({ planned: true, erased: true, cast: true, handed: true }),
+        "[addDoorwayGlow draws from doorwayGlowPlan with the light; erases outside the shape it keeps; the plan casts the shape from the runs; "
+            + "flashOutline hands the light of its room, floor and character]");
+    }],
+    ["R1140 - the outline follows this viewer's own token, whichever token's arrival runs: fog.mjs `ownArrival` outlines the room of the token that called only when `leadsHere` says the outline follows it (a player's character; a GM's own Monokuma by `poolUserFor`), keeping a second signature for those tokens' rooms, and `standWhereWeStand` reads both on the canvas drawn, a token deleted and a room changed (E51 fix FG2; the owner's item 2 of 31.10)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026; the owner's item 2 of 31.10 ("the GM's room outline sometimes on another room than the
+         * GM's token"), the correctness review's roads (a)-(d) and the goal review's measurement. `ownArrival` compared
+         * the rooms this viewer stands in (the Monokuma's, on a GM) and outlined the CALLER's room: a player's step, a
+         * trace placed or another Monokuma's walk outlined its own room whenever the GM's set had changed without the
+         * Monokuma's own call first - a move held for its waypoints, a token deleted (the signature never told), a room
+         * drawn under it. Read: fog.mjs's source with comments stripped, and the listeners live (`Hooks.events`). What the
+         * outline does on a GM's browser is E51-T25 and scenario 66 GO; a player's outline is not drawn headless (66's
+         * header). Red at 99226e59: no `leadsHere`, no `standWhereWeStand`, the room outlined whenever the set changed.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const arrival = topLevelFunction(fog, "ownArrival") ?? "", leads = topLevelFunction(fog, "leadsHere") ?? "";
+        const stand = topLevelFunction(fog, "standWhereWeStand") ?? "", register = topLevelFunction(fog, "registerFog") ?? "";
+        const changed = topLevelFunction(fog, "regionChanged") ?? "", reveal = topLevelFunction(fog, "revealStartingRooms") ?? "";
+        must(arrival.length > 200 && register.length > 1000, "ownArrival or registerFog was not found - this test reads nothing");
+        const deleting = (Hooks.events?.deleteToken ?? []).filter(entry => /standWhereWeStand\(/.test(String(entry.fn)));
+        equal(J({
+            lead: /const\s+lead\s*=\s*leadsHere\(\s*tokenDoc\s*\)/.test(arrival),
+            entered: /const\s+entered\s*=\s*lead\s*&&\s*lastLeadSignature\s*!==\s*now\.lead\s*\?\s*roomEnteredByMe\(\s*tokenDoc\s*\)/.test(arrival),
+            kept: /if\s*\(\s*lead\s*\)\s*lastLeadSignature\s*=\s*now\.lead/.test(arrival),
+            pool: /poolUserFor\(\s*token\.actor\s*\)\?\.id\s*===\s*me/.test(leads) && /if\s*\(\s*!isMine\(\s*token\s*,\s*gm\s*\)\s*\)\s*return\s+false/.test(leads),
+            both: /lastMineSignature\s*=\s*now\.mine/.test(stand) && /lastLeadSignature\s*=\s*now\.lead/.test(stand),
+            canvas: /"remember where we started"\s*,\s*\(\)\s*=>\s*standWhereWeStand\(\)/.test(register),
+            deleted: deleting.length,
+            region: /standWhereWeStand\(\s*\{\s*redraw:\s*true\s*\}\s*\)/.test(changed),
+            starting: /leadsHere\(\s*token\s*\)/.test(reveal)
+        }), J({ lead: true, entered: true, kept: true, pool: true, both: true, canvas: true, deleted: 1, region: true, starting: true }),
+        "[ownArrival asks leadsHere of the calling token; outlines only a lead's room when the leads' rooms changed; takes the leads' set only on a "
+            + "lead's call; leadsHere is isMine and, on a GM, the Monokuma whose pool is this GM's; standWhereWeStand sets both signatures; on the "
+            + "canvas drawn; deleteToken listeners that read where the viewer stands; a region change reads it; the reveal at the start follows the leads]");
+    }],
+    ["R1141 - the standing outline is drawn again for a wall made, deleted or moved from anywhere, and for a seal or a chain set: fog.mjs `registerFog` hears `createWall` and `deleteWall` through `outlineAfterDoor` (beside the room), a wall's `c` changed redraws it whatever the place, and `createSetting`/`updateSetting` of `sealedRooms` or `restrictions` call `outlineAfterVeto`, each by `redrawOutline` with no sound (E51 fix FG2; the correctness review's F2, the goal review's G8)", async () => {
+        /*
+         * E51 fix FG2, 31.10.2026. F2: `updateWall` alone was heard, and a wall moved was judged at its new place only, so
+         * a wall dragged away from the room's border or deleted left its line standing, and one drawn on the border left
+         * a gap. G8: the glow asks the veto (D43c = 2), and a Seal on the room beyond or a chain left the glow lit beside
+         * a door the veto refused, until the next arrival. Read: the listeners live (`Hooks.events`) and fog.mjs's source
+         * with comments stripped; what is redrawn on a GM's browser is E51-T26 and E51-T27. Red at 99226e59: neither
+         * `createWall` nor `deleteWall` heard, no `outlineAfterVeto`, a move judged at its new place.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const door = topLevelFunction(fog, "outlineAfterDoor") ?? "", veto = topLevelFunction(fog, "outlineAfterVeto") ?? "";
+        const touched = topLevelFunction(fog, "standingTouched") ?? "";
+        must(door.length > 100 && touched.length > 100, "outlineAfterDoor or standingTouched was not found - this test reads nothing");
+        const heard = hook => (Hooks.events?.[hook] ?? []).filter(entry => /outlineAfter(Door|Veto)\(/.test(String(entry.fn))).length;
+        equal(J({
+            listeners: ["updateWall", "createWall", "deleteWall", "createSetting", "updateSetting"].map(heard),
+            placed: /!placed\s*&&\s*Object\.hasOwn\(\s*changes\s*,\s*"c"\s*\)\s*\?\s*standingTouched\([^)]*anywhere:\s*true/.test(door),
+            anywhere: /if\s*\(\s*anywhere\s*\)\s*return\s+standing\.room/.test(touched),
+            keys: /SETTINGS\.sealedRooms/.test(veto) && /SETTINGS\.restrictions/.test(veto),
+            redraws: [/\bredrawOutline\(/.test(door), /\bredrawOutline\(/.test(veto)],
+            sound: [/\bplaySfx\s*\(/.test(door), /\bplaySfx\s*\(/.test(veto)]
+        }), J({ listeners: [1, 1, 1, 1, 1], placed: true, anywhere: true, keys: true, redraws: [true, true], sound: [false, false] }),
+        "[listeners of updateWall, createWall, deleteWall, createSetting and updateSetting that hand on to outlineAfterDoor or outlineAfterVeto; a "
+            + "wall's c changed is judged anywhere on the room's scene; standingTouched answers the standing room for anywhere; outlineAfterVeto reads "
+            + "the seal and the chain; each redraws by redrawOutline; a sound in either]");
     }],
 ];
 

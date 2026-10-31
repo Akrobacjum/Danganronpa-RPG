@@ -49,7 +49,7 @@ import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
-import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf }
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
@@ -3054,12 +3054,17 @@ function addDiscardButton(li, item, app) {
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
 
-    const tip = game.i18n.localize("DRPG.Items.discardTooltip");
+    /* GREYED IN THE CLASS TRIAL, WITH ITS REASON (E51 C6; E51-41): `aria-disabled` and not `disabled`, as the fight's tile
+       (`actionButton`), so the tooltip that says why still shows; the press is refused by `discardBroken` in the
+       same words. */
+    const trial = noDiscardNow();
+    const tip = trial ?? game.i18n.localize("DRPG.Items.discardTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "drpg-row-button drpg-row-discard";
     button.dataset.drpgRowAction = "discard";
+    if (trial) button.setAttribute("aria-disabled", "true");
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
@@ -4190,6 +4195,15 @@ async function runCall(actor, key, kind) {
     if (!call) return;
 
     /*
+     * ONE PURCHASE OF A CALL AT A TIME (E51 fix round FG7, 31.10.2026; review goal G2). A sheet redrawn while this
+     * Call's picker or confirmation stands puts its tile back live (the delegate above disables only the element that
+     * was pressed), and a second press opened a second window of the same purchase. Raised instead, and nothing more
+     * (call-pickers.mjs `callWindowOpen`; each window also refuses a twin of itself, `callWindow`'s `once`).
+     */
+    const { callWindowOpen } = await import("./call-pickers.mjs");
+    if (callWindowOpen(call, despair ? "despair" : "hope")) return;
+
+    /*
      * WHAT SHUTS THE WHOLE MENU IS ASKED FIRST (CALL-17, 20.09).
      *
      * An Eclipse, the overflow's Silence, a Class Trial for a Monokuma, a dead
@@ -4217,16 +4231,20 @@ async function runCall(actor, key, kind) {
     const standing = call.defers ? pendingGather() : null;
     if (standing) {
         const { cancelGather } = await import("./call-effects.mjs");
-        const ok = await foundry.applications.api.DialogV2.confirm({
-            window: { title: call.label },
-            classes: ["drpg-panel", "drpg-despair-dialog"],
-            content: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
+        // A Call window (E51 C2; call-pickers.mjs `callWindow`): the Despair Call's own, with no header -
+        // nothing is bought - and buttons saying what each does: the default calls the assembly off, as the
+        // confirm's yes did, and the other keeps it.
+        const { callWindow } = await import("./call-pickers.mjs");
+        const answer = await callWindow({
+            call, kind,
+            body: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
                 room: foundry.utils.escapeHTML(standing.room)
             })}</p><p class="notes">${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</p>`,
-            rejectClose: false,
+            buttons: [{ action: "yes", label: game.i18n.localize("DRPG.Calls.gatherCallOff"), default: true }],
+            cancel: "DRPG.Calls.gatherKeep",
             modal: true
         });
-        if (!ok) return;
+        if (answer !== "yes") return;
         await cancelGather();
         actor.sheet?.render(false);
         return;

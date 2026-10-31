@@ -1480,12 +1480,19 @@ async function settleDynamic(actor, bookmark, after, done, before = null) {
        of it that succeeds again posts no second one. `before` is the roll the GMs kept; a Reroll with
        none read posts none, and ends none.
        A SUCCESS TURNED INTO A MISS ENDS ITS CARD (E16 fix e1-G3; the review's E16p2-BEH-3): until this fix the first
-       card stood with its Create an item for a roll that now missed (`withdrawDynamicFind`). */
-    if (success && before && !passes(before)) {
-        await offerDynamicFind(actor, { tier: band.tier, room: bookmark.room ?? null, description: String(bookmark.description ?? ""),
-            roll: { ...after, trait: bookmark.trait ?? null }, rollId: bookmark.messageId ?? null });
-    }
+       card stood with its Create an item for a roll that now missed (`withdrawDynamicFind`).
+       AND A MISS IS TOLD AS THE FIRST THROW TELLS ONE (E51 fix round FG7, 31.10.2026; review goal G5, row E51-15): E51 C1
+       gave the first throw's miss the GMs' card with its roll and "needed N", a receipt with nothing to press, and this
+       road posted nothing for a Reroll that missed - the GMs read the miss of a roll that no longer stands. Every
+       Reroll that misses posts that receipt with the new roll; the success's card here says its number too. The roll
+       handed on is the new throw's facts as the card reads them, whatever object the dice answered. Tier 2's E51-T31. */
+    const thrown = { total: after.total, isCritical: Boolean(after.isCritical), withHope: Boolean(after.withHope),
+        withFear: Boolean(after.withFear), trait: bookmark.trait ?? null };
+    const card = { tier: band.tier, room: bookmark.room ?? null, description: String(bookmark.description ?? ""),
+        roll: thrown, rollId: bookmark.messageId ?? null, dc: dynamicBar(band) };
+    if (success && before && !passes(before)) await offerDynamicFind(actor, card);
     if (!success && before && passes(before)) await withdrawDynamicFind(actor, bookmark.messageId ?? null);
+    if (!success) await offerDynamicFind(actor, { ...card, success: false });
 
     return trace;
 }

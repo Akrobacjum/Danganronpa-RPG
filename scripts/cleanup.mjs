@@ -2602,7 +2602,8 @@ async function authorsCopy(actor, left, done) {
     const data = left?.id ? remnantData(left) : null;
     if (!data) return null;
     const pub = remnantPublic(left);
-    const described = pub?.name && pub.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? pub.name : null;
+    // Empty while nobody has described it (remnants.mjs `defaultPublic`, E51 C5).
+    const described = pub?.name || null;
     const { mintFindCopy } = await import("./observe.mjs");
     const item = await mintFindCopy(actor, { tokenId: left.id, sceneId: left.parent?.id ?? null, room: data.room ?? null, data }, {
         name: described || data.subject || game.i18n.format("DRPG.Observe.defaultName", { room: data.room ?? "?" }),
@@ -2859,7 +2860,7 @@ async function undoLastCleanup(actor, tokenId) {
                 // reshape and this Reroll keeps the words its finder read (tier 2 "the Undo
                 // restores the trace and leaves the copies").
                 await setRemnantPublic(tokenDoc, {
-                    name: back?.name ?? game.i18n.localize("DRPG.Remnant.tokenName"),
+                    name: back?.name ?? "",
                     playerText: back?.playerText ?? ""
                 }, { propagate: false });
             }

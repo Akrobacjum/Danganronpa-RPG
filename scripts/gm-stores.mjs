@@ -868,6 +868,31 @@ export const usedToolStore = defineGmStore({
 });
 
 /**
+ * THE TRACES WAITING FOR THE GMS' DIGEST (E51 C5, 31.10.2026; audit S05-53). A row per trace, keyed as its ledger row is
+ * (`sceneId.tokenId`): what the digest's card says of it by its keys - `type`, `visibility`, `faint`, `reinforced`,
+ * `sourceName`, `note`, `room`, `chapter`, `day`, `timeOfDay` - and `at`, when it was placed (utils.mjs `serverNow`, the
+ * epoch clock, so two GMs' rows sort on one clock). Written by whichever GM places the trace (remnants.mjs
+ * `announceRemnant`; a player's comes to the primary through the bridge), said and dropped by the primary alone at the
+ * turn of the time of day or the end of an Eclipse (`sendTraceDigest`), and one dropped when its trace is whispered on
+ * its own at a find (`whisperTraceNow`). It was a Map in that GM's memory until 1.2.94, so the primary's F5 between a
+ * trace and the hour lost the digest (scenario 61's TD).
+ *
+ * SYNCED (E51 fix FG1, 31.10.2026; the end review's G1 and F1). C5 read the owner's Q3 ("syncs to the primary only") as
+ * `sync: false` with the rows written and said on the primary alone, and measured what that cost: a trace a second GM
+ * placed was in no digest (61 TD held `[true, false]`), and a trace placed while one GM was the primary was in none once
+ * another became the primary - a GM whose id sorts first joining while the first stayed (review scratch
+ * f1-digest-handover: gmz primary, its store empty, gm's row unsaid until gm was the primary again), or the primary
+ * leaving for good with its rows. Synced, every GM holds every row, the primary of the moment says them, and a row
+ * dropped as it is said is a tombstone on every GM, so the next primary says what the last had not and nothing twice.
+ * Backed up, and cut by the reset's "remnants" group with the traces it names. No player copy - R182 has nothing to ask
+ * of it - and no old key.
+ */
+export const traceDigestStore = defineGmStore({
+    name: "traceDigest", key: SETTINGS.gmTraceDigest,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: true
+});
+
+/**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
  * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (vault.mjs `rifleKey`): `{ at }`, the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time

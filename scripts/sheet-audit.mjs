@@ -2065,6 +2065,55 @@ function withPaths(data, before, paths) {
 }
 
 /*
+ * A DISCARD'S STAMP IS NO EVIDENCE BY ITSELF (E51 fix FG5, 31.10.2026; the end review's S1). A module item deleted
+ * with `trustedDelete(item, { reason: "discard" })` stood with no row and no card when the GMs' copy said it was
+ * broken - and since 694cfbff (08.10) that was the whole judgement, so a console made the stamped delete without the
+ * Shadow roll and the trace the honest road leaves (use-items.mjs `discardBroken`: "NO TRACE, NO DISPOSAL"). Measured
+ * by the review's probe on 47b63d64, each on the GM afterwards: D1, the Class Trial, a broken tool: gone, no row, no
+ * card, no trace - past the bridge's trial refusal (gm-bridge.mjs `handleRemnant`), which stops only the trace; D3, a
+ * whole tool set broken by the console one write earlier (a break is a spend, so it stood), then the stamped delete:
+ * the same; D4, the Investigation: the same, where the module asks a roll and a trace; D2, the bare delete, flagged
+ * on one card - the protection the stamp stepped past.
+ *
+ * So the stamp now needs a ticket: one the primary writes as it places a player's discard trace (`handleRemnant`,
+ * after the trace stands) and the audit takes at the deletion it covers - the student's, the item's name as the trace
+ * names it (`subject`, cut to 80 as `narrowPlayerRemnant` cuts it), once, within `DISCARD_TICKET_MS`. Both halves run
+ * on the primary, and the honest road deletes only after the bridge answered that the trace was placed, so its ticket
+ * is always there first. No ticket is written in the Class Trial (the bridge refuses the trace before), for a trace
+ * that could not be placed, or for none sent; a stamp without one is judged as a bare delete: flagged, with Undo. A
+ * ticket is this browser's memory, as the cover a used item waits for is (`consumptions`): a primary's F5 or a
+ * handover between the trace and the delete costs one flagged card the GM can Keep. Nothing is added to the stamp
+ * (the delete's options reach every browser that holds the student, and a trace's id there would tell a bystander
+ * which token is whose discard). Left open, as the trust model leaves a Work's trace: a console that forges the
+ * `remnant.place` discard first, with no roll and a band of its choosing, then deletes - a trace naming the item is
+ * still in the ledger. The clock is this browser's own (`Date.now()`): the ticket is written and read here alone.
+ */
+export const DISCARD_TICKET_MS = 60_000;
+/** Actor id -> the discard traces placed for it and not yet taken: `[{ subject, at }]`, on the primary. */
+const discardTickets = new Map();
+const ticketName = name => String(name ?? "").slice(0, 80);
+
+/** The primary placed a player's discard trace for `actorId`, naming `subject`: one deletion of that item may stand. */
+export function noteDiscardTrace(actorId, subject) {
+    if (!actorId) return;
+    const now = Date.now();
+    const kept = (discardTickets.get(actorId) ?? []).filter(t => now - t.at < DISCARD_TICKET_MS);
+    kept.push({ subject: ticketName(subject), at: now });
+    discardTickets.set(actorId, kept);
+}
+
+/** Take the ticket a discard of `name` on `actorId` stands on: true once per trace placed, within `DISCARD_TICKET_MS`. */
+export function takeDiscardTrace(actorId, name) {
+    const now = Date.now(), want = ticketName(name);
+    const kept = (discardTickets.get(actorId) ?? []).filter(t => now - t.at < DISCARD_TICKET_MS);
+    const i = kept.findIndex(t => t.subject === want);
+    if (i >= 0) kept.splice(i, 1);
+    if (kept.length) discardTickets.set(actorId, kept);
+    else discardTickets.delete(actorId);
+    return i >= 0;
+}
+
+/*
  * A WRITE ON AN ITEM OF A STUDENT (the plan's 2.6), answered as `updateFindings` answers, with
  * the items the mark holds after it (`items`) and their effects (`itemEffects`, G3), the item's id
  * for the row, a deleted item's data for an Undo (`data`, with the effects held on it) and a
@@ -2090,7 +2139,8 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
             out.change = { [whole]: [item.name ?? null, null], ...Object.fromEntries(effects.map(([path, effect]) => [path, [effectSummary(effect), null]])) };
             return out;
         }
-        if (stamp.reason === "discard" && isBroken(itemLike(held))) return out;
+        // A discard stands on the trace the primary placed for it (FG5, above), never on its stamp alone.
+        if (stamp.reason === "discard" && isBroken(itemLike(held)) && takeDiscardTrace(actor.id, held.name)) return out;
         out.flagged.push({ path: whole, kind: "itemDeleted" });
         out.change[whole] = [held.name ?? null, null];
         out.data = wholeItem(mark, id);

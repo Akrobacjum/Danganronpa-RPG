@@ -987,14 +987,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        took off Aiko before the pass drained her - the 2 Health the card says, not the Health the pass added.
        Neither participant's copy holds the turns, read once their copy holds the action's receipt stamp
        (`lastCrisis`, written with them) as the GM sends it to them - since fix r2-G2 (03.10.2026) the newest
-       of what their copy shows, not the record's (incident-store.mjs `castPacket`). */
+       of what their copy shows, not the record's (incident-store.mjs `castPacket`). Since E51 C1 a rolled turn's line
+       carries its total against its number ("(N against M)", murder-ui.mjs `recentTurnsHtml`), read off the entry. */
     const trackerAfterHit = await gm.eval(`const { plural } = await import("${repoUrl}/scripts/utils.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const esc = foundry.utils.escapeHTML, last = M.murderState()?.recent?.at(-1) ?? null;
         const said = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: last?.turn, side: game.i18n.localize("DRPG.Murder.side.killer"),
-            action: esc(CRISIS_ACTIONS.strike.label), result: game.i18n.localize("DRPG.Murder.trackerResult.critical") })
+            action: esc(CRISIS_ACTIONS.strike.label), result: game.i18n.localize("DRPG.Murder.trackerResult.critical")
+                + (Number.isFinite(last?.total) && Number.isFinite(last?.threshold)
+                    ? " (" + game.i18n.format("DRPG.Murder.trackerScore", { total: last.total, n: last.threshold }) + ")" : "") })
             + " " + game.i18n.format("DRPG.Murder.theyLose", { name: esc(game.actors.get("${ids.aiko}").name), what: plural("DRPG.Reserve.health", { n: 2 }) });
         const read = await (async () => { ${TRACKER_READ} })();
         const sent = id => M.castPacket(game.users.find(u => !u.isGM && game.actors.get(id).testUserPermission(u, "OWNER"))?.id, M.murderState()).stamps.lastCrisis;

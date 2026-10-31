@@ -35,7 +35,7 @@ import { studentActors } from "./monokuma.mjs";
 // No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
-import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided, verdictStore } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
@@ -493,8 +493,7 @@ function wireMastermindGive(dialog, current) {
         dialog.element.querySelector("[data-drpg-give]")
             ?.addEventListener("click", async () => {
                 const donorId = dialog.element.querySelector("[name=donor]")?.value;
-                const amount = Number(
-                    dialog.element.querySelector("[name=amount]")?.value) || 0;
+                const amount = wholeNumber(dialog.element.querySelector("[name=amount]")?.value, { min: 0, fallback: 0 });
                 if (!donorId || !current) return;
                 // SAYS WHY (MM-02, 20.09). This bailed silently on 0 or a
                 // blank, and the "At least 1" hint beside the stepper is

@@ -56,6 +56,8 @@ import { cubVoice } from "./voice.mjs";
 import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
+// The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
+import { trialParticipants } from "./vote.mjs";
 import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
@@ -245,7 +247,7 @@ export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "
  */
 const FLOOR_OPS = {
     // The debate's question (E70 C3) travels as the request's `text`: the GM's own words, cut by the machine (`topicOf`).
-    start: ({ seconds, text = null }) => startFloorInStep(Number(seconds) > 0 ? seconds : TRIAL.speakSeconds, { topic: text }),
+    start: ({ seconds, text = null }) => startFloorInStep(debateSeconds(seconds), { topic: text }),
     // A pending Objection's `messageId` is the card it waits on; an Objection with its evidence names its card the
     // same way (`openObjection`'s `cardId`), which goes on the floor's stack (E70 C1).
     objection: ({ actorId, targetId, pending = false, messageId = null }) =>
@@ -589,6 +591,20 @@ export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, 
  * ========================================================================== */
 
 /**
+ * A DEBATE'S LENGTH, ON EVERY ROAD (E51 C6, 31.10.2026; audit S06-45; E51-36). A whole number of seconds, at least
+ * `TRIAL.debateMinSeconds`; `TRIAL.speakSeconds` for what is no number, and for 0, which is what the bridge reads
+ * where a request carried no count (`as.num`) and has always stood for the default. Until this, the console's window
+ * passed "-60" on (its `min="30"` is a hint DialogV2 does not enforce), `openDebate(-60)` remembered it, and
+ * `reopenDebate` and the API opened 10 s. Asked by trial-floor-ui.mjs `openDebate` and `reopenDebate` and here by
+ * `startFloor`, `startFloorInStep` and the "start" op. A round's turn is the machine's own range (`turnRange`).
+ */
+export function debateSeconds(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return TRIAL.speakSeconds;
+    return Math.max(Number(TRIAL.debateMinSeconds) || 30, Math.round(n));
+}
+
+/**
  * Open the floor as a free debate.
  *
  * No volunteer, no rotation, no order to preview - the whole table may speak
@@ -597,6 +613,7 @@ export function trialVoice(actorId, { clock = getClock(), floor, record, epoch, 
  */
 export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false, topic = null } = {}) {
     if (!game.user.isGM) return null;
+    seconds = debateSeconds(seconds);
 
     // THE PHASE FOLLOWS THE FLOOR, and it is set here rather than at the call
     // site because there has been more than one way in. `startClassTrial` did
@@ -649,6 +666,8 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
 export async function startFloorInStep(seconds = TRIAL.speakSeconds, { topic = null } = {}) {
     // The machine's `start` row (E70 C1): a debate of `seconds`, its stack empty, and the old queue's rota cleared
     // rather than ignored, so a world that has been through this update keeps no stale rota for somebody to find.
+    // At least `TRIAL.debateMinSeconds` on this road too (E51 C6): the in-step twin is the API's and the bridge's.
+    seconds = debateSeconds(seconds);
     const replaced = trialFloor();
     const written = await commitFloor(replaced, nextFloor(replaced, { type: "start", seconds, topic }, { now: serverNow() }), "start");
     // A debate opened by any road takes up the console's offer to open it again after an Overrule (E70 C2), or after
@@ -713,11 +732,28 @@ export function mayObjectTo(objectorId, targetId, floor = trialFloor()) {
  * The submit-time half: it needs both names, so it cannot grey a button in
  * advance without refusing the legal cut-in described above.
  *
+ * @param {object} [options]
+ * @param {Iterable<string>|null} [options.taking]  the ids of the trial's participants; the suite's (R1023), the trial's
+ *   own (`trialParticipants`) by default
  * @returns {string|null} a localised reason, or null.
  */
-export function targetRefusal(objectorId, targetId, floor = trialFloor()) {
+export function targetRefusal(objectorId, targetId, floor = trialFloor(), { taking = null } = {}) {
     if (!objectorId || !targetId) return game.i18n.localize("DRPG.Trial.objectionNobody");
     if (objectorId === targetId) return game.i18n.localize("DRPG.Trial.objectionSelf");
+
+    /*
+     * AND ONLY AT SOMEBODY WHO TAKES PART IN THE TRIAL (E51 C6, 31.10.2026; amend 14.10 (3), the owner before session 0:
+     * "Objection w trialu pozwala wybrac graczy nie bioracych udzialu"; E51-40). The trial's participants as vote.mjs
+     * `trialParticipants` seats them - a player's student, no Monocub, nobody on the trial's list of the dead, one per
+     * player - with `connected: false` (Q5): a participant whose player dropped out a moment ago is still somebody the
+     * argument is about. A student nobody plays, a Monokuma, a Monocub and a second character of one player are not.
+     * Asked on the primary by every road that aims an Objection (`mayObjectTo`: trial.mjs `objectOnPrimary` with or
+     * without a voice Room, `repointOnPrimary`; `openObjectionInStep`), and on the asking browser by the pickers.
+     */
+    const participants = taking ? new Set(taking) : new Set(trialParticipants({ connected: false }).map(p => p.actor.id));
+    if (!participants.has(targetId)) {
+        return game.i18n.localize("DRPG.Trial.objectionNotParticipant");
+    }
 
     /*
      * AND DURING A REBUTTAL, ONLY THE TWO IN IT MAY BE AIMED AT (Dawid, 28.08,

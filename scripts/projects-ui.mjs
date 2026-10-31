@@ -19,7 +19,7 @@ import { PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, T
 import {
     allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
     viewersOf, secretsOf, createProject, deleteProject,
-    applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress
+    applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, markFired, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -258,7 +258,7 @@ function projectManagerRows(projects, rooms, { always = new Set() } = {}) {
                 <input type="hidden" name="img.${p.id}" value="${foundry.utils.escapeHTML(p.img ?? "")}" />
             </td>
             <td>${foundry.utils.escapeHTML(p.name)}<br><small data-drpg-progress="${p.id}"
-                >${p.current}/${p.start}</small></td>
+                >${projectLabel(p, { name: false })}</small></td>
             <td><select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
                 roomOptions(p.id)}</select></td>
             <td style="text-align:center">
@@ -314,7 +314,7 @@ function wireProjectManager(dialog, projects, rooms) {
                 const cell = root.querySelector(
                     `[data-drpg-progress="${CSS.escape(project.id)}"]`);
                 if (!cell) continue;
-                const text = `${project.current}/${project.start}`;
+                const text = projectLabel(project, { name: false });
                 if (cell.textContent !== text) cell.textContent = text;
             }
         },

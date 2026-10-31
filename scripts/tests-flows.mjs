@@ -30,7 +30,7 @@
  * sync.mjs exempt. Two scenario claims of the plan's list did not hold and are not
  * made: 12-social rolls with rollTrait, not performAction, so it is not an
  * action-roll scenario; 13-murder-signals checks the murder music (music.mjs, world
- * state), and no sfx.mjs packet crosses in it, so "sound" is planned. 10-murder
+ * state), and no sfx.mjs packet crosses in it, so "sound" was planned (covered by 87 since E50 C4). 10-murder
  * places a trace but makes no Truth Bullet, so truth-bullets names 30-security only.
  * And 11-killer-secrecy drives the discovery and checks nothing while it does (its
  * first tagged run: 0 body-discovery checks), so body-discovery names 10-murder.
@@ -64,11 +64,11 @@
 export const FLOWS = Object.freeze([
     // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
-        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow", "88-flow-length"], status: "partial", stage: "E39" },
     // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
     // E12 C12 (11.10.2026): its I1-I4 read whom the discovery counts when a student reached the room past the rules.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
@@ -110,14 +110,14 @@ export const FLOWS = Object.freeze([
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
@@ -130,9 +130,10 @@ export const FLOWS = Object.freeze([
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity", "87-messenger-sound"], status: "partial", stage: "E39" },
     // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
     // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.
     // E80 fix r1-G4 (19.10.2026; the review's goal-P2-18 and goal-P2-20): 40-flow drives it in three players' browsers -
@@ -173,7 +174,7 @@ export const FLOWS = Object.freeze([
     // the card written on p1's receipt and A17 the card p1's clock ended; 30-security's 4b2e (E18 fix e1-G2) forges both from
     // p2's console against p1's open ask, and p1's own expiry ends it.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "covered", stage: "<=1.2.50" },
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
@@ -189,8 +190,9 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts
     // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound reads the read state, the counts and a failed send.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
-        entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals", "87-messenger-sound"], status: "covered", stage: "<=1.2.50" },
     // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, gm-bridge.mjs
     // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim; 30-security's 4b2e forges
     // p2's take and done of p1's card (E18 fix e1-G2).
@@ -221,9 +223,11 @@ export const FLOWS = Object.freeze([
     // C4) has p3's page throw Chie's opening, take a Finishing Blow and clean up a trace in Stage 6, each drawn on the
     // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
     // it was gm-rolls-total's, which 83's other phases keep.
+    // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part D plays the murder music on four accounts.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity"],
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity",
+            "87-messenger-sound"],
         suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
@@ -257,7 +261,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["observe.target", "observe.resolve", "observe.pick", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant",
             "searchTokens.returnToken"],
             sockets: ["search-tokens.mjs"] },
-        scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
     // the primary GM (sheet-audit.mjs), no socket of the module's. 30-security writes a statistic, a maximum, a rule,
     // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic
@@ -310,8 +314,10 @@ export const FLOWS = Object.freeze([
     // tools/registry.mjs asks a covered flow's scenarios to tag a check with it.
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
+    // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx.mjs `fire` hands a file to the audio layer
+    // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
-        entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
+        entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
@@ -346,3 +352,23 @@ export const FLOW_EXEMPT = Object.freeze({
     "bridge-guards.mjs": "the answers to every request (ack, done, refused), heard for whichever flow asked (E31)",
     "sync.mjs": "the world-state echo every flow rides on; 00-boot and 40-flow read it on every client"
 });
+
+/*
+ * THE FLOWS WHOSE LENGTH IS COUNTED (E51 C8, 31.10.2026; audit S17-49; E51-49): what scenario 88-flow-length drives and
+ * holds, in clicks and windows per browser, to audit/harness/flow-length.json. `name` is the baseline's row, `flow` the
+ * flow of FLOWS it is part of (R1133 holds each to one that names 88-flow-length), `from` what stands open when the
+ * count starts. The trial console's mode bar is counted a mode at a time.
+ */
+export const FLOW_LENGTHS = Object.freeze([
+    { name: "search", flow: "search-observe", from: "Aiko's sheet on p1" },
+    { name: "observe", flow: "search-observe", from: "Aiko's sheet on p1" },
+    { name: "analyze", flow: "analyze", from: "Aiko's sheet on p1" },
+    { name: "hopeCall", flow: "hope-call", from: "Botan's sheet on p2; the GM presses the card in p2's thread" },
+    { name: "dynamic", flow: "action-roll", from: "Aiko's sheet on p1; the GM presses the card" },
+    { name: "refund", flow: "crossing-fee-refund", from: "the GM panel on the GM, Aiko's crossing recorded" },
+    { name: "modeBar.testimony", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "modeBar.panic", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "modeBar.closing", flow: "class-trial", from: "the trial console on the GM, no floor open" },
+    { name: "verdict", flow: "class-trial", from: "the trial console on the GM, the vote not sent" },
+    { name: "levelUp", flow: "class-trial", from: "Aiko's sheet on p1, her offer standing" }
+]);

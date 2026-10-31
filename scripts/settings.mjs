@@ -428,6 +428,13 @@ export const SETTINGS = {
      */
     gmCrossings: "gmCrossings",
     /**
+     * THE TRACES WAITING FOR THE GMS' DIGEST (E51 C5, 31.10.2026; audit S05-53): a GM store (gm-stores.mjs
+     * `traceDigestStore`), a row per trace any GM placed since the last digest, said and dropped by the primary at the
+     * turn of the time of day. Synced between GMs (E51 fix FG1: a second GM's trace and a handover), backed up; no
+     * player copy.
+     */
+    gmTraceDigest: "gmTraceDigest",
+    /**
      * THE PRIMARY'S BEAT (E17 C6, 26.10.2026; audit S10-16): a GM store (gm-stores.mjs `clockBeatStore`), one record
      * `{ at }` - `serverNow()` every 60 s while the world runs (hud.mjs `beatClock`), the last moment a primary GM is
      * known to have been there. At the next `ready` the gap since it is no time of day's (`settleClockAtReady`). A GM
@@ -500,6 +507,8 @@ export const SETTINGS = {
     rollDrawWarned: "rollDrawWarned",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
+    /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
+    handbookBook: "handbookBook",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
     readableRolls: "readableRolls",
     /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
@@ -1850,6 +1859,13 @@ export function registerSettings() {
         default: {},
         onChange: () => Hooks.callAll("drpgCrossingsChanged")
     });
+    // The traces waiting for the digest (E51 C5): no `onChange` - shown nowhere until the digest says them, on the primary.
+    game.settings.register(MODULE_ID, SETTINGS.gmTraceDigest, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The primary's beat (E17 C6): no `onChange` - read at `ready` alone, shown nowhere.
     game.settings.register(MODULE_ID, SETTINGS.gmClockBeat, {
         scope: "client",
@@ -1949,6 +1965,14 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: false
+    });
+    /* The book the handbook window opens on (E51 C8, 31.10.2026; E51-46, Q6's default: a client setting, not
+       localStorage of the module's own): per browser, written by a tab pressed, "" until one is. */
+    game.settings.register(MODULE_ID, SETTINGS.handbookBook, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     /* The roller's own drawn rolls, so a reload still lets them read what they rolled

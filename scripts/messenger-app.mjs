@@ -20,12 +20,12 @@
 
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
-    threadUsers, isThreadUser, threadMessages, lastMessage,
-    unreadCount, totalUnread, markThreadRead, sendMessage
+    threadUsers, isThreadUser, threadMessages, threadStats,
+    totalUnread, markThreadRead, sendMessage
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
@@ -40,6 +40,19 @@ export function registerMessengerUi() {
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
+    /* A card that changed: a settled ask no longer counts for the GM that posted it (messenger.mjs `threadStatsOf`, E50
+       C2), and a settle reaches a browser as this hook alone - new words through `updateSecret` (secret.mjs `remember`),
+       or a document's update - so the badge is drawn again here (E50 fix FG2; the end review's F2, 87 B1). An open
+       roster keeps the rows it was drawn with, as it does for a message or a read. */
+    Hooks.on("drpgMessengerEdited", () => renderLauncher());
+    Hooks.on("drpgMessengerDeleted", onMessengerDeleted);
+    /* The page shown again (another tab, a minimised browser): the frontmost messenger window reads what came while it
+       was hidden (E50 C1, E50-01). What v14 does with `ui.activeWindow` meanwhile is LIVE-E50-02. */
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        const front = ui.activeWindow;
+        if (front instanceof DrpgMessengerApp) front.markIfSeen();
+    });
     // A note changed on this browser (settings.mjs, the note store's and copy's `onChange`).
     Hooks.on("drpgNotesChanged", () => {
         for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
@@ -363,18 +376,37 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         const form = this.element.querySelector(".drpg-messenger-input");
         const textarea = form?.querySelector("textarea");
 
+        /*
+         * A FAILED SEND KEEPS WHAT WAS TYPED (E50 C1; audit S11-38, E50-03). The field was emptied before the send,
+         * and `createThreadMessage` logs a failure and answers null - so a message that never left was gone from the
+         * screen as well, and nothing said so. The field is held while the send runs and emptied only once the
+         * message is there; on null or a throw the words stay, the field comes back, and the writer is told once.
+         *
+         * TOLD WHAT IS KNOWN, AND ONCE (E50 fix FG2; the end review's F4, S2, G6). "Not sent" was said of every null,
+         * after a refusal that had said why (too long, no GM) and where the primary may have posted it during an
+         * incident (secret.mjs `askGm`: no answer in time, or an id and no card in time), so Send again posted it
+         * twice. The send fills `outcome` (`postSecret`'s): may have been posted - say so, and to look at the thread
+         * first; said already - nothing more; neither - not sent. A throw is not sent.
+         */
         form?.addEventListener("submit", async event => {
             event.preventDefault();
             const text = textarea.value;
-            if (!text.trim()) return;
-            textarea.value = "";
+            if (!text.trim() || textarea.disabled) return;
             textarea.disabled = true;
+            let sent = null;
+            const outcome = {};
             try {
-                await sendMessage(this.playerUserId, text);
+                sent = await this.send(text, outcome);
+            } catch (err) {
+                error("Messenger: could not send.", err);
+                sent = null;
             } finally {
                 textarea.disabled = false;
-                textarea.focus();
             }
+            if (sent) textarea.value = "";
+            else if (outcome.maybePosted) ui.notifications.warn(game.i18n.localize("DRPG.Messenger.sendUnsure"));
+            else if (!outcome.told) ui.notifications.error(game.i18n.localize("DRPG.Messenger.sendFailed"));
+            textarea.focus();
         });
 
         textarea?.addEventListener("keydown", event => {
@@ -385,8 +417,51 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         });
 
         this._scrollToBottom();
-        markThreadRead(this.playerUserId);
+        this.markIfSeen();
         textarea?.focus();
+    }
+
+    /** The send behind the Send button: the thread's own message, answered, or null when it did not go (`outcome` says what is known). */
+    async send(text, outcome = null) {
+        return sendMessage(this.playerUserId, text, { outcome });
+    }
+
+    /*
+     * READ ONLY WHAT IS IN FRONT OF THE READER (E50 C1; audit S11-37, E50-01; Q-E50-2's default). Every render
+     * marked the thread read, the Note tab's too, and every message that came while the window was open, whatever
+     * covered it or however long the browser's tab had been hidden: a GM's badge went out on a request nobody saw.
+     * Seen now means the window drawn, on its Chat tab, the frontmost window (`ui.activeWindow`) and the page
+     * visible; a message that comes otherwise raises its card (the hook below) and is read when the window is
+     * brought forward, switched to Chat or shown again. A window minimised is not reachable (no-collapse.mjs).
+     * What sets `ui.activeWindow` on v14 is LIVE-E50-01: the harness sets it on a first render and on
+     * `bringToFront`, and clears it on close.
+     */
+    seesThread() {
+        return Boolean(this.rendered) && this.tab === "chat" && ui.activeWindow === this
+            && document.visibilityState === "visible";
+    }
+
+    markIfSeen() {
+        if (this.seesThread()) markThreadRead(this.playerUserId);
+    }
+
+    bringToFront() {
+        const out = super.bringToFront();
+        this.markIfSeen();
+        return out;
+    }
+
+    /**
+     * A message deleted from the chat log leaves this window (E50 C1; audit S11-35, E50-04): its bubble goes, its
+     * buttons with it, and an emptied log says so again.
+     */
+    removeMessage(messageId) {
+        const log = this.element?.querySelector(".drpg-messenger-log");
+        if (!log || !messageId) return false;
+        const bubbles = [...log.querySelectorAll(".drpg-messenger-bubble")].filter(b => b.dataset.messageId === messageId);
+        for (const bubble of bubbles) bubble.remove();
+        if (bubbles.length && !log.querySelector(".drpg-messenger-bubble")) log.replaceChildren(emptyNotice());
+        return bubbles.length > 0;
     }
 
     /**
@@ -408,9 +483,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         log.querySelector(".drpg-messenger-empty")?.remove();
         log.append(buildBubble(message));
         this._scrollToBottom();
-        // The window is on screen - count it as read immediately rather than
-        // leaving a badge for a conversation the user is looking straight at.
-        markThreadRead(this.playerUserId);
+        // Read at once only when it is in front of the reader (`seesThread`); otherwise its card is raised.
+        this.markIfSeen();
     }
 
     _scrollToBottom() {
@@ -431,7 +505,9 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
     const instance = DrpgMessengerApp.instances.get(playerUserId);
     if (instance) {
         instance.appendMessage(message);
-        return;
+        /* An open window that does not show it (on Note, covered by another window, the page hidden) raises the same
+           card a closed one would (E50 C1, E50-02). A stand-in without `seesThread` counts as seeing (R297). */
+        if (instance.seesThread?.() ?? true) return;
     }
 
     /* A GM used to keep only the roster badge for this - a passive dot in the
@@ -487,6 +563,16 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
  */
 function keptAsMessenger(message, playerUserId) {
     return { source: "messenger", messageId: message?.id ?? null, link: { messenger: playerUserId } };
+}
+
+/*
+ * A deleted message leaves every open window that shows it (E50 C1; audit S11-35, E50-04). Every window, not only its
+ * thread's: a veiled card names its thread only in the words it brought, so its window is found by its bubble. The
+ * launcher is drawn again, as the count may drop. The card copy on the screen is popup.mjs's (`onDeleteChatMessage`).
+ */
+function onMessengerDeleted(message) {
+    for (const app of DrpgMessengerApp.instances.values()) app.removeMessage?.(message?.id ?? null);
+    renderLauncher();
 }
 
 // A card that changed while a window is open redraws in place. A card that
@@ -704,7 +790,7 @@ async function askItemEffect(item) {
                     const f = d.element.querySelector("form");
                     const amounts = {};
                     for (const key of ["hitPoints", "stress", "hope"]) {
-                        const n = Math.max(0, Math.trunc(Number(f.elements[key]?.value) || 0));
+                        const n = wholeNumber(f.elements[key]?.value, { min: 0, max: 12, fallback: 0 });
                         if (n) amounts[key] = n;
                     }
                     return { amounts, consume: Boolean(f.elements.consume?.checked) };
@@ -1329,9 +1415,8 @@ export function renderLauncher() {
         button.setAttribute("aria-label", launcherTooltip());
         button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
 
-        const unread = game.user.isGM
-            ? threadUsers().reduce((sum, u) => sum + unreadCount(u.id), 0)
-            : totalUnread();
+        // One count of every thread (messenger.mjs `threadStats`, E50 C2): a GM's every player's, a player's own.
+        const unread = totalUnread();
         if (unread > 0) {
             const badge = document.createElement("span");
             badge.className = "drpg-messenger-badge";
@@ -1362,12 +1447,24 @@ function launcherTooltip() {
 
 function toggleRoster(anchor) {
     const existing = document.getElementById("drpg-messenger-roster");
-    if (existing) {
+    // A roster on its way out is closed already: the click opens a new one (buildRoster takes the old one off at once).
+    if (existing && !existing.classList.contains("leaving")) {
         closeRoster(existing);
         return;
     }
     buildRoster(anchor);
 }
+
+/*
+ * ONE ROAD TO CLOSE THE ROSTER (E50 C2, 30.10.2026; audit S11-44, E50-13). The outside click was a document listener
+ * added `{ once: true }`, so the first click INSIDE the roster spent it - a click on the heading, on the space between
+ * rows - and from then on nothing closed the roster but its button; `openMessenger()` on a GM built a second roster
+ * beside an open one; and a row's click took the panel off the page itself, past the leaving class. Now the listener
+ * stays until `closeRoster` takes it away, a new roster takes an open one off first (at once, through `closeRoster`),
+ * and a row closes through `closeRoster`. R1066 and scenario 87 B2 measured the three at C2's parent: open after the
+ * outside click, three rosters after two opens, the row's panel gone with no leaving class.
+ */
+const rosterOutside = new WeakMap();
 
 /**
  * Take the roster off screen the way the popups leave - a beat out, then gone.
@@ -1376,7 +1473,13 @@ function toggleRoster(anchor) {
  * guarantee, because a `transitionend` that never fires - reduced motion, a
  * backgrounded tab - must not leave a dead roster blocking the next open.
  */
-function closeRoster(panel) {
+function closeRoster(panel, { instant = false } = {}) {
+    rosterOutside.get(panel)?.();
+    rosterOutside.delete(panel);
+    if (instant) {
+        panel.remove();
+        return;
+    }
     if (panel.classList.contains("leaving")) return;
     panel.classList.remove("visible");
     panel.classList.add("leaving");
@@ -1386,6 +1489,7 @@ function closeRoster(panel) {
 }
 
 function buildRoster(anchor) {
+    for (const old of document.querySelectorAll("#drpg-messenger-roster")) closeRoster(old, { instant: true });
     const panel = document.createElement("div");
     panel.id = "drpg-messenger-roster";
 
@@ -1401,8 +1505,9 @@ function buildRoster(anchor) {
         panel.append(empty);
     } else {
         const list = document.createElement("ul");
+        const stats = threadStats();
         for (const user of players.sort((a, b) => a.name.localeCompare(b.name))) {
-            list.append(rosterRow(user));
+            list.append(rosterRow(user, stats));
         }
         panel.append(list);
     }
@@ -1415,21 +1520,26 @@ function buildRoster(anchor) {
     // popups.
     requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("visible")));
 
-    // Close on an outside click, but not on the click that just opened it.
-    setTimeout(() => document.addEventListener("click", onOutsideClick, { once: true }), 0);
-    function onOutsideClick(event) {
-        if (panel.contains(event.target) || event.target === anchor) return;
+    // Close on an outside click, but not on the click that just opened it: armed after it, kept until closeRoster.
+    const onOutsideClick = event => {
+        if (panel.contains(event.target) || (anchor && anchor.contains(event.target))) return;
         closeRoster(panel);
-    }
+    };
+    const arm = setTimeout(() => document.addEventListener("click", onOutsideClick), 0);
+    rosterOutside.set(panel, () => {
+        clearTimeout(arm);
+        document.removeEventListener("click", onOutsideClick);
+    });
 }
 
-function rosterRow(user) {
+function rosterRow(user, stats = threadStats()) {
     const li = document.createElement("li");
     li.className = "drpg-messenger-roster-row";
 
-    const last = lastMessage(user.id);
+    const row = stats.get(user.id);
+    const last = row?.last ?? null;
     const preview = last ? stripHtml(contentOf(last)) : game.i18n.localize("DRPG.Messenger.rosterNoMessages");
-    const unread = unreadCount(user.id);
+    const unread = row?.unread ?? 0;
 
     const name = document.createElement("div");
     name.className = "drpg-messenger-roster-name";
@@ -1452,7 +1562,8 @@ function rosterRow(user) {
     }
 
     li.addEventListener("click", () => {
-        document.getElementById("drpg-messenger-roster")?.remove();
+        const panel = li.closest("#drpg-messenger-roster");
+        if (panel) closeRoster(panel);
         openMessenger(user.id);
     });
 

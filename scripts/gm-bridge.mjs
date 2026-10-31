@@ -1236,6 +1236,12 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
+        /* NO DISCARD IN THE CLASS TRIAL (E51 C6, 31.10.2026; amend 14.10 (2); Q1: the phase; E51-41). The discarder's
+           browser refuses it before its window (use-items.mjs `discardBroken`, `noDiscardNow`), so a discard's trace
+           that reaches the primary in the trial is a console's, or a discard begun before the trial and landing in it.
+           Refused before its type is filed and before anything is placed, so the browser, answered refused, keeps the
+           item (`trustedDelete` runs only on a trace placed); the roll is spent, and the whisper there says so. */
+        if (data.action === "discard" && getClock()?.phase === "classTrial") return { refused: "that waits until the Class Trial is over" };
         /* A DISCARD'S TYPE IS THE GM'S (E14 part 1 C5, 24.10.2026; audit S08-13). `narrowPlayerRemnant` keeps the
            packet's type within Preparation and Tamper, and the discarder's browser chose it by what it could read: an
            innocent's browser cannot see whose incident runs, and a console could file a weapon's disposal as preparation.
@@ -1248,6 +1254,9 @@ async function handleRemnant(payload, sender, ctx) {
     // player's item stays on the sheet.
     const placed = await placeRemnant(data);
     if (!placed) return { refused: "the trace could not be placed" };
+    /* THE DISCARD'S TICKET (E51 fix FG5; the end review's S1): the deletion the discarder's browser makes next stands on
+       this trace placed, once (sheet-audit.mjs `noteDiscardTrace`); a stamped delete with no trace behind it is flagged. */
+    if (!sender.isGM && data.action === "discard") (await import("./sheet-audit.mjs")).noteDiscardTrace(data.sourceActor, data.subject);
     /* WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08). The player's browser is
        answered as before, with no id: a Reroll that retunes or removes this trace is the GM's
        from C4a, and finds it by this fact - the browser's `remnantRef` named none. Written on
@@ -2432,7 +2441,7 @@ export const BRIDGE_ACTIONS = table({
            read off its record of the roll (E08+E28 C15; `traceBandOf`); another action's trace
            names no roll. One roll leaves one trace. */
         rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType); a GM's is placed as written",
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf), a discard's type the GM's (use-items.mjs discardRemnantType), refused in the Class Trial, and once placed the ticket its item's deletion stands on (sheet-audit.mjs noteDiscardTrace); a GM's is placed as written",
             rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
@@ -2857,7 +2866,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialObject,
         answer: "reply",
         claims: {
-            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to a student alive as the table knows it (chapter.mjs livingStudents) the floor lets the objector aim at, and with none named answered needName with nothing paid; with a Room it is not read"
+            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6) alive as the table knows it (chapter.mjs livingStudents) the floor lets the objector aim at, and with none named answered needName with nothing paid; with a Room it is not read, and the speaker it counts is held by the same mayObjectTo"
         }
     },
     /*
@@ -2905,7 +2914,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleFloorRepoint,
         answer: "reply",
         claims: {
-            targetId: "held by trial.mjs repointOnPrimary to a living student the floor lets the objector aim at (trial-floor.mjs mayObjectTo); a GM's request only"
+            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
         }
     },
     /*
@@ -4899,7 +4908,8 @@ export async function callGm(actor, {
      * waited on a ruling that was never coming and the GMs were interrupted for a receipt. True: no
      * "awaiting" line, no `gmAsk`, no sound or popup of a question. Every other card at d90687dc
      * carries buttons or is answered by a reply (`askGm`: Think, Listen and the rest), so is a
-     * question; the watched trap's receipt is the one caller (projects.mjs `announceTrapReady`).
+     * question; the watched trap's receipt was the one caller (projects.mjs `announceTrapReady`), and since E51 C1 a
+     * Dynamic miss's card is another (action-rolls.mjs `offerDynamicFind`).
      */
     receipt = false
 } = {}) {
@@ -5084,8 +5094,8 @@ async function askCardClaim(messageId, step) {
  * or had, is not ruled: this GM is told who, and null is answered without `work` running.
  *
  * The one road for every ruling on a card: the card's buttons (messenger-app.mjs `wireCallActions`)
- * today, and the cards E67 (the gmAsk card's 'Give 1/2'), E68 (the trait card) and E72 (Accept and
- * Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
+ * today, and the cards E72 (part A, formerly E67: the gmAsk card's 'Give 1/2'), E68 (the trait card)
+ * and E72 (Accept and Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
  *
  * @param {ChatMessage} message  The card.
  * @param {() => Promise<object|null>} work  The ruling, run on this GM's browser.

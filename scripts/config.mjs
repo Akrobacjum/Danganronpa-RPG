@@ -3033,7 +3033,8 @@ export const MONOCUB = {
      * picker (labelled `DRPG.Monocub.<choice>`), `cost` the actions and `hopeCost`
      * the Hope the Monocub's browser pays before the GM throws. A second ability is
      * one row here and one resolver there; the fields the 1.4.0 rework adds
-     * (phases, caps, a GM-side payment) are E67's.
+     * (phases, caps, a GM-side payment) are those of
+     * E72 (part A, formerly E67).
      */
     abilities: {
         meddle: {
@@ -3677,6 +3678,13 @@ export const TRIAL = {
      * it.
      */
     speakSeconds: 180,
+    /**
+     * The shortest debate any road opens (E51 C6, 31.10.2026; audit S06-45). The console's field said `min="30"`
+     * and nothing held it: DialogV2 does not enforce an input's bounds, so "-60" opened a debate with its clock red
+     * from the first second and was remembered for the next one, and `reopenDebate` passed 10 s on. trial-floor.mjs
+     * `debateSeconds` holds every road to it.
+     */
+    debateMinSeconds: 30,
     /**
      * An OBJECTION buys exactly one minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to

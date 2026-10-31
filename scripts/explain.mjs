@@ -26,7 +26,7 @@
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { dialogContent, error, esc, plural } from "./utils.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, viewerNeedsAssigning } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
 import { clockForDisplay, viewerActor } from "./hud.mjs";
@@ -119,10 +119,17 @@ function timeOfDayBlock(clock) {
     return [heading, strip, esc(t("DRPG.Explain.time.what"))];
 }
 
-/** Where the reader is standing, and everything true about it. */
+/**
+ * Where the reader is standing, and everything true about it.
+ *
+ * WHOSE ROOM, WHEN IT IS A GUESS (E51 C4, 31.10.2026; E51-25, the A8 design): a player owning several students with
+ * none assigned is shown the one `viewerActor` chose (the controlled one, else the first by name), and the section
+ * says so first, with where to make it stand (`DRPG.Hud.assignHint`).
+ */
 async function roomBlock() {
     const actor = subjectActor();
     if (!actor) return section(t("DRPG.Explain.room.title"), [esc(t("DRPG.Explain.room.noActor"))]);
+    const guess = !game.user.isGM && viewerNeedsAssigning() ? esc(t("DRPG.Hud.assignHint", { name: actor.name })) : "";
 
     // The room and its scene where the reader's character stands (E12 C6): the description
     // and the tokens were read on the scene on screen until 1.2.74.
@@ -130,10 +137,10 @@ async function roomBlock() {
     const place = locateActor(actor);
     const room = place?.room ?? null;
     if (!room) {
-        return section(t("DRPG.Explain.room.title"), [esc(t("DRPG.Hud.roomNowhere"))]);
+        return section(t("DRPG.Explain.room.title"), [guess, esc(t("DRPG.Hud.roomNowhere"))]);
     }
 
-    const lines = [`<strong>${esc(room)}</strong>`];
+    const lines = [guess, `<strong>${esc(room)}</strong>`];
 
     // The GM's own words about the place, when they have written any - see the
     // Description tab in Room Setup. Escaped: it is typed prose, and it is

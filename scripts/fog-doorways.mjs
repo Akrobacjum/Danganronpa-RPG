@@ -32,7 +32,9 @@
  * secret passage of its floor runs in a wall (`gmPassageGaps`, `withPassageGhosts`, `traceGhostStretches`), read from
  * the GMs' rows (passages.mjs `secretSegmentsOn`). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
- * was written beside.
+ * was written beside. Since E51 C3 (31.10.2026) every door the outline opens is asked of the veto for the character
+ * it is drawn for (`doorwayEdges`, movement.mjs `passageOpenFor`), and the token ruler wears the outline's colour
+ * (`hourRulerFor`, `registerTokenRuler`, `refreshTokenRulers`): its lowest reader of the seam colour.
  */
 
 import { debug } from "./utils.mjs";
@@ -40,7 +42,7 @@ import { roomPieces, onLevel } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, tunnelEndsFor, secretSegmentsOn } from "./passages.mjs";
 import { passageOpenFor, tunnelEndRooms, roomsKnownToMe } from "./movement.mjs";
 import {
-    regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
+    regionShapes, polylineLength, inPolygons, inFlatPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
 
 /**
@@ -521,6 +523,11 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * the test as they were, so the outline is the map's (R557 compares the two); a GM's frame is cut by every passage
  * outside this, on these edges (`withPassageGhosts`, H82-05), so the map's checks still read the map. `elevation` is the height of the
  * token the outline is drawn for, at which a passage's sides are read (`viewerPassages`; H81 fix r1).
+ *
+ * AND EVERY DOOR IS THE VETO'S (E51 C3, 31.10.2026; D43c = 2). For `actor`, on any browser, a stretch open to the walls
+ * stays open only where movement.mjs `passageOpenFor` lets that character into the room beyond (`{ door: true, to }`):
+ * a door into a room a GM locked, a sealed one or another's bedroom is drawn as wall, with no gap and no glow. No actor
+ * reads the walls alone, as before (R1113; scenario 76 DV).
  */
 export function doorwayEdges(region, level = null, { actor = null, elevation = null } = {}) {
     try {
@@ -540,11 +547,26 @@ export function doorwayEdges(region, level = null, { actor = null, elevation = n
         const own = rings.map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
-        const others = [];
+        const others = [], otherNames = [];
         for (const other of roomPieces(scene)) {
             if (other.name === region.name || !onLevel(other, level)) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
+            otherNames.push(other.name);
         }
+
+        /* THE VETO'S OWN ANSWER AT EVERY DOOR (E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2). Drawn for a
+           character, a stretch open to the walls is open only into a room movement.mjs `passageOpenFor` lets that
+           character walk into - not a room a GM locked, a sealed one or another's bedroom without its key (a GM's
+           browser asks no bedroom there). A shut one is drawn as the wall the veto makes it: no gap, no glow. Asked once
+           a room beyond, on this floor, at the token's height. No character - the map's checks, `doorwayReport` - reads
+           the map as it was. */
+        const verdicts = new Map();
+        const doorOpen = to => {
+            if (!actor || !to) return true;
+            if (!verdicts.has(to)) verdicts.set(to, passageOpenFor(actor, { door: true, to }, scene, { from: region.name, level, elevation }));
+            return verdicts.get(to);
+        };
+        const roomAt = point => (point ? otherNames[others.findIndex(p => inPolygons(p, point.x, point.y))] ?? null : null);
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
@@ -644,6 +666,8 @@ export function doorwayEdges(region, level = null, { actor = null, elevation = n
                                 : neighbourBeyond(mx, my, nx, ny, others, reach);
 
                             isOpen = Boolean(beyond)
+                                // A door the veto shuts for this character is a wall to it (D43c = 2).
+                                && doorOpen(roomAt(beyond))
                                 // Is there a wall running along this stretch?
                                 // Asked of the walls themselves, so the answer
                                 // no longer depends on how far from the wall the
@@ -1253,6 +1277,181 @@ function eraseRoomFromGlow(renderer, field, region, rect, box, out) {
     }
 }
 
+/*
+ * THE LIGHT STOPS AT THE FIRST WALL AND AT THE END OF THE ROOM IT FALLS INTO (E51 fix FG3, 31.10.2026; the owner's item 4
+ * of 31.10, LIVE-E51-03, his screenshot of that day (the stage's owner-shot-31.10.webp): pools of light along a diagonal border, each
+ * spilling a square or more into the rooms beyond, over their walls).
+ *
+ * The glow is a band about each opening's averaged line, reaching `core + span` past it: 1.42 squares on a straight
+ * border, up to 1.92 on a stepped one (the core grows with the staircase's amplitude). What decides that a stretch is
+ * open looks along one ray out to `DOORWAY_PROBE_OUT`, 0.95 squares, so a wall between there and the band's edge was
+ * never asked about, and nothing took out of the band what lies past a wall or in a room it does not open into - the
+ * room itself, the ends and the inward side were all that was erased (the correctness review's reading of item 4).
+ *
+ * Now the band is cut to a shape cast from its own line: along each segment of every run, a ray from each end, square
+ * to the segment, as long as the band reaches, stopped at the first wall that stops a move (an open door does not; a
+ * passage this character may take is cut out of its wall, as the doorway's own test cuts it) and where the ray leaves
+ * the first room it entered past the border (a room drawn beyond a gap is reached across the gap; the room after it is
+ * not). The segment's quad, and a wedge at each joint where the segments turn, make the shape; everything of the field
+ * outside it is erased (`eraseBeyondLight`). Walls are read off the scene's documents, as `wallAlongEdge` reads them,
+ * not through the movement backend: a ray per end of every segment of every run, every wall each.
+ * What a table shows is LIVE-E51-03; what the shape is, R1138 and R1139.
+ */
+
+/** Whether a wall stops the doorway's light: one that stops a move and is no open door (as `wallAlongEdge` reads it). */
+function stopsLight(wall) {
+    const NONE = CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0;
+    const OPEN = CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
+    return wall?.move !== NONE && !(wall?.door && wall?.ds === OPEN);
+}
+
+/**
+ * What the glow of `region`'s doorways may light, for `addDoorwayGlow` (E51 fix FG3): the walls that stop it, each
+ * `[x1, y1, x2, y2]` - the floor's, less a passage `actor` may take out of the room (`viewerPassages`, as
+ * `doorwayEdges` cuts them) - and every other room on that floor, `{ name, rings }` in the scene's space. Null when
+ * the region has no scene (the glow is then drawn uncut, as before) or the walls could not be read.
+ */
+export function doorwayLight(region, level = null, { actor = null, elevation = null } = {}) {
+    try {
+        // The region's own scene, never the camera's (rooms.mjs CAMERA_READERS, R382): a room's shape keeps its scene.
+        const scene = region?.parent ?? null;
+        if (!scene) return null;
+        const passages = viewerPassages(actor, region, scene, level, { elevation });
+        const walls = passageWalls(floorWalls(scene, level), passages).filter(stopsLight)
+            .map(wall => wall.c).filter(c => c?.length >= 4 && [0, 1, 2, 3].every(i => Number.isFinite(c[i])))
+            .map(c => [c[0], c[1], c[2], c[3]]);
+        const rooms = [];
+        for (const other of roomPieces(scene)) {
+            if (other.name === region.name || !onLevel(other, level)) continue;
+            const rings = regionShapes(other, { x: 0, y: 0 });
+            if (rings.length) rooms.push({ name: other.name, rings });
+        }
+        return { walls, rooms };
+    } catch (err) {
+        debug("Fog: could not read what a doorway's light may reach", err);
+        return null;
+    }
+}
+
+/** Where along `from -> to` (as a fraction) the segment `x1,y1 - x2,y2` crosses it, or null. */
+function crossAt(fx, fy, tx, ty, x1, y1, x2, y2) {
+    const rx = tx - fx, ry = ty - fy, sx = x2 - x1, sy = y2 - y1;
+    const den = rx * sy - ry * sx;
+    if (!den) return null;
+    const t = ((x1 - fx) * sy - (y1 - fy) * sx) / den;
+    const u = ((x1 - fx) * ry - (y1 - fy) * rx) / den;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : null;
+}
+
+/**
+ * How far the light goes from `(x, y)` along `(ox, oy)` (the scene's space), at most `reach`: `{ d, stop }`, `stop`
+ * "wall", "room" or "reach". Cast from `back` behind the point, so a wall on the line itself is met; a wall behind that
+ * leaves no light here at all.
+ */
+function lightRay(x, y, ox, oy, reach, { walls, rooms }, back = 2) {
+    const fx = x - ox * back, fy = y - oy * back, tx = x + ox * reach, ty = y + oy * reach, span = reach + back;
+    let wall = Infinity;
+    for (const c of walls) {
+        const t = crossAt(fx, fy, tx, ty, c[0], c[1], c[2], c[3]);
+        if (t !== null) wall = Math.min(wall, t * span - back);
+    }
+    // The room it falls into, read between the places the ray crosses a room's border: the first room met past the
+    // line is the room beyond, and the light stops where the ray is no longer in it.
+    const marks = [0, reach];
+    for (const room of rooms) {
+        for (const ring of room.rings) {
+            for (let i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+                const t = crossAt(x, y, tx, ty, ring[j], ring[j + 1], ring[i], ring[i + 1]);
+                if (t !== null) marks.push(t * reach);
+            }
+        }
+    }
+    marks.sort((a, b) => a - b);
+    let beyond = null, out = reach;
+    for (let k = 0; k + 1 < marks.length; k++) {
+        const a = marks[k], b = marks[k + 1];
+        if (b - a < 1e-6) continue;
+        const m = (a + b) / 2, px = x + ox * m, py = y + oy * m;
+        if (!beyond) {
+            beyond = rooms.find(room => inFlatPolygons(room.rings, px, py)) ?? null;
+            continue;
+        }
+        if (!inFlatPolygons(beyond.rings, px, py)) { out = a; break; }
+    }
+    const d = Math.max(0, Math.min(wall, out, reach));
+    return { d, stop: d >= reach ? "reach" : (wall <= out ? "wall" : "room"), beyond: beyond?.name ?? null };
+}
+
+/**
+ * The shape the glow may stand in, cast from each run's line (`rect`'s space) by `lightRay`: `quads`, flat polygons in
+ * `rect`'s space - one per segment, from a little inside the line out to where its two rays stopped, and a wedge at each
+ * joint - and `rays`, each `{ x, y, ox, oy, d, stop, beyond }`. Outward is asked of the room at the line's middle, as
+ * `cutDoorwayInside` asks it.
+ */
+function lightShape(runs, rect, light, { amplitude, out, reach, region }) {
+    const own = regionShapes(region, rect);
+    const inward = amplitude + out + 4;
+    const quads = [], rays = [];
+    for (const { line } of runs) {
+        if (line.length < 2) continue;
+        const mid = Math.floor(line.length / 2);
+        const a = line[Math.max(0, mid - 1)], b = line[Math.min(line.length - 1, mid + 1)];
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const probe = amplitude + 4;
+        const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+        const sign = inFlatPolygons(own, line[mid].x + nx * probe, line[mid].y + ny * probe) ? -1 : 1;
+        let previous = null;
+        for (let i = 0; i + 1 < line.length; i++) {
+            const p = line[i], q = line[i + 1];
+            const sl = Math.hypot(q.x - p.x, q.y - p.y);
+            if (sl < 1e-6) continue;
+            const ox = -(q.y - p.y) / sl * sign, oy = (q.x - p.x) / sl * sign;
+            const from = { x: p.x, y: p.y, ox, oy, ...lightRay(p.x + rect.x, p.y + rect.y, ox, oy, reach, light) };
+            const to = { x: q.x, y: q.y, ox, oy, ...lightRay(q.x + rect.x, q.y + rect.y, ox, oy, reach, light) };
+            rays.push(from, to);
+            quads.push([
+                p.x - ox * inward, p.y - oy * inward, q.x - ox * inward, q.y - oy * inward,
+                q.x + ox * to.d, q.y + oy * to.d, p.x + ox * from.d, p.y + oy * from.d
+            ]);
+            if (previous) {
+                quads.push([p.x, p.y, p.x + previous.ox * previous.d, p.y + previous.oy * previous.d,
+                    p.x + ox * Math.min(previous.d, from.d), p.y + oy * Math.min(previous.d, from.d)]);
+            }
+            previous = to;
+        }
+    }
+    return { quads, rays };
+}
+
+/** Everything of the glow's `field` outside the `keep` polygons (`rect`'s space, the field's box at `box`) erased. */
+function eraseBeyondLight(renderer, field, keep, box, resolution) {
+    let outside = null, fill = null, cut = null;
+    try {
+        outside = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
+        fill = new PIXI.Graphics();
+        fill.beginFill(0xffffff, 1);
+        fill.drawRect(0, 0, box.w, box.h);
+        fill.endFill();
+        renderer.render(fill, { renderTexture: outside, clear: true });
+        fill.clear();
+        fill.blendMode = PIXI.BLEND_MODES.ERASE;
+        fill.beginFill(0xffffff, 1);
+        for (const quad of keep) {
+            const shifted = quad.map((v, i) => v - (i % 2 ? box.y : box.x));
+            fill.drawPolygon(shifted);
+        }
+        fill.endFill();
+        renderer.render(fill, { renderTexture: outside, clear: false });
+        cut = new PIXI.Sprite(outside);
+        cut.blendMode = PIXI.BLEND_MODES.ERASE;
+        renderer.render(cut, { renderTexture: field, clear: false });
+    } finally {
+        cut?.destroy();
+        fill?.destroy();
+        if (outside && !outside.destroyed) outside.destroy(true);
+    }
+}
+
 /**
  * Add the glow along every open stretch of a room's border.
  *
@@ -1260,12 +1459,93 @@ function eraseRoomFromGlow(renderer, field, region, rect, box, out) {
  * room with a two-thousand-pixel perimeter is eighty tests, which is nothing
  * for something that happens when somebody walks through a door.
  */
-export function addDoorwayGlow(group, region, edges, rect) {
+export function addDoorwayGlow(group, region, edges, rect, light = null) {
     if (!group || group.destroyed) return;
     const renderer = canvas?.app?.renderer;
     if (!renderer) return;
 
-    const grid = canvas?.grid?.size ?? 100;
+    const plan = doorwayGlowPlan(region, edges, rect, light);
+    if (!plan) return;
+    lastGlow = plan.measured;
+    const { runs, amplitude, core, depth, out, stub, reach, box, keep } = plan;
+
+    let field = null, level = null, strokes = null, blit = null;
+    try {
+        const resolution = Math.min(1, MAX_FOG_TEXTURE / Math.max(box.w, box.h));
+        field = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
+        level = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
+
+        strokes = new PIXI.Graphics();
+        blit = new PIXI.Sprite(level);
+        blit.blendMode = PIXI.BLEND_MODES.ADD;
+        blit.alpha = DOORWAY_ALPHA / DOORWAY_STEPS;
+
+        for (let k = 1; k <= DOORWAY_STEPS; k++) {
+            const falloff = doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
+            strokes.clear();
+            // PER RUN, because each opening now has its own depth. The levels
+            // still stack into one field, so a wide doorway and a narrow one
+            // beside it are the same drawing at two sizes rather than two
+            // drawings.
+            for (const { line, ownSpan } of runs) {
+                strokes.lineStyle({
+                    width: (core + ownSpan * falloff) * 2,
+                    color: 0xffffff, alpha: 1, cap: "butt", join: "round"
+                });
+                strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
+                for (let i = 1; i < line.length; i++) {
+                    strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
+                }
+            }
+            renderer.render(strokes, { renderTexture: level, clear: true });
+            renderer.render(blit, { renderTexture: field, clear: k === 1 });
+        }
+
+        const halfBand = reach + amplitude + 6;
+        const fadeTexture = doorwayFadeTexture();
+        const ends = new PIXI.Container();
+        const ownPolygons = regionShapes(region, rect).map(f => new PIXI.Polygon(f));
+        const insideRoom = (x, y) => ownPolygons.some(p => p.contains(x, y));
+        cutDoorwayEnds(ends, runs, { halfBand, depth, stub, box, fadeTexture });
+
+        cutDoorwayInside(ends, runs, { amplitude, out, halfBand, stub, box, insideRoom });
+        if (ends.children.length) renderer.render(ends, { renderTexture: field, clear: false });
+        ends.destroy({ children: true });
+        if (fadeTexture) fadeTexture.destroy(true);
+
+        eraseRoomFromGlow(renderer, field, region, rect, box, out);
+        if (keep) eraseBeyondLight(renderer, field, keep, box, resolution);
+
+        const glow = new PIXI.Sprite(field);
+        glow.name = GLOW_NAME;
+        /* The gradient thrown out of a doorway is the same seam colour as the outline that
+           stops either side of it - Bone under Legacy, the state colour under Stained Glass,
+           and it would read as a different object in any other colour. A Sprite's tint is a
+           shader uniform, which also makes this the one thing on the layer that can follow the
+           hour for nothing at all. See `recolourRoomOutline`. */
+        glow.tint = outlineColour();
+        glow.position.set(box.x, box.y);
+        // `destroy({children: true})` does not free a texture - see `freeOwned`.
+        glow.drpgOwnedTexture = field;
+        group.addChild(glow);
+        field = null;
+    } catch (err) {
+        debug("Fog: could not build the doorway glow", err);
+        if (field && !field.destroyed) field.destroy(true);
+    } finally {
+        blit?.destroy();
+        if (level && !level.destroyed) level.destroy(true);
+        strokes?.destroy();
+    }
+}
+
+/**
+ * What `addDoorwayGlow` draws, worked out without drawing it: the openings' runs and the numbers their strokes and cuts
+ * are made from, the texture's box, what `lastGlow` reports, and - given `light` (`doorwayLight`) - the shape the glow
+ * may stand in (`keep`, `lightShape`). Null when there is no opening. Pure but for `canvas.grid` when `grid` is not
+ * handed in, so the suite reads the glow's geometry where nothing can draw it (R1138, R1139).
+ */
+export function doorwayGlowPlan(region, edges, rect, light = null, { grid = canvas?.grid?.size ?? 100 } = {}) {
     const depth = grid * DOORWAY_DEPTH;
     const out = grid * DOORWAY_OFFSET;
     const step = Math.max(1, grid / 5);
@@ -1273,7 +1553,7 @@ export function addDoorwayGlow(group, region, edges, rect) {
 
     const { openings, amplitude: strayed } = doorwayOpenings(edges, rect, { step, smoothHalf });
     let amplitude = strayed;
-    if (!openings.length) return;
+    if (!openings.length) return null;
 
     /*
      * THE CORE IS WIDENED BY WHATEVER THE AVERAGING MOVED.
@@ -1325,7 +1605,7 @@ export function addDoorwayGlow(group, region, edges, rect) {
     const spanFor = chain => Math.max(spanFloor, Math.min(span, lengthOf(chain) - core));
 
     const reach = core + span + 2;
-    lastGlow = {
+    const measured = {
         openings: openings.length,
         points: openings.reduce((n, c) => n + c.length, 0),
         // Per opening, because the aggregate cannot say which one looks wrong:
@@ -1346,75 +1626,12 @@ export function addDoorwayGlow(group, region, edges, rect) {
     const runs = doorwayRuns(openings, { spanFor, depth, stub });
 
     const box = doorwayBox(runs, reach);
-    if (!(box.w > 0) || !(box.h > 0)) return;
+    if (!(box.w > 0) || !(box.h > 0)) return null;
 
-    let field = null, level = null, strokes = null, blit = null;
-    try {
-        const resolution = Math.min(1, MAX_FOG_TEXTURE / Math.max(box.w, box.h));
-        field = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
-        level = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
-
-        strokes = new PIXI.Graphics();
-        blit = new PIXI.Sprite(level);
-        blit.blendMode = PIXI.BLEND_MODES.ADD;
-        blit.alpha = DOORWAY_ALPHA / DOORWAY_STEPS;
-
-        for (let k = 1; k <= DOORWAY_STEPS; k++) {
-            const falloff = doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
-            strokes.clear();
-            // PER RUN, because each opening now has its own depth. The levels
-            // still stack into one field, so a wide doorway and a narrow one
-            // beside it are the same drawing at two sizes rather than two
-            // drawings.
-            for (const { line, ownSpan } of runs) {
-                strokes.lineStyle({
-                    width: (core + ownSpan * falloff) * 2,
-                    color: 0xffffff, alpha: 1, cap: "butt", join: "round"
-                });
-                strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
-                for (let i = 1; i < line.length; i++) {
-                    strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
-                }
-            }
-            renderer.render(strokes, { renderTexture: level, clear: true });
-            renderer.render(blit, { renderTexture: field, clear: k === 1 });
-        }
-
-        const halfBand = reach + amplitude + 6;
-        const fadeTexture = doorwayFadeTexture();
-        const ends = new PIXI.Container();
-        const ownPolygons = regionShapes(region, rect).map(f => new PIXI.Polygon(f));
-        const insideRoom = (x, y) => ownPolygons.some(p => p.contains(x, y));
-        cutDoorwayEnds(ends, runs, { halfBand, depth, stub, box, fadeTexture });
-
-        cutDoorwayInside(ends, runs, { amplitude, out, halfBand, stub, box, insideRoom });
-        if (ends.children.length) renderer.render(ends, { renderTexture: field, clear: false });
-        ends.destroy({ children: true });
-        if (fadeTexture) fadeTexture.destroy(true);
-
-        eraseRoomFromGlow(renderer, field, region, rect, box, out);
-
-        const glow = new PIXI.Sprite(field);
-        glow.name = GLOW_NAME;
-        /* The gradient thrown out of a doorway is the same seam colour as the outline that
-           stops either side of it - Bone under Legacy, the state colour under Stained Glass,
-           and it would read as a different object in any other colour. A Sprite's tint is a
-           shader uniform, which also makes this the one thing on the layer that can follow the
-           hour for nothing at all. See `recolourRoomOutline`. */
-        glow.tint = outlineColour();
-        glow.position.set(box.x, box.y);
-        // `destroy({children: true})` does not free a texture - see `freeOwned`.
-        glow.drpgOwnedTexture = field;
-        group.addChild(glow);
-        field = null;
-    } catch (err) {
-        debug("Fog: could not build the doorway glow", err);
-        if (field && !field.destroyed) field.destroy(true);
-    } finally {
-        blit?.destroy();
-        if (level && !level.destroyed) level.destroy(true);
-        strokes?.destroy();
-    }
+    /* WHERE THE LIGHT MAY STAND (E51 fix FG3, 31.10.2026; the owner's item 4 of 31.10 and screenshot, LIVE-E51-03). */
+    const shape = light ? lightShape(runs, rect, light, { amplitude, out, reach, region }) : null;
+    measured.clipped = shape ? shape.rays.filter(r => r.stop !== "reach").length : null;
+    return { runs, amplitude, core, span, depth, out, stub, reach, box, measured, keep: shape?.quads ?? null, rays: shape?.rays ?? null };
 }
 
 /**
@@ -1600,4 +1817,58 @@ export function outlineColour() {
     return document.body.classList.contains("drpg-theme-stained-glass")
         ? accentColour(bone)
         : bone;
+}
+
+/* ==========================================================================
+ * THE TOKEN RULER, IN THE HOUR'S COLOUR (E51 C3, 31.10.2026)
+ * --------------------------------------------------------------------------
+ * The owner's report of 11.10 with screenshots: the line a token's move draws had Foundry's own colour (turquoise)
+ * and should have the hour's. No code of the module's touched it (git grep ruler, TokenRuler, waypoint at 1.2.92:
+ * nothing). So the ruler class Foundry draws a token's path with (`CONFIG.Token.rulerClass`, v13's TokenRuler) is
+ * given a subclass at init whose styles take `outlineColour()` - the seam colour the room outline and the doorway glow
+ * wear, the hour's under Stained Glass and bone under Monokuma Legacy - and keep the rest of Foundry's style (width,
+ * alpha). Read each time a style is asked, so a ruler drawn after the hour turns wears the new hour; a ruler standing
+ * at the turn is drawn again by `refreshTokenRulers`, from the body's observer that recolours the outline (fog.mjs
+ * `registerFog`), which sees the hour's attribute itself - not off `drpgTimeOfDayChanged`, which can be heard before
+ * the attribute is written (the race that observer's note gives). Only the styles the class has are taken over; a
+ * build whose ruler has none of them keeps Foundry's colour. Which styles v14's ruler asks, whether the colour reaches
+ * the drawn line and whether it changes at the hour's turn is LIVE-E51-02 (AUDIT 9.2 item 356): the harness has no
+ * ruler. R1115 reads it on a class of its own; patches.mjs's row "token-ruler" is the contract's.
+ */
+const RULER_STYLES = ["_getSegmentStyle", "_getGridHighlightStyle", "_getWaypointStyle"];
+
+/** A ruler style of Foundry's in the hour's colour: the style handed back with its `color` replaced, anything else as it came. */
+const inTheHour = style => (style && typeof style === "object" ? { ...style, color: outlineColour() } : style);
+
+/** The token ruler over `Base` whose styles wear the hour's colour, or null where `Base` is no class. Exported for R1115. */
+export function hourRulerFor(Base) {
+    if (typeof Base !== "function") return null;
+    class HourTokenRuler extends Base {
+        _getSegmentStyle(...args) { return inTheHour(super._getSegmentStyle(...args)); }
+        _getGridHighlightStyle(...args) { return inTheHour(super._getGridHighlightStyle(...args)); }
+        _getWaypointStyle(...args) { return inTheHour(super._getWaypointStyle(...args)); }
+    }
+    // A style Foundry's class does not have is not one it asks: left out, never added with nothing under it.
+    for (const name of RULER_STYLES) if (typeof Base.prototype?.[name] !== "function") delete HourTokenRuler.prototype[name];
+    return HourTokenRuler;
+}
+
+/** At init, from fog.mjs `registerFog`: Foundry's token ruler class taken over by `hourRulerFor`, once. */
+export function registerTokenRuler() {
+    const Base = CONFIG.Token?.rulerClass;
+    if (typeof Base !== "function") return debug("Fog: Foundry offers no token ruler class here, so a token's ruler keeps Foundry's colour.");
+    if (Base.name === "HourTokenRuler") return;
+    CONFIG.Token.rulerClass = hourRulerFor(Base);
+}
+
+/**
+ * The rulers on screen drawn again, so a path standing at the hour's turn takes the new colour: each token whose
+ * ruler is shown, by Foundry's own render flag for it where the token class has one (`refreshRuler`, read off
+ * `RENDER_FLAGS`, never guessed). A token with no ruler shown is not touched.
+ */
+export function refreshTokenRulers() {
+    for (const token of canvas?.tokens?.placeables ?? []) {
+        if (!token?.ruler?.visible || !token.constructor?.RENDER_FLAGS?.refreshRuler) continue;
+        try { token.renderFlags.set({ refreshRuler: true }); } catch (err) { debug("Fog: could not draw a token's ruler again", err); }
+    }
 }

@@ -20,8 +20,8 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+// The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
+import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
 
 /* ==========================================================================
  * HOPE CALLS
@@ -591,6 +591,26 @@ function wireNoteGate(dialog, call) {
 }
 
 /**
+ * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet.mjs `runCall`): a Hope Call's
+ * buyer's Hope, a Despair Call's Monokuma's spendable pool. Null with no buyer (a caller that hands `held` alone).
+ * E51 fix round FG7, for `confirmCall`'s live price line.
+ */
+async function heldReader(actor, kind) {
+    if (!actor) return null;
+    if (kind === "hope") return () => hopeHeld(actor);
+    const { poolUserFor } = await import("./monokuma.mjs");
+    const { spendableDespair } = await import("./despair.mjs");
+    return () => {
+        try {
+            const user = poolUserFor(actor);
+            return user ? spendableDespair(user.id) : 0;
+        } catch {
+            return 0;
+        }
+    };
+}
+
+/**
  * Confirm a Call: the effect, the price, what it will be applied to - and, for the
  * two that wait for a ruling, the sentence that IS the request.
  *
@@ -606,19 +626,42 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
     const affordable = held >= call.cost;
     const aimed = describeChoice(choice);
     const about = await callAbout(call, actor);
+    /*
+     * THE PRICE LINE AND SPEND READ WHAT IS HELD NOW (E51 fix round FG7, 31.10.2026; review goal G2, the owner's amend of
+     * 27.10). Both were drawn from `held` once, at opening: a Hope the GM granted while the window stood left Spend shut
+     * until the buyer cancelled and pressed again, and a Hope spent elsewhere left it lit over a red line's sum. With a
+     * buyer handed in, the header is kept live (`callWindow`'s `live`, live.mjs `keepLive`: the actors and the module's
+     * settings, where the Despair pools are) from the buyer's Hope or their Monokuma's pool as the sheet reads them, and
+     * Spend follows it on every redraw and at opening. The spenders still ask the price again at the press.
+     */
+    const readHeld = await heldReader(actor, kind);
+    const syncSpend = (header, dialog) => {
+        if (!readHeld) return;
+        const spend = dialog?.element?.querySelector('button[data-action="spend"]');
+        if (spend) spend.disabled = readHeld() < call.cost;
+    };
 
-    const result = await DialogV2.wait({
-        window: { title: call.label },
-        classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog"],
-        content: `<div>
-            <p>${foundry.utils.escapeHTML(callEffect(call))}</p>
+    /*
+     * ONE OF THE CALL WINDOWS (E51 C2, 30.10.2026; audit S17-48): `callWindow`, under the header the
+     * pickers show (`callHeader`, here with what the buyer holds - the price line the body used to
+     * carry, red when it is short). A Call a GM rules (`needsGm`: Experience, Ultimate) is the GM's
+     * road, D11's red, whoever presses - a GM on a player's sheet rules it in the next window - and
+     * its button says that it asks: nothing is spent until the yes (`spendHopeCall`).
+     */
+    const result = await callWindow({
+        call, kind, gmRoute: Boolean(call.needsGm), cancelDefault: !affordable,
+        header: callHeader(call, kind, { held }),
+        // One confirmation of a Call at a time (`callWindow`'s `once`, E51 fix round FG7).
+        once: callWindowClass(call, kind, "confirm"),
+        live: readHeld ? {
+            region: ".drpg-call-header",
+            build: () => callHeader(call, kind, { held: readHeld() }),
+            watch: { actors: true },
+            after: (header, dialog) => syncSpend(header, dialog)
+        } : null,
+        body: `<div>
             ${about ? `<p class="notes">${foundry.utils.escapeHTML(about)}</p>` : ""}
             ${aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}
-            <p class="${affordable ? "notes" : "drpg-warning"}">${
-                game.i18n.format(kind === "hope" ? "DRPG.Calls.costsHope" : "DRPG.Calls.costsDespair", {
-                    cost: call.cost, held
-                })
-            }</p>
             ${call.needsGm ? `
                 <label class="drpg-call-note">
                     <span>${game.i18n.localize("DRPG.Calls.tellGm")}</span>
@@ -632,7 +675,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
         buttons: [
             {
                 action: "spend",
-                label: game.i18n.format("DRPG.Calls.spend", { cost: call.cost }),
+                label: game.i18n.format(call.needsGm ? "DRPG.Calls.send" : "DRPG.Calls.spend", { cost: call.cost }),
                 default: affordable,
                 // Refusing at the last step is worse than not offering the step.
                 // The price was already shown in red; leaving the button live
@@ -647,11 +690,9 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
                 callback: (event, button, dialog) => call.needsGm
                     ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "")
                     : ""
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: !affordable }
+            }
         ],
-        render: (event, dialog) => wireNoteGate(dialog, call),
-        rejectClose: false
+        render: (event, dialog) => wireNoteGate(dialog, call)
     });
 
     if (result === "cancel" || result === null || result === undefined) return null;
@@ -693,22 +734,22 @@ async function showWaitingCard(call) {
 export async function askHopeCallApproval(payload = {}) {
     if (!game.user.isGM) return false;
 
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Calls.approveTitle", {
-            call: payload.callLabel ?? "" }) },
-        classes: ["drpg-panel", "drpg-hope-dialog"],
-        content: `<div>
-            <p><strong>${esc(payload.actorName)}</strong> - ${esc(payload.callLabel)}
-                (${esc(payload.cost)} Hope)</p>
-            <p class="notes">${esc(payload.effect)}</p>
+    // A Call window (E51 C2): the Call's header, from the ask's own label, sentence and price as the
+    // asker's browser sent them (the same three this window always showed), and the GM's two answers;
+    // no cancel, since a closed window is already the refusal.
+    const result = await callWindow({
+        kind: "hope", cancel: false,
+        title: game.i18n.format("DRPG.Calls.approveTitle", { call: payload.callLabel ?? "" }),
+        header: callHeader({ label: payload.callLabel ?? "", cost: payload.cost }, "hope", { effect: payload.effect ?? "" }),
+        body: `<div>
+            <p><strong>${esc(payload.actorName)}</strong></p>
             <blockquote>${esc(payload.note)}</blockquote>
             <p class="notes">${game.i18n.localize("DRPG.Calls.approveHint")}</p>
         </div>`,
         buttons: [
             { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), default: true },
             { action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }
-        ],
-        rejectClose: false
+        ]
     });
 
     return result === "yes";

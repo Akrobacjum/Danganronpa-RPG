@@ -312,6 +312,16 @@ globalThis.__dialogLog = [];
 globalThis.__dialogAnswers = [];
 // Every file the module asked this browser to save (foundry.utils.saveDataToFile, below; E04).
 globalThis.__savedFiles = [];
+/* A page hidden and shown again (E50 C1; LIVE-E50-02): jsdom's `pretendToBeVisual` page is always "visible", so a
+   scenario sets the state here and the page hears `visibilitychange`, as a browser's tab put behind another and brought
+   back does. What v14's page reports meanwhile is not read here. */
+globalThis.__pageVisibility = state => {
+    const hidden = state === "hidden";
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => hidden ? "hidden" : "visible" });
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+    document.dispatchEvent(new dom.window.Event("visibilitychange"));
+    return document.visibilityState;
+};
 globalThis.__missingI18n = new Set();
 // `globalThis.__errors` is created at the top of this file, before anything can throw.
 

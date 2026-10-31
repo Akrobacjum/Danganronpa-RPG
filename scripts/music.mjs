@@ -52,11 +52,12 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
-import { SETTINGS, getSetting, bodyDiscoveryFresh, incidentWitness, incidentCast } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, bodyDiscoveryFresh, incidentWitness, incidentCast } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
-import { isPrimaryGm, debug, log, warn, error, plural, gmReport } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, gmReport } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+import { count } from "./perf-counters.mjs";
 
 /**
  * How deep we are inside THIS file changing playback.
@@ -235,9 +236,12 @@ export const MUSIC_STATES = [
         test: () => bodyDiscoveryFresh() !== null && getClock().phase === "dailyLife"
     },
     { key: "search", labelKey: "DRPG.Music.state.search", test: () => getClock().phase === "investigation" },
+    /* THE LABEL IS READ WHEN IT IS DRAWN (E50 C3, E50-24). It was `TIME_OF_DAY_LABELS[time]` taken at import, and
+       i18n.mjs `localizeConfig` swaps that table in place only at `i18nInit`, after this file has run - so a Polish
+       table read "Morning" on the Music tab. A getter reads the table as it stands. */
     ...TIMES_OF_DAY.map(time => ({
         key: `time.${time}`,
-        label: TIME_OF_DAY_LABELS[time],
+        get label() { return TIME_OF_DAY_LABELS[time]; },
         test: () => getClock().timeOfDay === time
     }))
 ];
@@ -263,9 +267,47 @@ export function musicMap() {
     return getSetting(SETTINGS.musicMap) ?? {};
 }
 
-export function playlistFor(stateKey) {
-    const id = musicMap()[stateKey];
-    return id ? game.playlists.get(id) ?? null : null;
+/**
+ * The playlist a state is mapped to, or null.
+ *
+ * NEVER THE CUE PLAYLIST (E50 C3; audit S11-47, Q-E50-1). The cue playlist is where the Play tab draws a GM's
+ * cues from; a state mapped onto it played those cues as its mood, and a cue put on under it found its own playlist
+ * already playing. The Music tab no longer offers it and the primary drops such a mapping at ready
+ * (`dropCueMappings`), and this answers null for one all the same - a playlist renamed to the cue's name after the
+ * drop - so the state plays as unmapped. `map` and `playlists` stand in for the world's in a test.
+ */
+export function playlistFor(stateKey, { map = musicMap(), playlists = game.playlists } = {}) {
+    const id = map?.[stateKey];
+    const playlist = id ? playlists?.get(id) ?? null : null;
+    return playlist && !isCuePlaylist(playlist) ? playlist : null;
+}
+
+/** Whether a playlist is the cue playlist: matched by name, as `situationalPlaylist` finds it. */
+function isCuePlaylist(playlist) {
+    return String(playlist?.name ?? "").trim().toLowerCase() === SITUATIONAL_PLAYLIST.trim().toLowerCase();
+}
+
+/**
+ * Take a stored mapping onto the cue playlist out of the map (E50 C3; Q-E50-1, the owner's answer of 30.10: removed
+ * by itself, with no warning). The primary GM's, at ready: one write of the whole map without those keys - a world
+ * setting is stored whole, so a key left out is gone and no `-=` is needed - and only when there is one to drop, so a
+ * second call writes nothing. A debug line, not a toast: nothing is asked of the GM. `primary`, `map`, `playlists` and
+ * `write` stand in for the world's in a test.
+ *
+ * @returns {Promise<string[]>} the state keys dropped
+ */
+export async function dropCueMappings({
+    primary = isPrimaryGm(), map = musicMap(), playlists = game.playlists,
+    write = next => game.settings.set(MODULE_ID, SETTINGS.musicMap, next)
+} = {}) {
+    if (!primary || !map) return [];
+    const dropped = Object.keys(map).filter(key => isCuePlaylist(playlists?.get(map[key])));
+    if (!dropped.length) return [];
+    const next = { ...map };
+    for (const key of dropped) delete next[key];
+    await write(next);
+    debug(`Music: the cue playlist is not a state's playlist; dropped the mapping of ${dropped.join(", ")}.`);
+    return dropped;
 }
 
 /* ==========================================================================
@@ -285,6 +327,73 @@ let settleTimer = null;
 
 /** What we last started, so an unchanged state is not restarted every tick. */
 let playingState = null;
+
+/**
+ * The playlist `playingState` was started on (E50 C3), so a map change that leaves the current state's playlist
+ * where it is restarts nothing - the state is the same, and so is its playlist - while one that moves it is
+ * followed. Null for a silence and before anything was started.
+ */
+let playingPlaylist = null;
+
+/**
+ * HOW LONG THE PRIMARY WAITS AFTER A MAPPING CHANGE (E50 C3; audit S11-34, Q-E50-3: 1500 ms). Any GM may write the
+ * map, and only the primary plays: so the primary follows every write of it, from whichever GM, on the setting's
+ * echo. A GM picking through several playlists in the Sound window writes at each pick, and the room should hear
+ * only the last; one timer, restarted by each write, then the ordinary settle (`schedule`).
+ *
+ * ARMED ON EVERY GM, AND DECIDED WHEN IT FIRES (E50 fix FG1; the review's F3). It was armed on the primary alone, and
+ * a primary GM who left within it took the change with it: the GM who became the primary had heard the echo while
+ * it was not, and armed nothing; its `ready` had run long before, and nothing here listens for the primary changing -
+ * so the state's new playlist waited for the next state change. Now every GM's browser keeps the timer and
+ * `schedule()` asks `enabled()` at the moment it fires, so the GM who is the primary then follows it, once; a GM who
+ * is not still runs no apply (87 C1 counts `music.apply`, in `runApply` behind that test). 87 C4 makes gm2 the
+ * primary within the settle; a real GM leaving a real server is LIVE-E50-04.
+ */
+const MAP_SETTLE_MS = 1500;
+let mapTimer = null;
+
+/*
+ * WHAT A MAPPING CHANGE LEAVES PLAYING (E50 fix FG1b). A state's playlist moved from A to B was followed by B and
+ * left A playing beside it: `crossfade` stops the playing playlists the map names (`ours()`), and A, no longer named,
+ * was nobody's. Measured on the harness 30.10.2026: 87 C4 (gm2 following after gm left) and E50-T4 (the primary
+ * that never changed) both read A still playing after B started.
+ *
+ * THE RULE CHOSEN: the follow also stops a playlist the map named before the change and does not name after it. Not
+ * "the playlist this browser started" (`playingPlaylist`): that answers on the primary that started A, and not on a
+ * GM who became the primary within the settle - gm2 never started A and nothing in the world says who did (a flag on
+ * the playlist would be a document write at every start, for every browser); tried as a mutant, that rule passed
+ * E50-T4 and left 87 C4's A playing. The map is what every GM holds, and a
+ * playlist it names is already the state machine's while it is named: `crossfade` stops it and
+ * `watchManualPlayback` does not count a sound in it as the GM's own. So this stays inside the module's own
+ * definition of its playlists, one map further back; a playlist the map never named - one a GM put on by hand, the
+ * cue playlist - is never stopped by it, and a state left with no playlist still stops nothing (`apply`).
+ *
+ * `mapSeen` is the map as this GM's browser last heard it (at ready, then at each echo); `mapLeft` gathers what left
+ * it during one settle, and only the primary's apply after it reads it (`leftForApply`).
+ */
+let mapSeen = null;
+const mapLeft = new Set();
+const leftForApply = new Set();
+
+function noteMapLeft() {
+    const now = musicMap() ?? {};
+    const named = new Set(Object.values(now).filter(Boolean));
+    for (const id of Object.values(mapSeen ?? {})) if (id && !named.has(id)) mapLeft.add(id);
+    mapSeen = { ...now };
+}
+
+function scheduleMapRefresh() {
+    if (!game.user?.isGM) return;
+    noteMapLeft();
+    if (mapTimer) clearTimeout(mapTimer);
+    mapTimer = setTimeout(() => {
+        mapTimer = null;
+        const left = [...mapLeft];
+        mapLeft.clear();
+        if (enabled()) for (const id of left) leftForApply.add(id);
+        schedule();
+    }, MAP_SETTLE_MS);
+}
 
 /**
  * The GM's own track, while it is interrupting whatever was playing.
@@ -331,7 +440,7 @@ export function registerMusic() {
             applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
         }
     });
-    Hooks.on("updateSetting", setting => {
+    Hooks.on("updateSetting", (setting, changes, options, userId) => {
         const key = setting?.key;
         /*
          * THE MURDER'S TWO KEYS ARE HANDLED SEPARATELY, and not by `schedule`.
@@ -360,6 +469,10 @@ export function registerMusic() {
            played from that write on, not from the next murder write. */
         if (key === `${MODULE_ID}.${SETTINGS.musicMap}`) {
             applyMurderMusic().catch(err => error("Could not follow the murder playlist", err));
+            /* AND THE PRIMARY FOLLOWS IT, whoever wrote it (E50 C3; S11-34): the writer's own `schedule` did nothing on a
+               GM who is not the primary. This browser's own writes are checked here too (`recheckMusicKeys`). */
+            scheduleMapRefresh();
+            recheckMusicKeys(userId);
             return;
         }
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
@@ -380,6 +493,7 @@ export function registerMusic() {
     }
 
     Hooks.once("ready", () => {
+        if (game.user?.isGM) mapSeen = { ...(musicMap() ?? {}) };
         watchManualPlayback();
         watchManualEnd();
         adoptRunningInterruption();
@@ -387,6 +501,8 @@ export function registerMusic() {
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
         schedule();
+        // A mapping onto the cue playlist stored before 1.2.94 (Q-E50-1): the primary's, once (`dropCueMappings`).
+        dropCueMappings().catch(err => error("Could not drop the cue playlist's mappings", err));
 
         // In that order: put back a volume an earlier version parked, THEN ask
         // whether this browser is in an incident right now. A client that
@@ -486,6 +602,7 @@ function schedule({ now = false } = {}) {
 let applyChain = Promise.resolve();
 
 function runApply() {
+    count("music.apply");
     applyChain = applyChain
         .then(() => apply())
         .catch(err => error("Could not follow the state with the music", err));
@@ -571,15 +688,21 @@ async function apply() {
     }
 
     const state = currentState();
-    if (!state || state === playingState) return;
-
-    const next = playlistFor(state);
+    const next = state ? playlistFor(state) : null;
+    // What left the map in the change this apply follows, if it follows one (`scheduleMapRefresh`): taken here so
+    // that an apply that returns below does not hand it to a later one.
+    const left = [...leftForApply];
+    leftForApply.clear();
+    // The same state on the same playlist: nothing to do. The playlist is asked too since E50 C3, because the map
+    // can move a state's playlist under it (`scheduleMapRefresh`).
+    if (!state || (state === playingState && (next?.id ?? null) === playingPlaylist)) return;
 
     // SILENCE IS A DECISION TOO - see the `bodyFound` entry in MUSIC_STATES.
     // Below `next`, so a playlist mapped to a silent state still wins.
     if (!next && stateDef(state)?.silence === true) {
         if (!silenced) silenced = { held: await holdEverything() };
         playingState = state;
+        playingPlaylist = null;
         log(`Music: ${state} -> silence (${silenced.held.length} playlist(s) held).`);
         return;
     }
@@ -604,8 +727,9 @@ async function apply() {
         return;
     }
 
-    await crossfade(next, { randomTrack: stateDef(state)?.randomTrack === true });
+    await crossfade(next, { randomTrack: stateDef(state)?.randomTrack === true, left });
     playingState = state;
+    playingPlaylist = next.id;
     log(`Music: ${state} -> "${next.name}".`);
 }
 
@@ -621,10 +745,18 @@ async function apply() {
  * @param {boolean} [options.randomTrack]  Start ONE track, chosen at random,
  *   rather than letting the playlist resume wherever it left off. The trial's
  *   three states ask for this; see `playRandomTrack`.
+ * @param {string[]} [options.left]  Playlists a mapping change took out of
+ *   the map, stopped too when playing (E50 fix FG1b; `mapLeft`).
  */
-function crossfade(next, { randomTrack = false } = {}) {
+function crossfade(next, { randomTrack = false, left = [] } = {}) {
     return asOurs(async () => {
-        for (const playlist of ours()) {
+        // The playlists the map names, and those a mapping change just took out of it (the rule: `mapLeft`).
+        const stopping = new Map(ours().map(playlist => [playlist.id, playlist]));
+        for (const id of left) {
+            const playlist = game.playlists.get(id);
+            if (playlist && !isCuePlaylist(playlist)) stopping.set(id, playlist);
+        }
+        for (const playlist of stopping.values()) {
             if (playlist.id === next.id) continue;
             if (!playlist.playing) continue;
             try {
@@ -1360,28 +1492,34 @@ async function openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersH
     });
 }
 
-/** One row per music state: its label and a select of the world's playlists. */
-function musicMapRows(playlists) {
+/**
+ * One row per music state: its label, a select of the world's playlists, and the row's marker.
+ *
+ * Not the cue playlist (E50 C3; S11-47): it is the Play tab's source, never a state's (`playlistFor`). The marker
+ * (`data-drpg-save`, empty until the row is changed) says saving, saved or failed, read aloud as it changes.
+ */
+export function musicMapRows(playlists) {
     const map = musicMap();
+    const offered = playlists.filter(p => !isCuePlaylist(p));
     return MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
-        const options = [`<option value="">-</option>`, ...playlists.map(p =>
+        const options = [`<option value="">-</option>`, ...offered.map(p =>
             `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
                 foundry.utils.escapeHTML(p.name)}</option>`)].join("");
 
         return `<tr>
             <td>${foundry.utils.escapeHTML(label)}</td>
             <td><select name="state:${state.key}"
-                aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select></td>
+                aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select>
+                <span class="notes drpg-music-save" data-drpg-save="" aria-live="polite"></span></td>
         </tr>`;
     }).join("");
 }
 
 // Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
 // for mid-scene, then the state-to-playlist mapping they set up once, then
-// the sound-effect files. Apply still reads the mapping selects whichever
-// tab is showing - panes are hidden by class, never removed; see
-// `panelTabs` in utils.mjs.
+// the sound-effect files. Every one of them acts or saves at once (E50 C3,
+// D45): there is no Apply.
 /*
  * THE CUE PANE IS BUILT, NOT BAKED (F17, 20.09).
  *
@@ -1459,14 +1597,134 @@ function soundPlaylistsPane(playlists, rows) {
             <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
 }
 
-/** What Apply hands back: the mapping selects, whichever tab is showing. */
-function readMusicMap(d) {
-    const out = {};
-    for (const select of d.element.querySelectorAll("[name^='state:']")) {
-        const key = select.name.slice("state:".length);
-        if (select.value) out[key] = select.value;
+/*
+ * THE MAPPING SAVES AS IT IS CHANGED (E50 C3; D45 option 1, audit S11-34).
+ *
+ * It waited for an Apply that wrote the whole map as the window had drawn it, so a key another GM had written
+ * since the window opened was lost, and the Music tab was the one place in the window that did not save as it was
+ * touched. Now a select's change writes its one key: the map is read at the moment of the write and only that key
+ * set or taken out, one write at a time - a change made while a write is in flight waits for it and goes in the next
+ * (the last value of a key wins). A world setting is stored whole, so two GMs writing in the same moment each write
+ * a map the other's key is missing from, and the later one wins: so for a few seconds after its write this browser
+ * keeps what it set, and when a write lands that put a key back as it was before (`recheckMusicKeys`, on the
+ * setting's echo) writes that key again, once. A key another GM set to something else since is theirs, and kept.
+ *
+ * WHAT THE REPAIR CANNOT TELL APART (E50 fix FG1; the review's S1). A write that puts the key back is read by what
+ * it holds, and two writes can hold the same thing for different reasons:
+ *   - this browser's own user writing the map by any other road - a console, a macro, a test putting the world
+ *     back - is a deliberate write: `updateSetting`'s `userId` is this user's and the map is none of the ones
+ *     `writeMusicKeys` sent (`mapSent`), so the watch ends there and nothing is written again. Before this, the
+ *     repair wrote four keys back over E50-T1's own restore 66 ms after it (the security review's probe, 30.10.2026);
+ *   - another GM's write that takes the key out, or puts back its old playlist, within MAP_ECHO_MS of this browser's
+ *     change cannot be told from a write that GM made from a map read before this one landed (the race the repair
+ *     is for), so it is overruled once: the key comes back, one write, and that GM's next change of it stands
+ *     (`retry`). The GM handbook says so. A key that GM set to a third playlist is theirs, as above.
+ */
+const MAP_ECHO_MS = 4000;
+const mapQueue = new Map();       // state key -> { value, onState, retry }, waiting for the next write
+const mapWritten = new Map();     // state key -> { value, before, until, retry, onState }, this browser's recent writes
+const mapSent = new Set();        // { text, until }: the maps writeMusicKeys sent, until their echo is heard
+let mapChain = Promise.resolve();
+
+/** A map as one string whatever the order of its keys: it is flat, a state key to a playlist id. */
+const mapText = map => JSON.stringify(Object.entries(map ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+
+/**
+ * Write one state's playlist into the map (an empty id takes the state out). `onState` hears "saving", then "saved"
+ * or "failed". Resolves when this browser's writes so far have landed.
+ */
+export function saveMusicKey(stateKey, playlistId, { onState = null, retry = false } = {}) {
+    // A newer choice of this key is not an older one taken back: its own echo must not write the older one again.
+    mapWritten.delete(stateKey);
+    mapQueue.set(stateKey, { value: playlistId || null, onState, retry });
+    onState?.("saving");
+    mapChain = mapChain.then(writeMusicKeys);
+    return mapChain;
+}
+
+async function writeMusicKeys() {
+    if (!mapQueue.size) return;
+    const batch = [...mapQueue];
+    mapQueue.clear();
+    const next = { ...musicMap() };
+    const before = {};
+    for (const [key, { value }] of batch) {
+        before[key] = next[key] ?? null;
+        if (value) next[key] = value;
+        else delete next[key];
     }
-    return out;
+    // Before the write, as its echo may be heard before the write resolves.
+    const sent = { text: mapText(next), until: Date.now() + MAP_ECHO_MS };
+    mapSent.add(sent);
+    try {
+        await setSetting(SETTINGS.musicMap, next);
+    } catch (err) {
+        mapSent.delete(sent);
+        error("Could not save the music mapping", err);
+        for (const [, { onState }] of batch) onState?.("failed");
+        return;
+    }
+    const until = Date.now() + MAP_ECHO_MS;
+    for (const [key, { value, onState, retry }] of batch) {
+        mapWritten.set(key, { value, before: before[key], until, retry, onState });
+        onState?.("saved");
+    }
+}
+
+/**
+ * On every write of the map: a key this browser wrote that a later write put back as it was is written again, once.
+ * `userId` is the writer's (`updateSetting`'s fourth argument): this user's write that `writeMusicKeys` did not send
+ * ends the watch instead.
+ */
+function recheckMusicKeys(userId = null) {
+    const now = Date.now();
+    const map = musicMap();
+    for (const sent of [...mapSent]) if (now > sent.until) mapSent.delete(sent);
+    if (userId && userId === game.user?.id) {
+        const text = mapText(map);
+        const ours = [...mapSent].find(sent => sent.text === text);
+        if (ours) mapSent.delete(ours);
+        else {
+            if (mapWritten.size) debug("Music: this user wrote the map by another road; its recent rows are not written again.");
+            mapWritten.clear();
+            return;
+        }
+    }
+    if (!mapWritten.size) return;
+    for (const [key, mine] of [...mapWritten]) {
+        const value = map[key] ?? null;
+        if (now > mine.until) mapWritten.delete(key);
+        else if (value === mine.value) continue;
+        else {
+            mapWritten.delete(key);
+            if (value === mine.before && !mine.retry) {
+                debug(`Music: another write took "${key}" back; writing it again.`);
+                saveMusicKey(key, mine.value, { onState: mine.onState, retry: true });
+            }
+        }
+    }
+}
+
+/** A row's marker: its state as a data attribute and as words a screen reader is told. */
+const SAVE_STATE_KEYS = Object.freeze({
+    saving: "DRPG.Music.saveState.saving", saved: "DRPG.Music.saveState.saved", failed: "DRPG.Music.saveState.failed"
+});
+
+function showSaveState(select, state) {
+    const marker = select.closest("tr")?.querySelector("[data-drpg-save]");
+    if (!marker) return;
+    marker.dataset.drpgSave = state;
+    marker.textContent = game.i18n.localize(SAVE_STATE_KEYS[state]);
+}
+
+/** Each mapping select saves its row as it is changed. */
+function wireMusicMap(root) {
+    for (const select of root.querySelectorAll("select[name^='state:']")) {
+        const key = select.name.slice("state:".length);
+        select.addEventListener("change", () => {
+            saveMusicKey(key, select.value, { onState: state => showSaveState(select, state) });
+        });
+    }
 }
 
 /*
@@ -1501,8 +1759,8 @@ function wireSoundPlay(root) {
      * handler to do to the DOM.
      *
      * NOT BY REOPENING THE WINDOW, which is the obvious way and the wrong
-     * one: the Playlists tab beside this holds a table of selects the GM
-     * may already have changed, and Apply has not run yet.
+     * one: it would draw again the window the GM is working in, with the
+     * Music tab's markers and the tab they were on gone.
      *
      * The Play button stays disabled, because a playlist made this second
      * has no tracks in it and a button that says it will play something is
@@ -1525,24 +1783,21 @@ function wireSoundPlay(root) {
     });
 }
 
-/** The Play tab acts at once and the window stays open; Apply belongs to the Music tab alone. */
+/** Every tab acts or saves at once and the window stays open: one Close, and no Apply anywhere. */
 function wireSoundDialog(root, { wirePanelTabs, wireSoundPanel }) {
     /*
-     * ONE APPLY, AND IT BELONGS TO ONE TAB.
-     *
-     * The playlist mapping is the only thing in this window that waits
-     * for a button: the cue controls act where they are, and the sound
-     * files and the volumes save as they are touched, because a mapping
-     * you cannot Test until you have closed and reopened the window is
-     * a mapping nobody trusts. So Apply appears on the Music tab and
-     * nowhere else, and nothing is lost by its absence elsewhere.
+     * NO APPLY (E50 C3; D45 option 1). The Music tab was the one thing in this window that waited for a button,
+     * beside a Play tab that acts where it is and an Effects tab that saves as it is touched - one window, two ways
+     * of saving, and a GM who changed a mapping and pressed Close lost it. The mapping saves as it is changed now
+     * (`saveMusicKey`), so every tab has the same footer: Close.
      */
     wirePanelTabs(root, {
-        buttons: { play: [], music: ["save"], effects: [] },
+        buttons: { play: [], music: [], effects: [] },
         always: ["close"]
     });
     wireSoundPanel(root);
     wireSoundPlay(root);
+    wireMusicMap(root);
 }
 
 export async function openSoundDialog() {
@@ -1580,9 +1835,10 @@ export async function openSoundDialog() {
 
     // The cue pane reads its own playlist, because it is built again on every
     // playlist change (`soundPlayPane`, and the live region in `render` below).
-    const playlistsPane = soundPlaylistsPane(playlists, rows);
+    // The mapping's warning counts what it can offer, which is never the cue playlist.
+    const playlistsPane = soundPlaylistsPane(playlists.filter(p => !isCuePlaylist(p)), rows);
 
-    const result = await tableDialog({
+    await tableDialog({
         window: { title: game.i18n.localize("DRPG.Sound.title") },
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
         // The tabs measure to one size rather than the window jumping between
@@ -1602,17 +1858,10 @@ export async function openSoundDialog() {
                   html: soundEffectsHtml() }
             ])}
         </form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => readMusicMap(d)
-            },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        // Both controls act at once and the window stays open, like the Monocub
+        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        // Every control acts at once and the window stays open, like the Monocub
         // manager's "give Hope": a GM putting a track under a moment at the
-        // table is not filling in a form, and Apply is about the mapping table
-        // below rather than about what is playing right now.
+        // table is not filling in a form.
         render: (event, dialog) => {
             wireSoundDialog(dialog.element, { wirePanelTabs, wireSoundPanel });
             /*
@@ -1639,20 +1888,9 @@ export async function openSoundDialog() {
         },
         rejectClose: false
     });
-
-    if (!result || result === "close" || result === "cancel") return null;
-
-    const { setSetting } = await import("./settings.mjs");
-    await setSetting(SETTINGS.musicMap, result);
-
-    // The map just changed, so whatever is playing may no longer be right.
-    playingState = null;
-    schedule();
-
-    ui.notifications.info(plural("DRPG.Music.saved", {
-        n: Object.keys(result).length
-    }));
-    return result;
+    // Nothing to do on the way out: each change was saved as it was made, and the primary follows the map's writes
+    // (`scheduleMapRefresh`), whichever GM made them.
+    return null;
 }
 
 
@@ -1770,53 +2008,52 @@ export function diagnoseMusic({ toChat = true } = {}) {
     const map = musicMap();
     const winner = currentState();
 
+    /* THE TABLE'S WORDS (E50 C3; E50-26, the plan's amendment of 05.10 B): the report is shown to a GM in a window, so
+       its lines are keys of DRPG.Music.diag. The console line below prints the same localized text; only its header,
+       "Music diagnostics", stays English. */
+    const t = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
+    const yes = on => t(on ? "DRPG.Music.diag.yes" : "DRPG.Music.diag.no");
+    const cue = situationalPlaylist();
     const lines = [
-        `Setting "music follows the game state": ${
-            getSetting(SETTINGS.musicEnabled) ? "on" : "OFF"}`,
-        `This client drives playback: ${isPrimaryGm() ? "yes" : "no"}`,
-        `Clock: phase=${clock.phase ?? "(unset)"} timeOfDay=${clock.timeOfDay ?? "(unset)"} eclipse=${
-            clock.eclipse === true} paused=${game.paused}`,
-        `Playlists in this world: ${game.playlists.size}`,
-        `Cue playlist ("${SITUATIONAL_PLAYLIST}"): ${
-            situationalPlaylist()
-                ? `${situationalPlaylist().sounds.size} track(s)`
-                : "MISSING - the Play button has nothing to draw from"}`,
-        `A cue is running: ${interrupted ? "yes" : "no"}${
-            interrupted?.held?.length ? `, holding ${interrupted.held.length} playlist(s)` : ""}`,
+        t("DRPG.Music.diag.enabled", { value: t(getSetting(SETTINGS.musicEnabled) ? "DRPG.Music.diag.on" : "DRPG.Music.diag.off") }),
+        t("DRPG.Music.diag.drives", { value: yes(isPrimaryGm()) }),
+        t("DRPG.Music.diag.clock", { phase: clock.phase ?? t("DRPG.Music.diag.unset"), time: clock.timeOfDay ?? t("DRPG.Music.diag.unset"), eclipse: yes(clock.eclipse === true), paused: yes(game.paused) }),
+        t("DRPG.Music.diag.playlists", { n: game.playlists.size }),
+        t("DRPG.Music.diag.cue", { name: SITUATIONAL_PLAYLIST, value: cue ? t("DRPG.Music.diag.cueTracks", { n: cue.sounds.size }) : t("DRPG.Music.diag.cueMissing") }),
+        t("DRPG.Music.diag.cueRunning", { value: yes(Boolean(interrupted)) })
+            + (interrupted?.held?.length ? t("DRPG.Music.diag.cueHolding", { n: interrupted.held.length }) : ""),
         "",
-        "state              applies       playlist"
+        `${t("DRPG.Music.diag.colState").padEnd(18)} ${t("DRPG.Music.diag.colApplies").padEnd(13)} ${t("DRPG.Music.diag.colPlaylist")}`
     ];
 
     for (const state of MUSIC_STATES) {
         let applies = false;
         try {
-            applies = Boolean(state.test());
+            applies = yes(Boolean(state.test()));
         } catch (err) {
-            applies = `error: ${err.message}`;
+            applies = t("DRPG.Music.diag.testError", { message: err.message });
         }
         /* A LOCAL ROW NEVER "APPLIES", AND THAT IS NOT A FAULT. `murder` is not
            in the ladder - it plays on the browsers of the people in a killing
            and answers a question this table does not ask - so a plain `false`
            in this column would read as a state that is broken. Says what it is
            instead, and says whether THIS browser is currently hearing it. */
-        if (state.local) applies = murderMusicHere().playing ? "playing here" : "per-client";
+        if (state.local) applies = t(murderMusicHere().playing ? "DRPG.Music.diag.playingHere" : "DRPG.Music.diag.perClient");
         const mapped = map[state.key] ? game.playlists.get(map[state.key]) : null;
         // "Mapped to a playlist with nothing in it" is silence that looks
         // exactly like a correct mapping from every other angle.
         const playlist = !map[state.key] ? "-"
-            : !mapped ? "MAPPED TO A MISSING PLAYLIST"
-            : !mapped.sounds.size ? `${mapped.name} - EMPTY, nothing to play`
+            : !mapped ? t("DRPG.Music.diag.missingPlaylist")
+            : isCuePlaylist(mapped) ? t("DRPG.Music.diag.onCue", { name: mapped.name })
+            : !mapped.sounds.size ? t("DRPG.Music.diag.emptyPlaylist", { name: mapped.name })
             : mapped.name;
-        const mark = state.key === winner ? " <- wins" : "";
-        const random = state.randomTrack ? " (random track)" : "";
+        const mark = state.key === winner ? t("DRPG.Music.diag.wins") : "";
+        const random = state.randomTrack ? t("DRPG.Music.diag.randomTrack") : "";
         lines.push(`${state.key.padEnd(18)} ${String(applies).padEnd(13)} ${playlist}${mark}${random}`);
     }
 
-    if (!winner) lines.push("", "No state applies at all - nothing will play.");
-    else if (!map[winner]) {
-        lines.push("", `"${winner}" is the active state but has no playlist mapped, so the`
-            + " music is deliberately left alone. Map it in GM panel -> Right now -> Music by state.");
-    }
+    if (!winner) lines.push("", t("DRPG.Music.diag.noState"));
+    else if (!playlistFor(winner)) lines.push("", t("DRPG.Music.diag.unmapped", { state: winner }));
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Music diagnostics\n${text}`);

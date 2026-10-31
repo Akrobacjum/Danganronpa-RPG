@@ -443,18 +443,23 @@ export function incidentTrackerHtml(now, cleanup) {
 
 /**
  * The fight's last turns (`recent`, see `RECENT_TURNS`), oldest first, as the tracker lists
- * them: "Turn 1 - victim: Self-defence, missed with Despair." and what each reserve took, by
- * name ("Aiko loses 1 Health.", `reserveNote`). Nothing before the first action.
+ * them: "Turn 1 - victim: Self-defence, missed with Despair (9 against 12)." and what each reserve took, by
+ * name ("Aiko loses 1 Health.", `reserveNote`). Nothing before the first action. The total and the number it was
+ * measured against since E51 C1 (murder-rules.mjs `turnEntry`); an entry written before has neither and reads as it
+ * did. Exported for R1109.
  */
-function recentTurnsHtml(recent) {
-    const lines = (recent ?? []).map(({ turn, side, key, band, success, changes }) => {
-        const result = !band
+export function recentTurnsHtml(recent) {
+    const lines = (recent ?? []).map(({ turn, side, key, band, success, changes, total = null, threshold = null }) => {
+        const scored = Number.isFinite(total) && Number.isFinite(threshold)
+            ? ` (${game.i18n.format("DRPG.Murder.trackerScore", { total, n: threshold })})` : "";
+        const verdict = !band
             ? game.i18n.localize("DRPG.Murder.trackerResult.free")
             : band === "critical"
                 ? game.i18n.localize("DRPG.Murder.trackerResult.critical")
                 : game.i18n.format(success ? "DRPG.Murder.trackerResult.hit" : "DRPG.Murder.trackerResult.miss", {
                     band: game.i18n.localize(`DRPG.Murder.band.${band}`)
                 });
+        const result = `${verdict}${scored}`;
         const byActor = new Map();
         for (const change of changes ?? []) byActor.set(change.actorId, [...(byActor.get(change.actorId) ?? []), change]);
         const notes = [...byActor].map(([id, list]) => reserveNote({

@@ -7,8 +7,9 @@
  * button, at the wall on the bottom line beside it, under the chat's right half
  * (`--drpg-launcher-book` and `--drpg-launch-b-bottom`, danganronpa.css; E81
  * fix r2-H4 restated this from them). It opens the Student Brochure and the Player Handbook for
- * everybody, and the GM Handbook for a GM, in the language this browser chose
- * for the module.
+ * everybody, and the GM Handbook for a GM, in the language this page was built in
+ * (i18n.mjs `pageLanguage`): the module's language as this browser had it at its
+ * last load.
  *
  * The text is the Markdown in docs/handbooks, the same files the repository
  * shows, so there is one copy to keep up to date rather than two. They ship in
@@ -17,7 +18,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { moduleLanguage } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
@@ -31,8 +33,33 @@ const BOOKS = [
     { id: "gm-handbook", label: "DRPG.Handbooks.gm", gm: true }
 ];
 
-/** The book this browser last had open, so the button goes back to it. */
-let lastBook = BOOKS[0].id;
+/*
+ * THE BOOK LAST READ, KEPT FOR THE BROWSER (E51 C8, 31.10.2026; E51-46; Q6's default). It was a variable of the page,
+ * so an F5 opened the Student Brochure again whatever was being read. A client setting now (`handbookBook`, not in the
+ * settings window), written when a tab is pressed or a caller names a book, never by a window that only opened: a book
+ * no longer there, or the GM's on a player's browser, opens the first.
+ */
+function storedBook() {
+    try {
+        return getSetting(SETTINGS.handbookBook) || null;
+    } catch {
+        return null;
+    }
+}
+
+function rememberBook(id) {
+    if (!id || storedBook() === id) return;
+    try {
+        setSetting(SETTINGS.handbookBook, id)?.catch?.(err => error("Could not remember the handbook", err));
+    } catch (err) {
+        error("Could not remember the handbook", err);
+    }
+}
+
+/** The book a window opens on: `wanted` if this user may open it, else the first. */
+export function openingBook(wanted = storedBook(), user = game.user) {
+    return booksFor(user).some(book => book.id === wanted) ? wanted : BOOKS[0].id;
+}
 
 export function registerHandbooks() {
     // Mounted like the two launchers beside it: at `ready`, and again on
@@ -46,7 +73,9 @@ export function booksFor(user = game.user) {
     return BOOKS.filter(book => !book.gm || user?.isGM);
 }
 
-export function handbookPath(id, lang = moduleLanguage()) {
+/* The page's language, not the setting's (E51-45): after a declined reload the window's tabs are in the page's, and
+   so is every book it loads. A language with no file is not one `pageLanguage` answers (en or pl). */
+export function handbookPath(id, lang = pageLanguage()) {
     return `modules/${MODULE_ID}/docs/handbooks/${id}.${lang}.md`;
 }
 
@@ -62,7 +91,7 @@ export function markdownToHtml(markdown) {
     return toHtml(markdown);
 }
 
-export function handbookHtml(id, lang = moduleLanguage()) {
+export function handbookHtml(id, lang = pageLanguage()) {
     const key = `${id}.${lang}`;
     if (!rendered.has(key)) {
         const path = handbookPath(id, lang);
@@ -200,7 +229,7 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
                 height: Math.min(760, window.innerHeight - 60)
             }
         }, options));
-        this.book = booksFor().some(book => book.id === lastBook) ? lastBook : BOOKS[0].id;
+        this.book = openingBook(options.book ?? storedBook());
         this.ticket = 0;
     }
 
@@ -256,14 +285,15 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
 
     _onRender(_context, _options) {
         for (const button of this.element.querySelectorAll("[data-drpg-book]")) {
-            button.addEventListener("click", () => this.show(button.dataset.drpgBook));
+            button.addEventListener("click", () => this.show(button.dataset.drpgBook, { remember: true }));
         }
         this.show(this.book);
     }
 
-    /** Put one book in the window. A click on another tab mid-fetch wins. */
-    async show(id) {
-        this.book = lastBook = id;
+    /** Put one book in the window. A click on another tab mid-fetch wins; a press is remembered (`remember`). */
+    async show(id, { remember = false } = {}) {
+        this.book = id;
+        if (remember) rememberBook(id);
         for (const button of this.element.querySelectorAll("[data-drpg-book]")) {
             const on = button.dataset.drpgBook === id;
             button.classList.toggle("active", on);
@@ -336,11 +366,11 @@ export function fillContents(toc, text) {
 export async function openHandbooks(book = null) {
     const open = alreadyOpen(WINDOW_CLASS);
     if (open) {
-        if (book) open.show(book);
+        if (book) open.show(book, { remember: true });
         return open;
     }
-    if (book) lastBook = book;
-    return new HandbookApp().render({ force: true });
+    if (book) rememberBook(book);
+    return new HandbookApp(book ? { book } : {}).render({ force: true });
 }
 
 /* ==========================================================================

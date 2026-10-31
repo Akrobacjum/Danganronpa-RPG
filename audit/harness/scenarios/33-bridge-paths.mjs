@@ -921,6 +921,59 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await gm.eval(`delete canvas.scene.createEmbeddedDocuments; return typeof canvas.scene.createEmbeddedDocuments;`);
     }
 
+    // B11b (E51 C6, 31.10.2026; E51-41, amend 14.10 (2), the owner before session 0: "Wyrzucanie itemow tez powinno byc
+    // zabronione w trial grounds"; Q1: the Class Trial's phase). A broken lockpick on Aiko, the clock in the Class Trial.
+    // p1's own road (use-items.mjs `discardBroken`) refuses before its window, says why and asks nothing of the GM; then
+    // p1's console forges the discard's trace packet (`remnant.place`, action "discard") past it, as a discard begun
+    // before the trial and landing in it would arrive. The primary refuses it (gm-bridge.mjs `handleRemnant`), told once
+    // with cannotNow and logged; no trace is placed and the item stays. Red at C6's parent: the window asked and the
+    // discard carried out on p1's road, and the forged trace placed.
+    phase("a discard in the Class Trial", { flow: "trace-remnant" });
+    const trialClockWas = await gm.eval(`const was = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...was, phase: "classTrial" }); return was;`);
+    let lockpick = null;
+    try {
+        lockpick = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+            const item = await INV.grantItem(game.actors.get("${IDS.aiko}"), { name: "E51 lockpick", category: "tool", tier: 1 });
+            await item?.setFlag("${MOD}", "broken", true);
+            return item?.id ?? null;`, { timeout: 60000 });
+        await settle(800);
+        const traces = `return canvas.scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length;`;
+        const tracesBefore = await gm.eval(traces);
+        const loggedBefore = (await refusalsLogged(gm, "remnant.place")).length;
+        const n11b = await noticeCount(p1);
+        const ownRoad = await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+            const D = foundry.applications.api.DialogV2, was = D.confirm; let asked = 0;
+            D.confirm = async (...args) => { asked += 1; return was.apply(D, args); };
+            try {
+                const actor = game.actors.get("${IDS.aiko}");
+                const r = await U.discardBroken(actor, actor.items.get(${JSON.stringify(lockpick)}));
+                return { r: r ?? null, asked };
+            } finally { D.confirm = was; }`, { timeout: 60000 });
+        await settle(1200);
+        const ownSaid = (await noticesSince(p1, n11b)).map(x => x.msg);
+        const n11c = await noticeCount(p1);
+        const forged = await p1.eval(`return await ${bridge}.requestRemnant({ sourceActor: "${IDS.aiko}", sourceName: "Aiko Hoshino",
+            visibility: "evident", type: "prep", action: "discard", subject: "E51 lockpick", x: 300, y: 300, sceneId: canvas.scene.id });`,
+            { timeout: 30000 });
+        await settle(1200);
+        const b11b = { lockpick, ownRoad, ownSaid, forged, forgedSaid: (await noticesSince(p1, n11c)).map(x => x.msg),
+            reason: await p1.eval(`return game.i18n.localize("DRPG.Items.noDiscardInTrial");`),
+            why: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.cannotNow");`),
+            traces: [tracesBefore, await gm.eval(traces)],
+            logged: (await refusalsLogged(gm, "remnant.place")).length - loggedBefore,
+            held: await gm.eval(`return Boolean(game.actors.get("${IDS.aiko}").items.get(${JSON.stringify(lockpick)}));`) };
+        check("B11b: no discard in the Class Trial - p1's road refuses before its window and asks nothing; a forged discard trace is refused cannotNow on the GM, told once, logged, nothing placed, the item kept",
+            Boolean(lockpick) && b11b.ownRoad?.r === null && b11b.ownRoad?.asked === 0 && b11b.ownSaid.length === 1 && b11b.ownSaid[0].includes(b11b.reason)
+            && !b11b.reason.startsWith("DRPG.") && b11b.forged?.ok === false && b11b.forged?.refused === true && b11b.forged?.reason === "cannotNow"
+            && b11b.forgedSaid.length === 1 && b11b.forgedSaid[0].includes(b11b.why) && b11b.logged === 1
+            && b11b.traces[0] === b11b.traces[1] && b11b.held, JSON.stringify(b11b));
+    } finally {
+        await gm.eval(`const item = game.actors.get("${IDS.aiko}").items.get(${JSON.stringify(lockpick)}); if (item) await item.delete();
+            await game.settings.set("${MOD}", "clock", ${JSON.stringify(trialClockWas)}); return true;`, { timeout: 60000 });
+        await settle(800);
+    }
+
     // B12: a request whose resolver carried out nothing is not answered as done (E31 review). Botan is alive, so
     // lootBody takes nothing off him; p1 must be told once, and the wrench stays where it is. Since E14 part 1 C1 the
     // one gate refuses it (inventory.mjs `transferRefusal`, mode "loot") with the code a body whose death p1 does not

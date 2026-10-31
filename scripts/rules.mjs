@@ -81,6 +81,17 @@ export function motive() {
 }
 
 /**
+ * THE RECORD AS STORED, WITHOUT WHAT `motive()` DERIVES (E51 C7, 31.10.2026; audit S10-56). `due` is read off
+ * `remaining` at every read, as the note above says, and the tick, the rewind and the close wrote `{ ...motive() }`
+ * back - so the world held a `due` beside the number it is derived from. Every write of a read record goes through
+ * this. E51-T20 reads the setting raw after a tick and a rewind.
+ */
+function storedMotive(record) {
+    const { due: _derived, ...stored } = record ?? {};
+    return stored;
+}
+
+/**
  * Announce a motive, or withdraw the current one with `null`.
  *
  * Announced out loud, always. The guide's "musi być ogłaszany publicznie" is
@@ -199,7 +210,7 @@ export async function tickMotive() {
     if (toldHere) announceDue = false;
 
     await game.settings.set(MODULE_ID, SETTINGS.motive, {
-        ...stored, remaining, dueAnnounced: stored.dueAnnounced || (due && !incident),
+        ...storedMotive(stored), remaining, dueAnnounced: stored.dueAnnounced || (due && !incident),
         heldIn: key,
         heldRemaining: incident ? (stored.heldIn === key && Number.isFinite(stored.heldRemaining) ? stored.heldRemaining : (stored.remaining ?? 0)) : null,
         dueToldIn: incident && due && !stored.dueAnnounced ? key : (incident ? (stored.dueToldIn ?? null) : null)
@@ -250,7 +261,7 @@ export async function announceOwedMotive() {
     if (!stored?.due || stored.dueAnnounced) return false;
     const { murderState } = await import("./murder.mjs");
     if (murderState()) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.motive, { ...stored, dueAnnounced: true, heldIn: null, heldRemaining: null, dueToldIn: null });
+    await game.settings.set(MODULE_ID, SETTINGS.motive, { ...storedMotive(stored), dueAnnounced: true, heldIn: null, heldRemaining: null, dueToldIn: null });
     await announce(dueCard(stored));
     log("The motive came due in the incident; the table is told now it is closed.");
     return true;
@@ -288,11 +299,11 @@ export async function untickMotive() {
     const remaining = Math.min(cap, (stored.remaining ?? 0) + 1);
     if (remaining === stored.remaining) return stored;
 
-    const next = { ...stored, remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced,
+    const next = { ...storedMotive(stored), remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced,
         // Un-happened as well (E17 fix p2-G3): a motive that comes due again in the same incident is told to its table again.
         dueToldIn: remaining === 0 ? (stored.dueToldIn ?? null) : null };
     await game.settings.set(MODULE_ID, SETTINGS.motive, next);
-    return next;
+    return { ...next, due: remaining <= 0 };
 }
 
 /* ==========================================================================
@@ -324,18 +335,22 @@ export async function addRule(text) {
     const body = String(text ?? "").trim();
     if (!game.user.isGM || !body) return null;
 
-    const rule = {
-        id: foundry.utils.randomID(),
-        text: body,
-        chapter: getClock().chapter,
-        at: Date.now()
-    };
-
+    const rule = makeRule(body);
     const next = [...rules(), rule];
     if (!await write(next)) return null;
 
     log(`New killing game rule (chapter ${rule.chapter}): ${body}`);
     return rule;
+}
+
+/**
+ * A NEW RULE'S RECORD, ONE BUILDER (E51 C7, 31.10.2026; audit S10-56): `addRule` and the manager's "Introduce a new
+ * rule" both build it here - the manager built its own copy beside the one `addRule`'s note said it called.
+ *
+ * @param {string} body  the rule's wording, trimmed
+ */
+function makeRule(body) {
+    return { id: foundry.utils.randomID(), text: body, chapter: getClock().chapter, at: Date.now() };
 }
 
 /** Reword one. The id survives, so nothing pointing at it comes loose. */
@@ -463,6 +478,8 @@ export async function openRulesManager() {
                 <textarea name="new" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.Rules.manageNote")}</p>
+            <label class="drpg-checkbox"><input type="checkbox" name="announce" checked />
+                ${game.i18n.localize("DRPG.Rules.announce")}</label>
         </form>`),
         buttons: [
             {
@@ -476,7 +493,8 @@ export async function openRulesManager() {
                             remove: Boolean(
                                 f.querySelector(`[name="delete:${CSS.escape(rule.id)}"]`)?.checked)
                         })),
-                        added: f.querySelector('[name="new"]')?.value ?? ""
+                        added: f.querySelector('[name="new"]')?.value ?? "",
+                        announce: Boolean(f.querySelector('[name="announce"]')?.checked)
                     };
                 }
             },
@@ -487,28 +505,69 @@ export async function openRulesManager() {
     });
 
     if (!result || result === "cancel") return null;
+    return saveRulesEdit(result);
+}
 
-    // One write, not one per row: each `game.settings.set` is a round trip to
-    // every client, and a five-rule edit should not be five of them.
-    let next = rules()
+/**
+ * WHAT THE MANAGER'S SAVE WRITES, AND WHAT IT SAYS (E51 C7, 31.10.2026; audit S10-56, the owner's D44d = 1).
+ *
+ * One write, not one per row: each `game.settings.set` is a round trip to every client, and a five-rule edit should
+ * not be five of them. Then four things the save used not to do:
+ * - AN EMPTIED RULE IS REFUSED, SAID SO. A rule whose wording was cleared and whose box was not ticked keeps its old
+ *   text, as before - but the GM is told which, and that the box is how a rule is revoked; before, the text came back
+ *   without a word and read as a save that ignored them.
+ * - THE WRITE'S ANSWER IS READ: "Saved" only when `write` answered, else "could not be saved" and nothing announced.
+ *   The toast said "Saved - 4 rules in force" over a refused write.
+ * - "ANNOUNCE CHANGES", TICKED BY DEFAULT (D44d = 1): one public card listing the rules introduced and revoked. A rule
+ *   exists so that everybody knows it (this file's header), and a rule the manager added or revoked reached nobody's
+ *   chat. A rule revoked and introduced again in the same save, word for word, is listed once, as introduced. A save
+ *   that only rewords posts nothing (D44d names the introduced and the revoked). Unticked for a GM fixing a typo.
+ * - THE NEW RULE IS `makeRule`'S, the builder `addRule` uses.
+ *
+ * @param {{ edited: Array<{id: string, text: string, remove: boolean}>, added: string, announce?: boolean }} result
+ * @returns {Promise<object[]|null>} the rules written, or null when the write was refused
+ */
+async function saveRulesEdit(result) {
+    const emptied = [];
+    const before = rules();
+    let next = before
         .filter(r => !result.edited.find(e => e.id === r.id)?.remove)
         .map(r => {
             const edit = result.edited.find(e => e.id === r.id);
             const text = String(edit?.text ?? r.text).trim();
+            if (!text) emptied.push(before.indexOf(r) + 1);
             return text ? { ...r, text } : r;
         });
-
-    const fresh = String(result.added ?? "").trim();
-    if (fresh) {
-        next = [...next, {
-            id: foundry.utils.randomID(),
-            text: fresh,
-            chapter: getClock().chapter,
-            at: Date.now()
-        }];
+    if (emptied.length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Rules.emptyKept", { rules: emptied.join(", ") }));
     }
 
-    await write(next);
+    const fresh = String(result.added ?? "").trim();
+    if (fresh) next = [...next, makeRule(fresh)];
+
+    if (!await write(next)) {
+        ui.notifications.error(game.i18n.localize("DRPG.Rules.saveFailed"));
+        return null;
+    }
     ui.notifications.info(plural("DRPG.Rules.saved", { n: next.length }));
+
+    const kept = new Set(next.map(r => r.id));
+    const revoked = before.filter(r => !kept.has(r.id) && r.text.trim() !== fresh).map(r => r.text);
+    if (result.announce !== false && (fresh || revoked.length)) await announceRuleChanges({ added: fresh ? [fresh] : [], revoked });
     return next;
+}
+
+/** The card the manager's "Announce changes" posts: the rules introduced, then the rules revoked; public. */
+async function announceRuleChanges({ added = [], revoked = [] }) {
+    const list = (key, texts) => texts.length
+        ? `<p><strong>${esc(game.i18n.localize(key))}</strong></p><ul>${texts.map(text => `<li>${esc(text)}</li>`).join("")}</ul>`
+        : "";
+    await announce({
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${esc(game.i18n.localize("DRPG.Rules.announceTitle"))}</div>
+            ${list("DRPG.Rules.announceAdded", added)}
+            ${list("DRPG.Rules.announceRevoked", revoked)}
+        </div>`
+    });
+    log(`Killing game rules changed: ${added.length} introduced, ${revoked.length} revoked.`);
 }

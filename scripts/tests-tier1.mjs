@@ -6756,6 +6756,10 @@ const INVARIANTS = [
          * carried out. Asked of fixture states, as the judgement is asked of a Reroll's receipt:
          * the victim's denied Role reversal and a trap's third's Double role reversal are
          * refused with their own reason, and offered, unlocked, are not. Pure; nothing is written.
+         *
+         * CHANGED IN E51 C1 (30.10.2026; audit S02-51 (g)): a denied action stays in the side's list, struck through
+         * (`denied`, shut as `blocked`), so "offered" is read as a row that may be taken, and the GM's reason is the
+         * incident's denial (`crisisRefusal`'s `offered.denied`), told with the same code. R1107 reads the struck row.
          */
         const M = await import("./murder.mjs");
         const V = { id: "R211VICTIM000001" }, K = { id: "R211KILLER000001" }, T = { id: "R211THIRD0000001" };
@@ -6766,8 +6770,8 @@ const INVARIANTS = [
             const r = M.crisisRefusal(actor, key, state);
             return r ? `${r.why} | ${r.key}` : null;
         };
-        const DENIED = "that action is not open to that character now | DRPG.Murder.actionDenied";
-        const offers = (actor, state) => M.availableCrisisActions(actor, state).map(o => o.key);
+        const DENIED = "that action is denied by the incident | DRPG.Murder.actionDenied";
+        const offers = (actor, state) => M.availableCrisisActions(actor, state).filter(o => !o.denied && !o.blocked).map(o => o.key);
         equal(JSON.stringify([said(V, "roleReversal", trap), said(T, "doubleRoleReversal", trap), said(T, "doubleRoleReversal", fight),
             offers(V, fight).includes("roleReversal"), offers(V, trap).includes("roleReversal")]),
             JSON.stringify([DENIED, DENIED, null, true, false]),
@@ -12211,7 +12215,7 @@ const INVARIANTS = [
         /*
          * E78 C2, 13.10.2026; the A9 design's R390 (T2; the E78 plan's D2 gave it this number), its data clauses - E78 C4
          * adds the button's. The owner's answers Q1 (grey and struck through only when the MODULE holds the microphone),
-         * Q2 (a dead student talks in the room they died in until E19 and E67 say otherwise), Q4 (the GM's block is never
+         * Q2 (a dead student talks in the room they died in until E19 and E72 (part A, formerly E67) say otherwise), Q4 (the GM's block is never
          * offered on a microphone the module holds, nor for a death kept secret) and Q15 (a GM's block is its own state,
          * a Monocub's too). Asked of plain users and actors, every fact handed in, so it reads no document and writes
          * nothing (tier 1):
@@ -19806,7 +19810,7 @@ const INVARIANTS = [
          * nobody had found, and the voice tile named them (known-leaks A9-K3, measured by 75 E at E78 C7). Read here
          * on plain objects, nothing written and nothing sent: voice.mjs `placeVoices` - the decision `voiceTargets`
          * makes - for each case of A9's list, with the incident's facts handed in (`participantIds` of the state, the
-         * cast held or not, the discoveries, E67's `silencedDead`); `sendInPasses` over a ledger of the test's own
+         * cast held or not, the discoveries, the `silencedDead` of E72 (part A, formerly E67)); `sendInPasses` over a ledger of the test's own
          * (`createVoiceLedger`, its socket and timers the test's), where the witness's room waits for the victim's own
          * `voice.applied` (`onVoiceSocket` handed that ledger): one from the witness's account naming the victim
          * releases nothing, the victim's does, and with no answer the wait ends after 1500 ms; the same pass on a
@@ -19847,7 +19851,7 @@ const INVARIANTS = [
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
         /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
-           or not, the bodies found, E67's silenced; the answer each account gets, and the witnesses' waits. */
+           or not, the bodies found, the silenced of E72 (part A, formerly E67); the answer each account gets, and the witnesses' waits. */
         const place = async ({ cast = ["victim", "killer", "witness", "bystander"], dead = ["victim"], deceased = [], where = {},
             state = running, hydrated = true, found = [], silenced = null, reverse = false } = {}) => {
             const flagged = name => (deceased.includes(name) ? { ...A[name], getFlag: (s, k) => (s === MODULE_ID && k === FLAGS.deceased ? { chapter: 1 } : A[name].getFlag(s, k)) } : A[name]);
@@ -20002,7 +20006,7 @@ const INVARIANTS = [
     ["R831 - in the dead channel the microphone stays its owner's: the reason is a line beside an open or muted button, a click mutes and unmutes, and a GM's block is named over it (E19-16; E19 fix r1-G1)", async () => {
         /*
          * E19 fix r1-G1, 19.10.2026; the review's E19-C3-1. The dead channel is one room for every death kept secret
-         * until E67's channel per account, so with two victims each hears the other (R815's "two victims, after").
+         * until the channel per account of E72 (part A, formerly E67), so with two victims each hears the other (R815's "two victims, after").
          * Until the fix voice.mjs `micHold` answered { reason: "deadAlone", held: true } there, `micState` made that
          * "held", and in "held" `toggleOwnMic` writes nothing: a victim who had muted could not speak to the other, one
          * who had not could not mute, and the tile drew the microphone grey and struck. Asked here on plain facts, as
@@ -23026,6 +23030,525 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
     }],
+    ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window and the page visible, and neither a render nor a new bubble marks it without asking (E50 C1; S11-37, E50-01)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-37 (E50-01; Q-E50-2's default). `_onRender` marked the thread read on every
+         * render, the Note tab's too, and `appendMessage` on every bubble, whatever covered the window or however long
+         * the page had been hidden: a GM's badge went out on a request nobody saw. `seesThread` is read on stand-ins
+         * for the sixteen combinations of drawn, tab, in front and page visible (true for the one with all four), with
+         * `ui.activeWindow` and `document.visibilityState` stood in and put back; and the two bodies, comments stripped,
+         * hold no bare `markThreadRead(`. Red at 419d3b42: no `seesThread`, and both bodies called it.
+         */
+        const M = await import("./messenger-app.mjs");
+        const sees = M.DrpgMessengerApp.prototype.seesThread;
+        const read = [];
+        if (typeof sees !== "function") read.push("no seesThread");
+        else {
+            const wasFront = ui.activeWindow;
+            const other = { id: "R1061OtherWindow" };
+            try {
+                for (const visible of [true, false]) {
+                    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visible ? "visible" : "hidden" });
+                    for (const rendered of [true, false]) for (const tab of ["chat", "note"]) for (const front of [true, false]) {
+                        const app = { rendered, tab };
+                        ui.activeWindow = front ? app : other;
+                        if (sees.call(app)) read.push([rendered, tab, front, visible]);
+                    }
+                }
+            } finally {
+                delete document.visibilityState;
+                ui.activeWindow = wasFront;
+            }
+        }
+        const src = stripComments(new Map(await otherSources()).get("messenger-app.mjs") ?? "");
+        for (const [marker, until] of [["_onRender(_context, _options) {", "\n    }\n"], ["appendMessage(message) {", "\n    }\n"]]) {
+            read.push([marker, /\bmarkThreadRead\s*\(/.test(bodyOf(src, marker, { until }))]);
+        }
+        equal(stableJson(read), stableJson([[true, "chat", true, true],
+            ["_onRender(_context, _options) {", false], ["appendMessage(message) {", false]]),
+            "[each combination of drawn, tab, in front and visible that seesThread calls seen; whether _onRender, then appendMessage, calls markThreadRead itself]");
+    }],
+    ["R1062 - a failed send keeps the words in the messenger's field and says so once; a send that lands empties it (E50 C1; S11-38, E50-03)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-38 (E50-03). The submit handler emptied the field before the send, and
+         * `createThreadMessage` logs a failure and answers null: the words were gone and nothing said so. A stand-in
+         * window (the prototype, its own element, a thread no user has, so nothing can be sent) is wired by `_onRender`
+         * and submitted three times, its `send` answering null, then throwing, then a message; the field's text and
+         * the `sendFailed` toasts after each, with `ui.notifications.error` stood in and put back. Red at 419d3b42:
+         * the field empty after the first, as the handler sent through `sendMessage` (null: not a player) after
+         * emptying it.
+         */
+        const M = await import("./messenger-app.mjs");
+        const failed = game.i18n.localize("DRPG.Messenger.sendFailed");
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="drpg-messenger-log"></div><form class="drpg-messenger-input"><textarea name="text"></textarea><button type="submit"></button></form>`;
+        const answers = [() => null, () => { throw new Error("R1062 a send that throws"); }, () => ({ id: "R1062SentMessage" })];
+        const app = Object.create(M.DrpgMessengerApp.prototype, {
+            element: { value: root }, playerUserId: { value: "R1062NoSuchUser1" }, rendered: { value: false },
+            tab: { value: "chat", writable: true }, send: { value: async () => answers.shift()() }
+        });
+        const area = root.querySelector("textarea"), form = root.querySelector("form");
+        const toasts = [], realError = ui.notifications.error;
+        const read = [];
+        ui.notifications.error = text => { toasts.push(String(text)); };
+        try {
+            M.DrpgMessengerApp.prototype._onRender.call(app, {}, {});
+            for (const i of [0, 1, 2]) {
+                const words = `R1062 words ${i}`;
+                area.value = words;
+                const before = toasts.length;
+                form.dispatchEvent(new Event("submit", { cancelable: true }));
+                await until(() => !area.disabled, 1000);
+                await settle();
+                read.push([area.value === words ? "kept" : area.value === "" ? "empty" : area.value, area.disabled, toasts.slice(before).filter(t => t === failed).length]);
+            }
+        } finally {
+            ui.notifications.error = realError;
+        }
+        read.push(failed !== "DRPG.Messenger.sendFailed");
+        equal(stableJson(read), stableJson([["kept", false, 1], ["kept", false, 1], ["empty", false, 0], true]),
+            "[the field after a send answered null, one that threw, one that landed: its words, whether it is still disabled, the sendFailed toasts; whether sendFailed has words in this language]");
+    }],
+    ["R1072 - a failed send says what is known, once: nothing said and nothing posted is \"not sent\"; a refusal that said why already (too long, no GM, the GM's refusal) adds nothing; one that may have been posted (no answer in time, an id with no card, a card made and its words not kept) says it may not have been sent and to look first (E50 fix FG2; the end review's F4, S2, G6)", async () => {
+        /*
+         * E50 fix FG2, 30.10.2026; the end review's F4, S2 and G6. Every null from the send was "Your message was not
+         * sent ... try again": stacked on a refusal that had said why (`DRPG.Secret.tooLong`, the bridge's `noGm`), and
+         * said where the primary may have posted it (secret.mjs `askGm`: an answer past `TIMING.ackMs`, or its id and
+         * no card within `messageArrives`), so a second Send posted it twice. The send is handed an outcome to fill
+         * (`told`, `maybePosted`; messenger.mjs `sendMessage`, secret.mjs `postSecret`). A stand-in window as R1062's,
+         * its `send` answering null four times, each filling the outcome as one road does, then a message; the toasts
+         * of every kind after each, `ui.notifications` stood in and put back. Red at 0f2058bf: the handler handed no
+         * outcome and said `sendFailed` every time.
+         */
+        const M = await import("./messenger-app.mjs");
+        const failed = game.i18n.localize("DRPG.Messenger.sendFailed"), unsure = game.i18n.localize("DRPG.Messenger.sendUnsure");
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="drpg-messenger-log"></div><form class="drpg-messenger-input"><textarea name="text"></textarea><button type="submit"></button></form>`;
+        const roads = [{}, { told: true }, { maybePosted: true }, { told: true, maybePosted: true }, null];
+        const app = Object.create(M.DrpgMessengerApp.prototype, {
+            element: { value: root }, playerUserId: { value: "R1072NoSuchUser1" }, rendered: { value: false },
+            tab: { value: "chat", writable: true },
+            send: { value: async (_text, outcome) => {
+                const road = roads.shift();
+                if (road === null) return { id: "R1072SentMessage" };
+                if (outcome && typeof outcome === "object") Object.assign(outcome, road);
+                return null;
+            } }
+        });
+        const area = root.querySelector("textarea"), form = root.querySelector("form");
+        const toasts = [], real = {};
+        const read = [];
+        for (const kind of ["info", "warn", "error"]) {
+            real[kind] = ui.notifications[kind];
+            ui.notifications[kind] = text => { toasts.push(String(text) === failed ? "failed" : String(text) === unsure ? "unsure" : `${kind}: ${text}`); };
+        }
+        try {
+            M.DrpgMessengerApp.prototype._onRender.call(app, {}, {});
+            for (const i of [0, 1, 2, 3, 4]) {
+                const words = `R1072 words ${i}`;
+                area.value = words;
+                const before = toasts.length;
+                form.dispatchEvent(new Event("submit", { cancelable: true }));
+                await until(() => !area.disabled, 1000);
+                await settle();
+                read.push([area.value === words ? "kept" : area.value === "" ? "empty" : area.value, area.disabled, toasts.slice(before)]);
+            }
+        } finally {
+            for (const [kind, fn] of Object.entries(real)) ui.notifications[kind] = fn;
+        }
+        read.push(unsure !== "DRPG.Messenger.sendUnsure" && unsure !== failed);
+        equal(stableJson(read), stableJson([["kept", false, ["failed"]], ["kept", false, []], ["kept", false, ["unsure"]], ["kept", false, ["unsure"]],
+            ["empty", false, []], true]),
+            "[the field after a send that said nothing and posted nothing, one that said why, one that may have posted, one that said why and may have posted, one that landed: its words, whether it is still disabled, the toasts; whether sendUnsure has words of its own in this language]");
+    }],
+    ["R1063 - a deleted message leaves an open messenger window, and the last one gone puts the empty notice back (E50 C1; S11-35, E50-04)", async () => {
+        /*
+         * E50 C1, 30.10.2026; audit S11-35 (E50-04). `registerMessenger` hooked creation and edits only, so a card
+         * deleted from the chat log stayed in every open window, its buttons live. A stand-in window (the prototype, its
+         * own log of two bubbles, under a thread no user has) is put among the open windows and taken out again;
+         * `drpgMessengerDeleted` is raised for one bubble, then for the other. Red at 419d3b42: nothing listened, and
+         * both bubbles stayed.
+         */
+        const M = await import("./messenger-app.mjs");
+        const thread = "R1063NoSuchUser1";
+        must(!M.DrpgMessengerApp.instances.has(thread), "a window is open under the stand-in's thread");
+        const root = document.createElement("div");
+        const log = document.createElement("div");
+        log.className = "drpg-messenger-log";
+        for (const id of ["R1063Bubble00001", "R1063Bubble00002"]) {
+            const bubble = document.createElement("div");
+            bubble.className = "drpg-messenger-bubble";
+            bubble.dataset.messageId = id;
+            log.append(bubble);
+        }
+        root.append(log);
+        const app = Object.create(M.DrpgMessengerApp.prototype, { element: { value: root }, playerUserId: { value: thread } });
+        const shown = () => [[...log.querySelectorAll(".drpg-messenger-bubble")].map(b => b.dataset.messageId), Boolean(log.querySelector(".drpg-messenger-empty"))];
+        const read = [];
+        M.DrpgMessengerApp.instances.set(thread, app);
+        try {
+            for (const id of ["R1063Bubble00001", "R1063Bubble00002"]) {
+                Hooks.callAll("drpgMessengerDeleted", { id }, thread);
+                await settle();
+                read.push(shown());
+            }
+        } finally {
+            M.DrpgMessengerApp.instances.delete(thread);
+        }
+        equal(stableJson(read), stableJson([[["R1063Bubble00002"], false], [[], true]]),
+            "[the window's bubbles and whether it shows the empty notice, after the first deletion, then the second]");
+    }],
+    ["R1064 - one count of the messenger's threads: threadStatsOf groups messages by thread in one pass into { count, unread, last } and answers what unreadCount and lastMessage answered at 419d3b42 on every stand-in row but a GM's own gmAsk card not settled, which counts for that GM until read (E50 C2; S11-45, S11-57, E50-10, E50-11)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-45 and S11-57 (E50-10, E50-11). The counts were `threadMessages` per thread -
+         * a walk of every message with a sort - once for the badge per thread and twice per roster row, and they
+         * dropped every message whose writer was the viewer, so the primary GM's own gmAsk cards (callGm posts them
+         * from that GM's session) were never unread on the one browser that has to answer them. The reference below
+         * is 419d3b42's `threadMessages`, `unreadCount` and `lastMessage` copied as they stood, over a list in place of
+         * `game.messages`. The stand-in world: four threads (one empty), a player's own and others' messages, a GM's
+         * own gmAsk cards settled and not, an own receipt (no gmAsk), a second GM's ask, two cards at one stamp, a
+         * veiled card with no thread on its document, a message of no thread, in no order; read by two GMs and two
+         * players, with no read map and with one. Every row must agree on count and last; on unread every row but a
+         * GM's own unsettled gmAsk card after its read stamp, which counts one more. Red at C2's parent: no export.
+         */
+        const M = await import("./messenger.mjs");
+        const S = await import("./secret.mjs");
+        const GM = "R1064GmUser00001", GM2 = "R1064GmUser00002", P = ["R1064Player00001", "R1064Player00002", "R1064Player00003", "R1064Player00004"];
+        const users = { [GM]: true, [GM2]: true, [P[0]]: false, [P[1]]: false, [P[2]]: false };
+        const card = (id, timestamp, author, flags) => ({ id, timestamp, author: { id: author, isGM: users[author] }, flags: { [MODULE_ID]: flags } });
+        const dm = thread => ({ thread, kind: "dm" }), ask = (thread, more = {}) => ({ thread, kind: "action", gmAsk: true, ...more });
+        const world = [
+            card("R1064Card0000003", 120, GM, ask(P[0])),
+            card("R1064Card0000001", 100, P[0], dm(P[0])),
+            card("R1064Card0000008", 140, P[2], dm(P[2])),
+            card("R1064Card0000005", 105, GM, ask(P[1], { settled: true })),
+            card("R1064Card0000010", 150, GM, { [S.SECRET_FLAG]: true, [S.VEILED_FLAG]: true }),
+            card("R1064Card0000002", 110, GM, dm(P[0])),
+            card("R1064Card0000009", 140, GM, dm(P[2])),
+            card("R1064Card0000006", 115, GM, { thread: P[1], kind: "action" }),
+            card("R1064Card0000011", 160, P[1], {}),
+            card("R1064Card0000004", 130, P[0], ask(P[0])),
+            card("R1064Card0000012", 138, GM2, ask(P[2])),
+            card("R1064Card0000007", 125, GM2, dm(P[1]))
+        ];
+        // 419d3b42's reading, copied: threadMessages(id), then unreadCount's filter and lastMessage's last.
+        const baseThread = id => world.filter(m => S.cardFlag(m, "thread") === id).sort((a, b) => a.timestamp - b.timestamp);
+        const baseUnread = (id, me, map) => { const since = map[id] ?? 0; return baseThread(id).filter(m => m.timestamp > since && S.cardWriter(m)?.id !== me).length; };
+        const baseLast = id => { const all = baseThread(id); return all[all.length - 1] ?? null; };
+        const read = [];
+        if (typeof M.threadStatsOf !== "function") read.push("no threadStatsOf");
+        else {
+            const maps = { none: {}, read: { [P[0]]: 120, [P[1]]: 110, [P[2]]: 130 } };
+            for (const me of [GM, GM2, P[0], P[2]]) for (const [mapName, map] of Object.entries(maps)) {
+                const stats = M.threadStatsOf(world, { me, readMap: map, isGM: users[me] });
+                for (const id of P) {
+                    const row = stats.get(id) ?? { count: 0, unread: 0, last: null };
+                    const base = { count: baseThread(id).length, unread: baseUnread(id, me, map), last: baseLast(id)?.id ?? null };
+                    if (row.count !== base.count || (row.last?.id ?? null) !== base.last) read.push(["count or last differs", me, mapName, id, base, { count: row.count, last: row.last?.id ?? null }]);
+                    if (row.unread !== base.unread) read.push([me, mapName, id, base.unread, row.unread]);
+                }
+            }
+        }
+        equal(stableJson(read), stableJson([[GM, "none", P[0], 2, 3], [GM2, "none", P[2], 2, 3], [GM2, "read", P[2], 2, 3]]),
+            "[every row where threadStatsOf and 419d3b42's reading differ: viewer, read map, thread, unread then and now - only a GM's own unsettled gmAsk after its read stamp; "
+            + "a settled one (GM, the second thread), an own receipt, a player's own ask and the veiled card read as they did]");
+    }],
+    ["R1065 - a GM's launcher and roster count the threads in one pass: one renderLauncher() and a roster of 8 rows and more walk game.messages once and read the read map once, and the counters messenger.threadStats and messenger.readMap move by one each (E50 C2; S11-57, E50-12)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-57 (E50-12). The badge summed `unreadCount` over the thread users - one walk of
+         * every message and one read of the read map per thread - and each roster row added `lastMessage` and
+         * `unreadCount`, two walks more: O(threads x messages) on every message that arrived. For one synchronous
+         * renderLauncher() and openMessenger() (a GM's roster) with eight stand-in players added to the thread users
+         * (game.users.filter stood in, the stand-ins added to what it answers), game.messages' `values` (the road
+         * every walk of a Collection takes, Foundry's and the harness's: its iterator, contents, filter) and
+         * game.settings.get of the read map are counted, all put back in `finally`, and the roster is closed again.
+         * Red at C2's parent: one walk per thread for the badge and two per row, a read per thread and per row.
+         */
+        must(game.user.isGM, "the launcher's count of every thread is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const C = await import("./perf-counters.mjs");
+        const msgs = game.messages, users = game.users, settings = game.settings;
+        const own = (obj, key) => [Object.prototype.hasOwnProperty.call(obj, key), obj[key]];
+        const [hadValues, realValues] = own(msgs, "values"), [hadFilter, realFilter] = own(users, "filter"), [hadGet, realGet] = own(settings, "get");
+        const stand = Array.from({ length: 8 }, (_, i) => ({ id: `R1065Player0000${i}`, name: `R1065 player ${i}`, isGM: false }));
+        let walks = 0, reads = 0, rows = 0, moved = {};
+        const before = C.snapshot();
+        try {
+            msgs.values = function (...a) { walks++; return realValues.apply(this, a); };
+            users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...stand.filter(fn)]; };
+            settings.get = function (scope, key, ...a) { if (scope === MODULE_ID && key === SETTINGS.messengerLastRead) reads++; return realGet.call(this, scope, key, ...a); };
+            A.renderLauncher();
+            A.openMessenger();
+            moved = C.delta(before, C.snapshot());
+            rows = document.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row").length;
+        } finally {
+            if (hadValues) msgs.values = realValues; else delete msgs.values;
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            await wait(30);
+            document.body.click();
+            await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+            for (const left of document.querySelectorAll("#drpg-messenger-roster")) left.remove();
+        }
+        equal(stableJson({ walks, reads, threadStats: moved["messenger.threadStats"] ?? 0, readMap: moved["messenger.readMap"] ?? 0, rows: rows >= 8 }),
+            stableJson({ walks: 1, reads: 1, threadStats: 1, readMap: 1, rows: true }),
+            `[walks of game.messages, reads of the read map, the two counters' deltas, whether the roster drew 8 rows or more (it drew ${rows})]`);
+    }],
+    ["R1066 - the GM's roster closes by one road: clicks inside it leave it open and the outside click after them still closes it, a second open leaves one roster, a row's click closes it through closeRoster, and no click listener of the roster's is left on the document (E50 C2; S11-44, E50-13)", async () => {
+        /*
+         * E50 C2, 30.10.2026; audit S11-44 (E50-13). The outside click was a `{ once: true }` document listener, spent on
+         * the first click inside the roster, after which nothing closed it but the button; `openMessenger()` on a GM
+         * built a second roster beside an open one; a row's click took the panel off the page itself. Here, on a GM's
+         * page: the roster opened by openMessenger() with one stand-in player added to its rows (game.users.filter
+         * stood in for that call only), three clicks on its heading and its own box, then one on the body; two opens in
+         * a row; then the stand-in's row clicked (openMessenger answers "not a player" for an id no user has: no window
+         * opens, nothing is written; ui.notifications.warn stood in). document's add/removeEventListener are wrapped
+         * for the whole test to keep the click listeners added meanwhile that are still there. Everything is put back
+         * in `finally`. Red at C2's parent: open after the outside click, two rosters, the row's panel removed without
+         * the leaving class.
+         */
+        must(game.user.isGM, "the roster is a GM's");
+        must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: this test opens its own");
+        const A = await import("./messenger-app.mjs");
+        const users = game.users, doc = document;
+        const [hadFilter, realFilter] = [Object.prototype.hasOwnProperty.call(users, "filter"), users.filter];
+        const realAdd = doc.addEventListener, realRemove = doc.removeEventListener;
+        const kept = new Map();   // listener -> its stand-in, for the click listeners added while the test runs
+        const stand = { id: "R1066NoSuchUser1", name: "R1066 stand-in", isGM: false };
+        const open = () => {
+            users.filter = function (fn, ...a) { return [...realFilter.call(this, fn, ...a), ...[stand].filter(fn)]; };
+            try { A.openMessenger(); } finally { if (hadFilter) users.filter = realFilter; else delete users.filter; }
+        };
+        const panels = () => doc.querySelectorAll("#drpg-messenger-roster");
+        const state = () => { const p = panels(); return p.length === 0 ? "closed" : p.length > 1 ? `${p.length} rosters` : p[0].classList.contains("leaving") ? "leaving" : "open"; };
+        const warns = [], realWarn = ui.notifications.warn;
+        const read = {};
+        doc.addEventListener = function (type, fn, options) {
+            if (type !== "click" || typeof fn !== "function") return realAdd.call(this, type, fn, options);
+            const once = typeof options === "object" && options?.once;
+            const proxy = function (event) { if (once) kept.delete(fn); return fn.call(this, event); };
+            kept.set(fn, proxy);
+            return realAdd.call(this, type, proxy, options);
+        };
+        doc.removeEventListener = function (type, fn, options) {
+            if (type === "click" && kept.has(fn)) { const proxy = kept.get(fn); kept.delete(fn); return realRemove.call(this, type, proxy, options); }
+            return realRemove.call(this, type, fn, options);
+        };
+        try {
+            open();
+            await wait(30);
+            const panel = panels()[0];
+            for (const target of [panel?.querySelector("h4"), panel, panel?.querySelector("h4")]) target?.click();
+            read.inside = state();
+            doc.body.click();
+            read.outside = state();
+            await until(() => panels().length === 0, 2000);
+            read.afterOutside = state();
+            open();
+            open();
+            read.twice = state();
+            await until(() => panels().length === 1 && !panels()[0].classList.contains("leaving"), 1000);
+            await wait(30);
+            const row = [...doc.querySelectorAll("#drpg-messenger-roster .drpg-messenger-roster-row")].find(li => li.textContent.includes(stand.name));
+            ui.notifications.warn = text => { warns.push(String(text)); };
+            row?.click();
+            read.row = [Boolean(row), state()];
+            await until(() => panels().length === 0, 2000);
+            read.afterRow = state();
+            read.warned = warns.includes(game.i18n.localize("DRPG.Messenger.notAPlayer"));
+            await wait(30);
+            read.left = kept.size;
+        } finally {
+            ui.notifications.warn = realWarn;
+            doc.addEventListener = realAdd;
+            doc.removeEventListener = realRemove;
+            if (hadFilter) users.filter = realFilter; else delete users.filter;
+            for (const proxy of kept.values()) realRemove.call(doc, "click", proxy);
+            for (const left of panels()) left.remove();
+        }
+        equal(stableJson(read), stableJson({ inside: "open", outside: "leaving", afterOutside: "closed", twice: "open", row: [true, "leaving"], afterRow: "closed", warned: true, left: 0 }),
+            "[after three clicks inside; at the body's click, and after it; after two opens; a row clicked (found, then the roster), and after; whether openMessenger said 'not a player' for the stand-in; the roster's click listeners left on the document]");
+    }],
+    ["R1067 - the cue playlist cannot be mapped: the Music tab offers it in no select, a stored mapping onto it is dropped by the primary GM alone with one write of the map without that key (the other keys kept, a second call writing nothing), and playlistFor answers null for it (E50 C3; S11-47, E50-23, Q-E50-1)", async () => {
+        /*
+         * E50 C3, 30.10.2026; audit S11-47 and the owner's answer on Q-E50-1 (30.10: the mapping is removed by itself).
+         * `musicMapRows` offered every playlist, the cue playlist (SITUATIONAL_PLAYLIST, matched by name) among them, and
+         * a state mapped onto it played the GM's cues as that state's music. Stand-ins only: three playlists (the cue
+         * playlist by its name, two others) handed to `musicMapRows`, `playlistFor` and `dropCueMappings`, a map of three
+         * keys one of them on the cue playlist, and a write that records instead of writing. Nothing of the world is read
+         * but the map `musicMapRows` marks as selected. Red at C3's parent: no export of `musicMapRows` or
+         * `dropCueMappings`, and `playlistFor` reading the world's map, not the one handed to it.
+         */
+        const M = await import("./music.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const cue = { id: "R1067CuePlaylist", name: ` ${SITUATIONAL_PLAYLIST.toUpperCase()} ` };
+        const a = { id: "R1067PlaylistA01", name: "R1067 A" }, b = { id: "R1067PlaylistB01", name: "R1067 B" };
+        const all = [a, cue, b];
+        const playlists = { get: id => all.find(p => p.id === id) };
+        const map = { "time.morning": cue.id, "time.noon": a.id, search: b.id };
+        const read = { exports: ["musicMapRows", "dropCueMappings"].filter(name => typeof M[name] !== "function") };
+        if (typeof M.musicMapRows === "function") {
+            const tpl = document.createElement("template");
+            tpl.innerHTML = `<table><tbody>${M.musicMapRows(all)}</tbody></table>`;
+            const selects = [...tpl.content.querySelectorAll("select[name^='state:']")];
+            const values = new Set(selects.flatMap(s => [...s.options].map(o => o.value)));
+            read.offered = { rows: selects.length === M.MUSIC_STATES.length, cue: values.has(cue.id), others: values.has(a.id) && values.has(b.id) };
+        }
+        read.playlistFor = [M.playlistFor("time.morning", { map, playlists })?.id ?? null, M.playlistFor("time.noon", { map, playlists })?.id ?? null];
+        if (typeof M.dropCueMappings === "function") {
+            const run = async primary => {
+                let stored = { ...map };
+                const writes = [];
+                const write = next => { writes.push({ ...next }); stored = { ...next }; };
+                const first = await M.dropCueMappings({ primary, map: stored, playlists, write });
+                const second = await M.dropCueMappings({ primary, map: stored, playlists, write });
+                return { first, second, writes };
+            };
+            read.primary = await run(true);
+            read.other = await run(false);
+        }
+        equal(stableJson(read), stableJson({
+            exports: [],
+            offered: { rows: true, cue: false, others: true },
+            playlistFor: [null, a.id],
+            primary: { first: ["time.morning"], second: [], writes: [{ "time.noon": a.id, search: b.id }] },
+            other: { first: [], second: [], writes: [] }
+        }), "[the exports missing]; [the Music tab's selects: one a state, the cue playlist offered, the others offered]; [playlistFor of the key on the cue "
+            + "playlist and of a key on another]; [as the primary: the keys the first call dropped, the second's, every write]; [the same on a GM who is not the primary]");
+    }],
+    ["R1068 - the times of day on the Music tab read in the table's language: each time row's label is TIME_OF_DAY_LABELS as it stands when the row is drawn, after i18n.mjs swapped the table at i18nInit (E50 C3; E50-24)", async () => {
+        /*
+         * E50 C3, 30.10.2026 (found reading for E50). `MUSIC_STATES`' time rows took `label: TIME_OF_DAY_LABELS[time]` at
+         * import, before `localizeConfig` swaps config.mjs's tables in place at `i18nInit`, so a Polish table read
+         * "Morning" in the Sound window. Here the table is swapped to stand-in words for the length of the reading (put
+         * back in `finally`, as the language swap does in place), and the rows' labels and the drawn rows' first cells
+         * read. Red at C3's parent: the English words of import time.
+         */
+        const M = await import("./music.mjs");
+        const C = await import("./config.mjs");
+        const saved = { ...C.TIME_OF_DAY_LABELS };
+        const words = Object.fromEntries(C.TIMES_OF_DAY.map((time, i) => [time, `R1068 stand-in ${i}`]));
+        const read = {};
+        try {
+            Object.assign(C.TIME_OF_DAY_LABELS, words);
+            read.labels = M.MUSIC_STATES.filter(s => s.key.startsWith("time.")).map(s => s.label);
+            if (typeof M.musicMapRows === "function") {
+                const tpl = document.createElement("template");
+                tpl.innerHTML = `<table><tbody>${M.musicMapRows([])}</tbody></table>`;
+                read.drawn = [...tpl.content.querySelectorAll("tr")].map(tr => tr.querySelector("td")?.textContent.trim()).filter(t => t.startsWith("R1068"));
+            } else read.drawn = "no musicMapRows";
+        } finally {
+            Object.assign(C.TIME_OF_DAY_LABELS, saved);
+        }
+        read.back = M.MUSIC_STATES.filter(s => s.key.startsWith("time.")).map(s => s.label);
+        equal(stableJson(read), stableJson({ labels: Object.values(words), drawn: Object.values(words), back: C.TIMES_OF_DAY.map(t => saved[t]) }),
+            "[the time rows' labels with the table swapped]; [the drawn rows' first cells]; [the labels with the table put back]");
+    }],
+    ["R1069 - the Music slider shows and writes Foundry's own number: a position p is the volume inputToVolume(p) and a volume v the position volumeToInput(v), through Foundry's AudioHelper where it has them and Foundry's curve (x ** 1.5) where it does not, so the drawn slider moved to 50 writes 0.3536 and 0.3536 shows 50; the Sound slider stays linear (E50 C3, fix FG1; S11-41, E50-25, LIVE-E50-03)", async () => {
+        /*
+         * E50 C3, 30.10.2026; audit S11-41. The Music slider wrote `core.globalPlaylistVolume` as the position it stood
+         * at and showed `Math.round(volume * 100)`, where Foundry's own playlist slider shows and writes through
+         * AudioHelper's curve (`volumeToInput(v) = v ** (1 / 1.5)`, `inputToVolume(x) = x ** 1.5`, read in fvtt-types
+         * 14.366, not in v14's code: LIVE-E50-03), so one volume read as two numbers. Stand-ins: an AudioHelper with a
+         * curve of its own (its numbers must come back), none (the formula), and `game.settings.get`/`set` for the two
+         * volumes (a read answers 0.3536 for the music and { sound: 0.25 } for the module's, a write is recorded and not
+         * made), put back in `finally`. Red at C3's parent: no such functions, the slider at 35, and 0.5 written.
+         *
+         * E50 fix FG1 (the end review's F1 and G1): the write is read through the window's slider - `soundSlidersHtml`
+         * drawn, `wireSoundPanel` on it, each slider moved to 50 by an `input` event, as 87 C3 moves p1's - because the
+         * position is the slider's to turn into a volume; `setSfxVolume`, the macro API's, takes a volume (R1071).
+         */
+        const S = await import("./sfx.mjs");
+        const r4 = n => (Number.isFinite(n) ? Math.round(n * 1e4) / 1e4 : null);
+        const helper = { inputToVolume: x => x / 4, volumeToInput: v => v * 4 };
+        const read = { missing: ["musicInputToVolume", "musicVolumeToInput"].filter(name => typeof S[name] !== "function") };
+        read.formula = [r4(S.musicInputToVolume?.(0.5, null)), r4(S.musicVolumeToInput?.(0.3536, null))];
+        read.helper = [S.musicInputToVolume?.(0.5, helper) ?? null, S.musicVolumeToInput?.(0.125, helper) ?? null];
+        const settings = game.settings;
+        const hadGet = Object.prototype.hasOwnProperty.call(settings, "get"), hadSet = Object.prototype.hasOwnProperty.call(settings, "set");
+        const realGet = settings.get, realSet = settings.set;
+        const writes = [];
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === "core" && key === "globalPlaylistVolume") return 0.3536;
+                if (ns === MODULE_ID && key === SETTINGS.sfxVolumes) return { sound: 0.25 };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value) {
+                if ((ns === "core" && key === "globalPlaylistVolume") || (ns === MODULE_ID && key === SETTINGS.sfxVolumes)) {
+                    writes.push([`${ns}.${key}`, typeof value === "number" ? r4(value) : value]);
+                    return value;
+                }
+                throw new Error(`R1069 wrote ${ns}.${key}, which this test does not stand in`);
+            };
+            const tpl = document.createElement("template");
+            tpl.innerHTML = S.soundSlidersHtml();
+            const slider = key => tpl.content.querySelector(`input[name="vol:${key}"]`);
+            read.shown = ["music", "sound"].map(key => slider(key)?.value ?? null);
+            S.wireSoundPanel(tpl.content);
+            for (const key of ["music", "sound"]) {
+                const input = slider(key);
+                if (!input) continue;
+                input.value = "50";
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            await until(() => writes.length >= 2, 1000);
+        } finally {
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            if (hadSet) settings.set = realSet; else delete settings.set;
+        }
+        read.writes = writes;
+        equal(stableJson(read), stableJson({
+            missing: [], formula: [0.3536, 0.5], helper: [0.125, 0.5],
+            shown: ["50", "25"],
+            writes: [["core.globalPlaylistVolume", 0.3536], [`${MODULE_ID}.${SETTINGS.sfxVolumes}`, { sound: 0.5 }]]
+        }), "[the functions missing]; [position 0.5 to a volume and 0.3536 back, with no AudioHelper]; [the same through a stand-in "
+            + "AudioHelper]; [the Music and Sound sliders drawn at 0.3536 and 0.25]; [what the drawn Music and Sound sliders write when moved to 50]");
+    }],
+    ["R1071 - setSfxVolume takes a volume for every slider, the Music one included, as before E50 C3: setSfxVolume(\"music\", 0.5) writes 0.5, and setSfxVolume(slider, sfxVolume(slider)) writes the volume it read, Music and Sound (E50 fix FG1; the end review's F1 and G1, tools/api-surface.json)", async () => {
+        /*
+         * E50 fix FG1, 30.10.2026. C3 made `game.drpg.setSfxVolume("music", x)` - the stable macro API
+         * (tools/api-surface.json) - take the slider's position and write x ** 1.5, while `sfxVolume("music")` still
+         * answered the volume: a macro saving and restoring the music turned 0.8 into 0.7155, and each round trip lowered
+         * it again. The same stand-ins as R1069 (a read answers 0.3536 for the music and { sound: 0.25 } for the module's,
+         * a write is recorded and not made), put back in `finally`; no AudioHelper is stood in, so a curve, if one were
+         * still applied here, is the harness's or Foundry's. Red at 8d509dc7: 0.5 wrote 0.3536 and the round trip 0.2103.
+         */
+        const S = await import("./sfx.mjs");
+        const r4 = n => (Number.isFinite(n) ? Math.round(n * 1e4) / 1e4 : null);
+        const settings = game.settings;
+        const hadGet = Object.prototype.hasOwnProperty.call(settings, "get"), hadSet = Object.prototype.hasOwnProperty.call(settings, "set");
+        const realGet = settings.get, realSet = settings.set;
+        const writes = [], readBack = [];
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === "core" && key === "globalPlaylistVolume") return 0.3536;
+                if (ns === MODULE_ID && key === SETTINGS.sfxVolumes) return { sound: 0.25 };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value) {
+                if ((ns === "core" && key === "globalPlaylistVolume") || (ns === MODULE_ID && key === SETTINGS.sfxVolumes)) {
+                    writes.push([`${ns}.${key}`, typeof value === "number" ? r4(value) : value]);
+                    return value;
+                }
+                throw new Error(`R1071 wrote ${ns}.${key}, which this test does not stand in`);
+            };
+            await S.setSfxVolume("music", 0.5);
+            for (const key of ["music", "sound"]) {
+                const volume = S.sfxVolume(key);
+                readBack.push(r4(volume));
+                await S.setSfxVolume(key, volume);
+            }
+        } finally {
+            if (hadGet) settings.get = realGet; else delete settings.get;
+            if (hadSet) settings.set = realSet; else delete settings.set;
+        }
+        equal(stableJson({ readBack, writes }), stableJson({
+            readBack: [0.3536, 0.25],
+            writes: [["core.globalPlaylistVolume", 0.5], ["core.globalPlaylistVolume", 0.3536], [`${MODULE_ID}.${SETTINGS.sfxVolumes}`, { sound: 0.25 }]]
+        }), "[sfxVolume read for Music and Sound]; [what setSfxVolume(\"music\", 0.5) writes, then setSfxVolume(slider, sfxVolume(slider)) for Music and Sound]");
+    }],
     ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
         /*
          * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie
@@ -24728,6 +25251,11 @@ const INVARIANTS = [
          * answers are written out here as they were read in its code (every state: no floor, a debate, a pending and a
          * filled Objection, a rebuttal; every role: the holder, the target, a third student), and held against both the
          * table and the three functions. Red at f388d722: no `modeAllows`.
+         *
+         * E51 C6 (31.10.2026; E51-40): `targetRefusal` refuses a target who takes no part in the trial too, read off
+         * vote.mjs `trialParticipants`, and the three made-up ids here are nobody's. So it is handed them as the trial's
+         * participants (`taking`), which keeps 1.2.89's answers on every floor the question they were; and one row more
+         * holds that the same pair is refused once its target is not among them (R1126 reads the world's own).
          */
         const F = await import("./trial-floor.mjs");
         ok(typeof F.modeAllows === "function" && F.MODE_RULES && typeof F.MODE_RULES === "object",
@@ -24751,13 +25279,14 @@ const INVARIANTS = [
                 object: f ? F.modeAllows(f, "object") : false,
                 objectFn: F.floorRefusal(f) === null,
                 target: pairs.map(([o, t]) => Boolean(o && t) && o !== t && (!f || F.modeAllows(f, "target", t))),
-                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f) === null)
+                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f, { taking: [H, T, O] }) === null),
+                outsider: F.targetRefusal(O, H, f, { taking: [O, T] }) === game.i18n.localize("DRPG.Trial.objectionNotParticipant")
             };
             const speak = [H, T, O].map(a => speak89(a, f)), target = pairs.map(([o, t]) => target89(o, t, f));
-            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target };
+            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target, outsider: true };
         }
         equal(stableJson(read), stableJson(want),
-            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair)");
+            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair, the three ids the trial's participants; targetRefusal of a target who is not one)");
     }],
 
     ["R1024 - the floor's one engine (E70 C1, S18-72): floor-machine.mjs `nextFloor(floor, event, ctx)` is pure and answers each row - a timed mode run out, Skip, -30 s and +30 s, an Objection's stack, Back to the debate, End this mode, a lapse - as the GM's bar and the heartbeat need", async () => {
@@ -28574,7 +29103,8 @@ const INVARIANTS = [
          * since tier 1 makes no actor. Red before C6: no warning, `asActor` not exported, the TypeError.
          */
         needs(world.atLeast("livingStudents", 1), "a student of this world is the actor the calls are handed");
-        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const { isDeceased } = await import("./settings.mjs");
+        const student = studentActors().find(a => !isDeceased(a));
         const api = game.drpg;
         const NOBODY = "R1557 nobody by this name";
         const warned = [];
@@ -28786,6 +29316,842 @@ const INVARIANTS = [
         }
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
     }],
+
+    ["R1104 - the Palm and Frisk roll windows are named by their part: action-rolls.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
+         * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
+         * `palmTitle(part, def)` names each of the seven rolls by its statistic and its number. Asked of ACTIONS.palm as
+         * the module holds it, each expected string built from the same table and TRAITS, and of a stand-in table with
+         * other numbers, so a title that reads a fixed number fails. Pure; nothing is written. Red at C1's parent: no
+         * `palmTitle`.
+         */
+        const A = await import("./action-rolls.mjs");
+        must(typeof A.palmTitle === "function", "action-rolls.mjs exports no palmTitle - the Palm windows have no one name");
+        const palm = ACTIONS.palm;
+        const want = (trait, n) => game.i18n.format("DRPG.Action.palmTitle", { action: palm.label, trait: TRAITS[trait].label, n });
+        const parts = ["unseen", "hand", "plantUnseen", "plant", "rummageUnseen", "rummage", "frisk"];
+        const read = parts.map(part => A.palmTitle(part));
+        const stand = { label: "R1104", traits: ["eye"], threshold: 3, unseen: { trait: "leg", threshold: 4 }, plant: { threshold: 5, unseen: 6 },
+            rummage: { trait: "head", threshold: 7, unseen: 9 }, frisk: { trait: "shadow", threshold: 11 } };
+        const standIn = ["unseen", "hand", "frisk"].map(part => A.palmTitle(part, stand));
+        const f = (def, trait, n) => game.i18n.format("DRPG.Action.palmTitle", { action: def.label, trait: TRAITS[trait].label, n });
+        equal(JSON.stringify({ read, standIn, missing: A.palmTitle("nothing"), noNumber: A.palmTitle("frisk", { label: "R1104", frisk: { trait: "body" } }),
+            literal: [read[0], read[1], read[6]] }), JSON.stringify({
+            read: [want(palm.unseen.trait, palm.unseen.threshold), want(palm.traits[0], palm.threshold), want(palm.unseen.trait, palm.plant.unseen),
+                want(palm.traits[0], palm.plant.threshold), want(palm.unseen.trait, palm.rummage.unseen), want(palm.rummage.trait, palm.rummage.threshold),
+                want(palm.frisk.trait, palm.frisk.threshold)],
+            standIn: [f(stand, "leg", 4), f(stand, "eye", 3), f(stand, "shadow", 11)],
+            missing: palm.label, noNumber: "R1104",
+            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 10", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
+        }), "[the seven parts' titles off ACTIONS.palm; three off a stand-in table; a part the table lacks; a part with no number; in English the owner's three strings]");
+    }],
+
+    ["R1107 - Role reversal the incident took away stays in the menu, struck, and the GM still refuses it: murder-rules.mjs `availableCrisisActions` keeps a key of `deniedToVictim` as `denied` and shut (`blocked`) with its reason, never free, and `crisisRefusal` refuses it as denied by the incident (E51 C1; E51-09, audit S02-51 (g))", async () => {
+        /*
+         * E51 C1, 30.10.2026; audit S02-51 (g). The row was filtered out of the victim's list, so the menu lost Role
+         * reversal with no word of why; since C1 it stays, `denied`, shut like a blocked row and drawn struck through
+         * (action-rolls.mjs `openCrisisMenu`, `.drpg-row-denied`), with `DRPG.Murder.deniedByIncident`. The GM's
+         * judgement refuses it as before (`crisisRefusal`'s `offered.denied`, under the same code). Asked of fixture
+         * states as R211's: the victim on their turn with Role reversal unlocked, denied and not. Pure; nothing is
+         * written. Red at C1's parent: the denied state gave no row.
+         */
+        const M = await import("./murder-rules.mjs");
+        const V = { id: "R1107VICTIM00001" }, K = { id: "R1107KILLER00001" };
+        const fight = { stage: "incident", killerId: K.id, victimId: V.id, thirdId: null, thirdSide: null, thirdActed: false,
+            turn: 2, turnSide: "victim", unlocked: ["survive", "roleReversal"], spent: [], deniedToVictim: [] };
+        const denied = { ...fight, deniedToVictim: ["roleReversal"] };
+        const row = state => {
+            const r = M.availableCrisisActions(V, state).find(o => o.key === "roleReversal");
+            return r ? { denied: r.denied, blocked: r.blocked, free: r.free, why: r.why } : null;
+        };
+        const said = state => M.crisisRefusal(V, "roleReversal", state);
+        const reason = game.i18n.localize("DRPG.Murder.deniedByIncident");
+        // The open row is judged past the denial: this fixture holds no reserves, so its answer is the resolution's price.
+        equal(JSON.stringify({ open: row(fight), struck: row(denied), refusedOpen: said(fight)?.why ?? null, refused: said(denied) && [said(denied).why, said(denied).key],
+            worded: reason !== "DRPG.Murder.deniedByIncident" }), JSON.stringify({
+            open: { denied: false, blocked: false, free: false, why: null },
+            struck: { denied: true, blocked: true, free: false, why: "DRPG.Murder.deniedByIncident" },
+            refusedOpen: "nothing left to spend on a resolution", refused: ["that action is denied by the incident", "DRPG.Murder.actionDenied"], worded: true
+        }), "[Role reversal unlocked: the row; denied: the row kept, struck and shut with its reason; the GM's answer to each; the reason is a key of this language]");
+    }],
+
+    ["R1108 - a result card says the number it needed: utils.mjs `cardHead` writes \"needed N\" beside the total when handed `dc`, a ladder as text too, and nothing without a total or a dc (E51 C1; E51-12, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026; the owner, 14.10: the module told nobody the thresholds. The roll window said "beat N";
+         * the card the roll reports went out with the total alone. `cardHead` takes the roll's `dc` (kept on the roll
+         * by `rollTrait`, read by action-rolls.mjs `rollHead` and `report`) and writes `DRPG.Action.needed` in the total's
+         * slot. Pure; nothing is written. Red at C1's parent: no "needed" in any of the heads.
+         */
+        const { cardHead } = await import("./utils.mjs");
+        const needed = n => foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n }));
+        const html = slots => cardHead(slots);
+        const one = html({ action: "R1108", total: 13, dc: 10 });
+        const ladder = html({ action: "R1108", total: 13, dc: "12 / 18" });
+        const none = html({ action: "R1108", total: 13 });
+        const noTotal = html({ action: "R1108", dc: 10 });
+        equal(JSON.stringify([one.includes(needed(10)), /drpg-card-total">13<\/span> <small class="drpg-card-needed">/.test(one),
+            ladder.includes(needed("12 / 18")), none.includes("drpg-card-needed"), noTotal.includes("drpg-card-needed"), needed(10) !== "DRPG.Action.needed"]),
+            JSON.stringify([true, true, true, false, false, true]),
+            "[a dc of 10 says needed 10; beside the total; a ladder too; no dc says nothing; no total says nothing; the key is worded]");
+    }],
+
+    ["R1109 - the GM's tracker shows the last turns' total and threshold: murder-rules.mjs `turnEntry` writes `total` and `threshold` on a rolled turn and neither on a take with no dice, and murder-ui.mjs `recentTurnsHtml` prints \"N against M\" for each, an entry written before E51 as it was (E51 C1; E51-13, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C1, 30.10.2026. The tracker's turn lines (E32+E07 C17) said "made it with Hope" and no number, so a GM
+         * who looked away read the band and had to work out the margin from the chat. `applyCrisisAction` writes each
+         * turn through `turnEntry` with the roll's total and the threshold it was judged on (`crisisThreshold`), into
+         * the cast's `recent`, which no player's copy carries (`castFor`). Built here as the GM writes them: a hit at 14
+         * against 12, a miss at 9 against 15, a free take (no dice), and an entry from before E51 with neither field.
+         * Pure; nothing is written. Red at C1's parent: no `turnEntry`, and the lines carried no numbers.
+         */
+        const R = await import("./murder-rules.mjs");
+        const U = await import("./murder-ui.mjs");
+        must(typeof R.turnEntry === "function" && typeof U.recentTurnsHtml === "function",
+            "murder-rules.mjs exports no turnEntry or murder-ui.mjs no recentTurnsHtml - the tracker's lines have no numbers to read");
+        const hit = R.turnEntry({ turn: 1, side: "killer", key: "strike", band: "hope", success: true, total: 14, threshold: 12, rolled: true, changes: [] });
+        const miss = R.turnEntry({ turn: 1, side: "victim", key: "selfDefence", band: "despair", success: false, total: 9, threshold: 15, rolled: true, changes: [] });
+        const free = R.turnEntry({ turn: 2, side: "victim", key: "survive", band: "hope", success: true, total: 0, threshold: 18, rolled: false, changes: [] });
+        const old = { turn: 3, side: "killer", key: "strike", band: "hope", success: true, changes: [] };
+        const score = (total, n) => game.i18n.format("DRPG.Murder.trackerScore", { total, n });
+        const lines = [hit, miss, free, old].map(entry => U.recentTurnsHtml([entry]));
+        equal(JSON.stringify({ entries: [hit, miss, free].map(e => [e.total, e.threshold, e.band]),
+            printed: [lines[0].includes(score(14, 12)), lines[1].includes(score(9, 15)), lines[2].includes("("),
+                lines[3].includes("(") ] }), JSON.stringify({
+            entries: [[14, 12, "hope"], [9, 15, "despair"], [null, null, null]],
+            printed: [true, true, false, false]
+        }), "[each entry's total, threshold and band as written; the hit's line says 14 against 12, the miss's 9 against 15; the free take's line holds "
+            + "a score in brackets; the old entry's]");
+    }],
+    ["R1111 - a Call window keeps its own header and says its side: Obstacle's player picker (which waits on imports before its window) and New Rule's text, opened at once, each show their own Call's header; `confirmCall` opens under the Call's header too, a Hope Call's window with `drpg-hope-dialog` and a Despair Call's with `drpg-despair-dialog`; the Call a GM rules (Experience) sends from a `drpg-gm-route` button and the others do not; no button reads `DRPG.Action.proceed`; and the stylesheets paint a Hope header gold, a Despair one blood and the GM road red, in both themes (E51 C2; E51-17, audit S17-48)", async () => {
+        /*
+         * E51 C2, 30.10.2026; audit S17-48. `pickTarget` set a module `let pendingHeader` that every picker read when it
+         * drew its window and cleared it when its own window closed, so a picker that awaited an import before drawing
+         * (`pickPlayer`, `pickProject`, `pickRoom`, `pickItem`, `pickMonocub`) drew whatever Call had set the header last.
+         * Since C2 `pickTarget` builds the header and hands it on, and every window goes through `callWindow` with its
+         * side (`kind`) and its road (`gmRoute`). Opened here on this browser with DialogV2.wait held by a stand-in that
+         * keeps each window open until the test closes it (cancelled: nothing is paid, armed or written), then put back.
+         * The stylesheets are read as a cascade from their text (`styleCascade`) on a window built on a body of its own
+         * in each theme. Red at C2's parent: the Obstacle picker drew New Rule's header in no side's class, the
+         * confirmations had no header, no button was routed, the pickers said "Do it", and no rule coloured a Call
+         * window. The GM road's red was the theme's already (`drpg-gm-route`'s own rule wins the button's border): a
+         * guard here, read so that a side's ink drawn over it would fail.
+         */
+        needs(world.atLeast("livingStudents", 2), "Obstacle's picker lists a living student other than the one aiming it");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const { confirmCall } = await import("./calls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const look = cfg => {
+            const root = document.createElement("div");
+            if (typeof cfg.content === "string") root.innerHTML = cfg.content;
+            else if (cfg.content) root.append(cfg.content.cloneNode(true));
+            const buttons = cfg.buttons ?? [];
+            return { title: cfg.window?.title ?? "", classes: (cfg.classes ?? []).filter(c => /^drpg-(?:hope|despair)-dialog$|^drpg-panel$/.test(c)),
+                header: root.querySelector(".drpg-call-header h3")?.textContent.trim() ?? null,
+                routed: buttons.filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action),
+                proceed: buttons.some(b => b.label === game.i18n.localize("DRPG.Action.proceed")) };
+        };
+        const closeAll = answer => { for (const w of held.splice(0)) w.resolve(answer); };
+        const opened = async (n, answer) => {
+            const got = await until(() => held.length >= n, 3000);
+            const seen = held.map(w => look(w.config));
+            closeAll(answer);
+            return got ? seen : [...seen, "(a window did not open)"];
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const both = [pickTarget(who, DESPAIR_CALLS.obstacle, "despair"), pickTarget(who, DESPAIR_CALLS.newRule, "despair")];
+            const pickers = await opened(2, null);
+            await Promise.all(both);
+            const whichPlayer = game.i18n.localize("DRPG.Calls.whichPlayer");
+            read.pickers = [pickers.find(p => p.title === whichPlayer) ?? null, pickers.find(p => p.title === DESPAIR_CALLS.newRule.label) ?? null];
+            const confirms = [];
+            for (const [call, kind] of [[HOPE_CALLS.experience, "hope"], [HOPE_CALLS.sprint, "hope"], [DESPAIR_CALLS.feedOverflow, "despair"]]) {
+                const asked = confirmCall(call, { kind, held: 12 });
+                confirms.push((await opened(1, "cancel"))[0]);
+                await asked;
+            }
+            read.confirms = confirms;
+        } finally {
+            closeAll(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const C = await styleCascade();
+        const RED = /--drpg-(?:eye|crimson|sg-gm)\b/;
+        const paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const sides = Object.fromEntries(["hope", "despair"].map(kind => {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} drpg-gm`;
+                html.append(body);
+                body.innerHTML = `<div class="application dialog drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
+                    + `<div class="dialog-content"><div class="drpg-call-header"><h3>R1111</h3></div></div>`
+                    + `<footer class="form-footer"><button type="submit" class="drpg-gm-route" data-action="spend">R1111</button></footer></form></section></div>`;
+                const w = (el, names) => C.winner(el, names);
+                const ink = w(body.firstElementChild, "--drpg-call-ink")?.value ?? "";
+                const stripe = w(body.querySelector(".drpg-call-header"), ["border-left", "border-left-color"])?.value ?? "";
+                const title = w(body.querySelector(".drpg-call-header h3"), "color")?.value ?? "";
+                const road = w(body.querySelector("button.drpg-gm-route"), ["border", "border-color"]);
+                return [kind, { ink: kind === "hope" ? /--drpg-gold\b/.test(ink) && !/--drpg-blood\b/.test(ink) : /--drpg-blood\b/.test(ink) && !/--drpg-gold\b/.test(ink),
+                    stripe: /var\(--drpg-call-ink\)/.test(stripe), title: /var\(--drpg-call-ink\)/.test(title),
+                    road: Boolean(road) && /drpg-gm-route/.test(road.selector) && RED.test(road.value) }];
+            }));
+            return [theme, sides];
+        }));
+        const despair = ["drpg-panel", "drpg-despair-dialog"], hope = ["drpg-panel", "drpg-hope-dialog"];
+        const yes = { ink: true, stripe: true, title: true, road: true };
+        equal(JSON.stringify({ ...read, paint }), JSON.stringify({
+            pickers: [
+                { title: game.i18n.localize("DRPG.Calls.whichPlayer"), classes: despair, header: DESPAIR_CALLS.obstacle.label, routed: [], proceed: false },
+                { title: DESPAIR_CALLS.newRule.label, classes: despair, header: DESPAIR_CALLS.newRule.label, routed: [], proceed: false }],
+            confirms: [
+                { title: HOPE_CALLS.experience.label, classes: hope, header: HOPE_CALLS.experience.label, routed: ["spend"], proceed: false },
+                { title: HOPE_CALLS.sprint.label, classes: hope, header: HOPE_CALLS.sprint.label, routed: [], proceed: false },
+                { title: DESPAIR_CALLS.feedOverflow.label, classes: despair, header: DESPAIR_CALLS.feedOverflow.label, routed: [], proceed: false }],
+            paint: { "drpg-theme-stained-glass": { hope: yes, despair: yes }, "drpg-theme-monokuma-legacy": { hope: yes, despair: yes } }
+        }), "[two pickers open at once: Obstacle's, New Rule's - title, classes, header, routed buttons, a 'Do it'; the confirmations of Experience "
+            + "(a GM rules it), Sprint and Feed the Overflow; per theme and side: the window's ink is gold for Hope and blood for Despair, the header's "
+            + "stripe and its title take the ink, and a drpg-gm-route button's border is won by the road's own rule, in a red of the theme]");
+    }],
+
+    ["R1112 - Confusion names its thresholds before the roll and on the card: monocub.mjs `cubTiersHtml` lists each tier of the row (\"Beat 12\", \"Beat 16\" for the meddle row) with what it grants, `cubCardHtml` writes \"needed 12 / 16\" beside the total and the tier the total beat or the first one it missed, read off the row; `cubAbilityDialog` draws the list and `postCubRoll` posts the card (E51 C2; E51-18, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C2, 30.10.2026; the owner, 14.10 ("modul w zaden sposob nie informuje ani gracza, ani gma o thresholdach
+         * akcji"), item (6) of the amendment: Confusion. Its window asked Help or Hinder and named no number, and its card
+         * said "Confusion - Help" and the total: the 12 and the 16 of MONOCUB.abilities.meddle were nowhere. Asked of
+         * the row as config holds it and of a stand-in row with other numbers, so a builder that writes a fixed number
+         * fails; the window's and the card's builders are pure, and their callers are read off the source (comments
+         * stripped). Nothing is written. Red at C2's parent: neither builder exists, and neither caller names a number.
+         */
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        must(typeof M.cubTiersHtml === "function" && typeof M.cubCardHtml === "function",
+            "monocub.mjs exports no cubTiersHtml or cubCardHtml - the Confusion window and card name no threshold");
+        const row = MONOCUB.abilities.meddle;
+        must(row?.thresholds?.length >= 2, "the meddle row holds fewer than two tiers - this would measure nothing");
+        const stand = { ...row, label: "R1112", thresholds: [{ min: 5, grants: "bonus" }, { min: 9, grants: "advantage" }] };
+        const text = html => { const div = document.createElement("div"); div.innerHTML = html; return div.textContent.replace(/\s+/g, " ").trim(); };
+        const beat = n => game.i18n.format("DRPG.Monocub.tierLine", { n, what: "" }).replace(/[:\s]+$/, "");
+        const card = (r, total, choice = "help", isCritical = false) => text(M.cubCardHtml(r, { choice, total, isCritical, formula: "2d12", tooltip: "" }));
+        const needed = r => game.i18n.format("DRPG.Action.needed", { n: r.thresholds.map(t => t.min).join(" / ") });
+        const beaten = (n, key) => game.i18n.format("DRPG.Monocub.tierBeaten", { n, what: game.i18n.localize(`DRPG.Monocub.${key}`) });
+        const missed = n => game.i18n.format("DRPG.Monocub.tierMissed", { n });
+        const [low, high] = row.thresholds.map(t => t.min);
+        const windowText = text(M.cubTiersHtml(row)), standText = text(M.cubTiersHtml(stand));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/monocub.mjs`).then(lfText));
+        equal(JSON.stringify({
+            window: [windowText.includes(beat(low)), windowText.includes(beat(high)), windowText.includes(game.i18n.localize("DRPG.Monocub.grantBonus")),
+                windowText.includes(game.i18n.localize("DRPG.Monocub.grantAdvantage"))],
+            standIn: [standText.includes(beat(5)), standText.includes(beat(9)), standText.includes(beat(low))],
+            cards: [card(row, low + 1).includes(needed(row)), card(row, low + 1).includes(beaten(low, "helpBonus")), card(row, high, "hinder").includes(beaten(high, "hinderAdvantage")),
+                card(row, low - 1).includes(missed(low)), card(stand, 7).includes(needed(stand)), card(stand, 7).includes(beaten(5, "helpBonus")),
+                card(row, 2, "help", true).includes(missed(low))],
+            callers: [/\bcubTiersHtml\(row\)/.test(fnSource(src, "cubAbilityDialog")), /\bcubCardHtml\(row,/.test(fnSource(src, "postCubRoll"))]
+        }), JSON.stringify({
+            window: [true, true, true, true], standIn: [true, true, false],
+            cards: [true, true, true, true, true, true, false], callers: [true, true]
+        }), `[the window names each tier of the row and what each grants; a stand-in row's own numbers and not the row's; the card: needed ${low} / ${high}, `
+            + `a ${low + 1} Help beats ${low} for +1, a ${high} Hinder beats ${high} for disadvantage, a ${low - 1} misses ${low}, the stand-in's numbers, `
+            + `a critical says no tier; the window and the card are built by them]`);
+    }],
+    ["R1117 - one viewer for a player with several characters: monokuma.mjs `chooseOwnStudent` takes the assigned character (none for an assigned Monokuma), else the one owned student, else of several the one whose token the user controls - an owned one only - else the first by name; hud.mjs `viewerActor` asks it with the user's owned students, assignment and controlled tokens, and the clock's explain window (its room section, `roomBlock`) says to assign a character when several are owned and none is", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-25, audit S10-49, the A8 design, Q2 on its default. `viewerActor` (hud.mjs, E77) is
+         * the one function the clock, the room tile and the explain window ask whose screen it is, and for a player it
+         * was monokuma.mjs `ownStudent`: the assigned character, else exactly one owned student, else nobody - so a
+         * player with two characters and none assigned got no room, no tile and "no character" in the window. The
+         * chooser is pure: stand-in actors (a type, a name and a Monokuma flag) are handed to it, nothing of the world
+         * is read or written, and `viewerNeedsAssigning` (the window's hint) is asked with the same stand-ins. The
+         * callers are read off the source (comments stripped). Red at C4's parent: neither function exists, and
+         * `viewerActor` asks `ownStudent()`.
+         */
+        const M = await import("./monokuma.mjs");
+        const stand = (id, name, mono = false) => ({ id, name, type: "character", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma ? mono : undefined) });
+        const aiko = stand("r1117aiko", "Aiko"), botan = stand("r1117botan", "Botan"), chie = stand("r1117chie", "Chie"), bear = stand("r1117bear", "Monokuma", true);
+        const pick = (list, options) => (typeof M.chooseOwnStudent === "function" ? M.chooseOwnStudent(list, options)?.id ?? null : "missing");
+        const hint = (list, assigned) => (typeof M.viewerNeedsAssigning === "function" ? M.viewerNeedsAssigning(list, assigned) : "missing");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const [hud, explain] = [await read("hud.mjs"), await read("explain.mjs")];
+        const viewer = topLevelFunction(hud, "viewerActor") ?? "";
+        must(viewer.length > 50 && fnSource(explain, "roomBlock").length > 100, "hud.mjs `viewerActor` or explain.mjs `roomBlock` is gone - this would read nothing");
+        equal(JSON.stringify({
+            chooser: [
+                pick([botan, aiko], { assigned: null, controlled: [botan] }),
+                pick([botan, aiko], { assigned: null, controlled: [] }),
+                pick([botan, aiko], { assigned: null, controlled: [chie] }),
+                pick([botan, aiko, chie], { assigned: null, controlled: [chie, botan] }),
+                pick([botan, aiko], { assigned: chie, controlled: [botan] }),
+                pick([botan, aiko], { assigned: bear, controlled: [botan] }),
+                pick([bear, botan], { assigned: null, controlled: [] }),
+                pick([], { assigned: null, controlled: [aiko] })
+            ],
+            hint: [hint([botan, aiko], null), hint([botan, aiko], botan), hint([botan], null), hint([bear, botan], null)],
+            viewer: [/\bchooseOwnStudent\(/.test(viewer), /\.controlled\b/.test(viewer), /\bgame\.user\.character\b/.test(viewer), /\bownStudent\(/.test(viewer)],
+            window: /\bviewerNeedsAssigning\(/.test(fnSource(explain, "roomBlock")) && /DRPG\.Hud\.assignHint/.test(fnSource(explain, "roomBlock"))
+        }), JSON.stringify({
+            chooser: ["r1117botan", "r1117aiko", "r1117aiko", "r1117chie", "r1117chie", null, "r1117botan", null],
+            hint: [true, false, false, false],
+            viewer: [true, true, true, false],
+            window: true
+        }), "[the controlled of two; none controlled: the first by name; another's token controlled: the first by name; the first controlled of three; "
+            + "the assigned over a controlled one; an assigned Monokuma: nobody; a Monokuma and one student: the student; none owned: nobody] "
+            + "[the hint: two owned and none assigned, one assigned, one owned, a Monokuma and one student] "
+            + "[viewerActor asks the chooser with the controlled tokens and the assignment, and not ownStudent] [the explain window's hint]");
+    }],
+
+    ["R1118 - the GM never gets the player view in the status strip: player-status.mjs `statusActor` is nobody for a GM, even one assigned a student, and the strip it draws is the table's; a player's is `viewerActor`'s", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-26, audit S10-49 (with A8), the slice's edge case of an Assistant GM with a student of
+         * their own. The strip chose its view by `ownStudent()` alone with no role check, so a GM - a Gamemaster or an
+         * Assistant - assigned a student was drawn that student's budget instead of the table's numbers. The suite's GM is
+         * handed a student as their character by an own property over the User's getter (nothing is written to the world),
+         * the strip is drawn, read and drawn again once the property is gone; then `game.user.isGM` is read false for one
+         * synchronous call of `statusActor`, which must answer that player's character. Red at C4's parent: the strip is
+         * the player view of the assigned student, and `statusActor` does not exist.
+         */
+        needs(world.atLeast("livingStudents"));
+        const PS = await import("./player-status.mjs");
+        const { isDeceased } = await import("./settings.mjs");
+        const student = studentActors().find(a => !isDeceased(a));
+        must(student, "no living student to hand the GM - this would measure nothing");
+        const drawn = () => {
+            PS.renderPlayerStatus();
+            const el = document.getElementById("drpg-player-status");
+            return el ? (el.classList.contains("is-gm") ? "table" : "player") : null;
+        };
+        const unassigned = drawn();
+        let assigned = null, gmActor = "missing", playerActor = "missing";
+        Object.defineProperty(game.user, "character", { value: student, configurable: true });
+        try {
+            assigned = drawn();
+            if (typeof PS.statusActor === "function") {
+                gmActor = PS.statusActor()?.id ?? null;
+                Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+                try {
+                    playerActor = PS.statusActor()?.id ?? null;
+                } finally {
+                    delete game.user.isGM;
+                }
+            }
+        } finally {
+            delete game.user.character;
+            drawn();
+        }
+        equal(JSON.stringify({ unassigned, assigned, gmActor, playerActor }), JSON.stringify({ unassigned: "table", assigned: "table", gmActor: null, playerActor: student.id }),
+            `[the GM's strip with no character, with ${student.name} assigned; whose numbers a GM's strip is; a player's with ${student.name} assigned]`);
+    }],
+
+    ["R1119 - the overflow caption says what the stamp holds: overflow.mjs `stampReading` tells a darkening running, one armed for the time of day ahead and one waiting from the trial apart, and a one-off (kind \"event\") never reads as darkened; `overflowActive` asks kind \"state\"; despair.mjs `buildOverflowCaption` draws \"Armed\" and \"Waiting\" beside the count, clamps the count at the threshold, and its GM hint does not say a boundary fires it", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-28, audit S09-33. The caption printed `count/threshold` unclamped (23/20), drew nothing
+         * for a darkening armed for the next time of day or one a verdict kept waiting (S09-07), drew Rot or Earthquake -
+         * one-offs that happen at the draw - as "Darkened · this time of day" for the hour, and its GM tooltip said the
+         * overflow fires at the next boundary, where a spill that reaches the threshold fires it at once (overflow.mjs
+         * `addOverflow`, "THE THRESHOLD IS EXAMINED WHEN THE COUNTER MOVES") - except while a darkening is already drawn
+         * for the next time of day, when the counter waits for that one to pass (its own tooltip, `gmHintQueued`). The
+         * reading and the caption are pure: stamps, clocks and statuses are handed to them; nothing of the world is read
+         * or written. `overflowActive` is read off
+         * the source (comments stripped), since it asks the world's stamp. Red at C4's parent: neither `stampReading` nor
+         * an exported `buildOverflowCaption`, and `overflowActive` asks only that something is drawn.
+         */
+        const O = await import("./overflow.mjs");
+        const D = await import("./despair.mjs");
+        const rules = O.overflowRules();
+        must(rules.effects?.silence?.kind === "state" && rules.effects?.rot?.kind === "event", "the rules hold no Silence of kind state or no Rot of kind event - this would measure nothing");
+        const clock = { session: 3, day: 2, timeOfDay: "morning", eclipse: false };
+        const now = { session: 3, day: 2, timeOfDay: "morning" };
+        const ahead = { session: 3, day: 2, timeOfDay: "noon" };
+        const past = { session: 2, day: 1, timeOfDay: "night" };
+        const reading = active => (typeof O.stampReading === "function" ? O.stampReading(active, clock, rules) : "missing");
+        const name = key => game.i18n.localize(`DRPG.Overflow.name.${key}`);
+        const status = patch => ({ count: 4, threshold: 20, active: false, darkened: false, armed: null, waiting: null, effect: null, effectName: null, ...patch });
+        const caption = (patch, gm = true) => {
+            if (typeof D.buildOverflowCaption !== "function") return "missing";
+            const line = D.buildOverflowCaption(status(patch), { gm });
+            return line ? { text: line.textContent.replace(/\s+/g, " ").trim(), active: line.classList.contains("is-active"), title: line.title } : null;
+        };
+        const head = shown => `${game.i18n.localize("DRPG.Overflow.caption")} · ${shown}/20`;
+        const armed = caption({ armed: "silence" }), waiting = caption({ waiting: "fog" }), rot = caption({ active: true, effect: "rot", effectName: name("rot") });
+        const full = caption({ count: 23 }), masked = caption({ count: 0, armed: "silence" }, false);
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/overflow.mjs`).then(lfText));
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        equal(JSON.stringify({
+            reading: [reading({ ...now, effect: "silence" }), reading({ ...ahead, effect: "silence" }), reading({ ...past, effect: "silence" }),
+                reading({ ...ahead, effect: "rot" }), reading({ effect: "fog", pending: true }), reading(null)],
+            active: /\bkind\b[^;]*["']state["']/.test(fnSource(source, "overflowActive")),
+            caption: [armed === "missing" ? "missing" : armed?.text === `${head(4)} ${game.i18n.format("DRPG.Overflow.armed", { name: name("silence") })}`,
+                waiting === "missing" ? "missing" : waiting?.text === `${head(4)} ${game.i18n.format("DRPG.Overflow.waiting", { name: name("fog") })}`,
+                rot === "missing" ? "missing" : [rot?.active, rot?.text === head(4)],
+                full === "missing" ? "missing" : full?.text === head(20),
+                masked === "missing" ? "missing" : masked?.text === `${head(game.i18n.localize("DRPG.Overflow.hiddenValue"))} ${game.i18n.format("DRPG.Overflow.armed", { name: name("silence") })}`,
+                armed === "missing" ? "missing" : armed?.title === game.i18n.format("DRPG.Overflow.gmHintQueued", { count: 4, max: 20, what: name("silence") })],
+            hint: !/boundary/i.test(en?.DRPG?.Overflow?.gmHint ?? "boundary")
+        }), JSON.stringify({
+            reading: [{ running: "silence", armed: null, waiting: null }, { running: null, armed: "silence", waiting: null }, { running: null, armed: null, waiting: null },
+                { running: null, armed: null, waiting: null }, { running: null, armed: null, waiting: "fog" }, { running: null, armed: null, waiting: null }],
+            active: true,
+            caption: [true, true, [false, true], true, true, true],
+            hint: true
+        }), "[the stamp: Silence running this morning, armed for noon, last night's, a Rot stamped for noon, a Fog the trial keeps waiting, none] "
+            + "[overflowActive asks kind state] [the caption: armed, waiting, a Rot drawn this hour not darkened, 23 of 20 drawn as 20/20, a player's masked with armed, the GM's tooltip with one armed: the counter waits] "
+            + "[EN's GM hint names no boundary]");
+    }],
+    ["R1122 - a new trace takes a spiral spot of its own in the same room: remnants.mjs `spiralSpot(origin, taken, step)` keeps the origin while it is free, else takes the first free spot of the square spiral of steps around it that `accept` lets in, a spot within half a step of a trace counting as taken, and keeps the origin once eight have been tried; `placeRemnant` asks it with the scene's quarter square and a room test (`roomAt` on the origin's floor) for every trace but one put back under its id (E51 C5; E51-33, audit S05-54)", async () => {
+        /*
+         * E51 C5, 31.10.2026; audit S05-54. A trace was placed on its character's token, x and y as they stood
+         * (remnants.mjs `dropRemnant`, `narrowPlayerRemnant`), so three Searches in one corner and a Sabotage left four
+         * tokens on one spot and the GM saw one. `spiralSpot` is pure: an origin, the spots taken and a step, and an
+         * `accept` the caller hands it - `placeRemnant`'s asks that the spot is in the origin's room on the origin's
+         * floor, and a trace with no room keeps its origin. Read: ten traces in turn at one origin with nothing refused
+         * (the origin, the eight spots of the first ring, each one step away and each its own, then the origin kept); the
+         * first spot with the spots to the right refused; one with everything refused; one beside a trace a few pixels
+         * off the origin; and `placeRemnant`'s source, comments stripped. Red at C5's parent: no `spiralSpot`.
+         */
+        const R = await import("./remnants.mjs");
+        const spiral = typeof R.spiralSpot === "function" ? R.spiralSpot : null;
+        const o = { x: 1000, y: 1000 }, step = 25;
+        const at = p => (p ? `${p.x},${p.y}` : null);
+        const one = (taken, opts) => (spiral ? spiral(o, taken, step, opts) : null);
+        const filled = [];
+        let taken = [];
+        for (let i = 0; i < 10 && spiral; i++) {
+            const spot = spiral(o, taken, step);
+            filled.push(spot);
+            if (spot) taken = [...taken, spot];
+        }
+        const ring = filled.slice(1, 9);
+        const far = p => Math.max(Math.abs(p.x - o.x), Math.abs(p.y - o.y));
+        const left = one([o], { accept: p => p.x <= o.x });
+        const beside = one([{ x: o.x + 3, y: o.y - 2 }]);
+        const place = fnSource(stripComments((await moduleSources()).get("remnants.mjs") ?? ""), "placeRemnant");
+        equal(JSON.stringify({
+            spiral: Boolean(spiral),
+            first: at(filled[0] ?? null),
+            ring: [ring.length, new Set(ring.map(at)).size, ring.every(p => p && far(p) === step)],
+            tenth: at(filled[9] ?? null),
+            left: left ? [left.x <= o.x, at(left) !== at(o), far(left) === step] : null,
+            none: at(one([o], { accept: () => false })),
+            beside: beside ? [at(beside) !== at(o), far(beside) === step] : null,
+            placed: [/spiralSpot\(/.test(place), /roomAt\(/.test(place), /givenId\s*\|\|[^;]*spiralSpot\(/.test(place)]
+        }), JSON.stringify({
+            spiral: true, first: "1000,1000", ring: [8, 8, true], tenth: "1000,1000",
+            left: [true, true, true], none: "1000,1000", beside: [true, true], placed: [true, true, true]
+        }), "[spiralSpot exported; ten traces at one origin: the first spot, the next eight (how many, how many distinct, each one step away), the tenth; "
+            + "the first spot with the right refused (left of the origin, not the origin, one step away); with everything refused; beside a trace a few "
+            + "pixels off the origin; placeRemnant asks spiralSpot, roomAt, and leaves a trace put back under its id where it was]");
+    }],
+
+    ["R1123 - a debate is at least 30 s on every road: trial-floor.mjs `debateSeconds` gives a whole number, never below `TRIAL.debateMinSeconds`, and `TRIAL.speakSeconds` for what is no number and for the bridge's 0; `openDebate`, `reopenDebate`, `startFloor`, `startFloorInStep` and the \"start\" op ask it (E51 C6; E51-36, audit S06-45)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-45. The console's field said `min="30"` and DialogV2 does not enforce it: "-60"
+         * opened a debate whose clock was red from the first second and was remembered for the next one, and
+         * `reopenDebate` passed a stored 10 s on. Read: `debateSeconds` on -60, 10, 29.6, 45.4, 300, "x", 0, null and
+         * undefined, and the five roads' sources (comments stripped) asking it. Red at C6's parent: no `debateSeconds`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const fn = typeof F.debateSeconds === "function" ? F.debateSeconds : null;
+        const sources = await moduleSources();
+        const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
+        const uiSrc = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        const asks = (src, name) => /debateSeconds\(/.test(fnSource(src, name) ?? "");
+        const ops = bodyOf(floorSrc, "start: ({ seconds, text = null }) =>", { length: 120 });
+        equal(JSON.stringify({
+            exported: Boolean(fn),
+            values: fn ? [-60, 10, 29.6, 45.4, 300, "x", 0, null, undefined].map(v => fn(v)) : null,
+            roads: [asks(uiSrc, "openDebate"), asks(uiSrc, "reopenDebate"), asks(floorSrc, "startFloor"), asks(floorSrc, "startFloorInStep"),
+                /debateSeconds\(seconds\)/.test(ops)]
+        }), JSON.stringify({
+            exported: true,
+            values: [30, 30, 30, 45, 300, TRIAL.speakSeconds, TRIAL.speakSeconds, TRIAL.speakSeconds, TRIAL.speakSeconds],
+            roads: [true, true, true, true, true]
+        }), "[debateSeconds exported; its answer for -60, 10, 29.6, 45.4, 300, \"x\", 0, null, undefined; openDebate, reopenDebate, startFloor, "
+            + "startFloorInStep and the \"start\" op ask it]");
+    }],
+
+    ["R1124 - the trial console opens the evidence log: trial-floor-ui.mjs `trialConsoleHtml` draws a \"Trial evidence log\" button in the debate's section of a running trial, and the window's one listener opens trial.mjs `openObjectionLog` from it (E51 C6; E51-37, audit S06-45)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-45. The evidence log opened only from the Investigation Dashboard and the
+         * console's `game.drpg.objectionLog()`; the trial console, the one window a trial is run from, had no door to
+         * it. Read: the console's html for a running trial with no floor (a view handed in, as R1030 hands
+         * `trialNextStep` one; no Reveal rows) - the button, its label and that it stands in the debate's section,
+         * before the vote's heading - and `manageClassTrial`'s source (comments stripped) opening the log from it.
+         * Red at C6's parent: `trialConsoleHtml` not exported.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const build = typeof UI.trialConsoleHtml === "function" ? UI.trialConsoleHtml : null;
+        const view = { floor: null, running: true, restrictive: false, finalNow: false,
+            progress: { voteClosed: false, verdictApplied: false, closing: null, againAfterOverrule: null, debateAgain: false },
+            pending: null, bar: null, afterwards: true, stopped: null, register: 0, deathThisChapter: false, next: "openDebate",
+            runner: null, table: null, rows: [], left: 0 };
+        const root = document.createElement("div");
+        if (build) root.innerHTML = build(view);
+        const button = root.querySelector("[data-drpg-console=\"log\"]");
+        const vote = [...root.querySelectorAll("h4")].find(h => h.textContent.trim() === game.i18n.localize("DRPG.Floor.sectionVote")) ?? null;
+        const before = Boolean(button && vote && (button.compareDocumentPosition(vote) & Node.DOCUMENT_POSITION_FOLLOWING));
+        const manage = fnSource(stripComments((await moduleSources()).get("trial-floor-ui.mjs") ?? ""), "manageClassTrial") ?? "";
+        equal(JSON.stringify({
+            exported: Boolean(build), button: Boolean(button), label: button?.textContent.trim() ?? null, before,
+            wired: /data-drpg-console=\\?"log\\?"[\s\S]{0,300}openObjectionLog\(/.test(manage)
+        }), JSON.stringify({
+            exported: true, button: true, label: game.i18n.localize("DRPG.Trial.logTitle"), before: true, wired: true
+        }), "[trialConsoleHtml exported; the log's button drawn; its label; it stands before the vote's heading; manageClassTrial opens the log from it]");
+    }],
+
+    ["R1125 - Set the season up holds the chapter to the season: season-setup.mjs `readSeasonForm` reads 99 as the field's max, 0 and -2 as 1, 2.5 as a whole chapter, and an empty field as 1 (E51 C6; E51-38, audit S06-46)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-46. The window's Chapter field wrote what it was given: "-2", "2.5" or 99 went
+         * to the clock as typed (`Number(f.chapter.value) || 1`). Read off a form drawn as `campaignFieldsHtml` draws
+         * it, for a clock on chapter 1 (its `max` the season's chapters), each value typed in turn. Red at C6's parent:
+         * `readSeasonForm` not exported. CHANGED AT E51 C7 (31.10.2026): the field reads through utils.mjs `wholeNumber`
+         * like every GM number field (R1127), which truncates as R1128 holds, so 2.5 is chapter 2 where C6's rounding
+         * made it 3.
+         */
+        const S = await import("./season-setup.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const read = typeof S.readSeasonForm === "function" ? S.readSeasonForm : null;
+        const form = document.createElement("form");
+        form.innerHTML = S.campaignFieldsHtml({ campaignName: "SUITE R1125", chapter: 1 }, "");
+        const field = form.querySelector("[name=chapter]");
+        const typed = ["99", "0", "-2", "2.5", "", "3"].map(v => {
+            field.value = v;
+            return read ? read({ element: { querySelector: () => form } }).chapter : null;
+        });
+        equal(JSON.stringify({ exported: Boolean(read), max: Number(field.max), typed }),
+            JSON.stringify({ exported: true, max: CHAPTERS_PER_SEASON, typed: [CHAPTERS_PER_SEASON, 1, 1, 2, 1, 3] }),
+            "[readSeasonForm exported; the field's max; the chapter read for 99, 0, -2, 2.5, an empty field and 3]");
+    }],
+
+    ["R1126 - an Objection may aim only at the trial's participants: trial-floor.mjs `targetRefusal` gives \"DRPG.Trial.objectionNotParticipant\" for a student nobody plays and for an id no actor has, and nothing for one participant at another (E51 C6; E51-40, amend 14.10 (3))", async () => {
+        /*
+         * E51 C6, 31.10.2026; the owner before session 0 (14.10): "Objection w trialu pozwala wybrac graczy nie bioracych
+         * udzialu". `targetRefusal` asked nobody, oneself and the rebuttal's pair, so a student no player plays - a GM's
+         * NPC, the one the harness seeds - could be handed a rebuttal. It asks vote.mjs `trialParticipants({ connected:
+         * false })` now (Q5: a participant whose player dropped out is still one). Read with no floor, so the floor's
+         * own rows say nothing: two participants (null), a living student no player owns, and an id no actor has.
+         * Red at C6's parent: null for both outsiders.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two participants to aim one at the other");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a living student no player owns, who takes no part in a trial");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const taking = V.trialParticipants({ connected: false }).map(p => p.actor);
+        const outsider = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))) ?? null;
+        must(taking.length >= 2 && outsider, "fewer than two participants, or no student without a player - this would measure nothing");
+        const [a, b] = taking;
+        const reason = game.i18n.localize("DRPG.Trial.objectionNotParticipant");
+        equal(JSON.stringify([F.targetRefusal(a.id, b.id, null), F.targetRefusal(a.id, outsider.id, null), F.targetRefusal(a.id, "SUITER1126nobody", null),
+            F.mayObjectTo(a.id, outsider.id, null), reason.startsWith("DRPG.")]),
+        JSON.stringify([null, reason, reason, false, false]),
+        "[one participant at another; at a student nobody plays; at an id no actor has; mayObjectTo at the student nobody plays; the reason a key left unlocalised]");
+    }],
+    ["R1128 - utils.mjs `wholeNumber` reads a field as a whole number in its range: \"3.7\" is 3, \"-2\" with min 0 is 0, \"x\" with fallback 1 is 1, \"\" and null the fallback (0 when none is given, `undefined` kept as given), \" 7 \" with max 5 is 5, -2.7 is -2, \"Infinity\" the fallback (E51 C7; E51-44, audit S10-61)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-61. The one reader every GM number field goes through (R1127 holds them to
+         * it): truncated toward zero, then held to `min`..`max` with `clamp`; what is no finite number is the caller's
+         * `fallback`, returned as given, so overflow.mjs's "an emptied field is no edit" (`fallback: undefined`) stays
+         * that. Pure; nothing is written. Red at C7's parent: no `wholeNumber` exported.
+         */
+        const U = await import("./utils.mjs");
+        const whole = typeof U.wholeNumber === "function" ? U.wholeNumber : null;
+        const read = whole ? [
+            whole("3.7"), whole("-2", { min: 0 }), whole("x", { fallback: 1 }), whole(""), whole(null, { fallback: 4 }),
+            whole("", { min: 1, fallback: undefined }) === undefined, whole(" 7 ", { max: 5 }), whole(-2.7), whole("Infinity", { fallback: 2 }), whole("12", { min: 1, max: 12 })
+        ] : null;
+        equal(JSON.stringify(read), JSON.stringify([3, 0, 1, 0, 4, true, 5, -2, 2, 12]),
+            "[\"3.7\"; \"-2\" with min 0; \"x\" with fallback 1; \"\"; null with fallback 4; \"\" with fallback undefined kept; \" 7 \" with max 5; -2.7; \"Infinity\" with fallback 2; \"12\" in 1..12] (null: not exported)");
+    }],
+
+    ["R1129 - an open handbook keeps the page's language: with the module's Language setting answering the other language and no reload, handbooks.mjs `handbookPath` and `handbookHtml` read i18n.mjs `pageLanguage()`, the language `init` read, not the setting (E51 C8; E51-45, audit S12-38)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S12-38. A player who picks another language in the Look window and declines the
+         * reload it offers has a page built in the old one: an open handbook kept its tabs in it and loaded the next
+         * book in the new one, because `handbookHtml(id, lang = moduleLanguage())` asked the setting. Here the setting
+         * is answered as the other language for the language key alone (game.settings.get stood in, put back in a
+         * finally), and fetch for one path that names no book: nothing is written, no book is cached (a failed fetch is
+         * not kept). Red at C8's parent: no `pageLanguage`, and both defaults read the setting's language.
+         */
+        const I = await import("./i18n.mjs"), H = await import("./handbooks.mjs");
+        const page = typeof I.pageLanguage === "function" ? I.pageLanguage() : null;
+        const built = page ?? I.moduleLanguage();
+        const other = built === "pl" ? "en" : "pl";
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const realFetch = globalThis.fetch, asked = [];
+        let read = null;
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.language) return other;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            globalThis.fetch = async path => { asked.push(String(path)); return { ok: false, status: 404, text: async () => "" }; };
+            const told = I.moduleLanguage();
+            const path = H.handbookPath("player-brochure");
+            const loaded = await H.handbookHtml("r1129-no-such-book").then(() => "loaded", () => "failed");
+            read = { told, path: path.match(/\.(\w+)\.md$/)?.[1] ?? null, asked: asked.map(p => p.match(/\.(\w+)\.md$/)?.[1] ?? null), loaded,
+                page: typeof I.pageLanguage === "function" ? I.pageLanguage() : null };
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            globalThis.fetch = realFetch;
+        }
+        equal(JSON.stringify(read), JSON.stringify({ told: other, path: built, asked: [built], loaded: "failed", page: built }),
+            `the setting answering "${other}" on a page built in "${built}": the setting is read as told, and the handbook's path and its fetch take the page's language (page null: i18n.mjs exports no pageLanguage)`);
+    }],
+
+    ["R1130 - the handbook opens on the book last read, kept for the browser: a client setting `handbookBook` (not in the settings window) that `openHandbooks()` opens on, a book this user may not open or none opening the first, written when a tab is pressed and not when the window only opens (E51 C8; E51-46, Q6)", async () => {
+        /*
+         * E51 C8, 31.10.2026. The book was a variable of the page (`lastBook`), so an F5 forgot it. Read here with the
+         * setting answered as "player-handbook" (game.settings.get stood in for that key alone) and its writes recorded
+         * and not made (game.settings.set stood in for it alone): the window opens on it and writes nothing; a tab
+         * pressed writes that tab's book; with none stored it opens on the first and writes nothing either. `openingBook` for a player handed the GM's book, an unknown one and none gives
+         * the first. Red at C8's parent: no setting registered, the window opened on the page's last book (the
+         * Brochure), and no `openingBook`.
+         */
+        const H = await import("./handbooks.mjs");
+        const full = `${MODULE_ID}.handbookBook`;
+        const def = game.settings.settings.get(full) ?? null;
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), ownSet = Object.hasOwn(settings, "set");
+        const realGet = settings.get, realSet = settings.set, writes = [];
+        await foundry.applications.instances.get("drpg-handbooks")?.close();
+        let app = null, read = null, stored = "player-handbook";
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === "handbookBook") return stored;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = function (ns, key, value, ...rest) {
+                if (ns === MODULE_ID && key === "handbookBook") { writes.push(value); return Promise.resolve(value); }
+                return realSet.call(this, ns, key, value, ...rest);
+            };
+            app = await H.openHandbooks();
+            const opened = app?.book ?? null, written = writes.slice();
+            app?.element?.querySelector('[data-drpg-book="player-brochure"]')?.click();
+            const pressed = writes.slice(), shown = app?.book ?? null;
+            await app?.close?.();
+            // None stored: the window opens on the first book, and writes nothing either.
+            stored = ""; writes.length = 0;
+            app = await H.openHandbooks();
+            read = { opened, written, pressed, shown, none: [app?.book ?? null, writes.slice()] };
+        } finally {
+            await app?.close?.();
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownSet) settings.set = realSet; else delete settings.set;
+        }
+        const first = typeof H.openingBook === "function"
+            ? [H.openingBook("gm-handbook", { isGM: false }), H.openingBook("gone-book", { isGM: true }), H.openingBook(null, { isGM: true }), H.openingBook("gm-handbook", { isGM: true })]
+            : null;
+        equal(JSON.stringify({ setting: def ? [def.scope, def.config, def.type === String, def.default] : null, read, first }),
+            JSON.stringify({ setting: ["client", false, true, ""], read: { opened: "player-handbook", written: [], pressed: ["player-brochure"], shown: "player-brochure",
+                none: ["player-brochure", []] },
+                first: ["player-brochure", "player-brochure", "player-brochure", "gm-handbook"] }),
+            "the setting (client, not in the window, a string, \"\"), the window opened with \"player-handbook\" stored and a tab pressed, opened with none stored, and the book opened for a player handed the GM's, an unknown one, none, and a GM handed the GM's");
+    }],
+
+    ["R1131 - a region's Display Scrolling Text passes over a token this browser shows, and every other caption is answered with a settled Promise: no-scrolling-text.mjs's patch hands a call made from `DisplayScrollingTextRegionBehaviorType` at a shown token to the original, and answers any other - a region's over a token hidden here or over no token included - with a thenable of null (E51 C8; E51-47, D44e = 1, audit S01-27; E51 fix FG6, review security S2)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S01-27. The patch answered every caller with null - a region's own "Display
+         * Scrolling Text" too, while Foundry's switch read on - and said the original returns null, where the original
+         * is async. The original is stood in for by a recorder (the patch calls it through `.original`, put back in a
+         * finally), so nothing is drawn: a plain call and a call from a class of the region behaviour's name. v14's
+         * own call site is LIVE-E51-05. Red at C8's parent: the plain call answered null, the region's reached nothing.
+         *
+         * OVER A TOKEN SHOWN HERE (E51 fix round FG6, 31.10.2026; review security S2). The region's caption passed whatever
+         * stood under it, and the module hides another room's tokens and, in an Eclipse, every player's by the token's
+         * `visible` on the viewer's browser (visibility.mjs `tokenShownTo`): a caption over a hidden token said that
+         * somebody crossed there. The region's call is made here at a token on the scene on screen as it stands, at the
+         * same token with its `visible` set false on this browser (put back by the token's refresh of its visibility;
+         * nothing is written to the world), and at a point no token covers. Red at the fix round's parent: all three drawn.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a token on the scene on screen for the region's caption to stand over");
+        const group = foundry.canvas?.groups?.InterfaceCanvasGroup ?? globalThis.InterfaceCanvasGroup;
+        const fn = group?.prototype?.createScrollingText;
+        ok(fn?.[Symbol.for("drpgNoScrollingText")] === true, "the scrolling-text patch is not installed on this page - this would measure nothing");
+        const N = await import("./no-scrolling-text.mjs");
+        const token = canvas.tokens.placeables.find(t => t.document?.actor?.type === "character" && t.visible);
+        must(token, "no character's token is shown on the scene on screen - this would measure nothing");
+        // Put back by the token's own refresh of its visibility: Foundry's answer, and the room fog's after it.
+        const putBack = () => { token.visible = true; token.renderFlags?.set?.({ refreshVisibility: true }); };
+        const center = { x: token.center.x, y: token.center.y };
+        const drawn = [], real = fn.original;
+        let read = null;
+        try {
+            fn.original = function (origin, text) { drawn.push(text); return Promise.resolve("drawn"); };
+            const plain = fn.call({}, center, "R1131 a token's caption");
+            class DisplayScrollingTextRegionBehaviorType {
+                _handleRegionEvent(at, text) { return fn.call({}, at, text); }
+            }
+            const behaviour = new DisplayScrollingTextRegionBehaviorType();
+            const region = await behaviour._handleRegionEvent(center, "R1131 a region's caption");
+            token.visible = false;
+            const hidden = await behaviour._handleRegionEvent(center, "R1131 a region's caption over a hidden token");
+            putBack();
+            const nobody = await behaviour._handleRegionEvent({ x: -100000, y: -100000 }, "R1131 a region's caption over no token");
+            read = { thenable: typeof plain?.then === "function", plain: await plain, region, hidden, nobody, drawn: drawn.slice(),
+                reader: typeof N.fromRegionBehavior === "function"
+                    ? [N.fromRegionBehavior("Error\n    at DisplayScrollingTextRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)"),
+                        N.fromRegionBehavior("Error\n    at createScrollText (daggerheart.mjs:1:1)\n    at ModifyTokenRegionBehaviorType._handleRegionEvent (foundry.mjs:1:1)")]
+                    : null };
+        } finally {
+            fn.original = real;
+            if (!token.visible) putBack();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ thenable: true, plain: null, region: "drawn", hidden: null, nobody: null, drawn: ["R1131 a region's caption"],
+            reader: [true, false] }),
+            "a token's caption answered with a settled Promise of null, a region's over a shown token handed to the original, one over a token hidden here and "
+                + "one over no token answered null, and the stack reader on a region's frame and on another behaviour's");
+    }],
+
+    ["R1132 - Set the season up has a First session screen: season-setup.mjs `steps()` gives hallTokens, scenes, foundryHeld and diceSoNice the group `firstSession`, each optional with its state and, while not done, its Open where it has a window; `firstSessionHtml` draws them under their heading, and the window keeps them out of the checklist's list and wires both lists (E51 C8; E51-48, audit S17-49)", async () => {
+        /*
+         * E51 C8, 31.10.2026; audit S17-49. What a GM new to the module sets once - the hall and its tokens, the
+         * Scenes, what the module holds of Foundry (enforced.mjs, the ENFORCED rows) and Dice So Nice - was spread over
+         * several windows with nothing to gather it. Read with the steps' facts handed in (no hall, Dice So Nice off,
+         * Foundry's settings given back; then Dice So Nice on and held), drawn into a detached box, and the window's
+         * source with comments blanked. Nothing is written. Red at C8's parent: no row carried a group, and there was
+         * no `firstSessionHtml`.
+         */
+        const SS = await import("./season-setup.mjs");
+        const list = (dsn, givenBack) => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), givenBack, hallScene: null, dsn });
+        const group = rows => rows.filter(r => r.group === "firstSession");
+        const off = group(list(false, true)), on = group(list(true, false));
+        const box = document.createElement("div");
+        box.innerHTML = typeof SS.firstSessionHtml === "function" ? SS.firstSessionHtml(list(false, true)) : "";
+        const section = box.querySelector('section[data-drpg-group="firstSession"]');
+        const drawn = [...(section?.querySelectorAll("li[data-drpg-step]") ?? [])].map(li => [li.dataset.drpgStep,
+            li.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li.querySelector(".drpg-setup-do")),
+            li.querySelector(".drpg-setup-missing")?.textContent ?? null]);
+        const modules = Boolean(foundry.applications?.sidebar?.apps?.ModuleManagement);
+        const DASH = String.fromCharCode(0x2013);
+        const sources = await moduleSources();
+        must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const code = stripComments(sources.get("season-setup.mjs"));
+        const opener = bodyOf(code, "export async function openSeasonSetup(", { until: "export function startHereDue(" });
+        const wiring = bodyOf(code, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
+        equal(JSON.stringify({
+            keys: off.map(r => r.key), optional: off.every(r => r.optional === true),
+            state: [off.map(r => r.done), on.map(r => r.done)],
+            heading: section?.querySelector("h3")?.textContent ?? null, drawn,
+            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)\)/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
+                /querySelectorAll\("\.drpg-setup-list"\)/.test(wiring)]
+        }), JSON.stringify({
+            keys: ["hallTokens", "scenes", "foundryHeld", "diceSoNice"], optional: true,
+            state: [[false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), false, false], [false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), true, true]],
+            heading: game.i18n.localize("DRPG.Season.firstSession"),
+            drawn: [["hallTokens", DASH, true, game.i18n.localize("DRPG.Season.noHall")],
+                ["scenes", SS.steps().find(r => r.key === "scenes")?.done ? "✓" : DASH, !SS.steps().find(r => r.key === "scenes")?.done, null],
+                ["foundryHeld", DASH, true, null], ["diceSoNice", DASH, modules, null]],
+            window: [true, true, true]
+        }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
+    }],
+    ["R1134 - a discard's ticket is good once, for its student and its item's name, for a minute: sheet-audit.mjs `takeDiscardTrace` answers true for the ticket `noteDiscardTrace` wrote and false the second time, false for another student, another name or a ticket older than `DISCARD_TICKET_MS`, and reads a name as the trace cuts it, to 80 (E51 fix FG5; the end review's S1)", async () => {
+        /*
+         * E51 fix FG5, 31.10.2026; the end review's S1. The discard stamp stood on the GMs' copy being broken, which a
+         * console sets one write earlier; it stands now on the ticket the primary writes as it places the discard's
+         * trace (gm-bridge.mjs `handleRemnant`), taken by the audit at the deletion. Read with the module's own pair on
+         * this browser's memory, with ids no actor has; the old ticket is written with `Date.now` read 61 s back and
+         * put back at once. Every ticket written here is taken before the end, so nothing is left. Red at the fix's
+         * parent: neither function exported.
+         */
+        const A = await import("./sheet-audit.mjs");
+        must(typeof A.noteDiscardTrace === "function" && typeof A.takeDiscardTrace === "function", "sheet-audit.mjs exports no discard ticket - nothing to read");
+        const one = "R1134STUDENT0001", two = "R1134STUDENT0002", long = "R1134 " + "x".repeat(90);
+        A.noteDiscardTrace(one, "R1134 lockpick");
+        const first = [A.takeDiscardTrace(two, "R1134 lockpick"), A.takeDiscardTrace(one, "R1134 wire"), A.takeDiscardTrace(one, "R1134 lockpick"),
+            A.takeDiscardTrace(one, "R1134 lockpick")];
+        A.noteDiscardTrace(one, long);
+        const cut = A.takeDiscardTrace(one, long.slice(0, 80));
+        const real = Date.now;
+        try {
+            Date.now = () => real() - A.DISCARD_TICKET_MS - 1000;
+            A.noteDiscardTrace(one, "R1134 old gloves");
+        } finally {
+            Date.now = real;
+        }
+        const old = A.takeDiscardTrace(one, "R1134 old gloves");
+        equal(JSON.stringify({ first, cut, old, ms: A.DISCARD_TICKET_MS }), JSON.stringify({ first: [false, false, true, false], cut: true, old: false, ms: 60000 }),
+            "[another student's take, another name's, the ticket's own, the second time; a name past 80 read as cut; a ticket older than the minute; the minute]");
+    }],
+    ["R1142 - a field of one row shows with that row alone, in both themes: each `data-drpg-when` value the module's windows write (and each `when` handed to action-rolls.mjs `requestFieldHtml`) is drawn, by the module's sheets' cascade under Monokuma Legacy and Stained Glass, when its row is checked and hidden under another row; the Projects window's two selects carry `work` and `sabotage`, Tamper's Reshape trace `reshape` (E51 fix FG4; the owner's item of 31.10, review correctness \"item 1 wider\")", async () => {
+        /*
+         * E51 fix round FG4, 31.10.2026; the owner at the table ("Which project?" and "Sabotage which project?" shown at
+         * once whatever row is picked) and the correctness review's "item 1 wider". The Projects window
+         * (`performProject`) drew both selects as `.drpg-specific-note` with no `data-drpg-when`, which the stylesheet
+         * shows always; and Tamper's Reshape trace select (`chooseTamper`) did carry `data-drpg-when="reshape"`, which
+         * `.drpg-specific-note[data-drpg-when]` hides, with no rule naming `reshape` to show it - since E09 C13 the
+         * Reshape row reshaped the first erasable trace whatever the player meant. Read here: every value written in the
+         * sources (comments stripped), each tried in a window of two rows built on a body of its own with each theme's
+         * class (`styleCascade`, the winning `display` of the field: the sheets' top-level rules, no @media), and the
+         * label each named select of the two windows stands in. What a browser draws is not measured here (jsdom lays
+         * nothing out). Red at the fix's parent: `work` and `sabotage` written nowhere, and `reshape` hidden when checked.
+         */
+        const sources = await moduleSources();
+        const written = new Set();
+        for (const [file, raw] of sources) {
+            if (file.startsWith("tests")) continue;
+            const src = stripComments(raw);
+            for (const m of src.matchAll(/data-drpg-when="([\w-]+)"/g)) written.add(m[1]);
+            for (const m of src.matchAll(/requestFieldHtml\(\{[^)]*?\bwhen\s*:\s*"([\w-]+)"/g)) written.add(m[1]);
+        }
+        must(written.size >= 5, `only ${written.size} row-bound values were read in the sources - this would measure nothing`);
+        const C = await styleCascade();
+        const THEMES = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"];
+        const shown = (theme, value, checked) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            const app = document.createElement("div");
+            app.className = "application drpg-panel";
+            body.append(app);
+            app.innerHTML = `<form><div class="drpg-choice-list">
+                <label class="drpg-choice"><input type="radio" name="variant" value="${value}"></label>
+                <label class="drpg-choice"><input type="radio" name="variant" value="drpg-r1142-other"></label>
+            </div><label class="drpg-specific-note" data-drpg-when="${value}"><span>R1142</span><select name="r1142"></select></label></form>`;
+            app.querySelector(`input[value="${checked}"]`).checked = true;
+            return C.winner(app.querySelector("[data-drpg-when]"), "display")?.value ?? null;
+        };
+        const wrong = [];
+        for (const theme of THEMES) for (const value of written) {
+            const own = shown(theme, value, value), other = shown(theme, value, "drpg-r1142-other");
+            if (own === "none" || own === null || other !== "none") wrong.push(`${theme} ${value}: ${own} / ${other}`);
+        }
+        const code = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const labelOf = (fn, name) => {
+            const body = fnSource(code, fn) ?? "";
+            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));
+            return m ? m[1] ?? "always" : "no such select";
+        };
+        equal(JSON.stringify({
+            wrong,
+            projects: [labelOf("performProject", "project"), labelOf("performProject", "sabotage")],
+            tamper: [labelOf("chooseTamper", "trace"), labelOf("chooseTamper", "reshapeTrace"), labelOf("chooseTamper", "who")]
+        }), JSON.stringify({ wrong: [], projects: ["work", "sabotage"], tamper: ["cover", "reshape", "frame"] }),
+            "[a row-bound value not shown with its row, or shown under another (theme value: its row checked / another checked); the rows the Projects "
+                + "window's project and sabotage selects show with; the rows Tamper's trace, Reshape trace and frame selects show with]");
+    }],
+    ["R1144 - the season's resets and fixes report once: season-setup.mjs `wipeStudent`'s deaths part takes the Monocub off and revives with `quiet: true`, and monocub.mjs `setMonocub`'s toast stands under `!quiet` (E51 fix FG9; E51-38, audit S06-46, review goal G9)", async () => {
+        /*
+         * E51 fix round FG9, 31.10.2026; review goal G9: row E51-38's "fixes quietly" was read by no test. The reset said
+         * "X is no longer a Monocub" once per cub beside its own report (C6 gave `setMonocub` a `quiet`); the checklist's
+         * Starting resources fix is driven in tier 2's E51-T17. Read here with comments stripped: the deaths part of
+         * `wipeStudent` (from `deaths:` to `items:`), and `setMonocub`'s toast. Green at the fix round's parent (C6 built
+         * it): what it holds is measured by mutants (S/stages/E51/FIX-C.md).
+         */
+        const sources = await moduleSources();
+        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const cub = stripComments(sources.get("monocub.mjs") ?? "");
+        must(setup.length > 1000 && cub.length > 1000, "season-setup.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
+        const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
+        const setter = fnSource(cub, "setMonocub");
+        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths),
+            /if\s*\(!quiet\)\s*ui\.notifications\.info\(/.test(setter)]), JSON.stringify([true, true, true]),
+            "[the reset takes the Monocub off quietly; it revives quietly; setMonocub's toast asks !quiet]");
+    }],
+
     ["R1564 - a GM store write on a server whose serverTime is its uptime is kept: the clock is the epoch clock under the floor, an epoch serverTime is still the server's, and after a restart a write under the last session's watermark lands (E90, LIVE-E04-01)", async () => {
         /*
          * E90, 31.10.2026. The owner's table (Foundry 14.365 on The Forge, Daggerheart 2.6.5, the GM's browser):
