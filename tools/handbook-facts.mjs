@@ -52,7 +52,11 @@
  * An atomic fact is the smallest statement that is true or false on its own, or one piece of advice. Rules:
  * 1. Nothing merged: a sentence that says two things gives two facts ("X is unremovable and becomes a Y" is two). A
  *    list of the members of one set is one fact ("visibility is Obvious, Evident, Subtle or Hidden"); a list whose
- *    members each get something said of them gives one fact per member.
+ *    members each get something said of them gives one fact per member. Two verbs, or two objects of one verb, joined
+ *    by "and" or "or" give one fact each ("does not let you rename an item or change its picture or description" is
+ *    three; "stays and is recorded" is two). A list after a colon or a dash, naming what the sentence before it names,
+ *    is one fact of its own, apart from that sentence, of kind rule ("Most of what you do leaves one: a, b, c" is two:
+ *    "Most of what you do leaves one" and "What leaves one: a, b, c").
  * 2. Nothing added: state only what the unit says. No inference, no knowledge of the game, nothing from another unit -
  *    except that a list item, or a row, may be read with the lead-in or header it hangs from, to make its fact whole.
  * 3. A table row: one fact per cell after the first, the first cell its subject and the header its predicate
