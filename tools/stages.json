@@ -87,6 +87,7 @@
     {"id": "E57", "planned": "1.2.130", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E58", "planned": "1.2.131", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E59", "planned": "1.2.132", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E83", "planned": "1.2.133", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E26", "planned": "1.3.0", "version": null, "shipped": null, "touches": null, "drills": []}
   ]
 }
