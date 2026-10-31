@@ -53,7 +53,7 @@ import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite, wholeNumber } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
@@ -879,7 +879,7 @@ export function readSeasonForm(d) {
     const top = Math.max(CHAPTERS_PER_SEASON, Math.round(Number(f.chapter.max)) || 0);
     return {
         campaignName: f.campaignName.value.trim(),
-        chapter: Math.min(Math.max(Math.round(Number(f.chapter.value)) || 1, 1), top),
+        chapter: wholeNumber(f.chapter.value, { min: 1, max: top, fallback: 1 }),
         // Blank means "put the default back", which is what
         // `safeword()` reads an empty setting as. Written blank
         // rather than filled in here so the two agree.

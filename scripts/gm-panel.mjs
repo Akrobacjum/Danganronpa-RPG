@@ -12,7 +12,7 @@ import { getClock, setClock, advanceTimeOfDay, clockSummary, phaseLabel, campaig
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, tableDialog, esc, primaryGmId } from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog, esc, primaryGmId, wholeNumber } from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
@@ -894,8 +894,7 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
             const id = button.dataset.drpgGive;
             const actor = game.actors.get(id);
             const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
-            const amount = Number(
-                dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
+            const amount = wholeNumber(dialog.element.querySelector(`[name="amount:${id}"]`)?.value, { min: 0, fallback: 0 });
             if (!actor || !donorId || amount <= 0) return;
 
             const { convertDespairToHope } = await import("./despair.mjs");
@@ -1044,7 +1043,9 @@ export async function openWhoIsAliveDialog() {
 
 /**
  * Write what the Players window was told, row by row, outside in: deceased first,
- * then Monocub, then silence. Answers how many changed.
+ * then Monocub, then silence. Answers how many CHARACTERS changed (E51 C7, 31.10.2026;
+ * audit S10-60): the ids written go into a Set, so a row whose state and silence both
+ * moved is one, where the window's toast used to say "2 characters changed" over it.
  *
  * DRIVEN BY THE ANSWER, NOT BY THE ROSTER THE WINDOW OPENED WITH (F15, 20.09). The
  * loop used to walk `students`, read once when the window opened, while the answer
@@ -1073,7 +1074,7 @@ export async function applyAliveStates(chosen = {}) {
        with no such death is marked as the repair always marked them. */
     const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));
 
-    let changed = 0;
+    const changed = new Set();
     for (const [id, want] of Object.entries(chosen)) {
         const actor = game.actors.get(id);
         if (!actor || actor.type !== "character" || isMonokuma(actor) || !want?.state) continue;
@@ -1109,18 +1110,21 @@ export async function applyAliveStates(chosen = {}) {
                card, the bag kept (F16). Anybody else's death here, and a death outside an incident,
                does nothing more (`incidentVictimDied` asks). */
             if (living && died?.chapter) await incidentVictimDied(actor, died.chapter);
-            changed++;
+            changed.add(actor.id);
         }
 
         // Silence only means anything for a cub, and only after the state above has
-        // settled - a student promoted to Monocub in this same pass can be silenced
-        // in it too.
+        // settled. THE WINDOW DRAWS THE BOX FOR A CURRENT MONOCUB ONLY (E51 C7; audit
+        // S10-60): a student made a Monocub by the dropdown and Apply gets the box the
+        // next time the window opens, one made by the row's Invite as the open table
+        // redraws (`keepLive`). A caller that hands both at once - the suite, the
+        // console - gets both in this pass, counted as one character.
         if (isMonocub(actor) && "silenced" in want && want.silenced !== isCrimeSilenced(actor)) {
             await setSilenced(actor, want.silenced);
-            changed++;
+            changed.add(actor.id);
         }
     }
-    return changed;
+    return changed.size;
 }
 
 async function toggleEclipse() {
@@ -1702,9 +1706,9 @@ export async function openClockDialog() {
                     return {
                         campaignName: form.campaignName.value.trim(),
                         chapter: Number(form.chapter.value) || 1,
-                        day: Number(form.day.value) || 1,
+                        day: wholeNumber(form.day.value, { min: 1, fallback: 1 }),
                         phase: form.phase.value,
-                        session: Number(form.session.value) || 1,
+                        session: wholeNumber(form.session.value, { min: 1, fallback: 1 }),
                         timeOfDay: form.timeOfDay.value,
                         reset: form.reset.checked
                     };

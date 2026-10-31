@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -790,7 +790,7 @@ async function askItemEffect(item) {
                     const f = d.element.querySelector("form");
                     const amounts = {};
                     for (const key of ["hitPoints", "stress", "hope"]) {
-                        const n = Math.max(0, Math.trunc(Number(f.elements[key]?.value) || 0));
+                        const n = wholeNumber(f.elements[key]?.value, { min: 0, max: 12, fallback: 0 });
                         if (n) amounts[key] = n;
                     }
                     return { amounts, consume: Boolean(f.elements.consume?.checked) };

@@ -76980,6 +76980,146 @@ const SCENARIOS = [
             "[in the Class Trial: the Discard greyed, its tooltip; the press: discardBroken's answer, the windows it opened, the reason warned, the item still held, "
             + "the messages posted]");
     }],
+    ["E51-T20 - the rules manager says what it did: an emptied rule keeps its wording and is said so, \"Announce changes\" is ticked by default and posts one card naming the rules introduced and revoked, a rule revoked and introduced again in one save is listed once, as introduced, an unticked box posts none, a refused write is told as failed with no card, the new rule is `addRule`'s record, and a motive's tick and rewind write no derived `due` (E51 C7; E51-42, D44d = 1, audit S10-56)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-56, the owner's D44d = 1 ("Checkbox 'Announce changes', domyslnie zaznaczony,
+         * karta z lista dodanych i odwolanych regul"). rules.mjs `openRulesManager` ignored `write`'s answer and said
+         * "Saved" over a refused write, put an emptied rule's old text back without a word, told the table nothing of a
+         * rule introduced or revoked (the file's own header: a rule exists so that everybody knows it), and built the
+         * new rule's record itself beside `addRule`'s; `tickMotive` / `untickMotive` wrote `motive()`'s derived `due`
+         * into the world. Driven through the manager's own window (`withFormAnswered`: the form drawn, set as a GM
+         * would, the Save pressed) over a list of the suite's own rules, six saves in turn: an emptied rule; B revoked
+         * and C introduced, the box as drawn; C revoked and introduced again; A revoked and D introduced with the box
+         * unticked; E introduced while the setting's write is refused. Read: the box as drawn, the rules' texts after
+         * each save, the cards posted under the announcement's title and where their words stand, the toasts. Then a
+         * motive of three times of day ticked and rewound, the stored record read raw. The rules, the motive, the
+         * toasts, `game.settings.set` and the messages put back. Red at C7's parent: no box, no card, no warning, the
+         * refused write toasted as saved, and `due` stored by both.
+         */
+        const R = await import("./rules.mjs");
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.killingGameRules) ?? []);
+        const motiveWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const title = game.i18n.localize("DRPG.Rules.announceTitle");
+        const addedLabel = game.i18n.localize("DRPG.Rules.announceAdded");
+        const revokedLabel = game.i18n.localize("DRPG.Rules.announceRevoked");
+        const N = ui.notifications, kinds = ["info", "warn", "error"];
+        const own = Object.fromEntries(kinds.map(k => [k, Object.getOwnPropertyDescriptor(N, k)]));
+        const real = Object.fromEntries(kinds.map(k => [k, N[k]]));
+        const settings = game.settings, setOwn = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
+        const told = [];
+        let refuse = false;
+        const T = n => `SUITE E51-T20 rule ${n}`;
+        const texts = () => R.rules().map(r => r.text);
+        const idOf = text => R.rules().find(r => r.text === text)?.id ?? "";
+        // A card's words as drawn: the content is escaped HTML (the title's apostrophe is `&#39;` in it).
+        const cardWords = m => { const div = document.createElement("div"); div.innerHTML = String(m.content ?? ""); return div.textContent.replace(/\s+/g, " "); };
+        const save = async edit => {
+            const from = new Set(game.messages.map(m => m.id)), said = told.length;
+            await withFormAnswered(root => { edit(root); return true; }, () => R.openRulesManager());
+            await settle();
+            const cards = game.messages.filter(m => !from.has(m.id)).map(cardWords).filter(words => words.includes(title));
+            return { texts: texts(), cards, said: told.slice(said) };
+        };
+        const set = (root, name, value) => { const f = root.querySelector(`[name="${name}"]`); must(f, `the manager drew no field ${name} - this would measure nothing`); if (typeof value === "boolean") f.checked = value; else f.value = value; };
+        const read = {};
+        try {
+            for (const k of kinds) N[k] = (message, ...rest) => { told.push([k, String(message)]); return real[k].call(N, message, ...rest); };
+            settings.set = function (namespace, key, ...rest) {
+                if (refuse && namespace === MODULE_ID && key === SETTINGS.killingGameRules) throw new Error("SUITE E51-T20: the rules' write is refused for this test");
+                return realSet.call(this, namespace, key, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);
+            const a = await R.addRule(T("A"));
+            await R.addRule(T("B"));
+            must(stableJson(texts()) === stableJson([T("A"), T("B")]), "the suite's two rules were not written - this would measure nothing");
+            let box = null;
+            const empty = await save(root => { box = root.querySelector('[name="announce"]')?.checked ?? null; set(root, `text:${idOf(T("A"))}`, "   "); });
+            read.box = box;
+            read.empty = [empty.texts, empty.cards.length, empty.said.some(([k, m]) => k === "warn" && m === game.i18n.format("DRPG.Rules.emptyKept", { rules: "1" }))];
+            const ticked = await save(root => { set(root, `delete:${idOf(T("B"))}`, true); set(root, "new", T("C")); });
+            const card = ticked.cards[0] ?? "";
+            const at = s => card.indexOf(s);
+            const c = R.rules().find(r => r.text === T("C")) ?? {};
+            read.ticked = [ticked.texts, ticked.cards.length, at(addedLabel) >= 0 && at(addedLabel) < at(T("C")) && at(T("C")) < at(revokedLabel) && at(revokedLabel) < at(T("B")),
+                stableJson(Object.keys(c).sort()) === stableJson(Object.keys(a ?? {}).sort()) && stableJson(Object.keys(c).sort()) === stableJson(["at", "chapter", "id", "text"])
+                    && c.chapter === getClock().chapter];
+            const again = await save(root => { set(root, `delete:${idOf(T("C"))}`, true); set(root, "new", T("C")); });
+            const twice = again.cards[0] ?? "";
+            read.again = [again.texts, again.cards.length, twice.split(T("C")).length - 1, twice.includes(revokedLabel)];
+            const unticked = await save(root => { const box = root.querySelector('[name="announce"]'); if (box) box.checked = false; set(root, `delete:${idOf(T("A"))}`, true); set(root, "new", T("D")); });
+            read.unticked = [unticked.texts, unticked.cards.length];
+            refuse = true;
+            const refused = await save(root => { set(root, "new", T("E")); });
+            refuse = false;
+            read.refused = [refused.texts, refused.cards.length, refused.said.some(([k, m]) => k === "error" && m === game.i18n.localize("DRPG.Rules.saveFailed")),
+                refused.said.some(([k]) => k === "info")];
+            await R.setMotive({ text: "SUITE E51-T20 a motive", consequence: "", timesOfDay: 3 });
+            await R.tickMotive();
+            const ticks = "due" in (game.settings.get(MODULE_ID, SETTINGS.motive) ?? {});
+            await R.untickMotive();
+            read.due = [ticks, "due" in (game.settings.get(MODULE_ID, SETTINGS.motive) ?? {}), R.motive()?.remaining ?? null];
+        } finally {
+            refuse = false;
+            if (setOwn) Object.defineProperty(settings, "set", setOwn); else delete settings.set;
+            for (const k of kinds) { if (own[k]) Object.defineProperty(N, k, own[k]); else delete N[k]; }
+            await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, rulesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.motive, motiveWas);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            box: true,
+            empty: [[T("A"), T("B")], 0, true],
+            ticked: [[T("A"), T("C")], 1, true, true],
+            again: [[T("A"), T("C")], 1, 1, false],
+            unticked: [[T("C"), T("D")], 0],
+            refused: [[T("C"), T("D")], 0, true, false],
+            due: [false, false, 3]
+        }), "[the Announce box as drawn; an emptied A: the rules, the cards, the warning; B revoked, C introduced: the rules, the cards, introduced C before revoked B, "
+            + "C built as addRule builds A; C revoked and introduced again: the rules, the cards, C named how often, a revoked list; A revoked, D introduced, unticked: "
+            + "the rules, the cards; E refused: the rules, the cards, the failure told, a Saved toast; the motive's record raw: due after a tick, after a rewind, the time left]");
+    }],
+
+    ["E51-T21 - the Players window counts characters, not fields: one student moved from dead to Monocub and silenced in one pass is \"1 character changed\" (E51 C7; E51-43, audit S10-60)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-60. gm-panel.mjs `applyAliveStates` counted the state's change and the silence's
+         * as two, so the window's toast said "2 characters changed" over one row. One student of the cast, marked dead
+         * by its flag alone (as the suite marks one: no card, no store), handed to `applyAliveStates` as the window's
+         * Apply hands a row: Monocub and silenced. Read: the count, whether both were written, and the toast's words
+         * for that count. The flags, the tracks `setMonocub` empties and the messages put back. Red at C7's parent: 2.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to move from dead to Monocub");
+        const [actor] = cast(1);
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const M = await import("./monocub.mjs");
+        const { plural } = await import("./utils.mjs");
+        const names = [FLAGS.deceased, FLAGS.monocub, FLAGS.silencedChapter];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const tracks = ["hope", "hitPoints", "stress"].filter(k => Number.isFinite(actor.system?.resources?.[k]?.value));
+        const tracksWas = Object.fromEntries(tracks.map(k => [`system.resources.${k}.value`, actor.system.resources[k].value]));
+        const seen = new Set(game.messages.map(m => m.id));
+        const clock = getClock();
+        let read = null;
+        try {
+            must(!M.isMonocub(actor) && !actor.getFlag(MODULE_ID, FLAGS.deceased), `${actor.name} is already dead or a Monocub - this would measure nothing`);
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await settle();
+            const changed = await applyAliveStates({ [actor.id]: { state: "monocub", silenced: true } });
+            await settle();
+            read = [changed, M.isMonocub(actor), M.isCrimeSilenced(actor), plural("DRPG.Panel.stateSaved", { n: changed })];
+        } finally {
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            if (tracks.length) await actor.update(tracksWas);
+            await settle();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson(read), stableJson([1, true, true, plural("DRPG.Panel.stateSaved", { n: 1 })]),
+            "[the count applyAliveStates answered; a Monocub; silenced; the toast's words for that count]");
+    }],
     ...GRID
 ];
 

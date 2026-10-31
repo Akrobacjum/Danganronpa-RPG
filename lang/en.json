@@ -4364,7 +4364,13 @@
         "one": "Saved - {n} rule in force.",
         "other": "Saved - {n} rules in force."
       },
-      "recorded": "Added to the killing game's standing rules."
+      "recorded": "Added to the killing game's standing rules.",
+      "announce": "Announce changes",
+      "announceTitle": "The killing game's rules have changed",
+      "announceAdded": "Introduced",
+      "announceRevoked": "Revoked",
+      "emptyKept": "A rule cannot be left empty, so it keeps its wording (rule {rules}). Tick a rule's box to revoke it.",
+      "saveFailed": "The rules could not be saved - nothing was changed or announced."
     },
     "Motive": {
       "title": "Motive",

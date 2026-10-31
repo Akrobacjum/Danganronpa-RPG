@@ -4538,7 +4538,13 @@
         "many": "Zapisano - {n} zasad obowiązuje.",
         "other": "Zapisano - {n} zasad obowiązuje."
       },
-      "recorded": "Dodano do stałych zasad killing game."
+      "recorded": "Dodano do stałych zasad killing game.",
+      "announce": "Ogłoś zmiany",
+      "announceTitle": "Zasady killing game się zmieniły",
+      "announceAdded": "Wprowadzone",
+      "announceRevoked": "Cofnięte",
+      "emptyKept": "Zasada nie może zostać pusta, więc zachowuje brzmienie (zasada {rules}). Zaznacz pole zasady, by ją cofnąć.",
+      "saveFailed": "Nie udało się zapisać zasad - niczego nie zmieniono ani nie ogłoszono."
     },
     "Motive": {
       "title": "Motive",

@@ -29,7 +29,7 @@
  */
 
 import { MODULE_ID, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
-import { dialogContent, esc } from "./utils.mjs";
+import { dialogContent, esc, wholeNumber } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -255,7 +255,7 @@ async function pickMotive(ask) {
                 return {
                     text: f.querySelector("[name=text]").value.trim(),
                     consequence: f.querySelector("[name=consequence]").value.trim(),
-                    timesOfDay: Number(f.querySelector("[name=timesOfDay]").value)
+                    timesOfDay: wholeNumber(f.querySelector("[name=timesOfDay]").value, { min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, fallback: MOTIVE.defaultTimesOfDay })
                 };
             }
         }]

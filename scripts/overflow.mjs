@@ -25,7 +25,7 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural } from "./utils.mjs";
+import { announce, log, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -1117,11 +1117,13 @@ export function readOverflowForm(root) {
         // A pane that never rendered returns nothing rather than a form full of
         // undefined, which `setOverflowRules` would read as "untick everything".
         if (!on) return null;
-        // An emptied field is no edit (S09-37): `Number("")` is 0, saved as a size of 0 and as X = 6.
-        effects[key] = { on: on.checked, ...(by && Number.isFinite(numberIn(by.value)) ? { by: Number(by.value) } : {}) };
+        // An emptied field is no edit (S09-37): `Number("")` is 0, saved as a size of 0 and as X = 6. A typed value is a
+        // whole number in the field's range (E51 C7, `wholeNumber`); `setOverflowRules` holds the range again.
+        const size = by ? wholeNumber(by.value, { min: 0, max: BY_MAX, fallback: undefined }) : undefined;
+        effects[key] = { on: on.checked, ...(size === undefined ? {} : { by: size }) };
     }
-    const threshold = numberIn(root.querySelector('[name="ovf-threshold"]')?.value);
-    return { threshold: Number.isFinite(threshold) ? threshold : undefined, effects };
+    const { min, max } = OVERFLOW.range;
+    return { threshold: wholeNumber(root.querySelector('[name="ovf-threshold"]')?.value, { min, max, fallback: undefined }), effects };
 }
 
 /** Everything a caption, a tooltip or the editor's preview needs, in one read. */

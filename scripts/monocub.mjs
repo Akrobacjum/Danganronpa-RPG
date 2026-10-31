@@ -49,7 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
-import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm } from "./utils.mjs";
+import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm, wholeNumber } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
@@ -827,8 +827,7 @@ export async function openMonocubDialog() {
                         const id = btn.dataset.drpgGive;
                         const actor = game.actors.get(id);
                         const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
-                        const amount = Number(
-                            dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
+                        const amount = wholeNumber(dialog.element.querySelector(`[name="amount:${id}"]`)?.value, { min: 0, fallback: 0 });
                         if (!actor || !donorId || amount <= 0) return;
 
                         const { convertDespairToHope } = await import("./despair.mjs");

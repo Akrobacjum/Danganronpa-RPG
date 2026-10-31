@@ -19,7 +19,7 @@
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, warn, error, isPrimaryGm, primaryGmId, plural, serialWrite } from "./utils.mjs";
+import { announce, whisperToOwner, log, warn, error, isPrimaryGm, primaryGmId, plural, serialWrite, wholeNumber } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -661,6 +661,9 @@ export function donorLabel(user) {
  * @returns {Promise<number>} Hope actually granted, 0 if none was.
  */
 export async function convertDespairToHope(monokumaUserId, actor, amount) {
+    /* A WHOLE AMOUNT (E51 C7, 31.10.2026; audit S10-61): the one door both donations go through, so a 1.5 typed into
+       a field, or handed by the console, took 1.5 Despair and gave 1.5 Hope, and the sheet and the pips disagreed. */
+    amount = wholeNumber(amount, { min: 0, fallback: 0 });
     if (!game.user.isGM || !actor || amount <= 0) return 0;
 
     // What the pool can spend, not what it shows: an earlier conversion may still be owed (E05 C12),

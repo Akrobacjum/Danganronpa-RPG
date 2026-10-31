@@ -19,7 +19,7 @@ import {
 import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
-import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf } from "./utils.mjs";
+import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -330,7 +330,7 @@ export async function openDebate(options = {}) {
                 {
                     action: "ok", label: game.i18n.localize("DRPG.Floor.openDebate"), default: true,
                     callback: (e, b, d) => ({
-                        seconds: Number(d.element.querySelector("form").seconds.value) || remembered,
+                        seconds: wholeNumber(d.element.querySelector("form").seconds.value, { fallback: remembered }) || remembered,
                         topic: d.element.querySelector("form").topic?.value ?? ""
                     })
                 },
@@ -425,7 +425,7 @@ export async function openRoundWindow(mode) {
             {
                 action: "ok", label: game.i18n.localize("DRPG.Floor.roundWindow.start"), default: true,
                 callback: (e, b, d) => ({
-                    seconds: Number(d.element.querySelector("[name=seconds]")?.value) || offered,
+                    seconds: wholeNumber(d.element.querySelector("[name=seconds]")?.value, { min: range.min, max: range.max, fallback: offered }),
                     order: [...d.element.querySelectorAll(".drpg-round-order [data-drpg-round-id]")].map(li => li.dataset.drpgRoundId)
                 })
             },

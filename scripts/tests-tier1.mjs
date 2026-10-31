@@ -29808,7 +29808,9 @@ const INVARIANTS = [
          * E51 C6, 31.10.2026; audit S06-46. The window's Chapter field wrote what it was given: "-2", "2.5" or 99 went
          * to the clock as typed (`Number(f.chapter.value) || 1`). Read off a form drawn as `campaignFieldsHtml` draws
          * it, for a clock on chapter 1 (its `max` the season's chapters), each value typed in turn. Red at C6's parent:
-         * `readSeasonForm` not exported.
+         * `readSeasonForm` not exported. CHANGED AT E51 C7 (31.10.2026): the field reads through utils.mjs `wholeNumber`
+         * like every GM number field (R1127), which truncates as R1128 holds, so 2.5 is chapter 2 where C6's rounding
+         * made it 3.
          */
         const S = await import("./season-setup.mjs");
         const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
@@ -29821,7 +29823,7 @@ const INVARIANTS = [
             return read ? read({ element: { querySelector: () => form } }).chapter : null;
         });
         equal(JSON.stringify({ exported: Boolean(read), max: Number(field.max), typed }),
-            JSON.stringify({ exported: true, max: CHAPTERS_PER_SEASON, typed: [CHAPTERS_PER_SEASON, 1, 1, 3, 1, 3] }),
+            JSON.stringify({ exported: true, max: CHAPTERS_PER_SEASON, typed: [CHAPTERS_PER_SEASON, 1, 1, 2, 1, 3] }),
             "[readSeasonForm exported; the field's max; the chapter read for 99, 0, -2, 2.5, an empty field and 3]");
     }],
 
@@ -29848,6 +29850,22 @@ const INVARIANTS = [
             F.mayObjectTo(a.id, outsider.id, null), reason.startsWith("DRPG.")]),
         JSON.stringify([null, reason, reason, false, false]),
         "[one participant at another; at a student nobody plays; at an id no actor has; mayObjectTo at the student nobody plays; the reason a key left unlocalised]");
+    }],
+    ["R1128 - utils.mjs `wholeNumber` reads a field as a whole number in its range: \"3.7\" is 3, \"-2\" with min 0 is 0, \"x\" with fallback 1 is 1, \"\" and null the fallback (0 when none is given, `undefined` kept as given), \" 7 \" with max 5 is 5, -2.7 is -2, \"Infinity\" the fallback (E51 C7; E51-44, audit S10-61)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-61. The one reader every GM number field goes through (R1127 holds them to
+         * it): truncated toward zero, then held to `min`..`max` with `clamp`; what is no finite number is the caller's
+         * `fallback`, returned as given, so overflow.mjs's "an emptied field is no edit" (`fallback: undefined`) stays
+         * that. Pure; nothing is written. Red at C7's parent: no `wholeNumber` exported.
+         */
+        const U = await import("./utils.mjs");
+        const whole = typeof U.wholeNumber === "function" ? U.wholeNumber : null;
+        const read = whole ? [
+            whole("3.7"), whole("-2", { min: 0 }), whole("x", { fallback: 1 }), whole(""), whole(null, { fallback: 4 }),
+            whole("", { min: 1, fallback: undefined }) === undefined, whole(" 7 ", { max: 5 }), whole(-2.7), whole("Infinity", { fallback: 2 }), whole("12", { min: 1, max: 12 })
+        ] : null;
+        equal(JSON.stringify(read), JSON.stringify([3, 0, 1, 0, 4, true, 5, -2, 2, 12]),
+            "[\"3.7\"; \"-2\" with min 0; \"x\" with fallback 1; \"\"; null with fallback 4; \"\" with fallback undefined kept; \" 7 \" with max 5; -2.7; \"Infinity\" with fallback 2; \"12\" in 1..12] (null: not exported)");
     }],
 ];
 

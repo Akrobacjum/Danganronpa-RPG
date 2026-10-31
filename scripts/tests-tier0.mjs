@@ -16856,6 +16856,70 @@ const REGRESSIONS = [
         }), "[the store's row: kind, key, reset group, backed up, synced; its setting's scope and config; remnants.mjs still keeps pendingTraces; "
             + "announceRemnant writes the row and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
     }],
+    ["R1127 - every GM number field is read through utils.mjs `wholeNumber`: each `<input type=\"number\"` of the module's windows has its reader in this test's table, the reader is found and every line that reads the field's value asks `wholeNumber(`; a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61)", async () => {
+        /*
+         * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
+         * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
+         * Edit campaign, and a donation of 1.5 took 1.5 Despair from a pool and gave a Monocub 1.5 Hope. Now one
+         * reader, `wholeNumber(value, { min, max, fallback })`, holds each to a whole number in its range, and the one
+         * door the donations share truncates too. FIELDS is chosen by hand: a field (the file and its name as the
+         * template writes it) and the regex that finds where its value is read; the census holds the table to the
+         * source, so a new number field fails here until it gets a row. Not counted as readers: trial-floor-ui.mjs's
+         * round window repaints its length from the field as typed (`field.value`, a read-out), and season-setup.mjs
+         * `readDraft` carries the typed chapter across a reopen as a string (the write reads it in `readSeasonForm`).
+         * Comments blanked. Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it.
+         */
+        const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
+        must(src.size > 50, "the module's sources were not read - this would measure nothing");
+        const FIELDS = [
+            ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
+            ["gm-panel.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            ["gm-panel.mjs", "day", /\bform\.day\.value\b/g],
+            ["gm-panel.mjs", "session", /\bform\.session\.value\b/g],
+            ["mastermind.mjs", "amount", /\[name=amount\]"\)\?\.value/g],
+            ["messenger-app.mjs", "${name}", /\bf\.elements\[key\]\?\.value/g],
+            ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
+            ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
+            ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
+            ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
+        ];
+        // A `type="number"` that is not a field of a window: its reason.
+        const LISTED = { "chrome.mjs": "the stepper's selector (`dress('input[type=\"number\"]')`): it dresses every number field and reads no value" };
+        const census = {}, listed = {};
+        for (const [file, text] of src) {
+            const inputs = (text.match(/<input\s+type="number"/g) ?? []).length;
+            const all = (text.match(/type="number"/g) ?? []).length;
+            if (inputs) census[file] = inputs;
+            if (all > inputs) listed[file] = all - inputs;
+        }
+        const rows = {};
+        for (const [file] of FIELDS) rows[file] = (rows[file] ?? 0) + 1;
+        const unread = [], bare = [];
+        for (const [file, name, reader] of FIELDS) {
+            const text = src.get(file) ?? "";
+            const reads = [...text.matchAll(reader)];
+            if (!reads.length) unread.push(`${file} ${name}`);
+            for (const m of reads) {
+                const line = lineAround(text, m.index);
+                if (!line.includes("wholeNumber(")) bare.push(`${file}:${lineAt(text, m.index)} ${name}`);
+            }
+        }
+        const utils = src.get("utils.mjs") ?? "";
+        const whole = topLevelFunction(utils, "wholeNumber");
+        const convert = topLevelFunction(src.get("despair.mjs") ?? "", "convertDespairToHope") ?? "";
+        must(convert.length > 200, "despair.mjs convertDespairToHope was not read - this would measure nothing of the donations' door");
+        equal(JSON.stringify({
+            census: Object.fromEntries(Object.entries(census).sort()), listed: Object.fromEntries(Object.entries(listed).sort()), unread, bare,
+            whole: whole ? [/^export function wholeNumber\(/.test(whole), /\bclamp\(/.test(whole)] : null,
+            convert: /\bwholeNumber\(amount\b/.test(convert)
+        }), JSON.stringify({
+            census: Object.fromEntries(Object.entries(rows).sort()), listed: Object.fromEntries(Object.keys(LISTED).sort().map(f => [f, 1])), unread: [], bare: [],
+            whole: [true, true], convert: true
+        }), "[the number fields per file against FIELDS' rows; the type=\"number\" that are no field against LISTED; a field whose reader was not found; "
+            + "a line that reads a field's value and does not ask wholeNumber; wholeNumber exported and built on clamp; convertDespairToHope takes its amount through wholeNumber]");
+    }],
 ];
 
 

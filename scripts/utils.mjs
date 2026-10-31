@@ -665,6 +665,24 @@ export function clamp(value, min, max) {
 }
 
 /**
+ * A NUMBER FIELD READ AS A WHOLE NUMBER IN ITS RANGE (E51 C7, 31.10.2026; audit S10-61). The GM's number fields were
+ * read with `Number(v) || 1` and the like, so the input's `min="1" step="1"` held nothing a typed value did not: "Day
+ * -2" or "Day 2.5" went to the clock as typed, and a donation of 1.5 took 1.5 Despair and gave 1.5 Hope. Truncated
+ * toward zero, then held to `min`..`max`; what is no finite number ("", "x", null, "Infinity") is `fallback`, returned
+ * as given and not clamped, so a reader for which an emptied field means "no edit" passes `fallback: undefined`.
+ * Every GM number field reads through this (R1127); R1128 holds the arithmetic.
+ */
+export function wholeNumber(value, options = {}) {
+    const { min = -Infinity, max = Infinity } = options;
+    // Read by presence, not by a default: a destructuring default would turn `fallback: undefined` into 0 (R1128).
+    const fallback = "fallback" in options ? options.fallback : 0;
+    if (value === null || value === undefined || String(value).trim() === "") return fallback;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return clamp(Math.trunc(n), min, max);
+}
+
+/**
  * Write a document flag as a REPLACEMENT rather than a merge.
  *
  * `setFlag` is `update({flags: {scope: {key: value}}})`, and `update` is
