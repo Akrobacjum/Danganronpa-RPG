@@ -82,7 +82,11 @@ store `sheetMarks`). Every module write goes through one road that names its
 reason from a closed list (`trustedWrite`, `trustedCreate`, `trustedDelete`,
 `WRITE_REASONS` in resource-guard.mjs); a reason is a claim, like a packet field,
 and the GM checks the evidence it names - a payment it saw, a Rest's stamp, room
-and picks, an item used and spent, a Call's price, a Search's record. What
+and picks, an item used and spent, a Call's price, a Search's record. A
+`discard` is the case where the stamp alone once stood: since E51's fix round
+(31.10.2026) its evidence is a one-use ticket the primary GM writes only after
+it placed the discard's trace (`noteDiscardTrace` / `takeDiscardTrace`), and a
+discard-stamped delete without one is flagged like a bare delete. What
 nothing covers is put back at once and the writer told (Hope as a delta,
 statistics, maxima, rules, bonuses, the GM-only flags, an armed Call added -
 or, where it hinders or a GM armed it, taken off with no roll of the player's
