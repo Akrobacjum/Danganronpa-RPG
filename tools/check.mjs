@@ -132,7 +132,11 @@
  *             the glossary's loanwords in pl.json and the Polish handbooks;
  *             T17 (oxfordComma), T18 (telegraph), T19 (contractions, with
  *             each surface's shares), T22 (mirror, the shares of EN/PL pairs
- *             alike), T23 (itemQuotes) and T25 (bareLeft).
+ *             alike), T23 (itemQuotes) and T25 (bareLeft). E65 C8: two
+ *             report detectors that read the scripts - T13 (uiLiterals,
+ *             English literals in a script that draws UI) and T20
+ *             (localeCalls, a list or a date formatted outside utils.mjs's
+ *             helpers) - each with its findings counted by file.
  */
 
 import fs from "node:fs";
@@ -779,6 +783,8 @@ async function text() {
             console.log(`text:   ${m.test} by surface: ${shownTally(tally(live, f => (handbook(f) ? "handbook" : surfaces.surfaceOf(f.key) ?? "unclassified")), 14)}`);
             console.log(`text:   ${m.test} by group: ${shownTally(tally(live, f => (handbook(f) ? String(f.key).split(":")[0] : T.groupOf(f.key))), 10)}`);
         }
+        /* C8's detectors, which read code (T13, T20): their findings carry `file` and no `lang`, counted by file. */
+        if (live.length && live.every(f => f.file && !f.lang)) console.log(`text:   ${m.test} by file: ${shownTally(tally(live, f => f.file), 14)}`);
         if (r.bySurface) {
             console.log(`text:   ${m.test} strings by surface (over the target / over the limit / allowed): `
                 + Object.entries(r.bySurface).map(([id, c]) => `${id} ${c.strings} (${c.target}/${c.limit}/${c.allowed})`).join(", ")

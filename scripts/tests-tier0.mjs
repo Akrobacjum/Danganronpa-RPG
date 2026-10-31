@@ -17035,7 +17035,7 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, the glossary's and the budgets' shapes are red on their own cases' faults and the self-check sees either schema stubbed to answer nothing, every X rule T5 matches has a fixture line of its own, and the language rules' eight - T11, T12, T17, T18, T19, T22, T23, T25 - each flag exactly their own fixtures too (E65 C1, C2, C3, C4, C5, C6, C7; E65-03, E65-06 to E65-12, E65-14 to E65-16)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, the glossary's and the budgets' shapes are red on their own cases' faults and the self-check sees either schema stubbed to answer nothing, every X rule T5 matches has a fixture line of its own, the language rules' eight - T11, T12, T17, T18, T19, T22, T23, T25 - and the two that read code, T13 and T20, each flag exactly their own fixtures too (E65 C1, C2, C3, C4, C5, C6, C7, C8; E65-03, E65-06 to E65-12, E65-14 to E65-17)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
@@ -17065,7 +17065,11 @@ const REGRESSIONS = [
          * report detectors of E65-16 - T11 (loanGender) and T12 (loanDeclension), each on a glossary of its own fixture with
          * the `declension` field the real glossary gained in C7 (glossarySchema's own case holds its shape), T17
          * (oxfordComma), T18 (telegraph), T19 (contractions), T22 (mirror), T23 (itemQuotes, which reads code for the
-         * keys the code quotes, and so throws with no lexer) and T25 (bareLeft). Pure data; nothing is fetched or written.
+         * keys the code quotes, and so throws with no lexer) and T25 (bareLeft). C8 adds the two report detectors of E65-17
+         * that read the scripts, and so throw with no lexer: T13 (uiLiterals, English literals in a script that draws UI,
+         * on scripts of its own fixture - a dialog, a notification, markup, a class list, a refusal's reason, the console's
+         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers). Pure data; nothing
+         * is fetched or written.
          */
         const names = Object.keys(TEXT_MODES).sort();
         const notDue = n => (TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).pending ?? []).length;
@@ -17085,27 +17089,28 @@ const REGRESSIONS = [
             problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, ledgerBlind, unlexed, schemaStubs
         }), JSON.stringify({
             names: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
-                "loanDeclension", "loanGender", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms", "retiredHits",
-                "ruleNumberWords", "tableWordProblems", "telegraph"],
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "retiredHits", "ruleNumberWords", "tableWordProblems", "telegraph", "uiLiterals"],
             fixtures: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
-                "loanDeclension", "loanGender", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms", "retiredHits",
-                "ruleNumberWords", "tableWordProblems", "telegraph"],
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "retiredHits", "ruleNumberWords", "tableWordProblems", "telegraph", "uiLiterals"],
             detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
-                "loanDeclension", "loanGender", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms", "retiredHits",
-                "ruleNumberWords", "tableWordProblems", "telegraph"],
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "retiredHits", "ruleNumberWords", "tableWordProblems", "telegraph", "uiLiterals"],
             modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
-                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["mirror", "T22", "report"],
+                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "report"],
+                ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
                 ["pluralForms", "T1", "fail"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"], ["tableWordProblems", "T14", "fail"],
-                ["telegraph", "T18", "report"]],
+                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 9, 9],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
-                ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
-                ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["tableWordProblems", 4, 4], ["telegraph", 3, 3]],
+                ["localeCalls", 4, 4], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
+                ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
             baselines: [["dashesIn", 11], ["familyFormats", 1]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
-            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "monokumaVoice"],
+            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]]
         }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
             + "against the fixture's count; the rows of each baseline; what T8 and T28 hold back as not yet due against their fixtures' "

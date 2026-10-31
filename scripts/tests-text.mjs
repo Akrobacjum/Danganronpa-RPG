@@ -83,7 +83,12 @@
  * each surface's shares), T22 (`mirror`, the share of EN/PL pairs with the same
  * sentence count and punctuation skeleton), T23 (`itemQuotes`, which reads the
  * scripts with the lexer for the keys the code already quotes) and T25
- * (`bareLeft`).
+ * (`bareLeft`). At C8 the two report detectors that read the scripts (E65-17),
+ * each with the lexer and a finding keyed `<file>:<line>`: T13 (`uiLiterals`,
+ * English literals in a script that draws UI, the console's text, a refusal's
+ * reason, a class list, a selector and CSS set aside) and T20 (`localeCalls`,
+ * `Intl.ListFormat` and `toLocale*String` outside utils.mjs's `listOf` and
+ * `plural`).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -1901,6 +1906,188 @@ export function bareLeft(bag = {}) {
     return { found, read, counts };
 }
 
+/* ------------------------ the code's own text (C8) ------------------------- */
+
+/**
+ * WHAT C8'S TWO READ (E65 C8, 31.10.2026; E65-17): the scripts, not the language
+ * files - T13 (English written into the code that draws a screen, S18-46) and T20
+ * (a list or a date formatted outside the helpers, S18-39 and S18-40). Both report:
+ * T13 turns FAIL at E71, T20 at E66. Each reads the scripts with the lexer, comments
+ * blanked, and a finding is one literal or one call, keyed `<file>:<line>`, so `text`
+ * lists them by file. Like C7's, a candidate list for a reader, never a verdict.
+ */
+
+/* A script that draws UI, by the slice's list: it names DialogV2, ApplicationV2 or HandlebarsApplicationMixin (an
+   ApplicationV2's render), calls ui.notifications or ChatMessage.create, or assigns innerHTML or textContent. Read on
+   blanked code, so a comment or a string that names one is not one. */
+const UI_FILE = /\bDialogV2\b|\bApplicationV2\b|\bHandlebarsApplicationMixin\b|(?<![\w$])ui\s*\??\.\s*notifications\b|\bChatMessage\s*\??\.\s*create\b|\.\s*(?:innerHTML|textContent)\s*=(?![=>])/;
+
+/* Text for the console, not for a screen: utils.mjs's log, debug, warn and error (bare, not a method), console.*, a
+   logger's method (`env.log.error(`, `log.warn(`) and an Error's message. ui.notifications.warn( is a screen's and is not
+   one of these: a method named warn is read only on a logger. */
+const LOG_CALL = /(?:(?<![\w$.])(?:log|debug|warn|error)|(?<![\w$.])console\s*\??\.\s*\w+|(?<![\w$])(?:[\w$]+\s*\??\.\s*)*log\s*\??\.\s*\w+|(?<![\w$.])(?:new\s+)?(?:Type|Range|Reference|Syntax)?Error)\s*\(/g;
+
+/* A refusal's reason: the bridge keeps the English line as the GM's record and tells the asker a code (bridge-guards.mjs
+   `refuse`: "The English line is the GM's record ... The asker is told the code `reasonOf` reads off `why`", E31). Read as
+   the value of a `why:` or `refused:` property, as an argument of `refuse(` or of a guard bridge-guards.mjs exports with a
+   `why` parameter (gmOnly, playersOnly, owns, ...), and as a literal one of that file's REASON_PATTERNS takes whole (the
+   closed list every reason maps to, R164; 202 patterns, every one anchored, on 31.10) - the last two read off that file
+   when the bag holds it. */
+const REASON_PROPERTY = /(?<![\w$.])(?:why|refused)\s*:\s*$/;
+
+/* What is not text, by its shape: a class list or a CSS selector (tokens of [a-z0-9_-] with . # : [..] (..) > + ~ , *,
+   one of them at least with a "-", "_", ".", "#" or "[", so "the floor is closed" is text and "drpg-card is-open" is not),
+   and CSS declarations (a property with a "-" or of a short list, a colon, a value). A URL, a path, a file name and an
+   icon (fa-*) are taken out of the text before its words are counted. */
+const SELECTOR_TOKEN = "(?:[.#]?[a-z0-9_-]+(?:[.#:][\\w-]+|\\[[^\\]]*\\]|\\([^)]*\\))*|[>+~,*])";
+const SELECTOR = new RegExp(`^\\s*${SELECTOR_TOKEN}(?:\\s+${SELECTOR_TOKEN})*\\s*$`);
+const CSS_PROPERTY = "(?:[a-z]+-[a-z-]+|--[\\w-]+|color|display|position|top|left|right|bottom|width|height|margin|padding|border|background|opacity|transform|transition|font|gap|inset|cursor|overflow|visibility|filter|content)";
+const CSS_DECLARATIONS = new RegExp(`^\\s*(?:${CSS_PROPERTY}\\s*:\\s*[^;:]+;?\\s*)+$`);
+const NOT_WORDS = /\S*:\/\/\S*|\S*\/\S*|\S+\.(?:webp|png|svg|jpe?g|ogg|mp3|wav|json|mjs|js|css|html|hbs)\b|(?<![\w-])fa-[\w-]+/g;
+
+/* What a screen shows of a literal: markup's tags and their attributes, entities and Handlebars' {{...}} out. */
+const shownOf = text => String(text)
+    .replace(/<[a-z/!][^<>]*(?:>|$)/gi, " ").replace(/^[^<>]*>/, " ")
+    .replace(/&[a-z]+;|&#\d+;/gi, " ").replace(/\{\{[^}]*\}\}/g, " ");
+/* Two or more English words: a space between two letters, two runs of two letters or more, one of them a lower-case
+   word of three ("Pick a student" is three words; "x y" and "OK" are none). */
+const twoWords = text => /[A-Za-z][^\S\n]+[A-Za-z]/.test(text) && (text.match(/[A-Za-z]{2,}/g) ?? []).length >= 2 && /[a-z]{3,}/.test(text);
+
+/* bridge-guards.mjs's REASON_PATTERNS, as RegExps: the regex literals between `REASON_PATTERNS =` and the statement's end. */
+function reasonPatternsOf(lx, text) {
+    if (text === undefined) return [];
+    const code = lx.blankComments(String(text)), blank = lx.blankLiterals(code);
+    const at = blank.search(/\bREASON_PATTERNS\s*=/);
+    if (at < 0) return [];
+    const end = blank.indexOf(";", at);
+    return literalSpans(code, blank).filter(s => s.kind === "regex" && s.start > at && (end < 0 || s.start < end)).map(s => {
+        const literal = code.slice(s.start, s.end), close = literal.lastIndexOf("/");
+        return new RegExp(literal.slice(1, close), literal.slice(close + 1).replace(/g/g, ""));
+    });
+}
+
+/* Each call's argument span, `[open, close]`, for a pattern whose match ends at the call's "(". */
+function callSpans(lx, blank, re) {
+    return [...blank.matchAll(re)].map(m => { const open = m.index + m[0].length - 1; return [open, lx.callArgs(blank, open).close]; });
+}
+
+/**
+ * T13 (plan, S18-46; report, FAIL from E71): English written into the code of a
+ * script that draws UI (UI_FILE) - a string or a template piece whose shown text
+ * (shownOf) holds two or more English words (so never a key, which has no
+ * space) - that is not a class list, a selector or CSS, nor only a URL, path or icon, and not console
+ * text: an argument of a LOG_CALL, or anything in diagnostics.mjs (DB12: its console
+ * report, counted apart). Counted apart, not findings: a refusal's reason
+ * (REASON_PROPERTY and the guards; the GM's record, the asker told a code), a
+ * literal compared with `===`/`!==` or a `case` (a data value, an id), and a
+ * literal after `game.i18n.has(` in the same expression (`fallback`: English that
+ * stands in only when the key is missing). A template is read a piece at a time,
+ * the code of each `${...}` as code. A script that draws no UI is not read
+ * (`quiet`): a literal there reaches a screen only through another file, which the
+ * screen map (C10) follows and this does not.
+ */
+export function uiLiterals(bag = {}) {
+    const lx = lexerOf(bag, "uiLiterals");
+    const S = asMap(bag.scripts);
+    const found = [], counts = { files: 0, quiet: 0, literals: 0, diagnostics: 0, log: 0, notText: 0, reasons: 0, compared: 0, fallback: 0 };
+    const guardFile = S.get("scripts/bridge-guards.mjs");
+    const guards = guardFile === undefined ? [] : [...lx.blankComments(String(guardFile)).matchAll(/^export function (\w+)\s*\(([^)]*)\)/gm)]
+        .filter(m => /(?<![\w$])why(?![\w$])/.test(m[2])).map(m => m[1]);
+    const closedList = reasonPatternsOf(lx, guardFile);
+    const REASON_CALL = new RegExp(`(?<![\\w$.])(?:${["refuse", ...guards].join("|")})\\s*\\(`, "g");
+    for (const [file, text] of S) {
+        const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
+        if (!UI_FILE.test(blank)) { counts.quiet++; continue; }
+        counts.files++;
+        const logs = callSpans(lx, blank, LOG_CALL), reasons = callSpans(lx, blank, REASON_CALL);
+        const inside = (spans, s) => spans.some(([a, b]) => s.start > a && s.end <= b);
+        const has = [...blank.matchAll(/\bgame\s*\??\.\s*i18n\s*\??\.\s*has\s*(?:\?\.\s*)?\(/g)].map(m => m.index);
+        for (const s of literalSpans(code, blank)) {
+            if (s.kind === "regex") continue;
+            const raw = literalText(code, s), shown = shownOf(raw);
+            if (!twoWords(shown)) continue;
+            counts.literals++;
+            if (file === "scripts/diagnostics.mjs") { counts.diagnostics++; continue; }
+            if (inside(logs, s)) { counts.log++; continue; }
+            const before = blank.slice(Math.max(0, s.start - 40), s.start), after = blank.slice(s.end, s.end + 6);
+            if (REASON_PROPERTY.test(before) || inside(reasons, s) || closedList.some(p => p.test(raw))) { counts.reasons++; continue; }
+            if (/(?:[!=]==?|\bcase)\s*$/.test(before) || /^\s*[!=]==?/.test(after)) { counts.compared++; continue; }
+            if ((SELECTOR.test(shown) && /[-_.#[]/.test(shown)) || CSS_DECLARATIONS.test(shown) || !twoWords(shown.replace(NOT_WORDS, " "))) { counts.notText++; continue; }
+            if (has.some(h => h < s.start && s.start - h < 200 && !/[;{}]/.test(blank.slice(h, s.start)))) { counts.fallback++; continue; }
+            const line = lineOf(code, s.start), words = shown.replace(/\s+/g, " ").trim();
+            found.push({ key: `${file}:${line}`, kind: s.kind, file, line,
+                what: `${file}:${line}: "${words.length > 60 ? `${words.slice(0, 57)}...` : words}" - English written into a screen's code, not read from lang/ (S18-46; T13)` });
+        }
+    }
+    return { found, read: counts.literals, sources: ["script"], counts };
+}
+
+/* T20's helpers: the functions a list or a plural is formatted in, by file - utils.mjs's listOf (Intl.ListFormat) and
+   plural (Intl.PluralRules). */
+const LOCALE_HELPERS = Object.freeze({ "scripts/utils.mjs": Object.freeze(["listOf", "plural"]) });
+const TO_LOCALE = /\.\s*(toLocale(?:Date|Time)?String)\s*(?:\?\.\s*)?\(/g;
+
+/* A function's body in blanked code, `[open, close]` of its braces, or null. */
+function bodyOf(lx, blank, name) {
+    const at = blank.search(new RegExp(`\\bfunction\\s+${name}\\s*\\(`));
+    if (at < 0) return null;
+    const open = blank.indexOf("{", lx.callArgs(blank, blank.indexOf("(", at)).close);
+    for (let k = open, depth = 0; k >= 0 && k < blank.length; k++) {
+        if (blank[k] === "{") depth++;
+        else if (blank[k] === "}" && --depth === 0) return [open, k];
+    }
+    return null;
+}
+
+/**
+ * T20 (plan, S18-39 and S18-40; report, FAIL from E66): a list joined by
+ * `new Intl.ListFormat` outside utils.mjs `listOf`, and a `toLocaleString`,
+ * `toLocaleDateString` or `toLocaleTimeString` call outside the helpers - the
+ * browser's locale where the call names none (`noLocale`), else the one it names
+ * (Foundry's `game.i18n.lang`, `moduleLanguage()`), not one a helper picks (DB35's
+ * helper is E66's). Read on blanked code: a call in a comment or a string is none, and
+ * `toLocaleUpperCase` is no format. Every other `Intl.*` outside the helpers is
+ * counted by its name (`Intl.DateTimeFormat`, `Intl.NumberFormat`, ...), not a
+ * finding: the slice names these two.
+ */
+export function localeCalls(bag = {}) {
+    const lx = lexerOf(bag, "localeCalls");
+    const found = [], counts = { files: 0, inHelpers: 0, noLocale: 0 };
+    for (const [file, text] of asMap(bag.scripts)) {
+        counts.files++;
+        const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
+        const helpers = (LOCALE_HELPERS[file] ?? []).map(name => bodyOf(lx, blank, name)).filter(Boolean);
+        const inHelper = at => helpers.some(([a, b]) => at > a && at < b);
+        /* The locale the call names itself - its first argument as written - or null for none (the browser's). A lone
+           literal blanks to spaces, which callArgs counts as no argument: then the text between the brackets is it. */
+        const localeAt = open => {
+            if (blank[open] !== "(") return null;
+            const { args, close } = lx.callArgs(blank, open);
+            const first = args[0] ?? (code.slice(open + 1, close).trim() ? { start: open + 1, end: close } : null);
+            return first ? code.slice(first.start, first.end).trim() || null : null;
+        };
+        const hit = (at, kind, call, locale) => {
+            const line = lineOf(code, at);
+            if (locale === null) counts.noLocale++;
+            found.push({ key: `${file}:${line}`, kind, file, line,
+                what: `${file}:${line}: ${call} outside utils.mjs's helpers, in ${locale === null ? "the browser's locale" : `the locale its call names (${locale})`} `
+                    + `- not one the module's helpers pick (${kind === "list-format" ? "S18-39" : "S18-40"}; T20)` });
+        };
+        for (const m of blank.matchAll(/(?<![\w$.])Intl\s*\??\.\s*(\w+)/g)) {
+            if (inHelper(m.index)) { counts.inHelpers++; continue; }
+            if (m[1] !== "ListFormat") { counts[`Intl.${m[1]}`] = (counts[`Intl.${m[1]}`] ?? 0) + 1; continue; }
+            let open = m.index + m[0].length;
+            while (/\s/.test(blank[open] ?? "")) open++;
+            hit(m.index, "list-format", "new Intl.ListFormat", localeAt(open));
+        }
+        for (const m of blank.matchAll(TO_LOCALE)) {
+            if (inHelper(m.index)) { counts.inHelpers++; continue; }
+            hit(m.index, "to-locale", `${m[1]}()`, localeAt(m.index + m[0].length - 1));
+        }
+    }
+    return { found, read: counts.files, sources: ["script"], counts };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -1995,12 +2182,15 @@ export const MODES = Object.freeze({
     contractions: Object.freeze({ test: "T19", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     mirror: Object.freeze({ test: "T22", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
-    bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) })
+    bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
+    uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
+    localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
     lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
-    loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft });
+    loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft,
+    uiLiterals, localeCalls });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -2667,6 +2857,72 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.b": "Zostało: {left}",                                       // a facts row: passes
                 "DRPG.Fx.c.few": "Zostały {n} akcje",                                 // a family's form: passes, counted
                 "DRPG.Fx.f": "Pozostało {n} pór dnia."                                // flagged
+            }
+        }
+    },
+    uiLiterals: {
+        flags: ["scripts/fx-text.mjs:1 string", "scripts/fx-ui.mjs:1 string", "scripts/fx-ui.mjs:2 template", "scripts/fx-ui.mjs:15 template",
+            "scripts/fx-ui.mjs:18 string", "scripts/fx-ui.mjs:21 string"],
+        input: {
+            scripts: {
+                "scripts/fx-ui.mjs": [
+                    "const d = new foundry.applications.api.DialogV2({ window: { title: \"Pick a student\" } });",     // flagged
+                    "ui.notifications.warn(`The vote is ${state} now`);",                                             // a template piece: flagged
+                    "log(\"Could not draw the board\", err);",                                                        // console text: passes
+                    "env.log.error(\"The GM store could not save\", err);",                                           // a logger's: passes
+                    "throw new Error(\"no such room here\");",                                                        // an Error's message: passes
+                    "const k = game.i18n.localize(\"DRPG.Fx.title\");",                                               // a key: passes
+                    "el.className = \"drpg-card drpg-glass is-open\";",                                               // a class list: passes
+                    "const q = root.querySelector(\".drpg-sheet .window-content > header\");",                        // a selector: passes
+                    "const icon = \"modules/drpg/icons/a-b.svg fa-solid fa-dice\";",                                  // a path and an icon: passes
+                    "if (mode === \"two words\") return;",                                                            // compared, a data value: passes
+                    "const label = game.i18n.has(key) ? game.i18n.localize(key) : \"Open the vault\";",               // a fallback: counted apart
+                    "return { refused: \"the body is not here\" };",                                                  // a refusal's reason: passes
+                    "const guards = [gmOnly(\"only a GM opens this\")];",                                             // a guard's reason: passes
+                    "// ui.notifications.info(\"Commented out text here\");",                                         // a comment: passes
+                    "el.innerHTML = `<div class=\"drpg-x\" title=\"a b c\">{{name}} rolled the dice</div>`;",        // markup's shown text: flagged
+                    "el.innerHTML = `<i class=\"fa-solid fa-dice\"></i> <span>{{count}}</span>`;",                    // markup only: passes
+                    "const css = \"border: 1px solid var(--drpg-ink); font-weight: bold\";",                       // CSS: passes
+                    "const msg = \"the floor is closed\";",                                                           // lower case, no hyphen - text: flagged
+                    "const re = /two words here/;",                                                                   // a regex: passes
+                    "const why = \"that roll is too old to settle anything\";",                                       // the closed list takes it whole: passes
+                    "const near = \"that roll is too old to settle anything else\";",                                  // the list takes it not whole: flagged
+                    "warn(\"A warning only the console reads\");",                                                    // console text: passes
+                    "el.innerHTML = `<p>{{#if open}}{{name}} {{else}}{{who}}</p>`;"                                      // Handlebars only: passes
+                ].join("\n"),
+                "scripts/fx-text.mjs": "el.textContent = \"Nobody is here yet\";",                                     // textContent makes a UI file: flagged
+                "scripts/fx-data.mjs": "export const LINE = \"An English line no screen of this file draws\";",        // no UI in the file: not read
+                "scripts/diagnostics.mjs": "ui.notifications.info(\"The console report says so\");",                  // DB12's console: counted apart
+                "scripts/bridge-guards.mjs": [
+                    "export function gmOnly(why) { return why; }",
+                    "export const REASON_PATTERNS = Object.freeze([[\"tooOld\", /^that roll is too old to settle anything$/]]);"
+                ].join("\n")
+            }
+        }
+    },
+    localeCalls: {
+        flags: ["scripts/fx-a.mjs:1 list-format", "scripts/fx-a.mjs:2 to-locale", "scripts/fx-a.mjs:7 to-locale", "scripts/utils.mjs:8 to-locale"],
+        input: {
+            scripts: {
+                "scripts/utils.mjs": [
+                    "export function listOf(items = [], { type = \"conjunction\" } = {}) {",
+                    "    return new Intl.ListFormat(game.i18n?.lang || \"en\", { style: \"long\", type }).format(items);", // the helper: passes
+                    "}",
+                    "export function plural(key, data = {}) {",
+                    "    const form = new Intl.PluralRules(\"en\").select(data.n);",                                  // the helper: passes
+                    "    return `${key}.${form}`;",
+                    "}",
+                    "export const when = d => d.toLocaleDateString();"                                                // outside the helpers: flagged
+                ].join("\n"),
+                "scripts/fx-a.mjs": [
+                    "const names = new Intl.ListFormat(\"en\").format(list);",                                         // flagged
+                    "const t = new Date().toLocaleTimeString();",                                                     // flagged
+                    "// const old = n.toLocaleString();",                                                             // a comment: passes
+                    "const s = \"x.toLocaleString() in a string\";",                                                  // a string: passes
+                    "const n = new Intl.NumberFormat(\"pl\").format(3);",                                             // another Intl: counted
+                    "const u = name.toLocaleUpperCase();",                                                            // no format: passes
+                    "const v = (5).toLocaleString (\"pl\");"                                                          // a space before "(": flagged
+                ].join("\n")
             }
         }
     }
