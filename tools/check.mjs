@@ -2,6 +2,7 @@
  * The repository's own checks, in Node, without Foundry (E30, 24.09.2026).
  * ---------------------------------------------------------------------------
  *     node tools/check.mjs [part ...] [--release vX.Y.Z]   every part when none is named
+ *     node tools/check.mjs text --lang <dir>              `text` over <dir>/en.json and <dir>/pl.json
  *
  * One entry point, so CI and a release run the same command and a part added
  * later is not a new script somebody forgets to call. Each part prints its own
@@ -88,6 +89,17 @@
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
  *             audit/AUDIT-1.2.42.md section 9.2, written once.
+ *   text      the text lint (E65): every detector of scripts/tests-text.mjs on
+ *             its fixture first (red when one does not flag exactly its
+ *             fixture's items, or read nothing of it), then each over the
+ *             language files and config.mjs's English prose (walkConfigProse),
+ *             one line each - its T number, its mode, what it read and what it
+ *             found. Red on a finding of a FAIL detector, on a detector that
+ *             read nothing; a report detector's findings are printed, never red.
+ *             At E65 C1: T1 (pluralForms, configPlaceholders) and T2
+ *             (pairParity), all FAIL. `--lang <dir>` reads en.json and pl.json
+ *             from <dir> instead of lang/ (config.mjs stays this tree's): how a
+ *             scratch copy with a planted fault is shown red.
  */
 
 import fs from "node:fs";
@@ -105,6 +117,8 @@ const stagesLib = await import(url.pathToFileURL(path.join(REPO, "tools", "stage
 const argv = process.argv.slice(2);
 const releaseAt = argv.indexOf("--release");
 const RELEASE = releaseAt >= 0 ? argv[releaseAt + 1] ?? "" : null;
+const langAt = argv.indexOf("--lang");
+const LANG_DIR = langAt >= 0 ? argv[langAt + 1] ?? "" : null;
 /* LF line ends whatever the checkout has (lint.lf; 1.2.80 train, fix crlf-G1): every reader below matches "\n". */
 const read = rel => lint.lf(fs.readFileSync(path.join(REPO, rel), "utf8"));
 const exists = rel => fs.existsSync(path.join(REPO, rel));
@@ -128,7 +142,7 @@ function langEntries(rel) {
             if (typeof v === "object" && v !== null) walk(v, key); else out.push([key, v]);
         }
     };
-    walk(JSON.parse(read(rel)), "");
+    walk(JSON.parse(lint.lf(fs.readFileSync(path.resolve(REPO, rel), "utf8"))), "");   // resolve: `--lang` may name an absolute dir
     return out;
 }
 
@@ -625,11 +639,57 @@ function live() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live };
+/* ---------------------------------- text ---------------------------------- */
 
-const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1));
+/* THE TEXT LINT (E65 C1, 31.10.2026). The detectors are scripts/tests-text.mjs's, which imports
+   nothing, so this part and the suite's R1058 and R1059 run the same functions; this is the half that
+   reads config.mjs's English prose, which a table cannot (at i18nInit a Polish client has already put
+   the Polish into config's tables), and the half CI runs. Every detector is shown its fixture first. */
+async function text() {
+    const T = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-text.mjs")).href);
+    const config = await import(url.pathToFileURL(path.join(REPO, "scripts", "config.mjs")).href);
+    const { walkConfigProse } = await import(url.pathToFileURL(path.join(REPO, "scripts", "i18n-config.mjs")).href);
+    const dir = LANG_DIR === null ? path.join(REPO, "lang") : path.resolve(LANG_DIR);
+    const where = path.relative(REPO, dir) || ".";
+    const fixtures = T.selfCheck();
+    const problems = [...fixtures];
+    /* The self-check's own control (R1058 asks the same): a detector stubbed to flag nothing and read nothing,
+       the shape of each before it was written, is seen. A self-check that answered [] whatever ran would leave
+       this part green over a broken detector. */
+    const first = Object.keys(T.MODES)[0];
+    if (T.selfCheck({ ...T.DETECTORS, [first]: () => ({ found: [], read: 0 }) }).filter(p => p.startsWith(`${first} `)).length !== 2) {
+        problems.push(`the self-check does not see ${first} stubbed to flag nothing and read nothing - it would pass a broken detector`);
+    }
+    const fileOf = name => path.join(dir, name);
+    for (const name of ["en.json", "pl.json"]) if (!fs.existsSync(fileOf(name))) problems.push(`${path.join(where, name)} is missing - nothing was read`);
+    if (problems.some(p => p.endsWith("nothing was read"))) return problems;
+    const en = new Map(langEntries(fileOf("en.json"))), pl = new Map(langEntries(fileOf("pl.json")));
+    const prose = new Map();
+    walkConfigProse(config, (key, value) => prose.set(key, value));
+    const inputs = { en, pl, prose };
+    let fails = 0, reports = 0;
+    for (const [name, m] of Object.entries(T.MODES)) {
+        const r = T.DETECTORS[name](inputs);
+        console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`);
+        if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")} in ${where} - it has proved nothing`);
+        if (m.mode === "fail") { fails += r.found.length; problems.push(...r.found.map(f => `${m.test} (${name}): ${f.what}`)); }
+        else { reports += r.found.length; for (const f of r.found) console.log(`text:   ${m.test} report: ${f.what}`); }
+    }
+    const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
+    console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
+        + `config.mjs prose ${prose.size}; FAIL found ${fails}, report found ${reports}; ${problems.length} problem(s)`);
+    return problems;
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text };
+
+const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
     console.log(`check: --release takes a tag like v1.2.61, got "${RELEASE}"`);
+    process.exit(2);
+}
+if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
+    console.log(`check: --lang takes a directory that holds en.json and pl.json, got "${LANG_DIR}"`);
     process.exit(2);
 }
 const unknown = asked.filter(name => !PARTS[name]);

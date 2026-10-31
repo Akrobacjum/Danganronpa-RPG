@@ -16,7 +16,7 @@ import {
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
-    apiKind, apiSurfaceProblems
+    apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -16943,6 +16943,59 @@ const REGRESSIONS = [
             ["verdict", "class-trial", true, true], ["levelUp", "class-trial", true, true]], unique: true,
             families: ["analyze", "dynamic", "hopeCall", "levelUp", "modeBar", "observe", "refund", "search", "verdict"] }),
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
+    }],
+
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, and the self-check sees a detector that flags nothing (E65 C1; E65-03, E65-08)", async () => {
+        /*
+         * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
+         * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
+         * seen to catch what it is for). It grows with the stage: C1 has T1's two halves and T2, and each later
+         * commit of E65 adds its detectors to the list below. The last read is the self-check's own control: a
+         * detector stubbed to flag nothing and read nothing - the shape every detector had before it was written
+         * (the red run of C1) - is two mismatches, not silence. Pure data; nothing is fetched or written.
+         */
+        const names = Object.keys(TEXT_MODES).sort();
+        const stub = () => ({ found: [], read: 0 });
+        const caught = textSelfCheck({ ...TEXT_DETECTORS, pluralForms: stub }).filter(p => p.startsWith("pluralForms "));
+        equal(JSON.stringify({
+            names, fixtures: Object.keys(TEXT_FIXTURES).sort(), detectors: Object.keys(TEXT_DETECTORS).sort(),
+            modes: names.map(n => [n, TEXT_MODES[n].test, TEXT_MODES[n].mode]),
+            flagged: names.map(n => [n, TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
+            problems: textSelfCheck(), caught: caught.length
+        }), JSON.stringify({
+            names: ["configPlaceholders", "pairParity", "pluralForms"], fixtures: ["configPlaceholders", "pairParity", "pluralForms"],
+            detectors: ["configPlaceholders", "pairParity", "pluralForms"],
+            modes: [["configPlaceholders", "T1", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"]],
+            flagged: [["configPlaceholders", 4, 4], ["pairParity", 5, 5], ["pluralForms", 4, 4]],
+            problems: [], caught: 2
+        }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
+            + "against the fixture's count; the self-check's mismatches (none); the two a stub of pluralForms makes]");
+    }],
+
+    ["R1059 - the text lint's FAIL detectors over the language files the module serves find nothing and read something: every English plural family has its four Polish forms, and every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other (E65 C1; T1's language half and T2, E65-04, E65-05, E65-08)", async () => {
+        /*
+         * E65 C1, 31.10.2026. The functions `node tools/check.mjs text` runs in Node over lang/, here over the files
+         * this Foundry serves - a table's own install, which CI never sees. T1's other half (configPlaceholders) is
+         * Node's alone: at i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose
+         * is not there to read at a table. The FAIL detectors that read only the language files are taken from
+         * MODES, and the list is held to the two of C1, so a third one added later is a change to this test. Read on
+         * 99226e59 in Node: 168 families, 4774 pairs (4438 keys in both files and 336 Polish .few/.many), nothing
+         * found. Nothing is written.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const served = Object.entries(TEXT_MODES).filter(([, m]) => m.mode === "fail" && m.reads.every(r => r === "lang")).map(([name]) => name);
+        const runs = served.map(name => {
+            const r = TEXT_DETECTORS[name]({ en: lang.en, pl: lang.pl });
+            return { name, read: r.read, found: r.found.map(f => f.what) };
+        });
+        log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length}`).join("; ")}; en ${lang.en.size} keys, pl ${lang.pl.size}`);
+        equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.found])), JSON.stringify([["pluralForms", true, []], ["pairParity", true, []]]),
+            "[each FAIL detector that reads only the language files: its name, whether it read anything, what it found]");
     }],
 ];
 
