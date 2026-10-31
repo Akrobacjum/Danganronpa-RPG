@@ -53,7 +53,15 @@
  * (`dashesIn`, an en dash, em dash or minus sign where the module speaks). At
  * C3 T14 (`tableWordProblems`, an item table's words against what they were,
  * FAIL with no baseline), its bag `words` (config.mjs TABLE_NAME_WORDS) and
- * the two legacy lists (`legacyListsFrom` over tables.mjs's text).
+ * the two legacy lists (`legacyListsFrom` over tables.mjs's text). At C4 the
+ * glossary's two, both report: T8 (`glossaryHits`, a forbidden variant where a
+ * docs/glossary.json entry holds) and T28 (`retiredHits`, a retired name where it
+ * is retired, with the owner's A10 and A11 rules as `passageWords` and
+ * `friskWords`), each splitting what it finds by the stage of the row that finds
+ * it - debt where that stage has shipped, the rest not yet due - and
+ * `glossarySchema`, which holds the file itself (red in `text`: a file E65 writes).
+ * Their bag: `glossary` (the parsed file) and `shipped` (the ids of the stages that
+ * have shipped, by tools/stages.mjs's rule, handed in like the lexer).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -496,6 +504,315 @@ export function tableWordProblems({ words, legacyPlurals, legacyGoalLabels, know
     return { found, read };
 }
 
+/* --------------------------------- T8, T28 --------------------------------- */
+
+/**
+ * THE GLOSSARY'S SHAPE (E65 C4; E65-10, S18-31, S17-36). docs/glossary.json is a
+ * file E65 writes, so a fault in it is a schema error - red in `node tools/check.mjs
+ * text` - never text debt. An entry: `id` (kebab case, once in the file), `en` and
+ * `pl` (the term, or null where the source gives one side only or the entry is a
+ * rule, `rule`), `gender` (the Polish one, "m", "f" or "n", DB28 and DB39; null where
+ * no source gives it), `inflection` (what the source says of the Polish forms;
+ * null where it says nothing), `forbidden` (`en` and `pl`, each `{ variants, scope }`
+ * and optionally `case`, `otherCase`, `except` - below), `stage` (a row of
+ * tools/stages.json: the entry holds once that stage has shipped) and `source` (the
+ * decisions it comes from - D, DB, DA, DC, DX, TR, or an amend A<n>; where the
+ * sources read name no decision, the issue S18-31 or "E65 plan", the plan entry). `open: true` is
+ * an entry no source decides: it has no forbidden variant. A retired name (T28):
+ * `id`, `en` and `pl` (lists of the names), `scope` ("text", "label" or "keys", with
+ * `keys` the prefixes), `stage`, `source`, and optionally `pass` (keys left alone,
+ * each with its `why`), `case`, `rule` (a named rule below, with its own fields) and
+ * `note`. A field the file does not know is red too, so a typo is not read as
+ * "nothing forbidden".
+ */
+const GLOSSARY_FIELDS = Object.freeze({
+    entry: Object.freeze({ required: ["id", "en", "pl", "gender", "inflection", "forbidden", "stage", "source"], optional: ["open", "note", "rule"] }),
+    retired: Object.freeze({ required: ["id", "en", "pl", "scope", "stage", "source"], optional: ["keys", "pass", "case", "rule", "button", "note"] }),
+    side: Object.freeze({ required: ["variants", "scope"], optional: ["case", "otherCase", "except"] })
+});
+const GLOSSARY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/* A decision (D33a, DB15, DA27, DC35, DX4, TR25), an amend (A7), or where no decision is named the issue or the plan entry that names the thing (S18-31, "E65 plan"). */
+const SOURCE_ID = /^(?:D\d+[a-z]?|DB\d+|DA\d+|DC\d+|DX\d+|TR\d+|A\d+|S\d\d-\d\d|E\d\d plan)$/;
+const SCOPES = Object.freeze(["ui", "handbooks"]), RETIRED_SCOPES = Object.freeze(["text", "label", "keys"]);
+
+const isText = x => typeof x === "string" && x.trim() !== "";
+const variantOk = v => isText(v) || (v !== null && typeof v === "object" && !Array.isArray(v) && isText(v.stem) && Array.isArray(v.endings)
+    && v.endings.length > 0 && v.endings.every(e => typeof e === "string") && Object.keys(v).every(k => k === "stem" || k === "endings"));
+
+/**
+ * docs/glossary.json against its shape, every `stage` against `stageIds` (the
+ * ledger's rows): one sentence a fault, [] when it holds. `doc` is the parsed file.
+ */
+export function glossarySchema(doc, stageIds = []) {
+    const out = [];
+    if (!doc || typeof doc !== "object" || Array.isArray(doc)) return ["docs/glossary.json is no object"];
+    const stages = new Set(stageIds);
+    const comment = doc.$comment;
+    if (!isText(comment) && !(Array.isArray(comment) && comment.length > 0 && comment.every(isText))) out.push("docs/glossary.json has no $comment");
+    for (const k of Object.keys(doc)) if (!["$comment", "entries", "retired"].includes(k)) out.push(`docs/glossary.json has a field "${k}" it does not know`);
+    const seen = new Set();
+    const fields = (row, where, shape) => {
+        for (const f of shape.required) if (!Object.hasOwn(row, f)) out.push(`${where} has no "${f}"`);
+        for (const f of Object.keys(row)) if (!shape.required.includes(f) && !shape.optional.includes(f)) out.push(`${where} has a field "${f}" the glossary does not know`);
+    };
+    const common = (row, where) => {
+        if (Object.hasOwn(row, "id")) {
+            if (typeof row.id !== "string" || !GLOSSARY_ID.test(row.id)) out.push(`${where}'s id ${JSON.stringify(row.id)} is not kebab case`);
+            else if (seen.has(row.id)) out.push(`${where}: the id "${row.id}" is used twice`);
+            seen.add(row.id);
+        }
+        if (Object.hasOwn(row, "stage") && !(typeof row.stage === "string" && stages.has(row.stage))) out.push(`${where}'s stage ${JSON.stringify(row.stage)} is no row of tools/stages.json`);
+        if (Object.hasOwn(row, "source") && !(Array.isArray(row.source) && row.source.length > 0 && row.source.every(s => typeof s === "string" && SOURCE_ID.test(s)))) {
+            out.push(`${where}'s source ${JSON.stringify(row.source)} is not a list of decisions (D, DB, DA, DC, DX, TR), amends (A), issues (S) or a plan entry`);
+        }
+        for (const f of ["note", "rule"]) if (Object.hasOwn(row, f) && !isText(row[f])) out.push(`${where}'s ${f} is not a sentence`);
+        if (Object.hasOwn(row, "case") && !["exact", "any"].includes(row.case)) out.push(`${where}'s case ${JSON.stringify(row.case)} is neither "exact" nor "any"`);
+    };
+    const entries = Array.isArray(doc.entries) ? doc.entries : (out.push("docs/glossary.json has no list of entries"), []);
+    entries.forEach((e, i) => {
+        if (!e || typeof e !== "object" || Array.isArray(e)) { out.push(`entry ${i + 1} is no object`); return; }
+        const where = `entry ${i + 1}${typeof e.id === "string" ? ` (${e.id})` : ""}`;
+        fields(e, where, GLOSSARY_FIELDS.entry);
+        common(e, where);
+        for (const side of ["en", "pl"]) if (Object.hasOwn(e, side) && e[side] !== null && !isText(e[side])) out.push(`${where}'s ${side} is neither a term nor null`);
+        if (e.en === null && e.pl === null && !isText(e.rule)) out.push(`${where} names no term and states no rule`);
+        if (Object.hasOwn(e, "gender") && ![null, "m", "f", "n"].includes(e.gender)) out.push(`${where}'s gender ${JSON.stringify(e.gender)} is not m, f, n or null`);
+        if (Object.hasOwn(e, "inflection") && e.inflection !== null && !isText(e.inflection)) out.push(`${where}'s inflection is neither a sentence nor null`);
+        if (Object.hasOwn(e, "open") && e.open !== true) out.push(`${where}'s open is not true`);
+        if (!Object.hasOwn(e, "forbidden")) return;
+        const fb = e.forbidden;
+        if (!fb || typeof fb !== "object" || Array.isArray(fb)) { out.push(`${where}'s forbidden is no object`); return; }
+        for (const k of Object.keys(fb)) if (k !== "en" && k !== "pl") out.push(`${where}'s forbidden has a side "${k}"`);
+        for (const side of ["en", "pl"]) {
+            const r = fb[side], at = `${where}'s forbidden.${side}`;
+            if (!r || typeof r !== "object" || Array.isArray(r)) { out.push(`${at} is missing`); continue; }
+            fields(r, at, GLOSSARY_FIELDS.side);
+            if (Object.hasOwn(r, "variants") && !(Array.isArray(r.variants) && r.variants.every(variantOk))) out.push(`${at}'s variants are not phrases or { stem, endings }`);
+            if (Object.hasOwn(r, "scope") && !(Array.isArray(r.scope) && r.scope.length > 0 && r.scope.every(s => SCOPES.includes(s)))) out.push(`${at}'s scope is not "ui", "handbooks" or both`);
+            if (Object.hasOwn(r, "case") && !["exact", "any"].includes(r.case)) out.push(`${at}'s case is neither "exact" nor "any"`);
+            if (Object.hasOwn(r, "otherCase") && typeof r.otherCase !== "boolean") out.push(`${at}'s otherCase is not true or false`);
+            if (r.otherCase === true && !isText(e[side])) out.push(`${at} holds the term's case and the entry has no ${side} term`);
+            if (Object.hasOwn(r, "except") && !(Array.isArray(r.except) && r.except.every(isText))) out.push(`${at}'s except is not a list of phrases`);
+            if (e.open === true && ((r.variants ?? []).length > 0 || r.otherCase === true)) out.push(`${at}: an open entry forbids nothing`);
+        }
+    });
+    const retired = Array.isArray(doc.retired) ? doc.retired : (out.push("docs/glossary.json has no list of retired names"), []);
+    retired.forEach((r, i) => {
+        if (!r || typeof r !== "object" || Array.isArray(r)) { out.push(`retired ${i + 1} is no object`); return; }
+        const where = `retired ${i + 1}${typeof r.id === "string" ? ` (${r.id})` : ""}`;
+        fields(r, where, GLOSSARY_FIELDS.retired);
+        common(r, where);
+        for (const side of ["en", "pl"]) if (Object.hasOwn(r, side) && !(Array.isArray(r[side]) && r[side].every(isText))) out.push(`${where}'s ${side} is not a list of names`);
+        if (Object.hasOwn(r, "scope") && !RETIRED_SCOPES.includes(r.scope)) out.push(`${where}'s scope ${JSON.stringify(r.scope)} is not "text", "label" or "keys"`);
+        if (r.scope === "keys" && !(Array.isArray(r.keys) && r.keys.length > 0 && r.keys.every(isText))) out.push(`${where} reads keys and names no key prefix`);
+        if (Object.hasOwn(r, "pass") && !(Array.isArray(r.pass) && r.pass.every(p => isText(p?.key) && isText(p?.why)))) out.push(`${where}'s pass is not a list of { key, why }`);
+        if (Object.hasOwn(r, "rule") && !RETIRED_RULES[r.rule]) out.push(`${where}'s rule "${r.rule}" is no rule of tests-text.mjs`);
+        if (!r.rule && ![...(r.en ?? []), ...(r.pl ?? [])].length) out.push(`${where} retires no name`);
+    });
+    return out;
+}
+
+/* Every form of a variant: a phrase as it is, a stem with each of its endings (DB4's "a stem with an ending list"). */
+const formsOf = v => (typeof v === "string" ? [v] : v.endings.map(e => v.stem + e));
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/* Whole words: no letter, digit or "_" on either side, Polish letters included; the longest form first. */
+const wordRe = (forms, anyCase) => new RegExp(`(?<![\\p{L}\\p{N}_])(?:${[...new Set(forms)].sort((a, b) => b.length - a.length).map(escapeRe).join("|")})(?![\\p{L}\\p{N}_])`,
+    anyCase ? "giu" : "gu");
+const spansOf = (text, re) => [...text.matchAll(re)].map(m => [m.index, m.index + m[0].length]);
+
+/** The tile labels T28's "label" scope reads: config.mjs `ACTIONS[*].label` (the English prose) and their pl.json twins. */
+export const TILE_LABEL = /^DRPG\.Config\.ACTIONS\.[^.]+\.label$/;
+
+/**
+ * What the glossary's scopes read, as `{ en: { ui, handbooks }, pl: { ui, handbooks } }`
+ * of `{ at, where, text }`: "ui" is a language file's values with, for English,
+ * config.mjs's prose (en.json holds no `DRPG.Config.*`; the Polish twins are in
+ * pl.json); "handbooks" the `.md` files under docs/handbooks/, a line at a time,
+ * each in the language its name ends in. `at` is a key or `file:line`.
+ */
+function glossaryUnits(bag) {
+    const units = { en: { ui: [], handbooks: [] }, pl: { ui: [], handbooks: [] } };
+    for (const [code, file] of [["en", "lang/en.json"], ["pl", "lang/pl.json"]]) {
+        for (const [key, text] of asMap(bag[code])) if (typeof text === "string") units[code].ui.push({ at: key, key, where: `${file} ${key}`, text });
+    }
+    for (const [key, text] of asMap(bag.prose)) if (typeof text === "string") units.en.ui.push({ at: key, key, where: `config.mjs's prose ${key}`, text });
+    for (const [file, text] of asMap(bag.docs)) {
+        const m = file.match(/^docs\/handbooks\/[^/]+\.(en|pl)\.md$/);
+        if (m) String(text ?? "").split("\n").forEach((line, i) => units[m[1]].handbooks.push({ at: `${file}:${i + 1}`, where: `${file}:${i + 1}`, text: line }));
+    }
+    return units;
+}
+
+const quoted = (text, at, len) => text.slice(Math.max(0, at - 12), at + len + 12).replace(/\s+/g, " ").trim();
+const sourcesOf = row => (Array.isArray(row.source) ? row.source.join(", ") : String(row.source));
+
+/* A row's findings split by its stage: `found` the rows whose stage has shipped (debt), `pending` the rest; `checked`
+   whether the row looked at anything at all (an entry with no forbidden variant reads nothing, so it holds nothing). */
+function byStage(rows, shipped) {
+    const found = [], pending = [], entries = [];
+    for (const { row, hits, checked } of rows) {
+        const due = shipped.has(row.stage);
+        (due ? found : pending).push(...hits);
+        entries.push({ id: row.id, stage: row.stage, due, checked, hits: hits.length, first: hits[0]?.what ?? null });
+    }
+    return { found, pending, entries };
+}
+
+/**
+ * T8 (plan, S18-31, S17-36): a forbidden variant where a glossary entry holds -
+ * and an entry holds only once its `stage` has shipped (`shipped`, the ids
+ * tools/stages.mjs `isShipped` answers yes for, handed in: this file imports
+ * nothing). Report from E65, FAIL from E25 for the UI and config.mjs of entries
+ * whose stage is E25 or before (MODES). Per entry and side, its variants are
+ * looked for in its scope as whole words, in the case the side says (`case`:
+ * "exact", or "any" for a word that may open a sentence), never inside the
+ * entry's own term or a phrase of `except` - "trace" is not read inside "Secure a
+ * Trace". `otherCase` finds the term itself in another case ("search token" where
+ * the glossary writes "Search Token", DB17); `except` does not shield that. A Polish variant inflects as a stem
+ * with its endings, written out in the entry, never a free pattern. A term that is
+ * English in Polish has `pl` equal to `en`, and the English name in a Polish text is
+ * then no finding. `found` is the debt (entries whose stage has shipped),
+ * `pending` what entries not yet due find, `entries` one line each.
+ */
+export function glossaryHits(bag = {}) {
+    const units = glossaryUnits(bag), shipped = new Set(bag.shipped ?? []);
+    const rows = [];
+    let read = 0;
+    for (const entry of bag.glossary?.entries ?? []) {
+        const hits = [], before = read;
+        for (const side of ["en", "pl"]) {
+            const rule = entry.forbidden?.[side];
+            const term = typeof entry[side] === "string" ? entry[side] : null;
+            const forms = (rule?.variants ?? []).flatMap(formsOf);
+            const otherCase = rule?.otherCase === true && term !== null;
+            const pool = (rule?.scope ?? []).flatMap(s => units[side][s] ?? []);
+            if ((!forms.length && !otherCase) || !pool.length) continue;
+            read++;
+            const bad = forms.length ? wordRe(forms, rule.case === "any") : null;
+            const shieldList = [...(term ? [term] : []), ...(rule.except ?? [])];
+            const shield = shieldList.length ? wordRe(shieldList, true) : null;
+            const named = otherCase ? wordRe([term], true) : null;
+            for (const u of pool) {
+                const inside = (re, a, b) => re !== null && spansOf(u.text, re).some(([s, e]) => a >= s && b <= e);
+                const hit = (m, kind, said) => hits.push({ key: `${entry.id}@${u.at}`, kind, entry: entry.id, stage: entry.stage,
+                    what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - ${said} (glossary ${entry.id}, ${sourcesOf(entry)}; holds from ${entry.stage})` });
+                if (bad) for (const m of u.text.matchAll(bad)) if (!inside(shield, m.index, m.index + m[0].length)) hit(m, side, `"${m[0]}" is forbidden${term ? `, the glossary says "${term}"` : ""}`);
+                if (named) for (const m of u.text.matchAll(named)) if (m[0] !== term) hit(m, `${side}-case`, `"${m[0]}" is written "${term}"`);
+            }
+        }
+        rows.push({ row: entry, hits, checked: read > before });
+    }
+    const split = byStage(rows, shipped);
+    return { found: split.found, pending: split.pending, entries: split.entries, read, sources: ["glossary"],
+        counts: { entries: rows.length, due: split.entries.filter(e => e.due).length, pending: split.pending.length } };
+}
+
+/**
+ * A10 (11.10, the owner's amend): in a passage text - a key under the row's
+ * prefixes, `DRPG.Passage.*` (E79, E80) - every Polish "przejś*" stands after
+ * "tajn*" ("tajne przejście", "tajnego przejścia"); a bare "przejście" names some
+ * other way through, which a passage is not. Read as the amend writes it: its other
+ * case, "inside Find Passage / Secret Passage", holds no "przejś*" (the two names
+ * are English in Polish, A10), so it can never be the reason a "przejś*" passes.
+ */
+export function passageWords(units, row) {
+    const hits = [];
+    let read = 0;
+    const word = /(?<![\p{L}\p{N}_])przejś\p{L}*/giu, before = /(?<![\p{L}\p{N}_])tajn\p{L}*\s+$/iu;
+    for (const u of units.pl.ui) {
+        if (!(row.keys ?? []).some(p => u.key?.startsWith(p)) || (row.pass ?? []).some(p => p.key === u.key)) continue;
+        read++;
+        for (const m of u.text.matchAll(word)) {
+            if (before.test(u.text.slice(0, m.index))) continue;
+            hits.push({ key: `${row.id}@${u.at}`, kind: "pl", entry: row.id, stage: row.stage,
+                what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - "${m[0]}" with no "tajn*" before it: a passage is "tajne przejście" (A10; holds from ${row.stage})` });
+        }
+    }
+    return { hits, read };
+}
+
+/**
+ * A11 (13.10, the owner's amend): the Frisk texts - keys under the row's prefixes,
+ * `DRPG.Frisk.*` (E80) - never say "Consent" (TR8), in either language and any
+ * case; and the player's answer button (`button.key`) reads `button.pl` in Polish:
+ * "Odmów".
+ */
+export function friskWords(units, row) {
+    const hits = [];
+    let read = 0;
+    const consent = wordRe(["consent"], true);
+    for (const side of ["en", "pl"]) {
+        for (const u of units[side].ui) {
+            if (!(row.keys ?? []).some(p => u.key?.startsWith(p))) continue;
+            read++;
+            for (const m of u.text.matchAll(consent)) {
+                hits.push({ key: `${row.id}@${u.at}`, kind: side, entry: row.id, stage: row.stage,
+                    what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - a Frisk text says "${m[0]}" (A11, TR8; holds from ${row.stage})` });
+            }
+        }
+    }
+    if (row.button) {
+        read++;
+        const button = units.pl.ui.find(u => u.key === row.button.key);
+        if (button?.text !== row.button.pl) {
+            hits.push({ key: `${row.id}@${row.button.key}`, kind: "button", entry: row.id, stage: row.stage,
+                what: `lang/pl.json ${row.button.key}: the player's answer button reads ${button ? `"${button.text}"` : "nothing"}, not "${row.button.pl}" (A11; holds from ${row.stage})` });
+        }
+    }
+    return { hits, read };
+}
+
+/* The named rules a retired row may ask for instead of its names (`rule`). */
+const RETIRED_RULES = Object.freeze({ passageWords, friskWords });
+
+/**
+ * T28 (plan; report from E65, FAIL from E66): a retired name (the glossary's
+ * `retired`, Appendix B) where it is retired. "text" reads every value and
+ * handbook line; "label" only the tile labels (TILE_LABEL: config.mjs's English and
+ * pl.json's twins) - "Doors" is retired as a tile's label, so "Behind Closed Doors"
+ * in a sentence and Room Setup's tab (`DRPG.Vault.tabDoors`) pass; "keys" only the
+ * values of keys under its prefixes - "Oddaj głos" on the trial floor (TR10), never
+ * the vote button `DRPG.Vote.cast`, which casts a vote (a `pass` row with its why).
+ * The tile group labels of round 3 are not on this tree (no group in config.mjs on
+ * 31.10), so a group name would show up only as a tile's label. A row with `rule`
+ * is the named rule's (A10's passageWords, A11's friskWords). Split by the row's
+ * stage as T8's entries are.
+ */
+export function retiredHits(bag = {}) {
+    const units = glossaryUnits(bag), shipped = new Set(bag.shipped ?? []);
+    const rows = [];
+    let read = 0;
+    for (const row of bag.glossary?.retired ?? []) {
+        if (row.rule) {
+            const r = RETIRED_RULES[row.rule]?.(units, row) ?? { hits: [], read: 0 };
+            read += r.read;
+            rows.push({ row, hits: r.hits, checked: r.read > 0 });
+            continue;
+        }
+        const hits = [], before = read;
+        for (const side of ["en", "pl"]) {
+            const names = row[side] ?? [];
+            if (!names.length) continue;
+            const pool = (row.scope === "label" ? units[side].ui.filter(u => TILE_LABEL.test(u.key ?? ""))
+                : row.scope === "keys" ? units[side].ui.filter(u => (row.keys ?? []).some(p => u.key?.startsWith(p)))
+                : [...units[side].ui, ...units[side].handbooks]).filter(u => !(row.pass ?? []).some(p => p.key === u.key));
+            if (!pool.length) continue;
+            read++;
+            const re = wordRe(names, row.case === "any");
+            for (const u of pool) {
+                for (const m of u.text.matchAll(re)) {
+                    hits.push({ key: `${row.id}@${u.at}`, kind: side, entry: row.id, stage: row.stage,
+                        what: `${u.where}: "${quoted(u.text, m.index, m[0].length)}" - "${m[0]}" is retired${row.scope === "label" ? " as a tile's label" : ""} (${sourcesOf(row)}; holds from ${row.stage})` });
+                }
+            }
+        }
+        rows.push({ row, hits, checked: read > before });
+    }
+    const split = byStage(rows, shipped);
+    return { found: split.found, pending: split.pending, entries: split.entries, read, sources: ["glossary"],
+        counts: { rows: rows.length, due: split.entries.filter(e => e.due).length, pending: split.pending.length } };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -574,10 +891,12 @@ export const MODES = Object.freeze({
     pairParity: Object.freeze({ test: "T2", mode: "fail", fail: "E65", reads: Object.freeze(["lang"]) }),
     familyFormats: Object.freeze({ test: "T3", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts"]), lexer: true }),
     dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
-    tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) })
+    tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
+    glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
+    retiredHits: Object.freeze({ test: "T28", mode: "report", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) })
 });
 
-export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems });
+export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -735,6 +1054,107 @@ export const FIXTURES = Object.freeze({
             known: { plural: { a: "Apples", b: "Pears", c: "Cherry", d: "Dates" }, kind: { h: "Healing", s: "Relief" } },
             knownLegacy: { plurals: { a: ["Old Apples", "Older Apples"] }, goalLabels: { s: ["Stress"] } }
         }
+    },
+    glossaryHits: {
+        /* Two ledgers (E65-11): as `input` E01 has shipped and E02 not, so fx-not-due holds nothing yet and its hit is
+           pending; `also` ships E02 too, and the same hit is debt. */
+        flags: ["fx-bribe@DRPG.Fx.bribe pl", "fx-gm@DRPG.Fx.gm1 pl", "fx-gm@DRPG.Fx.gm2 pl", "fx-remnant@DRPG.Config.FX.trace en", "fx-remnant@DRPG.Fx.trace en",
+            "fx-remnant@DRPG.Fx.slad pl", "fx-remnant@DRPG.Fx.sladzie pl", "fx-remnant@docs/handbooks/fx.en.md:2 en", "fx-remnant@docs/handbooks/fx.pl.md:1 pl",
+            "fx-token@DRPG.Fx.lower en-case", "fx-token@DRPG.Fx.lowerPl pl-case"],
+        pending: ["fx-not-due@DRPG.Fx.failure en"],
+        also: [{ input: { shipped: ["E01", "E02"] }, add: ["fx-not-due@DRPG.Fx.failure en"] }],
+        input: {
+            shipped: ["E01"],
+            glossary: { entries: [
+                { id: "fx-remnant", en: "Remnant", pl: "Remnant", gender: "m", inflection: null, stage: "E01", source: ["DB15"],
+                    forbidden: { en: { variants: [{ stem: "trace", endings: ["", "s"] }], scope: ["ui", "handbooks"], case: "any", except: ["Secure a Trace"] },
+                        pl: { variants: [{ stem: "ślad", endings: ["", "u", "zie", "y"] }], scope: ["ui", "handbooks"], case: "any" } } },
+                { id: "fx-not-due", en: "Debug log", pl: null, gender: null, inflection: null, stage: "E02", source: ["D33f"],
+                    forbidden: { en: { variants: ["Failure log"], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
+                { id: "fx-token", en: "Search Token", pl: "Search Token", gender: "m", inflection: null, stage: "E01", source: ["DB17"],
+                    forbidden: { en: { variants: [], scope: ["ui"], otherCase: true }, pl: { variants: [], scope: ["ui"], otherCase: true } } },
+                { id: "fx-gm", en: null, pl: "GM-a", gender: null, inflection: null, stage: "E01", source: ["D33c"],
+                    forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: ["GMa", "GM'a"], scope: ["ui"] } } },
+                { id: "fx-bribe", en: "Bribe", pl: "Bribe", gender: null, inflection: null, stage: "E01", source: ["DB38"],
+                    forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [{ stem: "łapówk", endings: ["a", "i", "ę"] }], scope: ["ui"] } } },
+                { id: "fx-open", en: "crime tool", pl: null, gender: null, inflection: null, stage: "E01", source: ["DB16"], open: true,
+                    forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } }
+            ] },
+            en: {
+                "DRPG.Fx.trace": "You leave a trace behind.",                 // flagged
+                "DRPG.Fx.secure": "Secure a Trace: keep it.",                 // inside the shield: passes
+                "DRPG.Fx.secureLower": "Secure a trace now.",                 // the shield is read in any case: passes here (the five names' own entry reads the case)
+                "DRPG.Fx.traceable": "A traceable thing",                     // not a whole word: passes
+                "DRPG.Fx.retrace": "Retrace your steps",                      // not a whole word either (the variant ends it): passes
+                "DRPG.Fx.failure": "Open the Failure log",                    // fx-not-due: pending, debt under the second ledger
+                "DRPG.Fx.lower": "Spend a search token",                      // flagged: another case
+                "DRPG.Fx.right": "Spend a Search Token",                      // passes
+                "DRPG.Fx.crime": "the crime tool"                             // an open entry: passes
+            },
+            prose: { "DRPG.Config.FX.trace": "Traces everywhere" },          // flagged: case any
+            pl: {
+                "DRPG.Fx.slad": "Ślad zostaje",                               // flagged: case any
+                "DRPG.Fx.sladzie": "w śladzie",                               // flagged: an ending
+                "DRPG.Fx.sladowy": "śladowy",                                 // no such ending: passes
+                "DRPG.Fx.remnant": "Remnant zostaje",                         // passes
+                "DRPG.Fx.gm1": "u GMa",                                       // flagged
+                "DRPG.Fx.gm2": "bez GM'a",                                    // flagged
+                "DRPG.Fx.gm3": "bez GM-a",                                    // passes
+                "DRPG.Fx.lowerPl": "Wydaj search token",                      // flagged: another case
+                "DRPG.Fx.bribe": "Bribe, łapówka po polsku"                   // flagged: fx-bribe reads the ui
+            },
+            docs: {
+                "docs/handbooks/fx.en.md": "# Remnant\nA trace stays.\nSecure a Trace.",   // line 2 flagged
+                "docs/handbooks/fx.pl.md": "Ślady\nŁapówka stoi w podręczniku.",              // line 1 flagged; fx-bribe is ui only: line 2 passes
+                "docs/other.md": "a trace"                                                     // not a handbook: not read
+            }
+        }
+    },
+    retiredHits: {
+        flags: ["fx-a10@DRPG.Passage.bare pl", "fx-a10@DRPG.Passage.plural pl", "fx-a11@DRPG.Frisk.ask en", "fx-a11@DRPG.Frisk.ask pl",
+            "fx-a11@DRPG.Frisk.refuse button", "fx-doors@DRPG.Config.ACTIONS.listen.label en", "fx-doors@DRPG.Config.ACTIONS.listen.label pl",
+            "fx-floor@DRPG.Floor.yield pl", "fx-lockpicking@docs/handbooks/fx.en.md:1 en", "fx-objection@DRPG.Fx.undo pl", "fx-work-out@DRPG.Fx.work en"],
+        pending: ["fx-not-due@DRPG.Fx.errand en"],
+        input: {
+            shipped: ["E01"],
+            glossary: { retired: [
+                { id: "fx-work-out", en: ["Work Out"], pl: ["Work Out"], scope: "text", stage: "E01", source: ["DA38"] },
+                { id: "fx-doors", en: ["Doors"], pl: ["Doors"], scope: "label", stage: "E01", source: ["DA27"] },
+                { id: "fx-lockpicking", en: ["Lockpicking"], pl: ["Lockpicking"], scope: "text", stage: "E01", source: ["DX4"],
+                    pass: [{ key: "DRPG.Fx.lockHistory", why: "a line of history" }] },
+                { id: "fx-objection", en: ["Undo the Objection"], pl: ["Cofnij Objection", "Oddal Objection"], scope: "text", stage: "E01", source: ["TR25", "DB41"] },
+                { id: "fx-floor", en: [], pl: ["Oddaj głos"], scope: "keys", keys: ["DRPG.Floor."], stage: "E01", source: ["TR10"],
+                    pass: [{ key: "DRPG.Vote.cast", why: "casting a vote, not yielding the floor" }] },
+                { id: "fx-not-due", en: ["Errand"], pl: [], scope: "text", stage: "E02", source: ["DA35"] },
+                { id: "fx-a10", en: [], pl: [], scope: "keys", keys: ["DRPG.Passage."], rule: "passageWords", stage: "E01", source: ["A10"] },
+                { id: "fx-a11", en: [], pl: [], scope: "keys", keys: ["DRPG.Frisk."], rule: "friskWords", button: { key: "DRPG.Frisk.refuse", pl: "Odmów" }, stage: "E01", source: ["A11", "TR8"] }
+            ] },
+            en: {
+                "DRPG.Fx.work": "Work Out clears Sanity",                     // flagged
+                "DRPG.Fx.closed": "Behind Closed Doors",                      // "Doors" in a sentence: passes
+                "DRPG.Vault.tabDoors": "Doors",                               // a tab, not a tile's label: passes
+                "DRPG.Fx.errand": "Run an Errand",                            // fx-not-due: pending
+                "DRPG.Frisk.ask": "Ask for consent first",                    // flagged: any case
+                "DRPG.Fx.lockHistory": "Lockpicking was retired"              // a pass row: passes
+            },
+            prose: { "DRPG.Config.ACTIONS.listen.label": "Doors", "DRPG.Config.ACTIONS.search.label": "Search" },   // listen flagged
+            pl: {
+                "DRPG.Config.ACTIONS.listen.label": "Doors",                  // flagged
+                "DRPG.Fx.undo": "Cofnij Objection",                           // flagged
+                "DRPG.Floor.yield": "Oddaj głos",                             // flagged: the floor's key
+                "DRPG.Vote.cast": "Oddaj głos",                               // the vote button: passes, with its why
+                "DRPG.Fx.cast": "Oddaj głos",                                 // outside the floor's keys: passes
+                "DRPG.Passage.secret": "Tajne przejście do: {room}",         // passes
+                "DRPG.Passage.secret2": "szuka tajnego przejścia",          // passes
+                "DRPG.Passage.bare": "Przejście jest gotowe",                // flagged
+                "DRPG.Passage.plural": "Znane tajne przejścia i inne przejścia",   // the second flagged
+                "DRPG.Passage.name": "Find Passage: znajdź tajne przejście", // passes
+                "DRPG.Move.free": "Przejście kosztuje Move",                 // not a passage text: passes
+                "DRPG.Frisk.ask": "Bez Consent",                              // flagged
+                "DRPG.Frisk.refuse": "Odrzuć"                                 // flagged: the button is "Odmów"
+            },
+            docs: { "docs/handbooks/fx.en.md": "Lockpicking is gone." }     // flagged
+        }
     }
 });
 
@@ -772,6 +1192,50 @@ export const BASELINE_FIXTURE = Object.freeze({
 });
 
 /**
+ * `glossarySchema`'s own case (E65-10): one whole entry and one whole retired row that pass,
+ * then one fault each - an entry with no `stage`, one whose stage is no ledger row ("E99"),
+ * an id used twice, a field the file does not know, a scope it does not know, an open entry
+ * that forbids something, a variant that is neither a phrase nor a stem with endings, a
+ * source that is no decision, and a retired row that reads keys and names no prefix - each
+ * one sentence, exactly these.
+ */
+export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
+    stages: ["E01"],
+    doc: {
+        $comment: "fixture",
+        entries: [
+            { id: "fx-ok", en: "Remnant", pl: "Remnant", gender: "m", inflection: null, stage: "E01", source: ["DB15"],
+                forbidden: { en: { variants: ["trace"], scope: ["ui"] }, pl: { variants: [{ stem: "ślad", endings: ["", "u"] }], scope: ["ui", "handbooks"] } } },
+            { id: "fx-no-stage", en: "A", pl: "A", gender: null, inflection: null, source: ["DB1"],
+                forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
+            { id: "fx-e99", en: "B", pl: "B", gender: null, inflection: null, stage: "E99", source: ["DB2"],
+                forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
+            { id: "fx-ok", en: "C", pl: "C", gender: "x", inflection: null, stage: "E01", source: ["DB3"], colour: "red",
+                forbidden: { en: { variants: [], scope: ["menus"] }, pl: { variants: [], scope: ["ui"] } } },
+            { id: "fx-open", en: "D", pl: null, gender: null, inflection: null, stage: "E01", source: ["O8"], open: true,
+                forbidden: { en: { variants: ["d"], scope: ["ui"] }, pl: { variants: [{ stem: "d" }], scope: ["ui"] } } }
+        ],
+        retired: [
+            { id: "fx-gone", en: ["Work Out"], pl: ["Work Out"], scope: "text", stage: "E01", source: ["DA38"] },
+            { id: "fx-keys", en: [], pl: ["Oddaj głos"], scope: "keys", stage: "E01", source: ["TR10"] }
+        ]
+    },
+    want: [
+        "entry 2 (fx-no-stage) has no \"stage\"",
+        "entry 3 (fx-e99)'s stage \"E99\" is no row of tools/stages.json",
+        "entry 4 (fx-ok) has a field \"colour\" the glossary does not know",
+        "entry 4 (fx-ok): the id \"fx-ok\" is used twice",
+        "entry 4 (fx-ok)'s gender \"x\" is not m, f, n or null",
+        "entry 4 (fx-ok)'s forbidden.en's scope is not \"ui\", \"handbooks\" or both",
+        "entry 5 (fx-open)'s source [\"O8\"] is not a list of decisions (D, DB, DA, DC, DX, TR), amends (A), issues (S) or a plan entry",
+        "entry 5 (fx-open)'s forbidden.en: an open entry forbids nothing",
+        "entry 5 (fx-open)'s forbidden.pl's variants are not phrases or { stem, endings }",
+        "entry 5 (fx-open)'s forbidden.pl: an open entry forbids nothing",
+        "retired 2 (fx-keys) reads keys and names no key prefix"
+    ]
+});
+
+/**
  * Every detector on its fixture: [] when each flags exactly its fixture's items
  * and read something, else one sentence a mismatch. `detectors` defaults to this
  * file's; check.mjs and R1058 pass none, a planted fault passes its own. `tools`
@@ -794,6 +1258,17 @@ export function selfCheck(detectors = DETECTORS, tools = {}) {
         const items = (r?.found ?? []).map(itemOf).sort(), want = [...fx.flags].sort();
         if (!same(items, want)) out.push(`${name} flags ${items.length ? items.join(", ") : "none"} of its fixture, not ${want.join(", ")} - the detector is broken`);
         if (!(r?.read > 0)) out.push(`${name} read nothing of its fixture`);
+        /* What a detector that splits by stage holds back as not yet due (T8, T28), and its fixture under another ledger (E65-11). */
+        if (fx.pending) {
+            const held = (r?.pending ?? []).map(itemOf).sort(), notDue = [...fx.pending].sort();
+            if (!same(held, notDue)) out.push(`${name} holds back ${held.length ? held.join(", ") : "nothing"} of its fixture as not yet due, not ${notDue.join(", ")} - the stage rule is broken`);
+        }
+        for (const [i, v] of (fx.also ?? []).entries()) {
+            let rv;
+            try { rv = run({ ...tools, ...fx.input, ...v.input }); } catch (err) { out.push(`${name} throws on its fixture's case ${i + 2} (${err?.message ?? err})`); continue; }
+            const got = (rv?.found ?? []).map(itemOf).sort(), wantAlso = [...fx.flags, ...v.add].sort();
+            if (!same(got, wantAlso)) out.push(`${name} flags ${got.length ? got.join(", ") : "none"} of its fixture's case ${i + 2} (${JSON.stringify(v.input)}), not ${wantAlso.join(", ")} - the stage rule is broken`);
+        }
     }
     for (const [name, rows] of Object.entries(BASELINES)) {
         if (MODES[name]?.mode !== "fail") out.push(`${name} has a baseline and is no FAIL detector`);
@@ -811,5 +1286,9 @@ export function selfCheck(detectors = DETECTORS, tools = {}) {
     const got = JSON.stringify({ left: b.left.map(f => `${f.file} ${f.key}`).sort(), stale: b.stale.map(st => `${st.file} ${st.key ?? st.quote}`).sort(),
         matched: b.matched, rows: b.rows });
     if (got !== JSON.stringify(BASELINE_FIXTURE.want)) out.push(`againstBaseline answers ${got} on its fixture, not ${JSON.stringify(BASELINE_FIXTURE.want)} - the baseline matcher is broken`);
+    const schema = glossarySchema(GLOSSARY_SCHEMA_FIXTURE.doc, GLOSSARY_SCHEMA_FIXTURE.stages);
+    if (JSON.stringify(schema) !== JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)) {
+        out.push(`glossarySchema answers ${JSON.stringify(schema)} on its fixture, not ${JSON.stringify(GLOSSARY_SCHEMA_FIXTURE.want)} - a fault in docs/glossary.json would pass`);
+    }
     return out;
 }

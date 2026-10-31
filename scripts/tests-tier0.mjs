@@ -17035,7 +17035,7 @@ const REGRESSIONS = [
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
 
-    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, and every baseline row is well formed and matched as the matcher's own case says (E65 C1, C2, C3; E65-03, E65-06, E65-07, E65-08, E65-09)", async () => {
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, and the glossary's shape is red on its own case's faults (E65 C1, C2, C3, C4; E65-03, E65-06 to E65-12)", async () => {
         /*
          * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
          * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
@@ -17046,31 +17046,45 @@ const REGRESSIONS = [
          * mismatches, not silence; and the two that read code, handed no lexer (tests-text.mjs imports none; this
          * file hands the kit's, which are tests-lint.mjs's), throw and are seen. The selfCheck also holds every
          * baseline row to a file, a site, an issue and the stage that empties it, and the matcher to its own case
-         * (BASELINE_FIXTURE). Pure data; nothing is fetched or written.
+         * (BASELINE_FIXTURE). C4 adds T8 (glossaryHits) and T28 (retiredHits), both report, both splitting what they
+         * find by the stage of the glossary row that finds it: the selfCheck holds each to what its fixture holds back as
+         * not yet due (`pending`) and T8 to its second ledger (`also`: the same fixture with that stage shipped, the
+         * pending hit then debt, E65-11), and glossarySchema to its own case (GLOSSARY_SCHEMA_FIXTURE: an entry with no
+         * stage, an unknown stage, an id twice and eight faults more, E65-10), and a T8 blind to the ledger it is handed
+         * (the first ledger's stages whatever it is given) is seen on that second case. docs/glossary.json itself is Node's
+         * (export-ignore: a table does not serve it); here only the fixtures, which carry their own data, run.
+         * Pure data; nothing is fetched or written.
          */
         const names = Object.keys(TEXT_MODES).sort();
+        const notDue = n => (TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).pending ?? []).length;
         const lexer = { blankComments, blankLiterals, callArgs };
         const stub = () => ({ found: [], read: 0 });
         const caught = textSelfCheck({ ...TEXT_DETECTORS, pluralForms: stub }, { lexer }).filter(p => p.startsWith("pluralForms "));
+        const blind = bag => TEXT_DETECTORS.glossaryHits({ ...bag, shipped: TEXT_FIXTURES.glossaryHits.input.shipped });
+        const ledgerBlind = textSelfCheck({ ...TEXT_DETECTORS, glossaryHits: blind }, { lexer }).filter(p => p.startsWith("glossaryHits flags ") && p.includes("case 2")).length;
         const unlexed = textSelfCheck(TEXT_DETECTORS).filter(p => p.includes("was handed no lexer")).map(p => p.split(" ")[0]).sort();
         equal(JSON.stringify({
             names, fixtures: Object.keys(TEXT_FIXTURES).sort(), detectors: Object.keys(TEXT_DETECTORS).sort(),
             modes: names.map(n => [n, TEXT_MODES[n].test, TEXT_MODES[n].mode]),
             flagged: names.map(n => [n, TEXT_DETECTORS[n]({ lexer, ...TEXT_FIXTURES[n].input }).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
             baselines: Object.keys(TEXT_BASELINES).sort().map(n => [n, TEXT_BASELINES[n].length]),
-            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, unlexed
+            notDue: ["glossaryHits", "retiredHits"].map(n => [n, notDue(n), TEXT_FIXTURES[n].pending.length]),
+            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, ledgerBlind, unlexed
         }), JSON.stringify({
-            names: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
-            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
-            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "pairParity", "pluralForms", "tableWordProblems"],
-            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["pairParity", "T2", "fail"], ["pluralForms", "T1", "fail"],
-                ["tableWordProblems", "T14", "fail"]],
-            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["pairParity", 5, 5], ["pluralForms", 4, 4], ["tableWordProblems", 4, 4]],
+            names: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
+            fixtures: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
+            detectors: ["configPlaceholders", "dashesIn", "familyFormats", "glossaryHits", "pairParity", "pluralForms", "retiredHits", "tableWordProblems"],
+            modes: [["configPlaceholders", "T1", "fail"], ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["pairParity", "T2", "fail"],
+                ["pluralForms", "T1", "fail"], ["retiredHits", "T28", "report"], ["tableWordProblems", "T14", "fail"]],
+            flagged: [["configPlaceholders", 4, 4], ["dashesIn", 9, 9], ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["pairParity", 5, 5], ["pluralForms", 4, 4],
+                ["retiredHits", 11, 11], ["tableWordProblems", 4, 4]],
             baselines: [["dashesIn", 11], ["familyFormats", 1]],
-            problems: [], caught: 2, unlexed: ["dashesIn", "familyFormats"]
+            notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
+            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats"]
         }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
-            + "against the fixture's count; the rows of each baseline; the self-check's mismatches (none); the two a stub of pluralForms "
-            + "makes; the detectors that throw with no lexer]");
+            + "against the fixture's count; the rows of each baseline; what T8 and T28 hold back as not yet due against their fixtures' "
+            + "count; the self-check's mismatches (none); the two a stub of pluralForms makes; the one T8 blind to its second ledger makes; the "
+            + "detectors that throw with no lexer]");
     }],
 
     ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {

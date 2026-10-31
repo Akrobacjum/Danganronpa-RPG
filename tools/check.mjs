@@ -107,7 +107,14 @@
  *             not hold, and on a baseline row nothing fills ("take it out of
  *             the baseline"). E65 C3: T14 (tableWordProblems), FAIL: config.mjs's
  *             TABLE_NAME_WORDS against the words of Base, with tables.mjs's two
- *             legacy lists read off its text (it does not load in Node).
+ *             legacy lists read off its text (it does not load in Node). E65
+ *             C4: docs/glossary.json held to its shape (glossarySchema, every
+ *             `stage` a row of tools/stages.json: a fault is red), then T8
+ *             (glossaryHits) and T28 (retiredHits), report: each row holds once
+ *             its stage has shipped (tools/stages.mjs isShipped against
+ *             module.json); printed are the debt, one line a finding, then the
+ *             rows of a shipped stage that found nothing and what the rows not
+ *             yet due find, by stage.
  */
 
 import fs from "node:fs";
@@ -670,6 +677,12 @@ async function text() {
     if (T.selfCheck({ ...T.DETECTORS, [first]: () => ({ found: [], read: 0 }) }, { lexer }).filter(p => p.startsWith(`${first} `)).length !== 2) {
         problems.push(`the self-check does not see ${first} stubbed to flag nothing and read nothing - it would pass a broken detector`);
     }
+    /* And its second ledger (E65 C4): T8 run as if only the first ledger's stages had shipped, whatever it is handed, is
+       seen on the fixture's case 2 - a self-check that ran only the first case would pass a detector blind to the ledger. */
+    const blind = bag => T.DETECTORS.glossaryHits({ ...bag, shipped: T.FIXTURES.glossaryHits.input.shipped });
+    if (!T.selfCheck({ ...T.DETECTORS, glossaryHits: blind }, { lexer }).some(p => p.startsWith("glossaryHits flags ") && p.includes("case 2"))) {
+        problems.push("the self-check does not see glossaryHits blind to the ledger it is handed - it would pass a broken stage rule");
+    }
     const fileOf = name => path.join(dir, name);
     for (const name of ["en.json", "pl.json"]) if (!fs.existsSync(fileOf(name))) problems.push(`${path.join(where, name)} is missing - nothing was read`);
     if (problems.some(p => p.endsWith("nothing was read"))) return problems;
@@ -683,7 +696,17 @@ async function text() {
     const scripts = new Map(listed.filter(f => f.endsWith(".mjs") && !/^tests(-[\w-]+)?\.mjs$/.test(path.basename(f))).map(f => [f, read(f)]));
     const docs = new Map(docList.filter(f => f.endsWith(".md")).map(f => [f, read(f)]));
     /* T14's bag (E65 C3): the words a table's name is built from, as config.mjs freezes them, and tables.mjs's legacy lists. */
-    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")) };
+    /* T8's and T28's (E65 C4): docs/glossary.json, held to its shape first (a fault in it is red: a file E65 owns, not text
+       debt), and the stages that have shipped by tools/stages.mjs's rule - an entry holds only from its stage. */
+    const ledger = stagesLib.loadStages(REPO), modVersion = stagesLib.moduleVersion(REPO);
+    const shipped = ledger.stages.filter(r => stagesLib.isShipped(r, modVersion)).map(r => r.id);
+    let glossary = null;
+    if (!exists("docs/glossary.json")) problems.push("glossary: docs/glossary.json is missing - T8 and T28 have nothing to read");
+    else {
+        try { glossary = JSON.parse(read("docs/glossary.json")); } catch (err) { problems.push(`glossary: docs/glossary.json does not parse (${err.message})`); }
+        if (glossary) problems.push(...T.glossarySchema(glossary, ledger.stages.map(r => r.id)).map(p => `glossary: ${p}`));
+    }
+    const inputs = { en, pl, prose, scripts, docs, lexer, words: config.TABLE_NAME_WORDS, ...T.legacyListsFrom(read("scripts/tables.mjs")), glossary, shipped };
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
         const r = T.DETECTORS[name](inputs);
@@ -699,6 +722,19 @@ async function text() {
             fails += live.length;
             problems.push(...live.map(f => `${m.test} (${name}): ${f.what}`), ...(b?.stale ?? []).map(s => `${m.test} (${name}): ${T.staleRow(name, s)}`));
         } else { reports += live.length; for (const f of live) console.log(`text:   ${m.test} report: ${f.what}`); }
+        /* A detector that splits by stage (T8, T28): its debt above, then each entry of a shipped stage that looked and found
+           nothing (one that forbids nothing is counted apart: it measured nothing), and what the entries not yet due find, by
+           stage - the report each entry's stage starts from (E65-11). */
+        if (Array.isArray(r.entries)) {
+            const held = r.entries.filter(e => e.due && e.checked && !e.hits), unread = r.entries.filter(e => e.due && !e.checked), notDue = r.entries.filter(e => !e.due && e.hits);
+            const debt = r.entries.filter(e => e.due && e.hits).map(e => `${e.id} (${e.stage}) ${e.hits}`);
+            const byStage = {};
+            for (const e of notDue) byStage[e.stage] = (byStage[e.stage] ?? 0) + e.hits;
+            console.log(`text:   ${m.test} debt: ${debt.length ? debt.join(", ") : "none"}; held, of a shipped stage: ${held.length} (${held.map(e => e.id).join(", ")}); `
+                + `of a shipped stage with nothing to look for: ${unread.length}`);
+            console.log(`text:   ${m.test} not yet due: ${r.pending.length} finding(s) in ${notDue.length} entr${notDue.length === 1 ? "y" : "ies"}`
+                + (notDue.length ? ` - ${Object.entries(byStage).map(([st, n]) => `${st} ${n}`).join(", ")}: ${notDue.map(e => `${e.id} ${e.hits}`).join(", ")}` : ""));
+        }
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
