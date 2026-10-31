@@ -83,6 +83,12 @@
  * and stayed on it after it was put back); a token this file hid, refreshed for its bars and entitled by a change only
  * sightRefresh reports, given back by the pass after it (red at 15c68d96: not given back); and the waits for a token at
  * rest and the fog's reading of a move counted on "own move".
+ *
+ * E51 C3 (31.10.2026; E51-19, E51-20, the owner's D43b = 1): the fog switched off and a placed token, after the rest.
+ * With both room sounds mapped and the Room fog off, Aiko written into the Cafeteria asks a room sound on no browser,
+ * and her player's browser keeps no fog layer and draws no outline, while the primary GM's ledger records the room;
+ * switched back on, no browser asks a sound. A second token of Aiko's placed in the Gym plays its arrival on her
+ * player's browser alone, at once, and its step inside the Gym plays nothing and draws no outline again.
  */
 export const layers = ["ci"];
 /* Measured alone on 27.10.2026 (E88 C0, under the harness lock): 37.5 s from the cluster's start to its end,
@@ -636,6 +642,68 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     await gm.eval(`${FR} const H = globalThis.__s86halo; FR.HALO_IO.renderer = H.io; delete globalThis.__s86halo;
         const V = await import("${repoUrl}/scripts/visibility.mjs"); V.applyAll(); return true;`);
     await p1.eval(`delete globalThis.__s86halo; return true;`);
+    await settle(1000);
+
+    /* ------------------------------ the fog off, and a placed token (E51 C3) ------------------------------ */
+    /* E51 C3, 31.10.2026; audit S07-28 and S07-30, the owner's D43b = 1. Both room sounds are mapped (a file the harness
+       never plays: `sfx.played` counts a file handed to the audio layer, E50 C4) and the Room fog is switched off. Aiko
+       is written into the Cafeteria by the GM, as in "own move into another room": no browser asks a room sound, her
+       player's browser keeps no fog layer and draws no outline, and the primary GM's ledger records the Cafeteria for
+       her all the same. Put back in Dorm A with her ledger, the fog is switched on again: no browser asks a sound (no
+       burst for the rooms already known) and her player's fog no longer says it is off (the layer itself is not read:
+       the harness renders no fog texture, so a repaint stands down before it mounts one). Then a second token of Aiko's
+       is placed in the Gym, a room she has not found: her player's browser plays the arrival at once - the room's
+       sound and its outline - and no other browser does; a step inside the Gym after that plays nothing on any browser
+       and draws no outline again. Red at f2b503e7: the fog off, p1 asked the room's sound and kept its layer with the
+       Cafeteria outlined; the placed token played nothing, and its first step played the arrival. */
+    phase("the fog off, then a placed token (E51 C3)");
+    const SFX = `const ST = await import("${repoUrl}/scripts/settings.mjs");`;
+    const sfxWas = await gm.eval(`${SFX} const was = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxMap) ?? {});
+        await ST.setSetting(ST.SETTINGS.sfxMap, { ...was, roomEntered: "sounds/s86-room.ogg", roomDiscovered: "sounds/s86-room.ogg" }); return was;`, { timeout: 60000 });
+    await settle(900);
+    const VIEW = `const FR = await import("${repoUrl}/scripts/fog-reveal.mjs"); const F = await import("${repoUrl}/scripts/fog.mjs");
+        const view = { layer: Boolean(FR.findLayer()), outline: FR.roomOutline?.room ?? null, marked: Boolean(FR.roomOutline?.__s86e51),
+            off: /setting is off/.test(F.diagnoseFog().lastReason ?? "") };`;
+    const played = read => Object.fromEntries(Object.entries(read).map(([who, r]) => [who, r.moved["sfx.played"] ?? 0]));
+    const silent = read => Object.values(played(read)).every(n => n === 0);
+    const LEDGER = `const F = await import("${repoUrl}/scripts/fog.mjs"); return F.discoveredFor("${IDS.scene}", "${IDS.aiko}");`;
+    const aikoHere = await gm.eval(`${ACADEMY} const t = academy.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y };`);
+    await gm.eval(`await game.settings.set("${MOD}", "regionFog", false); return true;`, { timeout: 60000 });
+    await settle(1500);
+    const offWalk = await measure("E51 C3", "the fog off: Aiko into the Cafeteria", () => gm.eval(`${ACADEMY}
+        await academy.tokens.get("TOKAIKO000000000").update({ x: 1300, y: 650 }, ${MOVE}); return true;`));
+    const offView = await p1.eval(`${VIEW} return view;`);
+    const offLedger = await gm.eval(LEDGER);
+    check("E51 C3: the fog off - Aiko written into the Cafeteria asks a room sound on no browser, and her player's browser keeps no fog layer and draws no outline (D43b = 1, E51-19)",
+        silent(offWalk) && offView.layer === false && offView.outline === null && offView.off === true, J({ played: played(offWalk), offView }));
+    check("E51 C3: the fog off - the primary GM's ledger still records the Cafeteria for Aiko (D43b = 1: the ledger keeps recording for the projects)",
+        !ledger.includes("Cafeteria") && offLedger.includes("Cafeteria"), J({ ledger, offLedger }));
+    await gm.eval(`${ACADEMY} await academy.tokens.get("TOKAIKO000000000").update(${J(aikoHere)}, ${MOVE}); return true;`);
+    await settle(1200);
+    await gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
+        await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: ${J(ledger)}, value: ${ledger.length > 0} }); return true;`);
+    await settle(800);
+    const onAgain = await measure("E51 C3", "the fog switched back on", () => gm.eval(`await game.settings.set("${MOD}", "regionFog", true); return true;`, { timeout: 60000 }));
+    const onView = await p1.eval(`${VIEW} return view;`);
+    check("E51 C3: the fog switched back on asks a room sound on no browser - no burst for the rooms already known - and her player's fog no longer says it is off",
+        silent(onAgain) && onView.off === false, J({ played: played(onAgain), onView }));
+
+    const placed = await measure("E51 C3", "a token of Aiko's placed in the Gym", () => gm.eval(`${ACADEMY}
+        const [t] = await academy.createEmbeddedDocuments("Token", [{ name: "S86 placed Aiko", actorId: "${IDS.aiko}", actorLink: true, x: 1700, y: 1600,
+            width: 1, height: 1, hidden: false, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 }]);
+        globalThis.__s86placed = t.id; return true;`));
+    const placedView = await p1.eval(`${VIEW} if (FR.roomOutline) FR.roomOutline.__s86e51 = true; return view;`);
+    check("E51 C3: a token of Aiko's placed in the Gym, a room she has not found, plays its arrival on her player's browser at once - the room's sound and its outline - and on no other (E51-20)",
+        J(played(placed)) === J({ gm: 0, p1: 1, p2: 0, p3: 0, p4: 0 }) && placedView.outline === "Gym", J({ played: played(placed), placedView }));
+    const stepped = await measure("E51 C3", "the placed token stepped inside the Gym", () => gm.eval(`${ACADEMY}
+        await academy.tokens.get(globalThis.__s86placed).update({ x: 1600 }, ${MOVE}); return true;`));
+    const steppedView = await p1.eval(`${VIEW} return view;`);
+    check("E51 C3: the placed token's step inside the Gym plays nothing on any browser and draws the outline on her player's browser no second time (the room set it entered is remembered, `lastMineSignature`)",
+        silent(stepped) && steppedView.outline === "Gym" && steppedView.marked === true, J({ played: played(stepped), steppedView }));
+    await gm.eval(`${ACADEMY} const F = await import("${repoUrl}/scripts/fog.mjs");
+        await academy.tokens.get(globalThis.__s86placed)?.delete(); delete globalThis.__s86placed;
+        await F.setDiscovery(academy, { actorId: "${IDS.aiko}", rooms: ${J(ledger)}, value: ${ledger.length > 0} });
+        const ST = await import("${repoUrl}/scripts/settings.mjs"); await ST.setSetting(ST.SETTINGS.sfxMap, ${J(sfxWas)}); return true;`, { timeout: 60000 });
     await settle(1000);
 
     /* ------------------------------ restore ------------------------------ */

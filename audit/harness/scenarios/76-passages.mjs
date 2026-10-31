@@ -45,6 +45,10 @@
  *   moves Botan the same way and is refused with the sentence the map gives (`crossingRefused`). Then, on p1, the
  *   veto with the passage named (`via`) is asked into the Kitchen under a GM's lock (the gap closes as well), a seal,
  *   the chain and another's bedroom: refused, refused, refused, let through - and the bedroom without `via` refused.
+ * DV (E51 C3): the doorway and the veto. The GM draws a Kitchen under the Cafeteria with no wall between them: the
+ *   Cafeteria's border there is a doorway in its outline for Aiko on p1, for no character and on the GM's browser. A
+ *   GM's lock, a seal and Botan's bedroom shut it for Aiko on p1 (no open stretch: the border drawn as wall, no glow),
+ *   never the outline with no character; her own bedroom opens to her, Botan's opens on the GM's browser (D43c = 2).
  * D (C4): the GM's audit (movement-audit.mjs), with the world switch on `sendBack`. Inside the Cafeteria, so that no room
  *   is crossed and the room rules have nothing to say, the GM draws an ordinary wall and a wall with a passage granted
  *   to Aiko. p2, with its own veto taken off, moves Botan through each: both are put back where the GM last saw him,
@@ -299,6 +303,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl });
     await phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl });
+    await phaseDV({ gm, p1, check, phase, settle, IDS, repoUrl });
     await phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl });
     await phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
@@ -686,6 +691,63 @@ async function phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
     await settle(600);
     check("C: put back - the passage deleted, the Kitchen and its wall gone, no seal or chain left on the Kitchen or Aiko",
         back.gone !== false && back.kitchen === false && !(back.sealed ?? []).includes("Kitchen") && back.chained === false, J(back));
+}
+
+const PHASE_DV = "DV: the doorway and the veto (E51 C3) - a doorway into a room a GM locked, sealed or gave another owner is drawn as wall for Aiko on p1; into her own bedroom it opens, and so it does on the GM's browser and for no character";
+
+/* E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2 ("no glow; the border looks like a wall; the predicate is the
+   veto's"). The GM draws a Kitchen under the Cafeteria (1200-2000 x 800-1100) with no wall between them, so the
+   Cafeteria's border at y 800 is a doorway. Read with `outline` (the even-odd inside test for the one call): the
+   stretches of that border the Cafeteria's outline opens, for Aiko on p1, for no character on p1 and for Aiko on the
+   GM's browser, with the Kitchen as drawn, locked by a GM (`drpgLocked`), sealed (`sealedRooms`), Botan's bedroom and
+   Aiko's own (`drpgVaultOwner`), each put back before the next. On p1 a shut door is no open stretch at all - the
+   glow and the gap are drawn from these stretches (fog-doorways.mjs `addDoorwayGlow`, `traceOutlineGapped`), so the
+   border is drawn as wall; with no character the outline is the map's (the map's checks read it so), and a GM's browser
+   asks no bedroom (movement.mjs `restrictedFrom`). The glow itself is not drawn headless (no renderer). Red at
+   f2b503e7: the doorway opened for Aiko on p1 into the lock, the seal and Botan's bedroom alike. */
+async function phaseDV({ gm, p1, check, phase, settle, IDS, repoUrl }) {
+    phase(PHASE_DV, { flow: "secret-passages" });
+    const MOD = "danganronpa-rpg";
+    const made = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [kitchen] = await scene.createEmbeddedDocuments("Region", [{ name: "Kitchen", behaviors: [],
+            shapes: [{ type: "rectangle", x: 1200, y: 800, width: 800, height: 300 }], flags: { "${MOD}": { room: true } } }]);
+        globalThis.__s76dv = { kitchen: kitchen.id, sealed: game.settings.get("${MOD}", "sealedRooms") ?? [] };
+        return Boolean(kitchen);`, { timeout: 30000 });
+    await settle(800);
+    const door = list => (list ?? []).filter(s => s[1] === 800 && s[3] === 800);
+    const readAll = async () => ({ aiko: door(await outline(p1, repoUrl, IDS.scene, IDS.aiko)), none: door(await outline(p1, repoUrl, IDS.scene)),
+        gm: door(await outline(gm, repoUrl, IDS.scene, IDS.aiko)) });
+    const as = async (write, undo) => {
+        await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)}), kitchen = scene.regions.get(globalThis.__s76dv.kitchen); ${write} return true;`);
+        await settle(700);
+        const read = await readAll();
+        await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)}), kitchen = scene.regions.get(globalThis.__s76dv.kitchen); ${undo} return true;`);
+        await settle(700);
+        return read;
+    };
+    const drawn = await readAll();
+    check("DV: with the Kitchen drawn under the Cafeteria and no wall between them, the Cafeteria's border at y 800 is a doorway - for Aiko on p1, for no character and on the GM's browser alike",
+        made === true && drawn.aiko.length > 0 && J(drawn.none) === J(drawn.aiko) && J(drawn.gm) === J(drawn.aiko), J(drawn));
+    const locked = await as(`await kitchen.setFlag("${MOD}", "drpgLocked", true);`, `await kitchen.unsetFlag("${MOD}", "drpgLocked");`);
+    const sealed = await as(`await game.settings.set("${MOD}", "sealedRooms", [...globalThis.__s76dv.sealed, "Kitchen"]);`,
+        `await game.settings.set("${MOD}", "sealedRooms", globalThis.__s76dv.sealed);`);
+    const theirs = await as(`await kitchen.setFlag("${MOD}", "drpgVaultOwner", ${J(IDS.botan)});`, `await kitchen.unsetFlag("${MOD}", "drpgVaultOwner");`);
+    const hers = await as(`await kitchen.setFlag("${MOD}", "drpgVaultOwner", ${J(IDS.aiko)});`, `await kitchen.unsetFlag("${MOD}", "drpgVaultOwner");`);
+    check("DV: a GM's lock, a seal and Botan's bedroom shut the doorway for Aiko on p1 - no open stretch, the border drawn as wall - while the outline with no character keeps the map's doorway",
+        locked.aiko.length === 0 && sealed.aiko.length === 0 && theirs.aiko.length === 0
+            && [locked, sealed, theirs].every(r => J(r.none) === J(drawn.none)), J({ drawn: drawn.aiko, locked, sealed, theirs }));
+    check("DV: Aiko's own bedroom opens to her on p1, and Botan's opens on the GM's browser, which asks no bedroom; a GM's lock and a seal shut it there too",
+        J(hers.aiko) === J(drawn.aiko) && J(theirs.gm) === J(drawn.aiko) && locked.gm.length === 0 && sealed.gm.length === 0,
+        J({ hers, theirs: theirs.gm, locked: locked.gm, sealed: sealed.gm }));
+
+    const back = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76dv;
+        await scene.deleteEmbeddedDocuments("Region", [was.kitchen]);
+        delete globalThis.__s76dv;
+        return { kitchen: scene.regions.some(r => r.name === "Kitchen"), sealed: game.settings.get("${MOD}", "sealedRooms") ?? [] };`, { timeout: 30000 });
+    await settle(600);
+    check("DV: put back - the Kitchen gone, no seal left on it", back.kitchen === false && !back.sealed.includes("Kitchen"), J(back));
 }
 
 const PHASE_D = "D: the GM's audit - a move through an ordinary wall and through a passage's wall is put back alike, a forged REVERT, teleport and displace as well; a GM's move, a lawful REVERT and the knower stand; 'log' moves nothing";

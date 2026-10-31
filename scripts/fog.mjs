@@ -74,7 +74,8 @@ import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
     MAX_FOG_TEXTURE, colourOf, lastGlow, DOORWAY_PROBE_IN, DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET,
-    DOORWAY_WALL_NEAR, wallAlongEdge, nothingInTheWay, neighbourBeyond, doorwayEdges, outlineColour, gmPassageGaps, passageCutKey
+    DOORWAY_WALL_NEAR, wallAlongEdge, nothingInTheWay, neighbourBeyond, doorwayEdges, outlineColour, gmPassageGaps, passageCutKey,
+    registerTokenRuler, refreshTokenRulers
 } from "./fog-doorways.mjs";
 import {
     LAYER_NAME, VEIL_ALPHA, REVEAL_SLASH_MS, REVEAL_HOLD_MS, DISCOVERY_MS, freeOwned, clearTransient, watchdog,
@@ -262,6 +263,8 @@ export function registerFog() {
     step("the ledger's road", () => registerLedgerRoad());
     // At init (module.mjs), before any canvas is drawn and a door control made from the class.
     step("door controls by the rooms", () => registerDoorControls());
+    // The same, for the ruler a token's move draws: the hour's colour (E51 C3; fog-doorways.mjs `hourRulerFor`).
+    step("the token ruler in the hour's colour", () => registerTokenRuler());
 
     /*
      * EACH STEP GUARDED SEPARATELY, because they used to share one handler and
@@ -307,11 +310,20 @@ export function registerFog() {
 
     // A player's own token appearing or moving changes which room is theirs.
     Hooks.on("updateToken", onUpdateToken);
+    /* A TOKEN PLACED ARRIVES AS A WALK DOES (E51 C3, 31.10.2026; audit S07-30). The hook remembered the room, repainted
+       and seeded the ledger, and ran nothing of the arrival: a token dropped into a room was not announced, a player's
+       new room stayed as the fog had it until the token moved, and `lastMineSignature` was never told - so that first
+       step inside the room then played the arrival. `ownArrival` is the half of `reactToMove` a move runs on this
+       viewer's browser; the ledger's half stays the seed's. E51-T10, scenario 86's "a placed token". */
     Hooks.on("createToken", tokenDoc => {
         step("local discovery mirror", () => rememberMine());
         step("repaint", () => repaintFog());
+        step("arrival of a placed token", () => ownArrival(tokenDoc));
         step("seed discovery", () => seedDiscovery(tokenDoc?.parent ?? null));
     });
+    /* A DOOR OPENED OR SHUT, A WALL MOVED (E51 C3; E51-22): the outline standing beside it drawn again, its gaps and glow
+       as the walls now stand, with no sound (`outlineAfterDoor`). A room's flag - a lock, an owner - is `regionChanged`'s. */
+    Hooks.on("updateWall", (wall, changes) => step("the outline by a door", () => outlineAfterDoor(wall, changes)));
     Hooks.on("deleteToken", () => repaintFog());
 
     /*
@@ -398,6 +410,9 @@ export function registerFog() {
         accentTimer = setTimeout(() => {
             try { recolourRoomOutline(); }
             catch (err) { debug("Fog: could not recolour the room outline", err); }
+            // The token rulers on screen wear the same colour (E51 C3), drawn again here for the same reason.
+            try { refreshTokenRulers(); }
+            catch (err) { debug("Fog: could not draw the token rulers again", err); }
         }, 60);
     }).observe(document.body, {
         attributes: true,
@@ -577,6 +592,44 @@ function regionChanged(region, userId, changes = null) {
     step("a room renamed", () => noteRegionName(region, userId, changes));
     step("scene vision mode", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
+    step("the outline by a room's flag", () => outlineAfterRoomFlag(region, changes));
+}
+
+/*
+ * THE STANDING OUTLINE, DRAWN AGAIN WHEN A DOOR OR A ROOM'S FLAG CHANGES (E51 C3, 31.10.2026; E51-22, the E79 plan's
+ * A10-9). The outline round the room a character stands in, with its gaps and its doorway glow, was drawn on arrival
+ * and on a change of the passages only: a GM who opened or shut a door beside it, moved a wall, locked the room beyond
+ * or gave it an owner left a gap or a wall on screen that the map, or the veto (`doorwayEdges` since C3), no longer had
+ * until the next arrival. Both answers below ask `redrawOutline` - the one redraw (R560) - for the standing room when
+ * the change touches it: a wall, or a region, within a square of the room's box (a lock on the room beyond changes the
+ * doors of every room that borders it, and one outline stands at a time). No sound, no reveal (R1114). Not heard: a
+ * seal or a chain set (world settings), a key gained, the time of day - each changes the veto's answer and is drawn at
+ * the next arrival.
+ */
+function standingTouched(scene, box) {
+    const standing = roomOutline;
+    if (!standing?.region || !box || standing.region.parent !== scene) return null;
+    const own = boundsOf(standing.region);
+    if (!own) return null;
+    const pad = scene?.grid?.size ?? canvas?.grid?.size ?? 100;
+    const apart = box.x > own.x + own.w + pad || box.x + box.w < own.x - pad || box.y > own.y + own.h + pad || box.y + box.h < own.y - pad;
+    return apart ? null : standing.room;
+}
+
+/** A wall's update (`changes`): a door's state or kind, what it blocks, or where it runs - the standing outline beside it drawn again. */
+function outlineAfterDoor(wall, changes) {
+    if (!["ds", "door", "move", "c"].some(key => Object.hasOwn(changes ?? {}, key))) return false;
+    const c = wall?.c;
+    if (!(c?.length >= 4)) return false;
+    const room = standingTouched(wall.parent, { x: Math.min(c[0], c[2]), y: Math.min(c[1], c[3]), w: Math.abs(c[2] - c[0]), h: Math.abs(c[3] - c[1]) });
+    return room ? redrawOutline(room) : false;
+}
+
+/** A region's update (`changes`) that wrote a flag of the module's - a lock, an owner, a room's mark: the standing outline beside it drawn again. */
+function outlineAfterRoomFlag(region, changes) {
+    if (!changes?.flags || !Object.hasOwn(changes.flags, MODULE_ID)) return false;
+    const room = standingTouched(region?.parent ?? null, boundsOf(region));
+    return room ? redrawOutline(room) : false;
 }
 
 /** A scene's update that changed its regions (`changes.regions`): what a region's own update does, each region with its patch. */
@@ -2155,6 +2208,11 @@ export function swapInFog(container, texture, maskTexture, rect, io = DISSOLVE_I
  * scene change as a reference to a display object that may have been destroyed.
  */
 function mountLayer() {
+    // With the room fog switched off there is no layer at all (E51 C3; D43b = 1): none made, and one left is taken down.
+    if (!fogEnabled()) {
+        tearDownLayer();
+        return null;
+    }
     const parent = canvas?.rendered ?? canvas?.stage;
     if (!parent) return null;
 
@@ -2179,6 +2237,25 @@ function mountLayer() {
 
     placeLayer(parent, container);
     return container;
+}
+
+/**
+ * The fog layer taken off the canvas whole (E51 C3, 31.10.2026; audit S07-28, D43b = 1). A repaint that stands down
+ * hides the layer and keeps it (`hideLayer`), which is right for a scene it cannot draw this moment; with the setting
+ * off it stood there hidden for the rest of the session, and an arrival drew its outline and its curtain into it. Now
+ * the setting off takes it away, the outline and every overlay in it (`clearTransient`, `hideLayer`), and a repaint
+ * with the setting on mounts a new one (`mountLayer`).
+ */
+function tearDownLayer() {
+    const container = findLayer();
+    if (!container) return false;
+    endDissolves();
+    clearTransient();
+    // Its children freed, the backdrop dropped and the body's class taken off, as a stand-down does.
+    hideLayer();
+    container.parent?.removeChild(container);
+    if (!container.destroyed) container.destroy({ children: true });
+    return true;
 }
 
 /** Put the container directly beneath `canvas.interface`, or last if it is gone. */
@@ -2790,7 +2867,12 @@ export function repaintFog() {
         lastShading = null;
         doorRooms = null;
         if (!canvas?.ready) return stand(  "the canvas is not ready yet");
-        if (!fogEnabled())  return stand(  "the 'Rooms decide what players can see' setting is off");
+        if (!fogEnabled()) {
+            stand("the 'Rooms decide what players can see' setting is off");
+            // Not hidden but taken away (E51 C3; D43b = 1): no layer stands while the setting is off.
+            tearDownLayer();
+            return false;
+        }
 
         const scene = canvas.scene;
         if (!scene) return stand("there is no scene on the canvas");
@@ -4078,6 +4160,30 @@ async function onUpdateToken(tokenDoc, changes) {
 /** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
 async function reactToMove(tokenDoc) {
     count("fog.reactToMove");
+    ownArrival(tokenDoc);
+
+    // The write side: primary GM only, straight off the hook every client
+    // gets - see the header note on `recordDiscovery`.
+    if (!isPrimaryGm()) return;
+    try {
+        const actor = tokenDoc.actor;
+        if (!actor || actor.type !== "character") return;
+        const scene = tokenDoc.parent;
+        const room = roomOfToken(tokenDoc);
+        if (!room) return;
+        await recordDiscovery(scene, actor, room);
+    } catch (err) {
+        error("Could not record a room discovery", err);
+    }
+}
+
+/**
+ * The local half of a token's arrival: what THIS viewer's fog and arrival make of it, whoever moved it - and, since E51
+ * C3 (31.10.2026; audit S07-30), whoever placed it (the createToken hook in `registerFog`). With the room fog switched
+ * off the room set is still remembered, so the fog switched back on replays nothing; the repaint stands down and the
+ * arrival is silent (`announceRoom`, `playDiscoveryAnimation`; D43b = 1).
+ */
+function ownArrival(tokenDoc) {
     // Local half: MY view depends on where MY characters are standing right
     // now, whoever moved. Repainting here is what makes a player's own
     // crossing light their new room up instantly, rather than waiting on the
@@ -4120,20 +4226,6 @@ async function reactToMove(tokenDoc) {
         }
     } catch (err) {
         debug("Fog: could not react to an owned token's move", err);
-    }
-
-    // The write side: primary GM only, straight off the hook every client
-    // gets - see the header note on `recordDiscovery`.
-    if (!isPrimaryGm()) return;
-    try {
-        const actor = tokenDoc.actor;
-        if (!actor || actor.type !== "character") return;
-        const scene = tokenDoc.parent;
-        const room = roomOfToken(tokenDoc);
-        if (!room) return;
-        await recordDiscovery(scene, actor, room);
-    } catch (err) {
-        error("Could not record a room discovery", err);
     }
 }
 
@@ -4213,6 +4305,10 @@ function roomEnteredByMe(tokenDoc) {
  * `elevation`, its token's height (H81 fix r1; fog-reveal.mjs `flashOutline`).
  */
 function announceRoom(room, actor = null, elevation = null) {
+    /* THE ROOM FOG SWITCHED OFF IS SILENT (E51 C3, 31.10.2026; audit S07-28, the owner's D43b = 1: "everything goes
+       silent with the fog; the discovery ledger keeps recording for the projects"). No sound, no outline, no layer
+       mounted to draw one in. Asked before the sound, which is the arrival's own (below); the ledger is `reactToMove`'s. */
+    if (!fogEnabled()) return;
     // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
     // event; whether this client can draw the outline for it is a separate
     // question, and a scene without a usable region should not also go silent.
@@ -4295,6 +4391,8 @@ function fxLayer() {
 }
 
 function playDiscoveryAnimation(room, tokenDoc) {
+    // The room fog switched off is silent: no sound, no curtain, no outline (`announceRoom`'s note; D43b = 1).
+    if (!fogEnabled()) return;
     // Same rule as `announceRoom`: the sound belongs to the discovery, not to
     // this client's ability to animate it.
     playSfx("roomDiscovered");

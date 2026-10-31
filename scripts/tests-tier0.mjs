@@ -8285,7 +8285,7 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "out of scope as a judge: repaints and records a discovery on a move; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
-            ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
+            ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule; since E51 C3 a token of this viewer's own placed in a room plays the arrival a walk into it plays (`ownArrival`), on this browser alone"],
             ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateScene:inline", "out of scope: repaints this client's room tile when the trial hall's `hallRoom` flag changes (E79 C11); the paint reads `hallRoom` and decides no rule"],
@@ -9637,6 +9637,9 @@ const REGRESSIONS = [
          * the first); neither stands among the 21. What neither reads: an option taken by destructuring
          * (`const { teleport } = options`) or by a quoted key (`options["teleport"]`), and a name handed to a helper -
          * the audit's own test measures the audit's results (E79 C4).
+         * E51 C3 (31.10.2026) adds 1 HOOK: fog.mjs's updateWall listener, which draws the standing outline again by a
+         * door (`outlineAfterDoor`, R1114). Red without the row: that place unclassified (the quick gate at f2b503e7
+         * with the commit's edits).
          * Measured 14.10.2026 on C0's working tree (db6c51d and these files): this reader, run in Node on every
          * scripts/*.mjs outside the suite's own files (a probe kept with the plan, outside the repository), found the 21
          * roads against the 21 rows, none either side - the same 21 keys as the parse-only census at the same tree,
@@ -9654,7 +9657,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
-            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it"],
+            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -9719,6 +9722,8 @@ const REGRESSIONS = [
             ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
+            // ---- the standing outline drawn again by a door (E51 C3, E51-22)
+            ["HOOK fog.mjs#registerFog#updateWall/inline -> record", "no record, no copy: every browser, on its own screen only - a wall's `ds`, `door`, `move` or `c` changed draws the outline standing beside it again by `redrawOutline` (`outlineAfterDoor`), from what this browser holds, with no sound and no write (R1114); a passage's copy is read only through `doorwayEdges`, as the outline's own draw reads it (E51 C3)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); a deleted secret door's state goes with the wall (E80 fix r2-G9: it is a flag on the door, `DOOR_SET`)"],
             // ---- Foundry's secret doors (E80 C5, S16-17)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door - since E80 fix r2-G9 the flag `DOOR_SET` on the door, written with the GM's own change (`stampSecretDoor`) or here, as the put-back's own write, where the change came without it, and deleted when a GM makes the door an ordinary wall (R616); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
@@ -14148,6 +14153,9 @@ const REGRESSIONS = [
          * name's fade (`fadeLabel`) runs over `OUTLINE_MS`, a number of its own, 5400 - the name is read over
          * the room, it holds nothing shut, so it keeps 1.2.80's time. How long the token takes to come to rest
          * before this starts (movement.mjs `whenAtRest`) is not read here; whether it feels right: a table.
+         * E51 C3, 31.10.2026 (D43b = 1): the room fog switched off is silent, so the function's first statement is that
+         * question (`if (!fogEnabled()) return;`) and the sound is its second - read as the two first lines since then,
+         * where the sound alone was read before; with the fog on it still plays as the reveal starts.
          */
         const J = JSON.stringify;
         const R = await import("./fog-reveal.mjs");
@@ -14161,12 +14169,12 @@ const REGRESSIONS = [
         equal(J({
             parts: parts.every(n => Number.isFinite(n) && n > 0),
             opening: opening <= 450, whole: R.DISCOVERY_MS <= 1100,
-            sound: play.split("\n").slice(1).map(line => line.trim()).find(Boolean) ?? null,
+            sound: play.split("\n").slice(1).map(line => line.trim()).filter(Boolean).slice(0, 2),
             waits: /^async |\bawait\b|setTimeout|\bpause\(/.test(play),
             curtain: /duration:\s*DISCOVERY_MS\b/.test(play),
             name: [/duration:\s*OUTLINE_MS\b/.test(fade), /^const OUTLINE_MS = (\d+);/m.exec(reveal)?.[1] ?? null]
-        }), J({ parts: true, opening: true, whole: true, sound: 'playSfx("roomDiscovered");', waits: false, curtain: true, name: [true, "5400"] }),
-        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first statement; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
+        }), J({ parts: true, opening: true, whole: true, sound: ["if (!fogEnabled()) return;", 'playSfx("roomDiscovered");'], waits: false, curtain: true, name: [true, "5400"] }),
+        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first two statements, the fog's question and the sound; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
     }],
     ["R906 - the sheet's 'Known passages' and Experience stand in from the rail as the Equipped block's line does (H81-09): one rule gives what both sections hold under their heading the inline padding of `.drpg-equipped-empty`, and no other rule of the module's sheets gives either section or its content another", async () => {
         /*
@@ -16615,6 +16623,152 @@ const REGRESSIONS = [
         }), JSON.stringify({ pendingHeader: 0, outside: [], inBuilder: true, exported: true, classes: [], unbuilt: [], proceed: [] }),
             "[pendingHeader in call-pickers.mjs; a Call window opened outside callWindow; callWindow opens one; it is exported; a class it does not "
             + "name; a Call window that does not call it; a button labelled DRPG.Action.proceed]");
+    }],
+    ["R1113 - a doorway into a room the veto keeps shut does not glow (D43c = 2): movement.mjs `passageOpenFor` answers a door `{ door: true, to }` by `restrictedFrom` with no `via` - shut into a GM's lock and another's bedroom, open into the viewer's own bedroom, into another's on a GM's browser and for a Monokuma; fog-doorways.mjs `doorwayEdges` asks it for the room beyond each open stretch when it draws for a character, and an edge it says is shut is drawn as wall (E51 C3; E51-21, audit S07-29)", async () => {
+        /*
+         * E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2 ("no glow; the border looks like a wall; the predicate
+         * is the veto's"). The doorway glow and the outline's gaps were read off the walls and the doors alone
+         * (`doorwayEdges` -> `wallAlongEdge`, `nothingInTheWay`), so a room a GM locked, a sealed room or another's
+         * bedroom glowed as a way through that the veto then refused. Read here on a scene of plain objects (a Lab over
+         * a Hall, as R557's): the predicate's answers for a door (the suite runs on a GM's browser, so `mover` stands in
+         * for a player where the bedroom is asked), and the two sources with comments stripped. What a door then looks
+         * like on a player's browser is scenario 76's phase DV (the harness's polygons contain no point, so no doorway
+         * opens here; 76 gives them an inside test for the call). The seal is 76's alone: it is a world setting, and
+         * tier 0 writes nothing. Red at f2b503e7: `passageOpenFor` answered false for every door (it took only a
+         * passage's id), and `doorwayEdges` never called it.
+         */
+        const J = JSON.stringify;
+        const M = await import("./movement.mjs");
+        const { FLAGS, ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const R = await import("./rooms.mjs");
+        must(game.user.isGM, "the suite runs on a GM's browser - the bedroom's GM clause would measure a player's");
+        const region = (name, y, flags = {}) => ({ id: `R1113R${name}`, name: `R1113 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x: 0, y, width: 400, height: 400 }, shapes: [{ type: "rectangle", x: 0, y, width: 400, height: 400 }],
+            testPoint: p => p.x >= 0 && p.x <= 400 && p.y >= y && p.y <= y + 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (hall = {}) => {
+            const scene = { id: "R1113S", name: "R1113 scene", grid: { size: 100 }, levels: [], walls: [] };
+            const rooms = [region("Lab", 0), region("Hall", 400, hall)];
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            return scene;
+        };
+        const A = { id: "R1113A", name: "R1113 A", items: [], getFlag: () => undefined };
+        const MONO = { id: "R1113K", name: "R1113 Monokuma", items: [], getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined) };
+        const player = { gm: false, mastermind: false };
+        const door = { door: true, to: "R1113 Hall" }, from = "R1113 Lab";
+        const open = sceneWith(), locked = sceneWith({ [M.ROOM_FLAGS.locked]: true });
+        const theirs = sceneWith({ [ROOM_OWNER_FLAG]: "R1113B" }), mine = sceneWith({ [ROOM_OWNER_FLAG]: "R1113A" });
+        equal(J([
+            M.passageOpenFor(A, door, open, { from }),
+            M.passageOpenFor(A, door, locked, { from }),
+            M.passageOpenFor(A, door, theirs, { from, mover: player }),
+            M.passageOpenFor(A, door, mine, { from, mover: player }),
+            M.passageOpenFor(A, door, theirs, { from }),
+            M.passageOpenFor(MONO, door, locked, { from }),
+            M.passageOpenFor(A, { door: true, to: from }, locked, { from }),
+            M.passageOpenFor(A, { door: true, to: null }, locked, { from })
+        ]), J([true, false, false, true, true, true, true, true]),
+        "[a door into an open room, into a GM's lock, into another's bedroom for a player, into the viewer's own, into another's on a GM's browser, "
+            + "a Monokuma into the lock, a door into the room itself, a door into no room] - passageOpenFor");
+
+        const sources = await moduleSources();
+        const doorways = sources.get("fog-doorways.mjs"), movement = sources.get("movement.mjs");
+        must(doorways && movement, "fog-doorways.mjs or movement.mjs did not load - this test reads nothing");
+        const edges = stripComments(topLevelFunction(doorways, "doorwayEdges") ?? "");
+        const verdict = stripComments(topLevelFunction(movement, "passageOpenFor") ?? "");
+        must(edges.length > 500 && verdict.length > 200, "doorwayEdges or passageOpenFor was not found - this test reads nothing");
+        equal(J({
+            asks: /passageOpenFor\(\s*actor\s*,\s*\{\s*door:\s*true\s*,\s*to\b/.test(edges),
+            forACharacter: /if\s*\(\s*!actor\b/.test(edges),
+            joined: /isOpen\s*=\s*Boolean\(beyond\)[^;]*\bdoorOpen\(/.test(edges),
+            door: /passage\??\.door\s*===\s*true/.test(verdict),
+            veto: /!restrictedFrom\(\s*actor\s*,\s*to\s*,\s*scene\s*,\s*mover\s*\)/.test(verdict)
+        }), J({ asks: true, forACharacter: true, joined: true, door: true, veto: true }),
+        "[doorwayEdges asks passageOpenFor for a door into the room beyond; only when it draws for a character; the answer is part of a sample's "
+            + "isOpen; passageOpenFor reads a door; and answers it by restrictedFrom with no via]");
+    }],
+    ["R1114 - a door or a room's flag changed draws the standing outline again by fog.mjs `redrawOutline`, with no sound: one `updateWall` listener of fog.mjs's (`outlineAfterDoor`) and `regionChanged`'s `outlineAfterRoomFlag`, each calling `redrawOutline` and neither `playSfx` nor `flashOutline` (E51 C3; E51-22)", async () => {
+        /*
+         * E51 C3, 31.10.2026 (E51-22; the E79 plan's A10-9: E51's outline refresher takes `redrawOutline` over rather
+         * than writing a second, R560). The outline standing round the room a character is in was drawn on arrival and
+         * on a change of the passages only: a GM who opened or shut a door beside it, locked the room beyond or gave it
+         * an owner left a gap or a wall on screen that the map no longer had until the next arrival. Read: the
+         * listeners registered for `updateWall` (live, `Hooks.events`), fog.mjs's source with comments stripped -
+         * `registerFog` registers one listener that hands the wall to `outlineAfterDoor`, `regionChanged` calls
+         * `outlineAfterRoomFlag`, each of the two calls `redrawOutline` and neither plays a sound or draws an outline
+         * of its own. Which rooms a change touches is read by the two (a wall or a region within a square of the
+         * standing room's box); what is redrawn on screen is not read here (no renderer). Red at f2b503e7: no such
+         * listener and neither function.
+         */
+        const J = JSON.stringify;
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length > 10000, "fog.mjs did not load - this test reads nothing");
+        const register = topLevelFunction(fog, "registerFog") ?? "";
+        const door = topLevelFunction(fog, "outlineAfterDoor") ?? "";
+        const flag = topLevelFunction(fog, "outlineAfterRoomFlag") ?? "";
+        const changed = topLevelFunction(fog, "regionChanged") ?? "";
+        const listeners = (Hooks.events?.updateWall ?? []).filter(entry => /outlineAfterDoor/.test(String(entry.fn)));
+        equal(J({
+            listeners: listeners.length,
+            registered: (register.match(/Hooks\.on\(\s*"updateWall"[^;]*outlineAfterDoor\(/g) ?? []).length,
+            fromRegion: /outlineAfterRoomFlag\(\s*region\s*,\s*changes\s*\)/.test(changed),
+            redraws: [/\bredrawOutline\(/.test(door), /\bredrawOutline\(/.test(flag)],
+            sound: [/\bplaySfx\s*\(/.test(door), /\bplaySfx\s*\(/.test(flag)],
+            ownDraw: [/\bflashOutline\s*\(/.test(door), /\bflashOutline\s*\(/.test(flag)]
+        }), J({ listeners: 1, registered: 1, fromRegion: true, redraws: [true, true], sound: [false, false], ownDraw: [false, false] }),
+        "[updateWall listeners that hand the wall on; registerFog's registrations of it; regionChanged hands the change on; each redraws by redrawOutline; "
+            + "a sound in either; an outline drawn by either itself]");
+    }],
+    ["R1115 - the token ruler takes the hour's colour (amend 11.10): fog-doorways.mjs `hourRulerFor(Base)` overrides each of Base's ruler styles it finds with `outlineColour()` and keeps the rest of the style, adds none Base lacks, answers null for no class; `registerTokenRuler` sets it as `CONFIG.Token.rulerClass` from `registerFog`, and the body's observer that recolours the outline draws the rulers again (E51 C3; E51-23)", async () => {
+        /*
+         * E51 C3, 31.10.2026; the owner's report of 11.10 with screenshots: the token's movement line had Foundry's own
+         * colour (turquoise) and should have the hour's. No module code set it (git grep ruler, TokenRuler, waypoint at
+         * Base: nothing). The colour is the outline's (`outlineColour`: the hour's seam colour under Stained Glass, bone
+         * under Monokuma Legacy), read each time a style is asked, so a ruler drawn after the hour turns wears the new
+         * hour; one standing is drawn again by the observer of the body's hour attributes (registerFog), not off
+         * `drpgTimeOfDayChanged`, whose race with the attribute that file's note on the outline gives. Read on a class of
+         * this test's own with two of v13's style methods (`_getSegmentStyle`, `_getGridHighlightStyle`), and the
+         * sources with comments stripped. Whether v14's ruler draws the colour, and changes at the hour's turn, is
+         * LIVE-E51-02 (AUDIT 9.2 item 355): the harness has no TokenRuler. Red at f2b503e7: no `hourRulerFor`.
+         */
+        const J = JSON.stringify;
+        const D = await import("./fog-doorways.mjs");
+        must(typeof D.outlineColour === "function", "fog-doorways.mjs has no outlineColour - the colour it would be compared with");
+        const make = D.hourRulerFor;
+        const Base = class { constructor(token) { this.token = token; }
+            _getSegmentStyle(waypoint) { return { width: 4, color: 0x00ffee, alpha: 1, of: waypoint?.k ?? null }; }
+            _getGridHighlightStyle(waypoint, offset) { return { color: 0x00ffee, alpha: 0.3, offset }; } };
+        const Ruler = typeof make === "function" ? make(Base) : null;
+        const ruler = Ruler ? new Ruler("R1115 token") : null;
+        const hour = D.outlineColour();
+        equal(J({
+            made: typeof Ruler === "function" && ruler instanceof Base, name: Ruler?.name ?? null,
+            segment: ruler?._getSegmentStyle({ k: 1 }) ?? null,
+            highlight: ruler?._getGridHighlightStyle({ k: 2 }, { i: 1, j: 2 }) ?? null,
+            waypoint: typeof ruler?._getWaypointStyle === "function",
+            token: ruler?.token ?? null,
+            none: typeof make === "function" ? [make(null), make({})] : null
+        }), J({
+            made: true, name: "HourTokenRuler",
+            segment: { width: 4, color: hour, alpha: 1, of: 1 },
+            highlight: { color: hour, alpha: 0.3, offset: { i: 1, j: 2 } },
+            waypoint: false, token: "R1115 token", none: [null, null]
+        }), "[a subclass of Base, its name; the segment's style and the grid highlight's, the colour the outline's and the rest kept; a style Base has "
+            + "not added; the constructor's argument handed on; no class and an object]");
+
+        const sources = await moduleSources();
+        const doorways = stripComments(sources.get("fog-doorways.mjs") ?? ""), fog = stripComments(sources.get("fog.mjs") ?? "");
+        const register = topLevelFunction(doorways, "registerTokenRuler") ?? "";
+        const registerFog = topLevelFunction(fog, "registerFog") ?? "";
+        const observer = /new MutationObserver\(([\s\S]*?)\)\.observe\(document\.body/.exec(registerFog)?.[1] ?? "";
+        must(observer.length > 20, "registerFog's body observer was not found - this test reads nothing of it");
+        equal(J({
+            sets: /CONFIG\.Token\.rulerClass\s*=\s*\w+/.test(register) && /hourRulerFor\(/.test(register),
+            registered: /registerTokenRuler\(\)/.test(registerFog),
+            redrawn: [/recolourRoomOutline\(/.test(observer), /refreshTokenRulers\(/.test(observer)]
+        }), J({ sets: true, registered: true, redrawn: [true, true] }),
+        "[registerTokenRuler sets CONFIG.Token.rulerClass from hourRulerFor; registerFog calls it; the body's observer recolours the outline and draws the rulers again]");
     }],
 ];
 

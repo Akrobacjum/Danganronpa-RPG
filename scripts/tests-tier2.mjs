@@ -76263,6 +76263,146 @@ const SCENARIOS = [
             miss: { success: false, cards: 1, said: true, buttons: [] }
         }), "[per throw: the outcome; the GMs' Dynamic cards; one says the total and needed N; its buttons]");
     }],
+    ["E51-T9 - the room fog switched off is silent: a Monokuma placed and walked into another room plays no sound, mounts no layer and draws no outline, a student's walk is still recorded in the ledger, and the fog switched back on plays no burst for rooms already known (E51 C3; D43b = 1, E51-19, audit S07-28)", async () => {
+        /*
+         * E51 C3, 31.10.2026; audit S07-28, the owner's D43b = 1 ("everything goes silent with the fog; the discovery
+         * ledger keeps recording for the projects"). With "Rooms decide what players can see" off, a move still went
+         * through fog.mjs `reactToMove` to `announceRoom` / `playDiscoveryAnimation`, which played the room's sound
+         * first and mounted the fog layer to draw the outline and the curtain in (`fxLayer` -> `mountLayer`), and the
+         * layer a repaint stood down stayed on the canvas, hidden. On the primary GM, in a world the GM stores have
+         * never opened (so the ledger has a cell to write): both room sounds mapped and this browser's Sound slider
+         * above 0; the fog switched off; a token of the world's Monokuma placed in one room and walked into another (on
+         * a GM's browser the Monokuma is the piece whose rooms are this viewer's) and a student walked into a room of
+         * another; then the fog switched back on. Read: the sounds asked of the audio layer (`sfx.played` and
+         * `droppedBeforeFirstClick`, so a page not clicked yet counts too), whether the fog layer stands on the canvas,
+         * the outline standing, the student's cell, and what the fog last said. The scenes' vision, which the setting
+         * hands back to Foundry and takes again, is read before and put back where it differs. Red at f2b503e7 (the
+         * harness, 31.10.2026): one sound asked with the fog off (the walk's; a placed token played nothing then), the
+         * layer standing and the second room outlined; the ledger and the fog switched back on as expected.
+         */
+        needs(env.primaryGm(), "the student's walk is recorded on the primary GM");
+        needs(world.atLeast("sceneOnScreen"), "the walks are on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed for the walk");
+        needs(world.atLeast("namedRooms", 3), "the Monokuma is placed in one room and walked into another, neither its own");
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room walks into another");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const SFX = await import("./sfx.mjs");
+        const PC = await import("./perf-counters.mjs");
+        const E = await import("./gm-store.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - switching it off would measure nothing");
+        const scene = canvas.scene;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const student = scene.tokens.find(t => t.actor?.type === "character" && !isMonokuma(t.actor) && !isMastermind(t.actor) && M.roomOfToken(t));
+        must(mono && student, "no Monokuma, or no student standing in a room who is neither the Mastermind nor a Monokuma - this would measure nothing");
+        const own = F.myCurrentRooms();
+        const [first, second] = M.allRooms(scene).filter(room => !own.has(room));
+        const elsewhere = M.allRooms(scene).find(room => room !== M.roomOfToken(student));
+        const spot = M.positionIn(first, { parent: scene, width: 1, height: 1 });
+        must(first && second && elsewhere && spot, "no two rooms the Monokuma does not stand in, or no other room for the student - this would measure nothing");
+        const visionOf = () => Object.fromEntries(game.scenes.map(s => [s.id, foundry.utils.deepClone({ tokenVision: s._source.tokenVision ?? null,
+            fog: s._source.fog ?? null, light: s._source.environment?.globalLight?.enabled ?? null, before: s.getFlag(MODULE_ID, "visionBefore") ?? null })]));
+        const vision = visionOf();
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const volumes = foundry.utils.deepClone(getSetting(SETTINGS.sfxVolumes) ?? {});
+        const FILE = "sounds/notify.wav";
+        const asked = () => (PC.snapshot()["sfx.played"] ?? 0) + (SFX.diagnoseSfx().droppedBeforeFirstClick ?? 0);
+        const was = { x: student.x, y: student.y };
+        let placed = null, read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, roomEntered: FILE, roomDiscovered: FILE });
+            await SFX.setSfxVolume("sound", 0.8);
+            await E.withGmStoreWorld(`suite-e51t9-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.regionFog, false);
+                await until(() => /setting is off/.test(F.diagnoseFog().lastReason ?? ""), 4000);
+                await settle();
+                const before = asked();
+                [placed] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T9 Monokuma", actorId: mono.id, actorLink: true,
+                    x: spot.x, y: spot.y, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+                await settle();
+                await placed.update(M.positionIn(second, placed), PLACE);
+                await student.update(M.positionIn(elsewhere, student), PLACE);
+                await until(() => F.discoveredFor(scene.id, student.actorId).includes(elsewhere), 4000);
+                await settle();
+                const off = { sounds: asked() - before, layer: Boolean(FR.findLayer()), outline: FR.roomOutline?.room ?? null,
+                    ledger: F.discoveredFor(scene.id, student.actorId).includes(elsewhere), said: /setting is off/.test(F.diagnoseFog().lastReason ?? "") };
+                const again = asked();
+                await game.settings.set(MODULE_ID, SETTINGS.regionFog, true);
+                await until(() => !/setting is off/.test(F.diagnoseFog().lastReason ?? ""), 4000);
+                await settle();
+                read = { off, on: { sounds: asked() - again, said: !/setting is off/.test(F.diagnoseFog().lastReason ?? "") } };
+                await student.update(was, PLACE);
+                await settle();
+            });
+        } finally {
+            if (!F.fogEnabled()) await game.settings.set(MODULE_ID, SETTINGS.regionFog, true);
+            if (placed && scene.tokens.get(placed.id)) await placed.delete();
+            if (student.x !== was.x || student.y !== was.y) await student.update(was, PLACE);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+            await game.settings.set(MODULE_ID, SETTINGS.sfxVolumes, volumes);
+            await settle();
+            const now = visionOf();
+            for (const s of game.scenes) {
+                const a = vision[s.id], b = now[s.id];
+                if (!a || stableJson(a) === stableJson(b)) continue;
+                await s.update({ tokenVision: a.tokenVision, fog: a.fog, "environment.globalLight.enabled": a.light });
+                if (a.before === null) { if (s.getFlag(MODULE_ID, "visionBefore") !== undefined) await s.unsetFlag(MODULE_ID, "visionBefore"); }
+                else await s.setFlag(MODULE_ID, "visionBefore", a.before);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ off: { sounds: 0, layer: false, outline: null, ledger: true, said: true }, on: { sounds: 0, said: true } }),
+            "[the fog off: the sounds asked by the placing and the walks, the fog layer on the canvas, the outline standing, the student's walk in the "
+            + "ledger, the fog saying it is off | switched back on: the sounds asked, the fog no longer saying it is off]");
+    }],
+    ["E51-T10 - a token placed in a room arrives as a walk into it does: on a GM's browser a Monokuma's token dropped into a room it does not stand in outlines that room at once, and a step inside it after draws nothing again (E51 C3; E51-20, audit S07-30)", async () => {
+        /*
+         * E51 C3, 31.10.2026; audit S07-30. The createToken hook remembered the room for the fog, repainted and seeded
+         * the ledger, but ran nothing of the arrival a move runs (fog.mjs `reactToMove`'s own half) and set no
+         * `lastMineSignature`: a token placed in a room was not announced, a player's room stayed as the fog had it until
+         * the token moved, and that first step inside the room then played the arrival. Here, on a GM's browser, where
+         * the rooms this viewer stands in are the Monokuma's: a token of the world's Monokuma created in a room no
+         * Monokuma stands in, then stepped half a square inside it. Read: the outline standing after the placing (the
+         * arrival's mark: `announceRoom` draws it for a room already known, which every room is to a GM) and whether a
+         * step inside the room drew it again (a new outline is a second arrival). A player's own token placed - the
+         * reveal of a room not found yet - is scenario 86's phase "a placed token". Red at f2b503e7: no outline of the
+         * room after the placing, and the step drew one.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the token is placed on the scene on screen");
+        needs(world.atLeast("monokumas"), "a token of the world's Monokuma is placed");
+        needs(world.atLeast("namedRooms", 2), "a room no Monokuma stands in");
+        const F = await import("./fog.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const M = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - the arrival is the fog's, and this would measure nothing");
+        const scene = canvas.scene;
+        const mono = game.actors.find(a => a.type === "character" && isMonokuma(a));
+        const room = M.allRooms(scene).find(r => !F.myCurrentRooms().has(r));
+        const spot = room ? M.positionIn(room, { parent: scene, width: 1, height: 1 }) : null;
+        must(mono && room && spot, "no Monokuma, or no room with a place no Monokuma stands in - this would measure nothing");
+        let placed = null, read = null;
+        try {
+            [placed] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE E51-T10 Monokuma", actorId: mono.id, actorLink: true,
+                x: spot.x, y: spot.y, width: 1, height: 1, hidden: false, texture: { src: mono.prototypeToken?.texture?.src ?? "icons/svg/mystery-man.svg" } }]);
+            await until(() => FR.roomOutline?.room === room, 2000);
+            const standing = FR.roomOutline;
+            const outlined = standing?.room ?? null;
+            await placed.update({ x: spot.x + (canvas.grid?.size ?? 100) / 2 }, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+            await settle();
+            read = { outlined, inside: M.roomOfToken(placed) === room, again: FR.roomOutline !== standing };
+        } finally {
+            if (placed && scene.tokens.get(placed.id)) await placed.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ outlined: room, inside: true, again: false }),
+            `[the room outlined after the Monokuma's token was placed in ${room}; the step stayed inside it; the step drew the outline again]`);
+    }],
     ...GRID
 ];
 

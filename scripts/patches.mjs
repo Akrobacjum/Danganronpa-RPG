@@ -568,6 +568,23 @@ export const PATCHES = [
         }
     },
     {
+        id: "token-ruler",
+        kind: "override",
+        target: "CONFIG.Token.rulerClass",
+        owner: "foundry",
+        file: "fog-doorways.mjs",
+        symbol: "registerTokenRuler",
+        why: "The line a token's move draws wears the hour's colour, the room outline's (E51 C3; the owner's report of 11.10).",
+        when: "always, from init",
+        fallback: "no ruler class there: a token's ruler keeps Foundry's colour",
+        probe: () => {
+            const Ruler = CONFIG.Token?.rulerClass;
+            // No class is a Foundry (or the harness) with no token ruler to colour: unknown, never failed (LIVE-E51-02).
+            if (typeof Ruler !== "function") return { present: null, ours: null, state: "unknown", note: "no token ruler class here" };
+            return { present: true, ours: Ruler.name === "HourTokenRuler" };
+        }
+    },
+    {
         id: "actions-resource",
         kind: "override",
         target: "CONFIG.DH.RESOURCE.character: custom and all (the Actions resource)",

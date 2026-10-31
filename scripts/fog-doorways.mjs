@@ -32,7 +32,9 @@
  * secret passage of its floor runs in a wall (`gmPassageGaps`, `withPassageGhosts`, `traceGhostStretches`), read from
  * the GMs' rows (passages.mjs `secretSegmentsOn`). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
- * was written beside.
+ * was written beside. Since E51 C3 (31.10.2026) every door the outline opens is asked of the veto for the character
+ * it is drawn for (`doorwayEdges`, movement.mjs `passageOpenFor`), and the token ruler wears the outline's colour
+ * (`hourRulerFor`, `registerTokenRuler`, `refreshTokenRulers`): its lowest reader of the seam colour.
  */
 
 import { debug } from "./utils.mjs";
@@ -521,6 +523,11 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * the test as they were, so the outline is the map's (R557 compares the two); a GM's frame is cut by every passage
  * outside this, on these edges (`withPassageGhosts`, H82-05), so the map's checks still read the map. `elevation` is the height of the
  * token the outline is drawn for, at which a passage's sides are read (`viewerPassages`; H81 fix r1).
+ *
+ * AND EVERY DOOR IS THE VETO'S (E51 C3, 31.10.2026; D43c = 2). For `actor`, on any browser, a stretch open to the walls
+ * stays open only where movement.mjs `passageOpenFor` lets that character into the room beyond (`{ door: true, to }`):
+ * a door into a room a GM locked, a sealed one or another's bedroom is drawn as wall, with no gap and no glow. No actor
+ * reads the walls alone, as before (R1113; scenario 76 DV).
  */
 export function doorwayEdges(region, level = null, { actor = null, elevation = null } = {}) {
     try {
@@ -540,11 +547,26 @@ export function doorwayEdges(region, level = null, { actor = null, elevation = n
         const own = rings.map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
-        const others = [];
+        const others = [], otherNames = [];
         for (const other of roomPieces(scene)) {
             if (other.name === region.name || !onLevel(other, level)) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
+            otherNames.push(other.name);
         }
+
+        /* THE VETO'S OWN ANSWER AT EVERY DOOR (E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2). Drawn for a
+           character, a stretch open to the walls is open only into a room movement.mjs `passageOpenFor` lets that
+           character walk into - not a room a GM locked, a sealed one or another's bedroom without its key (a GM's
+           browser asks no bedroom there). A shut one is drawn as the wall the veto makes it: no gap, no glow. Asked once
+           a room beyond, on this floor, at the token's height. No character - the map's checks, `doorwayReport` - reads
+           the map as it was. */
+        const verdicts = new Map();
+        const doorOpen = to => {
+            if (!actor || !to) return true;
+            if (!verdicts.has(to)) verdicts.set(to, passageOpenFor(actor, { door: true, to }, scene, { from: region.name, level, elevation }));
+            return verdicts.get(to);
+        };
+        const roomAt = point => (point ? otherNames[others.findIndex(p => inPolygons(p, point.x, point.y))] ?? null : null);
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
@@ -644,6 +666,8 @@ export function doorwayEdges(region, level = null, { actor = null, elevation = n
                                 : neighbourBeyond(mx, my, nx, ny, others, reach);
 
                             isOpen = Boolean(beyond)
+                                // A door the veto shuts for this character is a wall to it (D43c = 2).
+                                && doorOpen(roomAt(beyond))
                                 // Is there a wall running along this stretch?
                                 // Asked of the walls themselves, so the answer
                                 // no longer depends on how far from the wall the
@@ -1600,4 +1624,58 @@ export function outlineColour() {
     return document.body.classList.contains("drpg-theme-stained-glass")
         ? accentColour(bone)
         : bone;
+}
+
+/* ==========================================================================
+ * THE TOKEN RULER, IN THE HOUR'S COLOUR (E51 C3, 31.10.2026)
+ * --------------------------------------------------------------------------
+ * The owner's report of 11.10 with screenshots: the line a token's move draws had Foundry's own colour (turquoise)
+ * and should have the hour's. No code of the module's touched it (git grep ruler, TokenRuler, waypoint at 1.2.92:
+ * nothing). So the ruler class Foundry draws a token's path with (`CONFIG.Token.rulerClass`, v13's TokenRuler) is
+ * given a subclass at init whose styles take `outlineColour()` - the seam colour the room outline and the doorway glow
+ * wear, the hour's under Stained Glass and bone under Monokuma Legacy - and keep the rest of Foundry's style (width,
+ * alpha). Read each time a style is asked, so a ruler drawn after the hour turns wears the new hour; a ruler standing
+ * at the turn is drawn again by `refreshTokenRulers`, from the body's observer that recolours the outline (fog.mjs
+ * `registerFog`), which sees the hour's attribute itself - not off `drpgTimeOfDayChanged`, which can be heard before
+ * the attribute is written (the race that observer's note gives). Only the styles the class has are taken over; a
+ * build whose ruler has none of them keeps Foundry's colour. Which styles v14's ruler asks, whether the colour reaches
+ * the drawn line and whether it changes at the hour's turn is LIVE-E51-02 (AUDIT 9.2 item 355): the harness has no
+ * ruler. R1115 reads it on a class of its own; patches.mjs's row "token-ruler" is the contract's.
+ */
+const RULER_STYLES = ["_getSegmentStyle", "_getGridHighlightStyle", "_getWaypointStyle"];
+
+/** A ruler style of Foundry's in the hour's colour: the style handed back with its `color` replaced, anything else as it came. */
+const inTheHour = style => (style && typeof style === "object" ? { ...style, color: outlineColour() } : style);
+
+/** The token ruler over `Base` whose styles wear the hour's colour, or null where `Base` is no class. Exported for R1115. */
+export function hourRulerFor(Base) {
+    if (typeof Base !== "function") return null;
+    class HourTokenRuler extends Base {
+        _getSegmentStyle(...args) { return inTheHour(super._getSegmentStyle(...args)); }
+        _getGridHighlightStyle(...args) { return inTheHour(super._getGridHighlightStyle(...args)); }
+        _getWaypointStyle(...args) { return inTheHour(super._getWaypointStyle(...args)); }
+    }
+    // A style Foundry's class does not have is not one it asks: left out, never added with nothing under it.
+    for (const name of RULER_STYLES) if (typeof Base.prototype?.[name] !== "function") delete HourTokenRuler.prototype[name];
+    return HourTokenRuler;
+}
+
+/** At init, from fog.mjs `registerFog`: Foundry's token ruler class taken over by `hourRulerFor`, once. */
+export function registerTokenRuler() {
+    const Base = CONFIG.Token?.rulerClass;
+    if (typeof Base !== "function") return debug("Fog: Foundry offers no token ruler class here, so a token's ruler keeps Foundry's colour.");
+    if (Base.name === "HourTokenRuler") return;
+    CONFIG.Token.rulerClass = hourRulerFor(Base);
+}
+
+/**
+ * The rulers on screen drawn again, so a path standing at the hour's turn takes the new colour: each token whose
+ * ruler is shown, by Foundry's own render flag for it where the token class has one (`refreshRuler`, read off
+ * `RENDER_FLAGS`, never guessed). A token with no ruler shown is not touched.
+ */
+export function refreshTokenRulers() {
+    for (const token of canvas?.tokens?.placeables ?? []) {
+        if (!token?.ruler?.visible || !token.constructor?.RENDER_FLAGS?.refreshRuler) continue;
+        try { token.renderFlags.set({ refreshRuler: true }); } catch (err) { debug("Fog: could not draw a token's ruler again", err); }
+    }
 }

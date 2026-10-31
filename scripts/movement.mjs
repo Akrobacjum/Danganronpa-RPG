@@ -2084,8 +2084,24 @@ export function passesThrough(actor, from, to, scene, floors = null, { mover = n
  * it over (the E79 plan's A10-9); R560 holds that it is written once. `known` is the suite's (R557). `elevation`
  * is the viewer's token's height, where `from` was read, for a passage in a wall (H81 fix r1, `passageRooms`' note);
  * a tunnel's ends are read at their floors' bottoms here, which end is the viewer's being no question this answers.
+ *
+ * EVERY DOOR, NOT ONLY A SECRET ONE (E51 C3, 31.10.2026; audit S07-29, the owner's D43c = 2: "no glow; the border looks
+ * like a wall; the predicate is the veto's"). `{ door: true, to }` is a stretch of `from`'s border that no wall closes,
+ * into the room `to` - what fog-doorways.mjs `doorwayEdges` finds beyond each open sample, asked for the character the
+ * outline is drawn for. Open when the rules that stop a walk into `to` stop none: `restrictedFrom` with no `via`, so
+ * the chain, a GM's lock and a seal shut it (never for the Mastermind) and so does another's bedroom without its key
+ * (never on a GM's browser or for `mover.gm`). A Monokuma passes every door, as `crossingVerdict` lets it through; a
+ * door into `from` itself or into no room is not this predicate's to shut. Not asked here: the incident's lock, the
+ * courtroom, the Eclipse's count and the price - a crossing's rules (`crossingVerdict`), none of them a door of the map.
+ * Until C3 the glow and the outline's gaps read the walls and the doors alone, and a locked room, a sealed one or
+ * another's bedroom glowed as a way through the veto then refused (R1113; scenario 76 DV).
  */
 export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known, elevation = null } = {}) {
+    if (passage?.door === true && scene?.id) {
+        const to = passage.to ?? null;
+        if (!to || to === from || actor?.getFlag?.(MODULE_ID, FLAGS.monokuma)) return true;
+        return !restrictedFrom(actor, to, scene, mover);
+    }
     if (!passage?.id || !scene?.id) return false;
     /* A tunnel (E80 C1): known among the tunnels of the scene, and the room at an end other than `from` open to the
        character by the same rules - the bedroom passed, as through a passage (design A10 Q1 = b). */
