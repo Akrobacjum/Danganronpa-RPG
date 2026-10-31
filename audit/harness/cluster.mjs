@@ -374,7 +374,12 @@ function closeClients(ms) {
     });
 }
 
-function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null, holdLoading = false, modulesOff = null } = {}) {
+/* A SERVER WHOSE CLOCK IS ITS UPTIME, FOR THE WHOLE RUN (E90, 31.10.2026): DRPG_SERVER_UPTIME_MS gives every client's
+   `game.time.serverTime` as the uptime of one server that had run that long when this cluster started (client-entry.mjs
+   DRPG_SERVER_STARTED_AT); a client's own `serverUptimeMs` (`connect`) is a server started again, read from its connect. */
+const SERVER_STARTED_AT = Number(process.env.DRPG_SERVER_UPTIME_MS) > 0 ? Date.now() - Number(process.env.DRPG_SERVER_UPTIME_MS) : null;
+
+function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
     /* A GM WHO JOINS LATE (E04, 26.09.2026). `world` is the `game.world.id` this client
        reports (the same browser opening another world on one server), `storage` what
        its localStorage holds before the module loads (a browser that has been here
@@ -387,6 +392,9 @@ function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = 
     delete env.DRPG_WORLD;
     delete env.DRPG_CLOCK_SKEW_MS;
     delete env.DRPG_MODULES_OFF;
+    delete env.DRPG_SERVER_STARTED_AT;
+    const serverStartedAt = Number(serverUptimeMs) > 0 ? Date.now() - Number(serverUptimeMs) : SERVER_STARTED_AT;
+    if (serverStartedAt) env.DRPG_SERVER_STARTED_AT = String(serverStartedAt);
     if (world) env.DRPG_WORLD = String(world);
     if (modulesOff?.length) env.DRPG_MODULES_OFF = [...modulesOff].join(",");
     if (clockSkewMs) env.DRPG_CLOCK_SKEW_MS = String(Number(clockSkewMs));
@@ -606,7 +614,7 @@ const lateAccounts = new Map();
  * only warns there (lib/shim.mjs `Scene#view`). In Foundry the draw comes before `ready`; here it
  * comes after, as every client of the harness has always booted.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null, serverUptimeMs = null } = {}) {
     const account = lateAccounts.get(who);
     if (!account) throw new Error(`${who} is not an account declared late: true`);
     const existing = clients.get(who);
@@ -614,7 +622,7 @@ async function connect(who, { storage = null, world = null, clockSkewMs = null, 
     const rec = userRec(account.id);
     if (rec) rec.active = true;
     if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
-    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff });
+    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff, serverUptimeMs });
     entry.announceFirst = announceFirst;
     if (holdLoading) {
         const info = await Promise.race([entry.held, entry.ready]);

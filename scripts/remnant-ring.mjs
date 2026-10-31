@@ -36,6 +36,8 @@ import { myBulletForRemnant } from "./visibility.mjs";
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
+// The ledger's key, for the repaint after a change to it (E90). utils.mjs imports settings.mjs already: no new cycle.
+import { SETTINGS } from "./settings.mjs";
 import { glassOn as motionGlassOn } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
@@ -123,6 +125,28 @@ export function registerRemnantRings() {
         // refresh that follows it already will.
         if (changes.flags?.[MODULE_ID]) doc.object && paint(doc.object);
     });
+
+    /* A RING THAT MISSED ITS ROW OR ITS SIGHT IS PAINTED AGAIN (E90, 31.10.2026). A trace's frame is its row's type
+       (`frameFor`), and a token is framed only while it is visible. Until 1.2.91 every `sightRefresh` flagged every
+       token (visibility.mjs `applyAll`), and the refresh that followed drew whatever ring a token lacked; E89 C4
+       (c2fd2931) made that one pass that flags only a token visibility.mjs hid, so on a GM, which hides nothing, no
+       refresh followed at all. Measured headless at 1.2.92 (probe of 31.10.2026): a trace's ring taken away and a
+       `sightRefresh` - remnantRing.rebuilt 0 and no ring; at 1.2.90, 6 refreshes and the ring back. And a ledger write
+       nudges the icons alone (remnant-icons.mjs `repaintRemnants`, which reads that a trace is created first and
+       recorded second): tier 2 E90-T3 at 248e798e, a type written into the store left the ring in the old type's colour,
+       the row dropped left it standing, and a token shown again wore it hidden. So nothing drew the ring of a trace whose
+       first paint came before its row (its own placement, a row from another GM merged after the token arrived) or while
+       it was hidden. Two passes now, each once on the next frame and only over the tokens that can need one:
+       after a change to the ledger, every Remnant token, through `paint` with the refresh's own rule (kept where its
+       frame key stands, drawn where it changed, hidden where its row is gone); after `sightRefresh`, only a Remnant or
+       a project token that is visible and has no visible ring drawn - not `ringKept`, which a light left live beside a
+       renderer never satisfies and which would draw those again on every frame of a slide (fog-reveal.mjs). A trace
+       whose row this browser does not hold is passed over until the ledger changes (`noFrameFor`), so a slide does not
+       read its row on each frame. Tier 2 E90-T3; scenario 86's counters. */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) { ledgerGen++; ringPassNextFrame("ledger"); }
+    });
+    Hooks.on("sightRefresh", () => ringPassNextFrame("sight"));
 
     // ONE hook only - ApplicationV2 fires a render hook for every class in the
     // inheritance chain, so listening to the concrete sheet as well runs this
@@ -424,6 +448,53 @@ function repaintAll() {
     for (const token of canvas?.tokens?.placeables ?? []) paint(token);
 }
 
+/* The ledger's changes heard on this browser (E90): a trace painted with no row is passed over by the sight pass until
+   the next one (`token.drpgRingNoFrame`). */
+let ledgerGen = 0;
+let ringPass = { frame: 0, ledger: false };
+
+function ringPassNextFrame(why) {
+    if (why === "ledger") ringPass.ledger = true;
+    if (ringPass.frame) return;
+    ringPass.frame = requestAnimationFrame(() => {
+        const ledger = ringPass.ledger;
+        ringPass = { frame: 0, ledger: false };
+        try { ringPassNow({ ledger }); } catch (err) { debug("Could not repaint the Remnant rings after a change", err); }
+    });
+}
+
+/** Whether a token wears a ring drawn and shown: what the sight pass leaves alone (E90). */
+function ringShown(token) {
+    const ring = token?.[RING_NAME];
+    return Boolean(ring && !ring.destroyed && ring.visible && ring.drpgRingKey);
+}
+
+/**
+ * The pass of `ringPassNextFrame` (E90): with `ledger`, every Remnant token painted by the refresh's rule; otherwise
+ * each visible Remnant or project token with no ring shown, a trace this browser holds no row for since the last
+ * ledger change passed over. Exported for the suite (E90-T3), which runs it on the canvas on screen. Answers how many
+ * tokens it painted.
+ */
+export function ringPassNow({ ledger = false, placeables = canvas?.tokens?.placeables ?? [] } = {}) {
+    count(ledger ? "remnantRing.ledgerPass" : "remnantRing.sightPass");
+    let painted = 0;
+    for (const token of placeables) {
+        const doc = token?.document;
+        if (!doc || token.destroyed) continue;
+        const isRemnant = doc.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant);
+        if (ledger) {
+            if (!isRemnant) continue;
+        } else {
+            if (!token.visible || ringShown(token)) continue;
+            if (isRemnant ? token.drpgRingNoFrame === ledgerGen : !projectIdOf(doc)) continue;
+        }
+        paint(token, {});
+        painted++;
+    }
+    count("remnantRing.passPainted", painted);
+    return painted;
+}
+
 /**
  * The ring's two pieces, made once and kept.
  *
@@ -504,6 +575,8 @@ function paint(token, flags) {
         if (colour == null) {
             count("remnantRing.skipped");
             if (existing) existing.visible = false;
+            // No row here to frame it by: the sight pass waits for the ledger's next change (E90, `ringPassNow`).
+            token.drpgRingNoFrame = ledgerGen;
             return;
         }
 

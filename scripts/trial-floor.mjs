@@ -49,7 +49,7 @@
  * within one second of the GM.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { cubVoice } from "./voice.mjs";
@@ -141,6 +141,33 @@ export function presentRefusal(floor, actorId, { nameOf = id => game.actors.get(
         : only;
 }
 
+/* The start each stale floor was first met at on this browser (E90): one reading per stored value, so every read of
+   one floor agrees until the primary writes it (`rebaseStaleFloor`). */
+const staleStarts = new Map();
+
+/** A floor's `startedAt` as `trialFloor` hands it on: as stored, or for one on the uptime clock the moment it was met. */
+function floorStart(startedAt) {
+    const now = serverNow();
+    if (!staleStamp(startedAt, now)) return startedAt;
+    if (!staleStarts.has(startedAt)) staleStarts.set(startedAt, now);
+    return staleStarts.get(startedAt);
+}
+
+/** Whether the stored floor's start is on the uptime clock (E90). */
+function staleFloorStart() {
+    const stored = game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {};
+    return Boolean(stored.active) && staleStamp(stored.startedAt, serverNow());
+}
+
+/**
+ * The primary's write of a stale start as `trialFloor` reads it (E90): in a step of the floor's key, the floor read
+ * again there. Answers the floor written, or null when there was nothing to write. Exported for the suite (E90-T2).
+ */
+export async function rebaseStaleFloor() {
+    if (!isPrimaryGm()) return null;
+    return serialWrite(SEIZE_KEY, () => (staleFloorStart() ? writeFloor({ startedAt: trialFloor().startedAt }) : null));
+}
+
 /**
  * The floor state, or `null` when the trial is not in session.
  *
@@ -156,6 +183,15 @@ export function presentRefusal(floor, actorId, { nameOf = id => game.actors.get(
  * "discussion" until the word was fixed, and a world saved mid-trial still
  * holds that string, so it is read here as what it always meant. One line,
  * and it is the only place any reader could meet the old spelling.
+ *
+ * AND A START ON THE UPTIME CLOCK IS READ AS NOW (E90, 31.10.2026). Until 1.2.93 the
+ * floor's `startedAt` was `game.time.serverTime`, which on The Forge is the server's
+ * uptime (config.mjs `epochClock`): read against the epoch clock a running Objection was
+ * 56 years over, and the primary's heartbeat would have moved it on at its first tick. How
+ * long the mode had run is known on no clock, so a start under the floor reads as the
+ * moment this browser first met it (`floorStart`), the whole mode still to run, and the
+ * primary writes that start into the floor at its next tick (`rebaseStaleFloor`), after
+ * which every browser reads one start again. Tier 1 R1565, tier 2 E90-T2.
  */
 export function trialFloor() {
     const stored = game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {};
@@ -163,6 +199,7 @@ export function trialFloor() {
 
     return {
         ...stored,
+        startedAt: floorStart(stored.startedAt),
         mode: stored.mode === "discussion" ? FLOOR_MODES.debate
             : stored.mode ?? FLOOR_MODES.debate,
         holderId: stored.holderId ?? null,
@@ -1383,6 +1420,10 @@ async function advanceIfDue() {
     if (advancing) return;
     const floor = trialFloor();
     if (!floor || !isPrimaryGm()) return;
+    if (staleFloorStart()) {
+        await rebaseStaleFloor().catch(err => error("Could not write the trial floor's start on the server's clock", err));
+        return;
+    }
     if (!isDue(floor)) return;
 
     advancing = true;
