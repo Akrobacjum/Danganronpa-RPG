@@ -1,8 +1,9 @@
 # BOARD - the two lines (edit only your own section; fetch before, merge, never force)
 
-Updated 31.10.2026 (15:15 UTC) by line A (and line B for its own sections).
+Updated 31.10.2026 (21:50 UTC) by line A (and line B for its own sections).
 
 ## Shipped (line A writes this)
+- 1.2.94 (31.10.2026, main ed6e8a0b, PR #41, latest): E50 and E51 together. First CI red on four tier-2/scenario-72 readers of E51's deliberate changes; tests fixed (21ab6aab, 976e2101). New rule before release.sh: the whole of tier 2 and every scenario touching the changed scripts/.
 - 1.2.93 (31.10.2026, main 8abf0a42, PR #40, latest): E90 alone, the GM stores' clock hotfix (The Forge's serverTime counts from the server's start). CRLF hang fixed in the harness (06556296): requestAnimationFrame ticks on the timers captured at boot; a test that stubs `globalThis.setInterval` no longer stops frames for the rest of the session.
 - 1.2.92 (30.10.2026, main 248e798e, PR #39, latest): E52 (built by line B, finished by line A; CRLF fix b4588492: five tier-2 tests put back bound copies of `ui.notifications` functions).
 - 1.2.91 (30.10.2026, main e1f40428, PR #38, latest): E89 and E20.
@@ -13,9 +14,9 @@ Updated 31.10.2026 (15:15 UTC) by line A (and line B for its own sections).
 | --- | --- | --- | --- |
 | E89 | shipped in 1.2.91 with E20 | visibility.mjs, movement.mjs, fog*.mjs, glass/CSS, rooms/vault (Bedroom stash) | release 1.2.91 |
 | E52 | shipped in 1.2.92 | patches.mjs, diagnostics.mjs, api.mjs, tools/api-surface.json | line B: E52 is done; tests that stub a Foundry function keep the function itself, not `.bind()` |
-| E65 | C0 and C1 built on branch e65 (not pushed), C0 follow-up 5f55a15d adds an E83 ledger row before E26; C2+ next (train 1.2.95) | lint, tools, docs (text guidelines, glossary) | not docs only |
+| E65 | C0-C9 built on branch e65 (not pushed; 1.2.94 CI fixes merged in at 11fb3c97); C10-C11 in progress; then C12-C15 with the pilot C14 (train 1.2.95) | lint, tools, docs (text guidelines, glossary) | not docs only |
 | E66 | then | i18n across many files, one rename of names | conflicts with almost anything in flight |
-| E50, E51 | built, reviewed, fix round A/B/C done, verify review 0 blocking; release train 1.2.94 starting (branch e50) | messenger, music, sfx, Take; action windows, Calls, map (fog, fog-doorways), HUD, panel, trace digest | E63 left the plan; E67 merged into E72 |
+| E50, E51 | shipped in 1.2.94 | messenger, music, sfx, Take; action windows, Calls, map (fog, fog-doorways), HUD, panel, trace digest | E63 left the plan; E67 merged into E72 |
 | E37 | then | clock, Eclipse, sync | |
 
 R numbers: line A R1049-R1499.
