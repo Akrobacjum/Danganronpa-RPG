@@ -147,9 +147,44 @@ for (const k of ["HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTe
     Object.defineProperty(HE, Symbol.hasInstance, { configurable: true,
         value(v) { return plain.call(this, v) || (this === HE && plain.call(dom.window.HTMLFormElement, v)); } });
 }
-if (!globalThis.requestAnimationFrame) {
-    globalThis.requestAnimationFrame = fn => setTimeout(() => fn(performance.now()), 16);
-    globalThis.cancelAnimationFrame = id => clearTimeout(id);
+/*
+ * A FRAME THAT NO STUBBED setInterval CAN STOP (31.10.2026; the 1.2.93 crlf hang). jsdom's `requestAnimationFrame`
+ * (pretendToBeVisual) starts its 60 Hz tick with the free `setInterval` of Node's global, read at the moment the first
+ * outstanding frame is asked for, and starts no other while any frame is outstanding. Tier 2's E70-T9 holds the trial
+ * heartbeat with `globalThis.setInterval = () => 0` for several seconds, and the glass pulse asks a frame every frame:
+ * the frame asked inside that window got the stub's 0, never fired, and every frame after it waited behind it, on that
+ * client, for the rest of the session. A browser's frames do not read `window.setInterval`. Measured headless on
+ * 3053d9f7 (scratch probe, 31.10.2026): a frame fired at boot and after E90-T3, and not after E70-T9 (2 s bound, glass
+ * pulse frames 13/s before, 0 after), at v1.2.92 too; E90-T3 run after it never returned (240 s bound), and the
+ * unsharded tier 2 stalled there at position 1123 of 1182. So the frames tick on the timers this file found at boot.
+ */
+{
+    const tick = globalThis.setInterval, untick = globalThis.clearInterval, nowMs = () => performance.now();
+    const frames = new Map();
+    let seq = 0, ticking = null;
+    const runFrames = () => {
+        const now = nowMs();
+        for (const handle of [...frames.keys()]) {
+            const fn = frames.get(handle);
+            if (!fn) continue;
+            frames.delete(handle);
+            try { fn(now); } catch (err) { recordError("requestAnimationFrame", err); logLine(`requestAnimationFrame callback threw: ${err?.stack ?? err}`); }
+        }
+        if (!frames.size && ticking !== null) { untick(ticking); ticking = null; }
+    };
+    const requestFrame = function (fn) {
+        if (typeof fn !== "function") throw new TypeError("requestAnimationFrame: the callback is not a function");
+        const handle = ++seq;
+        frames.set(handle, fn);
+        if (ticking === null) ticking = tick(runFrames, 1000 / 60);
+        return handle;
+    };
+    const cancelFrame = function (handle) {
+        frames.delete(Number(handle));
+        if (!frames.size && ticking !== null) { untick(ticking); ticking = null; }
+    };
+    globalThis.requestAnimationFrame = dom.window.requestAnimationFrame = requestFrame;
+    globalThis.cancelAnimationFrame = dom.window.cancelAnimationFrame = cancelFrame;
 }
 /*
  * A WINDOW'S OWN FUNCTIONS REFUSE ANY OTHER RECEIVER, as a browser's do (14.10.2026).
