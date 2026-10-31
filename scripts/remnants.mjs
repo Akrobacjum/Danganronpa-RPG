@@ -1241,14 +1241,14 @@ export function remnantPublic(tokenDoc) {
 export function publicOf(entry) {
     const pub = { ...defaultPublic(entry), ...(entry?.public ?? {}) };
     if (pub.img === OLD_ICON) pub.img = ICON;
-    // The neutral word a build before 1.2.93 stored as the name is no name (E51 C5): read, never rewritten, as the icon is.
+    // The neutral word a build before 1.2.94 stored as the name is no name (E51 C5): read, never rewritten, as the icon is.
     if (isNeutralName(pub.name)) pub.name = "";
     return pub;
 }
 
 /**
  * THE NEUTRAL WORD, READ AND NEVER STORED (E51 C5, 31.10.2026; audit S05-52). "Trace" in this browser's language and
- * in its fallback's - the two words a row or a token written before 1.2.93 may hold as a name, in a world where one
+ * in its fallback's - the two words a row or a token written before 1.2.94 may hold as a name, in a world where one
  * GM's browser runs Polish and another's English (the word another language holds, read on a browser that loads
  * neither, is not known here). Read by `isNeutralName` and `traceLabel`, and by nothing else (R1120).
  */
@@ -1381,7 +1381,7 @@ async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
  * migration moves into the ledger (`migrateRemnantToken`, which then strips the
  * name itself), and a write here would lose it first. The word is this client's
  * language's or its fallback's (`isNeutralName`, E51 C5), as `leftOnToken` reads it: a
- * Polish GM's "Slad" on an English GM's browser was "more" until 1.2.93, and renamed.
+ * Polish GM's "Slad" on an English GM's browser was "more" until 1.2.94, and renamed.
  */
 function saysMore(token) {
     if (!token || answerKeyOnToken(token)) return false;
@@ -1746,7 +1746,7 @@ export function registerRemnantLedger() {
      * Every GM hears both, and the primary alone sends the digest (E51 C5): every
      * GM holds every row (`traceDigestStore`, synced since fix FG1), so the primary
      * of the moment says them all, its F5 keeps them, and a handover leaves the
-     * next primary holding what the last had not said. Until 1.2.93 each GM
+     * next primary holding what the last had not said. Until 1.2.94 each GM
      * flushed what its own memory had watched appear, and an F5 lost it.
      * `whisperToGms` reaches all of them either way. The end of an Eclipse and
      * the hour after it each ask; the second finds the rows gone.

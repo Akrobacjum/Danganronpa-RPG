@@ -501,7 +501,7 @@ export function registerMusic() {
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
         schedule();
-        // A mapping onto the cue playlist stored before 1.2.93 (Q-E50-1): the primary's, once (`dropCueMappings`).
+        // A mapping onto the cue playlist stored before 1.2.94 (Q-E50-1): the primary's, once (`dropCueMappings`).
         dropCueMappings().catch(err => error("Could not drop the cue playlist's mappings", err));
 
         // In that order: put back a volume an earlier version parked, THEN ask

@@ -76524,7 +76524,7 @@ const SCENARIOS = [
          * after. One trace where a connected player's character stands, left by that character, with a subject; under
          * Polish: what the row stores as its name and how it is labelled, then that character's Observe of its own
          * traces with the GM's describe window closed unanswered (its name box read first); under English the same two
-         * reads; then the row given the English word as a name, as a build before 1.2.93 seeded it. Put back: the copy
+         * reads; then the row given the English word as a name, as a build before 1.2.94 seeded it. Put back: the copy
          * and its answer key, the trace and its row, the translation. Red at C5's parent: the row stores the word, no
          * `traceLabel`, and the window offers the word.
          */

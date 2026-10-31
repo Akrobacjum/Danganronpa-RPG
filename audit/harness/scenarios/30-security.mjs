@@ -5993,7 +5993,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: p1 objecting for p2's Botan is refused for ownership and told - nothing paid, posted or put on the floor",
         objSetup?.room === true && objSetup.floor === "debate" && objSetup.speaker === true && refusedAs(objOther, null)
             && objOther.logged.some(r => /sender does not own/.test(r)), JSON.stringify({ objSetup, objOther }), { flow: "class-trial" });
-    /* E51 C6 (1.2.93; the slice's Base mutant t1): with the Room open, the speaker it counts is held by the floor's rule
+    /* E51 C6 (1.2.94; the slice's Base mutant t1): with the Room open, the speaker it counts is held by the floor's rule
        too (`mayObjectTo` in `objectOnPrimary`'s Room branch): during a rebuttal only the two in it may be aimed at, and
        since C6 only the trial's participants. The floor is made Aiko's rebuttal with Botan, Chie still the one speaker
        the Room has heard; p1's console presses OBJECTION! for Aiko. Refused - nobody the floor allows has spoken -
@@ -6125,7 +6125,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
             && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
         JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
-    /* E51 C6 (1.2.93; E51-40, amend 14.10 (3), the owner before session 0): an Objection at somebody who takes no part in
+    /* E51 C6 (1.2.94; E51-40, amend 14.10 (3), the owner before session 0): an Objection at somebody who takes no part in
        the trial. With no voice Room on the primary the packet's target is read (trial.mjs `objectOnPrimary`), and it was
        held only to a living student the floor lets the objector aim at - so p1's console could aim Aiko's Objection at a
        living student no player plays and hand them the rebuttal. Daichi, the seed's student nobody plays, is dead by now

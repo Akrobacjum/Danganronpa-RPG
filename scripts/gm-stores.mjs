@@ -874,7 +874,7 @@ export const usedToolStore = defineGmStore({
  * epoch clock, so two GMs' rows sort on one clock). Written by whichever GM places the trace (remnants.mjs
  * `announceRemnant`; a player's comes to the primary through the bridge), said and dropped by the primary alone at the
  * turn of the time of day or the end of an Eclipse (`sendTraceDigest`), and one dropped when its trace is whispered on
- * its own at a find (`whisperTraceNow`). It was a Map in that GM's memory until 1.2.93, so the primary's F5 between a
+ * its own at a find (`whisperTraceNow`). It was a Map in that GM's memory until 1.2.94, so the primary's F5 between a
  * trace and the hour lost the digest (scenario 61's TD).
  *
  * SYNCED (E51 fix FG1, 31.10.2026; the end review's G1 and F1). C5 read the owner's Q3 ("syncs to the primary only") as

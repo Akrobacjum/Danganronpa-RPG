@@ -51,7 +51,7 @@
  *        with none, and the first playlist, which gm started and the map no longer names, is stopped (fix FG1b). A
  *        real GM leaving a real server is LIVE-E50-04.
  *     C5 (fix FG1, G8) a mapping onto a playlist named "Situational" (the world's, or one made) stored as before
- *        1.2.93; `dropCueMappings()` with its defaults, as `ready` calls it, on gm2 and then on gm: gm2 drops nothing
+ *        1.2.94; `dropCueMappings()` with its defaults, as `ready` calls it, on gm2 and then on gm: gm2 drops nothing
  *        and writes nothing, gm drops that key with one write (heard once on both), every other key kept.
  *        The map, the switch, the volume and the playlists are put back.
  *
@@ -542,7 +542,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             && c4Applies.gm2 === 1 && c4Applies.gm === 0 && c4Gone.back.gm === true && c4Gone.back.gm2 === false,
         J({ c4Write, c4Echo, c4Gone, c4, c4Applies }));
 
-    phase("C5: a mapping onto the cue playlist stored before 1.2.93; the ready road's drop with the world's defaults on gm2, then on gm");
+    phase("C5: a mapping onto the cue playlist stored before 1.2.94; the ready road's drop with the world's defaults on gm2, then on gm");
     const [, , KC] = c1Setup.free;
     const c5Setup = await gm.eval(`${MU} ${UNTIL} const C = await import("${repoUrl}/scripts/config.mjs");
         const found = game.playlists.find(p => p.name.trim().toLowerCase() === C.SITUATIONAL_PLAYLIST.trim().toLowerCase()) ?? null;

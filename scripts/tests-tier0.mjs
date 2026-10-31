@@ -16844,7 +16844,7 @@ const REGRESSIONS = [
          * "Trace" as the name, so a GM pressing Enter gave the players a bullet called "Trace". The stored name is empty now
          * until somebody describes the trace; `traceLabel(entry)` words it at read time, and `isNeutralName` (through
          * `neutralWords`, this language and the fallback's) is the one place a name is held against the word - a row a build
-         * before 1.2.93 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
+         * before 1.2.94 seeded with it reads as undescribed. Read off the sources with comments stripped: every file but the
          * suite's. Red at C5's parent: the key localized in 19 places outside those two functions (git grep, 31.10.2026),
          * and `createFind` handing `stored?.name` to the window.
          */

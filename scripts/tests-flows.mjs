@@ -317,7 +317,7 @@ export const FLOWS = Object.freeze([
     // E50 C4 (30.10.2026): covered. 87-messenger-sound's part S counts where sfx.mjs `fire` hands a file to the audio layer
     // (`sfx.played`) on every browser: a GM's sound for one player plays there alone, and a player's forged packets nowhere.
     { id: "sound", what: "A sound played for other browsers",
-        entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.93" },
+        entry: { sockets: ["sfx.mjs"] }, scenarios: ["87-messenger-sound"], status: "covered", stage: "1.2.94" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
