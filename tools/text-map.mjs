@@ -154,7 +154,7 @@ export function loadEspree(repo = REPO) {
 }
 
 /* A walker over espree's nodes: every child that is a node, with the field it sits in. */
-function eachChild(node, fn) {
+export function eachChild(node, fn) {
     for (const [field, v] of Object.entries(node)) {
         if (field === "loc" || field === "range" || field === "start" || field === "end") continue;
         if (Array.isArray(v)) { for (const c of v) if (c && typeof c.type === "string") fn(c, field, node); }
@@ -165,7 +165,7 @@ function eachChild(node, fn) {
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const memberName = n => (n?.type === "MemberExpression" && !n.computed ? n.property?.name : null);
 /* `a.b.c` as text, for the callee shapes this reads (ui.notifications.warn, ChatMessage.create, Hooks.on). */
-function dotted(n) {
+export function dotted(n) {
     if (!n) return null;
     if (n.type === "Identifier") return n.name;
     if (n.type === "ChainExpression") return dotted(n.expression);
@@ -174,6 +174,62 @@ function dotted(n) {
 }
 const stringOf = n => (n?.type === "Literal" && typeof n.value === "string" ? n.value
     : n?.type === "TemplateLiteral" && n.expressions.length === 0 ? n.quasis[0].value.cooked : null);
+
+/**
+ * The keys a literal (`value`) or a template's fixed pieces (`pieces`) names, as `[key, how]` pairs: the key itself
+ * ("literal"), or every key it starts or whose shape it matches ("prefix"). With `why`, an answer that names no key carries
+ * `open` (a piece that names no group past `DRPG.`) or `missing` (it names a key no file holds) and `shown`.
+ */
+export function keysOfLiteral(value, pieces, universe, keySet, why = false, minSegments = 2) {
+    const none = (kind, shown) => Object.assign([], why ? { [kind]: true, shown } : {});
+    /* How many whole segments a prefix names before what it leaves open: "DRPG.Trap.trigger." 3, "DRPG.Monocub." 2. */
+    const segments = head => head.split(".").filter(Boolean).length - (head.endsWith(".") ? 0 : 1);
+    if (pieces === null || pieces === undefined) {
+        if (typeof value !== "string" || !value.startsWith("DRPG.") || !KEYISH.test(value)) return [];
+        if (keySet.has(value)) return [[value, "literal"]];
+        const head = value.endsWith(".") ? value : `${value}.`;
+        const under = universe.filter(k => k.startsWith(head));
+        if (under.length && head.split(".").length > 2 && segments(head) >= minSegments) return under.map(k => [k, "prefix"]);
+        return none(under.length ? "open" : "missing", value);
+    }
+    if (pieces.length === 1) return keysOfLiteral(pieces[0], null, universe, keySet, why, minSegments);
+    if (!pieces[0].startsWith("DRPG.")) return [];
+    const shown = pieces.join("${...}");
+    if (!/^DRPG\.[\w-]+/.test(pieces[0]) || pieces[0] === "DRPG." || segments(pieces[0]) < minSegments) return none("open", shown);
+    const re = new RegExp(`^${pieces.map(escapeRe).join(".+?")}$`);
+    const under = universe.filter(k => re.test(k));
+    return under.length ? under.map(k => [k, "prefix"]) : none("missing", shown);
+}
+
+/**
+ * The scripts parsed: `{ files, resolve, problems }` - `files` a Map of path to its units, imports, exports and stars
+ * (`unitsOf`), `resolve(file, name)` the unit a file exports under a name, followed through re-exports and `export *`.
+ * tools/text-audience.mjs reads the scripts through this too.
+ */
+export function parseScripts(scripts, espree) {
+    const files = new Map(), problems = [];
+    for (const [file, text] of scripts) {
+        let tree;
+        try { tree = espree.parse(text, { ecmaVersion: "latest", sourceType: "module", loc: true }); }
+        catch (err) { problems.push(`${file}: does not parse (${err.message})`); continue; }
+        files.set(file, unitsOf(file, tree));
+    }
+    const resolve = (file, name, seen = new Set()) => {
+        const f = files.get(file);
+        if (!f || seen.has(`${file}:${name}`)) return null;
+        seen.add(`${file}:${name}`);
+        const e = f.exports.get(name);
+        if (e && e.from !== file) return resolve(e.from, e.name, seen);
+        const local = e ? e.name : name;
+        const u = f.units.find(x => x.name === local);
+        if (u) return u;
+        const imp = f.imports.get(local);
+        if (imp && imp.name !== "*") return resolve(imp.from, imp.name, seen);
+        for (const st of f.stars) { const r = resolve(st, name, seen); if (r) return r; }
+        return null;
+    };
+    return { files, resolve, problems };
+}
 
 /** One unit's own reading: the strings and templates it spells, the names it reads, what makes it an entry point. */
 function readUnit(node, posters) {
@@ -264,28 +320,7 @@ function unitsOf(file, tree) {
 export function buildScreenMap({ scripts, keys, espree, screens = SCREENS, configTables = [] } = {}) {
     const universe = [...new Set(keys)].sort();
     const keySet = new Set(universe);
-    const files = new Map(), problems = [];
-    for (const [file, text] of scripts) {
-        let tree;
-        try { tree = espree.parse(text, { ecmaVersion: "latest", sourceType: "module", loc: true }); }
-        catch (err) { problems.push(`${file}: does not parse (${err.message})`); continue; }
-        files.set(file, unitsOf(file, tree));
-    }
-    /* What a file exports under a name, followed through re-exports and `export *`, to the unit that declares it. */
-    const resolve = (file, name, seen = new Set()) => {
-        const f = files.get(file);
-        if (!f || seen.has(`${file}:${name}`)) return null;
-        seen.add(`${file}:${name}`);
-        const e = f.exports.get(name);
-        if (e && e.from !== file) return resolve(e.from, e.name, seen);
-        const local = e ? e.name : name;
-        const u = f.units.find(x => x.name === local);
-        if (u) return u;
-        const imp = f.imports.get(local);
-        if (imp && imp.name !== "*") return resolve(imp.from, imp.name, seen);
-        for (const s of f.stars) { const r = resolve(s, name, seen); if (r) return r; }
-        return null;
-    };
+    const { files, resolve, problems } = parseScripts(scripts, espree);
     /* The posters of each file: the senders as this file imported them (any local name), the ones it declares,
        and a same-file arrow whose whole body is one call of a poster (murder-rules.mjs's two wrappers). */
     const postersOf = new Map();
@@ -315,23 +350,11 @@ export function buildScreenMap({ scripts, keys, espree, screens = SCREENS, confi
             u.marks = r.marks; u.hooked = r.hooked; u.refs = r.refs;
             u.keys = new Map();   // key -> how ("literal", "prefix", "table")
             const put = (k, how) => { if (!u.keys.has(k) || u.keys.get(k) !== "literal") u.keys.set(k, how); };
-            for (const s of r.strings) {
-                if (!s.value.startsWith("DRPG.") || !KEYISH.test(s.value)) continue;
-                if (keySet.has(s.value)) { put(s.value, "literal"); continue; }
-                const head = s.value.endsWith(".") ? s.value : `${s.value}.`;
-                const under = universe.filter(k => k.startsWith(head));
-                if (under.length && head.split(".").length > 2) under.forEach(k => put(k, "prefix"));
-                else if (!under.length) { counts.missing++; missing.push({ file, unit: u.name, line: s.line, key: s.value }); }
-                else { counts.open++; open.push({ file, unit: u.name, line: s.line, text: s.value }); }
-            }
-            for (const t of r.templates) {
-                if (!t.pieces[0].startsWith("DRPG.")) continue;
-                const shown = t.pieces.join("${...}");
-                if (!/^DRPG\.[\w-]+/.test(t.pieces[0]) || t.pieces[0] === "DRPG.") { counts.open++; open.push({ file, unit: u.name, line: t.line, text: shown }); continue; }
-                const re = new RegExp(`^${t.pieces.map(escapeRe).join(".+?")}$`);
-                const under = universe.filter(k => re.test(k));
-                if (under.length) under.forEach(k => put(k, "prefix"));
-                else { counts.missing++; missing.push({ file, unit: u.name, line: t.line, key: shown }); }
+            for (const s of [...r.strings.map(x => ({ ...x, pieces: null })), ...r.templates.map(x => ({ ...x, value: null }))]) {
+                const read = keysOfLiteral(s.value, s.pieces, universe, keySet, true);
+                if (read.open) { counts.open++; open.push({ file, unit: u.name, line: s.line, text: read.shown }); }
+                else if (read.missing) { counts.missing++; missing.push({ file, unit: u.name, line: s.line, key: read.shown }); }
+                else read.forEach(([k, how]) => put(k, how));
             }
             for (const name of r.refs) {
                 const imp = f.imports.get(name);

@@ -69,8 +69,8 @@
  * list for a reader, never a verdict, every pattern rebuilt 30.10 as its rule is:
  * T4 (`lengthOver`, words against docs/text-budgets.json's surfaces, a key's
  * surface read by its name or by the call that posts it - `surfacesOf`, the
- * orchestrator's reading of 31.10 until C11's audience map), T5 (`patterns`, one
- * matcher per X rule of the guide, X_RULES), T7's part (`ruleNumberWords`, a
+ * orchestrator's reading of 31.10, which C11's audience map left in place), T5
+ * (`patterns`, one matcher per X rule of the guide, X_RULES), T7's part (`ruleNumberWords`, a
  * rule's number written as a word), T21 (`monokumaVoice`, DB1, DB5, PL4) and T24
  * (`colonChains`, more than two colons in a string). Their bag adds `budgets`
  * (the parsed file); T4, T5 and T21 read the scripts for the senders when handed
@@ -97,7 +97,11 @@
  * a brace left, a key printed, a family short of an n, a placeholder with no fixture, a
  * key not rendered - its bag `render` (made in memory by check.mjs; the tool writes the
  * files); and T19 reads the screen map's marks (`marks`, tools/text-map.mjs: the screens
- * that state a rule or a safety tool, decision 52 of 31.10) beside its own reading.
+ * that state a rule or a safety tool, decision 52 of 31.10) beside its own reading. At C11
+ * T16 (`secondPersonToMany`, E65-20, report, FAIL from E71 with no allowlist): "you" on a
+ * card the room, the incident's audience or the whole table reads at once, its bag
+ * `audience` (tools/text-audience.mjs: each key's sends and their readers, made in memory
+ * by check.mjs).
  *
  * WHAT IS NOT A TAG. `&nbsp;` and every other entity (none in either file on
  * 31.10, a fixture case so it stays so); `<-`, which DRPG.Music.diag.wins writes
@@ -1021,16 +1025,19 @@ const AUDIENCE_CALL = /(?<![\w$.])(roomAudience|incidentAudienceIds)\s*\(/g;
 /**
  * WHO A KEY IS POSTED BY, READ OFF THE CALLS THAT POST IT (E65 C6; the
  * orchestrator's decision of 31.10 on C5's Open 31: C6 reads the senders itself,
- * through docs/text-budgets.json's sender rules, until C11's audience map replaces
- * this reading). In each script, comments and literals told apart by the lexer, a
- * call of a sender (SENDERS) is found, and every key written as a literal inside
+ * through docs/text-budgets.json's sender rules). C11's audience map does not replace
+ * it: the map needs espree, which the suite in Foundry does not have, and the two
+ * readings differ by more than a swap - measured 31.10, this one names 686 keys and
+ * the map 1219, 640 in both, 46 here alone and 579 there alone, and 377 of the map's
+ * keys have no surface by this reading, so T4's findings would move with it. In each
+ * script, comments and literals told apart by the lexer, a call of a sender (SENDERS) is found, and every key written as a literal inside
  * its arguments - a string, or a template with no `${...}` - is posted by it. A
  * call whose arguments name `roomAudience(...)` or `incidentAudienceIds(...)` is
  * that audience's (a card to the room, to the incident's people), whatever posts
  * it - `ChatMessage.create` is read only so; `announce` handed a `whisper` list and
  * neither audience is a private card to people this reading does not know, and is
- * counted (`private`), not assigned. Not read (C11's): a key held in a variable
- * first and posted through it (`const content = ...; announce({ content })`), a
+ * counted (`private`), not assigned. Not read (the audience map reads them): a key
+ * held in a variable first and posted through it (`const content = ...; announce({ content })`), a
  * key a template builds (counted, `unresolved`), and a sender reached through an
  * alias. Answers `{ senders: Map key -> Set of senders, counts }`, the keys as
  * written (a family's base stands for its forms: `familyOf`).
@@ -2282,6 +2289,65 @@ export function renderChecks(bag = {}) {
     return { found, read: counts.rows, counts, unknown: [...unknown].sort((a, b) => a[0].localeCompare(b[0])).map(([name, where]) => ({ name, where: [...where].sort() })) };
 }
 
+/* --------------------------------- T16 ------------------------------------- */
+
+/* The readers tools/text-audience.mjs names that are more than one person at once: the room, the incident's cast, the table. */
+const MANY_READERS = Object.freeze(["room", "incident", "everyone"]);
+const MANY_WORDS = Object.freeze({ room: "the room", incident: "the incident's cast", everyone: "everyone" });
+/* "You" in English (the slice's three and their kin), and the Polish second person singular: the pronouns ty, twój and
+   theirs, ci, cię, and a verb's second person (-sz: masz, możesz, widzisz, słyszysz; -łeś, -łaś: zrobiłeś; jesteś), less
+   the nouns that only look so. On 31.10 the pattern met 151 distinct words in lang/pl.json and one of them was a noun,
+   "klawisz" (4 times); the rest of the set is words of that shape the file may grow (afisz, gulasz, Łukasz, Tomasz).
+   "nasz", "wasz" and "mysz" need no entry: the pattern wants two letters before the ending. An imperative of -isać
+   ("napisz", 16; "wpisz", 15) is read: it is the second person singular too. One of the bare stem ("Wybierz") is not. */
+const EN_YOU = new RegExp(W("you|your|yours|yourself|you['’](?:re|ve|ll|d)"), "iu");
+const PL_YOU_WORD = new RegExp(W("ty|ciebie|tobie|tobą|ci|cię|twój|twoja|twoje|twojego|twojej|twojemu|twoim|twoją|twoi|twoich|twoimi|jesteś"), "iu");
+const PL_YOU_VERB = /(?<![\p{L}])(\p{L}{2,}(?:esz|isz|ysz|asz|łeś|łaś))(?![\p{L}])/giu;
+const PL_NOT_VERB = new Set("klawisz afisz gulasz łukasz tomasz".split(" "));
+
+/**
+ * T16 (the plan's, S18-45; report from E65, FAIL from E71 with no allowlist - decision 33 of 31.10): a key the audience
+ * map sends to more than one person at once - the room, the incident's audience, the whole table (`audience`, key to its
+ * sends, each with `readers`, as tools/text-audience.mjs writes them) - that says "you": in English "you", "your",
+ * "you're" and their kin; in Polish a second person singular (PL_YOU_WORD, PL_YOU_VERB). DB19: such a card names the
+ * reader by the role, in the third person. A key with one reader (an owner, the GMs, this browser, one named user, the
+ * notice history's own) passes; a key whose list is not read (`list`) is counted apart (`maybe`), never judged; a key
+ * whose readers depend on a value at run time is judged by every branch (the map lists both). `read`: the keys with a
+ * send read. One finding a key and language, `you-en` or `you-pl`.
+ */
+export function secondPersonToMany(bag = {}) {
+    const counts = { keys: 0, many: 0, maybe: 0, single: 0, en: 0, pl: 0 };
+    if (bag.audience === undefined || bag.en === undefined || bag.pl === undefined) return { found: [], read: 0, counts };
+    const en = new Map([...asMap(bag.en), ...asMap(bag.prose)]), pl = asMap(bag.pl);
+    const found = [];
+    for (const [key, sends] of asMap(bag.audience)) {
+        if (!Array.isArray(sends) || !sends.length) continue;
+        counts.keys++;
+        const readers = new Set(sends.flatMap(s => (Array.isArray(s?.readers) ? s.readers : [])));
+        const many = [...readers].filter(r => MANY_READERS.includes(r));
+        if (!many.length) { counts[readers.has("list") ? "maybe" : "single"]++; continue; }
+        counts.many++;
+        const where = sends.filter(s => s.readers?.some(r => MANY_READERS.includes(r))).map(s => `${s.file ?? "?"}:${s.line ?? "?"}`).slice(0, 3).join(", ");
+        const tell = (lang, text, at, len) => {
+            counts[lang]++;
+            found.push({ key, kind: `you-${lang}`, lang, readers: [...readers].sort(),
+                what: `${lang} ${key}: "${quoted(text, at, len)}" - the second person on a card ${many.map(r => MANY_WORDS[r]).join(" and ")} read${many.length === 1 ? "s" : ""} at once`
+                    + ` (${where}); DB19 names the reader by the role (T16)` });
+        };
+        const e = typeof en.get(key) === "string" ? untagged(en.get(key)) : null;
+        const m = e === null ? null : EN_YOU.exec(e);
+        if (m) tell("en", e, m.index, m[0].length);
+        const p = typeof pl.get(key) === "string" ? untagged(pl.get(key)) : null;
+        if (p !== null) {
+            const w = PL_YOU_WORD.exec(p);
+            const v = w ? null : [...p.matchAll(PL_YOU_VERB)].find(x => !PL_NOT_VERB.has(x[1].toLowerCase()));
+            const hit = w ?? v;
+            if (hit) tell("pl", p, hit.index, hit[0].length);
+        }
+    }
+    return { found, read: counts.keys, counts };
+}
+
 /* ------------------------------- baselines --------------------------------- */
 
 /**
@@ -2380,13 +2446,14 @@ export const MODES = Object.freeze({
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
     localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
     naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),
-    renderChecks: Object.freeze({ test: "T15", mode: "report", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) })
+    renderChecks: Object.freeze({ test: "T15", mode: "report", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) }),
+    secondPersonToMany: Object.freeze({ test: "T16", mode: "report", fail: "E71", reads: Object.freeze(["audience", "lang"]), also: Object.freeze(["prose"]) })
 });
 
 export const DETECTORS = Object.freeze({ pluralForms, configPlaceholders, pairParity, familyFormats, dashesIn, tableWordProblems, glossaryHits, retiredHits,
     lengthOver, patterns, ruleNumberWords, monokumaVoice, colonChains,
     loanGender, loanDeclension, oxfordComma, telegraph, contractions, mirror, itemQuotes, bareLeft,
-    uiLiterals, localeCalls, naturalnessBefore, renderChecks });
+    uiLiterals, localeCalls, naturalnessBefore, renderChecks, secondPersonToMany });
 
 /** A finding as a fixture names it. */
 export const itemOf = f => `${f.key} ${f.kind}`;
@@ -3196,6 +3263,36 @@ export const FIXTURES = Object.freeze({
                     { key: "DRPG.Fx.figs", lang: "pl", text: "22 figi", n: 22, family: false },               // a plain string is not the family's form
                     { key: "DRPG.Fx.skipped", lang: "en", text: "Skipped", n: null, family: false }            // rendered in English only: unrendered in pl
                 ]
+            }
+        }
+    },
+    secondPersonToMany: {
+        flags: ["DRPG.Fx.room you-en", "DRPG.Fx.room you-pl", "DRPG.Fx.flag you-en", "DRPG.Fx.flag you-pl", "DRPG.Fx.cast you-pl", "DRPG.Config.FX.call you-en"],
+        counts: { keys: 10, many: 6, maybe: 1, single: 3, en: 3, pl: 3 },
+        input: {
+            audience: {
+                "DRPG.Fx.room": [{ readers: ["gms", "room"], file: "scripts/fx.mjs", line: 1 }],             // the room: flagged in both
+                "DRPG.Fx.owner": [{ readers: ["owner"], copy: "gms" }],                                     // one person, the GM's copy beside: passes
+                "DRPG.Fx.flag": [{ readers: ["owner"] }, { readers: ["everyone"], flag: true }],           // one send of two reads to the table: flagged
+                "DRPG.Fx.toast": [{ readers: ["browser"] }],                                                 // a notification: this browser, passes
+                "DRPG.Fx.list": [{ readers: ["list"] }],                                                     // a list not read: counted, not judged
+                "DRPG.Fx.third": [{ readers: ["incident"] }],                                                // the role in the third person: passes
+                "DRPG.Fx.cast": [{ readers: ["gms", "incident"] }],                                         // "ci" in Polish only
+                "DRPG.Fx.nasz": [{ readers: ["room"] }],                                                     // "klawisz" is no verb: passes
+                "DRPG.Fx.own": [{ readers: ["own"] }],                                                       // the notice history's own: passes
+                "DRPG.Fx.unsent": [],                                                                        // no send read: not a key of the map
+                "DRPG.Config.FX.call": [{ readers: ["everyone"] }]                                           // config prose: read in English
+            },
+            en: {
+                "DRPG.Fx.room": "You hear a scream.", "DRPG.Fx.owner": "You found it.", "DRPG.Fx.flag": "<p>Your turn.</p>",
+                "DRPG.Fx.toast": "You can't do that now.", "DRPG.Fx.list": "You were told.", "DRPG.Fx.third": "{victim} falls; the killer stands.",
+                "DRPG.Fx.cast": "{n} actions left for the killer.", "DRPG.Fx.nasz": "Our key.", "DRPG.Fx.own": "You read this before.", "DRPG.Fx.unsent": "You never see this.", "DRPG.Fx.youth": "Youth."
+            },
+            prose: { "DRPG.Config.FX.call": "You lose one Hope." },
+            pl: {
+                "DRPG.Fx.room": "Słyszysz krzyk.", "DRPG.Fx.owner": "Znajdujesz to.", "DRPG.Fx.flag": "Twoja kolej.", "DRPG.Fx.toast": "Nie możesz teraz.",
+                "DRPG.Fx.list": "Powiedziano ci.", "DRPG.Fx.third": "{victim} pada; zabójca stoi.", "DRPG.Fx.cast": "Zostały ci {n} akcje.", "DRPG.Fx.nasz": "Nasz klawisz.",
+                "DRPG.Fx.own": "Czytałeś to.", "DRPG.Config.FX.call": "Gracz traci jeden Hope."
             }
         }
     }

@@ -150,7 +150,13 @@
  *             handed to T19; and T15 (renderChecks, report) over a render made
  *             in memory (tools/text-render.mjs renderAll), with the
  *             placeholders it has no fixture for. The files themselves only by
- *             `node tools/text-map.mjs` and `node tools/text-render.mjs`.
+ *             `node tools/text-map.mjs` and `node tools/text-render.mjs`. E65 C11:
+ *             the audience map (tools/text-audience.mjs, the same parse: a
+ *             problem of it is red, "audience: ...") with its counts by sender
+ *             and by reader, handed to T16 (secondPersonToMany, report: "you"
+ *             on a card the room, the incident or the table reads at once);
+ *             and the map built once more on planted scripts, each sender and
+ *             reader with the answer it must give.
  */
 
 import fs from "node:fs";
@@ -799,6 +805,45 @@ async function text() {
         problems.push(...screenMap.problems.map(p => `screens: ${p}`));
         inputs.marks = textMap.marksOf(screenMap);
     }
+    /* The audience map (E65 C11): who reads each key a send reaches, read with the same parse; T16 reads it. */
+    let audienceMap = null;
+    if (espree) {
+        const textAudience = await import(url.pathToFileURL(path.join(REPO, "tools", "text-audience.mjs")).href);
+        audienceMap = textAudience.buildAudienceMap({ scripts, keys: [...en.keys(), ...pl.keys(), ...prose.keys()], espree });
+        problems.push(...audienceMap.problems.map(p => `audience: ${p}`));
+        inputs.audience = audienceMap.keys;
+        /* And the map on planted scripts (E65 C11): each sender, a toast, a wrapper and the notice history once, with the readers
+           each must give; a send that spells its own key and fills a parameter in (`fill`: no wrapper), an `announce` of a file
+           that is no sender's, a two-segment template (`DRPG.Plant.${choice}`: no key), and one notice-history file left out,
+           which is the one problem. T16's fixture hands it a map; this is what holds the map itself, so a sender, a reader or
+           the wrapper rounds read wrong turn the part red here rather than as a quieter count. */
+        const plant = textAudience.buildAudienceMap({ espree, keys: ["room", "incident", "all", "gms", "owner", "toast", "wrapped", "own", "unsent", "filled", "arg", "notSent"].map(k => `DRPG.Plant.${k}`), scripts: new Map([
+            ["scripts/utils.mjs", "export function announce(data) { return data; }\nexport function whisperToGms(content, extra) { return content; }\n"
+                + "export function whisperToOwner(actor, content, extra) { return content; }\nexport function roomAudience(room) { return [room]; }\n"
+                + "export function incidentAudienceIds(state) { return state.ids; }\n"],
+            ["scripts/plant.mjs", "import { announce, whisperToGms, whisperToOwner, roomAudience, incidentAudienceIds } from \"./utils.mjs\";\n"
+                + "import { announce as say } from \"./other.mjs\";\n"
+                + "function tell(text) { return announce({ content: text }); }\nexport function plant(actor, room, state) {\n"
+                + "  announce({ content: game.i18n.localize(\"DRPG.Plant.room\"), whisper: roomAudience(room) });\n"
+                + "  const ids = incidentAudienceIds(state);\n  announce({ content: game.i18n.localize(\"DRPG.Plant.incident\"), whisper: ids });\n"
+                + "  announce({ content: game.i18n.localize(\"DRPG.Plant.all\") });\n  whisperToGms(game.i18n.localize(\"DRPG.Plant.gms\"));\n"
+                + "  whisperToOwner(actor, game.i18n.localize(\"DRPG.Plant.owner\"));\n  ui.notifications.warn(game.i18n.localize(\"DRPG.Plant.toast\"));\n"
+                + "  tell(game.i18n.localize(\"DRPG.Plant.wrapped\"));\n  fill(game.i18n.localize(\"DRPG.Plant.arg\"));\n"
+                + "  say({ content: game.i18n.localize(\"DRPG.Plant.notSent\") });\n}\n"
+                + "function fill(n) { return announce({ content: game.i18n.format(\"DRPG.Plant.filled\", { n }) }); }\n"
+                + "function pick(choice) { ui.notifications.info(game.i18n.localize(`DRPG.Plant.${choice}`)); }\n"],
+            ["scripts/other.mjs", "export function announce(x) { return x; }\n"],
+            ["scripts/notice-history.mjs", "export function show() { return game.i18n.localize(\"DRPG.Plant.own\"); }\n"]
+        ]) });
+        const planted = JSON.stringify(Object.fromEntries([...plant.keys].sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([k, sends]) => [k.slice(11), sends.map(x => `${x.sender.replace(/ \(.*$/, "").replace(/^scripts\/plant\.mjs:/, "")}:${[...x.readers].sort().join("+")}`).join(",")])));
+        const want = JSON.stringify({ all: "announce:everyone", filled: "announce:everyone", gms: "whisperToGms:gms", incident: "announce:incident", own: "the notice history:own", owner: "whisperToOwner:owner",
+            room: "announce:room", toast: "ui.notifications:browser", wrapped: "tell:everyone" });
+        const wantProblems = ["scripts/notice-history-app.mjs is not among the scripts read - the notice history's entry has no keys"];
+        if (JSON.stringify(plant.problems) !== JSON.stringify(wantProblems) || planted !== want) {
+            problems.push(`audience: the planted senders read ${planted} with the problems ${JSON.stringify(plant.problems)}, not ${want} with ${JSON.stringify(wantProblems)}`);
+        }
+    }
     inputs.render = textRender.renderAll({ en, pl, prose });
     /* Each key's surface, as T4 reads it (the budgets' rules, the senders read off the scripts): C6's report counts every
        finding by it and by the key's top-level group. A handbook line is "handbook". */
@@ -812,6 +857,14 @@ async function text() {
         const split = textMap.readerSplit(screenMap, key => surfaces.surfaceOf(key), ["button", "window-title", "tab", "tooltip"]);
         console.log(`text: screens: the window surfaces by reader (decision 38; gm/player/unknown/unassigned): `
             + Object.entries(split).map(([id, r]) => `${id} ${r.gm}/${r.player}/${r.unknown}/${r.unassigned}`).join(", "));
+    }
+    if (audienceMap) {
+        const c = audienceMap.counts;
+        console.log(`text: audience: ${c.sends} send(s), ${c.keyed} with a key, ${c.wrappers} wrapper(s); keys ${c.keys}: ${c.assigned} assigned, ${c.unassigned} unassigned; `
+            + `more than one reader ${c.many}, a list not read ${c.maybe}; by sender (sends/keys): `
+            + Object.entries(c.bySender).sort((a, b) => b[1].keys - a[1].keys).map(([sn, v]) => `${sn} ${v.sends}/${v.keys}`).join(", "));
+        console.log(`text: audience: keys by reader: ${Object.entries(c.byReader).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(", ")}; `
+            + `the notice history ${audienceMap.noticeHistory.keys} key(s), "${audienceMap.noticeHistory.readers}"`);
     }
     let fails = 0, reports = 0;
     for (const [name, m] of Object.entries(T.MODES)) {
