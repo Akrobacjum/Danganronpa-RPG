@@ -103,7 +103,7 @@ export function eligibleForMonocub() {
  * enforcing it, the same trust the rest of the murder and trial flow already
  * places in the GM.
  */
-export async function setMonocub(actor, value = true) {
+export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (value && !isDeceased(actor)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.mustBeDead"));
@@ -150,7 +150,8 @@ export async function setMonocub(actor, value = true) {
     }
 
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monocub.`);
-    ui.notifications.info(game.i18n.format(
+    // `quiet` for a caller that reports what it did itself (E51 C6; audit S06-46): the season reset, one toast per cub.
+    if (!quiet) ui.notifications.info(game.i18n.format(
         value ? "DRPG.Monocub.opted" : "DRPG.Monocub.unopted", { name: actor.name }));
 
     // The two conditions, put in line now on the primary (a Monocub carries neither: states.mjs

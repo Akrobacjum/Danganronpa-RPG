@@ -1236,6 +1236,12 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
+        /* NO DISCARD IN THE CLASS TRIAL (E51 C6, 31.10.2026; amend 14.10 (2); Q1: the phase; E51-41). The discarder's
+           browser refuses it before its window (use-items.mjs `discardBroken`, `noDiscardNow`), so a discard's trace
+           that reaches the primary in the trial is a console's, or a discard begun before the trial and landing in it.
+           Refused before its type is filed and before anything is placed, so the browser, answered refused, keeps the
+           item (`trustedDelete` runs only on a trace placed); the roll is spent, and the whisper there says so. */
+        if (data.action === "discard" && getClock()?.phase === "classTrial") return { refused: "that waits until the Class Trial is over" };
         /* A DISCARD'S TYPE IS THE GM'S (E14 part 1 C5, 24.10.2026; audit S08-13). `narrowPlayerRemnant` keeps the
            packet's type within Preparation and Tamper, and the discarder's browser chose it by what it could read: an
            innocent's browser cannot see whose incident runs, and a console could file a weapon's disposal as preparation.
@@ -2857,7 +2863,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialObject,
         answer: "reply",
         claims: {
-            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to a student alive as the table knows it (chapter.mjs livingStudents) the floor lets the objector aim at, and with none named answered needName with nothing paid; with a Room it is not read"
+            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6) alive as the table knows it (chapter.mjs livingStudents) the floor lets the objector aim at, and with none named answered needName with nothing paid; with a Room it is not read, and the speaker it counts is held by the same mayObjectTo"
         }
     },
     /*
@@ -2905,7 +2911,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleFloorRepoint,
         answer: "reply",
         claims: {
-            targetId: "held by trial.mjs repointOnPrimary to a living student the floor lets the objector aim at (trial-floor.mjs mayObjectTo); a GM's request only"
+            targetId: "held by trial.mjs repointOnPrimary to a living student, one of the trial's participants (vote.mjs trialParticipants, connected or not; E51 C6), the floor lets the objector aim at (trial-floor.mjs mayObjectTo, targetRefusal); a GM's request only"
         }
     },
     /*

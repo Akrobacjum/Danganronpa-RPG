@@ -52,7 +52,7 @@ import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
     whisperToOwner, serialWrite, serverNow, esc } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
-import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
+import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
 // opens with no GM connected must not warn every player who opens it (audit A16).
 import { gmOnline } from "./bridge-guards.mjs";
@@ -797,13 +797,18 @@ async function seizeFloor(message, objectorId, targetId) {
     const { floorRefusal, targetRefusal, openObjectionInStep, trialFloor } =
         await import("./trial-floor.mjs");
 
-    /** Mark the card and tell the objector why their minute did not happen. */
-    const refuse = async why => {
+    /**
+     * Mark the card and tell the objector why their minute did not happen - and what became of the price (E51 C6,
+     * 31.10.2026; audit S06-50; E51-39). Every refusal before the payment says nothing was taken, as before; the one
+     * after it is handed the receipt and `refundPrice`'s answer, and says what came back, or that the refund did not
+     * land (a Hope refund under a darkening that holds it, price.mjs), so the player is never told "Nothing was taken
+     * from you" beside "Your Hope could not come back".
+     */
+    const refuse = async (why, { receipt = null, refunded = null } = {}) => {
         try {
             await message.setFlag(MODULE_ID, TRIAL_FLAGS.refused, true);
             if (why) {
-                await whisperToOwner(actor, `<p>${game.i18n.format(
-                    "DRPG.Trial.objectionRefusedWhisper", { why })}</p>`);
+                await whisperToOwner(actor, `<p>${objectionRefusedLine(why, { receipt, refunded })}</p>`);
             }
         } catch (err) {
             error("Could not mark an objection as refused", err);
@@ -869,8 +874,8 @@ async function seizeFloor(message, objectorId, targetId) {
      * comes back truthy. What matters is who is holding it now.
      */
     if (!opened || trialFloor()?.holderId !== objectorId) {
-        await refundPrice(actor, receipt, { quiet: true });
-        return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"));
+        const refunded = await refundPrice(actor, receipt, { quiet: true });
+        return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"), { receipt, refunded });
     }
 
     // The receipt of the price this step took, for the Overrule (E70 C2): the floor it took, as the stack keeps it.
@@ -883,6 +888,18 @@ async function seizeFloor(message, objectorId, targetId) {
         receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
 
     return opened;
+}
+
+/**
+ * The sentence a refused Objection whispers its objector (`seizeFloor`'s `refuse`; E51 C6, E51-39): with no receipt,
+ * nothing was taken; with one, what came back (`priceLabel`: "1 action", "1 Hope"), or, when `refundPrice` answered
+ * false, that it did not land and the GM is to be told. `why` is already localised.
+ */
+export function objectionRefusedLine(why, { receipt = null, refunded = null } = {}) {
+    if (!receipt?.pay) return game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why });
+    return refunded
+        ? game.i18n.format("DRPG.Trial.objectionRefunded", { why, what: priceLabel(receipt) })
+        : game.i18n.format("DRPG.Trial.objectionRefundLost", { why, what: priceLabel(receipt) });
 }
 
 /*
@@ -1238,7 +1255,7 @@ function withWho(html, name, targetName) {
 
 /**
  * The run of `floor.repoint` (gm-bridge.mjs) on the primary GM: the running Objection aimed at `targetId` instead,
- * a living student the floor lets its objector aim at. The floor's target alone changes (trial-floor.mjs
+ * a living student the floor lets its objector aim at - one of the trial's participants since E51 C6 (`mayObjectTo`). The floor's target alone changes (trial-floor.mjs
  * `repointObjection`), then the card's line and its target flags.
  *
  * @param {{targetId: string}} request
@@ -1317,7 +1334,7 @@ export async function raiseObjection(actor) {
     return filled.ok === true;
 }
 
-/** The old choice, when the primary GM has no voice Room: a living student, during a rebuttal one of the two in it. */
+/** The old choice, when the primary GM has no voice Room: a living participant, during a rebuttal one of the two in it. */
 async function nameObjectionTarget(actor) {
     const { livingStudents } = await import("./chapter.mjs");
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
@@ -1326,8 +1343,11 @@ async function nameObjectionTarget(actor) {
     // And in the Closing its speaker alone (E70 C8; E70-53).
     const pair = floor?.mode === FLOOR_MODES.rebuttal ? [floor.holderId, floor.targetId]
         : floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.closing ? [floor.holderId] : null;
+    // Only the trial's participants (E51 C6; E51-40): the primary holds the same rule (trial-floor.mjs `targetRefusal`).
+    const { trialParticipants } = await import("./vote.mjs");
+    const taking = new Set(trialParticipants({ connected: false }).map(p => p.actor.id));
     const choices = livingStudents()
-        .filter(student => student.id !== actor.id && (!pair || pair.includes(student.id)))
+        .filter(student => student.id !== actor.id && taking.has(student.id) && (!pair || pair.includes(student.id)))
         .sort((a, b) => a.name.localeCompare(b.name));
     if (!choices.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));
@@ -1451,15 +1471,18 @@ export async function objectionButtonState(actor) {
     return { text: `${line} ${priceLine(actor, quote)}`, held: false };
 }
 
-/** The trial console's Re-point (trial-floor-ui.mjs): a living student, not the objector, asked of the primary GM. */
+/** The trial console's Re-point (trial-floor-ui.mjs): a living participant, not the objector, asked of the primary GM. */
 export async function repointDialog() {
     if (!game.user.isGM) return null;
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection) return null;
     const { livingStudentsForGm } = await import("./chapter.mjs");
+    // Only the trial's participants (E51 C6; E51-40), as the primary's `repointOnPrimary` holds them (`mayObjectTo`).
+    const { trialParticipants } = await import("./vote.mjs");
+    const taking = new Set(trialParticipants({ connected: false }).map(p => p.actor.id));
     const choices = livingStudentsForGm()
-        .filter(student => student.id !== floor.holderId)
+        .filter(student => student.id !== floor.holderId && taking.has(student.id))
         .sort((a, b) => a.name.localeCompare(b.name));
     if (!choices.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.objectionNobody"));

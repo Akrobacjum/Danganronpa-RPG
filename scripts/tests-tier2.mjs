@@ -76706,6 +76706,280 @@ const SCENARIOS = [
             "[what the button's run answers; this test's Faint trace gone; the world's other Faint traces as they were; the reopened dashboard's line and whether "
                 + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]");
     }],
+
+    ["E51-T16 - a debate opened with -60 runs 30 s and remembers 30, one opened again from a record of 10 s runs 30, and the API's 5 s runs 30 (E51 C6; E51-36, audit S06-45)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-45. The console's field said `min="30"`, which DialogV2 does not enforce, and
+         * `openDebate(-60)` (the window's road with its answer, and the macro's) opened and remembered what it was
+         * handed; `reopenDebate` opened a stored 10 s as it stood. In a Class Trial with no floor: `openDebate(-60)`, the
+         * floor's budget and the record's remembered length; the record given 10 s and `reopenDebate`; and
+         * `startFloor({ seconds: 5 })`. Everything put back: the floor, the queue, the clock and the trial's record.
+         * Red at C6's parent: [180, -60] (the bridge's start op read -60 as no count), 10, 5.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which writes the floor and the record - this would measure nothing");
+        const V = await import("./vote.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const F = await import("./trial-floor.mjs");
+        const record = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await settle();
+            read.opened = await UI.openDebate(-60);
+            await settle();
+            read.negative = [F.trialFloor()?.seconds ?? null, V.trialProgress().seconds ?? null];
+            await F.endFloor();
+            await V.setTrialProgress({ seconds: 10 });
+            await settle();
+            read.reopened = await UI.reopenDebate();
+            await settle();
+            read.ten = F.trialFloor()?.seconds ?? null;
+            await F.endFloor();
+            await F.startFloor({ seconds: 5 });
+            await settle();
+            read.api = F.trialFloor()?.seconds ?? null;
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            for (const message of game.messages.filter(m => !seen.has(m.id))) {
+                try { await message.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ opened: true, negative: [30, 30], reopened: true, ten: 30, api: 30 }),
+            "[openDebate(-60) answered; its floor's budget and the length the record remembers; reopenDebate from a record of 10 s answered; "
+            + "its floor's budget; startFloor({ seconds: 5 })'s budget]");
+    }],
+
+    ["E51-T17 - Set the season up opens the sheet of the student a row waits on, by id: with Ann before Anna in the roster and only Anna without an Ultimate, the row's Open opens Anna's sheet, not Ann's (E51 C6; E51-38, audit S06-46)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-46. `openFirstSheet` took the first student whose name the row's line began
+         * with, so a roster of Ann and Anna opened Ann's sheet for Anna's row ("Ann" is the start of "Anna"; the slice's
+         * "Ann opens Anna" read the other way round, and that way round nothing goes wrong). Two students of the cast are
+         * named "SUITE E51-T17 Ann" (the one first in the roster) and "SUITE E51-T17 Anna", Ann given an Ultimate and
+         * Anna none; the "ultimate" row of `steps` over the two, its Open pressed as the checklist presses it
+         * (`step.open(step.missing())`), and each sheet's render counted. Names, Ultimates and the sheets' render put
+         * back. Red at C6's parent: Ann's sheet opened.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students to name Ann and Anna");
+        const SS = await import("./season-setup.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const [x, y] = cast(2);
+        const order = studentActors().map(a => a.id);
+        const [ann, anna] = order.indexOf(x.id) < order.indexOf(y.id) ? [x, y] : [y, x];
+        const was = [ann, anna].map(a => ({ name: a.name, ultimate: a.getFlag(MODULE_ID, "ultimate") }));
+        const sheets = [ann, anna].map(a => a.sheet);
+        const own = sheets.map(sheet => Object.getOwnPropertyDescriptor(sheet, "render"));
+        const opened = [];
+        const read = {};
+        try {
+            await ann.update({ name: "SUITE E51-T17 Ann" });
+            await anna.update({ name: "SUITE E51-T17 Anna" });
+            await ann.setFlag(MODULE_ID, "ultimate", "SUITE E51-T17 an Ultimate");
+            if (anna.getFlag(MODULE_ID, "ultimate") !== undefined) await anna.unsetFlag(MODULE_ID, "ultimate");
+            await settle();
+            sheets.forEach((sheet, i) => { sheet.render = function () { opened.push(i === 0 ? "Ann" : "Anna"); return this; }; });
+            const row = SS.steps({ roster: [ann, anna], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() }).find(r => r.key === "ultimate");
+            must(row?.open, "the Ultimate row has no Open - this would measure nothing");
+            read.missing = row.missing();
+            await row.open(row.missing());
+            read.opened = [...opened];
+        } finally {
+            sheets.forEach((sheet, i) => { if (own[i]) Object.defineProperty(sheet, "render", own[i]); else delete sheet.render; });
+            for (const [i, a] of [ann, anna].entries()) {
+                await a.update({ name: was[i].name });
+                if (was[i].ultimate === undefined) { if (a.getFlag(MODULE_ID, "ultimate") !== undefined) await a.unsetFlag(MODULE_ID, "ultimate"); }
+                else await a.setFlag(MODULE_ID, "ultimate", was[i].ultimate);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ missing: ["SUITE E51-T17 Anna"], opened: ["Anna"] }),
+            "[the row's line of who has no Ultimate; whose sheet its Open rendered]");
+    }],
+
+    ["E51-T18 - a refused Objection says what became of its price: refused before the price, nothing was taken; refused after it, the action given back is named; a Hope refund that did not land says so and to tell the GM (E51 C6; E51-39, audit S06-50)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-50. A GM's Objection card is judged on the primary (trial.mjs `seizeFloor`), which
+         * pays and then gives the price back when the floor did not move - and its whisper said "Nothing was taken from
+         * you" whatever `refundPrice` answered, beside price.mjs's own "could not come back". In a debate, Aiko objects
+         * at Botan three times on the GM's card road (`presentBullet`, objection): (1) the card names an item she does
+         * not hold - refused before the price; (2) with her actions, the floor's write of her Objection swallowed
+         * (the world's settings refusing that one value, as a write that never lands), so the floor stays the debate and
+         * the action comes back; (3) with no action and 2 Hope, the same, and her Hope write held back once more for the
+         * refund (her document's update refusing a rise), so the refund does not land. Each whisper's words read with
+         * `contentOf`. Everything put back: the settings' and the document's writers, her actions, Hope, grants and
+         * bullet, the floor, the queue, the clock and every message posted. Red at C6's parent: (2) and (3) whisper
+         * "Nothing was taken from you".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two participants, one to object and one to be objected to");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges a GM's Objection card - this would measure nothing");
+        const F = await import("./trial-floor.mjs");
+        const trial = await import("./trial.mjs");
+        const B = await import("./truth-bullets.mjs");
+        const P = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const V = await import("./vote.mjs");
+        const taking = new Set(V.trialParticipants({ connected: false }).map(p => p.actor.id));
+        const [who, other] = cast(2);
+        must(taking.has(who.id) && taking.has(other.id), "the two cast are not both the trial's participants - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max, hope: who.system.resources.hope.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) };
+        const seen = new Set(game.messages.map(m => m.id));
+        const settings = game.settings;
+        const ownSet = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
+        const ownUpdate = Object.getOwnPropertyDescriptor(who, "update"), realUpdate = who.update;
+        const why = game.i18n.localize("DRPG.Trial.objectionNoFloor");
+        const said = () => game.messages.filter(m => !seen.has(m.id)).map(m => contentOf(m))
+            .filter(text => text.includes(game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: "" }).split(":")[0]));
+        const expect = {
+            none: game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why: game.i18n.localize("DRPG.Trial.objectionNoItem") }),
+            action: game.i18n.format("DRPG.Trial.objectionRefunded", { why, what: P.priceLabel({ pay: "action", amount: 1 }) }),
+            hope: game.i18n.format("DRPG.Trial.objectionRefundLost", { why, what: P.priceLabel({ pay: "hope", amount: 1 }) }),
+            // The sentence of a refusal before the price, with the floor's reason: what the road after it must not say.
+            nothing: game.i18n.format("DRPG.Trial.objectionRefusedWhisper", { why })
+        };
+        const read = {};
+        let item = null, swallowed = 0;
+        const object = async () => {
+            const n = said().length;
+            const posted = await trial.presentBullet(who, item, { objection: true, targetId: other.id });
+            await until(() => said().length > n, 6000);
+            await sheetAuditIdle();
+            return [posted, said().slice(n)];
+        };
+        try {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await F.startFloor({});
+            item = await B.createTruthBullet(who, { name: "SUITE E51-T18 a torn ticket", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made - this would measure nothing");
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3, "system.resources.hope.value": 2 });
+            await sheetAuditIdle();
+            await settle();
+
+            // (1) Refused before the price: a GM's card naming an item she does not hold.
+            const n1 = said().length;
+            await ChatMessage.create({ content: "<p>SUITE E51-T18 no evidence</p>", speaker: ChatMessage.getSpeaker({ actor: who }),
+                flags: { [MODULE_ID]: { [trial.TRIAL_FLAGS.present]: true, [trial.TRIAL_FLAGS.objection]: true, [trial.TRIAL_FLAGS.presenter]: who.name,
+                    [trial.TRIAL_FLAGS.item]: "SUITEE51T18none0", [trial.TRIAL_FLAGS.target]: other.id, [trial.TRIAL_FLAGS.targetName]: other.name,
+                    popupKind: "none" } } });
+            await until(() => said().length > n1, 6000);
+            read.none = [said().slice(n1).some(t => t.includes(expect.none)), who.system.resources.actions.value];
+
+            // (2) and (3): the floor's write of her Objection never lands.
+            settings.set = async function (namespace, key, value, ...rest) {
+                if (namespace === MODULE_ID && key === SETTINGS.trialQueue && value?.mode === F.FLOOR_MODES.objection && value?.holderId === who.id) {
+                    swallowed++;
+                    return value;
+                }
+                return realSet.call(this, namespace, key, value, ...rest);
+            };
+            const [posted2, words2] = await object();
+            read.action = [posted2, words2.some(t => t.includes(expect.action)), words2.some(t => t.includes(expect.nothing)),
+                who.system.resources.actions.value, F.trialFloor()?.mode ?? null];
+
+            await who.update({ "system.resources.actions.value": 0 });
+            await sheetAuditIdle();
+            const hopeBefore = who.system.resources.hope.value;
+            who.update = async function (data, ...rest) {
+                const flat = foundry.utils.flattenObject(data ?? {});
+                const hope = flat["system.resources.hope.value"];
+                if (hope !== undefined && Number(hope) > Number(this.system.resources.hope.value)) return this;
+                return realUpdate.call(this, data, ...rest);
+            };
+            const [posted3, words3] = await object();
+            read.hope = [posted3, words3.some(t => t.includes(expect.hope)), words3.some(t => t.includes(expect.nothing)),
+                hopeBefore - who.system.resources.hope.value, F.trialFloor()?.mode ?? null];
+        } finally {
+            if (ownUpdate) Object.defineProperty(who, "update", ownUpdate); else delete who.update;
+            if (ownSet) Object.defineProperty(settings, "set", ownSet); else delete settings.set;
+            try { await item?.delete(); } catch { /* already gone */ }
+            await clearObjections(F, seen);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (before.grants === undefined) await who.unsetFlag(MODULE_ID, FLAGS.freeActionGrants);
+            else await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions, "system.resources.hope.value": before.hope });
+            await sheetAuditIdle();
+            await settle();
+        }
+        must(swallowed >= 2, `the floor's write of the Objection was swallowed ${swallowed} times, not twice - this would measure nothing`);
+        equal(stableJson(read), stableJson({ none: [true, 3], action: [true, true, false, 3, "debate"], hope: [true, true, false, 1, "debate"] }),
+            "[refused before the price: \"nothing was taken\" said, her actions; refused after the action was paid: the card posted, the action named as given back, "
+            + "\"nothing was taken\" said, her actions, the floor; refused after 1 Hope was paid and its refund held back: the card posted, the refund said not to have "
+            + "landed, \"nothing was taken\" said, the Hope still gone, the floor]");
+    }],
+
+    ["E51-T19 - no discarding in the Class Trial: the sheet's Discard is greyed with the reason as its tooltip, `discardBroken` refuses before any window and rolls nothing, and the item stays; before the trial the same button is lit (E51 C6; E51-41, amend 14.10 (2))", async () => {
+        /*
+         * E51 C6, 31.10.2026; the owner before session 0 (14.10): "Wyrzucanie itemow tez powinno byc zabronione w trial
+         * grounds" (Q1: the Class Trial's phase). A broken tool on a student of the cast; the sheet drawn by the module's
+         * own render hook (`drawnSheet`) in Daily Life (the control: the button lit, its tooltip the discard's) and in
+         * the Class Trial (greyed, `aria-disabled`, the tooltip the reason); then `discardBroken` in the trial with every
+         * window it would open answered "no" and counted, the warnings heard and the messages counted. The clock, the item
+         * and the windows put back. Red at C6's parent: the button lit in the trial, and the confirm asked.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to hold the broken tool");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const [actor] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const reason = game.i18n.localize("DRPG.Items.noDiscardInTrial");
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(DialogV2, "confirm"), wait: Object.getOwnPropertyDescriptor(DialogV2, "wait") };
+        const warnOwn = Object.getOwnPropertyDescriptor(ui.notifications, "warn"), warn = ui.notifications.warn;
+        const asked = { n: 0 }, warned = [];
+        const read = {};
+        let broken = null, sheet = null;
+        const button = () => {
+            sheet?.remove();
+            sheet = drawnSheet(actor);
+            const b = sheet.element.querySelector(`[data-item-uuid="${broken.uuid}"] [data-drpg-row-action="discard"]`);
+            return b ? [b.getAttribute("aria-disabled") === "true", b.dataset.tooltip ?? null] : null;
+        };
+        try {
+            broken = await INV.grantItem(actor, { name: "SUITE E51-T19 a snapped lockpick", category: "tool", tier: 1, override: true, quiet: true,
+                extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+            must(broken && INV.isBroken(broken), "the broken tool was not made - this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "dailyLife" });
+            await settle();
+            read.before = button();
+            must(stableJson(read.before) === stableJson([false, game.i18n.localize("DRPG.Items.discardTooltip")]),
+                `outside the trial the sheet did not offer the discard as it does (${stableJson(read.before)}) - this would measure nothing`);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await settle();
+            read.trial = button();
+            const count = game.messages.size;
+            DialogV2.confirm = async () => { asked.n += 1; return false; };
+            DialogV2.wait = async () => { asked.n += 1; return null; };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            const answered = await U.discardBroken(actor, broken);
+            read.press = [answered ?? null, asked.n, warned.includes(reason), Boolean(actor.items.get(broken.id)), game.messages.size - count];
+        } finally {
+            for (const [key, was] of Object.entries(own)) { if (was) Object.defineProperty(DialogV2, key, was); else delete DialogV2[key]; }
+            if (warnOwn) Object.defineProperty(ui.notifications, "warn", warnOwn); else delete ui.notifications.warn;
+            sheet?.remove();
+            try { await actor.items.get(broken?.id ?? "")?.delete(); } catch { /* already gone */ }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+        }
+        equal(stableJson({ trial: read.trial, press: read.press }), stableJson({ trial: [true, reason], press: [null, 0, true, true, 0] }),
+            "[in the Class Trial: the Discard greyed, its tooltip; the press: discardBroken's answer, the windows it opened, the reason warned, the item still held, "
+            + "the messages posted]");
+    }],
     ...GRID
 ];
 

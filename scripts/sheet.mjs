@@ -49,7 +49,7 @@ import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
-import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf }
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
@@ -3054,12 +3054,17 @@ function addDiscardButton(li, item, app) {
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
 
-    const tip = game.i18n.localize("DRPG.Items.discardTooltip");
+    /* GREYED IN THE CLASS TRIAL, WITH ITS REASON (E51 C6; E51-41): `aria-disabled` and not `disabled`, as the fight's tile
+       (`actionButton`), so the tooltip that says why still shows; the press is refused by `discardBroken` in the
+       same words. */
+    const trial = noDiscardNow();
+    const tip = trial ?? game.i18n.localize("DRPG.Items.discardTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "drpg-row-button drpg-row-discard";
     button.dataset.drpgRowAction = "discard";
+    if (trial) button.setAttribute("aria-disabled", "true");
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;

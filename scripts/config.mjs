@@ -3631,6 +3631,13 @@ export const TRIAL = {
      */
     speakSeconds: 180,
     /**
+     * The shortest debate any road opens (E51 C6, 31.10.2026; audit S06-45). The console's field said `min="30"`
+     * and nothing held it: DialogV2 does not enforce an input's bounds, so "-60" opened a debate with its clock red
+     * from the first second and was remembered for the next one, and `reopenDebate` passed 10 s on. trial-floor.mjs
+     * `debateSeconds` holds every road to it.
+     */
+    debateMinSeconds: 30,
+    /**
      * An OBJECTION buys exactly one minute of silence, then the person it was
      * aimed at gets two minutes to answer back, and then the floor returns to
      * free discussion.

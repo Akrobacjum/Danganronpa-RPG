@@ -24,7 +24,7 @@
 import {
     MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
 } from "./config.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm, isEclipse } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
 // suite's own source sweep can follow it.
 import {
@@ -193,7 +193,8 @@ async function fixResources() {
     let n = 0;
     for (const actor of studentActors()) {
         if (!needsStartingResources(actor)) continue;
-        await initCharacter(actor);
+        // Quiet (E51 C6; audit S06-46): the row reports the count once ("DRPG.Season.fixed"), not a warning per sheet.
+        await initCharacter(actor, { quiet: true });
         n++;
     }
     return n;
@@ -331,8 +332,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             done: !waiting && roster.every(a => a.getFlag(MODULE_ID, "ultimate")),
             missing: () => roster.filter(a => !a.getFlag(MODULE_ID, "ultimate")).map(a => a.name),
             // An Ultimate is a sentence somebody writes, so this opens the sheet
-            // rather than inventing one.
-            open: names => openFirstSheet(names)
+            // rather than inventing one. By id (E51 C6): the names are for the eye.
+            open: () => openFirstSheet(roster.filter(a => !a.getFlag(MODULE_ID, "ultimate")).map(a => a.id))
         },
         {
             key: "experiences",
@@ -340,7 +341,7 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             done: !waiting && roster.every(a => listExperiences(a).length >= STARTING.experiences),
             missing: () => roster.filter(a => listExperiences(a).length < STARTING.experiences)
                 .map(a => `${a.name} (${listExperiences(a).length}/${STARTING.experiences})`),
-            open: names => openFirstSheet(names)
+            open: () => openFirstSheet(roster.filter(a => listExperiences(a).length < STARTING.experiences).map(a => a.id))
         },
         {
             key: "items",
@@ -680,8 +681,11 @@ export function firstOutstandingStep(list = steps({ roomScene: homeScene() })) {
  * Awaited since E20 C4 (S06-30): the checklist comes back once this resolves and raises what opened in the meantime
  * (`raiseOpened`), so the sheet has to be on the page by then, not still rendering.
  */
-async function openFirstSheet(names) {
-    const first = studentActors().find(a => names.some(n => n.startsWith(a.name)));
+/* BY ID, NOT BY A NAME'S START (E51 C6, 31.10.2026; audit S06-46; E51-38). It took the first student whose name the
+   row's line began with, so with Ann before Anna in the roster, Anna's row ("Anna (1/3)") opened Ann's sheet. The row
+   hands over the ids of the students it waits on, in its roster's order. */
+async function openFirstSheet(ids) {
+    const first = (ids ?? []).map(id => game.actors.get(id)).find(Boolean) ?? null;
     await first?.sheet?.render({ force: true });
 }
 
@@ -864,12 +868,18 @@ export function setupRows(list) {
     }).join("");
 }
 
-/** What Save hands back: the campaign name, the chapter and the safeword. */
-function readSeasonForm(d) {
+/**
+ * What Save hands back: the campaign name, the chapter and the safeword. Exported for R1125.
+ *
+ * THE CHAPTER HELD TO THE SEASON (E51 C6, 31.10.2026; audit S06-46; E51-38): a whole number from 1 to the field's own
+ * `max` (the season's chapters, or the clock's chapter past them), where "-2" and "2.5" were written as they came.
+ */
+export function readSeasonForm(d) {
     const f = d.element.querySelector("form");
+    const top = Math.max(CHAPTERS_PER_SEASON, Math.round(Number(f.chapter.max)) || 0);
     return {
         campaignName: f.campaignName.value.trim(),
-        chapter: Number(f.chapter.value) || 1,
+        chapter: Math.min(Math.max(Math.round(Number(f.chapter.value)) || 1, 1), top),
         // Blank means "put the default back", which is what
         // `safeword()` reads an empty setting as. Written blank
         // rather than filled in here so the two agree.
@@ -1075,7 +1085,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         return openSeasonSetup({ draft: result.draft });
     }
 
+    const chapterWas = Number(getClock().chapter);
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });
+    /* AND IT SAYS WHEN AN ECLIPSE STILL RUNS (E51 C6; audit S06-46), as Edit campaign does (gm-panel.mjs
+       `openClockDialog`): a chapter moved here leaves the Eclipse on - placing freely, refusing murders - and this
+       window has no switch for it. */
+    if (Number(result.chapter) !== chapterWas && isEclipse()) ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
 
     // Only when it moved. Every write to this setting redraws every open sheet
     // (see its `onChange`), and pressing Save on this window is something a GM
@@ -1718,7 +1733,8 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
         deaths: async () => {
             const { reviveCharacter } = await import("./chapter.mjs");
             const { setMonocub } = await import("./monocub.mjs");
-            if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
+            // Quiet (E51 C6; audit S06-46): the reset's own report says what it did, not a toast per Monocub.
+            if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true });
             if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
             // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
             await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },

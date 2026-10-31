@@ -5889,6 +5889,27 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: p1 objecting for p2's Botan is refused for ownership and told - nothing paid, posted or put on the floor",
         objSetup?.room === true && objSetup.floor === "debate" && objSetup.speaker === true && refusedAs(objOther, null)
             && objOther.logged.some(r => /sender does not own/.test(r)), JSON.stringify({ objSetup, objOther }), { flow: "class-trial" });
+    /* E51 C6 (1.2.93; the slice's Base mutant t1): with the Room open, the speaker it counts is held by the floor's rule
+       too (`mayObjectTo` in `objectOnPrimary`'s Room branch): during a rebuttal only the two in it may be aimed at, and
+       since C6 only the trial's participants. The floor is made Aiko's rebuttal with Botan, Chie still the one speaker
+       the Room has heard; p1's console presses OBJECTION! for Aiko. Refused - nobody the floor allows has spoken -
+       told, and nothing paid or moved; the debate written back as it stood. Mutant t1 (the Room's speaker taken as it
+       is) aims it at Chie. */
+    const rebuttalWas = await gm.eval(`const q = foundry.utils.deepClone(game.settings.get("${MOD}", "trialQueue") ?? {});
+        const { serverNow } = await import("${repoUrl}/scripts/utils.mjs");
+        await game.settings.set("${MOD}", "trialQueue", { ...q, mode: "rebuttal", holderId: "${ids.aiko}", targetId: "${ids.botan}", startedAt: serverNow() });
+        return q;`);
+    await settle(400);
+    let objPair = null;
+    try {
+        objPair = await objSend(p1, "trial.object", { actorId: ids.aiko }, "SECOBJPAIR");
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "trialQueue", ${JSON.stringify(rebuttalWas)}); return true;`);
+        await settle(400);
+    }
+    check("SECURITY: in Aiko's rebuttal with Botan, p1's OBJECTION! for Aiko is not aimed at Chie, whom the Room hears but the floor does not allow - refused, told, nothing paid or moved",
+        rebuttalWas?.mode === "debate" && refusedAs(objPair, null) && objPair.before.mode === "rebuttal" && objPair.after.target === ids.botan
+            && objPair.logged.some(r => /nobody has spoken in this trial that the objection could be aimed at/.test(r)), JSON.stringify({ rebuttalWas, objPair }), { flow: "class-trial" });
     const objAimed = await objSend(p1, "trial.object", { actorId: ids.aiko, targetId: ids.botan }, "SECOBJAIM");
     check("SECURITY: p1's Objection naming Botan in its packet is aimed at Chie, whom the GM's Room hears - the packet's target is not read",
         objAimed.after.mode === "objection" && objAimed.after.holder === ids.aiko && objAimed.after.target === ids.chie && objAimed.after.pending === true
@@ -6000,6 +6021,34 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
             && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
         JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
+    /* E51 C6 (1.2.93; E51-40, amend 14.10 (3), the owner before session 0): an Objection at somebody who takes no part in
+       the trial. With no voice Room on the primary the packet's target is read (trial.mjs `objectOnPrimary`), and it was
+       held only to a living student the floor lets the objector aim at - so p1's console could aim Aiko's Objection at a
+       living student no player plays and hand them the rebuttal. Daichi, the seed's student nobody plays, is dead by now
+       (the murder above), and refused for that at the parent too; so Chie is made one for the moment: alive, her player's
+       ownership taken off (put back below). The Room is closed on the GM first; p1's console then asks `trial.object` for
+       Aiko naming Chie. Refused (the target code), told, logged on the GM; the floor, its cards and Aiko's actions as they
+       were. Red at C6's parent: answered, the floor Aiko's Objection pending at Chie, her action paid. The control - a
+       legal Objection named with no Room - is 63-class-trial's. */
+    const nonPartRoom = await gm.eval(`await game.webrtc.disconnect?.(); const S = await import("${repoUrl}/scripts/trial-speakers.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs"); const V = await import("${repoUrl}/scripts/vote.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        globalThis.__s30chieOwnership = foundry.utils.deepClone(chie.ownership ?? {});
+        await chie.update({ ownership: { "${p3.userId}": 0 } });
+        return { open: S.speakerRoomOpen(), alive: !C.isDeadForGm(chie),
+            taking: V.trialParticipants({ connected: false }).some(p => p.actor.id === "${ids.chie}") };`, { timeout: 30000 });
+    await settle(500);
+    let objNonPart = null;
+    try {
+        objNonPart = await objSend(p1, "trial.object", { actorId: ids.aiko, targetId: ids.chie }, "SECOBJNONPART");
+    } finally {
+        await gm.eval(`await game.actors.get("${ids.chie}").update({ ownership: globalThis.__s30chieOwnership }); return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    check("SECURITY: p1's Objection for Aiko naming Chie, a living student no player plays for the moment, is refused with no Room on the GM and told - nothing paid, posted or put on the floor",
+        nonPartRoom.open === false && nonPartRoom.alive && nonPartRoom.taking === false && refusedAs(objNonPart, "cannotNow")
+            && objNonPart.logged.some(r => /the student named may not be objected to now/.test(r)) && objNonPart.after.mode === "debate",
+        JSON.stringify({ nonPartRoom, objNonPart }), { flow: "class-trial" });
     /* E70 fix p2-G2 (1.2.90; the review's SEC-1, E70P2-R08): every Present card is the primary's since C10 ("trial.present"),
        so a Present card p1's console posts in Aiko's name, with a bullet she holds and words of its own (an "analysis"
        nobody made), is a console's card: shown on no screen, marked refused on the primary. Red at 2fc865ac: raised on

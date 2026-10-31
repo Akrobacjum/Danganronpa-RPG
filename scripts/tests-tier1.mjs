@@ -25251,6 +25251,11 @@ const INVARIANTS = [
          * answers are written out here as they were read in its code (every state: no floor, a debate, a pending and a
          * filled Objection, a rebuttal; every role: the holder, the target, a third student), and held against both the
          * table and the three functions. Red at f388d722: no `modeAllows`.
+         *
+         * E51 C6 (31.10.2026; E51-40): `targetRefusal` refuses a target who takes no part in the trial too, read off
+         * vote.mjs `trialParticipants`, and the three made-up ids here are nobody's. So it is handed them as the trial's
+         * participants (`taking`), which keeps 1.2.89's answers on every floor the question they were; and one row more
+         * holds that the same pair is refused once its target is not among them (R1126 reads the world's own).
          */
         const F = await import("./trial-floor.mjs");
         ok(typeof F.modeAllows === "function" && F.MODE_RULES && typeof F.MODE_RULES === "object",
@@ -25274,13 +25279,14 @@ const INVARIANTS = [
                 object: f ? F.modeAllows(f, "object") : false,
                 objectFn: F.floorRefusal(f) === null,
                 target: pairs.map(([o, t]) => Boolean(o && t) && o !== t && (!f || F.modeAllows(f, "target", t))),
-                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f) === null)
+                targetFn: pairs.map(([o, t]) => F.targetRefusal(o, t, f, { taking: [H, T, O] }) === null),
+                outsider: F.targetRefusal(O, H, f, { taking: [O, T] }) === game.i18n.localize("DRPG.Trial.objectionNotParticipant")
             };
             const speak = [H, T, O].map(a => speak89(a, f)), target = pairs.map(([o, t]) => target89(o, t, f));
-            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target };
+            want[name] = { speak, speakFn: speak, object: object89(f), objectFn: object89(f), target, targetFn: target, outsider: true };
         }
         equal(stableJson(read), stableJson(want),
-            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair)");
+            "modeAllows or the three functions that answer from it differ from 1.2.89's answers on a floor (per floor: speak and maySpeak for holder, target, other; object and floorRefusal; target and targetRefusal per pair, the three ids the trial's participants; targetRefusal of a target who is not one)");
     }],
 
     ["R1024 - the floor's one engine (E70 C1, S18-72): floor-machine.mjs `nextFloor(floor, event, ctx)` is pure and answers each row - a timed mode run out, Skip, -30 s and +30 s, an Objection's stack, Back to the debate, End this mode, a lapse - as the GM's bar and the heartbeat need", async () => {
@@ -29738,6 +29744,110 @@ const INVARIANTS = [
         }), "[spiralSpot exported; ten traces at one origin: the first spot, the next eight (how many, how many distinct, each one step away), the tenth; "
             + "the first spot with the right refused (left of the origin, not the origin, one step away); with everything refused; beside a trace a few "
             + "pixels off the origin; placeRemnant asks spiralSpot, roomAt, and leaves a trace put back under its id where it was]");
+    }],
+
+    ["R1123 - a debate is at least 30 s on every road: trial-floor.mjs `debateSeconds` gives a whole number, never below `TRIAL.debateMinSeconds`, and `TRIAL.speakSeconds` for what is no number and for the bridge's 0; `openDebate`, `reopenDebate`, `startFloor`, `startFloorInStep` and the \"start\" op ask it (E51 C6; E51-36, audit S06-45)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-45. The console's field said `min="30"` and DialogV2 does not enforce it: "-60"
+         * opened a debate whose clock was red from the first second and was remembered for the next one, and
+         * `reopenDebate` passed a stored 10 s on. Read: `debateSeconds` on -60, 10, 29.6, 45.4, 300, "x", 0, null and
+         * undefined, and the five roads' sources (comments stripped) asking it. Red at C6's parent: no `debateSeconds`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const fn = typeof F.debateSeconds === "function" ? F.debateSeconds : null;
+        const sources = await moduleSources();
+        const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
+        const uiSrc = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        const asks = (src, name) => /debateSeconds\(/.test(fnSource(src, name) ?? "");
+        const ops = bodyOf(floorSrc, "start: ({ seconds, text = null }) =>", { length: 120 });
+        equal(JSON.stringify({
+            exported: Boolean(fn),
+            values: fn ? [-60, 10, 29.6, 45.4, 300, "x", 0, null, undefined].map(v => fn(v)) : null,
+            roads: [asks(uiSrc, "openDebate"), asks(uiSrc, "reopenDebate"), asks(floorSrc, "startFloor"), asks(floorSrc, "startFloorInStep"),
+                /debateSeconds\(seconds\)/.test(ops)]
+        }), JSON.stringify({
+            exported: true,
+            values: [30, 30, 30, 45, 300, TRIAL.speakSeconds, TRIAL.speakSeconds, TRIAL.speakSeconds, TRIAL.speakSeconds],
+            roads: [true, true, true, true, true]
+        }), "[debateSeconds exported; its answer for -60, 10, 29.6, 45.4, 300, \"x\", 0, null, undefined; openDebate, reopenDebate, startFloor, "
+            + "startFloorInStep and the \"start\" op ask it]");
+    }],
+
+    ["R1124 - the trial console opens the evidence log: trial-floor-ui.mjs `trialConsoleHtml` draws a \"Trial evidence log\" button in the debate's section of a running trial, and the window's one listener opens trial.mjs `openObjectionLog` from it (E51 C6; E51-37, audit S06-45)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-45. The evidence log opened only from the Investigation Dashboard and the
+         * console's `game.drpg.objectionLog()`; the trial console, the one window a trial is run from, had no door to
+         * it. Read: the console's html for a running trial with no floor (a view handed in, as R1030 hands
+         * `trialNextStep` one; no Reveal rows) - the button, its label and that it stands in the debate's section,
+         * before the vote's heading - and `manageClassTrial`'s source (comments stripped) opening the log from it.
+         * Red at C6's parent: `trialConsoleHtml` not exported.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const build = typeof UI.trialConsoleHtml === "function" ? UI.trialConsoleHtml : null;
+        const view = { floor: null, running: true, restrictive: false, finalNow: false,
+            progress: { voteClosed: false, verdictApplied: false, closing: null, againAfterOverrule: null, debateAgain: false },
+            pending: null, bar: null, afterwards: true, stopped: null, register: 0, deathThisChapter: false, next: "openDebate",
+            runner: null, table: null, rows: [], left: 0 };
+        const root = document.createElement("div");
+        if (build) root.innerHTML = build(view);
+        const button = root.querySelector("[data-drpg-console=\"log\"]");
+        const vote = [...root.querySelectorAll("h4")].find(h => h.textContent.trim() === game.i18n.localize("DRPG.Floor.sectionVote")) ?? null;
+        const before = Boolean(button && vote && (button.compareDocumentPosition(vote) & Node.DOCUMENT_POSITION_FOLLOWING));
+        const manage = fnSource(stripComments((await moduleSources()).get("trial-floor-ui.mjs") ?? ""), "manageClassTrial") ?? "";
+        equal(JSON.stringify({
+            exported: Boolean(build), button: Boolean(button), label: button?.textContent.trim() ?? null, before,
+            wired: /data-drpg-console=\\?"log\\?"[\s\S]{0,300}openObjectionLog\(/.test(manage)
+        }), JSON.stringify({
+            exported: true, button: true, label: game.i18n.localize("DRPG.Trial.logTitle"), before: true, wired: true
+        }), "[trialConsoleHtml exported; the log's button drawn; its label; it stands before the vote's heading; manageClassTrial opens the log from it]");
+    }],
+
+    ["R1125 - Set the season up holds the chapter to the season: season-setup.mjs `readSeasonForm` reads 99 as the field's max, 0 and -2 as 1, 2.5 as a whole chapter, and an empty field as 1 (E51 C6; E51-38, audit S06-46)", async () => {
+        /*
+         * E51 C6, 31.10.2026; audit S06-46. The window's Chapter field wrote what it was given: "-2", "2.5" or 99 went
+         * to the clock as typed (`Number(f.chapter.value) || 1`). Read off a form drawn as `campaignFieldsHtml` draws
+         * it, for a clock on chapter 1 (its `max` the season's chapters), each value typed in turn. Red at C6's parent:
+         * `readSeasonForm` not exported.
+         */
+        const S = await import("./season-setup.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const read = typeof S.readSeasonForm === "function" ? S.readSeasonForm : null;
+        const form = document.createElement("form");
+        form.innerHTML = S.campaignFieldsHtml({ campaignName: "SUITE R1125", chapter: 1 }, "");
+        const field = form.querySelector("[name=chapter]");
+        const typed = ["99", "0", "-2", "2.5", "", "3"].map(v => {
+            field.value = v;
+            return read ? read({ element: { querySelector: () => form } }).chapter : null;
+        });
+        equal(JSON.stringify({ exported: Boolean(read), max: Number(field.max), typed }),
+            JSON.stringify({ exported: true, max: CHAPTERS_PER_SEASON, typed: [CHAPTERS_PER_SEASON, 1, 1, 3, 1, 3] }),
+            "[readSeasonForm exported; the field's max; the chapter read for 99, 0, -2, 2.5, an empty field and 3]");
+    }],
+
+    ["R1126 - an Objection may aim only at the trial's participants: trial-floor.mjs `targetRefusal` gives \"DRPG.Trial.objectionNotParticipant\" for a student nobody plays and for an id no actor has, and nothing for one participant at another (E51 C6; E51-40, amend 14.10 (3))", async () => {
+        /*
+         * E51 C6, 31.10.2026; the owner before session 0 (14.10): "Objection w trialu pozwala wybrac graczy nie bioracych
+         * udzialu". `targetRefusal` asked nobody, oneself and the rebuttal's pair, so a student no player plays - a GM's
+         * NPC, the one the harness seeds - could be handed a rebuttal. It asks vote.mjs `trialParticipants({ connected:
+         * false })` now (Q5: a participant whose player dropped out is still one). Read with no floor, so the floor's
+         * own rows say nothing: two participants (null), a living student no player owns, and an id no actor has.
+         * Red at C6's parent: null for both outsiders.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two participants to aim one at the other");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a living student no player owns, who takes no part in a trial");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const taking = V.trialParticipants({ connected: false }).map(p => p.actor);
+        const outsider = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))) ?? null;
+        must(taking.length >= 2 && outsider, "fewer than two participants, or no student without a player - this would measure nothing");
+        const [a, b] = taking;
+        const reason = game.i18n.localize("DRPG.Trial.objectionNotParticipant");
+        equal(JSON.stringify([F.targetRefusal(a.id, b.id, null), F.targetRefusal(a.id, outsider.id, null), F.targetRefusal(a.id, "SUITER1126nobody", null),
+            F.mayObjectTo(a.id, outsider.id, null), reason.startsWith("DRPG.")]),
+        JSON.stringify([null, reason, reason, false, false]),
+        "[one participant at another; at a student nobody plays; at an id no actor has; mayObjectTo at the student nobody plays; the reason a key left unlocalised]");
     }],
 ];
 
