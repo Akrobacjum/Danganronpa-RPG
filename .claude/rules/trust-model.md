@@ -86,7 +86,9 @@ and picks, an item used and spent, a Call's price, a Search's record. A
 `discard` is the case where the stamp alone once stood: since E51's fix round
 (31.10.2026) its evidence is a one-use ticket the primary GM writes only after
 it placed the discard's trace (`noteDiscardTrace` / `takeDiscardTrace`), and a
-discard-stamped delete without one is flagged like a bare delete. What
+discard-stamped delete without one is flagged like a bare delete; the trace
+itself is still placed at the console's word, with the band it names, so a
+forged discard trace earns its ticket (one of the traces below). What
 nothing covers is put back at once and the writer told (Hope as a delta,
 statistics, maxima, rules, bonuses, the GM-only flags, an armed Call added -
 or, where it hinders or a GM armed it, taken off with no roll of the player's
