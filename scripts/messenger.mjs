@@ -47,6 +47,7 @@ import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
 import { postSecret, cardFlag, cardWriter, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
+import { count } from "./perf-counters.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -85,6 +86,8 @@ export const THREAD_KIND = {
 export function registerMessenger() {
     Hooks.on("createChatMessage", onCreateChatMessage);
     Hooks.on("updateChatMessage", onUpdateChatMessage);
+    Hooks.on("deleteChatMessage", onDeleteChatMessage);
+    Hooks.on("drpgMessengerRead", dropThreadStats);
 }
 
 /* ==========================================================================
@@ -115,8 +118,62 @@ export function threadMessages(playerUserId) {
 }
 
 export function lastMessage(playerUserId) {
-    const all = threadMessages(playerUserId);
-    return all[all.length - 1] ?? null;
+    return threadStats().get(playerUserId)?.last ?? null;
+}
+
+/*
+ * ONE COUNT OF EVERY THREAD (E50 C2, 30.10.2026; audit S11-45, S11-57, E50-10 to E50-12).
+ *
+ * The badge summed `unreadCount` over the thread users, and each was a `threadMessages` walk of every message with a
+ * sort and a read of the read map; each roster row added `lastMessage` and `unreadCount`, two walks more. R1065
+ * counted a GM's launcher and a roster of 11 threads at C2's parent: 33 walks of `game.messages` and 22 reads of the
+ * read map, on every message that arrived. `threadStatsOf` is the one pass, and pure: it reads the messages it is
+ * handed and the three things it is told, nothing of `game` but what `cardFlag` and `cardWriter` read off a card.
+ *
+ * WHAT COUNTS AS UNREAD. A message after the thread's read stamp that somebody else wrote - as before - or, on a GM,
+ * one of the GM's own cards that asks a GM (`gmAsk`) and is not settled. `callGm` posts its asks from the primary GM's
+ * own session when the bridge runs it there (a parked murder, a trap, an ask held for a player), so the one browser
+ * that has to answer such a card had it read the moment it was posted (S11-45). Settled, it asks nobody, and a
+ * receipt (`gmAsk` false) never did. A player's own ask is the player's and does not count for them.
+ */
+export function threadStatsOf(messages, { me = null, readMap = {}, isGM = false } = {}) {
+    const stats = new Map();
+    for (const message of messages ?? []) {
+        // A veiled thread card keeps its thread in the meta its words brought (E06 C7a), which `cardFlag` reads.
+        const thread = cardFlag(message, MESSENGER_FLAGS.thread);
+        if (!thread) continue;
+        let row = stats.get(thread);
+        if (!row) stats.set(thread, row = { count: 0, unread: 0, last: null });
+        row.count++;
+        const at = message.timestamp ?? 0;
+        // The newest; of two at one stamp the later in the collection, as the stable sort `threadMessages` makes has it.
+        if (!row.last || at >= (row.last.timestamp ?? 0)) row.last = message;
+        if (!(at > (readMap?.[thread] ?? 0))) continue;
+        const own = cardWriter(message)?.id === me;
+        if (!own || (isGM && cardFlag(message, MESSENGER_FLAGS.gmAsk) && !cardFlag(message, MESSENGER_FLAGS.settled))) row.unread++;
+    }
+    return stats;
+}
+
+/*
+ * THE COUNT, ONCE A RENDER. `threadStats()` is `threadStatsOf` over `game.messages` with this browser's read map,
+ * kept until the task that asked for it ends (a microtask drops it) and dropped at once on a message created, changed
+ * or deleted and on `drpgMessengerRead` (a read stamp written on this browser: `markThreadRead` is its one caller). A
+ * launcher drawn and a roster built in one go share one pass; anything later counts again, so a card whose words (and
+ * with them a veiled card's thread or its `settled`) land after its document is read as it stands then, without a hook
+ * of its own. Counted: `messenger.threadStats` a pass, `messenger.readMap` a read of the map (perf-counters.mjs).
+ */
+let statsMemo = null;
+function dropThreadStats() {
+    statsMemo = null;
+}
+export function threadStats() {
+    if (statsMemo) return statsMemo;
+    count("messenger.threadStats");
+    const made = threadStatsOf(game.messages ?? [], { me: game.user?.id ?? null, readMap: readMap(), isGM: Boolean(game.user?.isGM) });
+    statsMemo = made;
+    queueMicrotask(() => { if (statsMemo === made) statsMemo = null; });
+    return made;
 }
 
 /* ---- read state, per client ------------------------------------------------
@@ -126,6 +183,7 @@ export function lastMessage(playerUserId) {
  * -------------------------------------------------------------------------- */
 
 function readMap() {
+    count("messenger.readMap");
     try {
         return game.settings.get(MODULE_ID, SETTINGS.messengerLastRead) ?? {};
     } catch {
@@ -144,7 +202,7 @@ export async function markThreadRead(playerUserId) {
     // on every render and every new bubble; a thread already read up to its
     // newest message has nothing to record, and the write plus the hook it
     // fires repainted the launcher for nothing each time.
-    const newest = Math.max(0, ...threadMessages(playerUserId).map(m => m.timestamp ?? 0));
+    const newest = threadStats().get(playerUserId)?.last?.timestamp ?? 0;
     if (lastReadAt(playerUserId) >= newest) return;
     // The newest message's own stamp, not this browser's clock (COMM-15): a
     // sender whose clock runs ahead would otherwise leave a bubble unread
@@ -154,18 +212,19 @@ export async function markThreadRead(playerUserId) {
     Hooks.callAll("drpgMessengerRead", playerUserId);
 }
 
-/** Unread messages in one thread, for the CURRENT client. Never counts your own. */
+/**
+ * Unread messages in one thread, for the CURRENT client: never your own, but a GM's own ask that is not settled
+ * (`threadStatsOf`).
+ */
 export function unreadCount(playerUserId) {
-    const since = lastReadAt(playerUserId);
-    return threadMessages(playerUserId)
-        .filter(m => m.timestamp > since && cardWriter(m)?.id !== game.user.id)
-        .length;
+    return threadStats().get(playerUserId)?.unread ?? 0;
 }
 
-/** Total unread across every thread this client can see. */
+/** Total unread across every thread this client can see: a GM's every player's, a player's own. */
 export function totalUnread() {
+    const stats = threadStats();
     const mine = game.user.isGM ? threadUsers().map(u => u.id) : [game.user.id];
-    return mine.reduce((sum, id) => sum + unreadCount(id), 0);
+    return mine.reduce((sum, id) => sum + (stats.get(id)?.unread ?? 0), 0);
 }
 
 /* ==========================================================================
@@ -176,8 +235,10 @@ export function totalUnread() {
  * Send free text into a player's thread. Called from the messenger window -
  * either the player themself, or any GM, may call this. The whisper target
  * is always the full roster, so there is only ever one copy of the message.
+ * `outcome`: filled on the way to a null, as `postSecret` fills it (secret.mjs;
+ * E50 fix FG2), for the window to say what is known of a send that failed.
  */
-export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } = {}) {
+export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, outcome = null } = {}) {
     const body = String(text ?? "").trim();
     if (!body) return null;
     if (!isThreadUser(playerUserId)) {
@@ -186,7 +247,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
     }
 
     const esc = foundry.utils.escapeHTML(body).replace(/\n/g, "<br>");
-    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind);
+    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind, false, false, null, outcome);
 }
 
 /*
@@ -212,7 +273,7 @@ export async function postToThread(playerUserId, html, { kind = THREAD_KIND.acti
     return createThreadMessage(playerUserId, html, kind, gmAsk, veiled, rid);
 }
 
-async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null, outcome = null) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
 
     // The SENDER's sound, and it is deliberately not carried on the message:
@@ -247,7 +308,7 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
                     ...(rid ? { rid } : {})
                 }
             }
-        });
+        }, { outcome });
     } catch (err) {
         error("Messenger: could not send.", err);
         return null;
@@ -267,6 +328,7 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
  * ========================================================================== */
 
 async function onCreateChatMessage(message) {
+    dropThreadStats();
     let thread = cardFlag(message, MESSENGER_FLAGS.thread);
     /* A veiled thread card's placement arrives with its words (E06 C8), which may
        land after the document - on its poster's browser too, whose own copy
@@ -274,6 +336,7 @@ async function onCreateChatMessage(message) {
        words never reach gives up at `wordsOf`'s ceiling and places nothing. */
     if (!thread && isVeiled(message) && !secretHtml(message)) {
         await wordsOf(message);
+        dropThreadStats();
         thread = cardFlag(message, MESSENGER_FLAGS.thread);
     }
     if (!thread) return;
@@ -320,8 +383,22 @@ async function onCreateChatMessage(message) {
  * something already read said something different.
  */
 function onUpdateChatMessage(message) {
+    dropThreadStats();
     const thread = cardFlag(message, MESSENGER_FLAGS.thread);
     if (!thread) return;
     if (!game.user.isGM && game.user.id !== thread) return;
     Hooks.callAll("drpgMessengerEdited", thread, message);
+}
+
+/**
+ * A message of a thread was deleted (E50 C1; audit S11-35, E50-04): `drpgMessengerDeleted` takes it out of the open
+ * windows. A veiled card whose words never reached this browser names no thread here and was never placed in one; it
+ * is raised with a null thread, and the windows look for it by its id.
+ */
+function onDeleteChatMessage(message) {
+    dropThreadStats();
+    const thread = cardFlag(message, MESSENGER_FLAGS.thread) ?? null;
+    if (!thread && !isVeiled(message)) return;
+    if (thread && !game.user.isGM && game.user.id !== thread) return;
+    Hooks.callAll("drpgMessengerDeleted", message, thread);
 }

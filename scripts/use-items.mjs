@@ -820,8 +820,9 @@ async function consume(item, { reason, held = item }) {
  * thrown away during that Investigation or the trial was filed as preparation. The third fact is
  * the chapter's discovery stamp made since its last Class Trial ended (settings.mjs
  * `bodyFoundSinceTrial`): through the Investigation and the trial it says "after"; once that
- * trial has ended, a discard is preparation again, for a murder that has not happened. Nothing
- * refuses a discard in either phase (`discardBroken` reads no phase; read in the code). Tier 2
+ * trial has ended, a discard is preparation again, for a murder that has not happened. A discard
+ * in the Investigation is filed here; one in the Class Trial is refused since E51 C6 (`discardBroken`,
+ * gm-bridge.mjs `handleRemnant`), so the trial's branch below files only what reaches it another way. Tier 2
  * "a chapter's second Investigation reads its own body on the card and in a discard".
  *
  * THE PHASE, AND THE INCIDENT'S OWN SIDES (E14 part 1 C5, 24.10.2026; audit S08-13). Two readings were still wrong:
@@ -856,9 +857,26 @@ export async function discardRemnantType(actor = null) {
     return BROKEN_ITEMS.remnantTypeBefore;
 }
 
+/*
+ * NOTHING IS THROWN AWAY IN THE CLASS TRIAL (E51 C6, 31.10.2026; amend 14.10 (2), the owner before session 0:
+ * "Wyrzucanie itemow tez powinno byc zabronione w trial grounds"; Q1: the trial's grounds are the phase,
+ * `clock.phase === "classTrial"`, not the hall's scene; E51-41). Asked before the window, so nothing is asked or rolled;
+ * the sheet's button is greyed with the same sentence (sheet.mjs `addDiscardButton`), and the primary GM refuses the
+ * trace of a discard that reaches it in the trial (gm-bridge.mjs `handleRemnant`, `cannotNow`). An Eclipse is no trial:
+ * a discard in one goes as before.
+ */
+export function noDiscardNow(clock = getClock()) {
+    return clock?.phase === "classTrial" ? game.i18n.localize("DRPG.Items.noDiscardInTrial") : null;
+}
+
 export async function discardBroken(actor, item) {
     if (!actor || !item) return null;
     if (deadHands(actor)) return null;
+    const trial = noDiscardNow();
+    if (trial) {
+        ui.notifications.warn(trial);
+        return null;
+    }
 
     if (!isBroken(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.discardOnlyBroken"));
@@ -933,7 +951,10 @@ export async function discardBroken(actor, item) {
     // kept (E31 review).
     if (!placed) {
         const { tokenFor } = await import("./remnants.mjs");
-        await whisperToOwner(actor, `<p class="drpg-warning">${
+        // A discard begun before the trial and landing in it (E51 C6): the GM refused it (`cannotNow`); the roll is spent,
+        // the item kept, and the whisper says why it stays, beside the bridge's own sentence.
+        const late = noDiscardNow();
+        await whisperToOwner(actor, `<p class="drpg-warning">${late ? `${late} ` : ""}${
             game.i18n.format(tokenFor(actor) ? "DRPG.Items.discardKept" : "DRPG.Items.discardNoTrace", {
                 item: foundry.utils.escapeHTML(name)
             })}</p>`);

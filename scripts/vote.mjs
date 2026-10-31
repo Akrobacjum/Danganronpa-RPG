@@ -960,6 +960,29 @@ let unsent = null;
 let sending = false;
 /** The round of the last ballot the primary recorded from this browser, so an ask's answer does not say it twice. */
 let confirmedRound = null;
+
+/**
+ * THE VOTE'S TRACE (E51 C4, 31.10.2026; E51-27, audit S13-33). "Your vote is in." was a toast, and the Events panel went
+ * on calling the player to vote until the count. `noteBallotIn` is the one write of `confirmedRound`, made when the
+ * primary has said it holds this browser's ballot of `round` (`sendBallot`, `askBallot`), and it draws the panel again;
+ * events.mjs `trialCard` asks `ballotInHere`, which is true only while the vote open in the world is that round - a
+ * vote reopened is a new round and calls to vote again. This browser's memory, as the rest of the ballot's: a reload
+ * forgets it until the ask at load hears the ballot is in. Exported for the suite (E51-T11), with `ballotInRound`.
+ */
+export function noteBallotIn(round) {
+    confirmedRound = round ?? null;
+    import("./events.mjs").then(m => m.renderEvents()).catch(() => {});
+}
+
+/** The round `noteBallotIn` last noted, or null. */
+export function ballotInRound() {
+    return confirmedRound;
+}
+
+/** Whether the primary holds this browser's ballot of the vote open now (`noteBallotIn`). */
+export function ballotInHere(progress = trialProgress()) {
+    return confirmedRound !== null && Boolean(progress?.vote?.open) && Number(progress.vote.round) === Number(confirmedRound);
+}
 /** A primary GM whose world said it had loaded before this browser saw it connect (pre-session-note.mjs `owedTo`). */
 let owedTo = null;
 
@@ -1089,7 +1112,7 @@ async function sendBallot() {
         if (unsent === ballot) {
             if (res.ok) {
                 unsent = null;
-                confirmedRound = ballot.round;
+                noteBallotIn(ballot.round);
                 ui.notifications.info(game.i18n.localize("DRPG.Vote.castConfirmed"));
             } else if (res.refused) {
                 unsent = null;
@@ -1140,7 +1163,7 @@ async function askBallot() {
     const round = Number(reply.round) || 0;
     if (reply.cast) {
         if (round !== confirmedRound) ui.notifications.info(game.i18n.localize("DRPG.Vote.alreadyIn"));
-        confirmedRound = round;
+        noteBallotIn(round);
         return;
     }
     await castBallot({ round, picks: Number(reply.picks) || 1, candidates: reply.candidates });

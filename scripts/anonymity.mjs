@@ -261,7 +261,16 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
             // object twice.
             take.disabled = true;
             take.dataset.drpgTaken = "true";
-            await takeFromBody(actor, item);
+            if (await takeFromBody(actor, item)) return;
+            /* NOTHING TAKEN, SO THE TAKE IS OPEN AGAIN (E50 C4; audit S11-36). Until C4 a Take the primary refused (the
+               taker gone from the room, the body looted by somebody else meanwhile), one no GM answered and one with no
+               character stayed shut, marked as pressed, until the sheet was drawn again, and the gate's re-reading
+               passed it by. Now it is the gate's again: open, then shut with the reason's sentence where the gate still
+               refuses it here. A Take that took stays shut. */
+            delete take.dataset.drpgTaken;
+            take.disabled = false;
+            take.removeAttribute("aria-disabled");
+            if (taker) await greyRefused(list, actor, taker);
         });
         row.append(take);
         list.append(row);
@@ -305,19 +314,24 @@ function regreyOpenLoot() {
  * The one the viewer plays, which is nearly always exactly one - and if it is
  * somehow none, the button says so rather than sending a request the GM will
  * refuse.
+ *
+ * Answers whether something was taken (E50 C4): true only on the GM's answer that took it, so the Take opens again
+ * on a refusal, on no GM answering and with no character (`buildBodyLoot`).
  */
 async function takeFromBody(body, item) {
     const taker = myCharacter();
     if (!taker) {
         ui.notifications.warn(game.i18n.localize("DRPG.Loot.noCharacter"));
-        return;
+        return false;
     }
 
     const { requestBodyLoot } = await import("./gm-bridge.mjs");
     const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
+    const took = Boolean(res.ok && !res.value?.refused);
     if (res.ok && !res.value?.refused) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
+    return took;
 }
 
 /**

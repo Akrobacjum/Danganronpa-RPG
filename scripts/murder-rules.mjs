@@ -226,6 +226,20 @@ function isFreeTake(def, side, state) {
     return Boolean(def?.kind === "resolution" && !def.noRoll && freeResolutionFor(side, state));
 }
 
+/**
+ * The number a crisis action's roll must reach, or null for one with no dice (`noRoll`): a Finishing Blow's falls as the
+ * victim runs out of Health (`finishingBlowThreshold`), every other is the table's. ONE READING FOR THE MENU, THE ROLL
+ * WINDOW AND THE JUDGE (E51 C1; the owner's amendment of 14.10): the menu's "Beat N" (`availableCrisisActions`), the
+ * `dc` `takeCrisisAction` hands the roll window, read at the roll and not when the menu opened, and the GM's
+ * `applyCrisisAction`, which scores the total against it on the GM's own state - the window's number is what the
+ * player is told, never what is judged.
+ */
+export function crisisThreshold(key, state = murderState()) {
+    const def = CRISIS_ACTIONS[key];
+    if (!def || def.noRoll) return null;
+    return key === "finishingBlow" ? finishingBlowThreshold(state) : def.threshold ?? null;
+}
+
 /** Crisis actions this actor may take right now, with their hindered flags. */
 export function availableCrisisActions(actor, state = murderState()) {
     const side = sideOf(actor, state);
@@ -251,35 +265,38 @@ export function availableCrisisActions(actor, state = murderState()) {
         // know WHOSE turn this is asks `sideOf(actor)` instead - see
         // `resolveCrisisAction`.
         .filter(([, def]) => forSide(def, side))
-        // What the incident has taken away (`deniedToVictim`): Role reversal from a victim
-        // whose killer opened on a Despair success, or who has somebody beside their killer,
-        // and both reversals in a trap (D13; E32+E07 C11a). Side-blind, so a trap's third
-        // loses Double role reversal with it. Missing from this list is refused by the GM
-        // too (`crisisRefusal`); until C11a it was only not drawn.
-        .filter(([key]) => !(state.deniedToVictim ?? []).includes(key))
         .map(([key, def]) => {
             const locked = Boolean(def.lockedUntil && !unlocked.has(key));
+            /*
+             * What the incident has taken away (`deniedToVictim`): Role reversal from a victim whose killer opened on
+             * a Despair success, or who has somebody beside their killer, and both reversals in a trap (D13; E32+E07
+             * C11a). Side-blind, so a trap's third loses Double role reversal with it. KEPT IN THE LIST, STRUCK (E51 C1;
+             * audit S02-51 (g)): it was filtered out, so the victim's menu lost a row with no word of why. It stays,
+             * `denied` with its reason, shut like a blocked row - and the GM refuses it as before (`crisisRefusal`'s
+             * `offered.denied`). A reader that counts what may be taken reads `blocked` or `denied`.
+             */
+            const denied = (state.deniedToVictim ?? []).includes(key);
             return {
                 key,
                 def,
+                denied,
+                why: denied ? "DRPG.Murder.deniedByIncident" : null,
                 // G-18: no dice on this one, and the tile should say so before
                 // it is pressed rather than after. Still false while the action
                 // is locked - a free take is worth nothing on a door that has
                 // not been opened yet.
-                free: !locked && isFreeTake(def, side, state),
+                free: !locked && !denied && isFreeTake(def, side, state),
                 // The number to beat, computed here rather than read off `def`
                 // by the sheet: a Finishing Blow's threshold is not a constant,
                 // it falls as the victim runs out of Health. `null` for the three
                 // decisions that have no dice at all.
-                threshold: def.noRoll
-                    ? null
-                    : (key === "finishingBlow" ? finishingBlowThreshold(state) : def.threshold ?? null),
+                threshold: crisisThreshold(key, state),
                 hindered: (hindered[key] ?? 0) > 0,
                 // Self-defence gates the victim's two ways out, and closes
                 // itself once it lands. `blocked` already means "you may not
                 // press this", so both reasons fold into it - and each carries
                 // its own explanation for the tooltip.
-                blocked: (blocked[key] ?? 0) > 0 || locked || spent.has(key),
+                blocked: (blocked[key] ?? 0) > 0 || locked || spent.has(key) || denied,
                 // In the list, out of the grid (trap 65). Kept in the list on
                 // purpose: `takeCrisisAction` reads this same list for its
                 // locked/spent guards, so filtering it out here would leave
@@ -862,6 +879,8 @@ export function crisisRefusal(actor, key, state = murderState()) {
      */
     const offered = availableCrisisActions(actor, state).find(o => o.key === key);
     if (!offered) return { why: "that action is not open to that character now", key: "DRPG.Murder.actionDenied" };
+    // Kept in the list, struck, since E51 C1 (`availableCrisisActions`): what the incident took away is refused as it was.
+    if (offered.denied) return { why: "that action is denied by the incident", key: "DRPG.Murder.actionDenied" };
     // The sheet greys these out, but the panel is only rebuilt on render - a
     // window left open across somebody else's turn still has live buttons.
     if (offered.locked) {
@@ -1075,6 +1094,10 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         roll = await rollTrait(actor, ruled.trait, {
             actionKey: "crisis", context: { crisis: key },
             title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis"),
+            // "Beat N" on the window, the menu's own reading (`crisisThreshold`) taken now, at the roll: a Finishing
+            // Blow's number falls while the GM picks the statistic (E51 C1). The sheet's "use" on an item comes this
+            // way too (15). The GM scores the total against its own reading of it.
+            dc: crisisThreshold(key, murderState() ?? state),
             byGm: ruled.byGm
         });
     } finally {
@@ -1648,9 +1671,10 @@ async function applyCrisisAction({
     // an item is the same act whoever does it - and everything below is about
     // the person who took it: the advantage it clears, whether the turn passes.
     const side = def.side === "both" ? sideOf(actor) : def.side;
-    const threshold = key === "finishingBlow"
-        ? finishingBlowThreshold(state)
-        : def.threshold;
+    // The menu's reading and the window's (`crisisThreshold`), on this GM's state: null for a take with no dice.
+    const threshold = crisisThreshold(key, state);
+    // A take with no dice prints no score (`announceCrisis`, E51 C1): a free take's total 0 is no roll.
+    const rolled = !def.noRoll && !free;
     // `noRoll` actions have no threshold to beat - the guide gives them no
     // table at all - so they always take the success branch. Left out, they
     // scored `total >= undefined`, which is false, and every one of the third
@@ -1792,13 +1816,13 @@ async function applyCrisisAction({
     const ranOut = await checkVictimSpent(done, receipt.killed);
 
     const announcement = await announceCrisis(actor, def, {
-        success, band, total, threshold, done, stage, promised
+        success, band, total, threshold, done, stage, promised, rolled
     });
     receipt.messageId = announcement?.id ?? null;
     // The tracker's line for this turn (`recent`), read before the pass: the drain at the
     // victim's turn is the next turn's, not this action's. No band for a take with no roll.
-    const entry = { turn: state.turn ?? 0, side, key, band: def.noRoll || free ? null : band, success,
-        changes: landedSince(receipt) };
+    const entry = turnEntry({ turn: state.turn ?? 0, side, key, band, success, total, threshold, rolled,
+        changes: landedSince(receipt) });
 
     // A third party's action is free: it is taken out of the victim→killer
     // order and must not advance it, or somebody walking in would silently
@@ -1931,6 +1955,23 @@ const CRISIS_MOVES = ["stage", "endedBy", "turn", "turnSide", "killerTurnId", "t
  * than adding one.
  */
 const RECENT_TURNS = 3;
+
+/**
+ * One line of the tracker's `recent`, as `applyCrisisAction` writes it: `{ turn, side, key, band, success, total,
+ * threshold, changes }`. THE TOTAL AND THE NUMBER IT WAS MEASURED AGAINST (E51 C1; the owner's amendment of 14.10): the
+ * GM read "made it with Hope" and had to work out the margin from the chat. A take with no dice (`rolled` false: a
+ * third's choice, a free take) keeps neither, nor a band. Pure, for R1109; an entry written before E51 has neither
+ * field and is drawn as it was (murder-ui.mjs `recentTurnsHtml`).
+ */
+export function turnEntry({ turn = 0, side = null, key = null, band = null, success = false, total = null, threshold = null,
+    rolled = true, changes = [] } = {}) {
+    return {
+        turn, side, key, band: rolled ? band : null, success: Boolean(success),
+        total: rolled && Number.isFinite(total) ? total : null,
+        threshold: rolled && Number.isFinite(threshold) ? threshold : null,
+        changes
+    };
+}
 
 /**
  * What an action marked on the reserves its receipt holds the values of - the actor's and the
@@ -4066,7 +4107,7 @@ async function tellGms(text, extra = {}) {
  *
  * @returns the ChatMessage, so a Reroll can replace it rather than contradict it.
  */
-async function announceCrisis(actor, def, { success, band, total, threshold, done, stage, promised = true }) {
+async function announceCrisis(actor, def, { success, band, total, threshold, done, stage, promised = true, rolled = !def?.noRoll }) {
     // On a success, the sentence for the band that came up. On a failure,
     // NOTHING from the table - what happened is in `done`.
     //
@@ -4089,10 +4130,14 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // A `noRoll` action has no dice and no threshold, so the score line is
     // nonsense for it - it printed "0 ≥ undefined · with Hope". What it has
     // instead is the sentence describing the choice.
+    // A FREE TAKE IS NO ROLL (E51 C1; E51-T7). Taken with no dice (`takeCrisisAction`, G-18), it was sent with total 0
+    // and printed "0 ≥ 18 · with Hope" - a score nobody threw. It says it worked with no roll, as its menu row did.
     const score = def.noRoll
         ? `<p><em>${foundry.utils.escapeHTML(callEffect(def) || def.hint || "")}</em></p>`
-        : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${
-            game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
+        : !rolled
+            ? `<p><em>${game.i18n.localize("DRPG.Murder.noRollItWorks")}</em></p>`
+            : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${
+                game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
 
     // A failure that changed nothing at all still gets a sentence. An empty
     // card under a score line reads as though the module lost the result.
@@ -4407,6 +4452,9 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
                 actionKey: "murderOpening",
                 // Thrown on the participant's own client - see `openingTitle`.
                 title: openingTitle(side),
+                // "Beat 8" / "beat 20" on its window (E51 C1): the number `resolveKillerOpening` and
+                // `resolveVictimOpening` score it against on the GM.
+                dc: def.threshold,
                 context: { side }
             });
             if (!roll && attempt < MAX_ATTEMPTS && openingStillWanted(side, actorId)) {

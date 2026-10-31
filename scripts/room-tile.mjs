@@ -8,8 +8,9 @@
  * answers is the whole of which of them reach a screen:
  *
  *   - WHOSE ROOM is `viewerActor()`'s (hud.mjs) and nobody else's: the account's assigned character, else its
- *     one owned student, else the GM's own Monokuma - the rule the clock has always used. Never a selected or
- *     a clicked token, never the room on the camera's scene, never a room the character has found or one beside
+ *     one owned student, else of several the one whose token it controls, else the first by name (E51 C4), and a
+ *     GM's own Monokuma - the rule the clock uses. Never a GM's selected token, never another's or a
+ *     clicked token, never the room on the camera's scene, never a room the character has found or one beside
  *     it (R509 reads that this file takes an actor from nowhere else).
  *   - WHERE is the token `locateActor` chooses, on its own scene and floor, read at the spot the route last
  *     settled on (`settledPosition`): a crossing this browser is still judging, or one refused and not yet put
@@ -714,7 +715,9 @@ function onRegionChanged() {
 /**
  * The tile's triggers (module.mjs `ready`). A settled route repaints only for the viewer's own token: another
  * token's settle changes nothing here. `controlToken` is no trigger, though the plan named it for a GM:
- * `viewerActor` is the GM's own Monokuma whatever is selected, so a selection cannot change the tile.
+ * `viewerActor` is the GM's own Monokuma whatever is selected, so a selection cannot change the tile. For a player
+ * with several students and none assigned it can since E51 C4 (`chooseOwnStudent` takes the controlled one), and is
+ * still no trigger: the next paint reads it - the settle of a move of that token is one (its actor is the viewer then).
  */
 export function registerRoomTile() {
     Hooks.on("drpgRouteSettled", ({ tokenDoc } = {}) => {

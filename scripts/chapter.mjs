@@ -1147,7 +1147,7 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
  * chapter and season (settings.mjs `recordBodyFound`; tier 0 R349 holds that nothing else calls
  * it). Who walked in is not in it - the GMs' log has it (`checkBodyFound`). E19's channel, E13's
  * trial room and E70 read the stamp through `bodiesFoundIn`, `bodyAnnounced` and
- * `chapterBodyFound`; E67's hook goes here. Answers the stamp, or null when it could not be
+ * `chapterBodyFound`; the hook of E72 (part A, formerly E67) goes here. Answers the stamp, or null when it could not be
  * written - logged, and the discovery goes on: its deaths are already the table's.
  */
 export async function announceBody(row) {

@@ -305,7 +305,8 @@ export function registerVoice() {
         if (game.user?.isGM) scheduleReconcile({ immediate: true });
     });
     // The dead channel's triggers that write no setting of the world (E19 C3; A9): the GMs' cast changed (a
-    // castStore write, or another GM's merged in - E67's `silencedDead` among its fields), and the cast arriving
+    // castStore write, or another GM's merged in - `silencedDead` of
+    // E72 (part A, formerly E67) among its fields), and the cast arriving
     // after a load or a change of primary, while which the dead of this chapter keep their rooms (`deathVoiceGone`'s null).
     Hooks.on("drpgCastChanged", () => {
         if (isPrimaryGm()) scheduleReconcile();
@@ -1035,8 +1036,8 @@ export function olderDeath(record, { chapter = null, epoch = null } = {}) {
  *     since chapter 1 outranked its player's living character (`voiceRowFor`'s `stillThere`), sent that account its
  *     own `standIn` (`answerWhoAmI`) and held back every living player walking into the room its token stands in;
  *   - true: outside the running incident's cast (`participantIds`) - the incident it died in is over, or it died
- *     outside one; its body found this chapter (`deathAnnounced`); a GM's "Silence now" (`silencedDead`, which E67
- *     writes in the cast; read only); or a living student from outside the cast in the same room (`witnessed`,
+ *     outside one; its body found this chapter (`deathAnnounced`); a GM's "Silence now" (`silencedDead`, which
+ *     E72 (part A, formerly E67) writes in the cast; read only); or a living student from outside the cast in the same room (`witnessed`,
  *     `placeVoices`' second pass);
  *   - false: in the cast of the incident that runs, and none of the above.
  * Only the primary asks it, of the GMs' records: no player's browser reads or is told any of it, and the dead
@@ -1106,8 +1107,8 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     somebody hears it, but a Monocub is never held (the design's P6), so this is a line of information.
  *   - "deadAlone": the primary GM put this account in the dead channel (E19 C3; A9): its voice character's death is
  *     not public, and the living neither hear it nor are heard there - a line of information, not held (E19 fix
- *     r1-G1; the review's E19-C3-1). The dead channel is one room for every secret death until E67's channel per
- *     account, so with two victims each hears the other: the module silences nobody there, and the microphone stays
+ *     r1-G1; the review's E19-C3-1). The dead channel is one room for every secret death until the channel per
+ *     account of E72 (part A, formerly E67), so with two victims each hears the other: the module silences nobody there, and the microphone stays
  *     its owner's to open and mute, as a Monocub's in an Eclipse. Until the fix it was held, which froze it as it
  *     was - a muted victim could not speak to the other, an open one could not mute. A GM's block is named over it.
  *     Until A9's first trigger a dead student talks in the room they died in, and nothing is said (Q2);

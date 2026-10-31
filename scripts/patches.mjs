@@ -334,7 +334,7 @@ export const PATCHES = [
         owner: "foundry",
         file: "no-scrolling-text.mjs",
         symbol: "registerNoScrollingText",
-        why: "No floating captions over tokens at all.",
+        why: "No floating captions over tokens; a region's Display Scrolling Text passes over a token shown on this browser (D44e).",
         when: "always",
         fallback: "not installed, and the console says so: captions float over tokens as Foundry draws them",
         probe: () => {
@@ -565,6 +565,23 @@ export const PATCHES = [
             // E52-07: a class without the getter is left as Foundry's (fog.mjs `doorControlFor`), so the row fails on it.
             if (!visibleGetterOf(Door)) return { present: false, ours: false, note: "Foundry's door control class has no isVisible to ask" };
             return { present: true, ours: Door.name === "RoomDoorControl" };
+        }
+    },
+    {
+        id: "token-ruler",
+        kind: "override",
+        target: "CONFIG.Token.rulerClass",
+        owner: "foundry",
+        file: "fog-doorways.mjs",
+        symbol: "registerTokenRuler",
+        why: "The line a token's move draws wears the hour's colour, the room outline's (E51 C3; the owner's report of 11.10).",
+        when: "always, from init",
+        fallback: "no ruler class there: a token's ruler keeps Foundry's colour",
+        probe: () => {
+            const Ruler = CONFIG.Token?.rulerClass;
+            // No class is a Foundry (or the harness) with no token ruler to colour: unknown, never failed (LIVE-E51-02).
+            if (typeof Ruler !== "function") return { present: null, ours: null, state: "unknown", note: "no token ruler class here" };
+            return { present: true, ours: Ruler.name === "HourTokenRuler" };
         }
     },
     {

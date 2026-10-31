@@ -3,9 +3,15 @@
  * ---------------------------------------------------------------------------
  * `pickTarget` and the pickers behind it - a room, a player, a project, a text,
  * a motive, a Monocub, an item - each opened under the same lines that name the
- * Call, its effect and its price (`callHeader`, carried on `pendingHeader`).
- * They only ask. Nothing here pays for a Call, arms it or applies it: that is
- * calls.mjs (`confirmCall`) and call-effects.mjs (`applyCall`).
+ * Call, its effect and its price (`callHeader`, built by `pickTarget` and handed
+ * to each picker). They only ask. Nothing here pays for a Call, arms it or
+ * applies it: that is calls.mjs (`confirmCall`) and call-effects.mjs (`applyCall`).
+ *
+ * AND EVERY CALL WINDOW IS DRAWN HERE (E51 C2, 30.10.2026; audit S17-48):
+ * `callWindow`, which the pickers, calls.mjs's confirmation and the GM's ruling,
+ * the Monocub's Confusion (monocub.mjs) and the sheet's "call off the assembly"
+ * all open through - one look, by the Call's side, under the header the caller
+ * hands in. R1110 reads that no Call window opens any other way.
  *
  * WHERE IT SITS. Moved out of call-effects.mjs by E34 (1.2.70), a pure move that
  * `node tools/moved-only.mjs` proves line by line. The file above it is
@@ -13,18 +19,115 @@
  * file reads (sheet.mjs, through that facade) - so importers keep importing
  * call-effects.mjs, and nothing here imports it back: R161 counts an
  * `export ... from` as an edge, and the import would close a cycle. Below it are
- * config.mjs and utils.mjs, statically; the modules a picker reads the world
+ * config.mjs and utils.mjs, statically, and since E51's fix round live.mjs
+ * (`alreadyOpen`, `keepLive`, which import config.mjs and utils.mjs alone); the modules a picker reads the world
  * through (movement, projects, chapter, monokuma, monocub) stay lazy `import()`s,
- * as they were. `pendingHeader` is a module `let` that `pickTarget` writes and
- * the pickers read, so it lives with them - no module can assign another's
- * binding - and the `DialogV2` alias came along, because nothing left in
- * call-effects.mjs opens a window through it.
+ * as they were. The `DialogV2` alias came along, because nothing left in
+ * call-effects.mjs opens a window through it; since E51 C2 `callWindow` is its
+ * one reader. calls.mjs, monocub.mjs and sheet.mjs import `callWindow` and
+ * `callHeader` from here directly: neither is a name of the facade, and this
+ * file imports none of them back statically, so no cycle closes (R161).
  */
 
-import { MODULE_ID, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
-import { dialogContent, esc } from "./utils.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
+import { dialogContent, esc, wholeNumber } from "./utils.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
+
+/* ==========================================================================
+ * THE CALL WINDOW
+ * ========================================================================== */
+
+/**
+ * Every window a Call opens, from one builder (E51 C2, 30.10.2026; audit S17-48).
+ *
+ * Seven windows used to be built in seven places: the pickers in `drpg-despair-dialog` whatever
+ * the Call (`choose` in no side's class at all), the confirmation and the GM's ruling in classes
+ * of their own, Confusion as a plain panel, the sheet's "call off the assembly" a bare confirm -
+ * and the pickers' confirm said "Do it" (`DRPG.Action.proceed`), which says nothing about what
+ * it does. Now:
+ *
+ *   THE SIDE IS THE CLASS. `kind` "hope" gives `drpg-hope-dialog` (gold), anything else
+ *   `drpg-despair-dialog` (blood) - the stylesheet's `--drpg-call-ink`, on the header's stripe and
+ *   title (danganronpa.css, "the Call window's side").
+ *   THE HEADER IS HANDED IN. The caller builds it (`callHeader`) and it is drawn above the body;
+ *   nothing is read from module state, so two windows open at once keep their own (the module
+ *   `let pendingHeader` this replaced was shared by both).
+ *   THE GM ROAD IS RED. `gmRoute` puts `drpg-gm-route` (D11, the class `chooseVariant`'s rows and
+ *   every "this waits for a GM" button carry) on each button but the cancel.
+ *   THE BUTTONS SAY WHAT THEY DO, the caller's own, and the cancel is `DRPG.Calls.cancel` (or the
+ *   key `cancel` names; `false` for none).
+ *
+ * The content goes through `dialogContent`, which keeps a textarea's placeholder (utils.mjs).
+ * `title` defaults to the Call's label; `render` and `modal` pass through to DialogV2.
+ *
+ * ONE OF EACH, AND TRUE WHILE IT STANDS (E51 fix round FG7, 31.10.2026; review goal G2: the owner's
+ * amend of 27.10, variant B, "callWindow powstaje na DialogV2 z keepLive i alreadyOpen", which C2
+ * did not build). `once` is a class (`callWindowClass`): while a window carrying it is open
+ * (live.mjs `alreadyOpen`) that one is raised and this answers null, opening nothing - a sheet
+ * redrawn under a Call window puts its tile back live, and a second press opened a second window
+ * for the same Call. `live` is `keepLive`'s `{ region, build, watch, after }`, started on the drawn
+ * window: the confirmation's header redrawn from what the buyer holds now, and its Spend with it
+ * (calls.mjs `confirmCall`). Tier 2's E51-T29 opens one twice and grants Hope while it stands.
+ *
+ * @returns {Promise<*>} what `DialogV2.wait` answers: a button's callback's value, its action,
+ *   or null for a closed window (or for a window of `once` already open).
+ */
+export async function callWindow({
+    call = null, kind = "hope", header = "", body = "", buttons = [], gmRoute = false,
+    title = null, cancel = true, cancelDefault = false, render, modal, once = null, live = null
+} = {}) {
+    if (once && alreadyOpen(once)) return null;
+    const routed = buttons.map(b => gmRoute && b.action !== "cancel"
+        ? { ...b, class: [b.class, "drpg-gm-route"].filter(Boolean).join(" ") } : b);
+    if (cancel !== false) {
+        routed.push({ action: "cancel", label: game.i18n.localize(typeof cancel === "string" ? cancel : "DRPG.Calls.cancel"),
+            default: cancelDefault });
+    }
+    const drawn = live || render ? (event, dialog) => {
+        if (live) {
+            // keepLive hands `after` the new element alone; the window goes with it here.
+            keepLive(dialog, live.after ? { ...live, after: next => live.after(next, dialog) } : live);
+            live.after?.(dialog?.element?.querySelector(live.region) ?? null, dialog);
+        }
+        render?.(event, dialog);
+    } : null;
+    return DialogV2.wait({
+        window: { title: title ?? call?.label ?? "" },
+        classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog", ...(once ? [once] : [])],
+        content: dialogContent(`${header}${body}`),
+        buttons: routed,
+        ...(drawn ? { render: drawn } : {}),
+        ...(modal !== undefined ? { modal } : {}),
+        rejectClose: false
+    });
+}
+
+/**
+ * The class a Call's window carries for `callWindow`'s `once` (E51 fix round FG7): one per Call, its side
+ * and its step - `pick` for the pickers, `confirm` for the confirmation - so the picker and the confirmation of
+ * one purchase, which hand over in the same breath, never refuse each other. Null for a Call that is no row of
+ * the two tables (the GM's ruling window is built from a stand-in).
+ */
+export function callWindowClass(call, kind, step) {
+    const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;
+    const key = Object.keys(table).find(k => table[k] === call);
+    return key ? `drpg-call-${kind === "hope" ? "hope" : "despair"}-${key}-${step}` : null;
+}
+
+/**
+ * A window of this Call open now, either step, raised; or null (E51 fix round FG7). The sheet asks it at the press
+ * (sheet.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.
+ */
+export function callWindowOpen(call, kind) {
+    for (const step of ["pick", "confirm"]) {
+        const cls = callWindowClass(call, kind, step);
+        const open = cls ? alreadyOpen(cls) : null;
+        if (open) return open;
+    }
+    return null;
+}
 
 /* ==========================================================================
  * PICKERS
@@ -44,45 +147,52 @@ export async function pickTarget(actor, call, kind) {
     // purchase, two different orders, and the one that showed the price last
     // was the one where the choice mattered more.
     //
-    // Carried on `pendingHeader` rather than passed down through six pickers:
-    // every one of them ends in `choose()` or a small form of its own, and
-    // threading a header parameter through all of them to reach two template
-    // strings is more moving parts than the same fact read once at the point
-    // it is rendered.
-    pendingHeader = callHeader(call, kind);
-    try {
-        // The one Call whose content is the point: a new rule has to be written
-        // before it can be announced.
-        if (call.announces) return await pickText(call);
-        // …and the one that needs three answers rather than a target.
-        if (call.setsMotive) return await pickMotive(call);
+    // HANDED ON, NOT CARRIED (E51 C2, 30.10.2026; audit S17-48). The header was a module `let`
+    // (`pendingHeader`) set here and cleared when this picker's window closed, on the grounds that
+    // threading it through six pickers was more moving parts than reading one binding. The binding
+    // was one for every Call: a picker that awaits an import before its window (the player's, the
+    // project's, the room's, the item's, the Monocub's) drew whatever Call had set it last, and the
+    // first window to close cleared the other's. R1111 opens two at once. So each picker is handed
+    // `ask` - the Call, its side and its header - and passes it to `callWindow`.
+    // `once` (E51 fix round FG7): one picker of this Call at a time (`callWindow`).
+    const ask = { call, kind, header: callHeader(call, kind), once: callWindowClass(call, kind, "pick") };
+    // The one Call whose content is the point: a new rule has to be written
+    // before it can be announced.
+    if (call.announces) return await pickText(ask);
+    // …and the one that needs three answers rather than a target.
+    if (call.setsMotive) return await pickMotive(ask);
 
-        switch (call.target) {
-            case "player": return await pickPlayer(actor, call, kind);
-            case "monocub": return await pickMonocub();
-            case "project": return await pickProject(actor, kind, call);
-            case "room": return await pickRoom(actor);
-            case "item": return await pickItem();
-            default: return {};
-        }
-    } finally {
-        pendingHeader = "";
+    switch (call.target) {
+        case "player": return await pickPlayer(actor, ask);
+        case "monocub": return await pickMonocub(ask);
+        case "project": return await pickProject(actor, ask);
+        case "room": return await pickRoom(actor, ask);
+        case "item": return await pickItem(ask);
+        default: return {};
     }
 }
 
 /**
- * The name, the effect and the price - the same three lines `confirmCall`
- * shows, rendered above whichever picker this Call needs.
+ * The name, the effect and the price - the lines above every Call window, the
+ * pickers' and the confirmation's, so the two screens read as one purchase.
+ *
+ * `held` (the confirmation's) turns the short price into the sentence with what
+ * the buyer holds, in the warning colour when it is not enough. `effect` and
+ * `price` replace the Call's own sentence and price, for a window whose row is
+ * not a Call's (monocub.mjs's Confusion). A Call with no target has no name to
+ * add: the header is the Call's, never the target's (that is the body's
+ * "Aimed at").
  */
-let pendingHeader = "";
-
-function callHeader(call, kind) {
+export function callHeader(call, kind, { held = null, effect = null, price = null } = {}) {
+    const hope = kind === "hope";
+    const priceLine = price ?? (held === null
+        ? game.i18n.format(hope ? "DRPG.Calls.costsHopeShort" : "DRPG.Calls.costsDespairShort", { cost: call.cost })
+        : game.i18n.format(hope ? "DRPG.Calls.costsHope" : "DRPG.Calls.costsDespair", { cost: call.cost, held }));
+    const short = held !== null && held < call.cost;
     return `<div class="drpg-call-header">
         <h3>${esc(call.label)}</h3>
-        <p>${esc(callEffect(call))}</p>
-        <p class="notes">${game.i18n.format(
-            kind === "hope" ? "DRPG.Calls.costsHopeShort" : "DRPG.Calls.costsDespairShort",
-            { cost: call.cost })}</p>
+        <p>${esc(effect ?? callEffect(call))}</p>
+        <p class="${short ? "drpg-warning" : "notes"}">${esc(priceLine)}</p>
     </div>`;
 }
 
@@ -92,7 +202,7 @@ function callHeader(call, kind) {
  * Only actual Monocubs: a dead student who has not opted in has nothing to
  * spend Hope on, and a living one is not what this Call is for.
  */
-async function pickMonocub() {
+async function pickMonocub(ask) {
     const { monocubActors } = await import("./monocub.mjs");
     const cubs = monocubActors();
 
@@ -101,7 +211,7 @@ async function pickMonocub() {
         return null;
     }
 
-    const id = await choose("DRPG.Monocub.who",
+    const id = await choose(ask, "DRPG.Monocub.who",
         cubs.map(a => ({
             value: a.id,
             label: `${a.name} - ${game.i18n.format("DRPG.Monocub.hopeShort", {
@@ -113,16 +223,15 @@ async function pickMonocub() {
 }
 
 /** The wording of a new killing game rule, which everyone will be shown. */
-async function pickText(call) {
-    const text = await DialogV2.wait({
-        window: { title: call.label },
-        classes: ["drpg-panel", "drpg-despair-dialog"],
-        content: dialogContent(`${pendingHeader}<form>
+async function pickText(ask) {
+    const text = await callWindow({
+        ...ask,
+        body: `<form>
             <p>${game.i18n.localize("DRPG.Calls.newRulePrompt")}</p>
             <textarea name="text" rows="3"
                 placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
             <p class="notes">${game.i18n.format("DRPG.Calls.newRuleNote", { cost: DESPAIR_CALLS.newRule.cost })}</p>
-        </form>`),
+        </form>`,
         // The confirm stays shut until there is a rule to announce (E15 C4, 25.10.2026; audit S09-39), as
         // `pickMotive`'s: an empty text closed the window and did nothing, which read as a Call for nine
         // Despair that hung.
@@ -135,14 +244,10 @@ async function pickText(call) {
             field.addEventListener("input", sync);
             sync();
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=text]").value.trim()
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+        buttons: [{
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+            callback: (e, b, d) => d.element.querySelector("[name=text]").value.trim()
+        }]
     });
 
     if (!text || text === "cancel") return null;
@@ -159,11 +264,10 @@ async function pickText(call) {
  * cannot be held to, and finding that out after paying is the version of this
  * that costs somebody their time of day.
  */
-async function pickMotive(call) {
-    const record = await DialogV2.wait({
-        window: { title: call.label },
-        classes: ["drpg-panel", "drpg-despair-dialog"],
-        content: dialogContent(`${pendingHeader}<form>
+async function pickMotive(ask) {
+    const record = await callWindow({
+        ...ask,
+        body: `<form>
             <label>${game.i18n.localize("DRPG.Motive.demandLabel")}
                 <textarea name="text" rows="3"
                     placeholder="${game.i18n.localize("DRPG.Motive.demandPlaceholder")}"></textarea></label>
@@ -176,7 +280,7 @@ async function pickMotive(call) {
                 <textarea name="consequence" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Motive.consequencePlaceholder")}"></textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.Motive.publicNote")}</p>
-        </form>`),
+        </form>`,
         render: (event, dialog) => {
             const root = dialog?.element;
             if (!root) return;
@@ -190,21 +294,17 @@ async function pickMotive(call) {
             for (const f of fields) f.addEventListener("input", sync);
             sync();
         },
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return {
-                        text: f.querySelector("[name=text]").value.trim(),
-                        consequence: f.querySelector("[name=consequence]").value.trim(),
-                        timesOfDay: Number(f.querySelector("[name=timesOfDay]").value)
-                    };
-                }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+        buttons: [{
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+            callback: (e, b, d) => {
+                const f = d.element.querySelector("form");
+                return {
+                    text: f.querySelector("[name=text]").value.trim(),
+                    consequence: f.querySelector("[name=consequence]").value.trim(),
+                    timesOfDay: wholeNumber(f.querySelector("[name=timesOfDay]").value, { min: MOTIVE.minTimesOfDay, max: MOTIVE.maxTimesOfDay, fallback: MOTIVE.defaultTimesOfDay })
+                };
+            }
+        }]
     });
 
     // The backstop behind the disabled button, for the same reason the rest
@@ -214,7 +314,8 @@ async function pickMotive(call) {
     return { motive: record };
 }
 
-async function pickPlayer(actor, call, kind) {
+async function pickPlayer(actor, ask) {
+    const { kind } = ask;
     const { isMonokuma } = await import("./monokuma.mjs");
     const { othersInRoom } = await import("./movement.mjs");
     const { isDeadForGm } = await import("./chapter.mjs");
@@ -247,14 +348,15 @@ async function pickPlayer(actor, call, kind) {
         return null;
     }
 
-    const id = await choose("DRPG.Calls.whichPlayer",
+    const id = await choose(ask, "DRPG.Calls.whichPlayer",
         pool.map(a => ({ value: a.id, label: a.name })));
     if (!id) return null;
     return { target: pool.find(a => a.id === id) };
 }
 
-async function pickProject(actor, kind = "hope", call = null) {
-    const { knownProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
+async function pickProject(actor, ask) {
+    const { kind, call } = ask;
+    const { knownProjects, projectsAvailableIn, isComplete, isFrozen, projectLabel } = await import("./projects.mjs");
     const { locateActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -301,8 +403,9 @@ async function pickProject(actor, kind = "hope", call = null) {
         return null;
     }
 
-    const id = await choose("DRPG.Calls.whichProject",
-        pool.map(p => ({ value: p.id, label: `${p.name} - ${p.current}/${p.start}` })));
+    const id = await choose(ask, "DRPG.Calls.whichProject",
+        // The one formatter of a project's name in a list (projects.mjs `projectLabel`, E51 C1).
+        pool.map(p => ({ value: p.id, label: projectLabel(p) })));
     if (!id) return null;
     return { project: id };
 }
@@ -311,7 +414,7 @@ async function pickProject(actor, kind = "hope", call = null) {
    that names a room, was the rooms of the scene this browser's camera showed. The GM who applies a
    gather judges its room against the caller's own scene (call-effects.mjs `gatherRefusal`), so the
    list is that scene's, read the same way from the same documents (call-world.mjs `gatherSceneOf`). */
-async function pickRoom(actor) {
+async function pickRoom(actor, ask) {
     const { gatherSceneOf } = await import("./call-world.mjs");
     const { roomNames } = await import("./rooms.mjs");
     const rooms = roomNames(await gatherSceneOf(actor));
@@ -319,11 +422,11 @@ async function pickRoom(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Rest.noRegions"));
         return null;
     }
-    const room = await choose("DRPG.Calls.whichRoom", rooms.map(r => ({ value: r, label: r })));
+    const room = await choose(ask, "DRPG.Calls.whichRoom", rooms.map(r => ({ value: r, label: r })));
     return room ? { room } : null;
 }
 
-async function pickItem() {
+async function pickItem(ask) {
     /*
      * WHOSE THINGS CONTRABAND CAN REACH (CALL-14, Dawid 17.09).
      *
@@ -358,30 +461,26 @@ async function pickItem() {
         ui.notifications.warn(game.i18n.localize("DRPG.Calls.noItems"));
         return null;
     }
-    const uuid = await choose("DRPG.Calls.whichItem", entries);
+    const uuid = await choose(ask, "DRPG.Calls.whichItem", entries);
     if (!uuid) return null;
     return { item: await fromUuid(uuid) };
 }
 
-/** One-dropdown picker. */
-async function choose(promptKey, options) {
+/** One-dropdown picker, under the Call's header and in its side's class (`ask`). */
+async function choose(ask, promptKey, options) {
     const html = options
         .map(o => `<option value="${foundry.utils.escapeHTML(o.value)}">${foundry.utils.escapeHTML(o.label)}</option>`)
         .join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize(promptKey) },
-        classes: ["drpg-panel"],
-        content: `${pendingHeader}<form><label>${game.i18n.localize(promptKey)}
+    const picked = await callWindow({
+        ...ask,
+        title: game.i18n.localize(promptKey),
+        body: `<form><label>${game.i18n.localize(promptKey)}
                     <select name="choice">${html}</select></label></form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=choice]").value
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+        buttons: [{
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), default: true,
+            callback: (e, b, d) => d.element.querySelector("[name=choice]").value
+        }]
     });
 
     return (picked && picked !== "cancel") ? picked : null;

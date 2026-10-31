@@ -1525,6 +1525,88 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     return done();
   };
 </script>
+<script id="drpg-roster-check">
+  /* drpgRosterCheck (E50 C2, 30.10.2026; the plan's amendment A9 of 11.10, E50-14): the GM's roster and a messenger
+     window beside the voice tile. The roster is drawn as messenger-app.mjs `buildRoster` builds it (the heading, a list
+     of four rows as `rosterRow` writes them, `visible` after two frames) on a GM's page only - a player's launcher opens
+     the player's own window, never a roster; the window is the class ApplicationV2 gives DrpgMessengerApp at its
+     DEFAULT_OPTIONS size (544x520, the height no more than the screen's), centred, where this page reads that Foundry
+     opens a window with no saved place (LIVE-E50-06 is the table's), at z-index 100 as the page's other windows. Each
+     is read against the tile and the portrait the curtain seats on the body (`#drpg-voice-art`): `disjoint` when no
+     box meets, otherwise `elementFromPoint` on a 6 px grid of every shared area, with the tile's `pointer-events: none`
+     lifted for the reading (it takes no clicks but on its buttons, and a point the browser lets through it is not a
+     point the tile is under), must answer the roster or the window at every point. `plant` is the sweep's control: the
+     roster's z-index set one under the tile's, which must read covered points. Everything is taken off the page
+     before it answers. */
+  window.drpgRosterCheck = async ({ plant = false } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const out = { ok: false, why: [], tile: null, roster: null, window: null, plant: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const tile = document.getElementById("drpg-voice-tile"), art = document.getElementById("drpg-voice-art");
+    if (!tile || !tile.getClientRects().length) { out.why.push("no voice tile drawn on the page"); return done(); }
+    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const shown = b => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;
+    const gm = !document.body.classList.contains("drpg-player");
+    const made = [];
+    const lift = document.createElement("style");
+    lift.textContent = "#drpg-voice-tile, #drpg-voice-tile *, #drpg-voice-art { pointer-events: auto !important; }";
+    try {
+      let roster = null;
+      if (gm) {
+        roster = document.createElement("div");
+        roster.id = "drpg-messenger-roster";
+        const row = name => `<li class="drpg-messenger-roster-row"><div class="drpg-messenger-roster-text"><div class="drpg-messenger-roster-name">${name}</div><div class="drpg-messenger-roster-preview">The Library is open until night.</div></div></li>`;
+        roster.innerHTML = `<h4>Players</h4><ul>${["Aiko", "Botan", "Chie", "Kaede"].map(row).join("")}</ul>`;
+        document.body.append(roster);
+        made.push(roster);
+        requestAnimationFrame(() => requestAnimationFrame(() => roster.classList.add("visible")));
+      }
+      const W = 544, H = Math.min(520, innerHeight);
+      const win = document.createElement("div");
+      win.className = "application drpg-messenger";
+      win.style.cssText = `left:${Math.max(0, (innerWidth - W) / 2)}px;top:${Math.max(0, (innerHeight - H) / 2)}px;width:${W}px;height:${H}px;z-index:100`;
+      win.innerHTML = `<header class="window-header"><h1 class="window-title">Messenger - Kaede</h1></header><section class="window-content"><div class="drpg-messenger-body"><div class="drpg-messenger-log"></div></div></section>`;
+      document.body.append(win);
+      made.push(win);
+      await frame();
+      await new Promise(r => setTimeout(r, 450));   // the roster's rise (`--drpg-t-enter`) is over
+      const tileZ = parseInt(getComputedStyle(tile).zIndex, 10);
+      if (plant && roster) roster.style.setProperty("z-index", String((Number.isFinite(tileZ) ? tileZ : 0) - 1), "important");
+      await frame();
+      document.head.append(lift);
+      const under = [tile, art].filter(el => el && el.getClientRects().length).map(el => [el.id, box(el)]);
+      out.tile = `${shown(box(tile))} z ${getComputedStyle(tile).zIndex}${art && art.getClientRects().length ? ` art ${shown(box(art))}` : ""}`;
+      const read = target => {
+        const t = box(target);
+        let points = 0, covered = 0;
+        const by = new Map();
+        for (const [, u] of under) {
+          const x0 = Math.max(t.x, u.x) + 1, x1 = Math.min(t.x + t.w, u.x + u.w) - 1, y0 = Math.max(t.y, u.y) + 1, y1 = Math.min(t.y + t.h, u.y + u.h) - 1;
+          if (x1 <= x0 || y1 <= y0) continue;
+          for (let x = x0; x <= x1; x += 6) for (let y = y0; y <= y1; y += 6) {
+            points++;
+            const hit = document.elementFromPoint(x, y);
+            if (hit && target.contains(hit)) continue;
+            covered++;
+            const name = !hit ? "nothing" : tile.contains(hit) ? "the tile" : art?.contains(hit) ? "the portrait" : hit.id || String(hit.className || hit.tagName);
+            by.set(name, (by.get(name) ?? 0) + 1);
+          }
+        }
+        return { box: shown(t), z: getComputedStyle(target).zIndex, points, covered, by: [...by].map(([k, v]) => `${k} ${v}`).join(", ") };
+      };
+      if (roster) out.roster = read(roster);
+      out.window = read(win);
+      if (plant) out.plant = String(roster?.style.getPropertyValue("z-index") ?? "");
+      for (const [name, r] of [["the roster", out.roster], ["the window", out.window]]) {
+        if (r && r.covered) out.why.push(`${name} at ${r.box} (z ${r.z}) is under something at ${r.covered} of the ${r.points} points it shares with the voice tile: ${r.by}`);
+      }
+    } finally {
+      lift.remove();
+      for (const el of made) el.remove();
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";

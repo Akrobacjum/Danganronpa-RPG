@@ -1,0 +1,125 @@
+{
+  "about": "How many clicks and windows each main flow takes on each browser, held by scenario 88-flow-length (E51 C8, 31.10.2026; audit S17-49; E51-49). A count above a row fails: a step was added. A count below fails until the row is lowered in the same commit. The rows are written by DRPG_FLOW_LENGTH_WRITE=1 node cluster.mjs scenarios/88-flow-length.mjs and read by hand before they are committed.",
+  "counted": "A click: a click event on a control, heard on the document in the capture phase - the presses a person makes, the harness's roll window pressing its own Roll as a player would, and the scenario's person pressing each drawn DialogV2 window. A window: an application rendered for the first time, once per window (a window that closes and comes back is counted again: the trial console reopens after each of its buttons), and a DialogV2.confirm or prompt the shim answers undrawn, which is one window and one press.",
+  "notCounted": [
+    "Typing: a field filled is no click (the Hope Call's note, the Dynamic action's request).",
+    "A choice a window opens on: Search, Observe and Analyze go with the first variant, the verdict with the accused the count named, the Level Up with the first pick.",
+    "Opening the messenger to find a card: the GM's press on the card is counted, the card drawn into the page for it.",
+    "Dice So Nice: absent in the harness, so no throw is drawn and none is waited for; the counts at a table with it installed are LIVE-E51-06.",
+    "The windows standing when a flow starts: each row's `from`."
+  ],
+  "flows": {
+    "search": {
+      "flow": "search-observe",
+      "from": "Aiko's sheet on p1",
+      "players": {
+        "clicks": 3,
+        "windows": 2
+      }
+    },
+    "observe": {
+      "flow": "search-observe",
+      "from": "Aiko's sheet on p1",
+      "players": {
+        "clicks": 3,
+        "windows": 2
+      }
+    },
+    "analyze": {
+      "flow": "analyze",
+      "from": "Aiko's sheet on p1",
+      "players": {
+        "clicks": 3,
+        "windows": 2
+      }
+    },
+    "hopeCall": {
+      "flow": "hope-call",
+      "from": "Botan's sheet on p2; the GM presses the card in p2's thread",
+      "gm": {
+        "clicks": 1,
+        "windows": 0
+      },
+      "players": {
+        "clicks": 2,
+        "windows": 1
+      }
+    },
+    "dynamic": {
+      "flow": "action-roll",
+      "from": "Aiko's sheet on p1; the GM presses the card",
+      "gm": {
+        "clicks": 2,
+        "windows": 1
+      },
+      "players": {
+        "clicks": 3,
+        "windows": 2
+      }
+    },
+    "refund": {
+      "flow": "crossing-fee-refund",
+      "from": "the GM panel on the GM, Aiko's crossing recorded",
+      "gm": {
+        "clicks": 2,
+        "windows": 1
+      }
+    },
+    "modeBar.testimony": {
+      "flow": "class-trial",
+      "from": "the trial console on the GM, no floor open",
+      "gm": {
+        "clicks": 3,
+        "windows": 3
+      },
+      "players": {
+        "clicks": 0,
+        "windows": 1
+      }
+    },
+    "modeBar.panic": {
+      "flow": "class-trial",
+      "from": "the trial console on the GM, no floor open",
+      "gm": {
+        "clicks": 3,
+        "windows": 3
+      },
+      "players": {
+        "clicks": 0,
+        "windows": 1
+      }
+    },
+    "modeBar.closing": {
+      "flow": "class-trial",
+      "from": "the trial console on the GM, no floor open",
+      "gm": {
+        "clicks": 2,
+        "windows": 2
+      },
+      "players": {
+        "clicks": 0,
+        "windows": 3
+      }
+    },
+    "verdict": {
+      "flow": "class-trial",
+      "from": "the trial console on the GM, the vote not sent",
+      "gm": {
+        "clicks": 8,
+        "windows": 8
+      },
+      "players": {
+        "clicks": 6,
+        "windows": 3
+      }
+    },
+    "levelUp": {
+      "flow": "class-trial",
+      "from": "Aiko's sheet on p1, her offer standing",
+      "players": {
+        "clicks": 2,
+        "windows": 1
+      }
+    }
+  }
+}

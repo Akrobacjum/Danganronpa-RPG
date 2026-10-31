@@ -5,8 +5,11 @@ export const layers = ["ci"];
    r1-G1 286.8 s) and 288.7 s in k1's ci set (e33run/k1/cmp.txt, beside the suite's lane) - 3-6% under
    run-all's shared five minutes. Seven minutes is a hang detector with room for a slower runner; the
    scenario is not shortened. E80 C3 (18.10.2026) adds a console's Find Passage: 235 checks in 319.9 s by run-all's
-   line, one run alone under the harness lock - seven minutes stands. */
-export const timeoutMs = 420000;
+   line, one run alone under the harness lock - seven minutes stands. E51 fix FG5 (31.10.2026) adds a console's discard:
+   374.8 s green and 389.0 s red (each of D1, D3 and D4 waits its 5 s for a row that never comes), one run each alone
+   under the harness lock on 4 cores, against 365 s before it (the end review's run) - 31 s from the bound on a red
+   run, so eight minutes. */
+export const timeoutMs = 480000;
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
@@ -634,7 +637,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         denyOpen.stage === "incident" && denyOpen.turnSide === "victim" && (denyOpen.denied ?? []).includes("roleReversal")
             && denyAnswer?.ok === false && denyAnswer?.reason === "actionDenied"
             && denyAfter.killerId === ids.botan && denyAfter.victimId === ids.chie
-            && denyReasons.some(r => /that action is not open to that character now/.test(r)),
+            // Since E51 C1 the row stays in the victim's list, struck, and the GM's reason names the incident's denial.
+            && denyReasons.some(r => /that action is denied by the incident/.test(r)),
         JSON.stringify({ denyOpen, denyAnswer, denyAfter, denyReasons }), { flow: "murder-incident" });
 
     /* A STATISTIC RULING NOBODY MAY ASK (E32+E07 C11b, 02.10.2026; audit S04-23). The card a
@@ -2691,11 +2695,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const t = trace ? canvas.scene.tokens.get(trace.id) : null;
         const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
         const words = await Promise.all(told.map(doc => wordsOf(doc)));
+        const kept = game.i18n.localize("DRPG.Reroll.traceKept").split("{trace}")[0].replace("{name}", who.name);
         const result = { placed: Boolean(trace) && ("${how}" !== "found" || Boolean(copy)), lines: out?.lines ?? null, refused: out?.refused ?? null,
             standing: Boolean(t), visibility: t ? R.remnantData(t)?.visibility ?? null : null,
             rowNames: Boolean(trace) && S.rerollBookmarkStore.get(who.id)?.facts?.remnantId === trace.id,
             cardSays: (out?.lines ?? []).includes(game.i18n.localize("DRPG.Reroll.remnantManual")),
-            gmsTold: words.some(c => String(c ?? "").includes("${subject}")) };
+            // The GMs told the trace was kept: the traceKept line, not any whisper naming the subject - since the E51
+            // fix round (FG7, G5) a Reroll that misses posts the GMs' Dynamic receipt with its description too.
+            gmsTold: words.some(c => String(c ?? "").includes(kept)) };
         delete m.rolls; await m.delete();
         await S.rerollBookmarkStore.drop(who.id);
         await trustedWrite(who, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
@@ -3133,6 +3140,104 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && consoleItems.after.every(v => v === null || JSON.stringify(v) === JSON.stringify([1, "carried", null]))
             && JSON.stringify(consoleItems.told) === JSON.stringify(["sheetPutBack", "sheetPutBack"]),
         JSON.stringify({ itemsSet, consoleItems }), { flow: "sheet-audit" });
+
+    /*
+     * A CONSOLE'S DISCARD (E51 fix FG5, 31.10.2026; the end review's S1, its probe D1-D4). p1's console deletes a module
+     * tool of Aiko's with the discard stamp (resource-guard.mjs `trustedDelete(item, { reason: "discard" })`), past
+     * everything the honest road asks first (use-items.mjs `discardBroken`: the Shadow roll, the trace, no discard in the
+     * Class Trial). D1, the Class Trial, a broken tool; D2, the control, the same with a bare `delete()`; D3, a whole
+     * tool the console sets broken first (a break is a spend, and stands); D4, the Investigation, a broken tool with no
+     * roll and no trace. Each is read on the GM: one row flagged for the tool, one card naming it, no trace placed - and
+     * the GMs' Undo makes the tool again. Then the honest road, in the Investigation: p1's discardBroken of a broken tool
+     * rolls, leaves one trace, and its deletion stands with no row flagged, on the ticket the primary wrote as it placed
+     * the trace (gm-bridge.mjs `handleRemnant`, sheet-audit.mjs `noteDiscardTrace`). Red at the fix's parent: D1, D3 and
+     * D4 gone with no row, no card and no trace (the review's probe on 47b63d64, and this phase on 99226e59).
+     */
+    phase("a console's discard", { flow: "sheet-audit" });
+    const discardClock = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));`);
+    const setPhase = which => gm.eval(`await game.settings.set("${MOD}", "clock", { ...game.settings.get("${MOD}", "clock"), phase: "${which}" }); return true;`);
+    const discardSet = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), out = {};
+        for (const [key, broken] of [["d1", true], ["d2", true], ["d3", false], ["d4", true], ["honest", true]]) {
+            const item = await INV.grantItem(aiko, { name: "E51 FG5 30 " + key, category: "tool", tier: 1, override: true, quiet: true });
+            if (item && broken) await INV.breakItem(item);
+            out[key] = item?.id ?? null;
+        }
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return out;`, { timeout: 60000 });
+    const traceCount = `return canvas.scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length;`;
+    // What the GM holds of one tool after p1's deletion: the rows flagged for it, the cards naming those rows, and the
+    // traces placed since `traces`; with `undo`, the GMs' Undo of the row and whether the tool is back.
+    const discardRead = (itemId, traces, undo) => gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const C = await import("${repoUrl}/scripts/secret.mjs");
+        const rows = () => Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.itemId === ${JSON.stringify(itemId)} && r.verdict === "flagged");
+        const end = Date.now() + 5000;
+        while (!rows().length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle();
+        const flagged = rows().map(([id]) => id);
+        const out = { held: Boolean(game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)})), rows: flagged.length,
+            cards: game.messages.contents.filter(m => flagged.includes(C.cardFlag(m, "sheetFlagged"))).length,
+            traces: canvas.scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length - ${traces} };
+        if (${undo} && flagged.length === 1) {
+            out.undone = (await A.decideWrite(flagged[0], false))?.undone ?? null;
+            await A.sheetAuditIdle();
+            out.back = Boolean(game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)}));
+        }
+        return out;`, { timeout: 30000 });
+    const consoleDiscard = (itemId, stamped) => p1.eval(`const RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const item = game.actors.get("${ids.aiko}").items.get(${JSON.stringify(itemId)});
+        if (!item) return false;
+        ${stamped ? `await RG.trustedDelete(item, { reason: "discard" });` : `await item.delete();`}
+        return true;`, { timeout: 30000 });
+    const discards = {};
+    try {
+        await setPhase("classTrial");
+        await settle(400);
+        for (const [key, stamped] of [["d1", true], ["d2", false], ["d3", true]]) {
+            const traces = await gm.eval(traceCount);
+            if (key === "d3") {
+                await p1.eval(`await game.actors.get("${ids.aiko}").items.get(${JSON.stringify(discardSet.d3)})?.setFlag("${MOD}", "broken", true); return true;`);
+                await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+                await settle(400);
+            }
+            discards[key] = { sent: await consoleDiscard(discardSet[key], stamped) };
+            Object.assign(discards[key], await discardRead(discardSet[key], traces, true));
+        }
+        await setPhase("investigation");
+        await settle(400);
+        const traces4 = await gm.eval(traceCount);
+        discards.d4 = { sent: await consoleDiscard(discardSet.d4, true) };
+        Object.assign(discards.d4, await discardRead(discardSet.d4, traces4, true));
+        const tracesH = await gm.eval(traceCount);
+        discards.honest = { r: await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs"); const actor = game.actors.get("${ids.aiko}");
+            return (await U.discardBroken(actor, actor.items.get(${JSON.stringify(discardSet.honest)}))) ?? null;`, { timeout: 90000 }) };
+        await settle(1500);
+        Object.assign(discards.honest, await discardRead(discardSet.honest, tracesH, false));
+    } finally {
+        await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            await A.sheetAuditIdle();
+            const aiko = game.actors.get("${ids.aiko}");
+            for (const t of R.remnantsOn(canvas.scene).filter(t => String(R.remnantData(t)?.subject ?? "").startsWith("E51 FG5 30 "))) {
+                try { await R.dropRemnantSecret(t); } catch {} await t.delete();
+            }
+            for (const id of ${JSON.stringify(Object.values(discardSet))}) await aiko.items.get(id ?? "")?.delete();
+            await game.settings.set("${MOD}", "clock", ${JSON.stringify(discardClock)});
+            await A.sheetAuditIdle();
+            return true;`, { timeout: 60000 });
+        await settle(400);
+    }
+    const forgedHeld = d => d?.sent === true && d.held === false && d.rows === 1 && d.cards === 1 && d.traces === 0 && d.undone?.length === 1 && d.back === true;
+    check("SECURITY: D1 - a console's discard-stamped delete of a broken tool in the Class Trial is flagged on one card, leaves no trace, and Undo makes it again",
+        Object.values(discardSet).every(Boolean) && forgedHeld(discards.d1), JSON.stringify({ discardSet, d1: discards.d1 }), { flow: "sheet-audit" });
+    check("SECURITY: D2 (control) - a console's bare delete of a broken tool is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d2), JSON.stringify(discards.d2), { flow: "sheet-audit" });
+    check("SECURITY: D3 - a whole tool a console sets broken, then deletes with the discard stamp, is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d3), JSON.stringify(discards.d3), { flow: "sheet-audit" });
+    check("SECURITY: D4 - a console's discard-stamped delete in the Investigation, with no roll and no trace, is flagged on one card, and Undo makes it again",
+        forgedHeld(discards.d4), JSON.stringify(discards.d4), { flow: "sheet-audit" });
+    check("SECURITY: the honest discard in the Investigation leaves one trace and its deletion stands with no row flagged and no card (the ticket of its trace)",
+        discards.honest?.r !== null && typeof discards.honest?.r === "object" && discards.honest.held === false && discards.honest.rows === 0
+            && discards.honest.cards === 0 && discards.honest.traces === 1, JSON.stringify(discards.honest), { flow: "sheet-audit" });
 
     /*
      * A CONSOLE'S ITEM RECORDS (E29 fix r1-G2, 05.10.2026; review round 1 sec M3 = cor M5, sec B2). p1's
@@ -5888,6 +5993,27 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: p1 objecting for p2's Botan is refused for ownership and told - nothing paid, posted or put on the floor",
         objSetup?.room === true && objSetup.floor === "debate" && objSetup.speaker === true && refusedAs(objOther, null)
             && objOther.logged.some(r => /sender does not own/.test(r)), JSON.stringify({ objSetup, objOther }), { flow: "class-trial" });
+    /* E51 C6 (1.2.94; the slice's Base mutant t1): with the Room open, the speaker it counts is held by the floor's rule
+       too (`mayObjectTo` in `objectOnPrimary`'s Room branch): during a rebuttal only the two in it may be aimed at, and
+       since C6 only the trial's participants. The floor is made Aiko's rebuttal with Botan, Chie still the one speaker
+       the Room has heard; p1's console presses OBJECTION! for Aiko. Refused - nobody the floor allows has spoken -
+       told, and nothing paid or moved; the debate written back as it stood. Mutant t1 (the Room's speaker taken as it
+       is) aims it at Chie. */
+    const rebuttalWas = await gm.eval(`const q = foundry.utils.deepClone(game.settings.get("${MOD}", "trialQueue") ?? {});
+        const { serverNow } = await import("${repoUrl}/scripts/utils.mjs");
+        await game.settings.set("${MOD}", "trialQueue", { ...q, mode: "rebuttal", holderId: "${ids.aiko}", targetId: "${ids.botan}", startedAt: serverNow() });
+        return q;`);
+    await settle(400);
+    let objPair = null;
+    try {
+        objPair = await objSend(p1, "trial.object", { actorId: ids.aiko }, "SECOBJPAIR");
+    } finally {
+        await gm.eval(`await game.settings.set("${MOD}", "trialQueue", ${JSON.stringify(rebuttalWas)}); return true;`);
+        await settle(400);
+    }
+    check("SECURITY: in Aiko's rebuttal with Botan, p1's OBJECTION! for Aiko is not aimed at Chie, whom the Room hears but the floor does not allow - refused, told, nothing paid or moved",
+        rebuttalWas?.mode === "debate" && refusedAs(objPair, null) && objPair.before.mode === "rebuttal" && objPair.after.target === ids.botan
+            && objPair.logged.some(r => /nobody has spoken in this trial that the objection could be aimed at/.test(r)), JSON.stringify({ rebuttalWas, objPair }), { flow: "class-trial" });
     const objAimed = await objSend(p1, "trial.object", { actorId: ids.aiko, targetId: ids.botan }, "SECOBJAIM");
     check("SECURITY: p1's Objection naming Botan in its packet is aimed at Chie, whom the GM's Room hears - the packet's target is not read",
         objAimed.after.mode === "objection" && objAimed.after.holder === ids.aiko && objAimed.after.target === ids.chie && objAimed.after.pending === true
@@ -5999,6 +6125,34 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
             && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
         JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
+    /* E51 C6 (1.2.94; E51-40, amend 14.10 (3), the owner before session 0): an Objection at somebody who takes no part in
+       the trial. With no voice Room on the primary the packet's target is read (trial.mjs `objectOnPrimary`), and it was
+       held only to a living student the floor lets the objector aim at - so p1's console could aim Aiko's Objection at a
+       living student no player plays and hand them the rebuttal. Daichi, the seed's student nobody plays, is dead by now
+       (the murder above), and refused for that at the parent too; so Chie is made one for the moment: alive, her player's
+       ownership taken off (put back below). The Room is closed on the GM first; p1's console then asks `trial.object` for
+       Aiko naming Chie. Refused (the target code), told, logged on the GM; the floor, its cards and Aiko's actions as they
+       were. Red at C6's parent: answered, the floor Aiko's Objection pending at Chie, her action paid. The control - a
+       legal Objection named with no Room - is 63-class-trial's. */
+    const nonPartRoom = await gm.eval(`await game.webrtc.disconnect?.(); const S = await import("${repoUrl}/scripts/trial-speakers.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs"); const V = await import("${repoUrl}/scripts/vote.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        globalThis.__s30chieOwnership = foundry.utils.deepClone(chie.ownership ?? {});
+        await chie.update({ ownership: { "${p3.userId}": 0 } });
+        return { open: S.speakerRoomOpen(), alive: !C.isDeadForGm(chie),
+            taking: V.trialParticipants({ connected: false }).some(p => p.actor.id === "${ids.chie}") };`, { timeout: 30000 });
+    await settle(500);
+    let objNonPart = null;
+    try {
+        objNonPart = await objSend(p1, "trial.object", { actorId: ids.aiko, targetId: ids.chie }, "SECOBJNONPART");
+    } finally {
+        await gm.eval(`await game.actors.get("${ids.chie}").update({ ownership: globalThis.__s30chieOwnership }); return true;`, { timeout: 30000 });
+        await settle(500);
+    }
+    check("SECURITY: p1's Objection for Aiko naming Chie, a living student no player plays for the moment, is refused with no Room on the GM and told - nothing paid, posted or put on the floor",
+        nonPartRoom.open === false && nonPartRoom.alive && nonPartRoom.taking === false && refusedAs(objNonPart, "cannotNow")
+            && objNonPart.logged.some(r => /the student named may not be objected to now/.test(r)) && objNonPart.after.mode === "debate",
+        JSON.stringify({ nonPartRoom, objNonPart }), { flow: "class-trial" });
     /* E70 fix p2-G2 (1.2.90; the review's SEC-1, E70P2-R08): every Present card is the primary's since C10 ("trial.present"),
        so a Present card p1's console posts in Aiko's name, with a bullet she holds and words of its own (an "analysis"
        nobody made), is a console's card: shown on no screen, marked refused on the primary. Red at 2fc865ac: raised on

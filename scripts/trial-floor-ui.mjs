@@ -10,7 +10,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
-    adjustStep, drawOrder
+    adjustStep, drawOrder, debateSeconds
 } from "./trial-floor.mjs";
 import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
 import {
@@ -19,7 +19,7 @@ import {
 import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
-import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf } from "./utils.mjs";
+import { dialogContent, placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -305,10 +305,12 @@ export async function openDebate(options = {}) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.newTrialRefused"));
         return null;
     }
-    const remembered = trialProgress().seconds || TRIAL.speakSeconds;
+    // Every length below goes through `debateSeconds` (E51 C6; audit S06-45): at least 30 s, whatever was typed, given
+    // or remembered, so a "-60" a window or a macro handed over opens and is remembered as 30 s.
+    const remembered = debateSeconds(trialProgress().seconds || TRIAL.speakSeconds);
 
     const given = typeof options === "number" ? options : options?.seconds;
-    let budget = Number(given) || null;
+    let budget = Number(given) ? debateSeconds(given) : null;
     let topic = topicOf(typeof options === "object" ? options?.topic : null);
     if (!budget) {
         const asked = await DialogV2.wait({
@@ -328,7 +330,7 @@ export async function openDebate(options = {}) {
                 {
                     action: "ok", label: game.i18n.localize("DRPG.Floor.openDebate"), default: true,
                     callback: (e, b, d) => ({
-                        seconds: Number(d.element.querySelector("form").seconds.value) || remembered,
+                        seconds: wholeNumber(d.element.querySelector("form").seconds.value, { fallback: remembered }) || remembered,
                         topic: d.element.querySelector("form").topic?.value ?? ""
                     })
                 },
@@ -337,7 +339,7 @@ export async function openDebate(options = {}) {
             rejectClose: false
         });
         if (!asked || asked === "cancel") return null;
-        budget = asked.seconds;
+        budget = debateSeconds(asked.seconds);
         topic = topicOf(asked.topic);
     }
 
@@ -423,7 +425,7 @@ export async function openRoundWindow(mode) {
             {
                 action: "ok", label: game.i18n.localize("DRPG.Floor.roundWindow.start"), default: true,
                 callback: (e, b, d) => ({
-                    seconds: Number(d.element.querySelector("[name=seconds]")?.value) || offered,
+                    seconds: wholeNumber(d.element.querySelector("[name=seconds]")?.value, { min: range.min, max: range.max, fallback: offered }),
                     order: [...d.element.querySelectorAll(".drpg-round-order [data-drpg-round-id]")].map(li => li.dataset.drpgRoundId)
                 })
             },
@@ -451,7 +453,8 @@ export async function reopenDebate() {
     }
     const { trialProgress } = await import("./vote.mjs");
     const record = trialProgress();
-    return openDebate({ seconds: Number(record.seconds) > 0 ? Number(record.seconds) : TRIAL.speakSeconds, topic: record.topic ?? "" });
+    // A record with no stored length opens the default; one of 10 s opens 30 (`debateSeconds`, E51 C6).
+    return openDebate({ seconds: debateSeconds(record.seconds), topic: record.topic ?? "" });
 }
 
 /**
@@ -1058,8 +1061,19 @@ function trialBar({ floor, running, barNext }) {
             </div>`;
 }
 
-/** The console's three sections, from one reading of the floor. */
-function trialConsoleHtml(view) {
+/*
+ * THE EVIDENCE LOG FROM THE TRIAL'S OWN DOOR (E51 C6, 31.10.2026; audit S06-45; E51-37). Who presented what and who
+ * objected to whom (trial.mjs `openObjectionLog`) opened only from the Investigation Dashboard and the console's
+ * `game.drpg.objectionLog()`, and the trial console is the one window a GM runs a trial from. A button of the debate's
+ * section, under the bar, pressed through the window's one listener (`data-drpg-console="log"`), as the bar's are:
+ * the live region redraws it every second.
+ */
+function logButton() {
+    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log">${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button></p>`;
+}
+
+/** The console's three sections, from one reading of the floor. Exported for R1124 (E51 C6), which hands it a view. */
+export function trialConsoleHtml(view) {
     const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter,
         next, runner, table } = view;
         const left = floor ? secondsLeft(floor) : 0;
@@ -1207,6 +1221,7 @@ function trialConsoleHtml(view) {
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
+            ${logButton()}
 
             ${revealConsole(view)}
 
@@ -1265,8 +1280,10 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                                 label: game.i18n.localize("DRPG.Floor.closeDebate") })
                     : progress.againAfterOverrule
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
+                        // The seconds it opens with, at least 30 (`debateSeconds`, E51 C6), as `openAgain` opens it.
                         ? { action: "openAgain", default: isDefault("openAgain"),
-                            label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Math.max(Number(progress.againAfterOverrule.seconds) || 0, 0) }) }
+                            label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Number(progress.againAfterOverrule.seconds) > 0
+                                ? debateSeconds(progress.againAfterOverrule.seconds) : 0 }) }
                         : progress.debateAgain
                             // After its exchange closed it (E70 C3): the same question and budget, no window.
                             ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }
@@ -1524,6 +1541,11 @@ export async function manageClassTrial() {
             window.addEventListener("pointerup", release, true);
             window.addEventListener("pointercancel", release, true);
             dialog.element?.addEventListener("click", event => {
+                // The evidence log (E51 C6): its own window over the console, which stays open.
+                if (event.target?.closest?.("[data-drpg-console=\"log\"]")) {
+                    event.preventDefault();
+                    return void import("./trial.mjs").then(m => m.openObjectionLog()).catch(err => error("Could not open the evidence log", err));
+                }
                 const button = event.target?.closest?.("[data-drpg-bar]");
                 if (!button) return;
                 event.preventDefault();

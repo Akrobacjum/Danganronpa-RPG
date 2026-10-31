@@ -61,6 +61,16 @@
  *   halo.baked | .shared | .live | .freed                               a seam's light drawn into a texture, a ring that
  *                                                                       wore one already drawn, a light left on its live
  *                                                                       filter, a texture freed (fog-reveal.mjs, E88 C1)
+ *   messenger.threadStats, messenger.readMap                            a pass over every message for the threads' counts,
+ *                                                                       and a read of this browser's read map (messenger.mjs,
+ *                                                                       E50 C2: one each for a launcher and a roster drawn
+ *                                                                       together)
+ *   music.apply                                                         one `apply()` of the music asked (music.mjs
+ *                                                                       `runApply`, E50 C3: one for a burst of mapping
+ *                                                                       writes, after their settle)
+ *   sfx.played                                                          a sound effect's file handed to the audio layer
+ *                                                                       (sfx.mjs `fire`, E50 C4: nothing mapped, the
+ *                                                                       cooldown, a locked page or Sound at 0 count none)
  */
 
 const counts = new Map();

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.93, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.94, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -208,8 +208,8 @@ Wybierasz, jak patrzysz:
 
 | Sposób | Cel |
 |---|---|
-| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju - rozstrzygają kości |
-| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj - rozstrzygają kości |
+| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju; w pokoju, w którym nie ma nic takiego, GM decyduje, co widzisz |
+| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj i to, czego w tym pokoju w ogóle nie powinno być; gdy nie ma tu nic takiego, decyduje GM |
 | Podążaj za własnymi śladami | wróć po własnych śladach i znajdź to, co zostawiłeś |
 | Skup wzrok | powiedz, czego szukasz; GM decyduje, na czym zatrzyma się twój wzrok |
 | Zbadaj punkt zainteresowania | coś, co nie jest śladem - osoba, maszyna, pogoda; GM rozstrzyga |
@@ -441,7 +441,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**.
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trialu: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trialu nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
@@ -734,7 +734,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 - Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole - w Class Trial słuchasz (rozdział 12).
 - Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Gdy się skończy, gdy ktoś znajdzie twoje ciało albo gdy wejdzie tam żywy uczeń spoza incydentu, przechodzisz: do kanału zmarłych, dopóki nikomu nie powiedziano o twojej śmierci - żywi cię tam nie słyszą, a ty nie słyszysz ich, tylko innych zmarłych - a do pokoju głównego, gdy twoja śmierć jest znana. Poza incydentem dzieje się to od razu. Jako Monocub mówisz jak Monocub.
 - Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia, tak jak było: zmarli niczego nie używają, nie biorą do ręki, nie wyrzucają, nie chowają ani nie wyjmują, a rzeczy Monocuba też należą do jego ciała.
-- Przeszukanie ciała: otwórz jego arkusz, gdy stoisz w jego pokoju, żywy, poza Class Trial i Eclipse, i naciśnij **Weź** przy rzeczy. Dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Weź, którego nie możesz użyć, jest wyszarzone, z powodem obok.
+- Przeszukanie ciała: otwórz jego arkusz, gdy stoisz w jego pokoju, żywy, poza Class Trial i Eclipse, i naciśnij **Weź** przy rzeczy. Dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Weź, którego nie możesz użyć, jest wyszarzone, z powodem obok. Weź, które niczego nie zabrało - strona GM-a odmówiła (wyszedłeś z pokoju, ktoś inny wziął to pierwszy), żaden GM nie odpowiedział albo nie grasz żadną postacią - mówi tylko dlaczego i znów jest do naciśnięcia, a gdy dalej nie da się go użyć, jest wyszarzone z powodem; to, które coś zabrało, zostaje wciśnięte.
 - Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu. Do tego czasu stół może brać cię za żywego - ale w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania, więc stół dowiaduje się, że ktoś zginął. Level Up za trafny werdykt nadal dostajesz i ty.
 - Ciało zostaje tam, gdzie upadło, i zabójca może je przenieść. Zmarli nie liczą się jako obecni w pokoju: nie są świadkami, nie przekazują.
 - GM może zakończyć rozdział, ujawniając, czym naprawdę był każdy Truth Bullet, zbierając je (Faint i Final Truth zostają) i czyszcząc Faint ślady.
@@ -764,6 +764,8 @@ Same Monokumy - strona GMa - nie mają akcji ani Hope, przechodzą przez ściany
 Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **Czat z GM-em**: jeden wątek między tobą a każdym GM-em. Nie ma kanału tekstowego między graczami - rozmowa w pokoju to głos.
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, akcja dynamiczna, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Gdy żaden GM nie jest połączony, nic nie zostaje wysłane: czytasz "Żaden GM nie jest połączony.", a to, co akcja kosztowała, wraca do ciebie.
+
+**Przeczytane tylko wtedy, gdy patrzysz** (od 1.2.94). Wiadomość liczy się jako przeczytana tylko wtedy, gdy okno wątku jest na wierzchu, na zakładce Czat, a karta przeglądarki z grą jest tą, na którą patrzysz. Ta, która przyjdzie, gdy okno leży pod innym, jest na zakładce Notatka albo gdy jesteś na innej karcie przeglądarki, pokazuje swoją kartę i zostaje nieprzeczytana, dopóki nie wysuniesz okna na wierzch. Wiadomość, której nie udało się wysłać, zostaje w polu. Odrzucona, zanim wyszła (za długa albo bez połączonego GM-a), mówi tylko dlaczego; ta, która nie wyszła, mówi "Wiadomość nie została wysłana. Nadal jest w polu - spróbuj ponownie.". W trakcie zabójstwa twoją wiadomość publikuje przeglądarka GM-a, a gdy jej odpowiedź nie przyjdzie na czas, zobaczysz "Wiadomość mogła nie zostać wysłana. Nadal jest w polu - zajrzyj do wątku, zanim wyślesz ją ponownie.": GM-owie mogą ją mimo to mieć. Wiadomość, którą GM usunie, znika też z twojego otwartego okna.
 
 **Pytanie, na które czekasz** - Call Experience albo Ultimate, akcja dynamiczna, statystyka, z której rzut wymienia dwie, Observe na punkt zainteresowania - mówi na swojej karcie, do kiedy jest otwarte ("Otwarta do 21:40."): pięć minut dla Calla, trzy dla pozostałych. Tę godzinę pisze twoja przeglądarka, w twojej strefie czasowej i twoim języku, tak samo jak zdanie, którym karta się kończy. Jeśli w ciągu ośmiu sekund Calla albo akcji dynamicznej nie przyjmie żadna przeglądarka GM-a, od razu dowiadujesz się, że GM nie odpowiedział, zamiast czekać do końca karty. Jeśli nikt nie odpowie przed czasem karty, karta kończy się u wszystkich słowami "Nikt nie odpowiedział na czas - zapytaj jeszcze raz." i nic nie zostaje wydane; odpowiedź GM-a dana później nie zostaje zachowana, więc zapytaj jeszcze raz, jeśli nadal chcesz. Karta Calla albo akcji dynamicznej podaje decyzję dopiero wtedy, gdy twoja przeglądarka ją ma albo gdy jej użyjesz - Call uzbrojony na zgodzie, rzut akcji dynamicznej na trudności. Trudność, której odbioru twoja przeglądarka nie potwierdziła, kończy się "Odpowiedział: ... - odbiór niepotwierdzony.": obowiązuje, więc nie pytaj jeszcze raz. Jeśli przeładujesz stronę w trakcie czekania, przeglądarka GM-a i tak zakończy kartę chwilę po jej czasie. Jeśli w trakcie czekania przeładuje się przeglądarka GM-a albo stery przejmie inny GM, twoja przeglądarka zapyta jeszcze raz - najwyżej trzy razy - a pytanie zostaje przy swojej jednej karcie.
 

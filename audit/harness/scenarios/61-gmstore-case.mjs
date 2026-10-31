@@ -130,6 +130,9 @@
  *      card the GM posted before is the ask's, and the yes reaches the player.
  *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled, a
  *      player's forged claim refused, and the card its author reopened not ruled again.
+ *   TD the traces' digest (E51 C5; fix FG1): the primary's trace and a second GM's are said once, by the primary, at
+ *      the time of day after the primary's F5; a trace of a primary that leaves is said by the next; a GM sorting first
+ *      that joins says the old primary's trace, and nothing said before.
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -2512,5 +2515,106 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         cl?.rewired === true && cl.toldAgain.length === 1 && winner !== null && cl.toldAgain[0].includes(winner) && cl.toldAgain[0].includes("already ruled") && cl.linesAfter === 1,
         J(cl), { flow: "card-claim" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "CL"], gm: IDS.gm };
+    phase("TD: the traces' digest outlives the primary's F5 and a handover, and is posted once, by the primary of the moment", { flow: "trace-remnant" });
+    /* E51 C5 (31.10.2026; audit S05-53, E51-32), and E51 fix FG1 (the same day; the end review's G1 and F1). TD1: gma, the
+       primary, places a trace and gmb, here beside it, places one of its own; gma reloads (leaves, comes back with the
+       storage it left with); then gma moves the time of day, as a GM's Advance does. Read on gma: every card posted after
+       the reload whose words carry a trace's note - who posted it, and which of the four it names. Before C5 the digest
+       was a Map in the memory of the GM that placed the trace: gma's F5 lost its trace, and gmb posted its own (one digest,
+       gmb's, of the second trace). C5 kept the rows on the primary's browser unsynced, and this check held
+       `[true, false]` - the second GM's trace in no digest - as Q3's reading; the end review (G1) measured that as the
+       loss it is, and the fix round replaced C5's reading of Q3: the digest reaches the primary from any GM and survives
+       a handover. The store is synced (`traceDigestStore`), so gma's one card names both. TD2, the primary
+       leaves: gma places a third and leaves for good; gmb, the primary now, moves the time of day and its card names
+       it (unsynced, gma took it away). TD3, the review's F1: gmb, the primary alone, places a fourth; gma, whose id
+       sorts first, connects with the storage it left with (the third's row still in it) and is the primary while gmb
+       stays; gma moves the time of day: one card, gma's, names the fourth and not the third again (the drop's
+       tombstone came to it with gmb's copy). Red at the fix's parent: TD1 `[true, false]`, TD2 no card, TD3 gmb's row
+       unsaid. The traces, their rows and the cards are taken back after, and gmb leaves. */
+    // No apostrophe: the card escapes a note (remnants.mjs `traceCard`), and the read is of its words.
+    const TD_NOTES = ["E51 C5 61 TD a trace of the primary", "E51 C5 61 TD a trace of the second GM",
+        "E51 FG1 61 TD a trace of a primary that leaves", "E51 FG1 61 TD a trace before an earlier GM joins"];
+    const placeTD = (client, note, x) => client.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = await R.placeRemnant({ type: "prep", visibility: "evident", scene: game.scenes.get("${IDS.scene}"), x: ${x}, y: 1400, note: ${J(note)} });
+        return t?.id ?? null;`, { timeout: 30000 });
+    const seenTD = client => client.eval(`return game.messages.contents.map(m => m.id);`);
+    const heldTD = client => client.eval(`const G = await import("${repoUrl}/scripts/gm-stores.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { rows: Object.keys(G.traceDigestStore?.entries?.() ?? {}).length, primary: U.isPrimaryGm() };`);
+    const digestsTD = (client, had) => client.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const had = new Set(${J(had)}), notes = ${J(TD_NOTES)};
+        const out = [];
+        for (const m of game.messages.contents.filter(m => !had.has(m.id))) {
+            const words = String(await S.wordsOf(m, 2000) ?? "");
+            const named = notes.map(n => words.includes(n));
+            if (named.some(Boolean)) out.push({ by: m.author?.id ?? m.user?.id ?? m.user ?? null, named });
+        }
+        return out;`, { timeout: 30000 });
+    const advanceTD = client => client.eval(`const c = await game.drpg.advanceTimeOfDay(); return c ? true : c;`, { timeout: 60000 });
+    const GMB = "USERGMB000000000";
+    let td = null;
+    const tdIds = [];
+    let tdHad = [], gmaAway = false;
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(500);
+    try {
+        tdIds.push(await placeTD(gma, TD_NOTES[0], 1400));
+        tdIds.push(await placeTD(gmb, TD_NOTES[1], 1600));
+        await settle(800);
+        tdHad = await seenTD(gma);
+        await disconnect("gma");
+        await connect("gma", { storage: await storageOf("gma") });
+        await settle(800);
+        const one = { primary: await heldTD(gma) };
+        one.advanced = await advanceTD(gma);
+        await settle(2000);
+        one.digests = await digestsTD(gma, tdHad);
+        one.after = { gma: await heldTD(gma), gmb: await heldTD(gmb) };
+
+        tdIds.push(await placeTD(gma, TD_NOTES[2], 1800));
+        await settle(800);
+        const two = { had: await seenTD(gmb), placed: await heldTD(gmb) };
+        await disconnect("gma");
+        gmaAway = true;
+        await settle(800);
+        two.primary = await heldTD(gmb);
+        two.advanced = await advanceTD(gmb);
+        await settle(2000);
+        two.digests = await digestsTD(gmb, two.had);
+        two.after = await heldTD(gmb);
+
+        tdIds.push(await placeTD(gmb, TD_NOTES[3], 2000));
+        await settle(800);
+        const three = { had: await seenTD(gmb), placed: await heldTD(gmb) };
+        await connect("gma", { storage: await storageOf("gma") });
+        gmaAway = false;
+        await settle(1500);
+        three.joined = { gma: await heldTD(gma), gmb: await heldTD(gmb) };
+        three.advanced = await advanceTD(gma);
+        await settle(2000);
+        three.digests = await digestsTD(gma, three.had);
+        three.after = { gma: await heldTD(gma), gmb: await heldTD(gmb) };
+        td = { ids: tdIds, one, two: { ...two, had: undefined }, three: { ...three, had: undefined } };
+    } finally {
+        if (gmaAway) await connect("gma", { storage: await storageOf("gma") });
+        await gma.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+            const scene = game.scenes.get("${IDS.scene}"), had = new Set(${J(tdHad)});
+            for (const id of ${J(tdIds)}) { const t = id ? scene.tokens.get(id) : null; if (t) { await R.dropRemnantSecret(t); await t.delete(); } }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            return true;`, { timeout: 30000 });
+        await disconnect("gmb");
+    }
+    check("TD1: a trace placed on the primary and one a second GM placed are in one digest after the primary's F5, posted once, by the primary (the store synced: E51 fix FG1, G1)",
+        td?.ids?.length === 4 && td.ids.every(Boolean) && td.one.primary.primary === true && td.one.digests.length === 1 && td.one.digests[0].by === GMA
+            && J(td.one.digests[0].named) === J([true, true, false, false]) && td.one.after.gma.rows === 0 && td.one.after.gmb.rows === 0,
+        J(td?.one ?? td), { flow: "trace-remnant" });
+    check("TD2: a trace placed on a primary that then leaves for good is in the next primary's digest, once (F1's handover)",
+        td?.two?.placed?.rows === 1 && td.two.primary.primary === true && td.two.digests.length === 1 && td.two.digests[0].by === GMB
+            && J(td.two.digests[0].named) === J([false, false, true, false]) && td.two.after.rows === 0,
+        J(td?.two ?? td), { flow: "trace-remnant" });
+    check("TD3: a GM whose id sorts first joins while the primary stays: the old primary's trace is in the new primary's digest, once, and the trace said before it is not said again (F1)",
+        td?.three?.joined?.gma?.primary === true && td.three.joined.gmb.primary === false && td.three.digests.length === 1 && td.three.digests[0].by === GMA
+            && J(td.three.digests[0].named) === J([false, false, false, true]) && td.three.after.gma.rows === 0 && td.three.after.gmb.rows === 0,
+        J(td?.three ?? td), { flow: "trace-remnant" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "CL", "TD"], gm: IDS.gm };
 }

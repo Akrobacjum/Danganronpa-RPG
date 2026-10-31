@@ -209,6 +209,8 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * (trial.mjs, whose classes the grep reads with the cards');
  * 68 at E70 part 2 (28.10.2026; CI at fffe49e6 counted them, the list did not): the Closing's decision line on an
  * Objection's card (C8) and the Present window's "with the Analyze result" checkbox label (C10), in trial.mjs;
+ * 69 at E51 C1 (30.10.2026, counted in the list): the crisis menu's struck row of an action the incident denies
+ * (action-rolls.mjs `chooseVariant`, `drpg-row-denied`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -221,7 +223,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-evidence-text", "drpg-evidence-topic", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
     "drpg-gm-route", "drpg-item-effect",
     "drpg-objection-banner", "drpg-objection-decision", "drpg-objection-live", "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp",
-    "drpg-safeword-heading", "drpg-specific-note",
+    "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
     "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",
     "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges", "drpg-trait-field", "drpg-warning",

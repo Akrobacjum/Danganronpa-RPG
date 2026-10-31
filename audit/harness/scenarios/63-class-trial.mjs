@@ -25,7 +25,8 @@
  *      the primary has recorded it (C2); p2 and p3 hold their windows open. The GM's vote window,
  *      drawn and left open, says 1 of 3 ballots are back and a conviction needs 2, and every
  *      player's card says three ballots are out, in the plural family's form (C3). Pressed again, the
- *      window is raised and no second one is drawn (C14).
+ *      window is raised and no second one is drawn (C14). p1's Events card then says its vote is in, p2's still calls
+ *      it to vote (E51 C4, B7).
  *   C  p4 connects after the ballots went out, heard connecting before its world has loaded
  *      (`announceFirst`): it asks the GM for its ballot at load and is handed one, and the record
  *      issues a fourth (C2). The harness's default press dismisses that window, so p4 asks again
@@ -274,6 +275,19 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         return read;`, { timeout: 20000 });
     verdict("pressed again, the vote window B drew is raised and no second one is drawn (C14)",
         raised.second === null && raised.windows === 1 && raised.same === true, J(raised));
+    /* THE VOTE'S TRACE ON THE PANEL (E51 C4, 31.10.2026; E51-27, audit S13-33). A player whose ballot the primary has
+       recorded was told so in a toast, and the Events panel went on calling them to vote until the count. Read off the
+       panel each browser drew itself (its signature: kind, title, sub, ...), not built here: p1's, whose ballot is in, says
+       "Your vote is in."; p2's, whose window is still open, still says "Name the blackened.". Red at C4's parent: p1's
+       panel calls to vote. */
+    const voteCards = [];
+    for (const c of [p1, p2]) voteCards.push(await c.eval(`${until} const title = ${text("DRPG.Events.voteTitle")};
+        const card = () => JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]").find(x => x[0] === "trial" && x[1] === title) ?? null;
+        await until(() => card()?.[2] === ${text("DRPG.Events.voteCast")} || null, ${c === p1 ? 5000 : 0});
+        return { sub: card()?.[2] ?? null, due: card()?.[5] ?? null, cast: ${text("DRPG.Events.voteCast")}, call: ${text("DRPG.Events.voteSub")} };`, { timeout: 20000 }));
+    verdict("p1's Events card, its ballot recorded, says its vote is in; p2's, its window still open, still calls it to vote (E51 C4)",
+        voteCards[0].sub === voteCards[0].cast && voteCards[0].due === false && voteCards[1].sub === voteCards[1].call && voteCards[1].due === true,
+        J(voteCards));
 
     /* ------------------------------ C. a late joiner ------------------------------ */
 

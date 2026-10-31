@@ -888,8 +888,8 @@ function visibilityOptions(selected = "evident") {
 /** The traces on the scene as options, marking the ones this student already holds a copy of. */
 function bulletTraceOptions(traces, who, traceContextLine) {
         const copied = copiedRemnants(who);
-        const option = ({ token, data }) => {
-            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
+        const option = ({ token, data, label }) => {
+            const name = label ?? data.public?.name ?? "";
             const context = traceContextLine(data);
             // Said rather than hidden. A second copy is a legitimate thing to
             // hand out - two students may both have seen the same thing - so a
@@ -918,7 +918,7 @@ function bulletShownSelect(name) {
 /** The "from a Remnant" tab: pick a trace, rename it, say how it shows. */
 function bulletExistingPane(traces, initial, traceContextLine) {
     const firstName = traces.length
-        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
+        ? (traces[0].label ?? traces[0].data.public?.name ?? "")
         : "";
 
     return traces.length
@@ -1053,7 +1053,8 @@ async function bulletFromRemnant(result, traces, { setRemnantPublicById, markRem
     // sentence the GM types. Otherwise the second student to be handed this
     // same trace would get the old name, and the two copies of one object
     // would disagree in the pack that is meant to prove things.
-    if (result.name !== pub?.name) {
+    // Against what the window showed (`label`): an undescribed trace's name is empty, and its box read the word (E51 C5).
+    if (result.name !== (entry.label ?? pub?.name)) {
         try {
             await setRemnantPublicById(scene?.id, token.id, { name: result.name });
             // Named by a GM, so it is decided (E7).
@@ -1155,7 +1156,7 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
 
     const recipients = recipientOptions(students, initial.id);
 
-    const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById,
+    const { remnantsOn, remnantData, traceContextLine, traceLabel, setRemnantPublicById,
         markRemnantEditedById, tieForCopy } =
         await import("./remnants.mjs");
 
@@ -1173,7 +1174,9 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
         : [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
     const traces = scenes.flatMap(scene => remnantsOn(scene))
         .map(token => ({ token, data: remnantData(token) }))
-        .filter(entry => entry.data);
+        .filter(entry => entry.data)
+        // What each trace is called in this window: its described name, or the neutral word (remnants.mjs `traceLabel`, E51 C5).
+        .map(entry => ({ ...entry, label: traceLabel(entry.data) }));
 
     const existingPane = bulletExistingPane(traces, initial, traceContextLine);
 

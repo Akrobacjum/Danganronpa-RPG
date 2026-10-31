@@ -37,7 +37,7 @@ import { incomingTimeOfDay, incidentWitness, SETTINGS, getSetting, bodyDiscovery
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
 // complaint; everything still imported below was walked for that when it was added.
-import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
+import { isMonokuma, poolUserFor, chooseOwnStudent, ownedStudents } from "./monokuma.mjs";
 // For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
 import { isMonocub } from "./monocub.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
@@ -1481,10 +1481,11 @@ function centrePauseRaster() {
 /**
  * The character this HUD is about, for this account.
  *
- * Same resolution player-status.mjs uses for a player - the assigned character,
- * or the single owned student when nobody assigned one - and the same one
- * voice.mjs and camera-view.mjs use for a GM: the Monokuma whose Despair pool
- * is this user's.
+ * The one player-status.mjs asks for a player (since E51 C4; it was the same
+ * rule written there) - the assigned character, or the single owned student
+ * when nobody assigned one, or of several the controlled one, else the first
+ * by name - and the same one voice.mjs and camera-view.mjs use for a GM: the
+ * Monokuma whose Despair pool is this user's.
  *
  * THE ONE VIEWER (E77 C2, 13.10.2026; the A8 design's step 1). Exported as
  * `viewerActor` with its rule unchanged, so the clock, the 'Where are we' window
@@ -1494,6 +1495,12 @@ function centrePauseRaster() {
  * no assigned character who selected an owned NPC read that NPC's room while
  * the clock named their own (read in the code, 13.10.2026). R509 reads that no
  * other reader of the viewer is left in the three files.
+ *
+ * A PLAYER WITH SEVERAL (E51 C4, 31.10.2026; E51-25, audit S10-49). `ownStudent` answers nobody for two owned
+ * students and none assigned, so such a player's clock, tile and window had no character. A player's viewer is
+ * monokuma.mjs `chooseOwnStudent`'s now: the assigned character, else the one owned student, else the one whose token
+ * this user controls, else the first by name; the window says to assign one (`viewerNeedsAssigning`). Read at each
+ * draw: a selection changes it at the next one (a move of that token is one, `registerRoomTile`).
  */
 export function viewerActor() {
     if (game.user.isGM) {
@@ -1501,7 +1508,10 @@ export function viewerActor() {
             a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === game.user.id) ?? null;
     }
 
-    return ownStudent();
+    return chooseOwnStudent(ownedStudents(), {
+        assigned: game.user.character ?? null,
+        controlled: (canvas?.tokens?.controlled ?? []).map(token => token.actor).filter(Boolean)
+    });
 }
 
 /** Whether an OBJECTION! press is between its first click and its last window, on this browser - one latch for the

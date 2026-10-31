@@ -189,6 +189,7 @@
  *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
  *        node audit/glass-sweep.mjs --frame-cost [--frames <n>, 30] [--themes ...] [--sizes ...] [--glow <n>]   (E88 C0: below)
  *        node audit/glass-sweep.mjs --edges [--edge-frames <n>, 30] [--edge-sel <part>|<part>] [--edge-plant <css>] [--themes ...] [--sizes ...] [--no-control]   (E89 C5: below)
+ *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -555,6 +556,49 @@ if (args.includes("--edges")) {
     for (const [sel, t] of tally) console.log(`  ${sel}: ${!t.seen ? "not drawn" : t.flat === t.seen ? `no edge to read (M < 16 at all ${t.seen})`
         : `steady ${t.steady.length ? t.steady.join(", ") : "0 everywhere"} | flicker ${t.flicker.length ? t.flicker.join(", ") : "0 everywhere"}`}${t.flat && t.flat < t.seen ? ` (no edge at ${t.flat})` : ""}`);
     console.log(`EDGES ${bad ? "RED" : "read"}: ${themes.length} theme(s), ${N} frames a size, headless Chromium (software): a shape, not a table's picture`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE ROSTER AND THE WINDOW BESIDE THE VOICE TILE (E50 C2, 30.10.2026; E50-14, the plan's amendment A9 of 11.10: the
+   messenger's roster and windows stay clear of the voice tile by the right wall, or lie above it, also with the GM's
+   cluster wider by GM PANEL). `--roster` runs this instead of the sweep. At each size (by default 1366x768 and
+   1920x1080), in each theme and role (`--themes`, `--roles`; the GM's page carries the GM PANEL button in its cluster,
+   a player's has none), the page is loaded and its `drpgRosterCheck` draws the GM's roster (a GM's page only: a
+   player opens a window, never a roster) and a messenger window where one with no saved place opens, and fails the
+   size where either shares a point with the tile or its portrait at which `elementFromPoint` does not answer it. THE
+   CONTROL, once a run, at the first size where the roster meets the tile: the roster's z-index set one under the
+   tile's, which must read covered points; a control that reads clean, or a run where the roster met the tile at no
+   size, fails. Until C2 nothing measured this: A9's Q6 was read by hand on 13.10. The line prints each box, its
+   z-index and `disjoint` or the points it shares, and the window's place is the harness's reading of Foundry's
+   (LIVE-E50-06). */
+if (args.includes("--roster")) {
+    let bad = 0, planted = null, met = 0;
+    const line = r => !r ? "-" : `${r.box} z ${r.z} ${r.points ? `on top ${r.points - r.covered}/${r.points}` : "disjoint"}`;
+    try {
+        for (const theme of themes) for (const role of roles) for (const size of (opt("--sizes") ?? "1366x768,1920x1080").split(",")) {
+            const [W, H] = size.split("x").map(Number);
+            const page = await browser.newPage({ viewport: { width: W, height: H } });
+            const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+            await page.goto(`${base}/${page0}${qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : ""}`);
+            const loaded = await page.waitForFunction(() => window.__glass && window.drpgRosterCheck, null, { timeout: 15000 }).then(() => true, () => false);
+            const tag = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(9)}`;
+            if (!loaded) { console.log(`${tag} FAIL: the page did not load the glass or drpgRosterCheck`); bad++; await page.close(); continue; }
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(() => window.drpgRosterCheck());
+            if (r.roster?.points) met++;
+            console.log(`${tag} tile ${r.tile ?? "-"} | roster ${line(r.roster)} | window ${line(r.window)}${r.ok ? "" : `  - FAIL: ${r.why}`}`);
+            if (!r.ok) bad++;
+            if (control && !planted && r.roster?.points) {
+                const p = await page.evaluate(() => window.drpgRosterCheck({ plant: true }));
+                planted = p;
+                console.log(`${tag} control: the roster's z-index ${p.plant} - roster ${line(p.roster)}${p.ok ? "  - FAIL: the roster under the tile read clean" : ""}`);
+                if (p.ok) bad++;
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    if (control && roles.includes("gm") && !planted) { console.log("control: the roster met the voice tile at no size, so its fault could not be planted - FAIL"); bad++; }
+    console.log(`ROSTER ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), ${roles.length} role(s); the roster met the tile at ${met} size(s)`);
     process.exit(bad ? 1 : 0);
 }
 
