@@ -4704,7 +4704,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 }
 
 /* Monocub's Meddle roll, posted without the system's damage/heal buttons -
-   see postMeddleRoll() in monocub.mjs. Inherits Foundry's own `.dice-roll`
+   see postCubRoll() and cubCardHtml() in monocub.mjs. Inherits Foundry's own `.dice-roll`
    layout; these two only cover what that does not. */
 .drpg-flat-roll {
     margin: 0;
@@ -14211,6 +14211,41 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
 .drpg-call-header p {
     margin: 0;
     font-size: var(--drpg-text-sm);
+}
+
+/* The Call window's side (E51 C2, 30.10.2026; audit S17-48). Every Call window is drawn by
+   call-pickers.mjs `callWindow`, in `drpg-hope-dialog` or `drpg-despair-dialog`, and until C2 neither
+   class coloured anything: a Hope picker and a Despair one looked the same. The side's ink is set on the
+   window once - Hope's gold, Despair's blood, each with its deep twin on a pale ground (`light-dark`, as
+   the popups) - and the header takes it on a stripe and on its title. The button that waits for a GM keeps
+   `drpg-gm-route`'s red (A3, above), which neither side's ink touches. Tier 1's R1111 reads this cascade. */
+.application.drpg-hope-dialog {
+    --drpg-call-ink: light-dark(var(--drpg-gold-deep), var(--drpg-gold));
+}
+
+.application.drpg-despair-dialog {
+    --drpg-call-ink: light-dark(var(--drpg-blood-deep), var(--drpg-blood));
+}
+
+.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header {
+    border-left: 3px solid var(--drpg-call-ink);
+    padding-left: 8px;
+}
+
+.application:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-call-header h3 {
+    color: var(--drpg-call-ink);
+}
+
+/* Confusion's tiers, in its window (monocub.mjs `cubTiersHtml`), and the one its total reached on the card. */
+.drpg-cub-tiers {
+    margin: 2px 0 8px;
+    padding-left: 1.2rem;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-flat-tier {
+    margin: 2px 0 0;
+    text-align: center;
 }
 
 /* ---- popups ------------------------------------------------------------ */

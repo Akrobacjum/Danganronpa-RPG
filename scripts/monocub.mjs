@@ -51,8 +51,8 @@ import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+// Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
+import { callWindow, callHeader } from "./call-pickers.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -367,26 +367,70 @@ export function cubAbilityRefusal(actor, key, choice) {
  * to make private.
  */
 async function postCubRoll(actor, row, roll, total, isCritical, choice) {
-    const label = `${row.label} - ${game.i18n.localize(`DRPG.Monocub.${choice}`)}`;
-
     const tooltip = await roll.getTooltip();
 
     return ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         rolls: [roll],
-        content: `<div class="dice-roll drpg-flat-roll">
-            <div class="dice-flavor">${foundry.utils.escapeHTML(label)}</div>
+        content: cubCardHtml(row, { choice, formula: roll.formula, tooltip, total, isCritical })
+    });
+}
+
+/*
+ * THE THRESHOLDS ARE SAID, BEFORE THE ROLL AND ON THE CARD (E51 C2, 30.10.2026; the owner's amendment
+ * of 14.10, its item (6)). Confusion's window asked Help or Hinder and its card said "Confusion - Help"
+ * and a total: the 12 and the 16 the GM scores it against (`scoreMeddle`, the row's `thresholds`) were
+ * in config.mjs alone. Both are read off the row, so a second ability's tiers are said the same way.
+ * A tier's words are named by its `grants` (the window's, both choices at once; the card's, the one
+ * chosen); a `grants` with no words here is said by its number alone. R1112 asks both builders.
+ */
+const TIER_WORDS = Object.freeze({
+    bonus: { both: "DRPG.Monocub.grantBonus", help: "DRPG.Monocub.helpBonus", hinder: "DRPG.Monocub.hinderBonus" },
+    advantage: { both: "DRPG.Monocub.grantAdvantage", help: "DRPG.Monocub.helpAdvantage", hinder: "DRPG.Monocub.hinderAdvantage" }
+});
+
+/** What a tier grants, in words: `which` is "both" (the window) or the choice (the card). */
+function tierWords(tier, which) {
+    const key = TIER_WORDS[tier?.grants]?.[which];
+    return key ? game.i18n.localize(key) : "";
+}
+
+/** The row's tiers, one line each - "Beat 12: ..." - for the ability's window. */
+export function cubTiersHtml(row) {
+    const tiers = (row?.thresholds ?? []).map(tier =>
+        `<li>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.tierLine", { n: tier.min, what: tierWords(tier, "both") }))}</li>`);
+    return tiers.length ? `<ul class="drpg-cub-tiers">${tiers.join("")}</ul>` : "";
+}
+
+/**
+ * The ability's card: the label and the choice, the dice, the total with "needed 12 / 16" beside it
+ * (`DRPG.Action.needed`, as every action card says it since E51 C1), and what the total did - the
+ * highest tier it beat, or the first it missed. A critical is scored by the row's `critical`, not by
+ * a tier (`scoreMeddle`), so it says the critical and no tier. `tooltip` is the roll's own markup.
+ */
+export function cubCardHtml(row, { choice, formula = "", tooltip = "", total = 0, isCritical = false } = {}) {
+    const esc = foundry.utils.escapeHTML;
+    const label = `${row.label} - ${game.i18n.localize(`DRPG.Monocub.${choice}`)}`;
+    const tiers = row.thresholds ?? [];
+    const needed = tiers.length
+        ? ` <small class="drpg-card-needed">${esc(game.i18n.format("DRPG.Action.needed", { n: tiers.map(t => t.min).join(" / ") }))}</small>` : "";
+    const hit = resolveThreshold(total, tiers);
+    const outcome = isCritical || !tiers.length ? ""
+        : hit ? game.i18n.format("DRPG.Monocub.tierBeaten", { n: hit.min, what: tierWords(hit, choice) })
+            : game.i18n.format("DRPG.Monocub.tierMissed", { n: tiers[0].min });
+    return `<div class="dice-roll drpg-flat-roll">
+            <div class="dice-flavor">${esc(label)}</div>
             <div class="dice-result">
-                <div class="dice-formula">${foundry.utils.escapeHTML(roll.formula)}</div>
+                <div class="dice-formula">${esc(formula)}</div>
                 ${tooltip}
-                <h4 class="dice-total">${total}</h4>
+                <h4 class="dice-total">${total}${needed}</h4>
             </div>
+            ${outcome ? `<p class="drpg-flat-tier">${esc(outcome)}</p>` : ""}
             ${isCritical
                 ? `<p class="drpg-flat-crit"><em>${
                     game.i18n.localize("DRPG.Action.critical")}</em></p>`
                 : ""}
-        </div>`
-    });
+        </div>`;
 }
 
 /**
@@ -516,14 +560,24 @@ export async function cubAbilityDialog(actor, key) {
     const options = targets
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
-    const result = await DialogV2.wait({
-        window: { title: row.label },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Monocub.meddleIntro")}</p>
+    /*
+     * A CALL WINDOW (E51 C2, 30.10.2026; audit S17-48): `callWindow`, on the Hope side - the Monocub
+     * pays Hope - under the header every Call window has: the ability's name, what it is for, its
+     * price; then the tiers it is thrown against (`cubTiersHtml`, the owner's amendment of 14.10).
+     * Not the GM's road: the GM throws the dice, but nobody decides anything before it lands.
+     */
+    const result = await callWindow({
+        kind: "hope", title: row.label,
+        header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
+            effect: game.i18n.localize("DRPG.Monocub.meddleIntro"),
+            price: game.i18n.format("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost })
+        }),
+        body: `<form>
+            <p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
+            ${cubTiersHtml(row)}
             <label>${game.i18n.localize("DRPG.Monocub.target")}
                 <select name="target">${options}</select></label>
-        </form>`),
+        </form>`,
         buttons: [
             // One button per choice of the row, the first the default; their labels are
             // `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
@@ -532,10 +586,8 @@ export async function cubAbilityDialog(actor, key) {
                 callback: (e, b, d) => ({
                     targetId: d.element.querySelector("[name=target]").value, choice
                 })
-            })),
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+            }))
+        ]
     });
 
     if (!result || result === "cancel") return null;

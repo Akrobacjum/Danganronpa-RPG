@@ -4217,16 +4217,20 @@ async function runCall(actor, key, kind) {
     const standing = call.defers ? pendingGather() : null;
     if (standing) {
         const { cancelGather } = await import("./call-effects.mjs");
-        const ok = await foundry.applications.api.DialogV2.confirm({
-            window: { title: call.label },
-            classes: ["drpg-panel", "drpg-despair-dialog"],
-            content: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
+        // A Call window (E51 C2; call-pickers.mjs `callWindow`): the Despair Call's own, with no header -
+        // nothing is bought - and buttons saying what each does: the default calls the assembly off, as the
+        // confirm's yes did, and the other keeps it.
+        const { callWindow } = await import("./call-pickers.mjs");
+        const answer = await callWindow({
+            call, kind,
+            body: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
                 room: foundry.utils.escapeHTML(standing.room)
             })}</p><p class="notes">${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</p>`,
-            rejectClose: false,
+            buttons: [{ action: "yes", label: game.i18n.localize("DRPG.Calls.gatherCallOff"), default: true }],
+            cancel: "DRPG.Calls.gatherKeep",
             modal: true
         });
-        if (!ok) return;
+        if (answer !== "yes") return;
         await cancelGather();
         actor.sheet?.render(false);
         return;

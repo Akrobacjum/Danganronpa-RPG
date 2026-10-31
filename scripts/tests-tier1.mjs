@@ -29416,6 +29416,142 @@ const INVARIANTS = [
         }), "[each entry's total, threshold and band as written; the hit's line says 14 against 12, the miss's 9 against 15; the free take's line holds "
             + "a score in brackets; the old entry's]");
     }],
+    ["R1111 - a Call window keeps its own header and says its side: Obstacle's player picker (which waits on imports before its window) and New Rule's text, opened at once, each show their own Call's header; `confirmCall` opens under the Call's header too, a Hope Call's window with `drpg-hope-dialog` and a Despair Call's with `drpg-despair-dialog`; the Call a GM rules (Experience) sends from a `drpg-gm-route` button and the others do not; no button reads `DRPG.Action.proceed`; and the stylesheets paint a Hope header gold, a Despair one blood and the GM road red, in both themes (E51 C2; E51-17, audit S17-48)", async () => {
+        /*
+         * E51 C2, 30.10.2026; audit S17-48. `pickTarget` set a module `let pendingHeader` that every picker read when it
+         * drew its window and cleared it when its own window closed, so a picker that awaited an import before drawing
+         * (`pickPlayer`, `pickProject`, `pickRoom`, `pickItem`, `pickMonocub`) drew whatever Call had set the header last.
+         * Since C2 `pickTarget` builds the header and hands it on, and every window goes through `callWindow` with its
+         * side (`kind`) and its road (`gmRoute`). Opened here on this browser with DialogV2.wait held by a stand-in that
+         * keeps each window open until the test closes it (cancelled: nothing is paid, armed or written), then put back.
+         * The stylesheets are read as a cascade from their text (`styleCascade`) on a window built on a body of its own
+         * in each theme. Red at C2's parent: the Obstacle picker drew New Rule's header in no side's class, the
+         * confirmations had no header, no button was routed, the pickers said "Do it", and no rule coloured a Call
+         * window. The GM road's red was the theme's already (`drpg-gm-route`'s own rule wins the button's border): a
+         * guard here, read so that a side's ink drawn over it would fail.
+         */
+        needs(world.atLeast("livingStudents", 2), "Obstacle's picker lists a living student other than the one aiming it");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const { confirmCall } = await import("./calls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const look = cfg => {
+            const root = document.createElement("div");
+            if (typeof cfg.content === "string") root.innerHTML = cfg.content;
+            else if (cfg.content) root.append(cfg.content.cloneNode(true));
+            const buttons = cfg.buttons ?? [];
+            return { title: cfg.window?.title ?? "", classes: (cfg.classes ?? []).filter(c => /^drpg-(?:hope|despair)-dialog$|^drpg-panel$/.test(c)),
+                header: root.querySelector(".drpg-call-header h3")?.textContent.trim() ?? null,
+                routed: buttons.filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action),
+                proceed: buttons.some(b => b.label === game.i18n.localize("DRPG.Action.proceed")) };
+        };
+        const closeAll = answer => { for (const w of held.splice(0)) w.resolve(answer); };
+        const opened = async (n, answer) => {
+            const got = await until(() => held.length >= n, 3000);
+            const seen = held.map(w => look(w.config));
+            closeAll(answer);
+            return got ? seen : [...seen, "(a window did not open)"];
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const both = [pickTarget(who, DESPAIR_CALLS.obstacle, "despair"), pickTarget(who, DESPAIR_CALLS.newRule, "despair")];
+            const pickers = await opened(2, null);
+            await Promise.all(both);
+            const whichPlayer = game.i18n.localize("DRPG.Calls.whichPlayer");
+            read.pickers = [pickers.find(p => p.title === whichPlayer) ?? null, pickers.find(p => p.title === DESPAIR_CALLS.newRule.label) ?? null];
+            const confirms = [];
+            for (const [call, kind] of [[HOPE_CALLS.experience, "hope"], [HOPE_CALLS.sprint, "hope"], [DESPAIR_CALLS.feedOverflow, "despair"]]) {
+                const asked = confirmCall(call, { kind, held: 12 });
+                confirms.push((await opened(1, "cancel"))[0]);
+                await asked;
+            }
+            read.confirms = confirms;
+        } finally {
+            closeAll(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const C = await styleCascade();
+        const RED = /--drpg-(?:eye|crimson|sg-gm)\b/;
+        const paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const sides = Object.fromEntries(["hope", "despair"].map(kind => {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = `${theme} drpg-gm`;
+                html.append(body);
+                body.innerHTML = `<div class="application dialog drpg-panel drpg-${kind}-dialog"><section class="window-content"><form>`
+                    + `<div class="dialog-content"><div class="drpg-call-header"><h3>R1111</h3></div></div>`
+                    + `<footer class="form-footer"><button type="submit" class="drpg-gm-route" data-action="spend">R1111</button></footer></form></section></div>`;
+                const w = (el, names) => C.winner(el, names);
+                const ink = w(body.firstElementChild, "--drpg-call-ink")?.value ?? "";
+                const stripe = w(body.querySelector(".drpg-call-header"), ["border-left", "border-left-color"])?.value ?? "";
+                const title = w(body.querySelector(".drpg-call-header h3"), "color")?.value ?? "";
+                const road = w(body.querySelector("button.drpg-gm-route"), ["border", "border-color"]);
+                return [kind, { ink: kind === "hope" ? /--drpg-gold\b/.test(ink) && !/--drpg-blood\b/.test(ink) : /--drpg-blood\b/.test(ink) && !/--drpg-gold\b/.test(ink),
+                    stripe: /var\(--drpg-call-ink\)/.test(stripe), title: /var\(--drpg-call-ink\)/.test(title),
+                    road: Boolean(road) && /drpg-gm-route/.test(road.selector) && RED.test(road.value) }];
+            }));
+            return [theme, sides];
+        }));
+        const despair = ["drpg-panel", "drpg-despair-dialog"], hope = ["drpg-panel", "drpg-hope-dialog"];
+        const yes = { ink: true, stripe: true, title: true, road: true };
+        equal(JSON.stringify({ ...read, paint }), JSON.stringify({
+            pickers: [
+                { title: game.i18n.localize("DRPG.Calls.whichPlayer"), classes: despair, header: DESPAIR_CALLS.obstacle.label, routed: [], proceed: false },
+                { title: DESPAIR_CALLS.newRule.label, classes: despair, header: DESPAIR_CALLS.newRule.label, routed: [], proceed: false }],
+            confirms: [
+                { title: HOPE_CALLS.experience.label, classes: hope, header: HOPE_CALLS.experience.label, routed: ["spend"], proceed: false },
+                { title: HOPE_CALLS.sprint.label, classes: hope, header: HOPE_CALLS.sprint.label, routed: [], proceed: false },
+                { title: DESPAIR_CALLS.feedOverflow.label, classes: despair, header: DESPAIR_CALLS.feedOverflow.label, routed: [], proceed: false }],
+            paint: { "drpg-theme-stained-glass": { hope: yes, despair: yes }, "drpg-theme-monokuma-legacy": { hope: yes, despair: yes } }
+        }), "[two pickers open at once: Obstacle's, New Rule's - title, classes, header, routed buttons, a 'Do it'; the confirmations of Experience "
+            + "(a GM rules it), Sprint and Feed the Overflow; per theme and side: the window's ink is gold for Hope and blood for Despair, the header's "
+            + "stripe and its title take the ink, and a drpg-gm-route button's border is won by the road's own rule, in a red of the theme]");
+    }],
+
+    ["R1112 - Confusion names its thresholds before the roll and on the card: monocub.mjs `cubTiersHtml` lists each tier of the row (\"Beat 12\", \"Beat 16\" for the meddle row) with what it grants, `cubCardHtml` writes \"needed 12 / 16\" beside the total and the tier the total beat or the first one it missed, read off the row; `cubAbilityDialog` draws the list and `postCubRoll` posts the card (E51 C2; E51-18, the owner's amendment of 14.10)", async () => {
+        /*
+         * E51 C2, 30.10.2026; the owner, 14.10 ("modul w zaden sposob nie informuje ani gracza, ani gma o thresholdach
+         * akcji"), item (6) of the amendment: Confusion. Its window asked Help or Hinder and named no number, and its card
+         * said "Confusion - Help" and the total: the 12 and the 16 of MONOCUB.abilities.meddle were nowhere. Asked of
+         * the row as config holds it and of a stand-in row with other numbers, so a builder that writes a fixed number
+         * fails; the window's and the card's builders are pure, and their callers are read off the source (comments
+         * stripped). Nothing is written. Red at C2's parent: neither builder exists, and neither caller names a number.
+         */
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        must(typeof M.cubTiersHtml === "function" && typeof M.cubCardHtml === "function",
+            "monocub.mjs exports no cubTiersHtml or cubCardHtml - the Confusion window and card name no threshold");
+        const row = MONOCUB.abilities.meddle;
+        must(row?.thresholds?.length >= 2, "the meddle row holds fewer than two tiers - this would measure nothing");
+        const stand = { ...row, label: "R1112", thresholds: [{ min: 5, grants: "bonus" }, { min: 9, grants: "advantage" }] };
+        const text = html => { const div = document.createElement("div"); div.innerHTML = html; return div.textContent.replace(/\s+/g, " ").trim(); };
+        const beat = n => game.i18n.format("DRPG.Monocub.tierLine", { n, what: "" }).replace(/[:\s]+$/, "");
+        const card = (r, total, choice = "help", isCritical = false) => text(M.cubCardHtml(r, { choice, total, isCritical, formula: "2d12", tooltip: "" }));
+        const needed = r => game.i18n.format("DRPG.Action.needed", { n: r.thresholds.map(t => t.min).join(" / ") });
+        const beaten = (n, key) => game.i18n.format("DRPG.Monocub.tierBeaten", { n, what: game.i18n.localize(`DRPG.Monocub.${key}`) });
+        const missed = n => game.i18n.format("DRPG.Monocub.tierMissed", { n });
+        const [low, high] = row.thresholds.map(t => t.min);
+        const windowText = text(M.cubTiersHtml(row)), standText = text(M.cubTiersHtml(stand));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/monocub.mjs`).then(lfText));
+        equal(JSON.stringify({
+            window: [windowText.includes(beat(low)), windowText.includes(beat(high)), windowText.includes(game.i18n.localize("DRPG.Monocub.grantBonus")),
+                windowText.includes(game.i18n.localize("DRPG.Monocub.grantAdvantage"))],
+            standIn: [standText.includes(beat(5)), standText.includes(beat(9)), standText.includes(beat(low))],
+            cards: [card(row, low + 1).includes(needed(row)), card(row, low + 1).includes(beaten(low, "helpBonus")), card(row, high, "hinder").includes(beaten(high, "hinderAdvantage")),
+                card(row, low - 1).includes(missed(low)), card(stand, 7).includes(needed(stand)), card(stand, 7).includes(beaten(5, "helpBonus")),
+                card(row, 2, "help", true).includes(missed(low))],
+            callers: [/\bcubTiersHtml\(row\)/.test(fnSource(src, "cubAbilityDialog")), /\bcubCardHtml\(row,/.test(fnSource(src, "postCubRoll"))]
+        }), JSON.stringify({
+            window: [true, true, true, true], standIn: [true, true, false],
+            cards: [true, true, true, true, true, true, false], callers: [true, true]
+        }), `[the window names each tier of the row and what each grants; a stand-in row's own numbers and not the row's; the card: needed ${low} / ${high}, `
+            + `a ${low + 1} Help beats ${low} for +1, a ${high} Hinder beats ${high} for disadvantage, a ${low - 1} misses ${low}, the stand-in's numbers, `
+            + `a critical says no tier; the window and the card are built by them]`);
+    }],
 ];
 
 /**

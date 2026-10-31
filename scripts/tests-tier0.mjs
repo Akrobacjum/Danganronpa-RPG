@@ -16382,7 +16382,9 @@ const REGRESSIONS = [
          * `chooseVariant` is one of those calls, so a window built by it passes with it. `KEPT` lists a window allowed
          * without the class, with why: none at C1. The reader is run first on a planted source. A GUARD: green at C1's
          * parent (the crawl found 31 windows, every one with the class); its power is the plant - `drpg-panel` taken off
-         * `cubAbilityDialog`'s classes in a scratch copy turned it red (C1's message).
+         * `cubAbilityDialog`'s classes in a scratch copy turned it red (C1's message). Since E51 C2 Confusion's window is
+         * drawn by call-pickers.mjs `callWindow`, which names `drpg-panel` for every Call window (R1110 holds both), so
+         * this crawl reads 30 (counted 30.10.2026) and the plant's place is any of the other windows.
          */
         const FILES = ["action-rolls.mjs", "observe.mjs", "frisk.mjs", "search-tokens.mjs", "use-items.mjs", "murder-ui.mjs",
             "projects-ui.mjs", "monocub.mjs", "cleanup.mjs"];
@@ -16556,6 +16558,63 @@ const REGRESSIONS = [
             exported: true,
             files: Object.fromEntries(files.map(file => [file, { imports: true, calls: true, byHand: false }]))
         }), "[projects.mjs exports projectLabel, reading current and start; per reader: imports it from projects.mjs, calls it, still writes current/start by hand]");
+    }],
+    ["R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and drpg-gm-route; each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)", async () => {
+        /*
+         * E51 C2, 30.10.2026; audit S17-48. The Call windows were built in seven places, each with its own classes:
+         * the pickers (`pickText`, `pickMotive`, `choose`) under one module `let pendingHeader` that `pickTarget` set and
+         * cleared - so two pickers open at once shared one header, and a picker that awaited an import before its window
+         * could open under the other Call's - `choose` with no Hope or Despair class at all, the pickers' confirm saying
+         * "Do it" (`DRPG.Action.proceed`), `confirmCall` and `askHopeCallApproval` with classes of their own, the
+         * Confusion window a plain panel and the sheet's "call off the assembly" a bare DialogV2.confirm. Read here with
+         * comments blanked: each opening of a window in those four regions (call-pickers.mjs and calls.mjs whole;
+         * `cubAbilityDialog`, `runCall`), its top-level function, and the `callWindow(` calls; the builder's own classes;
+         * the key. The reader is run first on a planted source. Tier 1's R1111 opens the windows and reads what they
+         * hold. Red at C2's parent: `pendingHeader` there, no `callWindow`, seven windows opened outside it and three
+         * "Do it" buttons.
+         */
+        const OPENS = /\b(DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2)\s*\(/g;
+        const read = (file, raw, only = null) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const topAt = i => tops.findLast(t => t.at <= i)?.name ?? "(top level)";
+            const inRegion = i => !only || only.includes(topAt(i));
+            return {
+                opens: [...blank.matchAll(OPENS)].filter(m => inRegion(m.index)).map(m => `${file}#${topAt(m.index)}`),
+                builds: [...blank.matchAll(/(?<![\w$.])callWindow\s*\(/g)].filter(m => inRegion(m.index)
+                    && !/function\s*$/.test(blank.slice(Math.max(0, m.index - 10), m.index))).map(m => topAt(m.index)),
+                proceed: [...blank.matchAll(/DRPG\.Action\.proceed/g)].filter(m => inRegion(m.index)).map(m => `${file}#${topAt(m.index)}`),
+                pending: (blank.match(/\bpendingHeader\b/g) ?? []).length
+            };
+        };
+        const planted = read("planted.mjs", 'export function callWindow(o) { return DialogV2.wait({ classes: ["drpg-panel"] }); }\n'
+            + 'async function p() { /* DialogV2.wait( */ await callWindow({}); return foundry.applications.api.DialogV2.confirm({ label: "DRPG.Action.proceed" }); }\n'
+            + 'function q() { let pendingHeader = ""; return callWindow({}); }\n', ["callWindow", "p"]);
+        equal(JSON.stringify(planted), JSON.stringify({ opens: ["planted.mjs#callWindow", "planted.mjs#p"], builds: ["p"],
+            proceed: ["planted.mjs#p"], pending: 1 }), "the reader does not read the planted source as planted - the crawl below would measure the wrong calls");
+
+        const src = {};
+        for (const file of ["call-pickers.mjs", "calls.mjs", "monocub.mjs", "sheet.mjs"]) {
+            src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
+            must(src[file].length > 1000, `${file} was not served - this test reads nothing until it is`);
+        }
+        const regions = [read("call-pickers.mjs", src["call-pickers.mjs"]), read("calls.mjs", src["calls.mjs"]),
+            read("monocub.mjs", src["monocub.mjs"], ["cubAbilityDialog"]), read("sheet.mjs", src["sheet.mjs"], ["runCall"])];
+        const opens = regions.flatMap(r => r.opens);
+        const builder = topLevelFunction(blankComments(src["call-pickers.mjs"]), "callWindow") ?? "";
+        const builds = regions.flatMap(r => r.builds);
+        const WINDOWS = ["pickText", "pickMotive", "choose", "confirmCall", "askHopeCallApproval", "cubAbilityDialog", "runCall"];
+        equal(JSON.stringify({
+            pendingHeader: regions[0].pending,
+            outside: opens.filter(at => at !== "call-pickers.mjs#callWindow"),
+            inBuilder: opens.includes("call-pickers.mjs#callWindow"),
+            exported: /^export (?:async )?function callWindow\(/m.test(src["call-pickers.mjs"]),
+            classes: ["drpg-panel", "drpg-hope-dialog", "drpg-despair-dialog", "drpg-gm-route"].filter(c => !builder.includes(`"${c}"`)),
+            unbuilt: WINDOWS.filter(fn => !builds.includes(fn)),
+            proceed: regions.flatMap(r => r.proceed)
+        }), JSON.stringify({ pendingHeader: 0, outside: [], inBuilder: true, exported: true, classes: [], unbuilt: [], proceed: [] }),
+            "[pendingHeader in call-pickers.mjs; a Call window opened outside callWindow; callWindow opens one; it is exported; a class it does not "
+            + "name; a Call window that does not call it; a button labelled DRPG.Action.proceed]");
     }],
 ];
 
