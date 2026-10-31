@@ -76403,6 +76403,55 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ outlined: room, inside: true, again: false }),
             `[the room outlined after the Monokuma's token was placed in ${room}; the step stayed inside it; the step drew the outline again]`);
     }],
+    ["E51-T11 - after the primary has a player's ballot, that player's Events card says the vote is in, and a new round asks again: vote.mjs `noteBallotIn` (what `sendBallot` and `askBallot` call on the primary's answer) turns the open vote's card from the call to vote into \"Your vote is in.\" for the round it names only, and a GM's card stays the count (E51 C4; E51-27, audit S13-33)", async () => {
+        /*
+         * E51 C4, 31.10.2026; audit S13-33. A player who cast a ballot was told "Your vote is in." once, in a toast, and
+         * the Events panel went on showing the open vote's card with its call to vote - "Name the blackened." - until the
+         * count: nothing on screen said the ballot had gone. The card now reads the round of the last ballot the primary
+         * recorded from this browser (`ballotInHere`). Tier 2 runs on a GM's browser, so the player's card is read with
+         * `game.user.isGM` false for the synchronous call of `trialCard` (an own property over the User's getter, taken
+         * off before anything else runs, as `asConsole` does). The vote's record is this test's own (round 7 open in this
+         * chapter), written and put back; the browser's own round is put back as it was. The road itself - a player's
+         * ballot on the bridge, the primary's answer, the panel drawn again - is scenario 63's B on real players. Red at
+         * C4's parent: `noteBallotIn` does not exist, and the card after the ballot still calls to vote.
+         */
+        const V = await import("./vote.mjs");
+        const E = await import("./events.mjs");
+        const chapter = getClock().chapter;
+        const trial = { phase: "classTrial", chapter };
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const before = typeof V.ballotInRound === "function" ? V.ballotInRound() : null;
+        const asPlayer = () => {
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            try {
+                const card = E.trialCard(trial);
+                return card ? { title: card.title, sub: card.sub, due: card.due ?? false } : null;
+            } finally {
+                delete game.user.isGM;
+            }
+        };
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter, vote: { ...V.trialProgress().vote, open: true, round: 7, issued: [] } });
+            read.open = asPlayer();
+            if (typeof V.noteBallotIn === "function") V.noteBallotIn(7);
+            read.cast = asPlayer();
+            const gm = E.trialCard(trial);
+            read.gm = gm ? { title: gm.title, sub: gm.sub } : null;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter, vote: { ...V.trialProgress().vote, open: true, round: 8 } });
+            read.reopened = asPlayer();
+        } finally {
+            if (typeof V.noteBallotIn === "function") V.noteBallotIn(before);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        const title = game.i18n.localize("DRPG.Events.voteTitle"), call = game.i18n.localize("DRPG.Events.voteSub");
+        equal(stableJson(read), stableJson({
+            open: { title, sub: call, due: true },
+            cast: { title, sub: game.i18n.localize("DRPG.Events.voteCast"), due: false },
+            gm: { title, sub: call },
+            reopened: { title, sub: call, due: true }
+        }), "[a player's card with round 7 open; after the primary recorded their ballot of round 7; the GM's then; a player's once round 8 opened]");
+    }],
     ...GRID
 ];
 

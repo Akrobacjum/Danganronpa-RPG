@@ -80,6 +80,44 @@ export function ownStudent() {
     return owned.length === 1 ? owned[0] : null;
 }
 
+/** The students this account owns: characters, no Monokuma (a GM owns every one of them). */
+export function ownedStudents() {
+    return game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a));
+}
+
+/**
+ * THE ONE VIEWER OF SEVERAL (E51 C4, 31.10.2026; E51-25, audit S10-49, the A8 design; the owner's Q2 on its default).
+ * `ownStudent` answers nobody for a player with two characters and none assigned, so the clock's room, the room tile
+ * and the 'Where are we' window had no character for them. This chooses one, and the same one each time it is asked
+ * the same thing: the assigned character (nobody for an assigned Monokuma, as `ownStudent`), else the only owned
+ * student, else of several the first `controlled` token's actor that is one of them - a token of somebody else's
+ * character is not this viewer's - else the first by name. Pure: `list` is the account's actors (only its students
+ * count), `controlled` the actors of the tokens it controls; hud.mjs `viewerActor` hands it the account's. Exported
+ * for the suite (R1117).
+ *
+ * @param {Actor[]} list  the actors this account owns
+ * @param {{ assigned?: Actor|null, controlled?: Actor[] }} [options]
+ * @returns {Actor|null}
+ */
+export function chooseOwnStudent(list = [], { assigned = null, controlled = [] } = {}) {
+    if (assigned) return isMonokuma(assigned) ? null : assigned;
+    const owned = [...list].filter(a => a?.type === "character" && !isMonokuma(a));
+    if (owned.length <= 1) return owned[0] ?? null;
+    const held = [...controlled].find(a => a && owned.some(o => o.id === a.id));
+    if (held) return owned.find(o => o.id === held.id);
+    return [...owned].sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")) || String(a.id).localeCompare(String(b.id)))[0];
+}
+
+/**
+ * Whether the clock's explain window should say to assign a character (E51 C4; `DRPG.Hud.assignHint`): several owned
+ * students and none assigned, so which one the screens are about is `chooseOwnStudent`'s guess. A GM is never asked.
+ * Pure when both are handed (R1117).
+ */
+export function viewerNeedsAssigning(list = ownedStudents(), assigned = game.user?.character ?? null) {
+    if (assigned) return false;
+    return [...list].filter(a => a?.type === "character" && !isMonokuma(a)).length > 1;
+}
+
 /**
  * Mark or unmark an actor as a Monokuma. GM only.
  *

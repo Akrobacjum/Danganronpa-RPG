@@ -34,7 +34,7 @@ import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incid
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
-import { trialProgress, votesIn, pendingVoters } from "./vote.mjs";
+import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
@@ -402,6 +402,18 @@ export function trialCard(clock) {
         if (clock.phase !== "classTrial") return null;
 
         if (voteIsOpen(clock)) {
+            /* A PLAYER WHOSE BALLOT IS IN (E51 C4; E51-27, audit S13-33): the same card, saying so where it called them to
+               vote, and no longer waiting on them - once the primary has said it holds their ballot of this round
+               (vote.mjs `ballotInHere`). A GM's card is the count, as before. */
+            if (!game.user.isGM && ballotInHere()) {
+                return {
+                    kind: "trial",
+                    due: false,
+                    title: game.i18n.localize("DRPG.Events.voteTitle"),
+                    sub: game.i18n.localize("DRPG.Events.voteCast"),
+                    meta: game.i18n.localize("DRPG.Events.voteMeta")
+                };
+            }
             const back = game.user.isGM ? votesIn() : null;
             const out = game.user.isGM ? (pendingVoters()?.length ?? null) : null;
             return {

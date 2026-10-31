@@ -9103,7 +9103,7 @@ const REGRESSIONS = [
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
-            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
+            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
             ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
@@ -10507,7 +10507,12 @@ const REGRESSIONS = [
          * `subjectActor`'s one line, which reads the selection only under `game.user.isGM` and otherwise returns
          * `viewerActor()`; `viewerRoom` asks `viewerActor()`; no file of the module names `hudActor` any more.
          * `game.actors` is not in the list: hud.mjs reads an actor by id for the trial's speaker (read in the code,
-         * 13.10.2026), which is not the viewer. The reader is run first on a fixture of the three files, and on
+         * 13.10.2026), which is not the viewer.
+         * E51 C4 (31.10.2026; E51-25) changes the rule and keeps the shape: a player's viewer is monokuma.mjs
+         * `chooseOwnStudent`'s (the assigned character, else the one owned student, else the controlled one of several,
+         * else the first by name), asked with `ownedStudents()`, the assignment and the controlled tokens inside
+         * `viewerActor` - so `viewerActor` must ask `chooseOwnStudent(` where it asked `ownStudent()`, and either of
+         * the two is a second reader anywhere else in the three files; the fixture asks it as the code does. The reader is run first on a fixture of the three files, and on
          * the same fixture with the GM's gate taken off the selection and with a second reader of the student.
          * E77 C3 (13.10.2026) adds the markup clauses: room-tile.mjs, which draws another user's words, has no
          * `innerHTML` write, no `insertAdjacentHTML(`, no `enrichHTML(` and no data-tooltip in any literal (Foundry's
@@ -10541,7 +10546,7 @@ const REGRESSIONS = [
          * gone too. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under the
          * module's path and a logo under an assets folder planted.
          */
-        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bchooseOwnStudent\(|\bownedStudents\(|\bpoolUserFor\(|\.controlled\b/;
         const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
             /\b(?:insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(/]
             .map(part => part.source).join("|"));
@@ -10551,7 +10556,7 @@ const REGRESSIONS = [
             const rest = [["hud.mjs", hud.replace(viewer, "")], ["explain.mjs", explain.replace(subject, "")], ["room-tile.mjs", tile]]
                 .filter(([, text]) => READS.test(text)).map(([file]) => file);
             return [
-                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bownStudent\(\)/.test(viewer),
+                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bchooseOwnStudent\(/.test(viewer),
                 /=\s*game\.user\.isGM \? canvas\?\.tokens\?\.controlled\?\.\[0\]\?\.actor \?\? null : null;/.test(subject)
                     && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
                 /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
@@ -10562,7 +10567,7 @@ const REGRESSIONS = [
         };
         const FIXTURE = new Map([
             ["hud.mjs", "export function viewerActor() {\n    if (game.user.isGM) return game.actors.find(a => poolUserFor(a)?.id === game.user.id) ?? null;\n"
-                + "    return ownStudent();\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
+                + "    return chooseOwnStudent(ownedStudents(), { assigned: game.user.character ?? null });\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
             ["explain.mjs", "function subjectActor() {\n    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;\n"
                 + "    return selected ?? viewerActor();\n}\n"],
             ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"

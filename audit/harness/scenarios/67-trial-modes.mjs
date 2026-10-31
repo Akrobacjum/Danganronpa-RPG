@@ -21,7 +21,8 @@
  *     (no window to resign in: Done) - "The Closing Argument is over." on every player, the record done with two
  *     stretches (picked, objection). Then an Overrule in a Testimony's exchange gives the speaker back the turn.
  *   D (E70 C7, the undiscovered dead): Botan killed with nobody told, the trial's voices settled on the primary (the
- *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn. D2 reads Botan on the
+ *     dead listed), and a Testimony started in the order Aiko, Botan, Chie gives Botan no turn. While it runs (E51 C4,
+ *     D3) its card stands on the GM's Events panel and the participants', and p2, Botan's player, is told no turn. D2 reads Botan on the
  *     trial's list of the dead in p1's world data while nothing else there says he is dead: known-leaks.json TR30,
  *     red on purpose until E72 (part A, formerly E67) (E70 C13).
  *   R (E70 C9, Monokuma's Reveal; E70-60 to E70-64): a Key Remnant the GM wrote into this chapter's plan and never
@@ -267,17 +268,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     /* ------------------------------ D. the undiscovered dead ------------------------------ */
     begin("D", "a death nobody has found takes no turn");
+    for (const c of [p1, p2, p3]) await mark(c);
     const dead = await gm.eval(`${F} const C = await import("${repoUrl}/scripts/chapter.mjs"); const Vo = await import("${repoUrl}/scripts/voice.mjs");
         const V = await import("${repoUrl}/scripts/vote.mjs");
         const botan = game.actors.get("${IDS.botan}");
         const killed = Boolean(await C.killCharacter(botan, { secret: true, keepBullets: true }));
         await Vo.settleTrialVoices();
         const f = await game.drpg.startTestimony({ seconds: 60, order: ${J(order)} });
-        const out = { killed, published: game.drpg.isDeceased(botan), participants: V.trialParticipants().map(p => p.actor.id), order: f?.round?.order ?? null };
-        if (F.trialFloor()) await game.drpg.endMode();
-        return out;`, { timeout: 60000 });
+        return { killed, published: game.drpg.isDeceased(botan), participants: V.trialParticipants().map(p => p.actor.id), order: f?.round?.order ?? null };`,
+    { timeout: 60000 });
+    await settle(1500);
     verdict("Botan, killed with nobody told, is not a participant and gets no turn: the Testimony's order is Aiko, Chie",
         dead.killed && dead.published === false && !dead.participants.includes(IDS.botan) && J(dead.order) === J([IDS.aiko, IDS.chie]), J(dead));
+    /* THE TESTIMONY'S TURN CARD AND WHO HOLDS IT (E51 C4, 31.10.2026; E51-29, D44a - the stage's entry condition). The
+       turns of E70's modes are told on the Events panel alone, so while this Testimony runs - Aiko's turn, Chie next -
+       its card must stand on the GM's panel and the participants' (p1, Aiko's player; p3, Chie's), and no turn of its
+       own may reach p2, Botan's player, whose student takes no part. Read off each panel as the browser drew it (its
+       signature: kind, title, sub, meta, note, due, mine) and the turn windows each was shown since the Testimony began.
+       What p2's panel holds besides is written down, not judged: the trial card is the trial's public state on every
+       browser by E70's design, as the HUD's row is (T3 reads p3's), so a bystander here is told no turn of their own,
+       not kept from the card. A guard: green at C4's parent; shown able to fail by a planted mutant (the round's card
+       marked as every reader's own). */
+    const turnTitle = onGm => `const want = game.i18n.localize("DRPG.Hud.trial.testimony"); const turn = game.i18n.format("DRPG.Trial.turn.title", { seconds: 60 });
+        const E = await import("${repoUrl}/scripts/events.mjs"); E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        return { cards: sig.filter(c => c[0] === "trial" && c[1] === want).map(c => ({ sub: c[2], meta: c[3], mine: c[6] ?? null })),
+            mine: sig.filter(c => c[6]).map(c => c[0]), windows: ${onGm ? "0" : "globalThis.__dialogLog.slice(globalThis.__s67d ?? 0).filter(d => d.title === turn).length"},
+            next: game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get("${IDS.chie}")?.name ?? "" }), aiko: game.actors.get("${IDS.aiko}")?.name ?? null };`;
+    const panels = {};
+    for (const [who, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) panels[who] = await c.eval(turnTitle(who === "gm"));
+    await gm.eval(`${F} if (F.trialFloor()) await game.drpg.endMode(); return true;`, { timeout: 30000 });
     /* THE TRIAL'S LIST OF THE DEAD, A DEATH NOBODY HAS FOUND ON IT (E70-24; the owner's TR30 = 2, "Tak, ona tez wyciszona").
        The list (trialProgress.mutedDead, voice.mjs `settleTrialVoices`) is world data every browser holds, so in the trial
        p1's browser reads Botan on it while nothing else of p1's world says he is dead: public on purpose while the trial
@@ -291,6 +311,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("D2: no death nobody has found reaches a player's browser on the trial's list of the dead (TR30, E70-24)",
         !(listOnP1.listed && listOnP1.flag === null), J(listOnP1),
         { knownLeak: "TR30", measured: dead.killed && dead.published === false && listOnP1.phase === "classTrial" });
+    const turnCardHeld = read => read?.cards?.length === 1 && read.cards[0].sub === read.aiko && read.cards[0].meta === read.next;
+    verdict("the Testimony's card - Aiko's turn, Chie next - stands on the GM's Events panel and on p1's and p3's, the participants'; p2, whose student takes no part, is told no turn of its own: no card marked its own and no turn window (E51-29)",
+        ["gm", "p1", "p3"].every(who => turnCardHeld(panels[who])) && panels.p2?.mine?.length === 0 && panels.p2?.windows === 0
+            && [panels.p1, panels.p3].every(p => p?.mine?.length === 0) && panels.p1?.windows === 1,
+        J(panels));
     await canary.scan({ phase: "D" });
 
     /* ------------------------------ R. Monokuma's Reveal ------------------------------ */

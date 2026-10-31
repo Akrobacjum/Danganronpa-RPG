@@ -2,6 +2,8 @@
  * L2: the crime pipeline end-to-end on three live clients.
  * Chie (GM-driven) murders Daichi; Aiko (p1) investigates; everyone votes.
  * At every stage: what leaks to the players?
+ * E51 C4 (31.10.2026; E51-29, D44a): in the fight, the incident's turn card is on the killer's player's Events panel and
+ * the GM's, and on no bystander's, with every player's socket handed back while the cast is told again.
  */
 export const layers = ["ci"];
 
@@ -136,6 +138,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { stage: game.drpg.murderState()?.stage ?? null, tie: t ? R.remnantData(t)?.tiedToCrime ?? null : "absent" };`, { timeout: 30000 });
     await settle(600);
     const swingFlagInFight = await swingFlagOnP1();
+
+    /* THE TURN CARD'S AUDIENCE (E51 C4, 31.10.2026; E51-29, D44a - the stage's entry condition). The incident's turn is
+       told on the Events panel and nowhere else (D44a: no turn block on the HUD), so the card must reach the fight's
+       participant and the GM, and no bystander. Read off the panel each browser draws itself (its signature: kind,
+       title, sub, meta, note, due, mine), with every player's module socket handed back while the GM tells the cast
+       again (incident-store.mjs `retellCast`), so a copy sent to a bystander would arrive: p3, Chie's player, the
+       killer; p1 and p2, Aiko's and Botan's, bystanders; Daichi, the victim, has no player. A guard: green at C4's
+       parent (the gate is `incidentWitness`, and a bystander holds no cast to name the victim from); shown able to fail
+       by a planted mutant (the cast told to every player and the witness gate opened, both). */
+    const turnCards = {};
+    const handedBack = [];
+    for (const c of [p1, p2, p3]) handedBack.push(await c.eval(`const handlers = game.socket._handlers.get("module.${MOD}") ?? [];
+        handlers.push(...(globalThis.__mutedSocket ?? [])); globalThis.__mutedSocket = []; return handlers.length;`));
+    try {
+        turnCards.told = await gm.eval(`const I = await import("${repoUrl}/scripts/incident-store.mjs"); return I.retellCast();`, { timeout: 30000 });
+        await settle(900);
+        const read = `const E = await import("${repoUrl}/scripts/events.mjs"); E.renderEvents();
+            const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+            return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
+                cards: sig.filter(c => c[0] === "incident").map(c => ({ title: c[1], meta: c[3], mine: c[6] ?? null })),
+                turn: [game.i18n.localize("DRPG.Murder.yourTurn"), game.i18n.localize("DRPG.Murder.theirTurn")] };`;
+        for (const [who, c] of [["gm", gm], ["p1", p1], ["p2", p2], ["p3", p3]]) turnCards[who] = await c.eval(read);
+    } finally {
+        for (const c of [p1, p2, p3]) await c.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`);
+    }
+    const saysTurn = read => read?.cards?.length === 1 && read.turn.some(t => String(read.cards[0].meta ?? "").startsWith(t));
+    check("gm, p3: the incident's turn card is on the killer's player's Events panel, saying whose turn it is, and on the GM's; p1 and p2, bystanders, hold none (E51-29)",
+        turnCards.gm?.stage === "incident" && turnCards.gm.cards.length === 1 && saysTurn(turnCards.p3)
+            && turnCards.p1?.cards?.length === 0 && turnCards.p2?.cards?.length === 0 && handedBack.every(n => n > 0),
+        JSON.stringify({ handedBack, ...turnCards }), { flow: "murder-incident" });
 
     // -- 3. the finishing blow ------------------------------------------------
     /* A critical (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): its first clean-up

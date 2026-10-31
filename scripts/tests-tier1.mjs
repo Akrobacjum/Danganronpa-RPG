@@ -29097,7 +29097,8 @@ const INVARIANTS = [
          * since tier 1 makes no actor. Red before C6: no warning, `asActor` not exported, the TypeError.
          */
         needs(world.atLeast("livingStudents", 1), "a student of this world is the actor the calls are handed");
-        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+        const { isDeceased } = await import("./settings.mjs");
+        const student = studentActors().find(a => !isDeceased(a));
         const api = game.drpg;
         const NOBODY = "R1557 nobody by this name";
         const warned = [];
@@ -29551,6 +29552,148 @@ const INVARIANTS = [
         }), `[the window names each tier of the row and what each grants; a stand-in row's own numbers and not the row's; the card: needed ${low} / ${high}, `
             + `a ${low + 1} Help beats ${low} for +1, a ${high} Hinder beats ${high} for disadvantage, a ${low - 1} misses ${low}, the stand-in's numbers, `
             + `a critical says no tier; the window and the card are built by them]`);
+    }],
+    ["R1117 - one viewer for a player with several characters: monokuma.mjs `chooseOwnStudent` takes the assigned character (none for an assigned Monokuma), else the one owned student, else of several the one whose token the user controls - an owned one only - else the first by name; hud.mjs `viewerActor` asks it with the user's owned students, assignment and controlled tokens, and the clock's explain window (its room section, `roomBlock`) says to assign a character when several are owned and none is", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-25, audit S10-49, the A8 design, Q2 on its default. `viewerActor` (hud.mjs, E77) is
+         * the one function the clock, the room tile and the explain window ask whose screen it is, and for a player it
+         * was monokuma.mjs `ownStudent`: the assigned character, else exactly one owned student, else nobody - so a
+         * player with two characters and none assigned got no room, no tile and "no character" in the window. The
+         * chooser is pure: stand-in actors (a type, a name and a Monokuma flag) are handed to it, nothing of the world
+         * is read or written, and `viewerNeedsAssigning` (the window's hint) is asked with the same stand-ins. The
+         * callers are read off the source (comments stripped). Red at C4's parent: neither function exists, and
+         * `viewerActor` asks `ownStudent()`.
+         */
+        const M = await import("./monokuma.mjs");
+        const stand = (id, name, mono = false) => ({ id, name, type: "character", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma ? mono : undefined) });
+        const aiko = stand("r1117aiko", "Aiko"), botan = stand("r1117botan", "Botan"), chie = stand("r1117chie", "Chie"), bear = stand("r1117bear", "Monokuma", true);
+        const pick = (list, options) => (typeof M.chooseOwnStudent === "function" ? M.chooseOwnStudent(list, options)?.id ?? null : "missing");
+        const hint = (list, assigned) => (typeof M.viewerNeedsAssigning === "function" ? M.viewerNeedsAssigning(list, assigned) : "missing");
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const [hud, explain] = [await read("hud.mjs"), await read("explain.mjs")];
+        const viewer = topLevelFunction(hud, "viewerActor") ?? "";
+        must(viewer.length > 50 && fnSource(explain, "roomBlock").length > 100, "hud.mjs `viewerActor` or explain.mjs `roomBlock` is gone - this would read nothing");
+        equal(JSON.stringify({
+            chooser: [
+                pick([botan, aiko], { assigned: null, controlled: [botan] }),
+                pick([botan, aiko], { assigned: null, controlled: [] }),
+                pick([botan, aiko], { assigned: null, controlled: [chie] }),
+                pick([botan, aiko, chie], { assigned: null, controlled: [chie, botan] }),
+                pick([botan, aiko], { assigned: chie, controlled: [botan] }),
+                pick([botan, aiko], { assigned: bear, controlled: [botan] }),
+                pick([bear, botan], { assigned: null, controlled: [] }),
+                pick([], { assigned: null, controlled: [aiko] })
+            ],
+            hint: [hint([botan, aiko], null), hint([botan, aiko], botan), hint([botan], null), hint([bear, botan], null)],
+            viewer: [/\bchooseOwnStudent\(/.test(viewer), /\.controlled\b/.test(viewer), /\bgame\.user\.character\b/.test(viewer), /\bownStudent\(/.test(viewer)],
+            window: /\bviewerNeedsAssigning\(/.test(fnSource(explain, "roomBlock")) && /DRPG\.Hud\.assignHint/.test(fnSource(explain, "roomBlock"))
+        }), JSON.stringify({
+            chooser: ["r1117botan", "r1117aiko", "r1117aiko", "r1117chie", "r1117chie", null, "r1117botan", null],
+            hint: [true, false, false, false],
+            viewer: [true, true, true, false],
+            window: true
+        }), "[the controlled of two; none controlled: the first by name; another's token controlled: the first by name; the first controlled of three; "
+            + "the assigned over a controlled one; an assigned Monokuma: nobody; a Monokuma and one student: the student; none owned: nobody] "
+            + "[the hint: two owned and none assigned, one assigned, one owned, a Monokuma and one student] "
+            + "[viewerActor asks the chooser with the controlled tokens and the assignment, and not ownStudent] [the explain window's hint]");
+    }],
+
+    ["R1118 - the GM never gets the player view in the status strip: player-status.mjs `statusActor` is nobody for a GM, even one assigned a student, and the strip it draws is the table's; a player's is `viewerActor`'s", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-26, audit S10-49 (with A8), the slice's edge case of an Assistant GM with a student of
+         * their own. The strip chose its view by `ownStudent()` alone with no role check, so a GM - a Gamemaster or an
+         * Assistant - assigned a student was drawn that student's budget instead of the table's numbers. The suite's GM is
+         * handed a student as their character by an own property over the User's getter (nothing is written to the world),
+         * the strip is drawn, read and drawn again once the property is gone; then `game.user.isGM` is read false for one
+         * synchronous call of `statusActor`, which must answer that player's character. Red at C4's parent: the strip is
+         * the player view of the assigned student, and `statusActor` does not exist.
+         */
+        needs(world.atLeast("livingStudents"));
+        const PS = await import("./player-status.mjs");
+        const { isDeceased } = await import("./settings.mjs");
+        const student = studentActors().find(a => !isDeceased(a));
+        must(student, "no living student to hand the GM - this would measure nothing");
+        const drawn = () => {
+            PS.renderPlayerStatus();
+            const el = document.getElementById("drpg-player-status");
+            return el ? (el.classList.contains("is-gm") ? "table" : "player") : null;
+        };
+        const unassigned = drawn();
+        let assigned = null, gmActor = "missing", playerActor = "missing";
+        Object.defineProperty(game.user, "character", { value: student, configurable: true });
+        try {
+            assigned = drawn();
+            if (typeof PS.statusActor === "function") {
+                gmActor = PS.statusActor()?.id ?? null;
+                Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+                try {
+                    playerActor = PS.statusActor()?.id ?? null;
+                } finally {
+                    delete game.user.isGM;
+                }
+            }
+        } finally {
+            delete game.user.character;
+            drawn();
+        }
+        equal(JSON.stringify({ unassigned, assigned, gmActor, playerActor }), JSON.stringify({ unassigned: "table", assigned: "table", gmActor: null, playerActor: student.id }),
+            `[the GM's strip with no character, with ${student.name} assigned; whose numbers a GM's strip is; a player's with ${student.name} assigned]`);
+    }],
+
+    ["R1119 - the overflow caption says what the stamp holds: overflow.mjs `stampReading` tells a darkening running, one armed for the time of day ahead and one waiting from the trial apart, and a one-off (kind \"event\") never reads as darkened; `overflowActive` asks kind \"state\"; despair.mjs `buildOverflowCaption` draws \"Armed\" and \"Waiting\" beside the count, clamps the count at the threshold, and its GM hint does not say a boundary fires it", async () => {
+        /*
+         * E51 C4, 31.10.2026; E51-28, audit S09-33. The caption printed `count/threshold` unclamped (23/20), drew nothing
+         * for a darkening armed for the next time of day or one a verdict kept waiting (S09-07), drew Rot or Earthquake -
+         * one-offs that happen at the draw - as "Darkened · this time of day" for the hour, and its GM tooltip said the
+         * overflow fires at the next boundary, where a spill that reaches the threshold fires it at once (overflow.mjs
+         * `addOverflow`, "THE THRESHOLD IS EXAMINED WHEN THE COUNTER MOVES") - except while a darkening is already drawn
+         * for the next time of day, when the counter waits for that one to pass (its own tooltip, `gmHintQueued`). The
+         * reading and the caption are pure: stamps, clocks and statuses are handed to them; nothing of the world is read
+         * or written. `overflowActive` is read off
+         * the source (comments stripped), since it asks the world's stamp. Red at C4's parent: neither `stampReading` nor
+         * an exported `buildOverflowCaption`, and `overflowActive` asks only that something is drawn.
+         */
+        const O = await import("./overflow.mjs");
+        const D = await import("./despair.mjs");
+        const rules = O.overflowRules();
+        must(rules.effects?.silence?.kind === "state" && rules.effects?.rot?.kind === "event", "the rules hold no Silence of kind state or no Rot of kind event - this would measure nothing");
+        const clock = { session: 3, day: 2, timeOfDay: "morning", eclipse: false };
+        const now = { session: 3, day: 2, timeOfDay: "morning" };
+        const ahead = { session: 3, day: 2, timeOfDay: "noon" };
+        const past = { session: 2, day: 1, timeOfDay: "night" };
+        const reading = active => (typeof O.stampReading === "function" ? O.stampReading(active, clock, rules) : "missing");
+        const name = key => game.i18n.localize(`DRPG.Overflow.name.${key}`);
+        const status = patch => ({ count: 4, threshold: 20, active: false, darkened: false, armed: null, waiting: null, effect: null, effectName: null, ...patch });
+        const caption = (patch, gm = true) => {
+            if (typeof D.buildOverflowCaption !== "function") return "missing";
+            const line = D.buildOverflowCaption(status(patch), { gm });
+            return line ? { text: line.textContent.replace(/\s+/g, " ").trim(), active: line.classList.contains("is-active"), title: line.title } : null;
+        };
+        const head = shown => `${game.i18n.localize("DRPG.Overflow.caption")} · ${shown}/20`;
+        const armed = caption({ armed: "silence" }), waiting = caption({ waiting: "fog" }), rot = caption({ active: true, effect: "rot", effectName: name("rot") });
+        const full = caption({ count: 23 }), masked = caption({ count: 0, armed: "silence" }, false);
+        const source = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/overflow.mjs`).then(lfText));
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        equal(JSON.stringify({
+            reading: [reading({ ...now, effect: "silence" }), reading({ ...ahead, effect: "silence" }), reading({ ...past, effect: "silence" }),
+                reading({ ...ahead, effect: "rot" }), reading({ effect: "fog", pending: true }), reading(null)],
+            active: /\bkind\b[^;]*["']state["']/.test(fnSource(source, "overflowActive")),
+            caption: [armed === "missing" ? "missing" : armed?.text === `${head(4)} ${game.i18n.format("DRPG.Overflow.armed", { name: name("silence") })}`,
+                waiting === "missing" ? "missing" : waiting?.text === `${head(4)} ${game.i18n.format("DRPG.Overflow.waiting", { name: name("fog") })}`,
+                rot === "missing" ? "missing" : [rot?.active, rot?.text === head(4)],
+                full === "missing" ? "missing" : full?.text === head(20),
+                masked === "missing" ? "missing" : masked?.text === `${head(game.i18n.localize("DRPG.Overflow.hiddenValue"))} ${game.i18n.format("DRPG.Overflow.armed", { name: name("silence") })}`,
+                armed === "missing" ? "missing" : armed?.title === game.i18n.format("DRPG.Overflow.gmHintQueued", { count: 4, max: 20, what: name("silence") })],
+            hint: !/boundary/i.test(en?.DRPG?.Overflow?.gmHint ?? "boundary")
+        }), JSON.stringify({
+            reading: [{ running: "silence", armed: null, waiting: null }, { running: null, armed: "silence", waiting: null }, { running: null, armed: null, waiting: null },
+                { running: null, armed: null, waiting: null }, { running: null, armed: null, waiting: "fog" }, { running: null, armed: null, waiting: null }],
+            active: true,
+            caption: [true, true, [false, true], true, true, true],
+            hint: true
+        }), "[the stamp: Silence running this morning, armed for noon, last night's, a Rot stamped for noon, a Fog the trial keeps waiting, none] "
+            + "[overflowActive asks kind state] [the caption: armed, waiting, a Rot drawn this hour not darkened, 23 of 20 drawn as 20/20, a player's masked with armed, the GM's tooltip with one armed: the counter waits] "
+            + "[EN's GM hint names no boundary]");
     }],
 ];
 

@@ -934,26 +934,39 @@ export function renderDespairBar() {
  *
  * The `is-active` state is what has to catch an eye that was not looking, and
  * it can do that without the row appearing out of nowhere to do it.
+ *
+ * WHAT IS COMING, AND NO COUNT PAST THE MARK (E51 C4, 31.10.2026; E51-28, audit S09-33). A darkening drawn for the
+ * next time of day (`armed`) or kept by the verdict for it (`waiting`) was announced in a card and then shown nowhere,
+ * and the badge said "Darkened · this time of day" for a Rot or an Earthquake - one-offs that happened at the draw -
+ * so it asks `darkened` (a state running), not `active`. Each of the three is a badge on the same line, so the row's
+ * height stays. The count is drawn at most at the threshold (a count of 23 read "23/20"); the GM's tooltip keeps the real count.
+ * `status` and `gm` are the suite's to hand (R1119); otherwise this browser's.
  */
-function buildOverflowCaption() {
+export function buildOverflowCaption(status = overflowStatus(), { gm = game.user.isGM } = {}) {
     try {
-        const { count, threshold, active } = overflowStatus();
-        const isGM = game.user.isGM;
+        const { count, threshold, darkened, armed, waiting, effectName } = status;
+        const active = Boolean(darkened);
+        const isGM = gm;
         const line = document.createElement("div");
         line.className = `drpg-overflow-caption${active ? " is-active" : ""}`;
         line.classList.toggle("masked", !isGM);
 
-        const shown = isGM ? String(count) : game.i18n.localize("DRPG.Overflow.hiddenValue");
+        const shown = isGM ? String(Math.min(count, threshold)) : game.i18n.localize("DRPG.Overflow.hiddenValue");
         line.textContent = `${game.i18n.localize("DRPG.Overflow.caption")} · ${shown}/${threshold}`;
         // Two GM sentences, not one: while a darkening is running, "fires at
         // the next boundary" is the wrong half of the truth and the tooltip was
         // saying it over a caption that already read "Darkened".
         // And a third: a darkened time of day holds a full counter back until it
         // ends (CALL-06), and a caption at 20/20 with no card needs to say so.
+        // And a fourth (E51 C4): a darkening already drawn for the next time of day, armed or waiting, holds the
+        // counter until that time of day has passed (overflow.mjs `addOverflow`, `checkOverflow`), so "it fires the
+        // moment it reaches X" would be untrue then.
+        const queued = !active ? (armed ?? waiting) : null;
         line.title = isGM
             ? game.i18n.format(active
                 ? (count >= threshold ? "DRPG.Overflow.gmHintActiveFull" : "DRPG.Overflow.gmHintActive")
-                : "DRPG.Overflow.gmHint", { count, max: threshold })
+                : queued ? "DRPG.Overflow.gmHintQueued" : "DRPG.Overflow.gmHint",
+            { count, max: threshold, what: queued ? game.i18n.localize(`DRPG.Overflow.name.${queued}`) : "" })
             : game.i18n.format("DRPG.Overflow.playerHint", { max: threshold });
 
         if (active) {
@@ -961,10 +974,16 @@ function buildOverflowCaption() {
             badge.className = "drpg-overflow-badge";
             // WHICH darkening, not only that one runs (DESP-17): the card at
             // the boundary was the only place the name appeared.
-            const name = overflowStatus().effectName;
+            const name = effectName;
             badge.textContent = name
                 ? `${game.i18n.localize("DRPG.Overflow.activeNow")} · ${name}`
                 : game.i18n.localize("DRPG.Overflow.activeNow");
+            line.append(" ", badge);
+        } else if (armed || waiting) {
+            const badge = document.createElement("span");
+            badge.className = `drpg-overflow-badge ${armed ? "is-armed" : "is-waiting"}`;
+            badge.textContent = game.i18n.format(armed ? "DRPG.Overflow.armed" : "DRPG.Overflow.waiting",
+                { name: game.i18n.localize(`DRPG.Overflow.name.${armed ?? waiting}`) });
             line.append(" ", badge);
         }
 

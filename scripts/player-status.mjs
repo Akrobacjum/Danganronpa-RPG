@@ -24,10 +24,10 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
-import { isMonokuma, ownStudent } from "./monokuma.mjs";
+import { isMonokuma } from "./monokuma.mjs";
 import { isDeadForGm, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
-import { matchStripToDespair } from "./hud.mjs";
+import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -93,7 +93,7 @@ export function registerPlayerStatus() {
  */
 export function syncEffectsWidget() {
     try {
-        const actor = ownCharacter();
+        const actor = statusActor();
         // No character to speak for - leave the widget alone rather than
         // hiding a panel that might belong to somebody else's view.
         const empty = Boolean(actor) && (actor.effects?.size ?? 0) === 0;
@@ -107,15 +107,15 @@ export function syncEffectsWidget() {
 function relevant(actor) {
     if (!actor) return false;
     // The GM's strip counts every student, so any student's change moves it.
-    if (!ownCharacter() && game.user.isGM) {
+    if (game.user.isGM) {
         return actor.type === "character" && !isMonokuma(actor);
     }
-    return actor.id === ownCharacter()?.id;
+    return actor.id === statusActor()?.id;
 }
 
 /** Is there anything for this account in that corner at all? */
 function hasStatusToShow() {
-    return Boolean(ownCharacter()) || game.user.isGM;
+    return Boolean(statusActor()) || game.user.isGM;
 }
 
 /**
@@ -126,13 +126,16 @@ function hasStatusToShow() {
  * into the "assigned character" field, and the panel then showed nothing at all
  * for someone who plainly has a character.
  *
- * The fallback only fires on an unambiguous case - one owned, living-or-dead
- * student. A GM owns every actor in the world, so the filter never resolves to
- * one for them and they fall through to null, which is the intended answer:
- * a GM with no character of their own has no budget to show.
+ * A PLAYER'S IS THE SCREEN'S ONE VIEWER, A GM'S IS NOBODY (E51 C4, 31.10.2026; E51-25, E51-26, audit S10-49). This
+ * was monokuma.mjs `ownStudent` with no role check: a player with two students and none assigned got the table's
+ * numbers (none was unambiguous), and a GM - a Gamemaster or an Assistant - who had a student assigned got that
+ * student's budget instead of the table's. A player's is hud.mjs `viewerActor` now, the one the clock and the room
+ * tile ask (the assigned character, else the one owned student, else of several the controlled one, else the first
+ * by name; nobody for a Monokuma account: see buildPlayerView); a GM's is null whatever is assigned, so a GM is drawn
+ * the table's view (R1118). Exported for the suite.
  */
-function ownCharacter() {
-    return ownStudent();   // null for a Monokuma account: see buildPlayerView
+export function statusActor() {
+    return game.user.isGM ? null : viewerActor();
 }
 
 /**
@@ -195,15 +198,17 @@ export function renderPlayerStatus() {
         // The role check that used to sit here refused anyone `game.user.isGM`
         // was true for, and in Foundry that is BOTH a Gamemaster and an
         // Assistant - so an assistant running a student of their own saw no
-        // panel and had no way to get one. An account with a character gets
-        // that character's budget whatever else it may do to the world.
+        // panel and had no way to get one. Since E51 C4 a GM of either kind is
+        // drawn the table's view, the one this corner keeps for them, whatever
+        // is assigned (`statusActor`; the slice's edge case, E51-26): no GM
+        // spends a student's budget from here any more.
         //
         // An account WITHOUT one gets the table's numbers instead. That view
         // existed until v0.14.2 and was taken out for a good reason: it wore
         // the player's own labels, "Actions" and "Move", so the counts read as
         // the GM's personal budget, and a GM has none. The answer to that is
         // labels that say whose numbers these are - not an empty corner.
-        const el = ownCharacter() ? buildPlayerView() : buildTableView();
+        const el = statusActor() ? buildPlayerView() : buildTableView();
         if (!el) { document.getElementById(WIDGET_ID)?.remove(); return; }
 
         el.id = WIDGET_ID;
@@ -419,7 +424,7 @@ export function showsDeathOnly(actor) {
  * the world when left out: `eclipse`, `moves` (`null` is free placement), `dead`, and `remember: false`, which keeps
  * the flash memory (`spentSince`) of the page untouched for a strip nobody sees.
  */
-export function buildPlayerView(actor = ownCharacter(), options = {}) {
+export function buildPlayerView(actor = statusActor(), options = {}) {
     // No character of our own - or a Monokuma, which has no action economy at
     // all. Nothing here applies, so show nothing rather than a row of zeroes.
     if (!actor || isMonokuma(actor)) return null;

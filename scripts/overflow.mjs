@@ -617,14 +617,7 @@ function later(a, b) {
  */
 export function overflowEffect() {
     try {
-        const { active } = state();
-        // A darkening the verdict kept (S09-07) runs once `checkOverflow` has pointed it at its time of day.
-        if (!active?.effect || active.pending) return null;
-        const clock = getClock();
-        // During an Eclipse the clock has not moved yet, so the only stamp that
-        // counts is the time of day this Eclipse is about to open.
-        const stamp = clock.eclipse ? upcoming(clock) : stampOf(clock);
-        return same(active, stamp) ? active.effect : null;
+        return stampReading(state().active, getClock(), null).running;
     } catch {
         // Asked on every action, every search and every crossing - a throw here
         // would break the game rather than the feature.
@@ -632,14 +625,38 @@ export function overflowEffect() {
     }
 }
 
+/**
+ * WHAT THE STAMP SAYS NOW (E51 C4, 31.10.2026; E51-28, audit S09-33), pure: `active` is the world's stamp, `clock` the
+ * clock. `running` is the effect of this time of day - during an Eclipse the clock has not moved yet, so the only stamp
+ * that counts is the time of day this Eclipse is about to open; `waiting` a darkening the verdict kept (S09-07), which
+ * runs once `checkOverflow` has pointed it at its time of day; `armed` a darkening drawn for a time of day still to
+ * come (a spill that reached the threshold arms the next one, `addOverflow`) - a state only, since a one-off happened
+ * at the draw and has nothing to come (`rules` handed; null asks nothing of the kind, for `overflowEffect`, which is
+ * asked on every action). Each is an effect's key or null; a stamp of a time of day gone by is none of them.
+ */
+export function stampReading(active, clock, rules = overflowRules()) {
+    const none = { running: null, armed: null, waiting: null };
+    if (!active?.effect) return none;
+    if (active.pending) return { ...none, waiting: active.effect };
+    const now = clock?.eclipse ? upcoming(clock) : stampOf(clock ?? {});
+    if (same(active, now)) return { ...none, running: active.effect };
+    const state = rules?.effects?.[active.effect]?.kind === "state";
+    return { ...none, armed: state && now && later(active, now) ? active.effect : null };
+}
+
 /** Is this particular debuff the one that was drawn? */
 export function overflowIs(key) {
     return overflowEffect() === key;
 }
 
-/** Is anything running at all? For the caption's own state. */
+/**
+ * Is a darkening running - a state that lasts the time of day? For the caption's own state. A one-off (kind "event":
+ * Rot, Earthquake) drawn this time of day happened at the draw and darkens nothing (E51 C4; E51-28, audit S09-33: this
+ * was any effect drawn).
+ */
 export function overflowActive() {
-    return overflowEffect() !== null;
+    const drawn = overflowEffect();
+    return drawn !== null && overflowRules().effects?.[drawn]?.kind === "state";
 }
 
 /**
@@ -1111,12 +1128,22 @@ export function readOverflowForm(root) {
 export function overflowStatus() {
     const drawn = overflowEffect();
     const { count, active } = state();
+    let reading = { armed: null, waiting: null };
+    try {
+        reading = stampReading(active, getClock());
+    } catch {
+        // the caption is not worth a throw
+    }
     return {
         count,
         // The darkening a verdict kept for the next time of day (S09-07), or null.
-        waiting: active?.pending ? active.effect ?? null : null,
+        waiting: reading.waiting,
+        // A darkening drawn for a time of day still to come, or null (E51 C4).
+        armed: reading.armed,
         threshold: overflowThreshold(),
         active: drawn !== null,
+        // A darkening running this time of day - not a one-off drawn in it (`overflowActive`; E51 C4).
+        darkened: overflowActive(),
         effect: drawn,
         effectName: drawn ? game.i18n.localize(`DRPG.Overflow.name.${drawn}`) : null,
         pool: overflowPool(),
