@@ -19,7 +19,7 @@
  * the GM panel, not from here.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING, staleStamp } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, boundaryStamp } from "./clock.mjs";
@@ -275,6 +275,20 @@ async function settleElapsedPause(paused) {
 }
 
 /**
+ * A TIME OF DAY STARTED ON THE UPTIME CLOCK STARTS NOW (E90, 31.10.2026). Until 1.2.93 the start was stamped with
+ * `game.time.serverTime`, which on The Forge is the server's uptime (2811317 at the owner's table, beside
+ * `Date.now()` 1793415993407; config.mjs `epochClock`). Read against the epoch clock, `now - start` is 56 years and the
+ * stopwatch printed some 29 million minutes. How long that time of day had run is not known on any clock, so the
+ * primary writes it as begun at `now` with no pauses (`readyPatch` at its ready, `unpausePatch` at an unpause) - the
+ * stopwatch undercounts what came before, never by decades - and until that write `elapsedOf` prints no number. The
+ * day's summary reads the same stamp: from the write on it holds what was done since, where the uptime start had
+ * held every card this browser kept (the cards are stamped `Date.now()`, secret.mjs `remember`). Tier 1 R1565.
+ */
+function restartedAt(now) {
+    return { timeOfDayStartedAt: now, pausedTotalMs: 0 };
+}
+
+/**
  * The clock's patch for the end of a pause at `now`, or null when nothing was paused:
  * the break added to `pausedTotalMs`, the stamp cleared. A break counts from the later
  * of its stamp and the time of day's start - a time of day begun in the middle of a
@@ -282,6 +296,7 @@ async function settleElapsedPause(paused) {
  */
 export function unpausePatch(clock, now) {
     if (!clock?.timeOfDayStartedAt || !clock.pausedAt) return null;
+    if (staleStamp(clock.timeOfDayStartedAt, now)) return { ...restartedAt(now), pausedAt: null };
     const from = Math.max(Number(clock.pausedAt), Number(clock.timeOfDayStartedAt));
     return { pausedTotalMs: (Number(clock.pausedTotalMs) || 0) + Math.max(0, now - from), pausedAt: null };
 }
@@ -320,6 +335,7 @@ export const CLOCK_BEAT_MS = 60_000;
 export function readyPatch(clock, { paused, beat, now }) {
     if (!clock?.timeOfDayStartedAt) return null;
     const start = Number(clock.timeOfDayStartedAt);
+    if (staleStamp(start, now)) return { ...restartedAt(now), pausedAt: paused ? now : null };
     const seen = [beat, clock.writtenAt]
         .filter(at => at !== null && at !== undefined && Number.isFinite(Number(at)) && Number(at) >= start)
         .map(Number);
@@ -1676,6 +1692,8 @@ function setText(el, text) {
 export function elapsedOf(clock, { now, paused }) {
     const start = Number(clock?.timeOfDayStartedAt);
     if (!clock?.timeOfDayStartedAt || !Number.isFinite(start) || clock.eclipse === true) return null;
+    // A start on the uptime clock (E90; `restartedAt`): no number until the primary writes it again.
+    if (staleStamp(start, now)) return null;
     const end = paused && clock.pausedAt ? Math.max(Number(clock.pausedAt), start) : now;
     return Math.max(0, end - start - (Number(clock.pausedTotalMs) || 0));
 }
