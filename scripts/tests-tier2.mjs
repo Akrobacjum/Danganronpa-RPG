@@ -48523,7 +48523,10 @@ const SCENARIOS = [
     ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
         /* The GM gives the student two Tools, one broken. The player's discard of the broken one stands with
            no row and no card; the same discard of the whole one is flagged on one card, and the GMs' Undo
-           makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood. */
+           makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood.
+           Since E51 fix FG5 a discard stands on the trace the primary placed for it (sheet-audit.mjs
+           `noteDiscardTrace`, written by gm-bridge.mjs `handleRemnant`): the honest road's ticket is written here
+           as the bridge writes it, and E51-T22 reads the stamp without one. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
         const [student] = cast(1);
         const player = game.users.find(u => !u.isGM);
@@ -48538,6 +48541,7 @@ const SCENARIOS = [
         let read = null;
         try {
             await sheetAuditIdle();
+            (await import("./sheet-audit.mjs")).noteDiscardTrace(student.id, broken.name);
             const thrown = await asPlayerItemWrite("deleteItem", student, broken, player, { reason: "discard" });
             const kept = await asPlayerItemWrite("deleteItem", student, whole, player, { reason: "discard" });
             await sheetAuditIdle();
@@ -48557,6 +48561,52 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(["stands", "flagged", ["flagged:whole"], 1, [`items.${whole.id}`], true, "E29C6WHOLETOOL01", "tool"]),
             "a discard of a broken item raised a row or a card, or a whole item deleted was not flagged once, or Undo did not make it "
                 + "again under its id with its flags (the two verdicts, the rows, the cards, written back, the item back, its identity, its category)");
+    }],
+
+    ["E51-T22 - a discard stands on its trace, not on its stamp: a broken Tool deleted with the discard stamp and the ticket its trace wrote stands with no row; the same stamp with no ticket, with a ticket of another item's name, or a second time on one ticket is flagged on a card each (E51 fix FG5; the end review's S1)", async () => {
+        /* E51 fix FG5, 31.10.2026; the end review's S1. Four broken Tools on one student, each deleted as the player
+           with `{ reason: "discard" }` and judged as the primary judges it (`asPlayerItemWrite`): A on the ticket the
+           primary writes as it places the discard's trace (sheet-audit.mjs `noteDiscardTrace`, by its name), B with no
+           ticket (a console's delete: the review's D1/D4), C on a ticket of another name, D named as A after A's ticket
+           was taken (one use). Then the rows flagged and the cards naming them. Red at the fix's parent: all four stood
+           ("stands" x4, no row, no card), `noteDiscardTrace` exported by nothing - the test read it as absent. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const A = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { CAP_OVERRIDE } = await import("./inventory.mjs");
+        const from = Date.now();
+        const names = ["E51-T22 tool A", "E51-T22 tool B", "E51-T22 tool C", "E51-T22 tool A"];
+        const items = await student.createEmbeddedDocuments("Item", names.map(name => moduleItemData(name, { broken: { at: from } })), { [CAP_OVERRIDE]: true });
+        let read = null;
+        try {
+            await A.sheetAuditIdle();
+            const verdicts = [];
+            const note = typeof A.noteDiscardTrace === "function" ? A.noteDiscardTrace : () => {};
+            note(student.id, names[0]);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[0], player, { reason: "discard" })).verdict);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[1], player, { reason: "discard" })).verdict);
+            note(student.id, "E51-T22 another tool");
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[2], player, { reason: "discard" })).verdict);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, items[3], player, { reason: "discard" })).verdict);
+            await A.sheetAuditIdle();
+            const ids = items.map(item => item.id);
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === student.id && row.at >= from && ids.includes(row.itemId));
+            const flagged = rows.filter(([, row]) => row.verdict === "flagged");
+            const cards = game.messages.contents.filter(m => flagged.some(([id]) => cardFlag(m, "sheetFlagged") === id)).length;
+            // The ticket "another tool" was never taken: taken now, so nothing is left for a later test.
+            const leftOver = typeof A.takeDiscardTrace === "function" ? A.takeDiscardTrace(student.id, "E51-T22 another tool") : null;
+            read = [verdicts, flagged.map(([, row]) => ids.indexOf(row.itemId)).sort(), cards, leftOver];
+        } finally {
+            await A.sheetAuditIdle();
+            for (const item of items) await student.items.get(item.id)?.delete();
+            await A.sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["stands", "flagged", "flagged", "flagged"], [1, 2, 3], 3, true]),
+            "[the four verdicts: on its ticket, with none, on another name's, a second time on one; the tools flagged, by their place; the cards naming those rows; "
+                + "the ticket of the other name still there, unused]");
     }],
 
     ["the comparison at ready finds nothing on an untouched world: no card, no write", async () => {
