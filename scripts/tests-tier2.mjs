@@ -41495,6 +41495,12 @@ const SCENARIOS = [
          * whether the tracker lists three and the Strike's line with its loss, and not the
          * Self-defence; then the turns after the Reroll, which takes the place of the line it
          * replaces. Until C17 nothing was kept.
+         *
+         * E51 C1 (E51-13, 30.10.2026): a rolled turn's line ends in its total against the number it was measured against,
+         * "(1 against N)" (murder-ui.mjs `recentTurnsHtml`, DRPG.Murder.trackerScore, off the entry `turnEntry` wrote), and
+         * this test's expected Strike line was not given it - red on every tier-2 run from 398fb99e (CI 31.10, run
+         * 41213884161: "[3,false,false]"). The line is built with the entry's total and threshold, and the entry is read to
+         * hold the total the Strike was given and a number it was measured against, so a line that drops the score fails.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -41527,18 +41533,21 @@ const SCENARIOS = [
             const strike = M.murderState()?.recent?.[1] ?? {};
             const line = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: strike.turn, side: game.i18n.localize("DRPG.Murder.side.killer"),
                 action: esc(CRISIS_ACTIONS.strike.label),
-                result: game.i18n.format("DRPG.Murder.trackerResult.miss", { band: game.i18n.localize("DRPG.Murder.band.despair") }) });
+                result: game.i18n.format("DRPG.Murder.trackerResult.miss", { band: game.i18n.localize("DRPG.Murder.band.despair") })
+                    + ` (${game.i18n.format("DRPG.Murder.trackerScore", { total: strike.total, n: strike.threshold })})` });
             const note = reserveNote({ name: esc(victim.name) }, strike.changes ?? []);
             const html = M.incidentTrackerHtml(M.murderState(), CL);
-            const listed = [(html.match(/<li>/g) ?? []).length, html.includes(`<li>${line} ${note}</li>`), html.includes(esc(CRISIS_ACTIONS.selfDefence.label))];
+            const listed = [(html.match(/<li>/g) ?? []).length, strike.total === 1 && Number.isFinite(strike.threshold),
+                html.includes(`<li>${line} ${note}</li>`), html.includes(esc(CRISIS_ACTIONS.selfDefence.label))];
             await M.resolveCrisisAction({ actorId: victim.id, key: "secureTrace", total: 1, isCritical: false, withHope: false, undo: true });
             const rerolled = kept().map(([side, key, band, success]) => [side, key, band, success]);
             equal(stableJson([typeof first === "number" && (M.murderState()?.recent ?? []).every(e => e.turn >= first), turns, listed, rerolled]),
                 stableJson([true, [["victim", "secureTrace", "hope", false, moved[1]], ["killer", "strike", "despair", false, moved[2]], ["victim", "secureTrace", "hope", true, moved[3]]],
-                    [3, true, false],
+                    [3, true, true, false],
                     [["victim", "secureTrace", "hope", false], ["killer", "strike", "despair", false], ["victim", "secureTrace", "despair", false]]]),
                 "the cast does not keep the last three turns as they went, with what each marked, the tracker does not list them or lists the fourth from last, "
-                + "or a Reroll added a line rather than replacing one (turns from the fight's first, kept, [lines, the Strike's, the Self-defence's], after the Reroll)");
+                + "or a Reroll added a line rather than replacing one (turns from the fight's first, kept, [lines, the Strike's entry holds its total 1 and a "
+                + "number, the Strike's line with its score, the Self-defence's], after the Reroll)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
         }
@@ -46858,6 +46867,20 @@ const SCENARIOS = [
                 gone: (report, token) => report.counts.traces.missing >= 1 && remnants.remnantData(token) === null,
                 back: token => stableJson([remnants.remnantData(token)?.type, remnants.remnantData(token)?.note])
                     === stableJson(["key", "test fixture - a backed-up trace"])
+            },
+            // A trace waiting for the GMs' digest, through its store (E51 C5; STAGE C5's row names it `backup: true`, and
+            // the store's comment says so: a primary's F5 or a lost storage between a trace and the hour must not lose the
+            // digest). Backed up with no fixture here from 0c8ace17, and this test failed naming it (CI 31.10, run
+            // 41213884161). Keyed by no trace on any scene; this test turns no time of day, so no digest says it before tier 2's restore takes it back.
+            traceDigest: {
+                seed: async () => {
+                    const key = `${scene.id}.SUITEE51DIGEST00`;
+                    await S.traceDigestStore.patch(key, { type: "key", visibility: "hidden", faint: false, reinforced: false,
+                        sourceName: "", note: "SUITE backed-up digest row", room: null, chapter: 99, day: null, timeOfDay: null, at: 1 });
+                    return key;
+                },
+                gone: (report, key) => !S.traceDigestStore.has(key),
+                back: key => stableJson([S.traceDigestStore.get(key)?.note, S.traceDigestStore.get(key)?.chapter]) === stableJson(["SUITE backed-up digest row", 99])
             },
             bullets: {
                 seed: async () => {
@@ -67867,7 +67890,7 @@ const SCENARIOS = [
             + "[and the whispers in rifledAgain's words], the thief in no room)");
     }],
 
-    ["a discard's trace is filed by the GM: Tamper in an Investigation or a Class Trial, or for a side of the running incident, preparation for anyone else, whatever type the packet names (E14-T7, S08-13)", async () => {
+    ["a discard's trace is filed by the GM: Tamper in an Investigation or for a side of the running incident, preparation for anyone else, whatever type the packet names, and none in a Class Trial (E14-T7, S08-13, E51-41)", async () => {
         /*
          * E14 part 1 C5, 24.10.2026; E14-16, audit S08-13. The harm: the type of a broken thing's trace was the packet's
          * (remnants.mjs `narrowPlayerRemnant` kept Preparation or Tamper as sent), chosen on the discarder's browser by
@@ -67882,6 +67905,13 @@ const SCENARIOS = [
          * E14 fix e1-G5 (the review's E14R-10, E14R-05): E14-16 names a Class Trial beside the Investigation, and only the
          * Investigation was driven, so `discardRemnantType`'s list could lose "classTrial" with this test green. The
          * bystander's discard naming Preparation in a Class Trial is read too.
+         *
+         * E51 C6 (E51-41; the owner's amend of 14.10.2026 (2), "Wyrzucanie itemow tez powinno byc zabronione w trial
+         * grounds"; STAGE C6: "the bridge's `remnant` handler refuses a `discard` in the Class Trial with `cannotNow` before
+         * `discardRemnantType`"): nothing is thrown away in the Class Trial, so the bystander's discard there is refused,
+         * told `cannotNow`, and places no trace - where this test, unchanged since e1-G5, still wanted a Tamper trace, red on
+         * every tier-2 run from 9adbb165 (CI 31.10, run 41213884161: classTrial `[null,[]]`). Each discard also reads the
+         * reason codes its refusal told the player (none for the four that stand).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -67898,13 +67928,14 @@ const SCENARIOS = [
         const discard = async (actor, type) => {
             const scene = locateActor(actor)?.scene ?? null;
             const had = new Set(scene?.tokens?.map(t => t.id) ?? []);
+            const told = [];
             const verdict = await G.judge(BRIDGE_ACTIONS, { action: "remnant.place", requestId: `suite-e14t7-discard-${made.length}-${actor.id}`,
                 data: { sourceActor: actor.id, action: "discard", type, visibility: "evident", sceneId: scene?.id ?? null } },
-            playerOf(actor).id, { send: () => {} });
+            playerOf(actor).id, { send: (to, packet) => { if (packet?.reason) told.push(packet.reason); } });
             await settle();
             const placed = scene ? scene.tokens.filter(t => !had.has(t.id)) : [];
             made.push(...placed);
-            return [verdict, placed.map(t => R.remnantData(t)?.type ?? null)];
+            return [verdict, placed.map(t => R.remnantData(t)?.type ?? null), told];
         };
         const read = {};
         let fight = null;
@@ -67931,11 +67962,11 @@ const SCENARIOS = [
             if (getClock().phase !== phaseWas) await setClock({ phase: phaseWas });
             await settle();
         }
-        equal(stableJson(read), stableJson({ quiet: [true, ["prep"]], investigation: [true, ["resolution"]], classTrial: [true, ["resolution"]],
-            killer: [true, ["resolution"]], bystander: [true, ["prep"]] }),
-        "a discard's trace was filed by the packet's type, not the GM's reading ([verdict, the types placed]: a bystander's in Daily Life naming "
-            + "Tamper, in an Investigation naming Preparation, in a Class Trial naming Preparation, the killer's in the fight naming Preparation, "
-            + "the bystander's in it naming Tamper)");
+        equal(stableJson(read), stableJson({ quiet: [true, ["prep"], []], investigation: [true, ["resolution"], []], classTrial: [null, [], ["cannotNow"]],
+            killer: [true, ["resolution"], []], bystander: [true, ["prep"], []] }),
+        "a discard's trace was filed by the packet's type, not the GM's reading, or a discard in the Class Trial was not refused ([verdict, the types "
+            + "placed, the reasons told]: a bystander's in Daily Life naming Tamper, in an Investigation naming Preparation, in a Class Trial naming "
+            + "Preparation - refused cannotNow, nothing placed -, the killer's in the fight naming Preparation, the bystander's in it naming Tamper)");
     }],
 
     ["a usable's kind is the item tables' where they know its name, and its description, the Give window's warning and the receipt say so; a tier 3 restores 3 of its kind with no window, no choice and no Hope, and the GMs judge a player's use by that 3 (E14-T7, S08-14, the owner 15.10)", async () => {

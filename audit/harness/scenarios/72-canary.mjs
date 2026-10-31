@@ -681,8 +681,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
        closes its picker, and the canary scans the withdrawn card. Each scan is `scanned`'s: the markers on every
        player's browser, p1's and p2's world data, and p1's chat. Read 17.10.2026: no scan found either marker, so the
        module was not changed; the filled card built with the GM's note on it (fix r4-G3's mutant c1) fails the filled
-       scan on p1's ChatMessage content. */
+       scan on p1's ChatMessage content.
+       DAICHI TAKES PART FOR THIS PHASE (CI 31.10.2026, run 41213884161). Since E51 C6 (9adbb165; E51-40, the owner's
+       amend of 14.10 (3)) an Objection aims only at the trial's participants (trial-floor.mjs `targetRefusal`, vote.mjs
+       `trialParticipants`: a player's student, one a player, the dead left out), and Daichi is nobody's in this world,
+       so the primary refused Aiko's Objection at him ("the student named may not be objected to now"), nothing was
+       pending, and the bullet picker this phase planted waited for good (p1's next eval timed out). The only other
+       participant here is Chie, whose name the chat scans look for. So the GM gives Daichi to p2 for the phase - p2's
+       Botan is dead, so the trial seats Daichi for p2 - and takes him back before the verdict; read below. */
     phase("objection");
+    const daichiSeated = await gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs");
+        await game.actors.get("${IDS.daichi}").update({ "ownership.${IDS.p2}": 3 });
+        return V.trialParticipants({ connected: false }).some(p => p.actor.id === "${IDS.daichi}" && p.user.id === "${IDS.p2}");`, { timeout: 60000 });
+    check("gm: Daichi, given to p2 for the Objection, is one of the trial's participants (E51-40)", daichiSeated === true, JSON.stringify({ daichiSeated }));
+    await settle(500);
     const objNote = canary.marker("bullet.note"), objReading = canary.marker("bullet.reading");
     const OBJ = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
     const objSetup = await gm.eval(`${OBJ} const aiko = game.actors.get("${IDS.aiko}");
@@ -726,7 +738,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         objAgain === "debate" && objClosed === false && Boolean(objWithdrawn?.card) && objWithdrawn.card !== objCard.card && objWithdrawn.item === null,
         JSON.stringify({ objAgain, objClosed, objWithdrawn }));
     await scanned("objection withdrawn", { ...KILLER_CHAT, who: ["p1"] });
-    await gm.eval(`${OBJ} if (F.trialFloor()) await F.endFloor(); return true;`);
+    await gm.eval(`${OBJ} if (F.trialFloor()) await F.endFloor();
+        await game.actors.get("${IDS.daichi}").update({ "ownership.${IDS.p2}": 0 }); return true;`, { timeout: 60000 });
 
     /* verdict: the trial names Daichi, which is wrong - Chie survives, and is the Blackened
        the verdict rewards. p1 votes; p3 (the killer's player) too; p2's student is dead. */
