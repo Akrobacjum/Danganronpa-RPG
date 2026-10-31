@@ -34,8 +34,9 @@
 # first problems as error annotations, which the API serves (the session's ci-status.sh prints them; it is not in
 # this repository).
 #
-# The suite job's limit stays 80 minutes, above run-all.mjs's own 72-minute bound on the suite (its comment says
+# The suite job's limit stays 115 minutes, above run-all.mjs's own 108-minute bound on the suite (its comment says
 # why), so that a hung shard is ended by run-all, whose verdict names the test, rather than by the runner's cancel.
+# The crlf job's 200 holds that bound and the scenarios after it (about 41-45 minutes on 30-31.10.2026).
 name: CI
 
 on:
@@ -170,7 +171,7 @@ jobs:
     needs: plan
     name: suite ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 80
+    timeout-minutes: 115
     strategy:
       fail-fast: false
       matrix:
@@ -198,7 +199,7 @@ jobs:
   crlf:
     if: github.event_name == 'workflow_dispatch' && inputs.crlf
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 200
     steps:
       - name: Windows line ends for the checkout below
         run: git config --global core.autocrlf true
