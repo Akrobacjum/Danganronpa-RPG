@@ -208,8 +208,8 @@ You choose how you are looking:
 
 | Way of looking | What it targets |
 |---|---|
-| Sweep the room | whatever is easiest to spot in this room - settled by the dice |
-| Look past the obvious | the hardest thing here - settled by the dice |
+| Sweep the room | whatever is easiest to spot in this room; in a room with nothing of the kind, the GM decides what you see |
+| Look past the obvious | the hardest thing here, and whatever does not belong in this room at all; with nothing of the kind, the GM decides |
 | Follow my traces | retrace your own steps and find what you left behind |
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
 | Examine point of interest | something that is not a trace - a person, a machine, the weather; the GM rules |
@@ -441,7 +441,7 @@ None of these ever takes you below one action or one search token (a room the GM
 **Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
-> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**.
+> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
 
 ### Categories and what you can carry
 

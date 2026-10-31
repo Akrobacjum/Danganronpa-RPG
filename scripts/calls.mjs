@@ -21,7 +21,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
-import { callWindow, callHeader } from "./call-pickers.mjs";
+import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
 
 /* ==========================================================================
  * HOPE CALLS
@@ -591,6 +591,26 @@ function wireNoteGate(dialog, call) {
 }
 
 /**
+ * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet.mjs `runCall`): a Hope Call's
+ * buyer's Hope, a Despair Call's Monokuma's spendable pool. Null with no buyer (a caller that hands `held` alone).
+ * E51 fix round FG7, for `confirmCall`'s live price line.
+ */
+async function heldReader(actor, kind) {
+    if (!actor) return null;
+    if (kind === "hope") return () => hopeHeld(actor);
+    const { poolUserFor } = await import("./monokuma.mjs");
+    const { spendableDespair } = await import("./despair.mjs");
+    return () => {
+        try {
+            const user = poolUserFor(actor);
+            return user ? spendableDespair(user.id) : 0;
+        } catch {
+            return 0;
+        }
+    };
+}
+
+/**
  * Confirm a Call: the effect, the price, what it will be applied to - and, for the
  * two that wait for a ruling, the sentence that IS the request.
  *
@@ -606,6 +626,20 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
     const affordable = held >= call.cost;
     const aimed = describeChoice(choice);
     const about = await callAbout(call, actor);
+    /*
+     * THE PRICE LINE AND SPEND READ WHAT IS HELD NOW (E51 fix round FG7, 31.10.2026; review goal G2, the owner's amend of
+     * 27.10). Both were drawn from `held` once, at opening: a Hope the GM granted while the window stood left Spend shut
+     * until the buyer cancelled and pressed again, and a Hope spent elsewhere left it lit over a red line's sum. With a
+     * buyer handed in, the header is kept live (`callWindow`'s `live`, live.mjs `keepLive`: the actors and the module's
+     * settings, where the Despair pools are) from the buyer's Hope or their Monokuma's pool as the sheet reads them, and
+     * Spend follows it on every redraw and at opening. The spenders still ask the price again at the press.
+     */
+    const readHeld = await heldReader(actor, kind);
+    const syncSpend = (header, dialog) => {
+        if (!readHeld) return;
+        const spend = dialog?.element?.querySelector('button[data-action="spend"]');
+        if (spend) spend.disabled = readHeld() < call.cost;
+    };
 
     /*
      * ONE OF THE CALL WINDOWS (E51 C2, 30.10.2026; audit S17-48): `callWindow`, under the header the
@@ -617,6 +651,14 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
     const result = await callWindow({
         call, kind, gmRoute: Boolean(call.needsGm), cancelDefault: !affordable,
         header: callHeader(call, kind, { held }),
+        // One confirmation of a Call at a time (`callWindow`'s `once`, E51 fix round FG7).
+        once: callWindowClass(call, kind, "confirm"),
+        live: readHeld ? {
+            region: ".drpg-call-header",
+            build: () => callHeader(call, kind, { held: readHeld() }),
+            watch: { actors: true },
+            after: (header, dialog) => syncSpend(header, dialog)
+        } : null,
         body: `<div>
             ${about ? `<p class="notes">${foundry.utils.escapeHTML(about)}</p>` : ""}
             ${aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}

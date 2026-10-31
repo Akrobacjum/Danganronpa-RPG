@@ -33,7 +33,8 @@
  * caption. The behaviour is told by its class's name on the call's stack (`fromRegionBehavior`), read from memory of
  * v12-v13's region-behaviors/display-scrolling-text.mjs, whose `_handleRegionEvent` calls the funnel before any
  * await; v14's road is not read here (no Foundry source on this machine) and is LIVE-E51-05, which also asks that a
- * damage caption over a token still does not show.
+ * damage caption over a token still does not show. Since E51's fix round only over a token this browser shows
+ * (`shownHere`, review security S2).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -73,7 +74,7 @@ export function registerNoScrollingText() {
      * It answers a settled Promise of null now, the shape of a declined draw.
      */
     function drpgNoScrollingText(...args) {
-        if (fromRegionBehavior()) return drpgNoScrollingText.original.apply(this, args);
+        if (fromRegionBehavior() && shownHere(args[0])) return drpgNoScrollingText.original.apply(this, args);
         return Promise.resolve(null);
     }
 
@@ -82,6 +83,24 @@ export function registerNoScrollingText() {
     proto.createScrollingText = drpgNoScrollingText;
 
     log(`${MODULE_ID}: scrolling captions no longer float off tokens; a region's own caption still shows.`);
+}
+
+/**
+ * Whether a token this browser shows stands at `origin`, the point the caption is drawn at (E51 fix round FG6,
+ * 31.10.2026; review security S2). The room fog hides another room's tokens, and in an Eclipse every player's, by the
+ * token's `visible` on this browser (visibility.mjs `tokenShownTo`); a region's caption passed whatever stood under it,
+ * so a region set to show its text to "Anyone" told a player that somebody crossed a spot their screen keeps dark. A
+ * caption is passed only over a shown token: its box where it is drawn, or where its document stands (a token
+ * mid-slide). Recalled of v12-v13, not read in v14: the behaviour draws at the moving token's centre; a caption drawn
+ * anywhere else is held back here. LIVE-E51-05 asks it at a table. Tier 1's R1131.
+ */
+function shownHere(origin) {
+    const x = Number(origin?.x), y = Number(origin?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    const inside = (left, top, w, h) => [left, top, w, h].every(Number.isFinite) && x >= left && x <= left + w && y >= top && y <= top + h;
+    return (globalThis.canvas?.tokens?.placeables ?? []).some(token => token?.visible
+        && (inside(Number(token.x), Number(token.y), Number(token.w), Number(token.h))
+            || inside(Number(token.document?.x), Number(token.document?.y), Number(token.w), Number(token.h))));
 }
 
 /** The class whose call passes: Foundry's "Display Scrolling Text" region behaviour (E51-47). */

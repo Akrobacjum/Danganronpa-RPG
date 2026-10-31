@@ -5786,7 +5786,14 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    ever turned it back on and "which project" was never on screen at all.
 
    So the default is VISIBLE, and a field that wants to appear only for one row
-   says so with `data-drpg-when="<that row's value>"`. */
+   says so with `data-drpg-when="<that row's value>"`.
+
+   EVERY VALUE WRITTEN HAS ITS LINE BELOW (E51 fix round FG4, 31.10.2026). The
+   Projects window's two selects now each name their row (`work`, `sabotage`;
+   the owner saw both on screen whatever was picked), and Tamper's Reshape trace
+   select named `reshape` since E09 C13 with no line here, so it was never shown
+   and the first erasable trace was reshaped whatever the player meant. Tier 1's
+   R1142 walks every value the module writes against these lines in both themes. */
 .drpg-specific-note {
     display: flex;
     flex-direction: column;
@@ -5802,7 +5809,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .drpg-choice-list:has(input[value="frame"]:checked) ~ [data-drpg-when="frame"],
 .drpg-choice-list:has(input[value="plant"]:checked) ~ [data-drpg-when="plant"],
 .drpg-choice-list:has(input[value="body"]:checked) ~ [data-drpg-when="body"],
-.drpg-choice-list:has(input[value="hint"]:checked) ~ [data-drpg-when="hint"] {
+.drpg-choice-list:has(input[value="hint"]:checked) ~ [data-drpg-when="hint"],
+.drpg-choice-list:has(input[value="reshape"]:checked) ~ [data-drpg-when="reshape"],
+.drpg-choice-list:has(input[value="work"]:checked) ~ [data-drpg-when="work"],
+.drpg-choice-list:has(input[value="sabotage"]:checked) ~ [data-drpg-when="sabotage"] {
     display: flex;
 }
 

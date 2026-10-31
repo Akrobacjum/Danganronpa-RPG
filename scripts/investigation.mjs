@@ -1540,10 +1540,11 @@ function evidenceByStudent() {
  * Faint is published there at analysis - so an unanalysed Faint, a Neutral and
  * a Final were offered as 2 and swept as 1 (S05-21).
  */
-export async function confirmSweepBullets() {
+export async function confirmSweepBullets({ actors = null } = {}) {
     if (!game.user.isGM) return 0;
 
-    const { remove, keep } = await sweepPlan();
+    // `actors`: the students to count and sweep, every one where unsaid (the suite's, `runDashboardButton`).
+    const { remove, keep } = await sweepPlan({ actors });
     const doomed = remove.length;
     const kept = keep.length;
 
@@ -1563,7 +1564,7 @@ export async function confirmSweepBullets() {
     });
     if (!sure) return 0;
 
-    const { removed } = await sweepTruthBullets();
+    const { removed } = await sweepTruthBullets({ actors });
     ui.notifications.info(plural("DRPG.Panel.sweptBullets", { n: removed }));
     return removed;
 }
@@ -2307,9 +2308,11 @@ function wireCaseFilters(dialog, reading, refresh) {
  * seconds. Their count is the dashboard's first line now (`openInvestigationDashboard`'s
  * `said`), over the region a redraw rebuilds, until the window closes. A cancelled
  * or empty one says nothing. `tokens` is the suite's (Clear Faint's own fixtures,
- * remnants.mjs `clearFaintRemnants`); exported for it (tier 2 E51-T15).
+ * remnants.mjs `clearFaintRemnants`); exported for it (tier 2 E51-T15). `actors` is
+ * the suite's too, Sweep's students (chapter.mjs `sweepTruthBullets`, E51 fix round FG9):
+ * a sweep of the world would take every student's bullets.
  */
-export async function runDashboardButton(action, { tokens = null } = {}) {
+export async function runDashboardButton(action, { tokens = null, actors = null } = {}) {
     // N-4: the one road to a trace the GM is simply stating exists. It sits with
     // the sweeps rather than on a tab because it is an action, not a view.
     if (action === "newTrace") {
@@ -2321,7 +2324,7 @@ export async function runDashboardButton(action, { tokens = null } = {}) {
         return { said: cleared ? plural("DRPG.Panel.faintCleared", { n: cleared }) : null };
     }
     if (action === "sweepBullets") {
-        const swept = await confirmSweepBullets();
+        const swept = await confirmSweepBullets({ actors });
         return { said: swept ? plural("DRPG.Panel.sweptBullets", { n: swept }) : null };
     }
     if (action === "autopsy") {

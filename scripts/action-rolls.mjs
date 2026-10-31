@@ -2899,13 +2899,19 @@ async function performProject(actor, def, options) {
         // Both targets ride along (ROLL-12): which project to push, and which
         // to break. Sabotage used to open a second window that asked for the
         // same two things this one already showed.
+        //
+        // EACH UNDER ITS OWN ROW (E51 fix round FG4, 31.10.2026; the owner at the table: "Which project?" and
+        // "Sabotage which project?" stood on screen together whatever was picked). Each select names the row it
+        // belongs to (`data-drpg-when`, the stylesheet's variant menu rule); Propose shows neither. Both stay in the
+        // form, so the branches below read the picked one by name after the window has closed. Tier 1's R1142 holds
+        // the attribute and the cascade, tier 2's E51-T28 the window as drawn and its reading.
         extra: `${here.length
-            ? `<label class="drpg-specific-note">
+            ? `<label class="drpg-specific-note" data-drpg-when="work">
                 <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
                 <select name="project">${projectOptionsHtml(here)}</select>
             </label>`
             : ""}${breakable.length
-            ? `<label class="drpg-specific-note">
+            ? `<label class="drpg-specific-note" data-drpg-when="sabotage">
                 <span>${game.i18n.localize("DRPG.Project.whichSabotage")}</span>
                 <select name="sabotage">${projectOptionsHtml(breakable)}</select>
             </label>`
@@ -3687,7 +3693,7 @@ async function performSabotage(actor, def, options, preset = null) {
 
     const concealment = await concealSabotage(actor, { room, project, witnesses, paid, lines });
     if ("exit" in concealment) return concealment.exit;
-    const { penalty, rolledAlready, watched } = concealment;
+    const { penalty, rolledAlready, watched, tellRoom } = concealment;
 
     // Sabotage is project work with the sign flipped, so the tool counts here
     // too - the guide's own "including sabotage". `performSabotage` did not look
@@ -3722,7 +3728,11 @@ async function performSabotage(actor, def, options, preset = null) {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, paid);
+    if (!roll) {
+        // The room saw the cover fail (`concealSabotage`): told even when the sabotage roll is not thrown.
+        await tellRoom?.();
+        return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, paid);
+    }
 
     await breakOnDespair(actor, tool, roll);
 
@@ -3781,7 +3791,7 @@ async function performSabotage(actor, def, options, preset = null) {
                   })}`
     };
 
-    await soundSabotage(actor, room, outcome, { watched });
+    await soundSabotage(actor, room, outcome, { watched, tellRoom });
 
     // What Reroll has to unpick: the freeze on the target, the repair project it
     // spawned, and the trace. The concealment penalty rides along because the new
@@ -3851,6 +3861,7 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
     let penalty = 0;
     let rolledAlready = false;
     let watched = false;
+    let tellRoom = null;
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
@@ -3880,21 +3891,33 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
         if (!hidden) {
             /* THE ROOM'S ONE CARD, AND ITS ONE SOUND (E51 C1; audit S02-51 (e)). A watched sabotage whose roll then came
                with Fear was announced twice to the same room - this line, then `soundSabotage`'s "is seen doing
-               something" - with the sound on the second. The room has seen it here: the sound goes on this card, and
-               `soundSabotage` posts and plays nothing more for a watched one. E51-T3 counts the cards and the sounds. */
-            await announce({
-                content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`,
-                whisper: roomAudience(actor),
-                flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
-            });
+               something" - with the sound on the second. Now the room is told once, by this line.
+               AND THE SOUND ONLY WHEN FEAR REVEALS IT (E51 fix round FG7, 31.10.2026; review goal G4). C1 put the seen
+               sound on this card for every watched sabotage and silenced `soundSabotage` for all of them, where row
+               E51-07 asked it of the one also revealed by Fear: a watched one with no Fear played the seen sound to the
+               room, which it never had, and a failed one lost `sabotageFailed` on the saboteur's browser. Whether Fear
+               reveals it is the sabotage roll's, which comes after this one, and a card's sound is played as it
+               arrives - so the line waits for that roll (`tellRoom`, once): `soundSabotage` posts it, with the sound
+               when the roll revealed the act, and `performSabotage` posts it bare when the sabotage roll is not thrown.
+               The owner is told at once, as before. E51-T3 and E51-T30 count the cards and the sounds. */
+            let told = false;
             watched = true;
+            tellRoom = async ({ seen = false } = {}) => {
+                if (told) return;
+                told = true;
+                await announce({
+                    content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`,
+                    whisper: roomAudience(actor),
+                    ...(seen ? { flags: { [MODULE_ID]: { sfx: "sabotageSeen" } } } : {})
+                });
+            };
             await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
                 <p>${game.i18n.localize("DRPG.Action.sabotageSeenOn")}</p>`);
         }
     } else {
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
-    return { penalty, rolledAlready, watched };
+    return { penalty, rolledAlready, watched, tellRoom };
 }
 
 /**
@@ -3994,9 +4017,15 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
      * chapter. And the saboteur is on the announcement's audience too, so
      * playing only the failure would have left them hearing the smaller half.
      */
-async function soundSabotage(actor, room, outcome, { watched = false } = {}) {
-    // Seen already, on the room's card with its sound (`concealSabotage`, E51 C1): one card, one sound, nothing here.
-    if (watched) return;
+async function soundSabotage(actor, room, outcome, { watched = false, tellRoom = null } = {}) {
+    // Watched (`concealSabotage`): the room's one card is its watched line, with the seen sound only when Fear revealed
+    // the act (E51 C1, E51 fix round FG7); a failure not revealed still plays its own below, as before E51.
+    if (watched) {
+        await tellRoom?.({ seen: outcome.revealed });
+        if (outcome.revealed) return;
+        if (!outcome.success) playSfx("sabotageFailed");
+        return;
+    }
     if (outcome.revealed) {
         await announce({
             content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {

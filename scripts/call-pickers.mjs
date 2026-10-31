@@ -19,7 +19,8 @@
  * file reads (sheet.mjs, through that facade) - so importers keep importing
  * call-effects.mjs, and nothing here imports it back: R161 counts an
  * `export ... from` as an edge, and the import would close a cycle. Below it are
- * config.mjs and utils.mjs, statically; the modules a picker reads the world
+ * config.mjs and utils.mjs, statically, and since E51's fix round live.mjs
+ * (`alreadyOpen`, `keepLive`, which import config.mjs and utils.mjs alone); the modules a picker reads the world
  * through (movement, projects, chapter, monokuma, monocub) stay lazy `import()`s,
  * as they were. The `DialogV2` alias came along, because nothing left in
  * call-effects.mjs opens a window through it; since E51 C2 `callWindow` is its
@@ -28,8 +29,9 @@
  * file imports none of them back statically, so no cycle closes (R161).
  */
 
-import { MODULE_ID, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
 import { dialogContent, esc, wholeNumber } from "./utils.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -60,28 +62,71 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * The content goes through `dialogContent`, which keeps a textarea's placeholder (utils.mjs).
  * `title` defaults to the Call's label; `render` and `modal` pass through to DialogV2.
  *
+ * ONE OF EACH, AND TRUE WHILE IT STANDS (E51 fix round FG7, 31.10.2026; review goal G2: the owner's
+ * amend of 27.10, variant B, "callWindow powstaje na DialogV2 z keepLive i alreadyOpen", which C2
+ * did not build). `once` is a class (`callWindowClass`): while a window carrying it is open
+ * (live.mjs `alreadyOpen`) that one is raised and this answers null, opening nothing - a sheet
+ * redrawn under a Call window puts its tile back live, and a second press opened a second window
+ * for the same Call. `live` is `keepLive`'s `{ region, build, watch, after }`, started on the drawn
+ * window: the confirmation's header redrawn from what the buyer holds now, and its Spend with it
+ * (calls.mjs `confirmCall`). Tier 2's E51-T29 opens one twice and grants Hope while it stands.
+ *
  * @returns {Promise<*>} what `DialogV2.wait` answers: a button's callback's value, its action,
- *   or null for a closed window.
+ *   or null for a closed window (or for a window of `once` already open).
  */
-export function callWindow({
+export async function callWindow({
     call = null, kind = "hope", header = "", body = "", buttons = [], gmRoute = false,
-    title = null, cancel = true, cancelDefault = false, render, modal
+    title = null, cancel = true, cancelDefault = false, render, modal, once = null, live = null
 } = {}) {
+    if (once && alreadyOpen(once)) return null;
     const routed = buttons.map(b => gmRoute && b.action !== "cancel"
         ? { ...b, class: [b.class, "drpg-gm-route"].filter(Boolean).join(" ") } : b);
     if (cancel !== false) {
         routed.push({ action: "cancel", label: game.i18n.localize(typeof cancel === "string" ? cancel : "DRPG.Calls.cancel"),
             default: cancelDefault });
     }
+    const drawn = live || render ? (event, dialog) => {
+        if (live) {
+            // keepLive hands `after` the new element alone; the window goes with it here.
+            keepLive(dialog, live.after ? { ...live, after: next => live.after(next, dialog) } : live);
+            live.after?.(dialog?.element?.querySelector(live.region) ?? null, dialog);
+        }
+        render?.(event, dialog);
+    } : null;
     return DialogV2.wait({
         window: { title: title ?? call?.label ?? "" },
-        classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog"],
+        classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog", ...(once ? [once] : [])],
         content: dialogContent(`${header}${body}`),
         buttons: routed,
-        ...(render ? { render } : {}),
+        ...(drawn ? { render: drawn } : {}),
         ...(modal !== undefined ? { modal } : {}),
         rejectClose: false
     });
+}
+
+/**
+ * The class a Call's window carries for `callWindow`'s `once` (E51 fix round FG7): one per Call, its side
+ * and its step - `pick` for the pickers, `confirm` for the confirmation - so the picker and the confirmation of
+ * one purchase, which hand over in the same breath, never refuse each other. Null for a Call that is no row of
+ * the two tables (the GM's ruling window is built from a stand-in).
+ */
+export function callWindowClass(call, kind, step) {
+    const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;
+    const key = Object.keys(table).find(k => table[k] === call);
+    return key ? `drpg-call-${kind === "hope" ? "hope" : "despair"}-${key}-${step}` : null;
+}
+
+/**
+ * A window of this Call open now, either step, raised; or null (E51 fix round FG7). The sheet asks it at the press
+ * (sheet.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.
+ */
+export function callWindowOpen(call, kind) {
+    for (const step of ["pick", "confirm"]) {
+        const cls = callWindowClass(call, kind, step);
+        const open = cls ? alreadyOpen(cls) : null;
+        if (open) return open;
+    }
+    return null;
 }
 
 /* ==========================================================================
@@ -109,7 +154,8 @@ export async function pickTarget(actor, call, kind) {
     // project's, the room's, the item's, the Monocub's) drew whatever Call had set it last, and the
     // first window to close cleared the other's. R1111 opens two at once. So each picker is handed
     // `ask` - the Call, its side and its header - and passes it to `callWindow`.
-    const ask = { call, kind, header: callHeader(call, kind) };
+    // `once` (E51 fix round FG7): one picker of this Call at a time (`callWindow`).
+    const ask = { call, kind, header: callHeader(call, kind), once: callWindowClass(call, kind, "pick") };
     // The one Call whose content is the point: a new rule has to be written
     // before it can be announced.
     if (call.announces) return await pickText(ask);

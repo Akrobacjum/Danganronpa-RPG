@@ -208,8 +208,8 @@ Wybierasz, jak patrzysz:
 
 | Sposób | Cel |
 |---|---|
-| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju - rozstrzygają kości |
-| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj - rozstrzygają kości |
+| Rozejrzyj się za czymkolwiek | to, co najłatwiej zauważyć w tym pokoju; w pokoju, w którym nie ma nic takiego, GM decyduje, co widzisz |
+| Spójrz poza oczywiste | najtrudniejsza rzecz tutaj i to, czego w tym pokoju w ogóle nie powinno być; gdy nie ma tu nic takiego, decyduje GM |
 | Podążaj za własnymi śladami | wróć po własnych śladach i znajdź to, co zostawiłeś |
 | Skup wzrok | powiedz, czego szukasz; GM decyduje, na czym zatrzyma się twój wzrok |
 | Zbadaj punkt zainteresowania | coś, co nie jest śladem - osoba, maszyna, pogoda; GM rozstrzyga |
@@ -441,7 +441,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**.
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trialu: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trialu nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
