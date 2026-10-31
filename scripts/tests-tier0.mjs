@@ -16532,6 +16532,65 @@ const REGRESSIONS = [
                 + "checked hint; the request is read for the hint alone]");
     }],
 
+    ["R1143 - the handbooks say what E51 changed at the table, in both languages: the player's Observe table promises no dice where an empty room goes to the GM; the GM's names the debate's floor of 30 s, the trial console's evidence log, the rules manager's Announce changes, the checklist's First session and a region's Display Scrolling Text, the player's that nothing is thrown away in a Class Trial; and the Polish Confusion refusal promises no refund (E51 fix FG8; review goal G3, G10, STATUS C2's meddleRefused)", async () => {
+        /*
+         * E51 fix round FG8, 31.10.2026. G3: the player handbook's Observe table said "settled by the dice" /
+         * "rozstrzygają kości" of Sweep the room and Look past the obvious, which E51-02 took off the hints (R1102): a
+         * room with nothing of the kind goes to the GM (`ruleObserve`). G10: the handbooks said nothing of E51's table
+         * changes - the debate's budget had no floor ("default 180"), the evidence log was the dashboard's alone, and
+         * "Announce changes", "First session", the refused discard in the trial and a region's caption were nowhere. Each
+         * is read as the module words it (the UI's own labels from lang/*.json, the floor from config.mjs
+         * `TRIAL.debateMinSeconds`), so a label renamed in the UI fails here until the books follow. And pl.json's
+         * `DRPG.Monocub.meddleRefused` said "akcja i Hope wróciły" where en.json and the code give nothing back. Red at the
+         * fix round's parent: both promises standing in both player handbooks, none of the GM's six in either language,
+         * nor the player's refusal, and the Polish refund.
+         */
+        const { TRIAL } = await import("./config.mjs");
+        const text = {}, lang = {};
+        for (const lc of ["en", "pl"]) {
+            lang[lc] = await fetch(`/modules/${MODULE_ID}/lang/${lc}.json`).then(r => r.json());
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lc}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lc}.md did not load`);
+                text[`${book}.${lc}`] = await lfText(res);
+                must(text[`${book}.${lc}`].split("\n").length > 100, `docs/handbooks/${book}.${lc}.md is nearly empty - this test measured nothing`);
+            }
+        }
+        // A key as Foundry reads it: nested, or written flat with its dots (en.json writes some Season keys so).
+        const label = (lc, key) => {
+            let at = lang[lc];
+            const parts = key.split(".");
+            for (let i = 0; i < parts.length && at !== undefined; i++) {
+                const rest = parts.slice(i).join(".");
+                if (typeof at[rest] === "string") return at[rest];
+                at = at[parts[i]];
+            }
+            return typeof at === "string" ? at : null;
+        };
+        const FLOOR = { en: `at least **${TRIAL.debateMinSeconds}**`, pl: `co najmniej **${TRIAL.debateMinSeconds}**` };
+        const read = {};
+        for (const lc of ["en", "pl"]) {
+            const gm = text[`gm-handbook.${lc}`], player = text[`player-handbook.${lc}`];
+            const wanted = { floor: FLOOR[lc], log: label(lc, "DRPG.Trial.logTitle"), announce: label(lc, "DRPG.Rules.announce"),
+                firstSession: label(lc, "DRPG.Season.firstSession"), caption: "Display Scrolling Text" };
+            must(Object.values(wanted).every(w => typeof w === "string" && w.length > 3), `a label is missing from lang/${lc}.json: ${JSON.stringify(wanted)}`);
+            const refusal = label(lc, "DRPG.Items.noDiscardInTrial");
+            must(typeof refusal === "string" && refusal.length > 10, `DRPG.Items.noDiscardInTrial is missing from lang/${lc}.json`);
+            read[lc] = {
+                promise: (player.match(/settled by the dice|rozstrzygaj[aą] ko[sś]ci/gi) ?? []).length,
+                gmMissing: Object.entries(wanted).filter(([, w]) => !gm.includes(w)).map(([k]) => k),
+                refusal: player.includes(refusal)
+            };
+        }
+        const meddle = label("pl", "DRPG.Monocub.meddleRefused") ?? "";
+        must(meddle.length > 10, "pl.json has no DRPG.Monocub.meddleRefused - this would measure nothing");
+        read.meddle = /wr[oó]c|zwr[oó]c|odda/i.test(meddle);
+        equal(JSON.stringify(read), JSON.stringify({ en: { promise: 0, gmMissing: [], refusal: true }, pl: { promise: 0, gmMissing: [], refusal: true }, meddle: false }),
+            "[per language: the player handbook's promises that the dice settle an Observe; what the GM handbook does not name of the debate's floor, the "
+                + "console's evidence log, Announce changes, First session and Display Scrolling Text; the player handbook quotes the Class Trial's discard "
+                + "refusal]; [the Polish Confusion refusal promises a refund]");
+    }],
+
     ["R1105 - a dead student under the Eclipse is told they are dead: in `performAction` the death refusal (`DRPG.Chapter.deadCannotAct`) stands above the Eclipse's (`DRPG.Eclipse.actionsLocked`) (E51 C1; E51-06, audit S02-51 (d))", async () => {
         /*
          * E51 C1, 30.10.2026; audit S02-51 (d). The Eclipse's refusal came first, so a dead student pressing a tile

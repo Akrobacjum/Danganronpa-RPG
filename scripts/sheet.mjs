@@ -4195,6 +4195,15 @@ async function runCall(actor, key, kind) {
     if (!call) return;
 
     /*
+     * ONE PURCHASE OF A CALL AT A TIME (E51 fix round FG7, 31.10.2026; review goal G2). A sheet redrawn while this
+     * Call's picker or confirmation stands puts its tile back live (the delegate above disables only the element that
+     * was pressed), and a second press opened a second window of the same purchase. Raised instead, and nothing more
+     * (call-pickers.mjs `callWindowOpen`; each window also refuses a twin of itself, `callWindow`'s `once`).
+     */
+    const { callWindowOpen } = await import("./call-pickers.mjs");
+    if (callWindowOpen(call, despair ? "despair" : "hope")) return;
+
+    /*
      * WHAT SHUTS THE WHOLE MENU IS ASKED FIRST (CALL-17, 20.09).
      *
      * An Eclipse, the overflow's Silence, a Class Trial for a Monokuma, a dead

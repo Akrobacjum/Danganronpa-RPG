@@ -2692,11 +2692,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const t = trace ? canvas.scene.tokens.get(trace.id) : null;
         const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
         const words = await Promise.all(told.map(doc => wordsOf(doc)));
+        const kept = game.i18n.localize("DRPG.Reroll.traceKept").split("{trace}")[0].replace("{name}", who.name);
         const result = { placed: Boolean(trace) && ("${how}" !== "found" || Boolean(copy)), lines: out?.lines ?? null, refused: out?.refused ?? null,
             standing: Boolean(t), visibility: t ? R.remnantData(t)?.visibility ?? null : null,
             rowNames: Boolean(trace) && S.rerollBookmarkStore.get(who.id)?.facts?.remnantId === trace.id,
             cardSays: (out?.lines ?? []).includes(game.i18n.localize("DRPG.Reroll.remnantManual")),
-            gmsTold: words.some(c => String(c ?? "").includes("${subject}")) };
+            // The GMs told the trace was kept: the traceKept line, not any whisper naming the subject - since the E51
+            // fix round (FG7, G5) a Reroll that misses posts the GMs' Dynamic receipt with its description too.
+            gmsTold: words.some(c => String(c ?? "").includes(kept)) };
         delete m.rolls; await m.delete();
         await S.rerollBookmarkStore.drop(who.id);
         await trustedWrite(who, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });

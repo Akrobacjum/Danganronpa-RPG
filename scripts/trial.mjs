@@ -874,7 +874,8 @@ async function seizeFloor(message, objectorId, targetId) {
      * comes back truthy. What matters is who is holding it now.
      */
     if (!opened || trialFloor()?.holderId !== objectorId) {
-        const refunded = await refundPrice(actor, receipt, { quiet: true });
+        // "all": the whisper below says what came of the price, a loss included (E51 fix round FG7; review correctness F3).
+        const refunded = await refundPrice(actor, receipt, { quiet: "all" });
         return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"), { receipt, refunded });
     }
 
