@@ -116,8 +116,8 @@
  *             3. Every detector over the files, one line each: its T number,
  *                its mode, what it read, what it found and its counts. The six
  *                FAIL ones - T1 (pluralForms, configPlaceholders), T2
- *                (pairParity), T3 (familyFormats) and T6 (dashesIn), each with
- *                a baseline that only shrinks, T14 (tableWordProblems) - are red
+ *                (pairParity), T3 (familyFormats) and T6 (dashesIn), the last
+ *                two with a baseline that only shrinks, T14 (tableWordProblems) - are red
  *                on a finding their baseline does not hold and on a baseline row
  *                nothing fills ("take it out of the baseline"). The twenty
  *                report ones print their findings, 25 a detector, never red;
@@ -133,17 +133,22 @@
  *                self-check with a control that hands it a split cutting
  *                nothing, then each handbook split twice - red when one is
  *                missing, when the second split differs, or on a split problem
- *                (a row running into a blank line, a section number twice, a
- *                fence that never closes; E65 decision 81); the Polish ids,
+ *                (a section number twice, a fence that never closes; E65
+ *                decision 81; a table row is its line since the fix round,
+ *                trailing "|" or not, as showdown reads it); the Polish ids,
  *                kinds and lines against the English are printed, a reading.
  *             5. The pilot's file, docs/dev/text-pilot.json (tools/text-render.mjs
  *                pilotSchema; "pilot: ..."): 40 strings, each entry's fields,
  *                its key one of lang/en.json or of config.mjs's prose, its
- *                befores the files' text, its afters null or of the before's
- *                shape, none the key or "before" of a naturalness pair, and the
- *                owner's answers (each string's `owner`, each question's:
- *                `default` or `other`, the owner's note, the date), counted on
- *                one line; with a control, a copy with five faults planted.
+ *                befores texts or a family's forms, its afters null or of the
+ *                before's shape, none the key or "before" of a naturalness
+ *                pair, and the owner's answers (each string's `owner`, each
+ *                question's: `default` or `other`, the owner's note, the date),
+ *                counted on one line; with a control, a copy with five faults
+ *                planted. Then where the 40 stand in the files (pilotState), a
+ *                reading and never red: still the before, the after landed
+ *                (E66, E71), or changed since the pilot; with a control, a
+ *                copy of pl.json with one after landed and one string edited.
  *             The last line: the detectors, how many hold their fixture, what
  *             was read, "FAIL found N beyond the baselines, report found M".
  *             Options: `--lang <dir>` reads en.json and pl.json from <dir>
@@ -872,6 +877,14 @@ async function text() {
         console.log(`text: ${m.test} ${m.mode} ${name} read ${r.read} found ${r.found.length}`
             + (b ? `; baseline ${rows.length} row(s), ${b.rows} site(s): ${b.matched} matched, ${b.left.length} new, ${b.stale.length} gone` : "")
             + (counts ? ` (${counts})` : ""));
+        /* How much of what T4 and T19 read a surface rule placed (E65 fix round, 01.11.2026; correctness review m3): T4
+           counts in `read` only the strings with a surface and the rest as `unclassified`, T19 reads every English string
+           and files the unplaced under "unclassified". A reading: nothing floors it, and the stage that turns T4 to FAIL
+           (E71, MODES) decides whether its FAIL needs one (E65 STATUS, the fix round's Open). */
+        const placed = name === "lengthOver" ? [r.read, r.read + (r.counts?.unclassified ?? 0)]
+            : name === "contractions" ? [r.read - (r.perSurface?.unclassified?.strings ?? 0), r.read] : null;
+        if (placed) console.log(`text:   ${m.test} classified ${placed[0]} of ${placed[1]} string(s) it read (${placed[1] ? Math.round(1000 * placed[0] / placed[1]) / 10 : 0}%); `
+            + `the rest have no surface - a reading, no floor (FAIL from ${m.fail ?? "no stage"})`);
         /* A detector that reads a file E65 writes carries that file's faults (T27: the guide's pairs table, E65 C9): red. */
         if (Array.isArray(r.faults)) problems.push(...r.faults.map(f => `pairs: docs/text-style.md: ${f}`));
         if (!(r.read > 0)) problems.push(`${name} read nothing of ${m.reads.join(" and ")}${LANG_DIR === null ? "" : ` (the language files of ${where})`} - it has proved nothing`);
@@ -933,8 +946,9 @@ async function text() {
        must see it; then every handbook split twice, one line each: its units by kind, whether the second split gave the same,
        what split could not read, and whether the Polish handbook gives the English one's ids, kinds and lines. Red: a
        handbook missing, one that gives other units on a second split (the ids E57's facts files point at would not
-       hold), and every split problem (a table row that runs into a blank line, a section number twice, a fence that
-       never closes: E65 decision 81, 31.10 - a broken split lets E57 measure nothing). So a handbook edit of any stage
+       hold), and every split problem (a section number twice, a fence that never closes: E65 decision 81, 31.10 - a
+       broken split lets E57 measure nothing; a table row that ran into a blank line was the third until the fix round of
+       01.11, when a row became its line, trailing "|" or not, as showdown renders it). So a handbook edit of any stage
        that split cannot read turns `text` red. The Polish against the English stays a reading for E57. */
     const facts = await import(url.pathToFileURL(path.join(REPO, "tools", "handbook-facts.mjs")).href);
     problems.push(...facts.selfCheck().map(p => `handbook-facts: ${p}`));
@@ -976,6 +990,26 @@ async function text() {
                 + `facts for ${n(x => x.facts.length > 0)}; afters written en ${n(x => x.en.after !== null)}, pl ${n(x => x.pl.after !== null)}; `
                 + `reviews left open ${n(x => Object.values(x.reviews).some(r => r !== null))}; owner's verdicts ${n(x => x.owner !== null)}`
                 + ` (ok ${n(x => x.owner.verdict === "ok")}); questions answered ${(Array.isArray(pilot.questions) ? pilot.questions : []).filter(q => q?.owner).length}; ${faults.length} problem(s)`);
+            /* Where the 40 stand in lang/ and config.mjs (E65 fix round, 01.11.2026): a reading, never red - an after that
+               E66 or E71 applies is "landed", any other edit of one of the 40 "changed since the pilot". Its control: a
+               copy of the files with one approved after written in and another string edited must read as one landed and
+               one changed, and the schema must name neither, or the stage that applies the afters turns this part red. */
+            const state = textRender.pilotState(pilot, against);
+            console.log(`text: pilot: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
+                + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the pilot ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
+            const movable = strings.filter(x => typeof x?.pl?.before === "string" && typeof x?.pl?.after === "string" && x.pl.after !== x.pl.before && pl.get(x.key) === x.pl.before);
+            if (movable.length >= 2) {
+                const [landed, edited] = movable, moved = new Map(pl);
+                moved.set(landed.key, landed.pl.after);
+                moved.set(edited.key, `${edited.pl.before} (edited)`);
+                const after = textRender.pilotState(pilot, { ...against, pl: moved }), named = textRender.pilotSchema(pilot, { ...against, pl: moved });
+                const wrong = [
+                    ...(after.landed.pl === state.landed.pl + 1 ? [] : [`landed pl ${after.landed.pl}, not ${state.landed.pl + 1}`]),
+                    ...(after.changed.includes(`${edited.key} pl`) ? [] : [`${edited.key} pl not read as changed`]),
+                    ...named.filter(p => p.includes(`(${landed.key})`) || p.includes(`(${edited.key})`)).map(p => `the schema names "${p}"`)
+                ];
+                if (wrong.length) problems.push(`pilot: a copy of pl.json with ${landed.key}'s after landed and ${edited.key} edited reads wrong: ${wrong.join("; ")} - applying an approved after would read wrong or turn this part red`);
+            } else problems.push(`pilot: the reading's control has nothing to move (${movable.length} string(s) whose Polish before is pl.json's text and whose after differs)`);
             const pair = pairs.find(p => p.key && against.en.has(p.key) && pl.has(p.key));
             if (strings.length >= 3 && pair && Array.isArray(pilot.questions) && pilot.questions.length) {
                 const copy = JSON.parse(JSON.stringify(pilot));

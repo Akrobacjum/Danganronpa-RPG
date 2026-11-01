@@ -287,7 +287,9 @@ ${body.join("\n")}
  * THE PILOT (E65 C14, E65-23; STAGE.md Appendix C). docs/dev/text-pilot.json holds 40 strings, each
  * `{ key, surface, screen, readers, facts, en: { before, after }, pl: { before, after }, reviews: { en, coldEn, pl },
  * owner }`, and the owner's `questions` beside them. `pilotSchema` holds the file to that shape against the files of
- * this tree - `node tools/check.mjs text` makes each problem red - and `pilotSheet` renders it for the owner: each
+ * this tree - `node tools/check.mjs text` makes each problem red: the file's own shape, a key the files no longer hold,
+ * a naturalness pair's key or before; whether a before or an after is the files' text now is `pilotState`'s reading,
+ * printed and never red (E65 fix round, 01.11.2026) - and `pilotSheet` renders it for the owner: each
  * string at n = 1, 2 and 5 when it counts, with a woman's and a man's name, the three rooms and items of the three
  * Polish genders, EN and PL before and after, the facts in one line, what the reviewers still hold open, and three
  * answers (ok, a correction, "nikt tak nie mówi"). An `after` still null reads "not written yet".
@@ -323,6 +325,32 @@ const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const ownerShaped = (o, verdicts) => o === null || (sameFields(o, ["verdict", "text", "date"]) && verdicts.includes(o.verdict)
     && typeof o.text === "string" && /^\d\d\.\d\d\.\d{4}$/.test(String(o.date)));
 const formsText = v => (typeof v === "string" ? [v] : Object.values(v ?? {}));
+/* A before as the file writes it: a text, or a plural family's forms (`other` among them), each a text. */
+const valueShaped = v => isText(v) || (v !== null && typeof v === "object" && !Array.isArray(v) && Object.hasOwn(v, "other")
+    && Object.keys(v).every(f => FORM_NAMES.includes(f)) && Object.values(v).every(isText));
+const RENAMED = " - a key renamed or removed since the pilot: its entry in docs/dev/text-pilot.json follows it";
+
+/**
+ * Where the 40 stand in this tree's files (E65 fix round, 01.11.2026; a reading, never a fault): for each string and
+ * language whose key the files hold, its text there is the pilot's `before` (not applied yet), its `after` (landed:
+ * E66 or E71 applied it) or neither ("changed since the pilot": a stage edited it otherwise). T27 reads the guide's
+ * befores the same way, a pair whose before is gone listed apart and not red. `en`, `pl` as for `pilotSchema`.
+ */
+export function pilotState(doc, { en = new Map(), pl = new Map() } = {}) {
+    const state = { read: 0, before: { en: 0, pl: 0 }, landed: { en: 0, pl: 0 }, changed: [] };
+    for (const s of Array.isArray(doc?.strings) ? doc.strings : []) {
+        if (!isText(s?.key)) continue;
+        for (const [lang, words] of [["en", en], ["pl", pl]]) {
+            const now = pilotValue(words, s.key), side = s[lang];
+            if (now === undefined || side === null || typeof side !== "object") continue;
+            state.read++;
+            if (sameValue(now, side.before)) state.before[lang]++;
+            else if (side.after !== null && side.after !== undefined && sameValue(now, side.after)) state.landed[lang]++;
+            else state.changed.push(`${s.key} ${lang}`);
+        }
+    }
+    return state;
+}
 
 /**
  * The pilot file's problems, `[]` when it holds: `doc` the parsed file; `en` lang/en.json's words with config.mjs's
@@ -355,7 +383,7 @@ export function pilotSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
         if (seen.has(s.key)) out.push(`${at}: the key twice`);
         seen.add(s.key);
         const now = { en: pilotValue(en, s.key), pl: pilotValue(pl, s.key) };
-        if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose`);
+        if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose${RENAMED}`);
         if (!isText(s.surface) || (surfaces && !surfaces.includes(s.surface))) out.push(`${at}: the surface ${JSON.stringify(s.surface)} is not ${surfaces ? "one of docs/text-budgets.json's" : "a text"}`);
         if (!isText(s.screen)) out.push(`${at}: the screen is not a text`);
         if (!Array.isArray(s.readers) || !s.readers.length || !s.readers.every(isText)) out.push(`${at}: readers is not a list of texts`);
@@ -363,12 +391,15 @@ export function pilotSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
         for (const lang of ["en", "pl"]) {
             const side = s[lang];
             if (!sameFields(side, ["before", "after"])) { out.push(`${at}: ${lang} is not { before, after }`); continue; }
-            if (now[lang] === undefined) { if (lang === "pl") out.push(`${at}: not a key of lang/pl.json`); continue; }
-            if (!sameValue(side.before, now[lang])) out.push(`${at}: ${lang}.before is not the text of ${lang === "en" ? "lang/en.json or config.mjs" : "lang/pl.json"} (${JSON.stringify(now[lang])})`);
+            if (now[lang] === undefined) { if (lang === "pl") out.push(`${at}: not a key of lang/pl.json${RENAMED}`); continue; }
+            /* The file's own shape only (E65 fix round, 01.11.2026): the text lang/ holds now is read by `pilotState`, never
+               here - E66 and E71 apply these afters, and any stage may edit one of the 40, so a before that is no longer
+               the files' text is a reading, not a fault of this file. */
+            if (!valueShaped(side.before)) { out.push(`${at}: ${lang}.before is neither a text nor a plural family's forms (other among them), each a text`); continue; }
             const a = side.after;
-            const shaped = a === null || (typeof now[lang] === "string" ? isText(a)
-                : (a !== null && typeof a === "object" && !Array.isArray(a) && sameValue(Object.keys(a).sort(), Object.keys(now[lang]).sort()) && Object.values(a).every(isText)));
-            if (!shaped) out.push(`${at}: ${lang}.after is neither null nor ${typeof now[lang] === "string" ? "a text" : `the forms ${Object.keys(now[lang]).join(", ")}, each a text`}`);
+            const shaped = a === null || (typeof side.before === "string" ? isText(a)
+                : (a !== null && typeof a === "object" && !Array.isArray(a) && sameValue(Object.keys(a).sort(), Object.keys(side.before).sort()) && Object.values(a).every(isText)));
+            if (!shaped) out.push(`${at}: ${lang}.after is neither null nor ${typeof side.before === "string" ? "a text" : `the forms ${Object.keys(side.before).join(", ")}, each a text`}`);
         }
         if (!sameFields(s.reviews, PILOT_REVIEWS)) out.push(`${at}: reviews is not { ${PILOT_REVIEWS.join(", ")} }`);
         else for (const r of PILOT_REVIEWS) {

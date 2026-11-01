@@ -398,6 +398,13 @@ export function familyFormats(bag = {}) {
 
 const DASH_NAMES = Object.freeze({ "\u2013": "an en dash (U+2013)", "\u2014": "an em dash (U+2014)", "\u2212": "a minus sign (U+2212)" });
 const DASH = /[\u2013\u2014\u2212]/g;
+/* The three written as HTML entities (E65 fix round, 01.11.2026): wherever the module puts a value into markup (innerHTML,
+   a chat card) "&ndash;", "&#8212;" or "&#x2212;" is drawn as the character itself, so T6 reads it as one. Named (in
+   lower case, as HTML spells them), decimal and hex forms, leading zeros; 0 of them on this tree (lang/, scripts/, docs/:
+   git grep 01.11.2026). */
+const DASH_ENTITY = /&(?:(ndash|mdash|minus)|#0*(8211|8212|8722)|#[xX]0*(2013|2014|2212));/g;
+const ENTITY_CHAR = Object.freeze({ ndash: "\u2013", mdash: "\u2014", minus: "\u2212", 8211: "\u2013", 8212: "\u2014", 8722: "\u2212", 2013: "\u2013", 2014: "\u2014", 2212: "\u2212" });
+const shownDashes = text => text.replace(DASH_ENTITY, (_, name, dec, hex) => ENTITY_CHAR[name ?? dec ?? hex]);
 const around = (text, at) => text.slice(Math.max(0, at - 10), at + 11).replace(/\s+/g, " ").trim();
 
 /**
@@ -406,7 +413,8 @@ const around = (text, at) => text.slice(Math.max(0, at - 10), at + 11).replace(/
  * `pl`), config.mjs's English prose (`prose`), the string literals and template
  * text of its scripts (`scripts`; comments and regex literals not read, an
  * escape read as the character it writes) and the `.md` files under docs/
- * (`docs`, a line at a time). The house rule is "-"; `dashes` holds the en and
+ * (`docs`, a line at a time), a dash written as an HTML entity read as the
+ * character it is drawn as (`shownDashes`, E65 fix round). The house rule is "-"; `dashes` holds the en and
  * em dash in the language files and docs already, and nothing held the minus
  * sign or a script's strings. Each source is read only when it is handed in, and
  * the answer names those read (`sources`), so a baseline row of a source a
@@ -421,14 +429,16 @@ const around = (text, at) => text.slice(Math.max(0, at - 10), at + 11).replace(/
 export function dashesIn(bag = {}) {
     const found = [], sources = [], counts = {};
     let read = 0;
-    const unit = (kind, file, key, text, where) => {
+    const unit = (kind, file, key, raw, where) => {
         read++;
         counts[kind] = (counts[kind] ?? 0) + 1;
+        const text = shownDashes(raw), entity = text !== raw;
         const at = text.search(DASH);
         if (at < 0) return;
         const names = [...new Set(text.match(DASH))].map(c => DASH_NAMES[c]).join(", ");
         const quote = around(text, at);
-        found.push({ key: key ?? `${file} "${quote}"`, kind, file, text, what: `${where}: ${names} in "${quote}" - the house rule is "-"` });
+        found.push({ key: key ?? `${file} "${quote}"`, kind, file, text: raw,
+            what: `${where}: ${names}${entity ? " (written as an HTML entity, drawn as the character)" : ""} in "${quote}" - the house rule is "-"` });
     };
     for (const [kind, file] of [["en", "lang/en.json"], ["pl", "lang/pl.json"]]) {
         if (bag[kind] === undefined) continue;
@@ -2573,12 +2583,13 @@ export const FIXTURES = Object.freeze({
         }
     },
     dashesIn: {
-        flags: ["DRPG.Config.FX.x prose", "DRPG.Fx.a en", "DRPG.Fx.c pl", "docs/fx.md \"A line \u2013 here\" doc", "docs/fx.md \"`a \u2212 1` in cod\" doc",
-            "scripts/fx-dash.mjs \"<b>\u2212</b>\" script", "scripts/fx-dash.mjs \"Wait \u2013 here\" script", "scripts/fx-dash.mjs \"\u2212\" script",
-            "scripts/fx-dash.mjs \"\u22121\" script"],
+        flags: ["DRPG.Config.FX.x prose", "DRPG.Fx.a en", "DRPG.Fx.c pl", "DRPG.Fx.d en", "DRPG.Fx.d pl", "docs/fx.md \"A line \u2013 here\" doc", "docs/fx.md \"`a \u2212 1` in cod\" doc",
+            "docs/fx.md \"An \u2014 entity\" doc", "scripts/fx-dash.mjs \"<b>\u2212</b>\" script", "scripts/fx-dash.mjs \"Wait \u2013 here\" script", "scripts/fx-dash.mjs \"\u2212\" script",
+            "scripts/fx-dash.mjs \"\u22121\" script", "scripts/fx-dash.mjs \"\u2013 here\" script"],
         input: {
-            en: { "DRPG.Fx.a": "One \u2013 two", "DRPG.Fx.b": "fine - ascii" },                // an en dash; a hyphen passes
-            pl: { "DRPG.Fx.a": "Raz - dwa", "DRPG.Fx.c": "\u22121 do rzutu" },                  // a minus sign
+            en: { "DRPG.Fx.a": "One \u2013 two", "DRPG.Fx.b": "fine - ascii", "DRPG.Fx.d": "Five &ndash; six" },   // an en dash, as the character and as an entity; a hyphen passes
+            pl: { "DRPG.Fx.a": "Raz - dwa", "DRPG.Fx.c": "\u22121 do rzutu", "DRPG.Fx.d": "Rzut &#X02212;1",   // a minus sign; an entity in hex, zeros first
+                "DRPG.Fx.e": "&amp;ndash; i &Ndash; to nie kreska" },                            // an escaped ampersand and a name HTML does not know: pass
             prose: { "DRPG.Config.FX.x": "Lose \u2014 all", "DRPG.Config.FX.y": "Plain words" }, // an em dash
             scripts: {
                 "scripts/fx-dash.mjs": [
@@ -2593,10 +2604,11 @@ export const FIXTURES = Object.freeze({
                     "const k = x \u2212 y;",                                   // in code, no string: not read
                     "const url = \"https://example.com/a-b\";",                 // a URL's hyphen: passes
                     "/* a block \u2013 */",                                    // a comment: passes
-                    "const v = `a ${\"plain\"} b`;"                             // passes
+                    "const v = `a ${\"plain\"} b`;",                            // passes
+                    "const w = \"&#8211; here\";"                              // a decimal entity in a string: flagged
                 ].join("\n")
             },
-            docs: { "docs/fx.md": "# Title\nA line \u2013 here\n`a \u2212 1` in code\nPlain - line\n" }   // lines 2 and 3 flagged
+            docs: { "docs/fx.md": "# Title\nA line \u2013 here\n`a \u2212 1` in code\nPlain - line\nAn &mdash; entity\n" }   // lines 2, 3 and 5 flagged
         }
     },
     tableWordProblems: {

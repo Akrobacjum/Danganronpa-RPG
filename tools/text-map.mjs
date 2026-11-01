@@ -372,11 +372,13 @@ export function buildScreenMap({ scripts, keys, espree, screens = SCREENS, confi
             for (const h of u.hooked) { const t = f.units.find(x => x.name === h); if (t) t.marks.add("hook"); }
         }
     }
-    const named = new Set();
-    for (const row of screens) for (const e of row.entries) if (!e.endsWith(":*")) named.add(e);
-    for (const e of named) {
+    /* A row's entry that names no unit is red in `text` - most often a function moved or renamed by a later stage, which
+       `tools/moved-only.mjs` may pass - so the line names the row and the edit that fixes it (E65 fix round, 01.11.2026). */
+    const named = new Map();
+    for (const row of screens) for (const e of row.entries) if (!e.endsWith(":*") && !named.has(e)) named.set(e, row.id);
+    for (const [e, id] of named) {
         const u = unitAt.get(e);
-        if (!u) problems.push(`SCREENS names ${e}, which is no top-level unit of the scripts`);
+        if (!u) problems.push(`SCREENS row ${id} names ${e}, which is no top-level unit of the scripts - if it moved or was renamed, update that row of SCREENS in tools/text-map.mjs`);
         else u.marks.add("named");
     }
     /* A unit that posts through another (`via`, the header's measured levels): it reads a unit, of its own file or by an
@@ -436,7 +438,7 @@ export function buildScreenMap({ scripts, keys, espree, screens = SCREENS, confi
         for (const e of row.entries) {
             if (!e.endsWith(":*")) continue;
             const file = e.slice(0, -2);
-            if (!files.has(file)) { problems.push(`SCREENS row ${row.id} names ${file}, which is no script`); continue; }
+            if (!files.has(file)) { problems.push(`SCREENS row ${row.id} names ${file}, which is no script - if it moved or was renamed, update that row of SCREENS in tools/text-map.mjs`); continue; }
             for (const u of entries.filter(x => x.file === file)) if (!grouped.has(`${u.file}:${u.name}`)) grouped.set(`${u.file}:${u.name}`, row.id);
         }
     }

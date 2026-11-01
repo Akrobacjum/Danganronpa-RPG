@@ -90,7 +90,9 @@ tool's header says the rest. Measured 01.11.2026 on 4 cores, at E65 C-pilot
   and audience maps and the pilot's file held to their shapes; each handbook
   split twice. Red on a FAIL detector's finding beyond its baseline, on a
   detector that read nothing and on a fault of a file E65 writes; a report
-  detector is never red. `--lang <dir>` reads en.json and pl.json from <dir>,
+  detector is never red, and nor is where the pilot's 40 stand in the language
+  files (still the before, the after landed, or changed since the pilot: a
+  reading). `--lang <dir>` reads en.json and pl.json from <dir>,
   `--all` prints every report finding. It writes no file. 16 s alone; 26
   detectors, report found 3414.
 - `node tools/text-map.mjs` - the screen map, which keys each window, card and

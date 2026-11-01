@@ -19,8 +19,10 @@
  *     with its continuation lines and its deeper sub-items is one paragraph of its own; a fenced block (```) is one
  *     paragraph, fences included;
  *   - `row`: a table's row (not its header or the line of dashes under it), its cells as written, the header beside it
- *     (`head`); a row that does not end with "|" goes on to the next lines until one does - a row wrapped by hand is
- *     one unit, its place the line it starts on;
+ *     (`head`); one line is one row, with its trailing "|" or without it, as showdown (scripts/handbooks.mjs, `tables:
+ *     true`) and GitHub render it - a table line never runs on into the next (E65 fix round, 01.11.2026: until then a
+ *     row with no trailing "|" ran on to the next line that had one, and a blank line after it was a split problem; 0
+ *     of the handbooks' rows lacked the pipe, so no id moved);
  *   - `note`: a block of ">" lines - GitHub's [!NOTE], [!TIP], [!IMPORTANT], [!WARNING] and [!CAUTION] (the marker kept
  *     as `alert`, its line left out of the text) and a plain quote alike; one note is one unit, whatever paragraphs and
  *     list items it holds. A note indented under a list item closes the item and is a note of its own.
@@ -138,12 +140,6 @@ export function split(text, { file = null } = {}) {
             if (FENCE.test(line) && line.trim().startsWith(fence)) { fence = null; close(); }
             continue;
         }
-        if (open?.kind === "row" && open.wrapping) {
-            if (!line.trim()) { problems.push(`line ${open.line}: a table row that does not end with "|" runs into a blank line`); open.wrapping = false; close(); table = null; continue; }
-            open.lines.push(line);
-            if (line.trimEnd().endsWith("|")) { open.wrapping = false; close(); }
-            continue;
-        }
         const heading = HEADING.exec(line);
         if (heading) {
             close(); table = null;
@@ -178,8 +174,7 @@ export function split(text, { file = null } = {}) {
             }
             close();
             open = { kind: "row", line: at, lines: [line], head: table.head };
-            if (!line.trimEnd().endsWith("|")) open.wrapping = true;
-            else close();
+            close();
             continue;
         }
         if (table) table = null;
@@ -283,23 +278,24 @@ export function count(facts, units = null) {
 /* ------------------------------- the self-check ------------------------------- */
 
 /* A handbook of three sections (two numbered, one not, as the brochure's are), each edge of the slice once: a table with
-   a row wrapped by hand across a line break, a [!NOTE] inside a list, a [!WARNING] of two paragraphs, a fenced block, a
-   rule, a lead-in before the first section and a sub-item that stays its item's. CRLF on purpose: read as LF. */
+   a row that has no trailing "|" between two that have one, a [!NOTE] inside a list, a [!WARNING] of two paragraphs, a
+   fenced block, a rule, a lead-in before the first section, a sub-item that stays its item's, and a table with no
+   trailing "|" on any line that ends the file with no blank line after it. CRLF on purpose: read as LF. */
 export const FIXTURE = [
     "# A Handbook", "", "*For testing.*", "", "> [!NOTE]", "> Names stay English.", "", "---", "",
     "## 1. First", "", "A paragraph", "over two lines.", "", "- an item,", "  continued;", "  - a sub-item", "- a second item",
     "   > [!NOTE]", "   > A note inside the list.", "", "### Sub", "", "```", "code line", "```", "",
-    "## 2. Second", "", "| Thing | Cost |", "|---|---|", "| One | 2 |", "| Two, wrapped | 3", "and more |", "| Three | - |", "",
+    "## 2. Second", "", "| Thing | Cost |", "|---|---|", "| One | 2 |", "| Two | 3", "| Three | - |", "",
     "> [!WARNING]", "> First paragraph.", ">", "> Second paragraph.", "",
-    "## Unnumbered", "", "1. Step one.", "2. Step two.", ""
+    "## Unnumbered", "", "1. Step one.", "2. Step two.", "", "| Step | Time", "|---|---", "| Three | 5", "| Four | 6"
 ].join("\r\n");
 
 /* What the fixture must give: each unit's id, kind and place line. */
 export const FIXTURE_UNITS = Object.freeze([
     "s0.p1 paragraph 3", "s0.n1 note 5",
     "s1.p1 paragraph 12", "s1.p2 paragraph 15", "s1.p3 paragraph 18", "s1.n1 note 19", "s1.p4 paragraph 24",
-    "s2.r1 row 32", "s2.r2 row 33", "s2.r3 row 35", "s2.n1 note 37",
-    "s3.p1 paragraph 44", "s3.p2 paragraph 45"
+    "s2.r1 row 32", "s2.r2 row 33", "s2.r3 row 34", "s2.n1 note 36",
+    "s3.p1 paragraph 43", "s3.p2 paragraph 44", "s3.r1 row 48", "s3.r2 row 49"
 ]);
 
 /* Facts on the fixture: CLEAN holds; FAULTY carries one fault per line of FAULTS, which `check` must name, no more. */
@@ -310,8 +306,8 @@ export function fixtureFacts() {
         fact("s0.n1.f1", "s0.n1", "rule", "Names stay English.", ["Names"]),
         fact("s1.p1.f1", "s1.p1", "rule", "A paragraph runs over two lines.", ["two lines"]),
         fact("s2.r1.f1", "s2.r1", "number", "One costs 2.", ["One", "Cost"]),
-        fact("s2.r2.f1", "s2.r2", "number", "Two costs 3.", ["wrapped", "and more"]),
-        fact("s2.r2.f2", "s2.r2", "rule", "Two is wrapped.", ["Two"])
+        fact("s2.r2.f1", "s2.r2", "number", "Two costs 3.", ["Two", "3"]),
+        fact("s2.r2.f2", "s2.r2", "rule", "Two is a thing.", ["Thing"])
     ] };
     const faulty = { handbook: "fixture.md", facts: [
         fact("s0.n1.f1", "s0.n1", "rule", "Names stay English.", ["Names"]),
@@ -343,8 +339,9 @@ export const FAULTS = Object.freeze([
 ]);
 
 /**
- * The self-check: the fixture's units as FIXTURE_UNITS says, the same on a second split, no id twice, the wrapped row
- * and the note in the list read as one unit each, no split problem; `check` names FAULTS exactly and passes the clean
+ * The self-check: the fixture's units as FIXTURE_UNITS says, the same on a second split, no id twice, a row with no
+ * trailing "|" read as that line alone (in the table and at the end of the file), the note in the list one unit, no
+ * split problem; `check` names FAULTS exactly and passes the clean
  * facts; `count` reads the clean facts. Returns its problems; [] when it holds.
  */
 export function selfCheck(splitter = split, checker = check) {
@@ -354,7 +351,9 @@ export function selfCheck(splitter = split, checker = check) {
     if (JSON.stringify(got) !== JSON.stringify(FIXTURE_UNITS)) out.push(`split cuts the fixture into ${JSON.stringify(got)}, not ${JSON.stringify(FIXTURE_UNITS)}`);
     if (JSON.stringify(first) !== JSON.stringify(second)) out.push("split gives the fixture other units on a second run - its ids are not stable");
     if (new Set(first.units.map(u => u.id)).size !== first.units.length) out.push("split gives one id twice on the fixture");
-    if (first.units.find(u => u.id === "s2.r2")?.text !== "| Two, wrapped | 3 and more |") out.push(`split reads the wrapped row as ${JSON.stringify(first.units.find(u => u.id === "s2.r2")?.text)}, not "| Two, wrapped | 3 and more |"`);
+    for (const [id, want] of [["s2.r2", "| Two | 3"], ["s3.r2", "| Four | 6"]]) {
+        if (first.units.find(u => u.id === id)?.text !== want) out.push(`split reads the row ${id} with no trailing "|" as ${JSON.stringify(first.units.find(u => u.id === id)?.text)}, not "${want}"`);
+    }
     if (first.units.find(u => u.id === "s1.n1")?.text !== "A note inside the list.") out.push(`split reads the note inside the list as ${JSON.stringify(first.units.find(u => u.id === "s1.n1")?.text)}`);
     if (first.units.find(u => u.id === "s2.n1")?.alert !== "WARNING") out.push("split does not keep the warning's marker");
     if (first.problems.length) out.push(`split finds problems in the fixture: ${first.problems.join("; ")}`);
