@@ -6,9 +6,9 @@
  * (runOne: what it measured, whether it is red on purpose until a named stage),
  * the environment probes, the source readers, the world readers the runner
  * compares before and after tiers 0 and 1, and cast(). It writes nothing to the
- * world and imports no tier file - of the suite's files only tests-lint.mjs and
- * tests-flows.mjs, which import nothing - so a tier file that imports it imports
- * no other tier. What the tiers are: the header of tests.mjs.
+ * world and imports no tier file - of the suite's files only tests-lint.mjs,
+ * tests-flows.mjs and tests-text.mjs (E65), which import nothing - so a tier file
+ * that imports it imports no other tier. What the tiers are: the header of tests.mjs.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -21,6 +21,14 @@ import {
     storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
+/* The text lint (E65 C1): handed on as tests-lint.mjs's names are, so R1058 and R1059 run the functions
+   `node tools/check.mjs text` runs, and the crawl reaches the file through this import. C2 adds T3's and T6's
+   baselines and their matcher, C3 T14's two readers for R1060. */
+import {
+    flatLang, DETECTORS as TEXT_DETECTORS, MODES as TEXT_MODES, FIXTURES as TEXT_FIXTURES, selfCheck as textSelfCheck, itemOf as textItem,
+    BASELINES as TEXT_BASELINES, againstBaseline as textAgainstBaseline, staleRow as textStaleRow,
+    tableWordProblems as textTableWords, legacyListsFrom as textLegacyLists
+} from "./tests-text.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -1994,6 +2002,8 @@ export {
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
+    flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
+    textTableWords, textLegacyLists,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

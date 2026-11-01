@@ -16,7 +16,8 @@ import {
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
     bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
-    apiKind, apiSurfaceProblems
+    apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
+    TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -17033,6 +17034,238 @@ const REGRESSIONS = [
             families: ["analyze", "dynamic", "hopeCall", "levelUp", "modeBar", "observe", "refund", "search", "verdict"] }),
         "[each counted flow: its name, its FLOWS id, a `from`, and that flow naming 88-flow-length]; the names once each; the nine families (null: no FLOW_LENGTHS)");
     }],
+
+    ["R1058 - every detector of the text lint (scripts/tests-text.mjs) flags exactly its own fixture and reads something of it, each has a mode and a fixture, the self-check sees a detector that flags nothing and one that reads code handed no lexer, every baseline row is well formed and matched as the matcher's own case says, the glossary detectors hold back as not yet due exactly what their fixture says and hold it once a second ledger ships that stage, the glossary's and the budgets' shapes are red on their own cases' faults and the self-check sees either schema stubbed to answer nothing, every X rule T5 matches has a fixture line of its own, the language rules' eight - T11, T12, T17, T18, T19, T22, T23, T25 - and the two that read code, T13 and T20, each flag exactly their own fixtures too, and T27 its fixture's two naturalness befores still in a pl copy, with the pairs gone listed apart, while the guide's pairs table's parser names its own case's faults and the self-check sees it stubbed to read nothing, T19 a rule text by the screen map's mark, T15 its fixture's render - a brace left, a key printed, a family short of an n, a placeholder with no fixture, a key not rendered - and T16 the second person on a card the room, an incident or the table reads at once (E65 C1, C2, C3, C4, C5, C6, C7, C8, C9, C10, C11; E65-03, E65-06 to E65-12, E65-14 to E65-20)", async () => {
+        /*
+         * E65 C1, 31.10.2026. The text lint's meta-test, the one `node tools/check.mjs text` runs first in Node
+         * (tests-lint.mjs's R156-R158 pattern: a detector is trusted on the module's files only after it has been
+         * seen to catch what it is for). It grows with the stage: C1 has T1's two halves and T2, C2 T3
+         * (familyFormats) and T6 (dashesIn) with their baselines, and each later commit of E65 adds its detectors to
+         * the list below; C3 T14 (tableWordProblems). The last reads are the self-check's own controls: a detector stubbed to flag nothing and
+         * read nothing - the shape every detector had before it was written (the red runs of C1 and C2) - is two
+         * mismatches, not silence; and the two that read code, handed no lexer (tests-text.mjs imports none; this
+         * file hands the kit's, which are tests-lint.mjs's), throw and are seen. The selfCheck also holds every
+         * baseline row to a file, a site, an issue and the stage that empties it, and the matcher to its own case
+         * (BASELINE_FIXTURE). C4 adds T8 (glossaryHits) and T28 (retiredHits), both report, both splitting what they
+         * find by the stage of the glossary row that finds it: the selfCheck holds each to what its fixture holds back as
+         * not yet due (`pending`) and T8 to its second ledger (`also`: the same fixture with that stage shipped, the
+         * pending hit then debt, E65-11), and glossarySchema to its own case (GLOSSARY_SCHEMA_FIXTURE: an entry with no
+         * stage, an unknown stage, an id twice and eight faults more, E65-10), and a T8 blind to the ledger it is handed
+         * (the first ledger's stages whatever it is given) is seen on that second case. docs/glossary.json itself is Node's
+         * (export-ignore: a table does not serve it); here only the fixtures, which carry their own data, run.
+         * C5 adds budgetsSchema to the selfCheck (BUDGETS_SCHEMA_FIXTURE: an allow row without its `why`, a limit at
+         * its target and one over twice it, a rule by both keys and a sender, a surface no rule names and nine faults
+         * more, E65-14); docs/text-budgets.json is Node's as the glossary is. A stubbed budgetsSchema is one mismatch
+         * in `problems` (the red run of C5). C6 adds the five report detectors of E65-15 - T4 (lengthOver: words against
+         * a fixture's own budgets, a key's surface by its name and by the call that posts it, which reads code and so throws
+         * with no lexer), T5 (patterns: one fixture line for each X rule a matcher reads, which the selfCheck now holds),
+         * T7's part (ruleNumberWords), T21 (monokumaVoice: also a call's reading and the handbooks) and T24 (colonChains)
+         * - and the control C5's Open 34 asked for: glossarySchema and budgetsSchema, each stubbed to answer [], are one
+         * mismatch each (C5's mutant M13, the budgets' line of the selfCheck removed, lived before it). C7 adds the eight
+         * report detectors of E65-16 - T11 (loanGender) and T12 (loanDeclension), each on a glossary of its own fixture with
+         * the `declension` field the real glossary gained in C7 (glossarySchema's own case holds its shape), T17
+         * (oxfordComma), T18 (telegraph), T19 (contractions), T22 (mirror), T23 (itemQuotes, which reads code for the
+         * keys the code quotes, and so throws with no lexer) and T25 (bareLeft). C8 adds the two report detectors of E65-17
+         * that read the scripts, and so throw with no lexer: T13 (uiLiterals, English literals in a script that draws UI,
+         * on scripts of its own fixture - a dialog, a notification, markup, a class list, a refusal's reason, the console's
+         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers). C9 adds T27
+         * (naturalnessBefore, E65-18): on a guide of its own fixture with five pairs, a pl copy holding two of their befores -
+         * one in its key and in a second key, one a plan phrasing - is two findings, and the three whose before is gone (a
+         * changed value, a missing key, another case) are listed apart, with the counts the fixture names; the guide's
+         * pairs table is read by naturalnessPairs, held by the selfCheck to its own case (NATURALNESS_TABLE_FIXTURE: a
+         * row out of order, a key not in backticks, five cells, a before and an after not quoted, no rule, a status with
+         * no date, a pair twice, a heading whose range is not the rows), and that parser stubbed to read nothing is one
+         * mismatch (`pairsStub`), as T27 with its gone list and counts emptied is one for the gone pairs and one for each of
+         * the eight counts (`goneSeen`). docs/text-style.md itself is Node's (export-ignore), like the glossary. C10 adds T15
+         * (renderChecks, E65-19, report): on a render of its own fixture - rows as tools/text-render.mjs `renderAll` writes
+         * them, against a small en, pl and prose - a "{n}" left, the text's own brace, "DRPG." printed, a Polish family with no
+         * n = 22 (a plain string at 22 does not stand in for its form), a "{zzz}" with no fixture and a Polish key never rendered
+         * are seven findings, the nine counts as the fixture names them; and T19's second case, the screen map's marks
+         * (decision 52 of 31.10), finds a short message marked as a rule's and one marked as a safety text's, with its counts,
+         * and a T19 blind to the marks it is handed is seen on that case (`marksBlind`). C11 adds T16 (secondPersonToMany,
+         * E65-20, report): on an audience of its own fixture - each key's sends with their readers, as tools/text-audience.mjs
+         * writes them - "you" on a card the room or the table reads, "Twoja"/"Słyszysz"/"ci" in Polish, is six findings, and
+         * an owner's card, a notification, the notice history's own words, a list not read, the role in the third person and
+         * "Nasz klawisz" pass, a key with no send is not counted, with the six counts the fixture names. The render, the
+         * screen map and the audience map themselves are Node's (tools/, export-ignore: they read the files on disk and the
+         * scripts with espree; check.mjs holds the audience map to planted scripts). Pure data; nothing is fetched or written.
+         */
+        const names = Object.keys(TEXT_MODES).sort();
+        const notDue = n => (TEXT_DETECTORS[n](TEXT_FIXTURES[n].input).pending ?? []).length;
+        const lexer = { blankComments, blankLiterals, callArgs };
+        const stub = () => ({ found: [], read: 0 });
+        const caught = textSelfCheck({ ...TEXT_DETECTORS, pluralForms: stub }, { lexer }).filter(p => p.startsWith("pluralForms "));
+        const blind = bag => TEXT_DETECTORS.glossaryHits({ ...bag, shipped: TEXT_FIXTURES.glossaryHits.input.shipped });
+        const ledgerBlind = textSelfCheck({ ...TEXT_DETECTORS, glossaryHits: blind }, { lexer }).filter(p => p.startsWith("glossaryHits flags ") && p.includes("case 2")).length;
+        const unlexed = textSelfCheck(TEXT_DETECTORS).filter(p => p.includes("was handed no lexer")).map(p => p.split(" ")[0]).sort();
+        const schemaStubs = ["glossarySchema", "budgetsSchema"].map(n => [n, textSelfCheck(TEXT_DETECTORS, { lexer }, { [n]: () => [] }).filter(p => p.startsWith(`${n} answers [] `)).length]);
+        const pairsStub = textSelfCheck(TEXT_DETECTORS, { lexer }, { naturalnessPairs: () => ({ pairs: [], faults: [] }) }).filter(p => p.startsWith("naturalnessPairs reads ")).length;
+        const goneBlind = bag => ({ ...TEXT_DETECTORS.naturalnessBefore(bag), gone: [], counts: {} });
+        const blindSeen = textSelfCheck({ ...TEXT_DETECTORS, naturalnessBefore: goneBlind }, { lexer });
+        const goneSeen = [blindSeen.filter(p => p.startsWith("naturalnessBefore lists nothing ")).length, blindSeen.filter(p => p.startsWith("naturalnessBefore counts ")).length];
+        const unmarked = bag => TEXT_DETECTORS.contractions({ ...bag, marks: undefined });
+        const marksBlind = textSelfCheck({ ...TEXT_DETECTORS, contractions: unmarked }, { lexer }).filter(p => p.startsWith("contractions ") && p.includes("case 2")).length;
+        equal(JSON.stringify({
+            names, fixtures: Object.keys(TEXT_FIXTURES).sort(), detectors: Object.keys(TEXT_DETECTORS).sort(),
+            modes: names.map(n => [n, TEXT_MODES[n].test, TEXT_MODES[n].mode]),
+            flagged: names.map(n => [n, TEXT_DETECTORS[n]({ lexer, ...TEXT_FIXTURES[n].input }).found.map(textItem).length, TEXT_FIXTURES[n].flags.length]),
+            baselines: Object.keys(TEXT_BASELINES).sort().map(n => [n, TEXT_BASELINES[n].length]),
+            notDue: ["glossaryHits", "retiredHits"].map(n => [n, notDue(n), TEXT_FIXTURES[n].pending.length]),
+            problems: textSelfCheck(TEXT_DETECTORS, { lexer }), caught: caught.length, ledgerBlind, unlexed, schemaStubs, pairsStub, goneSeen, marksBlind
+        }), JSON.stringify({
+            names: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+            fixtures: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+            detectors: ["bareLeft", "colonChains", "configPlaceholders", "contractions", "dashesIn", "familyFormats", "glossaryHits", "itemQuotes", "lengthOver",
+                "loanDeclension", "loanGender", "localeCalls", "mirror", "monokumaVoice", "naturalnessBefore", "oxfordComma", "pairParity", "patterns", "pluralForms",
+                "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
+            modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
+                ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
+                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "report"],
+                ["mirror", "T22", "report"],
+                ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
+                ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
+            flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
+                ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
+                ["localeCalls", 4, 4], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
+                ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
+            baselines: [["dashesIn", 11], ["familyFormats", 1]],
+            notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
+            problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
+            schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
+        }), "[the detectors with a mode, with a fixture, exported; each one's T number and mode; how many items it flags of its fixture "
+            + "against the fixture's count; the rows of each baseline; what T8 and T28 hold back as not yet due against their fixtures' "
+            + "count; the self-check's mismatches (none); the two a stub of pluralForms makes; the one T8 blind to its second ledger makes; the "
+            + "detectors that throw with no lexer; the one mismatch each schema stubbed to answer [] makes; the one the pairs table's parser "
+            + "stubbed to read nothing makes; the gone list and the eight counts T27 emptied of them makes; the case-2 mismatches T19 blind to the "
+            + "screen map's marks makes]");
+    }],
+
+    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {
+        /*
+         * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
+         * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
+         * the two language files, the scripts the crawl from module.mjs reaches (the suite's own files out, as R1's
+         * otherSources has them) and the six handbooks. T1's other half (configPlaceholders) is Node's alone: at
+         * i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose is not there to read
+         * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
+         * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
+         * are taken from MODES, and the list is held to the four of C1 and C2, so another one is a change to this test;
+         * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
+         * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
+         * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
+         * else. Nothing is written.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const scripts = new Map((await otherSources()).map(([file, text]) => [`scripts/${file}`, text]));
+        const docs = new Map();
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            for (const code of ["en", "pl"]) {
+                const rel = `docs/handbooks/${book}.${code}.md`;
+                const res = await fetch(`/modules/${MODULE_ID}/${rel}`);
+                must(res.ok, `${rel}: HTTP ${res.status}`);
+                docs.set(rel, await lfText(res));
+            }
+        }
+        const lexer = { blankComments, blankLiterals, callArgs };
+        const here = ["lang", "scripts", "docs"];
+        const served = Object.entries(TEXT_MODES).filter(([, m]) => m.mode === "fail" && m.reads.every(r => here.includes(r))).map(([name]) => name);
+        const runs = served.map(name => {
+            const r = TEXT_DETECTORS[name]({ en: lang.en, pl: lang.pl, scripts, docs, lexer });
+            const b = TEXT_BASELINES[name] ? textAgainstBaseline(r, TEXT_BASELINES[name]) : null;
+            return { name, read: r.read, sites: b?.rows ?? 0, matched: b?.matched ?? 0,
+                found: (b ? b.left : r.found).map(f => f.what), gone: (b?.stale ?? []).map(s => textStaleRow(name, s)) };
+        });
+        log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
+            + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
+        equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []]]),
+        "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
+            + "what it found that its baseline does not hold, the baseline rows nothing filled]");
+    }],
+
+    ["R1060 - an item table's words are held: every word config.mjs TABLE_NAME_WORDS carried at E65's Base is today's or in tables.mjs's legacy list of its category or kind, those lists only grow, and with lang/pl.json put over config.mjs every name tableName builds and the first of tableNameCandidates is the English one, every name a client in Polish built a candidate (E65 C3; T14, DB13, E65-09)", async () => {
+        /*
+         * E65 C3, 31.10.2026; the plan's T14 (DB13, N5). Two halves. (1) tests-text.mjs `tableWordProblems` - the
+         * function `node tools/check.mjs text` runs in Node - over this install's config.mjs `TABLE_NAME_WORDS` and the
+         * legacy lists read off the tables.mjs it serves (`legacyListsFrom`: the lists are not exported), against the
+         * frozen copy of what the names carried at 419d3b42 (TABLE_WORDS_AT_BASE): a reworded plural or kind whose old
+         * word is in no legacy list, a category gone, or a legacy word dropped, and a world's tables stop being found.
+         * (2) R972's reading, at tier 0: lang/pl.json, as served, put over config.mjs the way i18n.mjs `localizeConfig`
+         * puts it (`walkConfigProse`, each field it would set), the names read with no await between, everything put
+         * back. On a client already in Polish nothing is set and the Polish is read where it already is (R972's fix
+         * e1-G7 is why the English side comes from TABLE_NAME_WORDS here, never from the live plural). Read: whether
+         * `tableName` and the first of `tableNameCandidates` are the English name - built here from TABLE_NAME_WORDS, a
+         * goal with no kind word falling back to `USABLE_GOALS` as `goalWordOf` does - for every category, tier and goal
+         * the installer builds; and whether each name a client in Polish built before E14 (pl.json's plural, the goal's
+         * English label) is a candidate. Why both tiers keep it: R972 is E14's (tier 1, with the read-back by
+         * classifyTableName and the flags), R1060 is the plan's T14, a FAIL test of the text lint, in tier 0 beside
+         * R1058 and R1059. Read on 52eacb9c in Node: the words and lists of Base unchanged, (1) nothing found. Nothing
+         * is written to the world. The harness's GM plays in English, so headless R1060 always sets the Polish itself;
+         * the reading on a GM whose module language is Polish (nothing set, 0 fields put back) is LIVE-E65-01 (AUDIT 9.2
+         * item 361).
+         */
+        const C = await import("./config.mjs");
+        const t = await import("./tables.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const sources = await moduleSources();
+        must(sources.has("tables.mjs"), "tables.mjs was not served - T14 has no legacy lists to read");
+        const lists = textLegacyLists(sources.get("tables.mjs"));
+        const held = textTableWords({ words: C.TABLE_NAME_WORDS, ...lists });
+
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" });
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const P = flatLang(JSON.parse(await lfText(res)));
+        const plPlural = category => P.get(`DRPG.Config.ITEM_CATEGORIES.${category}.plural`);
+        const shapes = [
+            ...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").flatMap(category => C.ITEM_TIERS.map(tier => ({ category, tier, goal: null }))),
+            ...Object.keys(t.USABLE_GOALS).flatMap(goal => C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal }))),
+            ...C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal: null }))
+        ];
+        must(shapes.length > 0 && shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.TABLE_NAME_WORDS.plural[s.category]),
+            "lang/pl.json carries no Polish plural for a tier pool's category - this reads nothing");
+        const english = s => {
+            const word = s.goal ? C.TABLE_NAME_WORDS.kind[s.goal] ?? t.USABLE_GOALS[s.goal].label : null;
+            return `DRPG ${C.TABLE_NAME_WORDS.plural[s.category]}${word ? ` (${word})` : ""} - Tier ${s.tier}`;
+        };
+        const livePlurals = () => JSON.stringify(Object.entries(C.ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]));
+        const asFound = livePlurals();
+        const undo = [];
+        let polishLive = false, names = [];
+        try {
+            walkConfigProse(C, (key, value, set) => {
+                const next = P.get(key);
+                if (typeof next !== "string" || !next || next === value) return;
+                undo.push(() => set(value));
+                set(next);
+            });
+            polishLive = shapes.every(s => C.ITEM_CATEGORIES[s.category]?.plural === plPlural(s.category));
+            names = shapes.map(s => [t.tableName(s.category, s.tier, s.goal), t.tableNameCandidates(s.category, s.tier, s.goal)[0]]);
+        } finally {
+            for (const back of undo.reverse()) back();
+        }
+        must(polishLive, "pl.json's plurals were not over config.mjs while the names were read - this measured nothing");
+        const notEnglish = shapes.map((s, i) => (names[i][0] === english(s) && names[i][1] === english(s) ? null : `${english(s)} built as ${names[i].join(" / ")}`))
+            .filter(Boolean);
+        const builtInPolish = shapes.map(s => ({ ...s, name: `DRPG ${plPlural(s.category)}${s.goal ? ` (${t.USABLE_GOALS[s.goal].label})` : ""} - Tier ${s.tier}` }));
+        const lost = builtInPolish.filter(s => !t.tableNameCandidates(s.category, s.tier, s.goal).includes(s.name)).map(s => s.name);
+        log(`R1060: ${held.read} word(s) held, ${held.found.length} found; ${shapes.length} names under Polish; ${undo.length} config field(s) set and put back`);
+        equal(JSON.stringify({ words: held.found.map(f => f.what), read: held.read > 0, lists: [lists.legacyPlurals !== null, lists.legacyGoalLabels !== null],
+            notEnglish, lost, putBack: livePlurals() === asFound }),
+        JSON.stringify({ words: [], read: true, lists: [true, true], notEnglish: [], lost: [], putBack: true }),
+        "[T14's findings over the live words and the served lists; whether it read any; both lists found in tables.mjs; the names not "
+            + "built in English under Polish; the Polish-built names that are no candidate; config.mjs put back as found]");
+    }],
+
     ["R1138 - a doorway's light stops at the first wall and at the end of the room it falls into: fog-doorways.mjs `doorwayGlowPlan`, handed the walls and rooms beyond (`doorwayLight`'s answer), keeps the glow to a shape whose rays end at a wall 1.0-1.9 squares past an opening, straight or stepped, and where the room beyond ends, a room drawn across a gap reached (E51 fix FG3; the owner's item 4 of 31.10, LIVE-E51-03)", async () => {
         /*
          * E51 fix FG3, 31.10.2026; the owner's item 4 and screenshot of 31.10 (the stage's owner-shot-31.10.webp: pools

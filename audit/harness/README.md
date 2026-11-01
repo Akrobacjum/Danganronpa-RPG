@@ -73,6 +73,53 @@ B, shard 2/8 336 s wall, 136 of tier 2's 950. With tier 2 dealt over all eight
 (k % n = i - 1, until this dealing) shard 1/8 took 1116 s and 2/8 331 s, 119 each;
 on CI's first five runs suite 1/8 took 647-952 s and the others 251-365 s.
 
+## The text tools
+
+E65's text lint and the tools beside it live in `tools/` and read the module's
+texts in Node, not through the cluster. What they generate goes to
+`results/text/` in this folder (ignored by git with the rest of `results/`),
+never into the repository; espree comes from this folder's `npm ci`. Each
+tool's header says the rest. Measured 01.11.2026 on 4 cores, at E65 C-pilot
+(47c18e2b):
+
+- `node tools/check.mjs text` - the lint, a part of `npm run check` and so of
+  `npm run quick` and `npm test` (layer `ci`): every detector of
+  `scripts/tests-text.mjs` on its fixture, then over the language files,
+  config.mjs's English prose, the scripts and every .md under docs/, one line
+  each; the glossary, the budgets, the guide's naturalness pairs, the screen
+  and audience maps and the pilot's file held to their shapes; each handbook
+  split twice. Red on a FAIL detector's finding beyond its baseline, on a
+  detector that read nothing and on a fault of a file E65 writes; a report
+  detector is never red, and nor is where the pilot's 40 stand in the language
+  files (still the before, the after landed, or changed since the pilot: a
+  reading). `--lang <dir>` reads en.json and pl.json from <dir>,
+  `--all` prints every report finding. It writes no file. 16 s alone; 26
+  detectors, report found 3414.
+- `node tools/text-map.mjs` - the screen map, which keys each window, card and
+  flow says: `results/text/screens.json`. 2.1 s; 146 scripts, 7044 units, 1059
+  entry points, 126 screens; 5094 of 5289 keys assigned, 195 not.
+- `node tools/text-render.mjs` - every string filled the way a table fills it:
+  `results/text/text-render.en.md`, `text-render.pl.md` and
+  `text-render.pl.html`. 2.5 s; 4785 keys in each language, 18652 strings,
+  fixtures for 241 placeholder names, 0 unknown. `--pilot <file> [--out
+  <html>] [--pl-only]` renders the owner's pilot sheet alone,
+  `results/text/pilot.html` (or <html>), and refuses a file the pilot's schema
+  faults.
+- `node tools/text-audience.mjs` - the audience map, who reads each key the
+  module posts: `results/text/audience.json`. 3.5 s; 974 sends, 769 with a key,
+  93 wrappers; 1219 of 5289 keys assigned.
+- `node tools/handbook-facts.mjs split <handbook.md> [--section N] [--out
+  <file>]` - a handbook cut into units: `results/text/handbook-units.<name>.json`
+  (or <file>); `check`, `count`, `prompt` and `self` beside it. The English
+  player handbook: 404 units in 17 sections, 0.04 s.
+
+`check.mjs text` builds the two maps and a render in memory for its own
+detectors; the files above are for a reader. The one text file that is
+committed is the pilot's working file, `docs/dev/text-pilot.json`, which holds
+the owner's verdicts; the handbook facts E57 writes (`docs/handbook-facts.*.json`)
+will be the second. These, the guide, the glossary and the budgets are working
+papers, kept out of module.zip by `.gitattributes`.
+
 ## Layers
 
 Every file declares `export const layers = [...]`, written out as a JSON array

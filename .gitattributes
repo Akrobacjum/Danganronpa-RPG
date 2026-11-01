@@ -6,8 +6,18 @@
 docs/img/ export-ignore
 docs/design/ export-ignore
 docs/changelog-1.2.0.md export-ignore
-# docs/dev is the working papers' generated half: the R-number registry (INFRA I4).
+# docs/dev holds working papers: the R-number registry (generated, INFRA I4), the text pilot's file and the review of the
+# texts written before the guide (E65 C13, C14, C-pilot).
 docs/dev/ export-ignore
+# docs/glossary.json is a working paper of the text lint (E65 C4): T8 and T28 read it in Node, nothing at a table does.
+docs/glossary.json export-ignore
+# docs/text-style.md and docs/text-budgets.json are the text lint's other working papers (E65 C5): the guide the writers of
+# texts read, and the budgets T4 (E65 C6) reads in Node; nothing at a table reads either.
+docs/text-style.md export-ignore
+docs/text-budgets.json export-ignore
+# docs/handbook-facts.en.json and docs/handbook-facts.pl.json are the handbooks' facts (E65 C12 builds the tool, tools/handbook-facts.mjs;
+# E57 writes the files): read in Node, by the stages that check a handbook against its facts; nothing at a table reads them.
+docs/handbook-facts.*.json export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
 

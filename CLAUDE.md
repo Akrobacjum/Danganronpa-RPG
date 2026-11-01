@@ -40,7 +40,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | What one event costs every browser | `node cluster.mjs scenarios/86-frame-work.mjs`: a GM and four players, 16 tokens and 30 Remnants, both themes - the module's counters at rest and for another player's move, an own move, a Despair write, the clock and a ledger write, recorded in the results' evidence, and held since E88 C1-C4 (another player's step costs the others that token's refresh alone; no live blur at rest). Counts of work, not frames: the frame time is the table's (`fps()`, LIVE-E88-01). 44/44 checks, 83 s here (27.10, 4 cores, 1a1bf1ff) |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
-| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
+| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, text |
 | Whether a commit only moved code | `node tools/moved-only.mjs HEAD~1` - every line moved, promoted, an import or a header; every top-level statement of the files it touches the same tokens at both ends, comments aside; every name read means what it meant (an alias by what it reads, not by its name), and none written became an import; a facade's exports unchanged, each the same declaration, and no name a file stops exporting still imported by a file of scripts/ or audit/harness (statically, or through the import() forms its header names); no import of a module the family did not load, and none for side effects alone; a cut a tier file reads by name, as a table's key, through the bridge crawls or through R290's crawl unchanged, and every function those crawls cut still cut by them. It reads text and scope, not what the code does when it runs. Its planted pairs alone: `node tools/check.mjs moves` |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
@@ -123,6 +123,13 @@ matching the code, it is worse than nothing - the two comment sweeps in the
 audit found several of those and they had each survived a release.
 
 Dashes are `-`, not `—`, throughout, including in prose files.
+
+Before writing any user-facing text, read docs/text-style.md and docs/glossary.json.
+A stage writes its new and changed texts to the guide, and moves the English
+literals of the UI-rendering files it rewrites into i18n, in English and Polish;
+diagnostics.mjs's console stays English. This holds from E65 on, so not for E29,
+E33 or E09-E19, whose files E71 sweeps (DB12; the owner's answer to Q-E65-1,
+01.11.2026). `node tools/check.mjs text` says what the lint finds.
 
 ## The gate, both layers
 
