@@ -18193,7 +18193,7 @@ const REGRESSIONS = [
         const RETIRED_PL = [/użyj przedmiotu/iu, /zostaw trop/iu, /zabezpiecz ślad/iu, /atak bronią/iu, /usuń ślad/iu, /zatrzyj ślady/iu, /przerób ślad/iu,
             /mylny trop/iu, /przenieś ciało/iu, /ukryj zamiar/iu, /ukryj ślady/iu, /przygotuj broń/iu, /zastaw pułapkę/iu, /znajdź ukrytą skrytkę/iu,
             /szukanie skrytki/iu, /znajdź tajne przejście/iu, /podążaj za własnymi śladami/iu, /akcj\p{L}* dynamiczn/iu, /akcji Dynamic/u,
-            /(?<!\p{L})Projekty(?!\p{L})/u, /(?<!\p{L})Zeznanie(?!\p{L})/u, /(?<!\p{L})przerzut/iu];
+            /(?<!\p{L})Projekty(?!\p{L})/u, /(?<!\p{L})Zeznanie(?!\p{L})/u, /(?<!\p{L})przerzu/iu];
         // A retired phrase that stands in a sentence as its own words, not as the name (E66 C7, 01.11.2026; STATUS Open 57).
         const RETIRED_WORDS = new Map([
             ["DRPG.Config.CRISIS_ACTIONS.useItem.hint", "B01a's approved hint opens on „Użyj przedmiotu” as its verb and object, as the approved English's "
@@ -18201,11 +18201,24 @@ const REGRESSIONS = [
         ]);
         const retired = [...files.pl].filter(([key, v]) => typeof v === "string" && RETIRED_PL.some(re => re.test(v)) && !RETIRED_WORDS.has(key)).map(([key]) => key);
         const wordsStale = [...RETIRED_WORDS.keys()].filter(key => !RETIRED_PL.some(re => re.test(String(files.pl.get(key) ?? ""))));
-        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, wordsStale, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
-            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], wordsStale: [], modes: ["fail", "fail"] }),
+        /* E66 fix r2 (the owner, 01.11.2026, page Q-R2 #1 and in chat after it: „uzywaj w pl reroll”, „Tak, "zrob reroll"”): in
+           Polish the reroll is said through the Call's name, verbs included - "przerzu" with any ending, noun or verb (przerzut,
+           przerzucić, przerzucono, Przerzucone), is held out of pl.json above and of the Polish handbooks here, a line at a time.
+           Red before fix r2 C: 9 pl.json keys and 2 handbook lines. */
+        const rerollWords = [];
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.pl.md`, { cache: "no-cache" });
+            must(res.ok, `docs/handbooks/${book}.pl.md: HTTP ${res.status}`);
+            const lines = (await lfText(res)).split("\n");
+            must(lines.length > 50, `docs/handbooks/${book}.pl.md has ${lines.length} lines - this would measure nothing`);
+            lines.forEach((line, i) => { if (/(?<!\p{L})przerzu/iu.test(line)) rerollWords.push(`${book}.pl.md:${i + 1}`); });
+        }
+        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, wordsStale, rerollWords, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
+            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], wordsStale: [], rerollWords: [], modes: ["fail", "fail"] }),
             "[the names table's places that hold another form; the tables' labels whose Polish is not their English; names not in Title Case; "
                 + "texts with a capital Trace outside the five names, the English handbooks' lines among them; pl.json keys with a retired Polish name; "
-                + "the allow rows of a retired phrase as words that no longer hold one (E66 C7); T20's and T28's modes]");
+                + "the allow rows of a retired phrase as words that no longer hold one (E66 C7); the Polish handbooks' lines saying przerzu- (E66 fix r2); "
+                + "T20's and T28's modes]");
     }],
 
     ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {

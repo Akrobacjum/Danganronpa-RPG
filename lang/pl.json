@@ -4549,7 +4549,7 @@
       "critHopeReturned": "Stary wynik był krytykiem: drugi punkt Hope, który wypłacił, zostaje odebrany.",
       "progressAdjusted": "{name}: postęp z tej akcji zmienił się z {was} na {now}.",
       "noReplay": "Do cofnięcia są tylko kości: ten rzut nie zostawił trwałego efektu.",
-      "replayFailed": "Kości przerzucono, ale akcji nie dało się odtworzyć. Powiedz GM-owi, co pierwszy rzut już zrobił.",
+      "replayFailed": "Reroll zrobiony, ale akcji nie dało się odtworzyć. Powiedz GM-owi, co pierwszy rzut już zrobił.",
       "observeReplayed": "Ten sam ślad wraca do GM-a z nowym rzutem. GM powie, co znajdujesz tym razem.",
       "analyzeReplayed": "Ten sam Truth Bullet analizowany jest ponownie z nowym rzutem. Blokada po pierwszej próbie zdejmowana jest najpierw.",
       "crisisReplayed": "Akcja kryzysowa zostaje cofnięta i wykonana ponownie z nowym rzutem - obrażenia, ślad i utrudnienia idą razem z nią. Tura nie jest wydawana dwa razy.",
@@ -4557,15 +4557,15 @@
       "busy": "Reroll tej postaci już trwa. Poczekaj, aż się skończy.",
       "messageGone": "Tego rzutu nie ma już na czacie, więc nie ma czego rzucać ponownie. Nic nie zostało wydane.",
       "interrupted": "Reroll postaci {name} przerwało przeładowanie, zanim nowe kości zaczęły się liczyć. Zostaje pierwszy rzut, a zapłacony za niego Hope wraca.",
-      "interruptedGm": "Reroll postaci {name} ({action}) przerwało przeładowanie w chwili, gdy jej akcja była cofana i wykonywana ponownie. Pierwszy rzut dał {first}, nowy {total}; karta pokazuje nowy. To, co zrobił pierwszy rzut, mogło zostać cofnięte tylko częściowo: sprawdź ręcznie, co zostawia ta akcja - postęp, przedmioty, ślady, obrażenia, turę - i rozstrzygnij to. Hope zostaje zapłacony, a tego rzutu nie da się już przerzucić.",
+      "interruptedGm": "Reroll postaci {name} ({action}) przerwało przeładowanie w chwili, gdy jej akcja była cofana i wykonywana ponownie. Pierwszy rzut dał {first}, nowy {total}; karta pokazuje nowy. To, co zrobił pierwszy rzut, mogło zostać cofnięte tylko częściowo: sprawdź ręcznie, co zostawia ta akcja - postęp, przedmioty, ślady, obrażenia, turę - i rozstrzygnij to. Hope zostaje zapłacony, a na tym rzucie nie da się już zrobić Rerolla.",
       "interruptedPending": "Reroll postaci {name} przerwało przeładowanie w trakcie. Rozstrzygnie go GM; Hope zostaje zapłacony.",
-      "interruptedPaying": "Reroll postaci {name} przerwało przeładowanie w trakcie płacenia {cost} Hope, zanim kości rzucono ponownie. Pierwszy rzut zostaje i wciąż można go przerzucić. Sprawdź ręcznie Hope postaci {name}: zapłata mogła się zapisać albo nie.",
-      "interruptedGivingBack": "Reroll postaci {name} nie doszedł do skutku, a przeładowanie przerwało zwrot {cost} Hope. Pierwszy rzut wrócił na kartę i wciąż można go przerzucić. Sprawdź ręcznie Hope postaci {name}: mógł wrócić albo nie.",
+      "interruptedPaying": "Reroll postaci {name} przerwało przeładowanie w trakcie płacenia {cost} Hope, zanim kości rzucono ponownie. Pierwszy rzut zostaje i wciąż można na nim zrobić Reroll. Sprawdź ręcznie Hope postaci {name}: zapłata mogła się zapisać albo nie.",
+      "interruptedGivingBack": "Reroll postaci {name} nie doszedł do skutku, a przeładowanie przerwało zwrot {cost} Hope. Pierwszy rzut wrócił na kartę i wciąż można na nim zrobić Reroll. Sprawdź ręcznie Hope postaci {name}: mógł wrócić albo nie.",
       "interruptedHope": "Reroll postaci {name} przerwało przeładowanie. Pierwszy rzut zostaje; Hope sprawdzi GM.",
       "stillMaking": "Klient GM-a nie odpowiedział na czas w sprawie Rerolla, ale Reroll może jeszcze zostać wykonany: jeśli tak, przyjdzie jego karta; jeśli nie, Hope nie przepada.",
-      "cardReplaced": "Przerzucono: {from} -> {to} (zob. kartę Reroll).",
-      "observeBusy": "GM wciąż opisuje, co znalazło to Observe. Przerzuć je, gdy wynik już będzie. Nic nie zostało wydane.",
-      "diceChanged": "Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Przerzuć go za chwilę. Nic nie zostało wydane.",
+      "cardReplaced": "Po Rerollu: {from} -> {to} (zob. kartę Reroll).",
+      "observeBusy": "GM wciąż opisuje, co znalazło to Observe. Zrób Reroll, gdy wynik już będzie. Nic nie zostało wydane.",
+      "diceChanged": "Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Zrób Reroll za chwilę. Nic nie zostało wydane.",
       "trailStands": "Kości przepisano, ale podłożony ślad już leży w pokoju - Reroll go nie podniesie. Zapytaj GM-a, czy ma zniknąć.",
       "authorsCopyBack": "Nowy rzut zabiera Truth Bullet śladu, który po tobie został.",
       "stealStands": "Kości przepisano, ale chwila nie. Twoja ręka już była w cudzej kieszeni, a odkładanie czegoś z powrotem właściciel by zobaczył.",
@@ -6012,7 +6012,7 @@
         },
         "reroll": {
           "label": "Reroll",
-          "effect": "Przerzuć swój ostatni rzut; starszego nie przerzucisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli Rerolla nie da się wykonać, nic nie płacisz."
+          "effect": "Zrób Reroll swojego ostatniego rzutu; na starszym rzucie go nie zrobisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli Rerolla nie da się wykonać, nic nie płacisz."
         },
         "sprint": {
           "label": "Sprint",
@@ -6955,7 +6955,7 @@
       "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",
       "mark": {
         "deleted": "Usunięte z dziennika czatu",
-        "rerolled": "Przerzucone",
+        "rerolled": "Po Rerollu",
         "settled": "Rozstrzygnięte przez GM-a"
       },
       "source": {

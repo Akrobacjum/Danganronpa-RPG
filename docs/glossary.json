@@ -174,7 +174,8 @@
         "declension": {"gen": "Rerolla"},
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
         "stage": "E65",
-        "source": ["DB4"]
+        "source": ["DB4"],
+        "note": "The owner, 01.11.2026 (page Q-R2, #1, and in chat after it): „uzywaj w pl reroll”, „Tak, \"zrob reroll\"” - in Polish the Call's name, Reroll, also replaces the verb (zrób Reroll; Reroll zrobiony, po Rerollu): no Polish przerzucić, przerzut or przerzucony in the module's texts. R1161 reads pl.json and the Polish handbooks for it."
       },
       {
         "id": "burst",

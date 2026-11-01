@@ -1957,7 +1957,7 @@
       },
       "pl": {
         "before": "Przerzuć akcję. Cofa poprzedni wynik.",
-        "after": "Przerzuć swój ostatni rzut; starszego nie przerzucisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli Rerolla nie da się wykonać, nic nie płacisz."
+        "after": "Zrób Reroll swojego ostatniego rzutu; na starszym rzucie go nie zrobisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli Rerolla nie da się wykonać, nic nie płacisz."
       },
       "removed": [
         "\"It reverts the previous outcome\" is kept as the action undone and run again (fact 1).",
@@ -1967,7 +1967,8 @@
       "needsCode": [],
       "disagreements": [
         "Fact 3 is false: no person approves a Reroll; the GM's browser checks, pays and makes it, and refuses on its checks - no such character, one already being made, nothing to redo (scripts/calls.mjs askReroll; scripts/reroll.mjs rerollOnGm, DRPG.Reroll.busy; mechanics reviewer). Correction: \"a request the GM's browser refuses, or one with no roll to redo, is said to the player and nothing is paid\".",
-        "C7 (01.11.2026): the approved Polish after wrote „przerzutu” for the Call, where the English says \"the Reroll\"; the Call's name stays English in Polish (Q-E66-2, approved; glossary reroll, genitive „Rerolla”, DB4) and R1161 holds pl.json to it, so C7 writes „Rerolla” for „przerzutu”, nothing else moved - as the owner's default on page E66-B01A-R1's #53 took the names over the approved common nouns (STATUS Open 57). The verbs „Przerzuć”, „przerzucisz” are no name and stay."
+        "C7 (01.11.2026): the approved Polish after wrote „przerzutu” for the Call, where the English says \"the Reroll\"; the Call's name stays English in Polish (Q-E66-2, approved; glossary reroll, genitive „Rerolla”, DB4) and R1161 holds pl.json to it, so C7 writes „Rerolla” for „przerzutu”, nothing else moved - as the owner's default on page E66-B01A-R1's #53 took the names over the approved common nouns (STATUS Open 57). The verbs „Przerzuć”, „przerzucisz” are no name and stay.",
+        "Q-R2 (01.11.2026, the owner): #1 „Zrob \"rerolla\" i uzywaj w pl reroll”, and in chat „Tak, \"zrob reroll\"”: C7's „Rerolla” stands, and the opening „Przerzuć swój ostatni rzut; starszego nie przerzucisz.” of the approved after became „Zrób Reroll swojego ostatniego rzutu; na starszym rzucie go nie zrobisz.”, nothing else in it moved (fix r2 C)."
       ],
       "reviews": {
         "en": null,
@@ -1982,9 +1983,9 @@
       },
       "owner": {
         "verdict": "ok",
-        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”; its Polish then as the owner gave it on page Q-R2, #1, and in chat after it (01.11.2026): „Zrob \"rerolla\" i uzywaj w pl reroll”, „Tak, \"zrob reroll\"” - „Rerolla” for „przerzutu” (C7) kept, and the verbs said through the name: „Zrób Reroll swojego ostatniego rzutu; na starszym rzucie go nie zrobisz.”",
         "date": "01.11.2026",
-        "page": "E66-B01A-R1"
+        "page": "Q-R2"
       }
     },
     {
@@ -3639,7 +3640,8 @@
       ],
       "needsCode": [],
       "disagreements": [
-        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56)."
+        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56).",
+        "Q-R2 (01.11.2026, the owner): #2 „Tak” - C7's \"one\" in the English .one stands."
       ],
       "reviews": {
         "en": null,
@@ -3654,9 +3656,9 @@
       },
       "owner": {
         "verdict": "ok",
-        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”; the English .one's \"one\" for {n} (C7) confirmed by the owner on page Q-R2, #2, 01.11.2026: „Tak”",
         "date": "01.11.2026",
-        "page": "E66-B01A-R1"
+        "page": "Q-R2"
       }
     },
     {
@@ -3737,7 +3739,8 @@
       "disagreements": [
         "Fact 0 is false in part: the list also holds the running incident's Remnants for one who took part, and the whole room for the killer in Stage 6 (scripts/cleanup.mjs cleanableTracesForPlayer; mechanics reviewer). Correction: \"the Remnants here the character knows of (holds a copy of, or saw made in the running incident; in Stage 6 the killer, all of them), not Reinforced\". The English now says \"You know of\", as the Polish „znany ci”.",
         "Fact 3 is not settled: CLEANUP.outcome is not shown, and cleanupVerdict's note says a Hope failure just does not work while a Despair failure makes an Evident Resolution Remnant, which does not match \"a miss leaves a Subtle (with Hope) ... Remnant\" (scripts/cleanup.mjs cleanupVerdict; mechanics reviewer). Correction: read CLEANUP.outcome.",
-        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56)."
+        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56).",
+        "Q-R2 (01.11.2026, the owner): #2 „Tak” - C7's \"one\" in the English .one stands."
       ],
       "reviews": {
         "en": {
@@ -3752,9 +3755,9 @@
       },
       "owner": {
         "verdict": "ok",
-        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”; the English .one's \"one\" for {n} (C7) confirmed by the owner on page Q-R2, #2, 01.11.2026: „Tak”",
         "date": "01.11.2026",
-        "page": "E66-B01A-R1"
+        "page": "Q-R2"
       }
     },
     {
