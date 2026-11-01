@@ -62,22 +62,23 @@
         }
       ],
       "kept": [
-        1,
         3,
         4
       ],
       "en": {
         "before": "You loot the room for whatever you name. Taking a Murder Weapon or a cleaning tool leaves a trace behind.",
-        "after": "Roll Eye: the higher the total, the better the find, and a low total finds nothing. Naming one specific thing needs a GM online. If what you find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant."
+        "after": "Roll Eye: the higher the total, the better the find, and a low total finds nothing. If what you find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant."
       },
       "pl": {
         "before": "Przeszukujesz pokój pod kątem tego, co nazwiesz. Wzięcie narzędzia zbrodni albo narzędzia do sprzątania zostawia ślad.",
-        "after": "Rzucasz Eye: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Gdy nazywasz jedną konkretną rzecz, potrzebny jest GM online. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo narzędzie do sprzątania."
+        "after": "Rzucasz Eye: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo narzędzie do sprzątania."
       },
       "removed": [
         "\"You loot the room for whatever you name\": the player mostly picks a kind of thing, and naming one specific thing is the other choice (facts 1 and 6); both choices are on the tile hint, DRPG.Config.ACTIONS.search.hint (O3), and this text keeps only that naming one needs a GM online.",
         "\"a trace\" becomes \"a Remnant\" (EN15); \"Taking a Murder Weapon or a cleaning tool\" widens to anything that counts as one, by its category or a role it carries (fact 4).",
-        "Not stated here: the action and the Search Token the roll uses (facts 0 and 2), on the tile hint (O3), in both languages now; the Remnant's visibility by the total and on a critical (fact 5), left out for length and said nowhere in this batch."
+        "Not stated here: the action and the Search Token the roll uses (facts 0 and 2), on the tile hint (O3), in both languages now; the Remnant's visibility by the total and on a critical (fact 5), left out for length and said nowhere in this batch.",
+        "O19 (the owner, 01.11): Naming one specific thing needs a GM online.",
+        "O19 (the owner, 01.11): Gdy nazywasz jedną konkretną rzecz, potrzebny jest GM online."
       ],
       "needsCode": [],
       "disagreements": [],
@@ -97,7 +98,12 @@
         },
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R2 showed it, trimmed by rule O19: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R2"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.observe.hint",
@@ -245,7 +251,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.analyze.hint",
@@ -320,7 +331,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.analyze.description",
@@ -401,7 +417,12 @@
         },
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.project.hint",
@@ -476,7 +497,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.project.description",
@@ -552,7 +578,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.rest.hint",
@@ -670,13 +701,13 @@
       },
       "pl": {
         "before": "Sleep przywraca Health, Meal oczyszcza Sanity, Breath daje Hope - w całości przy Long Rest, o połowę przy Short.",
-        "after": "Do wyboru masz sen (Health), posiłek (Sanity) i oddech (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
+        "after": "Do wyboru masz Sleep (Health), Meal (Sanity) i Breath (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
       },
       "removed": [],
       "needsCode": [],
       "disagreements": [
         "The Polish before on this tree is not the pilot's before (changed since the pilot, read at d2538dac): the approved after replaces this tree's text in C7.",
-        "The approved Polish after writes the Rest options as common nouns (sen, posiłek, oddech); C5 made them names, Sleep, Meal and Breath in Polish too (Appendix A; Q-E66-2, approved 01.11.2026), as this tree's Polish before has them. Copied as approved (Q-E66-4); the owner settles it in C-owner."
+        "The approved Polish after writes the Rest options as common nouns (sen, posiłek, oddech); C5 made them names, Sleep, Meal and Breath in Polish too (Appendix A; Q-E66-2, approved 01.11.2026), as this tree's Polish before has them. Copied as approved (Q-E66-4); the owner settles it in C-owner. Settled 01.11.2026: the owner took the default of page E66-B01A-R1's question on it (#53), the names in the rest of the approved sentence unchanged; C7 writes Sleep, Meal and Breath for sen, posiłek and oddech (tools/text-render.mjs B01A_AMENDED, STATUS Open 42)."
       ],
       "reviews": {
         "en": null,
@@ -760,7 +791,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.palm.hint",
@@ -829,7 +865,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.palm.description",
@@ -899,7 +940,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.tamper.hint",
@@ -1065,7 +1111,12 @@
         },
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.directMurder.hint",
@@ -1230,7 +1281,12 @@
         },
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.move.hint",
@@ -1379,7 +1435,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.ACTIONS.sabotage.hint",
@@ -1530,7 +1591,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.support.effect",
@@ -1606,7 +1672,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.experience.effect",
@@ -1675,7 +1746,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.ultimate.effect",
@@ -1737,7 +1813,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.contribution.effect",
@@ -1816,7 +1897,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.reroll.effect",
@@ -1871,7 +1957,7 @@
       },
       "pl": {
         "before": "Przerzuć akcję. Cofa poprzedni wynik.",
-        "after": "Przerzuć swój ostatni rzut; starszego nie przerzucisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli przerzutu nie da się wykonać, nic nie płacisz."
+        "after": "Przerzuć swój ostatni rzut; starszego nie przerzucisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli Rerolla nie da się wykonać, nic nie płacisz."
       },
       "removed": [
         "\"It reverts the previous outcome\" is kept as the action undone and run again (fact 1).",
@@ -1880,7 +1966,8 @@
       ],
       "needsCode": [],
       "disagreements": [
-        "Fact 3 is false: no person approves a Reroll; the GM's browser checks, pays and makes it, and refuses on its checks - no such character, one already being made, nothing to redo (scripts/calls.mjs askReroll; scripts/reroll.mjs rerollOnGm, DRPG.Reroll.busy; mechanics reviewer). Correction: \"a request the GM's browser refuses, or one with no roll to redo, is said to the player and nothing is paid\"."
+        "Fact 3 is false: no person approves a Reroll; the GM's browser checks, pays and makes it, and refuses on its checks - no such character, one already being made, nothing to redo (scripts/calls.mjs askReroll; scripts/reroll.mjs rerollOnGm, DRPG.Reroll.busy; mechanics reviewer). Correction: \"a request the GM's browser refuses, or one with no roll to redo, is said to the player and nothing is paid\".",
+        "C7 (01.11.2026): the approved Polish after wrote „przerzutu” for the Call, where the English says \"the Reroll\"; the Call's name stays English in Polish (Q-E66-2, approved; glossary reroll, genitive „Rerolla”, DB4) and R1161 holds pl.json to it, so C7 writes „Rerolla” for „przerzutu”, nothing else moved - as the owner's default on page E66-B01A-R1's #53 took the names over the approved common nouns (STATUS Open 57). The verbs „Przerzuć”, „przerzucisz” are no name and stay."
       ],
       "reviews": {
         "en": null,
@@ -1893,7 +1980,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.sprint.effect",
@@ -1963,7 +2055,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.burst.effect",
@@ -2034,7 +2131,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.HOPE_CALLS.relief.effect",
@@ -2164,7 +2266,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.useItem.hint",
@@ -2241,7 +2348,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.leaveClue.hint",
@@ -2329,7 +2441,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.secureTrace.hint",
@@ -2420,7 +2537,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.selfDefence.hint",
@@ -2506,7 +2628,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.survive.hint",
@@ -2585,7 +2712,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.roleReversal.hint",
@@ -2669,7 +2801,12 @@
           ]
         }
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.strike.hint",
@@ -2762,7 +2899,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.pin.hint",
@@ -2838,7 +2980,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.keepDistance.hint",
@@ -2914,7 +3061,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.weaponAttack.hint",
@@ -3004,7 +3156,12 @@
         },
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.finishingBlow.hint",
@@ -3074,7 +3231,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.sharedEscape.hint",
@@ -3153,7 +3315,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.doubleRoleReversal.hint",
@@ -3233,7 +3400,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.crimePartners.hint",
@@ -3311,7 +3483,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Config.CRISIS_ACTIONS.avertedEyes.hint",
@@ -3377,7 +3554,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Project.sabotageHint",
@@ -3432,7 +3614,7 @@
           "other": "Break one of the {n} projects in this room so it needs repairing. Always leaves a trace."
         },
         "after": {
-          "one": "This room has {n} project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
+          "one": "This room has one project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
           "other": "This room has {n} projects you can break. On a hit, the one you pick needs a repair project. It costs an action, and you always leave a Remnant."
         }
       },
@@ -3456,7 +3638,9 @@
         "Not stated here, in either language now: the repair's size by the total (fact 2), which the description, DRPG.Config.ACTIONS.sabotage.description, says (O3); the Polish drops „Im lepszy rzut, tym trudniejsza naprawa”."
       ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56)."
+      ],
       "reviews": {
         "en": null,
         "coldEn": {
@@ -3468,7 +3652,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Tamper.coverHint",
@@ -3522,7 +3711,7 @@
           "other": "Wipe out one of the {n} traces you know about in this room. The easier one is to see, the harder it is to erase."
         },
         "after": {
-          "one": "You know of {n} Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
+          "one": "You know of one Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
           "other": "You know of {n} Remnants here that you can erase. The more visible a Remnant is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier."
         }
       },
@@ -3547,7 +3736,8 @@
       "needsCode": [],
       "disagreements": [
         "Fact 0 is false in part: the list also holds the running incident's Remnants for one who took part, and the whole room for the killer in Stage 6 (scripts/cleanup.mjs cleanableTracesForPlayer; mechanics reviewer). Correction: \"the Remnants here the character knows of (holds a copy of, or saw made in the running incident; in Stage 6 the killer, all of them), not Reinforced\". The English now says \"You know of\", as the Polish „znany ci”.",
-        "Fact 3 is not settled: CLEANUP.outcome is not shown, and cleanupVerdict's note says a Hope failure just does not work while a Despair failure makes an Evident Resolution Remnant, which does not match \"a miss leaves a Subtle (with Hope) ... Remnant\" (scripts/cleanup.mjs cleanupVerdict; mechanics reviewer). Correction: read CLEANUP.outcome."
+        "Fact 3 is not settled: CLEANUP.outcome is not shown, and cleanupVerdict's note says a Hope failure just does not work while a Despair failure makes an Evident Resolution Remnant, which does not match \"a miss leaves a Subtle (with Hope) ... Remnant\" (scripts/cleanup.mjs cleanupVerdict; mechanics reviewer). Correction: read CLEANUP.outcome.",
+        "C7 (01.11.2026): the approved English .one filled {n} where the approved Polish .one writes „jedyny” with no {n}; T2 (FAIL since E65) holds each form to the same placeholders in both languages, so the English .one says \"one\" for {n} and nothing else in it moved, as the approved DRPG.Analyze.analyseBulletHint .one writes \"the one Truth Bullet\" (STATUS Open 56)."
       ],
       "reviews": {
         "en": {
@@ -3560,7 +3750,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Cleanup.transformActionHint",
@@ -3643,7 +3838,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Tamper.frameHint",
@@ -3721,7 +3921,12 @@
           ]
         }
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Steal.takeHint",
@@ -3784,7 +3989,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Steal.plantHint",
@@ -3860,7 +4070,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Analyze.analyseBulletHint",
@@ -3921,15 +4136,16 @@
           "other": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów."
         },
         "after": {
-          "one": "Wybierz jedyny Truth Bullet, który możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-          "few": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-          "many": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-          "other": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału."
+          "one": "Wybierz jedyny Truth Bullet, który możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "few": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "many": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "other": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału."
         }
       },
       "removed": [
         "\"analysed\" becomes \"analyzed\" (EN1, the glossary's analyze).",
-        "\"not analysed yet\" becomes \"you can analyze now\" / „które możesz teraz przeanalizować”, which is what {n} counts: a bullet locked this chapter is not analyzed and not counted (facts 0 and 2)."
+        "\"not analysed yet\" becomes \"you can analyze now\" / „które możesz teraz przeanalizować”, which is what {n} counts: a bullet locked this chapter is not analyzed and not counted (facts 0 and 2).",
+        "O19 (the owner, 01.11): a wynik ocenia przeglądarka GM-a (one, few, many, other)"
       ],
       "needsCode": [],
       "disagreements": [],
@@ -3939,7 +4155,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R2 showed it, trimmed by rule O19: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R2"
+      }
     },
     {
       "key": "DRPG.Analyze.findStashHint",
@@ -4002,7 +4223,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Observe.generalHint",
@@ -4066,7 +4292,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Observe.nonObviousHint",
@@ -4136,7 +4367,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Observe.specificHint",
@@ -4183,20 +4419,21 @@
       "kept": [
         1,
         2,
-        3,
-        4
+        3
       ],
       "en": {
         "before": "Say what you are looking for. The GM decides what your gaze lands on.",
-        "after": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds. With no GM online, your action comes back."
+        "after": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds."
       },
       "pl": {
         "before": "Powiedz, czego szukasz. GM decyduje, na czym zatrzyma się twój wzrok.",
-        "after": "Wpisz, czego szukasz. Rzucasz od razu, a GM, nie znając wyniku, wybiera Remnant, na którym zatrzymuje się twój wzrok. Jeśli nic nie wpiszesz, liczy się to jak omiecenie pokoju wzrokiem. Bez GM-a online akcja do ciebie wraca."
+        "after": "Wpisz, czego szukasz. Rzucasz od razu, a GM, nie znając wyniku, wybiera Remnant, na którym zatrzymuje się twój wzrok. Jeśli nic nie wpiszesz, liczy się to jak omiecenie pokoju wzrokiem."
       },
       "removed": [
         "\"The GM decides what your gaze lands on\" is kept as a GM picking the Remnant, blind to the total (facts 1 and 2).",
-        "Not stated here: that a refused request, an empty room or no room goes to a GM's ruling on the roll already thrown (fact 4)."
+        "Not stated here: that a refused request, an empty room or no room goes to a GM's ruling on the roll already thrown (fact 4).",
+        "O19 (the owner, 01.11): With no GM online, your action comes back.",
+        "O19 (the owner, 01.11): Bez GM-a online akcja do ciebie wraca."
       ],
       "needsCode": [],
       "disagreements": [],
@@ -4206,7 +4443,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R2 showed it, trimmed by rule O19: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R2"
+      }
     },
     {
       "key": "DRPG.Action.dynamicHint",
@@ -4288,7 +4530,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Action.dynamicDescription",
@@ -4369,7 +4616,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Assign.footnote",
@@ -4450,7 +4702,12 @@
           ]
         }
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     },
     {
       "key": "DRPG.Season.hint.assignments",
@@ -4533,7 +4790,12 @@
         "pl": null,
         "mechanics": null
       },
-      "owner": null
+      "owner": {
+        "verdict": "ok",
+        "text": "Approved in chat after pages E66-B01A-R1 and E66-B01A-R2, as page E66-B01A-R1 showed it: „Dobra zatwierdzam te teksty wszystkie :>”",
+        "date": "01.11.2026",
+        "page": "E66-B01A-R1"
+      }
     }
   ]
 }

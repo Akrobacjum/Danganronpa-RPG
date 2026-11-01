@@ -17641,7 +17641,8 @@ const REGRESSIONS = [
                 "Cleanup.stressBack", "Cleanup.stressSpent", "Config.DESPAIR_CALLS.favoriteProject.effect",
                 "Config.DESPAIR_CALLS.feedOverflow.effect", "Config.DESPAIR_CALLS.fuelTheCub.effect",
                 "Config.DESPAIR_CALLS.gameProtection.effect", "Config.DESPAIR_CALLS.paranoia.effect",
-                "Config.DESPAIR_CALLS.thisWillHurt.effect", "Config.HOPE_CALLS.contribution.effect",
+                "Config.DESPAIR_CALLS.thisWillHurt.effect",
+                // E66 C7: Config.HOPE_CALLS.contribution.effect left the table - B01a's Polish puts no count before a noun.
                 "Despair.hopeConverted", "Despair.notEnough", "Despair.notEnoughPool", "Despair.removePoolAsk",
                 "Despair.spent", "Diagnostics.cast.starting", "Items.choiceBonus", "Monocub.hopeShort",
                 "Murder.briefCostStress", "Murder.indirectCost", "Observe.failedStress", "Overflow.what.earthquake",
@@ -17690,7 +17691,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 25, R: 23, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 53, S: 25, R: 23, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -17705,10 +17706,17 @@ const REGRESSIONS = [
          * place of this browser's and the page's language stood in, both put back in a finally; the hosts are formatted
          * as their callers format them. The readers of the keys are read in the module's source, comments out. Nothing is
          * written. Red at 900b1b99: no `grantWords`, and `Calls.armed` with "przewagę".
+         * E66 C7, 01.11.2026 (STATUS Open 50, 51): a Level Up kind's name carried its picks typed in, "(pick 1)", "(wybierz
+         * 3)", beside config.mjs `LEVEL_UP`; it is level-up.mjs `advanceKindName`, `{picks}` from the kind's entry, read here
+         * with both counts set and put back in a finally. roll-draw.mjs `rollerLine` joined what the GM counted and what it
+         * did not with ", ", and `awayMoves` its moves; both go through `listOf`. Red at dbb92462: no advanceKindName, and the
+         * roller's line ", "-joined in both languages.
          */
         const S = await import("./settings.mjs"), U = await import("./utils.mjs"), CE = await import("./call-effects.mjs");
         const P = await import("./price.mjs"), C = await import("./character.mjs"), D = await import("./roll-draw.mjs");
-        const { LEGAL_ROLL_MODIFIERS } = await import("./config.mjs");
+        const LU = await import("./level-up.mjs");
+        const { LEGAL_ROLL_MODIFIERS, LEVEL_UP } = await import("./config.mjs");
+        const kindName = k => (typeof LU.advanceKindName === "function" ? LU.advanceKindName(k) : game.i18n.localize(`DRPG.Advance.kind.${k}`));
         must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
         const files = {};
         for (const code of ["en", "pl"]) {
@@ -17725,7 +17733,7 @@ const REGRESSIONS = [
         const FROM = LEGAL_ROLL_MODIFIERS.slice(0, 3).map(row => row.key);
         const fragmentHosts = () => {
             const fmt = (key, data) => game.i18n.format(key, data), loc = key => game.i18n.localize(key);
-            const advance = ["standard", "reinforced"].map(k => loc(`DRPG.Advance.kind.${k}`));
+            const advance = ["standard", "reinforced"].map(kindName);
             const overflow = Object.keys(files.en.DRPG.Overflow.name).map(k => loc(`DRPG.Overflow.name.${k}`));
             const label = key => CRISIS_ACTIONS[key]?.label ?? key;
             return [
@@ -17771,13 +17779,26 @@ const REGRESSIONS = [
                 read[code].fragments = {
                     read: hosts.length,
                     broken: hosts.filter(([, text, parts]) => /[{}]|DRPG\./.test(text) || !parts.every(part => text.includes(part))).map(([row, text]) => `${row}: ${text.slice(0, 70)}`),
-                    advance: U.plural("DRPG.Advance.offered", { kind: game.i18n.localize("DRPG.Advance.kind.reinforced"), n: 3 }),
+                    advance: U.plural("DRPG.Advance.offered", { kind: kindName("reinforced"), n: 3 }),
                     overflow: game.i18n.format("DRPG.Overflow.currentWaiting", { count: 4, max: 10, what: game.i18n.localize("DRPG.Overflow.name.darkness") }),
                     flag: D.flagText({ kind: "dice", claimed: "3", expected: "1" }),
                     from: D.flagText({ kind: "modifier", claimed: "3", expected: "1", from: FROM })
                         === game.i18n.format("DRPG.Rolls.flagFrom", { line: D.flagText({ kind: "modifier", claimed: "3", expected: "1" }),
                             list: U.listOf(FROM.map(key => game.i18n.localize(LEGAL_ROLL_MODIFIERS.find(row => row.key === key).label))) })
                 };
+                const flag = k => game.i18n.localize(`DRPG.Rolls.flagKind.${k}`);
+                const picksWere = [LEVEL_UP.standard.picks, LEVEL_UP.reinforced.picks];
+                try {
+                    LEVEL_UP.standard.picks = 4; LEVEL_UP.reinforced.picks = 7;
+                    read[code].picks = ["standard", "reinforced"].map(kindName);
+                } finally {
+                    [LEVEL_UP.standard.picks, LEVEL_UP.reinforced.picks] = picksWere;
+                }
+                read[code].roller = D.rollerLine({ scored: { trait: "eye", advantage: 1, uncounted: 2, modifiers: [{ label: "Eye", value: 1 }, { label: "Ally", value: 2 }] },
+                    claim: { trait: "head", dice: 2, advantage: 0 } })
+                    === game.i18n.format("DRPG.Rolls.notCounted", {
+                        counted: game.i18n.format("DRPG.Rolls.counted", { list: U.listOf(["Eye +1", "Ally +2", `${flag("advantage")} +1`]) }),
+                        list: U.listOf([`${flag("trait")} Head`, `${flag("modifier")} +2`, `${flag("dice")} 2`]) });
             }
         } finally {
             game.i18n.translations = own;
@@ -17788,7 +17809,9 @@ const REGRESSIONS = [
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
         const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
-            joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog) };
+            joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog),
+            away: /return listOf\(moves\);/.test(stripComments(fnSource(sources.get("roll-draw.mjs") ?? "", "awayMoves") ?? "")),
+            kinds: reading(/DRPG\.Advance\.kind\.(?:(?:standard|reinforced)(?!\w)|\$\{)/) };
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 broken: [],
@@ -17799,7 +17822,8 @@ const REGRESSIONS = [
                 price: ["You get 2 actions back.", true, true],
                 reserves: "You lose 1 Health and 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
-                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true }
+                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true },
+                picks: ["Level Up (pick 4)", "Reinforced Level Up (pick 7)"], roller: true
             },
             pl: {
                 broken: [],
@@ -17810,15 +17834,18 @@ const REGRESSIONS = [
                 price: ["Odzyskujesz: 2 akcje.", true, true],
                 reserves: "Tracisz 1 Health i 2 Sanity.",
                 fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
-                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true }
+                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true },
+                picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true
             },
-            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true }
+            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true, away: true, kinds: ["level-up.mjs"] }
         }), "[in English, then Polish: each host with each grant in its case - those that leave a brace or a key or lose the fragment; "
             + "Calls.armed with advantage and a bonus; armedForYou; pendingTooltip; waitsNextRoll with a list of two; a price given back, the "
             + "Objection's bracket, the lost Hope; a loss of two reserves; then the scripts that read the accusative by a template key, the "
             + "nominative so, the one that holds the three cases' keys (grantWords), and roll-dialog.mjs's join through listOf; "
             + "and (E66 fix r1 F6) section 14's Advance.kind, Overflow.name, Rolls.flagKind and crisis labels in each host they take: "
-            + "how many were rendered, those that leave a brace or a key or lose the fragment, one of each, and flagText's list through listOf]");
+            + "how many were rendered, those that leave a brace or a key or lose the fragment, one of each, and flagText's list through listOf; "
+            + "and (E66 C7) the Level Up kinds with LEVEL_UP's picks set to 4 and 7, the roller's line with its two lists through listOf, "
+            + "awayMoves's join through listOf, and the scripts that name a kind's key - level-up.mjs's advanceKindName alone]");
     }],
 
     ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
@@ -17832,7 +17859,9 @@ const REGRESSIONS = [
          * put back in a finally. The digit rule: a run of digits in a sentence equal to a number anywhere in its entry
          * (the object whose field it is), English as this browser holds the table and Polish as lang/pl.json carries
          * it. The readers are read in their source (comments out). Nothing is written. Red at a9c0bfae: utils.mjs
-         * had no proseOf.
+         * had no proseOf. E66 C7, 01.11.2026: Strike's, Pin's, Keep Your Distance's and the finishing blow's hints are
+         * B01a's approved texts, read whole (the finishing blow's has no " - " left to cut at); red on C7's landed tree
+         * with the old renders expected, as its numbers moved into the new sentences.
          */
         const S = await import("./settings.mjs"), U = await import("./utils.mjs"), C = await import("./config.mjs");
         const { walkConfigProse } = await import("./i18n-config.mjs");
@@ -17876,8 +17905,8 @@ const REGRESSIONS = [
                 read[code] = {
                     left: [...now, ...moved].filter(text => /[{}]|DRPG\./.test(String(text))).length,
                     same: CASES.map(([path, field], i) => `${path}.${field}`).filter((key, i) => now[i] === moved[i]),
-                    now: [now[0], now[5], now[7].split(" - ")[0], now[8], now[9]],
-                    moved: [moved[0], moved[1], moved[5], moved[6], moved[7].split(" - ")[0], moved[8], moved[9]]
+                    now: [now[0], now[5], now[7], now[8], now[9]],
+                    moved: [moved[0], moved[1], moved[5], moved[6], moved[7], moved[8], moved[9]]
                 };
             }
             read.calls = Object.entries({ ...C.HOPE_CALLS, ...C.DESPAIR_CALLS }).filter(([, call]) => String(call.effect ?? "").includes("{"))
@@ -17924,24 +17953,24 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 left: 0, same: [],
-                now: ["Speed up their decline. Costs 1 Health and 1 Sanity from them.", "Disadvantage on Leave a Clue and Survive for the victim's next 2 turns.",
-                    "End the incident now. Threshold is 5 times their remaining Health", "You live inside a closed area. 2 actions per time of day.",
+                now: ["A hit takes 1 Health and 1 Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant.", "Put the victim's Leave a Clue and Survive at disadvantage for their next 2 turns, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+                    "End the incident now. The number to beat is 5 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 2 actions per time of day.",
                     "Add a new experience worth +2"],
-                moved: ["Speed up their decline. Costs 2 Health and 3 Sanity from them.",
+                moved: ["A hit takes 2 Health and 3 Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant.",
                     "Nothing on a Hope failure. On Despair you still take 4 Sanity off them and leave an Evident Remnant; a critical failure leaves an Obvious one.",
-                    "Disadvantage on Leave a Clue and Survive for the victim's next 5 turns.", "Disadvantage on Secure a Trace and Role Reversal for the victim's next turn.",
-                    "End the incident now. Threshold is 7 times their remaining Health", "You live inside a closed area. 5 actions per time of day.",
+                    "Put the victim's Leave a Clue and Survive at disadvantage for their next 5 turns, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.", "Put the victim's Secure a Trace and Role Reversal at disadvantage for their next turn, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+                    "End the incident now. The number to beat is 7 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 5 actions per time of day.",
                     "Add a new experience worth +3"]
             },
             pl: {
                 left: 0, same: [],
-                now: ["Przyspiesz ich upadek. Kosztuje ich 1 Health i 1 Sanity.", "Utrudnienie na Leave a Clue i Survive przez najbliższe 2 tury ofiary.",
-                    "Zakończ incydent teraz. Próg to 5-krotność ich pozostałego Health", "Żyjecie w zamkniętym miejscu. 2 akcje na porę dnia.",
+                now: ["Zadaj cios: przy trafieniu ofiara traci 1 Health i 1 Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.", "Przytrzymaj ofiarę: przez jej najbliższe 2 tury Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+                    "Zakończ incydent. Próg to pozostałe Health ofiary razy 5, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 2 akcje na porę dnia.",
                     "Dodaj nowe doświadczenie warte +2"],
-                moved: ["Przyspiesz ich upadek. Kosztuje ich 2 Health i 3 Sanity.",
+                moved: ["Zadaj cios: przy trafieniu ofiara traci 2 Health i 3 Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.",
                     "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 4 Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious.",
-                    "Utrudnienie na Leave a Clue i Survive przez najbliższych 5 tur ofiary.", "Utrudnienie na Secure a Trace i Role Reversal przez najbliższą turę ofiary.",
-                    "Zakończ incydent teraz. Próg to 7-krotność ich pozostałego Health", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
+                    "Przytrzymaj ofiarę: przez jej najbliższych 5 tur Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.", "Trzymaj ofiarę na dystans: przez jej najbliższą turę Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+                    "Zakończ incydent. Próg to pozostałe Health ofiary razy 7, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
                     "Dodaj nowe doświadczenie warte +3"]
             },
             calls: [], callCount: 7,
@@ -18141,11 +18170,18 @@ const REGRESSIONS = [
             /mylny trop/iu, /przenieś ciało/iu, /ukryj zamiar/iu, /ukryj ślady/iu, /przygotuj broń/iu, /zastaw pułapkę/iu, /znajdź ukrytą skrytkę/iu,
             /szukanie skrytki/iu, /znajdź tajne przejście/iu, /podążaj za własnymi śladami/iu, /akcj\p{L}* dynamiczn/iu, /akcji Dynamic/u,
             /(?<!\p{L})Projekty(?!\p{L})/u, /(?<!\p{L})Zeznanie(?!\p{L})/u, /(?<!\p{L})przerzut/iu];
-        const retired = [...files.pl].filter(([, v]) => typeof v === "string" && RETIRED_PL.some(re => re.test(v))).map(([key]) => key);
-        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
-            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], modes: ["fail", "fail"] }),
+        // A retired phrase that stands in a sentence as its own words, not as the name (E66 C7, 01.11.2026; STATUS Open 57).
+        const RETIRED_WORDS = new Map([
+            ["DRPG.Config.CRISIS_ACTIONS.useItem.hint", "B01a's approved hint opens on „Użyj przedmiotu” as its verb and object, as the approved English's "
+                + "lower-case \"Use an item during the incident\" does; the option's name, Use an Item, is its label's"]
+        ]);
+        const retired = [...files.pl].filter(([key, v]) => typeof v === "string" && RETIRED_PL.some(re => re.test(v)) && !RETIRED_WORDS.has(key)).map(([key]) => key);
+        const wordsStale = [...RETIRED_WORDS.keys()].filter(key => !RETIRED_PL.some(re => re.test(String(files.pl.get(key) ?? ""))));
+        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, wordsStale, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
+            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], wordsStale: [], modes: ["fail", "fail"] }),
             "[the names table's places that hold another form; the tables' labels whose Polish is not their English; names not in Title Case; "
-                + "texts with a capital Trace outside the five names, the English handbooks' lines among them; pl.json keys with a retired Polish name; T20's and T28's modes]");
+                + "texts with a capital Trace outside the five names, the English handbooks' lines among them; pl.json keys with a retired Polish name; "
+                + "the allow rows of a retired phrase as words that no longer hold one (E66 C7); T20's and T28's modes]");
     }],
 
     ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {

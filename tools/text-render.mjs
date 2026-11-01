@@ -532,6 +532,31 @@ export const PILOT_PAGE = "E65-PILOT-R1";
  * (Search's hint) stays with topic A and pair 9 (PHASES.dailyLife.hint) is not B01a's.
  */
 export const B01A_PILOT = Object.freeze({ take: Object.freeze([2, 3, 4, 5, 6, 7, 8, 10]), leave: Object.freeze([1, 9]) });
+/*
+ * A pilot copy the owner amended (E66 C7, 01.11.2026): the approved Polish after of ACTIONS.rest.description (pair 8)
+ * wrote the Rest options as common nouns, „sen”, „posiłek”, „oddech”, where C5 made them names (Appendix A, Q-E66-2);
+ * the owner took the default of page E66-B01A-R1's question on it (#53): the names, the rest of the approved sentence
+ * unchanged. Each row is [what the pilot's after writes, what the copy writes], each found once in the pilot's after;
+ * the schema holds the copy to the pilot's after with exactly these replacements, so nothing else in it can move.
+ */
+export const B01A_AMENDED = Object.freeze({
+    "DRPG.Config.ACTIONS.rest.description": Object.freeze({
+        pl: Object.freeze([["sen (Health)", "Sleep (Health)"], ["posiłek (Sanity)", "Meal (Sanity)"], ["oddech (Hope)", "Breath (Hope)"]])
+    })
+});
+/* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
+   found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */
+function amendedAfter(key, lang, after) {
+    const rows = B01A_AMENDED[key]?.[lang];
+    if (!rows) return after;
+    if (typeof after !== "string") return null;
+    let out = after;
+    for (const [from, to] of rows) {
+        if (out.split(from).length !== 2) return null;
+        out = out.replace(from, to);
+    }
+    return out;
+}
 /* Appendix C's "Out": the texts topic A rewrites, E68's, MONOCUB, TRIAL, and the table-name label keys (T14). */
 export const BATCH_OUT = Object.freeze({
     keys: Object.freeze(["DRPG.Config.ACTIONS.listen.hint", "DRPG.Config.ACTIONS.search.hint", "DRPG.Config.HOPE_CALLS.determination.effect",
@@ -645,7 +670,11 @@ export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], s
             const p = Number.isInteger(t.pilot) ? pilotStrings[t.pilot - 1] : null;
             if (!p || p.key !== t.key) out.push(`${at}: pilot ${JSON.stringify(t.pilot)} is not this key's string in docs/dev/text-pilot.json`);
             else {
-                for (const lang of ["en", "pl"]) if (!sameValue(t[lang]?.after, p[lang]?.after)) out.push(`${at}: ${lang}.after is not the pilot's approved after (Q-E66-4: copied, not rewritten)`);
+                for (const lang of ["en", "pl"]) {
+                    const want = amendedAfter(t.key, lang, p[lang]?.after);
+                    if (want === null) out.push(`${at}: B01A_AMENDED's ${lang} row for this key does not find its words once in the pilot's approved after`);
+                    else if (!sameValue(t[lang]?.after, want)) out.push(`${at}: ${lang}.after is not the pilot's approved after${B01A_AMENDED[t.key]?.[lang] ? " with the owner's amendments (B01A_AMENDED)" : ""} (Q-E66-4: copied, not rewritten)`);
+                }
                 if (!pilotVerdict(t.owner, p.owner)) out.push(`${at}: owner is not the pilot's verdict on ${PILOT_PAGE}`);
                 if (sameFields(t.reviews, Object.keys(BATCH_REVIEWS)) && Object.values(t.reviews).some(r => r !== null)) out.push(`${at}: a pilot copy carries a review (Q-E66-4: not reviewed again)`);
             }

@@ -161,7 +161,10 @@
  *                eight copies equal to the pilot's approved afters and verdicts,
  *                and an owner's verdict only on a page; counted on one line; with
  *                a control, a copy with seven faults planted. Then where its
- *                texts stand in the files (batchState), a reading and never red.
+ *                texts stand in the files (batchState), a reading, and the
+ *                owner's approved afters (E66 C7, E66-28): each text whose
+ *                verdict is "ok" reads its after in both languages, or the
+ *                part is red - an approved text not landed, or edited since.
  *             The last line: the detectors, how many hold their fixture, what
  *             was read, "FAIL found N beyond the baselines, report found M".
  *             Options: `--lang <dir>` reads en.json and pl.json from <dir>
@@ -1049,9 +1052,10 @@ async function text() {
        (tools/text-render.mjs batchSchema; a fault is red: a text with no facts, a fact with no function, a key out of
        Appendix C, an after that changes a placeholder, adds a digit or runs over its surface's limit, a pilot copy that is not
        the approved after, an owner's verdict on no page), one line of its counts - the budgets' "over a limit" among them,
-       which the schema makes red - and where its texts stand in the files (batchState, a reading: C7 lands the afters). Its
-       control: a copy with seven faults planted must have each named, or a schema broken to pass everything would leave this
-       part green on a batch with no facts. */
+       which the schema makes red - and where its texts stand in the files (batchState, a reading). Its control: a copy with
+       seven faults planted must have each named, or a schema broken to pass everything would leave this part green on a batch
+       with no facts. Since C7 (E66-28, 01.11.2026) a text the owner approved ("ok") must read its after in both languages: the
+       landed line is red, naming the texts, while one still reads its before or was edited after the approval. */
     const pilotDoc = (() => { try { return JSON.parse(read(PILOT_FILE)); } catch { return null; } })();
     for (const BATCH_FILE of textRender.BATCH_FILES) {
         if (!exists(BATCH_FILE)) { problems.push(`batch: ${BATCH_FILE} is missing - the batch has nothing to render`); continue; }
@@ -1070,6 +1074,15 @@ async function text() {
         console.log(`text: batch: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
             + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the batch ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
         const texts = Array.isArray(batch?.texts) ? batch.texts : [];
+        const approved = texts.filter(t => t?.owner?.verdict === "ok");
+        const unlanded = approved.flatMap(t => {
+            const one = textRender.batchState({ texts: [t] }, against);
+            return ["en", "pl"].filter(lang => !one.landed[lang]).map(lang => `${t.key} ${lang}`);
+        });
+        console.log(`text: batch: the owner's approved afters: ${approved.length} text(s); landed in this tree's files en `
+            + `${approved.length - unlanded.filter(u => u.endsWith(" en")).length}, pl ${approved.length - unlanded.filter(u => u.endsWith(" pl")).length}; not landed ${unlanded.length}`);
+        if (unlanded.length) problems.push(`batch: ${BATCH_FILE}: ${unlanded.length} approved after(s) not in the files (${unlanded.slice(0, 6).join(", ")}`
+            + `${unlanded.length > 6 ? `, and ${unlanded.length - 6} more` : ""}) - every after the owner approved is the text of config.mjs and lang/ (E66-28)`);
         const copyOf = texts.findIndex(t => t?.source === "pilot" && typeof t?.en?.before === "string");
         const marked = texts.findIndex(t => t?.source === "written" && typeof t?.en?.before === "string" && /\{\w+\}/.test(t.en.before));
         const plain = texts.findIndex((t, i) => t?.source === "written" && typeof t?.en?.before === "string" && i !== marked);

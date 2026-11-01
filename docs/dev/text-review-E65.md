@@ -32,6 +32,10 @@ agent found reading them as rendered (its rows added at e1da9f76), and which sta
   written as the family's two keys. A reviewer's row is a reading, not a detector's finding: nothing re-checks it.
 - Every key named in a row is a key of lang/en.json; DRPG.Config.ACTIONS.palm.hint, named in the Frisk row's
   section, is config.mjs's English prose (`walkConfigProse`), which has no lang/en.json key.
+- E66's 32 rows (24 of T28, 8 of the reviewer) were fixed in E66 C5 (d2538dac) and are marked so in their stage cell
+  (E66 C7, 01.11.2026, read on this tree: `node tools/check.mjs text` "T28 fail retiredHits read 302 found 0", and each
+  reviewer row's key read in lang/pl.json and lang/en.json - Eclipse, Reroll, tajne przejście, Zamknij, arkusz, Testimony).
+  The pilot's pair 26 (`DRPG.Failures.cleared`) landed in C5 as approved. The E71 rows are open.
 
 ## The groups
 
@@ -134,7 +138,7 @@ No finding of the report.
 
 | key | lang | finding | rule | test | fix |
 | --- | --- | --- | --- | --- | --- |
-| `DRPG.Voice.tile.state.eclipsed` | pl | The Polish state shows the English participle 'Eclipsed', which is not the glossary's term 'Eclipse' and is not Polish. | eclipse | reviewer | E66 |
+| `DRPG.Voice.tile.state.eclipsed` | pl | The Polish state shows the English participle 'Eclipsed', which is not the glossary's term 'Eclipse' and is not Polish. | eclipse | reviewer | E66: done in E66 C5 (d2538dac) |
 
 ### DRPG.Voice.held.* (A8)
 
@@ -201,8 +205,8 @@ No finding of the report.
 | `DRPG.Passage.card.breachForced` | pl | 'Wyłom wyłamuje pokój {room}' is a tautology no native speaker would say ('the breach breaks the room open'). | grammar | reviewer | E71 |
 | `DRPG.Passage.card.breachHeard` | both | the punctuation "." in English, ":." in Polish | DB26 | T22 | E71 |
 | `DRPG.Passage.card.breachHeard` | pl | 'od strony: {room}' puts a label-colon-placeholder inside the Polish sentence ('od strony: Warsztat'). | X12 (rebuilt) | reviewer | E71 |
-| `DRPG.Passage.card.notReopened` | pl | 'Przerzut cofnął projekt' translates the Call's name; the Call is 'Reroll' in Polish too (Rerolla in the genitive). | PL-k | reviewer | E66 |
-| `DRPG.Passage.card.notSealed` | pl | "y, ale jego przejścia nie udało s" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.card.notReopened` | pl | 'Przerzut cofnął projekt' translates the Call's name; the Call is 'Reroll' in Polish too (Rerolla in the genitive). | PL-k | reviewer | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.card.notSealed` | pl | "y, ale jego przejścia nie udało s" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.card.passageBuilt` | en | "ished: {from} - {to}. You can" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.card.passageBuilt` | pl | "otowe: {from} - {to}. Możesz" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.card.passageBuiltShared` | en | "o you: {from} - {to}." - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
@@ -216,18 +220,18 @@ No finding of the report.
 | `DRPG.Passage.list.oneWay` | both | the punctuation ":." in English, "::." in Polish | DB26 | T22 | E71 |
 | `DRPG.Passage.list.oneWay` | pl | "Tylko w jedną stronę, z: {from}, do: {to}." - naturalness pair N15 (X12, X7) is not applied yet (written 31.10 for the owner's pilot, not confirmed; docs/text-style.md section 12; T27) | N15 (X12, X7) | T27 | E71 |
 | `DRPG.Passage.list.oneWay` | pl | "dną stronę, z: {from}, do: {to}." - X12, a Polish preposition before a colon and a placeholder | X12 (rebuilt) | T5 | E71 |
-| `DRPG.Passage.list.walk` | both | 'the gap in the wall' / 'przerwę w ścianie' is a third name beside the glossary's 'secret passage' / 'tajne przejście' and 'breach' / 'wyłom'. | O14 (rebuilt) | reviewer | E66 |
+| `DRPG.Passage.list.walk` | both | 'the gap in the wall' / 'przerwę w ścianie' is a third name beside the glossary's 'secret passage' / 'tajne przejście' and 'breach' / 'wyłom'. | O14 (rebuilt) | reviewer | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.mark.from` | both | the punctuation "" in English, ":" in Polish | DB26 | T22 | E71 |
 | `DRPG.Passage.mark.from` | pl | "e przejście z: {room}" - X12, a Polish preposition before a colon and a placeholder | X12 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.mark.to` | both | the punctuation "" in English, ":" in Polish | DB26 | T22 | E71 |
 | `DRPG.Passage.mark.to` | pl | "e przejście do: {room}" - X12, a Polish preposition before a colon and a placeholder | X12 (rebuilt) | T5 | E71 |
-| `DRPG.Passage.pick.made` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.pick.made` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.pick.made` | both | 'Secret passage {passage} made.' / 'Tajne przejście {passage} gotowe.' drops the verb (telegraph). | X6 (rebuilt) | reviewer | E71 |
-| `DRPG.Passage.pick.new` | pl | "+ Nowe przejście" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.pick.new` | pl | "+ Nowe przejście" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.pick.step` | both | 'Click {n} of 2' / 'Kliknięcie {n} z 2' types the count of clicks into the prose as the digit '2' instead of a placeholder. | O5 (rebuilt) | reviewer | E71 |
 | `DRPG.Passage.pick.tunnelFirst` | pl | 'przełącz na drugie piętro' means 'the second floor', not 'the other floor' as the English says; 'na inne piętro' is meant. | grammar | reviewer | E71 |
 | `DRPG.Passage.pick.tunnelHint` | en | "...of two rooms, on one floor or..." - a list with no comma before its last "and"/"or" | DB35 | T17 | E71 |
-| `DRPG.Passage.pick.tunnelMade` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.pick.tunnelMade` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.pick.tunnelMade` | both | 'Tunnel {passage} made.' / 'Tunel {passage} gotowy.' drops the verb (telegraph). | X6 (rebuilt) | reviewer | E71 |
 | `DRPG.Passage.pick.tunnelSecond` | en | "...inside another room, on this floor or..." - a list with no comma before its last "and"/"or" | DB35 | T17 | E71 |
 | `DRPG.Passage.pick.why.door` | pl | 'Tajne przejście idzie w zwykłej ścianie' is not natural Polish for where a passage may be placed ('musi być w zwykłej ścianie'). | grammar | reviewer | E71 |
@@ -237,50 +241,50 @@ No finding of the report.
 | `DRPG.Passage.show.note` | en | 'Costs no action; the GMs are told.' drops the subject (telegraph). | X6 (rebuilt) | reviewer | E71 |
 | `DRPG.Passage.show.title` | en | "w the passage - {passage}" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.show.title` | pl | "jne przejście - {passage}" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
-| `DRPG.Passage.tab.footnote` | pl | "je znają, a przejście jest dla ni" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.tab.footnote` | pl | "uń zapomina przejście i to, kto j" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.tab.footnote` | pl | "y uczeń zna przejście i nikt nie" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.tab.footnote` | both | The footnote calls the Close button 'Closed' / 'Zamknięte', while the button is 'Close' / 'Zamknij' (DRPG.Passage.tab.close), two names for one control. | O14 (rebuilt) | reviewer | E66 |
+| `DRPG.Passage.tab.footnote` | pl | "je znają, a przejście jest dla ni" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.tab.footnote` | pl | "uń zapomina przejście i to, kto j" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.tab.footnote` | pl | "y uczeń zna przejście i nikt nie" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.tab.footnote` | both | The footnote calls the Close button 'Closed' / 'Zamknięte', while the button is 'Close' / 'Zamknij' (DRPG.Passage.tab.close), two names for one control. | O14 (rebuilt) | reviewer | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.footnote` | both | 'Make public: every student knows ...; Make secret: only ...' / 'Ujawnij: ...; Utajnij: ...' chains label-colon-value inside one sentence. | X7 (rebuilt) | reviewer | E71 |
-| `DRPG.Passage.tab.grant` | pl | "uczniowi to przejście" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.grant` | pl | "uczniowi to przejście" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.intro` | pl | In 'Zastosuj i Anuluj go nie zmieniają' the masculine 'go' can only take 'przycisk', so it says Apply and Cancel do not change the button, not its effect. | PL23 (rebuilt) | reviewer | E71 |
-| `DRPG.Passage.tab.revokeAsk` | pl | "re łączy to przejście. Kiedy prze" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.tab.revokeAsk` | pl | "ście. Kiedy przejście ma się zamk" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.revokeAsk` | pl | "re łączy to przejście. Kiedy prze" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.tab.revokeAsk` | pl | "ście. Kiedy przejście ma się zamk" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.revokeNote` | both | 'Revoke now: ... Revoke when they leave the room: ...' / 'Odbierz teraz: ... Odbierz po wyjściu z pokoju: ...' chains label-colon-value inside the text. | X7 (rebuilt) | reviewer | E71 |
-| `DRPG.Passage.tab.revokePublicAsk` | pl | "ame} zna to przejście, tak jak ka" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.tab.revokePublicNote` | pl | "dy utajnisz przejście, będzie dla" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.revokePublicAsk` | pl | "ame} zna to przejście, tak jak ka" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.tab.revokePublicNote` | pl | "dy utajnisz przejście, będzie dla" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.revokeTitle` | en | "Revoke - {passage}" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.tab.revokeTitle` | pl | "Odbierz - {passage}" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
-| `DRPG.Passage.tab.shared` | pl | "poznaje to przejście." - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.shared` | pl | "poznaje to przejście." - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.shared` | pl | "} i każdy z nich poznaje to" - X13, a singular they as a Polish plural | X13 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.tab.shared` | both | With one player the text renders 'Chie all play Aiko' / 'Chie grają postacią Aiko', a plural verb for one subject; the key needs a form for one player. | grammar | reviewer | E71 |
-| `DRPG.Passage.tab.startHint` | pl | "nie daje mu przejścia teraz." - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.startHint` | pl | "nie daje mu przejścia teraz." - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.startHint` | en | 'Known again after each season reset.' drops the subject and verb (telegraph). | X6 (rebuilt) | reviewer | E71 |
 | `DRPG.Passage.tab.startRemove` | en | 'Take off the season's start' is not idiomatic English for removing a student from the season-start list. | grammar | reviewer | E71 |
-| `DRPG.Passage.tab.stateBroken` | pl | "ęła - wskaż przejście jeszcze raz" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.stateBroken` | pl | "ęła - wskaż przejście jeszcze raz" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.stateBroken` | en | "he wall moved - pick it again" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.tab.stateBroken` | pl | "ię przesunęła - wskaż przejśc" - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.tab.stateBroken` | en | In 'The wall moved - pick it again' the 'it' refers to the wall, while the Polish shows the passage is meant ('wskaż przejście'). | grammar | reviewer | E71 |
-| `DRPG.Passage.tab.wayHint` | pl | "kształtem. Przejście w ścianie z" - "Przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.tab.wayHint` | pl | "kształtem. Przejście w ścianie z" - "Przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.tab.wayHint` | pl | 'wybierz to pod ich kształtem' ('under their shape') is not natural Polish and loses the column's name 'Kształt' that the English 'under its Shape' points to. | grammar | reviewer | E71 |
 | `DRPG.Passage.tab.wayOnly` | both | the punctuation "" in English, "::" in Polish | DB26 | T22 | E71 |
 | `DRPG.Passage.tab.wayOnly` | pl | "Tylko z: {from}, do: {to}" - X12, a Polish preposition before a colon and a placeholder | X12 (rebuilt) | T5 | E71 |
-| `DRPG.Passage.why.cannotClose` | pl | "przejścia nie udało s" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.why.cannotClose` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.why.cannotClose` | pl | "przejścia nie udało s" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.why.cannotClose` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.why.gmOnly` | en | 'Ask it again from a GM's.' is not grammatical English ('ask it', the elided noun after 'a GM's'). | grammar | reviewer | E71 |
-| `DRPG.Passage.why.idTaken` | pl | "zajęło inne przejście. Odejmij pr" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.why.isBreach` | pl | "wyłom, nie przejście. Ścianę prz" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.why.idTaken` | pl | "zajęło inne przejście. Odejmij pr" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.why.isBreach` | pl | "wyłom, nie przejście. Ścianę prz" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.why.isBreach` | en | "is a breach, not a passage. Close the br" - X3, the antithesis "X, not Y" | X3 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.why.isBreach` | pl | "to wyłom, nie przejście. Ścianę przyw" - X3, the antithesis "X, not Y" | X3 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.why.isBreach` | both | 'Close the breach gives the wall back.' / 'Ścianę przywraca Zamknij wyłom.' uses the button's name unmarked as a subject, so it reads as an imperative and the sentence does not parse. | grammar | reviewer | E71 |
 | `DRPG.Passage.why.noBreach` | pl | "rojekt. Nie trzeba nic robić." - X11, a passive that hides who acts | X11 (rebuilt) | T5 | E71 |
 | `DRPG.Passage.why.noBuilder` | pl | 'jego budujący' is not a Polish noun phrase; the builder needs 'osoba, która go budowała' or similar. | grammar | reviewer | E71 |
-| `DRPG.Passage.why.noSide` | pl | "prowadzi to przejście albo wyłom." - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.why.notKnown` | pl | "ie zna tego przejścia albo jest o" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.why.notKnown` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
-| `DRPG.Passage.why.notOwn` | pl | 'na karcie budującego' and 'z karty wspólnej' call the character sheet 'karta', which is reserved for the chat card. | PL-d | reviewer | E66 |
+| `DRPG.Passage.why.noSide` | pl | "prowadzi to przejście albo wyłom." - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.why.notKnown` | pl | "ie zna tego przejścia albo jest o" - "przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.why.notKnown` | pl | "w zakładce Przejścia." - "Przejścia" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Passage.why.notOwn` | pl | 'na karcie budującego' and 'z karty wspólnej' call the character sheet 'karta', which is reserved for the chat card. | PL-d | reviewer | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.why.notRepairable` | en | 'the item is no usable or tool' is ungrammatical ('is not a usable item or a tool'). | grammar | reviewer | E71 |
-| `DRPG.Passage.why.taken` | pl | "dzi na inne przejście na tej ścia" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66 |
+| `DRPG.Passage.why.taken` | pl | "dzi na inne przejście na tej ścia" - "przejście" with no "tajn*" before it: a passage is "tajne przejście" | A10 | T28 | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Passage.why.unknown` | pl | 'moduł nie umie powiedzieć dlaczego' lacks the comma Polish requires before the subordinate 'dlaczego'. | grammar | reviewer | E71 |
 
 ### DRPG.Frisk.* (A11)
@@ -387,12 +391,12 @@ No finding of the report.
 | `DRPG.Floor.holdingRoundLast` | pl | "}: mówi {who} - {seconds} s," - X4, a dash that tacks an aside on | X4 (rebuilt) | T5 | E71 |
 | `DRPG.Floor.lead.closing` | both | 'End the Closing Argument ends it' / 'Zakończ Closing Argument go kończy' uses the button's name unmarked as a subject, so the sentence reads as a garbled imperative. | grammar | reviewer | E71 |
 | `DRPG.Floor.lead.round` | both | 'each speaker in turn' / 'mówcy po kolei' drops the verb (telegraph). | X6 (rebuilt) | reviewer | E71 |
-| `DRPG.Floor.mode.testimony` | pl | The mode is 'Zeznanie' in Polish, where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66 |
+| `DRPG.Floor.mode.testimony` | pl | The mode is 'Zeznanie' in Polish, where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Floor.round.over` | both | the punctuation "." in English, ":." in Polish | DB26 | T22 | E71 |
 | `DRPG.Floor.round.over` | pl | 'Koniec: {mode}.' is a label-colon-placeholder where the English is a sentence, 'The {mode} is over.' | X12 (rebuilt) | reviewer | E71 |
 | `DRPG.Floor.roundWindow.length` | both | 'The round: {length}, speakers: {n}.' / 'Runda: {length}, mówców: {n}.' chains label-colon-value inside one sentence. | X7 (rebuilt) | reviewer | E71 |
-| `DRPG.Floor.startTestimony` | pl | The button is 'Zeznanie' in Polish, where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66 |
-| `DRPG.Hud.trial.testimony` | pl | The HUD shows 'Zeznanie', where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66 |
+| `DRPG.Floor.startTestimony` | pl | The button is 'Zeznanie' in Polish, where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66: done in E66 C5 (d2538dac) |
+| `DRPG.Hud.trial.testimony` | pl | The HUD shows 'Zeznanie', where the glossary keeps the name 'Testimony' in the Polish UI (TR18). | testimony | reviewer | E66: done in E66 C5 (d2538dac) |
 | `DRPG.Trial.claim.counted` | both | the punctuation "." in English, "()." in Polish | DB26 | T22 | E71 |
 | `DRPG.Trial.claim.counted` | pl | 'Zgłosiłeś(-aś) się' brackets the gender; the present tense or a form without gender is the rule's way out. | PL17 | reviewer | E71 |
 | `DRPG.Trial.claim.no` | both | The button 'Not me' / 'Nie ja' is a negation, which a button never holds. | X14 (rebuilt) | reviewer | E71 |

@@ -1407,8 +1407,9 @@ export function rollerLine({ scored = null, claim = null } = {}) {
     if (!missed.length) return null;
     const counted = scored.modifiers.map(m => `${m.label ?? game.i18n.localize(LEGAL[m.key]?.label ?? "")} ${signed(m.value)}`);
     if (scored.advantage) counted.push(`${kind("advantage")} ${signed(scored.advantage)}`);
+    // Both lists in the page's language (utils.mjs `listOf`; E66 C7, STATUS Open 50), where they were joined with ", ".
     return game.i18n.format("DRPG.Rolls.notCounted", {
-        counted: game.i18n.format("DRPG.Rolls.counted", { list: counted.join(", ") || signed(0) }), list: missed.join(", ") });
+        counted: game.i18n.format("DRPG.Rolls.counted", { list: listOf(counted) || signed(0) }), list: listOf(missed) });
 }
 
 /** The roller's line, to the roller alone, where there is one. A private card the GM posts, naming nobody. */
@@ -2430,7 +2431,9 @@ function awayMoves({ outcome, reaction }) {
     const hope = outcome.isCritical ? CRITICAL.hope : outcome.withHope ? 1 : 0;
     if (hope) moves.push(game.i18n.format("DRPG.Rolls.awayHope", { n: hope }));
     if (outcome.withFear) moves.push(game.i18n.localize("DRPG.Rolls.awayDespair"));
-    return moves.join(", ");
+    // A list in the page's language (utils.mjs `listOf`; E66 C7, STATUS Open 50). A duality roll is with Hope or with
+    // Despair, never both, so it holds one move at most and reads as before; the road is the one every list takes.
+    return listOf(moves);
 }
 
 /*

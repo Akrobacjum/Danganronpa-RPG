@@ -516,7 +516,7 @@
       "noMonokumas": "Nobody holds a Despair pool yet: every full GM account holds one, and this world has none. Give an account the Gamemaster role, then open Despair Flow again; Assistant GMs can be granted a pool there.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned: this student feeds the first pool until you pick one.",
-      "footnote": "“(fallback)” = never assigned, so the student feeds the first pool. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it."
+      "footnote": "Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody."
     },
     "Despair": {
       "label": "Despair",
@@ -869,14 +869,14 @@
       "goalCleaning": "Something to clean with",
       "dynamicLabel": "Dynamic Action",
       "dynamicTitle": "Dynamic Action",
-      "dynamicHint": "Describe what you are doing; the GM sets the difficulty. Dynamic Actions have gentler thresholds than the standard ones - that is the reward for inventing something.",
+      "dynamicHint": "Describe what you want to do; a GM sets the difficulty and the statistic, or refuses. It costs an action, paid only once the GM has set the difficulty.",
       "dynamicDescribe": "Describe what your character does. The GM reads this and sets the difficulty.",
       "dynamicPlaceholder": "e.g. I water the plants in the garden, looking for anything buried.",
       "dynamicFrom": "{actor} is attempting something in {room}:",
       "dynamicSet": "Set the difficulty",
       "dynamicRefuse": "Refuse",
       "dynamicWaiting": "Waiting on the GM…",
-      "dynamicDescription": "Any action at all, provided you describe it in detail - the GM sets the difficulty and the statistic. The thresholds are gentler than the standard actions, as a deliberate reward for inventing something.",
+      "dynamicDescription": "Do anything you describe, if a GM accepts it; the GM picks the statistic and how hard it is. A hit leaves a Remnant, and the easier the task, the more visible it is; a miss leaves none.",
       "difficulty": "Difficulty",
       "proceed": "Do it",
       "gotIt": "Got it",
@@ -957,12 +957,12 @@
       "critPrompt": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
       "critNothingMore": "Nothing more to add",
       "analyseBulletHint": {
-        "one": "Work out what your one Truth Bullet not analysed yet really is.",
-        "other": "Work out what one of your {n} Truth Bullets not analysed yet really is."
+        "one": "Roll Head to learn what the one Truth Bullet you can analyze now really is. On a miss, you cannot analyze it again until the chapter ends.",
+        "other": "Roll Head to learn what one of the {n} Truth Bullets you can analyze now really is. On a miss, you cannot analyze that one again until the chapter ends."
       },
       "askHintHint": "No evidence in hand - ask the GM to point you somewhere instead.",
       "findStash": "Find Stash",
-      "findStashHint": "Work out whether somebody has hidden something in this room. {n}+ opens one stash to you.",
+      "findStashHint": "Look for a stash another student has hidden in this room. With a total of {n} or more, or a critical, you find one you have not found before and learn whose it is.",
       "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
       "findPassage": "Find Passage",
       "findPassageHint": "Go over the walls of this room for a way through that nobody shows. {n}+ opens one secret passage here to you.",
@@ -1789,7 +1789,7 @@
       "bodyNowhere": "There is nowhere to take it - no room connects to this one, or the only ones that do are bedrooms.",
       "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence.",
       "transformAction": "Reshape a Trace",
-      "transformActionHint": "Rename it and describe it as something innocent. Threshold three lower than erasing; a critical also makes it quieter and hands back the Sanity. It always ends up a Tamper Remnant.",
+      "transformActionHint": "Give a non-Reinforced Remnant a new name and description, with an easier roll than Erase a Trace. If a GM approves, it becomes a Tamper Remnant; if not, you get nothing back. A critical also hides it better and refunds what you paid.",
       "transformActionIntro": "You are not removing this. You are making it read as something else. Write what the next person through the door will find.",
       "reshapeName": "Call it",
       "reshapeNamePlaceholder": "Spilled paint",
@@ -2642,10 +2642,10 @@
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyHeld": "You already hold a Truth Bullet of this trace.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
-      "generalHint": "Sweep the room for whatever is easiest to spot.",
-      "nonObviousHint": "Look past the obvious: the hardest thing here, and whatever does not belong in this room at all.",
+      "generalHint": "Sweep the room for the easiest Remnant to spot, looking first among those tied to the crime. Your total alone decides what you find; you do not need to write anything. With nothing here to find, a GM rules on your roll.",
+      "nonObviousHint": "Aim for the hardest Remnant to spot, looking first among those tied to the crime. Only this way can you also notice a hidden secret project. Your total alone decides what you find; with nothing here to find, a GM rules on your roll.",
       "followTracesHint": "Retrace your own steps and look for what you left behind.",
-      "specificHint": "Say what you are looking for. The GM decides what your gaze lands on.",
+      "specificHint": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds.",
       "anythingHint": "Something that is not a trace - a person, a machine, the weather. The GM rules on it."
     },
     "TruthBullet": {
@@ -3297,8 +3297,8 @@
       },
       "startNewHint": "Describe something new. Nothing exists until the GM approves it.",
       "sabotageHint": {
-        "one": "Break the {n} project in this room so it needs repairing. Always leaves a trace.",
-        "other": "Break one of the {n} projects in this room so it needs repairing. Always leaves a trace."
+        "one": "This room has one project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
+        "other": "This room has {n} projects you can break. On a hit, the one you pick needs a repair project. It costs an action, and you always leave a Remnant."
       },
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
@@ -3830,8 +3830,8 @@
       "offerTooltip": "{kind} - press to choose what you take.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
-        "standard": "Level Up (pick 1)",
-        "reinforced": "Reinforced Level Up (pick 3)",
+        "standard": "Level Up (pick {picks})",
+        "reinforced": "Reinforced Level Up (pick {picks})",
         "standardHint": "The ordinary step, with the standard picks.",
         "reinforcedHint": "The heavier step, for a chapter that earned it."
       },
@@ -4012,13 +4012,13 @@
       "prompt": "What are you doing to the evidence?",
       "cover": "Erase a Trace",
       "coverHint": {
-        "one": "Wipe out the {n} trace you know about in this room. The easier it is to see, the harder it is to erase.",
-        "other": "Wipe out one of the {n} traces you know about in this room. The easier one is to see, the harder it is to erase."
+        "one": "You know of one Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
+        "other": "You know of {n} Remnants here that you can erase. The more visible a Remnant is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier."
       },
       "nothingOfYours": "You know of no trace in this room.",
       "onlyReinforced": "Every trace you know of here is too deeply set to remove.",
       "frame": "Misleading Trail",
-      "frameHint": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
+      "frameHint": "Plant a false Remnant pointing at another student; you need {n} or more. On a hit it is Evident with Hope, Subtle with Despair, Obvious on a critical, which gives back Sanity. A miss with Hope still plants a Faint, Hidden one; with Despair, nothing.",
       "whichTrace": "Which Remnant",
       "yourCopy": "{name} (your copy)",
       "coverAction": "Erase a Trace",
@@ -4034,11 +4034,11 @@
       "nobodyHere": "There is nobody in this room to reach.",
       "whichWay": "Which way is your hand going?",
       "takeLabel": "Take something",
-      "takeHint": "Lift one thing out of their pockets. What comes out is whatever comes out - a critical lets you choose.",
+      "takeHint": "Lift one thing, picked at random, out of their pockets; a critical lets you choose. It costs an action, and if they notice, they learn who it was and what you took.",
       "plantLabel": "Leave something",
       "plantHint": {
-        "one": "Put the one thing you are carrying into their pocket.",
-        "other": "Put one of the {n} things you are carrying into their pocket."
+        "one": "Slip the one thing you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does.",
+        "other": "Slip one of the {n} things you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does."
       },
       "nothingToPlant": "You are carrying nothing you could leave on somebody.",
       "whatToPlant": "What to leave",
@@ -4624,7 +4624,7 @@
       "hint.overflow": "The module's formula, 12 + half the living students, worked out for this season. Advisory: the threshold is yours to choose in Despair Flow's Overflow tab.",
       "overflowNow": "{line} Now {n}.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+      "hint.assignments": "In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.",
       "step.nobodyPublic": "The Mastermind feeds a Despair pool",
       "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
       "step.liveKitSecret": "The voice server's secret is not in the world",

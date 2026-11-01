@@ -23311,7 +23311,8 @@ const SCENARIOS = [
                 played.map(a => L.offerList(S.offerStore.get(a.id)).length), nobody.filter(a => S.offerStore.has(a.id)).length]),
                 stableJson([living.length, played.map(() => 1), 0]),
                 "a picker the GM closed gave no offer to a student a player owns, or one to a student nobody plays (pickers, offers per played student, offers to nobody's)");
-            const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
+            // The kind's name as vote.mjs writes it (level-up.mjs `advanceKindName`, its picks from LEVEL_UP; E66 C7).
+            const kind = L.advanceKindName(TRIAL.correct.levelUp);
             const said = (lines ?? []).map(String);
             equal(stableJson([said.includes(plural("DRPG.Vote.levelUpGranted", { n: 0, kind })),
                 said.includes(plural("DRPG.Vote.levelUpWaiting", { n: played.length, kind })),

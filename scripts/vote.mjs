@@ -2126,7 +2126,8 @@ async function verdictLevelUps(context) {
         }
     });
     if (done === null) throw new Error("the Level Ups did not open");
-    const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
+    const { advanceKindName } = await import("./level-up.mjs");
+    const kind = advanceKindName(TRIAL.correct.levelUp);
     context.lines.push(plural("DRPG.Vote.levelUpGranted", { n: done.applied, kind }));
     if (done.offered) context.lines.push(plural("DRPG.Vote.levelUpWaiting", { n: done.offered, kind }));
     for (const name of done.notGiven) {
@@ -2145,7 +2146,7 @@ async function verdictLevelUps(context) {
 async function verdictOffers(context) {
     const { killers } = await verdictReading(context);
     if (!killers.length) return;
-    const { deferAdvancement } = await import("./level-up.mjs");
+    const { deferAdvancement, advanceKindName } = await import("./level-up.mjs");
     await deferredOfferStore.whenHydrated();
     let waiting = 0;
     for (const actor of killers) {
@@ -2154,7 +2155,7 @@ async function verdictOffers(context) {
     }
     context.lines.push(plural("DRPG.Vote.blackenedRewarded", {
         n: waiting,
-        kind: game.i18n.localize(`DRPG.Advance.kind.${TRIAL.wrong.blackenedLevelUp}`)
+        kind: advanceKindName(TRIAL.wrong.blackenedLevelUp)
     }));
 }
 

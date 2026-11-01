@@ -18102,13 +18102,20 @@ const INVARIANTS = [
         // One form of the row's words wherever the Palm's three ways are listed (H81 fix r1): the row's own, first letter lowered.
         const lowered = text => (typeof text === "string" && text ? text[0].toLowerCase() + text.slice(1) : null);
         const hints = { en: palm.hint ?? "", pl: flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "" };
+        // E66 C7, 01.11.2026 (B01a, STATUS Open 43): the Polish Palm hint is B01a's approved text and says the glossary's
+        // form, docs/glossary.json `see-what-they-carry` "zobacz, co ktoś nosi" (stage E71), ahead of the row, the brochure
+        // and the GM handbook, which E71 moves; so the Polish hint is read for that form, and for none of the row's words.
+        // The English hint says the row's words, as before. Red on C7's landed tree with the row's words asked of it.
+        const HINT_WORDS = { pl: "zobacz, co ktoś nosi" };
         const oneForm = lang => {
             const words = lowered(flats[lang]["DRPG.Frisk.rowLabel"]);
-            return [words, ...[hints[lang], passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
+            const hint = HINT_WORDS[lang] ?? words;
+            return [words, Boolean(hint) && hints[lang].includes(hint) && (hint === words || !hints[lang].includes(words)),
+                ...[passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
         };
         equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, oneForm("en"), oneForm("pl"), /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
             J(["Zobacz, co nosi", ["see what they carry", true, true, true], ["zobacz, co nosi", true, true, true], false]),
-            "[the Polish row; in English and in Polish the row's words and whether the Palm hint, the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
+            "[the Polish row; in English and in Polish the row's words and whether the Palm hint (in Polish the glossary's 'zobacz, co ktoś nosi', since B01a), the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
         const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
         equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,
             /title:\s*game\.i18n\.localize\("DRPG\.Frisk\.noticeTitle"\)/.test(toast), toast.includes("DRPG.Frisk.rowLabel")]),

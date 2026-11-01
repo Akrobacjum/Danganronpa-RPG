@@ -20,7 +20,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
-import { standingOffers } from "./level-up.mjs";
+import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -1606,7 +1606,7 @@ function injectAdvanceButton(app, element) {
     const count = offers.length > 1 ? plural("DRPG.Advance.standing", { n: offers.length }) : "";
     const tip = game.user.isGM
         ? (offer ? plural("DRPG.Advance.standing", { n: offers.length }) : game.i18n.localize("DRPG.Advance.buttonTooltip"))
-        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) }), count]
+        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: advanceKindName(offer.kind) }), count]
             .filter(Boolean).join(" ");
     if (standing) {
         // A sheet re-rendered after the offer was taken must not keep the glow.
