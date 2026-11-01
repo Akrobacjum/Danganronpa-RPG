@@ -249,7 +249,7 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 **Dynamic Actions** (`DYNAMIC_THRESHOLDS`). Opis gracza trafia do ciebie jako karta w jego wątku komunikatora z przyciskami **Ustal trudność** i **Odmów**. Wybierasz pasmo i statystykę; odmowa nic gracza nie kosztuje. Pasmo zdaje się od dolnej liczby, a oba okna mówią "przebij N". Sukces zostawia Faint Prep Remnant o widoczności pasma i daje ci kartę z przyciskiem, który otwiera tabele przedmiotów na Tierze pasma, z pokojem i słowami gracza (nic nie zostaje dane, dopóki sam nie dasz), także po Rerollu, który zamienia porażkę w sukces:
 
-| Pasmo | Przebij | Tier | Ślad |
+| Pasmo | Przebij | Tier | Remnant |
 |---|---|---|---|
 | Banalne. Każdy by to zrobił | 8 | 0 | Obvious |
 | Wymaga wprawy | 13 | 1 | Evident |
@@ -266,7 +266,7 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 **Sabotage** (`ACTIONS.sabotage`):
 
-| Wynik | Psuje projekt tak, że potrzebuje | Ślad |
+| Wynik | Psuje projekt tak, że potrzebuje | Remnant |
 |---|---|---|
 | 12 | prostej naprawy | Subtle |
 | 18 | złożonej naprawy | Evident |
@@ -642,7 +642,7 @@ Uczeń, który odkrył tajny projekt przez Observe, dowiaduje się tylko, że je
 
 Praca w samotności daje **+1 postępu**. Zacieranie śladów tej pracy to rzut Shadow:
 
-| Zacieranie śladów (Shadow) | Zostawiony ślad |
+| Zacieranie śladów (Shadow) | Zostawiony Remnant |
 |---|---|
 | Poniżej 12 | Obvious |
 | 12 | Evident |
@@ -750,7 +750,7 @@ Na arkuszu walka to jeden kafelek: **Broń się** po stronie ofiary, **Akcje kry
 
 Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione przez siebie Remnants i może nad nimi pracować. W jego własnym Stage 6 kosztuje to **zero akcji i 1 Sanity za każdy** (`RESOLUTION_STRESS_COST`) - pierwsza próba po jego krytycznym Finishing Blow nie kosztuje nic, udana czy nie - a każdy ślad w pokoju, w którym stoi, jest do jego dyspozycji, znaleziony czy nie. Przez kafelek **Tamper** w zwykłej grze (`PRICE_CHAINS.tamper`) kosztuje akcję albo 1 Sanity, gdy akcji już nie ma - nigdy oba - i sięga tylko śladów wymienionych przy Tamper w sekcji 5. W Stage 6 usuwanie, przerabianie i fałszywy trop wymieniają Shadow, Hand i Head, a ty wybierasz jedną na podstawie tego, co według zabójcy robi (sekcja 5; z uzbrojonym *Resolve* wybiera on); przez Tamper w zwykłej grze ta sama praca rzuca Shadow i nikt nie jest pytany. Cleaning Tool w ręku daje przewagę i zdejmuje swój Tier z DC.
 
-| Widoczność śladu | DC usunięcia |
+| Widoczność Remnantu | DC usunięcia |
 |---|---|
 | Hidden | 9 |
 | Subtle | 12 |
@@ -856,7 +856,7 @@ Stopka ma **Nowy Remnant** (ślad dowolnego rodzaju, w dowolnym pokoju), **Wyczy
 | **Skup wzrok** | nazywa, czego chce, a karta, którą widzi każdy GM, pyta, na który ślad wskazują te słowa; wybiera dowolny GM, a główny GM sprawdza wybór w pokoju |
 | **Zbadaj punkt zainteresowania** | coś, co nie jest śladem, do twojego rozstrzygnięcia |
 
-Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje **1 Sanity**. Jeden ślad daje jedną kopię na osobę. Ślady związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę. Wybór przy Skup wzrok zrobiony, gdy gracz przestał już czekać, po wyborze innego GM-a albo po odmowie jest odrzucany i moduł mówi o tym GM-owi, który go zrobił.
+Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje **1 Sanity**. Jeden ślad daje jedną kopię na osobę. Remnanty związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę. Wybór przy Skup wzrok zrobiony, gdy gracz przestał już czekać, po wyborze innego GM-a albo po odmowie jest odrzucany i moduł mówi o tym GM-owi, który go zrobił.
 
 | Widoczność | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|

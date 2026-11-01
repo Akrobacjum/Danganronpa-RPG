@@ -1359,7 +1359,7 @@
       },
       "repointTo": "Wymierz Objection w",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
-      "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje pół minuty albo wraca od razu do otwartej debaty.",
+      "modeNote": "To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje {step} s albo wraca od razu do otwartej debaty.",
       "startBusy": "Debata nie może się zacząć, gdy głos ma runda albo Closing Argument. Najpierw zakończ ten tryb.",
       "sectionTrial": "Class Trial",
       "sectionDebate": "Debata",
@@ -1499,10 +1499,16 @@
       "voteSub": "Wskaż blackened.",
       "voteMeta": "Trial czeka na głosy.",
       "voteMetaGm": {
-        "one": "{back} z {total} głosów wrócił",
-        "few": "{back} z {total} głosów wróciły",
-        "many": "{back} z {total} głosów wróciło",
-        "other": "{back} z {total} głosów wróciło"
+        "one": "{back} z {total} {ballots} wrócił",
+        "few": "{back} z {total} {ballots} wróciły",
+        "many": "{back} z {total} {ballots} wróciło",
+        "other": "{back} z {total} {ballots} wróciło"
+      },
+      "voteMetaGmBallots": {
+        "one": "głosu",
+        "few": "głosów",
+        "many": "głosów",
+        "other": "głosów"
       },
       "voteCast": "Twój głos oddany.",
       "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
@@ -2791,7 +2797,7 @@
         "done": "Gotowe",
         "pass": "Pasuję",
         "keep": "Mówię dalej",
-        "closingPassEarly": "Pasuję w pierwszych 30 s oddaje wybór GM-owi; potem kończy Closing Argument.",
+        "closingPassEarly": "Pasuję w pierwszych {seconds} s oddaje wybór GM-owi; potem kończy Closing Argument.",
         "closingPass": "Pasuję kończy Closing Argument, tak jak Gotowe."
       },
       "claim": {
@@ -6753,7 +6759,8 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
-        "tamper": "Nie masz już akcji ani Sanity, które można by dać w zamian."
+        "tamper": "Nie masz już akcji ani Sanity, które można by dać w zamian.",
+        "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
       "paid": {
         "action": {

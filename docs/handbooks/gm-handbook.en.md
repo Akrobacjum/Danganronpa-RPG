@@ -249,7 +249,7 @@ The ten tiles on the sheet, in the order they are drawn:
 
 **Dynamic Actions** (`DYNAMIC_THRESHOLDS`). The player's description reaches you as a card in their messenger thread with **Set difficulty** and **Refuse** on it. You pick the band and the statistic; a refusal costs the player nothing. A band is passed from its lower number, and both windows say "beat N". A success leaves a Faint Prep Remnant of the band's visibility, and hands you a card with a button that opens the item tables at the band's tier, the room and the player's words filled in (nothing is given until you give it), also after a Reroll that turns a miss:
 
-| Band | Beat | Tier | Trace |
+| Band | Beat | Tier | Remnant |
 |---|---|---|---|
 | Trivial. Anyone could do it | 8 | 0 | Obvious |
 | Takes practice | 13 | 1 | Evident |
@@ -266,7 +266,7 @@ The ten tiles on the sheet, in the order they are drawn:
 
 **Sabotage** (`ACTIONS.sabotage`):
 
-| Result | Breaks the project so it needs | Trace |
+| Result | Breaks the project so it needs | Remnant |
 |---|---|---|
 | 12 | a simple repair | Subtle |
 | 18 | a complex repair | Evident |
@@ -642,7 +642,7 @@ A student who found a secret project with Observe is told only that it is finish
 
 Working alone gives **+1 progress**. Hiding the traces of the work rolls Shadow:
 
-| Hiding the traces (Shadow) | Trace left |
+| Hiding the traces (Shadow) | Remnant left |
 |---|---|
 | Below 12 | Obvious |
 | 12 | Evident |
@@ -750,7 +750,7 @@ On the sheet the fight is one tile: **Fight back** on the victim's side, **Crisi
 
 When the incident ends with a body, the killer can finally see the Remnants they left, on their sheet, and work on them. In their own Stage 6 it costs **no action and 1 Sanity each** (`RESOLUTION_STRESS_COST`) - the first attempt after their critical Finishing Blow costs nothing, hit or miss - and every trace in the room they stand in is theirs to work on, found or not. Via the **Tamper** tile in ordinary play (`PRICE_CHAINS.tamper`) it costs an action, or 1 Sanity once the actions are gone - never both - and reaches only the traces listed under Tamper in section 5. In Stage 6, erasing, reshaping and planting a trail list Shadow, Hand and Head, and you pick one from what the killer says they do (section 5; with *Resolve* armed, they pick); through Tamper in ordinary play the same work rolls Shadow, and nobody is asked. A readied Cleaning Tool gives advantage and takes its tier off the DC.
 
-| Trace visibility | DC to erase |
+| Remnant visibility | DC to erase |
 |---|---|
 | Hidden | 9 |
 | Subtle | 12 |
@@ -856,7 +856,7 @@ The footer carries **New Remnant** (a trace of any kind, in any room), **Clear F
 | **Focus your gaze** | they name what they want and a card every GM sees asks which trace the words point at; any GM picks, and the primary GM checks the pick against the room |
 | **Examine point of interest** | something that is not a trace, yours to rule on |
 
-Both of the last two have rolled before you see them: refusing the Focus pick, an Examine point of interest, or an Observe in a room with no traces left becomes a ruling card on that roll with **Create a Key Remnant here**, **Reply**, and **Nothing was there**, which counts as the miss. The roll is scored on your client against the trace's real type and visibility; the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One trace yields one copy per person. Traces tied to the murder are shown first. The first time anyone copies a trace, your browser asks you to describe it (name, player text, analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint. A Focus pick made after the player stopped waiting, after another GM's pick or after a refusal is refused and told to the GM who made it.
+Both of the last two have rolled before you see them: refusing the Focus pick, an Examine point of interest, or an Observe in a room with no traces left becomes a ruling card on that roll with **Create a Key Remnant here**, **Reply**, and **Nothing was there**, which counts as the miss. The roll is scored on your client against the trace's real type and visibility; the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One trace yields one copy per person. Remnants tied to the murder are shown first. The first time anyone copies a trace, your browser asks you to describe it (name, player text, analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint. A Focus pick made after the player stopped waiting, after another GM's pick or after a refusal is refused and told to the GM who made it.
 
 | Visibility | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|

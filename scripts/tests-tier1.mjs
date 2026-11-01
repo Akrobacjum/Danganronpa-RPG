@@ -86,6 +86,9 @@ const INVARIANTS = [
         const WILL_FAMILIES = ["action", "actionsLeft", "burst", "hope", "hopeHeld", "stressAfterHope", "stressAfterAction", "skippedAction"];
         const WILL_LINES = ["breakdown", "free"];
         const oneStep = Object.keys(PRICE_CHAINS).filter(key => PRICE_CHAINS[key].stepsBeyondFirst).map(key => `${key}OneStep`);
+        /* E66 fix r1 F3: a refusal with the action step skipped, for the one chain a caller skips it of (cleanup.mjs
+           `tamperPriceSkip`, a cleaner in their own Stage 6). */
+        oneStep.push("tamperSkippedAction");
         for (const kind of kinds) {
             ok(game.i18n.has(`DRPG.Price.label.${kind}.other`), `no plural label for ${kind}`);
             ok(game.i18n.has(`DRPG.Price.paid.${kind}.other`), `no "paid" family for ${kind}`);
@@ -30651,6 +30654,8 @@ const INVARIANTS = [
                 phase = "classTrial";
                 r.analyze.push(P.quotePrice(stuck, "analyze").blocked);
                 phase = "dailyLife";
+                // E66 fix r1 F3 (STATUS Open 11): with nothing left, a Tamper whose action step was skipped names the Sanity alone.
+                r.tamperStuck = [P.quotePrice(stuck, "tamper", { skip: ["action"] }).blocked, P.quotePrice(stuck, "tamper").blocked];
                 r.raw = [
                     U.plural("DRPG.Murder.hinderedActions", { turns: 2, actions: U.listOf([label("leaveClue"), label("survive")]) }, "turns"),
                     U.plural("DRPG.Murder.blockedActions", { turns: 2, actions: U.listOf([label("secureTrace"), label("roleReversal")], { type: "negated" }) }, "turns"),
@@ -30673,6 +30678,7 @@ const INVARIANTS = [
                 lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
                 analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and no Sanity to give instead."],
                 raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
                     `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
             },
@@ -30682,6 +30688,7 @@ const INVARIANTS = [
                 lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
+                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji ani Sanity, które można by dać w zamian."],
                 raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
                     `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
@@ -30689,8 +30696,88 @@ const INVARIANTS = [
         }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
             + "priceLine for 2 actions with 5 held and for 1 Hope with 2 held, paidLine for 2 actions, a tile's cost, the Confusion's; "
             + "priceLine for a Sanity step with the action skipped; Analyze refused with nothing left in Daily Life and in the Class Trial; "
+            + "a Tamper refused with nothing left, its action step skipped and not; "
             + "the hindrance, the block, a block of one action, the action and the Sanity given back; then a living student's Tamper quoted "
             + "with its action step skipped and without]");
+    }],
+
+    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
+        /*
+         * E66 fix r1, 01.11.2026; STATUS Open 13 (F4), 17 (F7), 24 and 49 (F8), 26 (F9). `roomRatioLine` wrote its
+         * quotient by `toFixed(1)`, "1.5" on a Polish page, and the 1.5 rooms per student as it is; `Events.voteMetaGm`
+         * was counted on the ballots back while its noun follows the total, so a total of 1 read "0 of 1 ballots back"
+         * and "1 z 1 głosów wrócił"; the Closing Argument's Pass said "first 30 s" and the console's footnote "half a
+         * minute" beside `TRIAL.modes.closing.passWindowSeconds` and the bar's step. The Rest's "half" is no number
+         * config holds - rest.mjs heals `Math.ceil(marks / 2)` for a short Sleep or Meal - so it stays a word, and this
+         * holds the word to that code: a change of the half in rest.mjs fails here, beside the sentences that say it.
+         * Each language is read with its file's DRPG block in place of this browser's and the page's language stood in
+         * (settings.mjs `setPageLanguage`), both put back in a finally; the readers are read in their source (comments
+         * out). Nothing is written. Red at dd7176ec: "1.5" in Polish, voteMetaLine absent, "30 s" and "half a minute".
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), V = await import("./vault.mjs"), E = await import("./events.mjs");
+        const { TRIAL, ROOMS_PER_PLAYER } = await import("./config.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const pass = TRIAL.modes.closing.passWindowSeconds, step = TRIAL.modes.gm.adjustSeconds;
+        must(Number.isFinite(pass) && Number.isFinite(step) && ROOMS_PER_PLAYER === 1.5, `TRIAL's seconds or ROOMS_PER_PLAYER are not what this reads: ${stableJson({ pass, step, ROOMS_PER_PLAYER })}`);
+        const BALLOTS = [[0, 1], [1, 1], [2, 3], [5, 7]];
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                read[code] = {
+                    ratio: V.roomRatioLine({ count: 3, locked: [] }, 2).replace(U.plural("DRPG.Vault.roomCensus", { n: 3 }), "{rooms}"),
+                    ballots: typeof E.voteMetaLine === "function" ? BALLOTS.map(([back, total]) => E.voteMetaLine(back, total)) : null,
+                    pass: game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: pass }),
+                    note: game.i18n.format("DRPG.Floor.modeNote", { step }),
+                    // The Polish of config.mjs's prose is pl.json's; the English is config.mjs's own, read in its source below.
+                    ...(code === "pl" ? { half: ["sleep", "meal"].map(key => files.pl.DRPG.Config?.REST?.options?.[key]?.short ?? null) } : {})
+                };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const rest = stripComments(sources.get("rest.mjs") ?? "");
+        const config = sources.get("config.mjs") ?? "";
+        read.sources = {
+            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault.mjs", "roomRatioLine"))
+                && !/toFixed/.test(fn("vault.mjs", "roomRatioLine")),
+            ballots: /voteMetaLine\(back,\s*back \+ out\)/.test(fn("events.mjs", "trialCard")),
+            pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
+            note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
+            half: (rest.match(/full \? marks : Math\.ceil\(marks \/ 2\)/g) ?? []).length,
+            restProse: [/short: "Restores half Health"/.test(config), /short: "Restores half Sanity"/.test(config)]
+        };
+        equal(stableJson(read), stableJson({
+            en: {
+                ratio: "{rooms}. Living students: 2 (1.5 rooms each). This season was built on 1.5 per student, so this cast wants 3.",
+                ballots: ["0 of 1 ballot back", "1 of 1 ballot back", "2 of 3 ballots back", "5 of 7 ballots back"],
+                pass: `Pass in your first ${pass} s hands the choice back to the GM; after that it ends the Closing Argument.`,
+                note: `This runs out on its own. The bar below cuts it short (Skip), takes or gives ${step} s, or drops straight back to the open debate.`
+            },
+            pl: {
+                ratio: "{rooms}. Żyjący uczniowie: 2 (1,5 pokoju na głowę). Sezon zbudowano na 1,5 na ucznia, więc ta obsada potrzebuje 3.",
+                ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
+                pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
+                note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
+                half: ["Przywraca połowę Health", "Przywraca połowę Sanity"]
+            },
+            sources: { ratio: true, ballots: true, pass: true, note: true, half: 2, restProse: [true, true] }
+        }), "[in English, then Polish: the room ratio of 3 rooms for 2 living students; the vote's meta at 0 and 1 of 1, 2 of 3, 5 of 7; "
+            + "the Closing's early Pass and the console's footnote with TRIAL's seconds; the Polish Rest's short Sleep and Meal; then the readers: "
+            + "roomRatioLine through localeFormat and no toFixed, the trial card through voteMetaLine, promptTurn and the console filling the "
+            + "seconds from TRIAL, rest.mjs's two halves and config.mjs's English that says them]");
     }],
 
     ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {

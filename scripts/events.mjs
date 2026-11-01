@@ -397,6 +397,17 @@ export function gmNoteText(floor) {
     return game.i18n.format(note.key, { seconds: seconds > 0 ? `+${seconds}` : String(seconds) });
 }
 
+/**
+ * The GMs' line under the vote: how many ballots of how many are back (E66 fix r1 F7; STATUS Open 17). Two counts that
+ * agree with different words (PL7): the noun with the total, a fragment family counted on it (`Events.voteMetaGmBallots`,
+ * "ballot"/"ballots", in Polish the genitive after "z {total}", "głosu"/"głosów"), put into the family of the predicate,
+ * counted on the ballots back (`Events.voteMetaGm`, Polish "wrócił", "wróciły", "wróciło"; docs/text-style.md section 14).
+ */
+export function voteMetaLine(back, total) {
+    const ballots = plural("DRPG.Events.voteMetaGmBallots", { total }, "total");
+    return plural("DRPG.Events.voteMetaGm", { back, total, ballots }, "back");
+}
+
 export function trialCard(clock) {
     try {
         if (clock.phase !== "classTrial") return null;
@@ -423,7 +434,7 @@ export function trialCard(clock) {
                 sub: game.i18n.localize("DRPG.Events.voteSub"),
                 meta: back === null || out === null
                     ? game.i18n.localize("DRPG.Events.voteMeta")
-                    : plural("DRPG.Events.voteMetaGm", { back, total: back + out }, "back")
+                    : voteMetaLine(back, back + out)
             };
         }
 

@@ -490,7 +490,8 @@
         "objection": "No action, no Hope and no Sanity left, so you cannot object.",
         "analyze": "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
-        "tamper": "No action left, and no Sanity to give instead."
+        "tamper": "No action left, and no Sanity to give instead.",
+        "tamperSkippedAction": "No action is needed here, but you have no Sanity left to pay with."
       },
       "paid": {
         "action": { "one": "Paid with {n} action.", "other": "Paid with {n} actions." },
@@ -1300,7 +1301,7 @@
       },
       "repointTo": "Aim the Objection at",
       "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
-      "modeNote": "This runs out on its own. The bar below cuts it short (Skip), takes or gives half a minute, or drops straight back to the open debate.",
+      "modeNote": "This runs out on its own. The bar below cuts it short (Skip), takes or gives {step} s, or drops straight back to the open debate.",
       "startBusy": "A debate cannot open while a round or the Closing Argument holds the floor. End that mode first.",
       "sectionTrial": "The trial",
       "sectionDebate": "The debate",
@@ -1422,7 +1423,8 @@
       "voteTitle": "The vote is open",
       "voteSub": "Name the blackened.",
       "voteMeta": "The trial waits on the ballots.",
-      "voteMetaGm": { "one": "{back} of {total} ballots back", "other": "{back} of {total} ballots back" },
+      "voteMetaGm": { "one": "{back} of {total} {ballots} back", "other": "{back} of {total} {ballots} back" },
+      "voteMetaGmBallots": { "one": "ballot", "other": "ballots" },
       "voteCast": "Your vote is in.",
       "trialDebateMeta": "Present a Truth Bullet from your Inventory",
       "trialDiscussionMeta": "Talk it through - the GM opens the debate",
@@ -2543,7 +2545,7 @@
         "done": "Done",
         "pass": "Pass",
         "keep": "Keep speaking",
-        "closingPassEarly": "Pass in your first 30 s hands the choice back to the GM; after that it ends the Closing Argument.",
+        "closingPassEarly": "Pass in your first {seconds} s hands the choice back to the GM; after that it ends the Closing Argument.",
         "closingPass": "Pass ends the Closing Argument, as Done does."
       },
       "claim": {

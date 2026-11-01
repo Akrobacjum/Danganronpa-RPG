@@ -214,7 +214,7 @@ Wybierasz, jak patrzysz:
 | Skup wzrok | powiedz, czego szukasz; GM decyduje, na czym zatrzyma się twój wzrok |
 | Zbadaj punkt zainteresowania | coś, co nie jest śladem - osoba, maszyna, pogoda; GM rozstrzyga |
 
-Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Ślady powiązane ze zbrodnią pokazywane są zawsze jako pierwsze. *Spójrz poza oczywiste* może też wyciągnąć tajny projekt w pokoju (18+ albo krytyk); znalezienie go wtajemnicza cię w niego.
+Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Remnanty powiązane ze zbrodnią pokazywane są zawsze jako pierwsze. *Spójrz poza oczywiste* może też wyciągnąć tajny projekt w pokoju (18+ albo krytyk); znalezienie go wtajemnicza cię w niego.
 
 ### Analyze - Head, 1 akcja
 
@@ -266,7 +266,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 
 Cokolwiek, byle opisane szczegółowo. GM ustala trudność i statystykę albo odmawia (nic nie wydano). Okno rzutu mówi, jaką liczbę trzeba przebić: pasmo zdaje się od dolnej liczby. Przy sukcesie twoja karta mówi, że GM zdecyduje, co daje ci wynik danego Tieru, a GM dostaje kartę, która tworzy przedmiot. Progi Dynamic Actions są łagodniejsze niż standardowych, celowo, jako nagroda za pomysł:
 
-| Trudność | Przebij | Tier przedmiotu, który może dać | Ślad, który zostawia |
+| Trudność | Przebij | Tier przedmiotu, który może dać | Remnant, który zostawia |
 |---|---|---|---|
 | Trywialne - każdy by to zrobił | 8 | Tier 0 | Obvious |
 | Wymaga wprawy | 13 | Tier 1 | Evident |
@@ -471,7 +471,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ---
 
-## 8. Ślady i dowody
+## 8. Remnanty i dowody
 
 ### Remnants
 
@@ -528,7 +528,7 @@ Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Lif
 
 Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
 
-| Rzut Shadow | Ślad, który zostawia |
+| Rzut Shadow | Remnant, który zostawia |
 |---|---|
 | poniżej 12 | Obvious |
 | 12+ | Evident |
@@ -659,7 +659,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 ## 11. Investigation
 
 - Każdy żyjący uczeń dostaje **Autopsy Truth Bullet** - godzina odkrycia, przyczyna śmierci, to, co pokazuje ciało. Bez rzutu.
-- **Observe** na śladach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Ślady powiązane ze zbrodnią pokazywane są pierwsze.
+- **Observe** na śladach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
 - GMowie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
 - **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia i wciśnij *Weź* przy tym, co mieli przy sobie. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje ślad, że ktoś przeszedł przez kieszenie (jeden na ciało, ile by rzeczy z niego nie wyszło).
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.

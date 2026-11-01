@@ -158,9 +158,13 @@ export function quotePrice(actor, key, { skip = [] } = {}) {
     if (!step) {
         /* Outside the phase its later steps live in, a gated chain is one step long (`stepsBeyondFirst`): Analyze
            outside the Class Trial is paid with an action or not at all, so its refusal names no Hope and no Sanity
-           (E66 C2; S09-40) - `nothingLeft.<key>OneStep` where the file has one. */
+           (E66 C2; S09-40) - `nothingLeft.<key>OneStep` where the file has one. A chain whose action step the caller
+           skipped (a cleaner's Tamper in their own Stage 6, cleanup.mjs `tamperPriceSkip`) has no action to run out of: its
+           refusal names what is left to pay with, `nothingLeft.<key>SkippedAction` (E66 fix r1 F3; STATUS Open 11). */
         const oneStep = offered.length < chain.steps.length && game.i18n.has(`DRPG.Price.nothingLeft.${key}OneStep`);
-        const line = oneStep ? `DRPG.Price.nothingLeft.${key}OneStep` : `DRPG.Price.nothingLeft.${key}`;
+        const skippedAction = base.skipped.includes("action") && game.i18n.has(`DRPG.Price.nothingLeft.${key}SkippedAction`);
+        const line = skippedAction ? `DRPG.Price.nothingLeft.${key}SkippedAction`
+            : oneStep ? `DRPG.Price.nothingLeft.${key}OneStep` : `DRPG.Price.nothingLeft.${key}`;
         return {
             ...base,
             blocked: game.i18n.has(line)

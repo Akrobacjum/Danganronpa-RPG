@@ -1916,7 +1916,7 @@ const FAMILY_FORM = /\.(?:zero|one|two|few|many|other)$/u;
 const FACTS_ROW = /^\s*\p{L}[\p{L} ]*:\s*\{\w+\}\s*$/u;
 const BARE_LEFT = Object.freeze({
     pl: Object.freeze([/(?<![\p{L}])(?:po)?został[oayi]?\s+\{\w+\}/iu]),
-    en: Object.freeze([/(?<![\p{L}])left:\s*\{\w+\}/iu, /\{\w+\}\s+left(?![\p{L}])/iu])
+    en: Object.freeze([/(?<![\p{L}])left:\s*\{\w+\}/iu, /(?<!\{\w+\}\s+of\s+)\{\w+\}\s+left(?![\p{L}])/iu])
 });
 
 /**
@@ -1925,7 +1925,11 @@ const BARE_LEFT = Object.freeze({
  * {x}", "zostały {x}", "została {x}" (and "pozostało ..."), English "left: {x}" and
  * "{x} left" - outside a plural family's forms and not as a facts row ("Zostało:
  * {n}", a label and its number alone). One finding a string; what a family's forms
- * and the facts rows hold is counted (`inFamily`, `factsRows`).
+ * and the facts rows hold is counted (`inFamily`, `factsRows`). An English ratio, "{a}
+ * of {b} left", is not read (E66 fix r1 F5, STATUS Open 14): "left" agrees with
+ * nothing in English, and its Polish twin carries a predicate only where the Polish
+ * pattern finds one - R1157 reads the same strings as R, "a ratio with nothing
+ * agreeing" (`Explain.room.tokens`, `Explain.status.actionsNow`).
  */
 export function bareLeft(bag = {}) {
     const found = [], counts = { inFamily: 0, factsRows: 0 };
@@ -3150,7 +3154,8 @@ export const FIXTURES = Object.freeze({
                 "DRPG.Fx.b": "Left: {left}",                                          // a facts row: passes, counted
                 "DRPG.Fx.c.one": "{n} action left",                                   // a family's form: passes, counted
                 "DRPG.Fx.d": "Actions left: {n}. Choose one.",                        // "left:" in running text: flagged
-                "DRPG.Fx.e": "{n} search tokens left"                                 // a noun between: not read
+                "DRPG.Fx.e": "{n} search tokens left",                                // a noun between: not read
+                "DRPG.Fx.g": "Search Tokens here: {left} of {max} left today."        // a ratio, nothing agrees with its count (R1157's R): not read
             },
             prose: { "DRPG.Config.FX.p": "Roll again; {n} left." },                  // flagged
             pl: {

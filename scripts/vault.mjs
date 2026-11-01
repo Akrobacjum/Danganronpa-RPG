@@ -42,7 +42,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { roomStockTables } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural, serialWrite,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset, localeFormat } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
@@ -1271,8 +1271,10 @@ export function roomRatioLine(census, living) {
     const line = game.i18n.format("DRPG.Vault.roomRatio", {
         rooms: plural("DRPG.Vault.roomCensus", { n: census.count }),
         living,
-        per: living ? (census.count / living).toFixed(1) : "-",
-        target: ROOMS_PER_PLAYER,
+        /* Both decimals in the page's language, "1,5" on a Polish page (E66 fix r1 F4; STATUS Open 13): the quotient with
+           the one decimal `toFixed(1)` gave it, the season's rooms per student as config writes it. */
+        per: living ? localeFormat("number", census.count / living, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-",
+        target: localeFormat("number", ROOMS_PER_PLAYER),
         want
     });
     return census.locked.length ? `${line} ${plural("DRPG.Vault.roomCensusLocked", { n: census.locked.length })}` : line;

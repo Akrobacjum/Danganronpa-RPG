@@ -88,7 +88,9 @@ export const PLACEHOLDERS = Object.freeze({
         "new", "before", "after", "other", "where", "relief", "moves", "length", "size", "duality", "formula", "eclipse", "paused", "opened", "faint", "key",
         "keys", "carried", "forms", "step", "store", "system", "counted", "rules",
         // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
-        "reach", "short", "long", "wounded"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "reach", "short", "long", "wounded",
+        // E66 fix r1 F7: the vote's noun, `Events.voteMetaGmBallots` counted on the total (events.mjs `voteMetaLine`).
+        "ballots"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },

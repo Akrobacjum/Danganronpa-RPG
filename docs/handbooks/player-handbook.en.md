@@ -214,7 +214,7 @@ You choose how you are looking:
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
 | Examine point of interest | something that is not a trace - a person, a machine, the weather; the GM rules |
 
-You are told what you found, never the difficulty. Traces tied to the crime are always shown first. *Look past the obvious* can also turn up a secret project in the room (18+, or a critical); finding it lets you in on it.
+You are told what you found, never the difficulty. Remnants tied to the crime are always shown first. *Look past the obvious* can also turn up a secret project in the room (18+, or a critical); finding it lets you in on it.
 
 ### Analyze - Head, 1 action
 
@@ -266,7 +266,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 
 Anything at all, provided you describe it in detail. The GM sets the difficulty and the statistic, or refuses (nothing is spent). Your roll window says the number to beat: a band is passed from its lower number. On a success your card reads "Success - the GM decides what a Tier N result gives you", and the GM gets a card that makes the item. Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
 
-| Difficulty | Beat | Item tier it can yield | Trace it leaves |
+| Difficulty | Beat | Item tier it can yield | Remnant it leaves |
 |---|---|---|---|
 | Trivial - anyone could do it | 8 | Tier 0 | Obvious |
 | Takes practice | 13 | Tier 1 | Evident |
@@ -471,7 +471,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 ---
 
-## 8. Traces and evidence
+## 8. Remnants and evidence
 
 ### Remnants
 
@@ -528,7 +528,7 @@ An **indirect murder** is built as projects, kept secret from everyone but the b
 
 Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
 
-| Shadow roll | Trace it leaves |
+| Shadow roll | Remnant it leaves |
 |---|---|
 | under 12 | Obvious |
 | 12+ | Evident |
@@ -659,7 +659,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 ## 11. Investigation
 
 - Every living student receives an **Autopsy Truth Bullet** - time of discovery, cause of death, what the body shows. No roll.
-- **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Traces tied to the crime are shown first.
+- **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
 - The **body** can be searched: open the dead student's sheet and press *Take* on what they carried. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets a trace that somebody has been through the pockets (one per body, however many things leave it).
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.

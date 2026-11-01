@@ -50,7 +50,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc } from "./utils.mjs";
+import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
@@ -2083,7 +2083,8 @@ export function flagText(flag) {
         claimed: String(word(flag?.claimed) ?? "-"), expected: String(word(flag?.expected) ?? "-")
     });
     const from = (Array.isArray(flag?.from) ? flag.from : []).map(key => LEGAL[key]?.label).filter(Boolean);
-    return from.length ? game.i18n.format("DRPG.Rolls.flagFrom", { line, list: from.map(key => game.i18n.localize(key)).join(", ") }) : line;
+    // What the GM counted, a list in the page's language (utils.mjs `listOf`; E66 fix r1 F6, STATUS Open 16).
+    return from.length ? game.i18n.format("DRPG.Rolls.flagFrom", { line, list: listOf(from.map(key => game.i18n.localize(key))) }) : line;
 }
 
 /** One whisper to the GMs for a roll with anything flagged: whose roll, and each difference. */

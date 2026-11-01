@@ -27329,7 +27329,7 @@ const SCENARIOS = [
         /*
          * A CHAPTER OF ITS OWN, ABOVE ANYTHING THE WORLD HOLDS.
          *
-         * The fixture used to stamp `chapter: 1` and days 1–3 and then assert
+         * The fixture used to stamp `chapter: 1` and days 1-3 and then assert
          * that "newest first" put its own D3 on top - which is only true on a
          * world with no traces later than day 3. The suite's own murder
          * scenarios leave incident traces stamped from the live clock, so on a
@@ -38590,7 +38590,9 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
             await settle();
         }
-        const modeNote = loc("DRPG.Floor.modeNote"), objectionNote = loc("DRPG.Floor.objectionNote");
+        // The footnote says the bar's step, `TRIAL`'s (E66 fix r1 F9; trial-floor-ui.mjs fills it with `adjustStep`).
+        const modeNote = game.i18n.format("DRPG.Floor.modeNote", { step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds }),
+            objectionNote = loc("DRPG.Floor.objectionNote");
         equal(stableJson(readings), stableJson({
             discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
             debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },

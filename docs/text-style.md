@@ -699,6 +699,7 @@ host with every fragment it takes, in English and Polish. Read on this tree on 0
 | `DRPG.Advance.kind.*` | names („Level Up”, „Reinforced Level Up”), after a colon or opening the sentence | `Advance.offered`, `Advance.offerTooltip`, `Advance.takeBack`, `Advance.takenBack`, `Vote.blackenedRewarded` | level-up.mjs, sheet.mjs, vote.mjs |
 | `DRPG.Overflow.name.*` | names, indeclinable | `Overflow.gmHintQueued`, `Overflow.currentDrawn` (after a colon), `Overflow.currentWaiting` | overflow.mjs |
 | `DRPG.Rolls.flagKind.*` | nominative, opening the line | `Rolls.flagLine` | roll-draw.mjs `flagText` |
+| `DRPG.Events.voteMetaGmBallots` | genitive after „z {total}” („głosu”, „głosów”), counted on the total; the host's predicate is counted on the ballots back | `Events.voteMetaGm` {ballots} | events.mjs `voteMetaLine` (E66 fix r1; rendered by R1163) |
 | `DRPG.Unit.action` | nominative („1 akcja”, „2 akcje”, „5 akcji”) | `Config.PHASES.dailyLife.hint` (opening the sentence), `Explain.status.actionsWhat` {actions} | utils.mjs `proseOf` (`PROSE_NUMBERS.actions`); explain.mjs `actionsExplained` |
 | `DRPG.Unit.actionAcc` | accusative („1 akcję”, „2 akcje”, „5 akcji”) | `Explain.status.actionsWhat` {short}, {long} (after „kosztuje”), `Explain.status.actionsWounded` {wounded} (after „dostajesz”), `Explain.phase.dailyLife` (after „Masz”) | explain.mjs `actionsExplained`, `phaseExplanation` |
 | `DRPG.Unit.actionGen` | genitive („1 akcji”, „2 akcji”, „5 akcji”) | `Explain.status.actionsWounded` {actions} (after „zamiast”), `Murder.indirectCost` {actions} (after „do”) | explain.mjs `actionsExplained`; murder-ui.mjs `indirectCostText` |
@@ -709,5 +710,6 @@ English writes `Calls.grantsGen` and `Calls.grantsNom` with the same words as `C
 numbers config.mjs `PROSE_NUMBERS` and the builders put into a sentence: the unit names its case, English writes every
 case alike, and a number before Health, Sanity, Hope, Despair or progress takes no unit (DB4); R1159 and R1160 render
 them. The rows from
-`Advance.kind` down were read in the code for this table and needed no split; they are not rendered by R1158. A new
+`Advance.kind` down were read in the code for this table and needed no split; since E66's fix round r1 R1158 renders each
+in each host it names, in English and Polish, and `flagText`'s list of what the GM counted goes through `listOf`. A new
 fragment is a row here and a case in its key's name before it is a placeholder in a host.

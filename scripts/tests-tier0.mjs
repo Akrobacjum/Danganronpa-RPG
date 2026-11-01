@@ -17605,7 +17605,8 @@ const REGRESSIONS = [
          * decimal), P the owner's approved Polish after (N58), which reads "z {total} punktów" for every total of its one
          * road (use-items.mjs whispers it only for a tool that did not break, so 2 or more). Nothing is written. Red at
          * 900b1b99: 45 flat values the allow table does not hold (the families this commit made). E66 C4 (01.11.2026) put
-         * numbers where digits stood (R1159, R1160): six before Health or Sanity (U) and three before "s" (S), 102 rows.
+         * numbers where digits stood (R1159, R1160): six before Health or Sanity (U) and three before "s" (S), 102 rows; its fix round r1
+         * (F9) put two more seconds on `TRIAL` (S), 104 rows.
          */
         const COUNTED_EN = "actions?|crossings?|turns?|times?|tokens?|Search Tokens?|Remnants?|Key Remnants?|files?|entries|entry|tables?|students?|players?|items?|projects?|rooms?|seconds?|minutes?|s|min|days?|points?|marks?|Hope|Sanity|Health|Despair|picks?|ballots?|cards?|clues?|traces?|bullets?|Truth Bullets?|messages?|rows?|progress|uses?|dice|die|GMs?|copies|copy|steps?|rolls?|votes?|keys?|doors?|walls?|notices?|names?|people|persons?|others?|fewer|more|left|of";
         const W = "[\\w\\u00c0-\\u017f]*";
@@ -17658,7 +17659,9 @@ const REGRESSIONS = [
                 "Floor.round.tooShortSeconds", "Floor.roundWindow.range", "Floor.trialTimeNoBudget",
                 "GmStore.notOpen", "Hud.elapsed", "Trial.claim.body", "Trial.turn.title",
                 // E66 C4: the trial's seconds read off `TRIAL` where "30 s" stood.
-                "Floor.bar.minus", "Floor.bar.plus", "Floor.closing.opened"
+                "Floor.bar.minus", "Floor.bar.plus", "Floor.closing.opened",
+                // E66 fix r1 F9: the Closing's early Pass and the console's footnote, "30 s" and "half a minute" before.
+                "Trial.turn.closingPassEarly", "Floor.modeNote"
             ].map(key => [key, "S"]),
             ...[
                 "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
@@ -17687,7 +17690,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 23, R: 23, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 25, R: 23, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -17704,7 +17707,8 @@ const REGRESSIONS = [
          * written. Red at 900b1b99: no `grantWords`, and `Calls.armed` with "przewagę".
          */
         const S = await import("./settings.mjs"), U = await import("./utils.mjs"), CE = await import("./call-effects.mjs");
-        const P = await import("./price.mjs"), C = await import("./character.mjs");
+        const P = await import("./price.mjs"), C = await import("./character.mjs"), D = await import("./roll-draw.mjs");
+        const { LEGAL_ROLL_MODIFIERS } = await import("./config.mjs");
         must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
         const files = {};
         for (const code of ["en", "pl"]) {
@@ -17712,6 +17716,32 @@ const REGRESSIONS = [
             must(res.ok, `${code}.json: HTTP ${res.status}`);
             files[code] = await res.json();
         }
+        /* E66 fix r1 F6 (STATUS Open 16): section 14's rows from `Advance.kind` down - read in the code for the table and
+           not rendered until this round - each fragment in each host the table names, filled as its caller fills it
+           (level-up.mjs, sheet.mjs, vote.mjs; overflow.mjs, despair.mjs; roll-draw.mjs `flagText`; murder-rules.mjs
+           `applyHindrance`); and `flagText`'s list of what the GM counted by `listOf`, where it was joined with ", ". */
+        const HINDERING = Object.values(CRISIS_ACTIONS).filter(def => def.hinders?.actions?.length);
+        must(HINDERING.length >= 2, "fewer than two crisis actions hinder - this would measure little");
+        const FROM = LEGAL_ROLL_MODIFIERS.slice(0, 3).map(row => row.key);
+        const fragmentHosts = () => {
+            const fmt = (key, data) => game.i18n.format(key, data), loc = key => game.i18n.localize(key);
+            const advance = ["standard", "reinforced"].map(k => loc(`DRPG.Advance.kind.${k}`));
+            const overflow = Object.keys(files.en.DRPG.Overflow.name).map(k => loc(`DRPG.Overflow.name.${k}`));
+            const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+            return [
+                ...advance.flatMap(kind => [U.plural("DRPG.Advance.offered", { kind, n: 3 }), fmt("DRPG.Advance.offerTooltip", { kind }), fmt("DRPG.Advance.takeBack", { kind }),
+                    fmt("DRPG.Advance.takenBack", { name: "Aiko", kind }), U.plural("DRPG.Vote.blackenedRewarded", { n: 1, kind }), U.plural("DRPG.Vote.blackenedRewarded", { n: 2, kind })]
+                    .map(text => ["Advance.kind", text, [kind]])),
+                ...overflow.flatMap(what => ["DRPG.Overflow.gmHintQueued", "DRPG.Overflow.currentDrawn", "DRPG.Overflow.currentWaiting"]
+                    .map(host => ["Overflow.name", fmt(host, { count: 4, max: 10, what }), [what]])),
+                ...["trait", "pick", "modifier", "dice", "advantage", "stash"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
+                ...HINDERING.flatMap(def => {
+                    const names = def.hinders.actions.map(label);
+                    return [["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.hinderedActions", { turns: def.hinders.turns, actions: U.listOf(names) }, "turns"), names],
+                        ["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.blockedActions", { turns: def.hinders.turns, actions: U.listOf(names, { type: "negated" }) }, "turns"), names]];
+                })
+            ];
+        };
         const KINDS = Object.keys(files.en.DRPG.Calls.grants).filter(k => typeof files.en.DRPG.Calls.grants[k] === "string");
         must(KINDS.length >= 6, "lang/en.json carries fewer than six grants - this would measure little");
         const words = (kind, kase) => (typeof CE.grantWords === "function" ? CE.grantWords(kind, kase) : game.i18n.localize(`DRPG.Calls.grants.${kind}`));
@@ -17737,6 +17767,17 @@ const REGRESSIONS = [
                         game.i18n.format("DRPG.Price.refundLost", { what: P.priceLabel({ pay: "hope", amount: 1 }) }).includes(P.priceLabel({ pay: "hope", amount: 1 }))],
                     reserves: C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 2 }])
                 };
+                const hosts = fragmentHosts();
+                read[code].fragments = {
+                    read: hosts.length,
+                    broken: hosts.filter(([, text, parts]) => /[{}]|DRPG\./.test(text) || !parts.every(part => text.includes(part))).map(([row, text]) => `${row}: ${text.slice(0, 70)}`),
+                    advance: U.plural("DRPG.Advance.offered", { kind: game.i18n.localize("DRPG.Advance.kind.reinforced"), n: 3 }),
+                    overflow: game.i18n.format("DRPG.Overflow.currentWaiting", { count: 4, max: 10, what: game.i18n.localize("DRPG.Overflow.name.darkness") }),
+                    flag: D.flagText({ kind: "dice", claimed: "3", expected: "1" }),
+                    from: D.flagText({ kind: "modifier", claimed: "3", expected: "1", from: FROM })
+                        === game.i18n.format("DRPG.Rolls.flagFrom", { line: D.flagText({ kind: "modifier", claimed: "3", expected: "1" }),
+                            list: U.listOf(FROM.map(key => game.i18n.localize(LEGAL_ROLL_MODIFIERS.find(row => row.key === key).label))) })
+                };
             }
         } finally {
             game.i18n.translations = own;
@@ -17745,6 +17786,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const reading = re => [...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => file).sort();
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
+        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
             joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog) };
         equal(JSON.stringify(read), JSON.stringify({
@@ -17755,7 +17797,9 @@ const REGRESSIONS = [
                 pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
                 waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
                 price: ["You get 2 actions back.", true, true],
-                reserves: "You lose 1 Health and 2 Sanity."
+                reserves: "You lose 1 Health and 2 Sanity.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
+                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true }
             },
             pl: {
                 broken: [],
@@ -17764,13 +17808,17 @@ const REGRESSIONS = [
                 pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
                 waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],
-                reserves: "Tracisz 1 Health i 2 Sanity."
+                reserves: "Tracisz 1 Health i 2 Sanity.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
+                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true }
             },
             sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true }
         }), "[in English, then Polish: each host with each grant in its case - those that leave a brace or a key or lose the fragment; "
             + "Calls.armed with advantage and a bonus; armedForYou; pendingTooltip; waitsNextRoll with a list of two; a price given back, the "
             + "Objection's bracket, the lost Hope; a loss of two reserves; then the scripts that read the accusative by a template key, the "
-            + "nominative so, the one that holds the three cases' keys (grantWords), and roll-dialog.mjs's join through listOf]");
+            + "nominative so, the one that holds the three cases' keys (grantWords), and roll-dialog.mjs's join through listOf; "
+            + "and (E66 fix r1 F6) section 14's Advance.kind, Overflow.name, Rolls.flagKind and crisis labels in each host they take: "
+            + "how many were rendered, those that leave a brace or a key or lose the fragment, one of each, and flagText's list through listOf]");
     }],
 
     ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
@@ -18077,6 +18125,16 @@ const REGRESSIONS = [
         const FIVE = /Secure a Trace|Erase a Trace|Reshape a Trace|Hide the Traces|Follow My Traces/g;
         const capital = [...[...files.en].map(([k, v]) => [`en.json ${k}`, v]), ...[...english].map(([k, v]) => [`config.mjs ${k}`, v]), ...[...files.pl].map(([k, v]) => [`pl.json ${k}`, v])]
             .filter(([, v]) => typeof v === "string" && /(?<!\p{L})Traces?(?!\p{L})/u.test(v.replace(FIVE, ""))).map(([where]) => where);
+        /* E66 fix r1 F10 (STATUS Open 35; Q-E66-3, approved): the English handbooks a line at a time - the column heads
+           "Trace it leaves" and the sentences a capital "Traces" opened were the rest of the capital "Trace" outside the
+           five names. A trace in lower case in a longer sentence is E71's (the glossary's `remnant` entry). */
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.en.md`, { cache: "no-cache" });
+            must(res.ok, `docs/handbooks/${book}.en.md: HTTP ${res.status}`);
+            const lines = (await lfText(res)).split("\n");
+            must(lines.length > 50, `docs/handbooks/${book}.en.md has ${lines.length} lines - this would measure nothing`);
+            lines.forEach((line, i) => { if (/(?<!\p{L})Traces?(?!\p{L})/u.test(line.replace(FIVE, ""))) capital.push(`${book}.en.md:${i + 1}`); });
+        }
         // The Polish names the rename retired (D33a, DB3, DB38; the reviewer's Testimony and Reroll rows), in any case but Projekty and Zeznanie,
         // which a sentence may still open with as words: they are held as names only.
         const RETIRED_PL = [/użyj przedmiotu/iu, /zostaw trop/iu, /zabezpiecz ślad/iu, /atak bronią/iu, /usuń ślad/iu, /zatrzyj ślady/iu, /przerób ślad/iu,
@@ -18087,7 +18145,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
             JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], modes: ["fail", "fail"] }),
             "[the names table's places that hold another form; the tables' labels whose Polish is not their English; names not in Title Case; "
-                + "texts with a capital Trace outside the five names; pl.json keys with a retired Polish name; T20's and T28's modes]");
+                + "texts with a capital Trace outside the five names, the English handbooks' lines among them; pl.json keys with a retired Polish name; T20's and T28's modes]");
     }],
 
     ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {

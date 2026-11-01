@@ -1222,8 +1222,8 @@ export function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
-            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize(restrictive
-                ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
+            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${restrictive
+                ? game.i18n.format("DRPG.Floor.modeNote", { step: adjustStep(floor) }) : game.i18n.localize("DRPG.Floor.objectionNote")}</p>` : ""}
             ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p>${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
