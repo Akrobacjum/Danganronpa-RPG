@@ -5,6 +5,9 @@
  *     node tools/text-render.mjs --pilot <file> [--out <html>] [--pl-only]
  *                                                the pilot's sheet alone (E65 C14): pilot.html, or <html>; --pl-only
  *                                                leaves the English out (the PL reviewer's sheet, DB26)
+ *     node tools/text-render.mjs --batch <file> [--out <html>] [--pl-only]
+ *                                                a batch's sheet alone (E66 C6): batch-<name>.html, or <html>; --pl-only
+ *                                                leaves every English text but the facts out (DB26)
  * Into audit/harness/results/text/ (generated, never committed). The md and the sheet are laid out by the screen
  * map (tools/text-map.mjs, which needs espree from audit/harness: `npm ci` there), screen by screen, then the keys no
  * screen reaches; `renderAll` alone needs nothing but the language files, so `node tools/check.mjs text` runs T15
@@ -481,6 +484,264 @@ ${body.join("\n")}
 `;
 }
 
+/* --------------------------------- the batches -------------------------------- */
+
+/*
+ * A BATCH (E66 C6, E66-26; STAGE.md Appendix C): a set of texts rewritten from the facts of the functions that run their
+ * rule, the model E65's pilot set for E71. docs/dev/text-batch-B01a.json holds B01a, about 60 of the most-read config
+ * texts and their windows' keys, each `{ key, group, surface, screen, readers, source, pilot, facts, kept, en, pl,
+ * removed, needsCode, disagreements, reviews, owner }`:
+ *   - `facts`: what the code does, each `{ fact, file, fn, note }` - the file and the function the fact was read in
+ *     (M1), or both null and `note` saying why (not found in code; a pilot fact copied as approved);
+ *   - `kept`: the facts the after keeps, by their index (section 11's "facts kept" column), null until an after is
+ *     written; `removed` (what left the text and where it went), `needsCode`, `disagreements` (with the code or a
+ *     decision): lists of texts;
+ *   - `en`, `pl`: `{ before, after }` as the pilot's; `source` "written" (the batch's agents wrote it) or "pilot" (the
+ *     pilot's approved after copied as approved, Q-E66-4: `pilot` its number in docs/dev/text-pilot.json, not reviewed
+ *     again);
+ *   - `reviews`: the EN reviewer's, the cold EN reviewer's, the PL reviewer's and the mechanics reviewer's points still
+ *     open after the one revision (null, or { verdict, points });
+ *   - `owner`: the owner's verdict (null, or { verdict, text, date, page }, `page` the review page the owner answered on).
+ * `batchSchema` holds the file to that shape against the files of this tree - `node tools/check.mjs text` makes each
+ * problem red: the shape, a key no file holds or one Appendix C leaves out, a fact with no function, an after that
+ * changes a placeholder (N2), adds a digit (M5) or runs over its surface's limit (B1), a pilot copy that is not the
+ * pilot's approved after, an owner's verdict on no page or on a text not written. Where the texts stand in the files is
+ * `batchState`'s reading, printed and never red (C7 lands the afters); `batchSheet` renders it for the readers.
+ */
+export const BATCH_FILES = Object.freeze(["docs/dev/text-batch-B01a.json"]);
+const BATCH_TOP = Object.freeze(["$comment", "batch", "stage", "texts"]);
+const BATCH_FIELDS = Object.freeze(["key", "group", "surface", "screen", "readers", "source", "pilot", "facts", "kept", "en", "pl",
+    "removed", "needsCode", "disagreements", "reviews", "owner"]);
+const BATCH_GROUPS = Object.freeze(["config", "window", "named"]);
+const BATCH_SOURCES = Object.freeze(["written", "pilot"]);
+const FACT_FIELDS = Object.freeze(["fact", "file", "fn", "note"]);
+const OWNER_FIELDS = Object.freeze(["verdict", "text", "date", "page"]);
+/** Each reviewer's verdicts, as its prompt offers them (S/stages/E66/scratch/c6/roles). */
+export const BATCH_REVIEWS = Object.freeze({
+    en: Object.freeze(["ok", "change", "wrong"]),
+    coldEn: Object.freeze(["ok", "unclear", "unnatural"]),
+    pl: Object.freeze(["ok", "change", "nikt tak nie mówi"]),
+    mechanics: Object.freeze(["ok", "change", "wrong"])
+});
+/* The page the owner approved the pilot on (E65 C-pilot, 01.11.2026): a pilot copy's verdict is that page's, no other. */
+export const PILOT_PAGE = "E65-PILOT-R1";
+/*
+ * B01a and the pilot (Q-E66-4, approved 01.11.2026): pairs 2-8 and 10 are B01a keys and go in as approved; pair 1
+ * (Search's hint) stays with topic A and pair 9 (PHASES.dailyLife.hint) is not B01a's.
+ */
+export const B01A_PILOT = Object.freeze({ take: Object.freeze([2, 3, 4, 5, 6, 7, 8, 10]), leave: Object.freeze([1, 9]) });
+/* Appendix C's "Out": the texts topic A rewrites, E68's, MONOCUB, TRIAL, and the table-name label keys (T14). */
+export const BATCH_OUT = Object.freeze({
+    keys: Object.freeze(["DRPG.Config.ACTIONS.listen.hint", "DRPG.Config.ACTIONS.search.hint", "DRPG.Config.HOPE_CALLS.determination.effect",
+        "DRPG.Murder.gmPicksTrait"]),
+    prefixes: Object.freeze(["DRPG.Config.MONOCUB.", "DRPG.Config.TRIAL.", "DRPG.Trial.", "DRPG.Floor.", "DRPG.TrialScene.", "DRPG.Vote."]),
+    labels: /^DRPG\.Config\.(?:ITEM_CATEGORIES\.[^.]+\.(?:label|plural)|USABLE_KINDS\.[^.]+\.label|USABLE_GOALS\.[^.]+\.label)$/
+});
+const DIGITS = /\d+/g;
+const placeholdersOf = v => [...new Set(formsText(v).flatMap(t => [...String(t).matchAll(PLACEHOLDER)].map(m => m[1])))].sort();
+const digitsOf = v => new Set(formsText(v).flatMap(t => String(t).match(DIGITS) ?? []));
+const BAD_DASHES = [String.fromCharCode(0x2013), String.fromCharCode(0x2014), String.fromCharCode(0x2212)];
+const plainWords = text => String(text ?? "").split(/\s+/).filter(t => /[\p{L}\p{N}]|\{\w+\}/u.test(t)).length;
+const isOut = key => BATCH_OUT.keys.includes(key) || BATCH_OUT.prefixes.some(p => key.startsWith(p)) || BATCH_OUT.labels.test(key);
+const BATCH_RENAMED = " - a key renamed or removed since the batch was written: its entry follows it";
+/* A pilot copy's verdict: the pilot's own, field by field, on the pilot's page. */
+const pilotVerdict = (o, p) => (p === null || p === undefined ? o === null
+    : sameFields(o, OWNER_FIELDS) && o.verdict === p.verdict && o.text === p.text && o.date === p.date && o.page === PILOT_PAGE);
+
+/**
+ * The batch file's problems, `[]` when it holds. `doc` the parsed file; `en` lang/en.json's words with config.mjs's English
+ * prose, `pl` pl.json's (Maps of flat keys); `pairs` the guide's naturalness pairs - a batch text that is a pair's key
+ * carries the pair's approved after in its Polish (the owner approved it; Q-E66-5's rule); `surfaces` docs/text-budgets.json's `surfaces` (each `{ target, limit }`);
+ * `pilot` docs/dev/text-pilot.json parsed (the copies are held to it); `source(path)` a file's text or null, for the
+ * facts' functions; `count(text)` the words of a text as T4 counts them (tests-text.mjs `wordCount`).
+ */
+export function batchSchema(doc, { en = new Map(), pl = new Map(), pairs = [], surfaces = null, pilot = null, source = () => null, count = plainWords } = {}) {
+    if (doc === null || typeof doc !== "object" || Array.isArray(doc)) return ["the file is not an object"];
+    const out = [];
+    for (const k of Object.keys(doc)) if (!BATCH_TOP.includes(k)) out.push(`the file has a field "${k}" (it holds ${BATCH_TOP.join(", ")})`);
+    for (const k of BATCH_TOP) if (!Object.hasOwn(doc, k)) out.push(`the file has no field "${k}"`);
+    if (!isText(doc.batch) || !isText(doc.stage)) out.push("batch and stage are not texts");
+    if (!Array.isArray(doc.texts) || !doc.texts.length) return [...out, "texts is not a non-empty list"];
+    const pilotStrings = Array.isArray(pilot?.strings) ? pilot.strings : [];
+    const files = new Map();
+    const fileText = f => { if (!files.has(f)) files.set(f, source(f)); return files.get(f); };
+    const seen = new Set();
+    doc.texts.forEach((t, i) => {
+        const at = `texts[${i}]${isText(t?.key) ? ` (${t.key})` : ""}`;
+        if (!sameFields(t, BATCH_FIELDS)) { out.push(`${at} is not { ${BATCH_FIELDS.join(", ")} }`); return; }
+        if (!isText(t.key)) { out.push(`${at}: the key is not a text`); return; }
+        if (seen.has(t.key)) out.push(`${at}: the key twice`);
+        seen.add(t.key);
+        if (isOut(t.key)) out.push(`${at}: a key Appendix C leaves out of B01a (topic A's, E68's, MONOCUB, TRIAL or a table-name label)`);
+        const now = { en: pilotValue(en, t.key), pl: pilotValue(pl, t.key) };
+        if (now.en === undefined) out.push(`${at}: not a key of lang/en.json or config.mjs's English prose${BATCH_RENAMED}`);
+        if (now.pl === undefined) out.push(`${at}: not a key of lang/pl.json${BATCH_RENAMED}`);
+        if (!BATCH_GROUPS.includes(t.group)) out.push(`${at}: the group ${JSON.stringify(t.group)} is not one of ${BATCH_GROUPS.join(", ")}`);
+        if (!isText(t.surface) || (surfaces && !Object.hasOwn(surfaces, t.surface))) out.push(`${at}: the surface ${JSON.stringify(t.surface)} is not ${surfaces ? "one of docs/text-budgets.json's" : "a text"}`);
+        if (!isText(t.screen)) out.push(`${at}: the screen is not a text`);
+        if (!Array.isArray(t.readers) || !t.readers.length || !t.readers.every(isText)) out.push(`${at}: readers is not a list of texts`);
+        /* The facts (O6, M1): never empty, each read in a file's function, or said why not. */
+        if (!Array.isArray(t.facts) || !t.facts.length) out.push(`${at}: facts is not a non-empty list - a text is written from its facts first (O6)`);
+        else t.facts.forEach((f, j) => {
+            const fat = `${at}: facts[${j}]`;
+            if (!sameFields(f, FACT_FIELDS) || !isText(f.fact)) { out.push(`${fat} is not { ${FACT_FIELDS.join(", ")} } with the fact a text`); return; }
+            if (f.file === null && f.fn === null) {
+                if (!isText(f.note)) out.push(`${fat}: no file and no function, and no note saying why (not found in code, a pilot fact)`);
+                return;
+            }
+            if (!isText(f.file) || !isText(f.fn)) { out.push(`${fat}: the file and the function are not both texts (or both null)`); return; }
+            if (f.note !== null && !isText(f.note)) out.push(`${fat}: the note is neither null nor a text`);
+            const text = fileText(f.file);
+            if (text === null || text === undefined) { out.push(`${fat}: ${f.file} is not a file of this tree`); return; }
+            const name = f.fn.split(".")[0];
+            if (!new RegExp(`(?<![\\w$])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w$])`).test(text)) out.push(`${fat}: ${f.file} does not spell ${name}`);
+        });
+        const facts = Array.isArray(t.facts) ? t.facts.length : 0;
+        const keptShaped = t.kept === null || (Array.isArray(t.kept) && t.kept.every(n => Number.isInteger(n) && n >= 0 && n < facts) && new Set(t.kept).size === t.kept.length);
+        if (!keptShaped) out.push(`${at}: kept is neither null nor a list of distinct indices into facts`);
+        for (const list of ["removed", "needsCode", "disagreements"]) if (!Array.isArray(t[list]) || !t[list].every(isText)) out.push(`${at}: ${list} is not a list of texts`);
+        let written = 0;
+        for (const lang of ["en", "pl"]) {
+            const side = t[lang];
+            if (!sameFields(side, ["before", "after"])) { out.push(`${at}: ${lang} is not { before, after }`); continue; }
+            if (!valueShaped(side.before)) { out.push(`${at}: ${lang}.before is neither a text nor a plural family's forms (other among them), each a text`); continue; }
+            const a = side.after;
+            if (a === null) continue;
+            const shaped = typeof side.before === "string" ? isText(a)
+                : (a !== null && typeof a === "object" && !Array.isArray(a) && sameValue(Object.keys(a).sort(), Object.keys(side.before).sort()) && Object.values(a).every(isText));
+            if (!shaped) { out.push(`${at}: ${lang}.after is neither null nor ${typeof side.before === "string" ? "a text" : `the forms ${Object.keys(side.before).join(", ")}, each a text`}`); continue; }
+            written++;
+            const had = placeholdersOf(side.before), has = placeholdersOf(a);
+            if (!sameValue(had, has)) out.push(`${at}: ${lang}.after's placeholders ${JSON.stringify(has)}, not its before's ${JSON.stringify(had)} (N2)`);
+            const added = [...digitsOf(a)].filter(d => !digitsOf(side.before).has(d));
+            if (added.length) out.push(`${at}: ${lang}.after adds the digit(s) ${added.join(", ")} to the prose (M5)`);
+            if (formsText(a).some(x => BAD_DASHES.some(c => String(x).includes(c)))) out.push(`${at}: ${lang}.after holds an en or em dash or a minus sign - write "-"`);
+            const limit = surfaces?.[t.surface]?.limit;
+            if (typeof limit === "number") for (const [form, x] of Object.entries(typeof a === "string" ? { text: a } : a)) {
+                const n = count(x);
+                if (n > limit) out.push(`${at}: ${lang}.after${typeof a === "string" ? "" : `.${form}`} is ${n} words, over the ${t.surface} limit of ${limit} (B1)`);
+            }
+        }
+        if (t.source === "written" && written && (t.kept === null || !t.kept.length)) out.push(`${at}: an after is written and kept names no fact (section 11's facts kept)`);
+        if (!sameFields(t.reviews, Object.keys(BATCH_REVIEWS))) out.push(`${at}: reviews is not { ${Object.keys(BATCH_REVIEWS).join(", ")} }`);
+        else for (const [r, verdicts] of Object.entries(BATCH_REVIEWS)) {
+            const v = t.reviews[r];
+            if (v !== null && !(sameFields(v, ["verdict", "points"]) && verdicts.includes(v.verdict) && Array.isArray(v.points) && v.points.every(isText))) {
+                out.push(`${at}: reviews.${r} is neither null nor { verdict: ${verdicts.join(" | ")}, points }`);
+            }
+        }
+        /* Verdicts only by the owner: one names the page the owner answered on, and comes after both afters are written. */
+        const o = t.owner;
+        if (o !== null && !(sameFields(o, OWNER_FIELDS) && OWNER_VERDICTS.includes(o.verdict) && typeof o.text === "string" && /^\d\d\.\d\d\.\d{4}$/.test(String(o.date)) && isText(o.page))) {
+            out.push(`${at}: owner is neither null nor { verdict: ${OWNER_VERDICTS.join(" | ")}, text, date dd.mm.yyyy, page } - a verdict names the owner's page`);
+        } else if (o !== null && written < 2) out.push(`${at}: an owner's verdict on a text whose afters are not both written`);
+        else if (o !== null && t.source === "written" && o.page === PILOT_PAGE) out.push(`${at}: a written text's verdict on the pilot's page ${PILOT_PAGE}`);
+        /* The pilot's copies (Q-E66-4): its number, its key, its approved afters and its verdict, nothing reviewed again. */
+        if (!BATCH_SOURCES.includes(t.source)) out.push(`${at}: the source ${JSON.stringify(t.source)} is not one of ${BATCH_SOURCES.join(", ")}`);
+        else if (t.source === "written" && t.pilot !== null) out.push(`${at}: a written text names pilot string ${t.pilot}`);
+        else if (t.source === "pilot") {
+            const p = Number.isInteger(t.pilot) ? pilotStrings[t.pilot - 1] : null;
+            if (!p || p.key !== t.key) out.push(`${at}: pilot ${JSON.stringify(t.pilot)} is not this key's string in docs/dev/text-pilot.json`);
+            else {
+                for (const lang of ["en", "pl"]) if (!sameValue(t[lang]?.after, p[lang]?.after)) out.push(`${at}: ${lang}.after is not the pilot's approved after (Q-E66-4: copied, not rewritten)`);
+                if (!pilotVerdict(t.owner, p.owner)) out.push(`${at}: owner is not the pilot's verdict on ${PILOT_PAGE}`);
+                if (sameFields(t.reviews, Object.keys(BATCH_REVIEWS)) && Object.values(t.reviews).some(r => r !== null)) out.push(`${at}: a pilot copy carries a review (Q-E66-4: not reviewed again)`);
+            }
+        }
+        /* A naturalness pair inside a batch text (palm.description holds N25 at d2538dac): the owner approved its "Po", so the
+           batch's Polish after carries it rather than a third wording (Q-E66-5's rule); the rest of the text is the batch's. */
+        for (const p of pairs) {
+            const ownKey = p.key !== null && (p.key === t.key || p.key.startsWith(`${t.key}.`));
+            if (!ownKey || !isText(p.after)) continue;
+            const a = t.pl?.after;
+            if (a !== null && a !== undefined && !formsText(a).some(x => typeof x === "string" && x.includes(p.after))) {
+                out.push(`${at}: pl.after does not hold naturalness pair ${p.id}'s approved after "${p.after}"`);
+            }
+        }
+    });
+    if (doc.batch === "B01a" && pilotStrings.length) {
+        for (const n of B01A_PILOT.take) {
+            const key = pilotStrings[n - 1]?.key;
+            if (key && !doc.texts.some(t => t?.key === key && t?.source === "pilot" && t?.pilot === n)) out.push(`pilot string ${n} (${key}) is not in the batch as the pilot's copy (Q-E66-4)`);
+        }
+        for (const n of B01A_PILOT.leave) {
+            const key = pilotStrings[n - 1]?.key;
+            if (key && doc.texts.some(t => t?.key === key)) out.push(`pilot string ${n} (${key}) is in the batch - Q-E66-4 leaves it out`);
+        }
+    }
+    return out;
+}
+
+/** The batch's counts for the `text` part's line: by source, facts, afters, budgets, reviews and verdicts. */
+export function batchCounts(doc, { surfaces = null, count = plainWords } = {}) {
+    const texts = Array.isArray(doc?.texts) ? doc.texts.filter(t => t && typeof t === "object") : [];
+    const facts = texts.flatMap(t => (Array.isArray(t.facts) ? t.facts : []));
+    const over = (field, lang) => texts.filter(t => {
+        const a = t?.[lang]?.after, n = surfaces?.[t.surface]?.[field];
+        return a !== null && a !== undefined && typeof n === "number" && formsText(a).some(x => count(x) > n);
+    }).length;
+    return {
+        texts: texts.length,
+        written: texts.filter(t => t.source === "written").length,
+        pilot: texts.filter(t => t.source === "pilot").length,
+        facts: facts.length,
+        inCode: facts.filter(f => isText(f?.file) && isText(f?.fn)).length,
+        notInCode: facts.filter(f => f?.file === null && f?.fn === null).length,
+        afters: { en: texts.filter(t => t.en?.after !== null && t.en?.after !== undefined).length, pl: texts.filter(t => t.pl?.after !== null && t.pl?.after !== undefined).length },
+        overTarget: over("target", "en") + over("target", "pl"),
+        overLimit: over("limit", "en") + over("limit", "pl"),
+        reviews: Object.fromEntries(Object.keys(BATCH_REVIEWS).map(r => [r, texts.filter(t => t.reviews?.[r]).length])),
+        owner: texts.filter(t => t.owner).length
+    };
+}
+
+/** Where the batch stands in this tree's files (a reading, never a fault): still the before, the after landed (C7), or changed. */
+export function batchState(doc, { en = new Map(), pl = new Map() } = {}) {
+    return pilotState({ strings: Array.isArray(doc?.texts) ? doc.texts : [] }, { en, pl });
+}
+
+/** The readers' sheet (E66 C6): HTML, one card per text. `plOnly` leaves out every English text but the facts (DB26). */
+export function batchSheet(doc, texts, { plOnly = false } = {}) {
+    const words = { en: new Map([...texts.en, ...texts.prose]), pl: texts.pl };
+    const cell = (key, value, lang) => (value === null || value === undefined
+        ? `<div class="v none">not written yet</div>`
+        : pilotVariants(key, value, lang, words[lang]).map(v => `<div class="v">${v.label ? `<span class="n">${escapeHtml(v.label)}</span> ` : ""}${escapeHtml(v.text)}</div>`).join(""));
+    const list = (title, items) => (items.length ? `<p><b>${escapeHtml(title)}:</b></p><ul>${items.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : "");
+    const review = (name, r) => (r === null
+        ? `<li><b>${name}</b>: nothing left open</li>`
+        : `<li><b>${name}</b>: ${escapeHtml(r.verdict)}${r.points.length ? `<ul>${r.points.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>` : ""}</li>`);
+    const body = [`<h2>${plOnly ? "Teksty" : "The texts"} (${doc.texts.length})</h2>`];
+    doc.texts.forEach((t, i) => {
+        const kept = new Set(Array.isArray(t.kept) ? t.kept : []);
+        const facts = t.facts.map((f, j) => `<li${kept.has(j) ? ` class="kept"` : ""}>${escapeHtml(f.fact)} <small>(${escapeHtml(f.file ? `${f.file} ${f.fn}` : f.note ?? "")})</small></li>`).join("");
+        const rows = [...(plOnly ? [] : [["EN before", t.en.before, "en"], ["EN after", t.en.after, "en"]]), ["PL przed", t.pl.before, "pl"], ["PL po", t.pl.after, "pl"]];
+        body.push(`<section class="s"><h3>${i + 1}. <code>${escapeHtml(t.key)}</code>${t.source === "pilot" ? ` <small>the pilot's pair ${t.pilot}, approved ${escapeHtml(t.owner?.date ?? "")}</small>` : ""}</h3>`
+            + `<p class="meta">${escapeHtml(t.group)} · ${escapeHtml(t.surface)} · ${escapeHtml(t.screen)} · ${escapeHtml(t.readers.join(", "))}</p>`
+            + `<p class="facts"><b>Facts</b>${kept.size ? " (kept in bold)" : ""}:</p><ol start="0">${facts}</ol>`
+            + `<table><tbody>${rows.map(([label, value, lang]) => `<tr><th>${label}</th><td>${cell(t.key, value, lang)}</td></tr>`).join("")}</tbody></table>`
+            + (plOnly ? "" : list("Removed, and where it went", t.removed) + list("Needs code", t.needsCode) + list("Disagrees with the code or a decision", t.disagreements)
+                + `<ul class="reviews">${review("EN review", t.reviews.en)}${review("cold EN review", t.reviews.coldEn)}${review("PL review", t.reviews.pl)}${review("mechanics review", t.reviews.mechanics)}</ul>`)
+            + "</section>");
+    });
+    const legend = "n = 1, 2, 5 where the text counts (a family through Intl.PluralRules); #1, #2, #3 fill a person with Aiko, then Daichi (a woman's name, a man's), "
+        + "a room with Warsztat, Biblioteka, Kino and an item with Nóż kuchenny, Lina, Krzesło (masculine, feminine, neuter), each in turn. The facts are numbered from 0, as `kept` names them.";
+    return `<!doctype html>
+<html lang="${plOnly ? "pl" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Text batch ${escapeHtml(doc.batch)}</title>
+<style>
+:root { --bg: #fdfdfb; --fg: #1c1c1c; --line: #d8d8d0; --muted: #6a6a64; }
+@media (prefers-color-scheme: dark) { :root { --bg: #18181a; --fg: #e8e8e4; --line: #3a3a3e; --muted: #9a9a94; } }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; margin: 16px; max-width: 980px; }
+section { border-top: 1px solid var(--line); padding: 8px 0 12px; } h3 { margin: 4px 0; font-size: 16px; } h3 small, .meta, .n, .none, li small { color: var(--muted); font-size: 12px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0; } th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+th { width: 7em; font-weight: 600; } code { word-break: break-all; } .v + .v { border-top: 1px dotted var(--line); } li.kept { font-weight: 600; }
+</style></head><body>
+<h1>${plOnly ? `Partia ${escapeHtml(doc.batch)}: teksty polskie` : `The text batch ${escapeHtml(doc.batch)}`}</h1>
+<p>Written by <code>node tools/text-render.mjs --batch</code> (E66 C6) from ${escapeHtml(BATCH_FILES[0])}. ${escapeHtml(legend)} HTML in a string is shown as written.</p>
+${body.join("\n")}
+</body></html>
+`;
+}
+
 /** The files a render reads, from a repository (or `langDir` for en.json and pl.json). */
 export async function loadTexts(repo = REPO, langDir = path.join(repo, "lang")) {
     const flat = (o, p = "", out = new Map()) => { for (const [k, v] of Object.entries(o ?? {})) { const key = p ? `${p}.${k}` : k; if (v && typeof v === "object") flat(v, key, out); else out.set(key, v); } return out; };
@@ -514,6 +775,29 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
         const written = side => doc.strings.filter(s => s[side].after !== null).length;
         console.log(`text-render: pilot: ${doc.strings.length} string(s), ${doc.questions.length} question(s); afters written: en ${written("en")}, pl ${written("pl")}; `
             + `facts for ${doc.strings.filter(s => s.facts.length).length}; wrote ${path.relative(process.cwd(), out) || out}${argv.includes("--pl-only") ? " (Polish only)" : ""}`);
+        process.exit(0);
+    }
+    const batchAt = argv.indexOf("--batch");
+    if (batchAt >= 0) {
+        /* A batch's sheet alone (E66 C6): the file held to its shape first, as `node tools/check.mjs text` holds it. */
+        const file = argv[batchAt + 1], outAt = argv.indexOf("--out");
+        if (!file || file.startsWith("--") || (outAt >= 0 && !argv[outAt + 1])) { console.log("text-render: --batch takes a file, --out a file"); process.exit(2); }
+        let doc;
+        try { doc = JSON.parse(fs.readFileSync(path.resolve(file), "utf8")); } catch (err) { console.log(`text-render: batch: ${file} does not parse (${err.message})`); process.exit(1); }
+        const T = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-text.mjs")).href);
+        const { pairs } = T.naturalnessPairs(fs.readFileSync(path.join(REPO, "docs", "text-style.md"), "utf8"));
+        const surfaces = JSON.parse(fs.readFileSync(path.join(REPO, "docs", "text-budgets.json"), "utf8")).surfaces ?? {};
+        const pilot = JSON.parse(fs.readFileSync(path.join(REPO, "docs", "dev", "text-pilot.json"), "utf8"));
+        const source = f => { try { return fs.readFileSync(path.join(REPO, f), "utf8"); } catch { return null; } };
+        const problems = batchSchema(doc, { en: new Map([...texts.en, ...texts.prose]), pl: texts.pl, pairs, surfaces, pilot, source, count: T.wordCount });
+        for (const p of problems) console.log(`text-render: batch: ${p}`);
+        if (problems.length) process.exit(1);
+        const out = outAt >= 0 ? path.resolve(argv[outAt + 1]) : path.join(REPO, "audit", "harness", "results", "text", `batch-${doc.batch}.html`);
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(out, batchSheet(doc, texts, { plOnly: argv.includes("--pl-only") }));
+        const c = batchCounts(doc, { surfaces, count: T.wordCount });
+        console.log(`text-render: batch ${doc.batch}: ${c.texts} text(s) (written ${c.written}, pilot ${c.pilot}); facts ${c.facts}; afters written: en ${c.afters.en}, pl ${c.afters.pl}; `
+            + `wrote ${path.relative(process.cwd(), out) || out}${argv.includes("--pl-only") ? " (Polish only)" : ""}`);
         process.exit(0);
     }
     const render = renderAll(texts);

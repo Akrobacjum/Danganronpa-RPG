@@ -1,0 +1,3972 @@
+{
+  "$comment": [
+    "B01a, the model batch (E66 C6, E66-26; STAGE.md Appendix C): about 60 of the most-read config texts and their windows' keys, rewritten from the facts of the functions that run each rule. Prepared 01.11.2026 on d2538dac; the agents' runs and their fold are S/stages/E66/C6-RESUME.md's (outside the repository).",
+    "Each text: `key` (a key of lang/en.json, or of config.mjs's English prose for DRPG.Config.*; a plural family by its base), `group` (config, window, named: Appendix C's three lists), `surface` (docs/text-budgets.json's; the window lines and the GM's two notes read by hand), `screen` and `readers` (tools/text-map.mjs's screen and its reader), `source` (written, or pilot: the pilot's approved after copied as approved, Q-E66-4, with `pilot` its number in docs/dev/text-pilot.json), `facts` (each { fact, file, fn, note }: the file and the function the fact was read in, or both null and the note saying why), `kept` (the facts the after keeps, by index; null until written), `en` and `pl` ({ before, after }: before as this tree held it on 01.11.2026, after null until written; the Polish written from the facts, the code and the old Polish without the new English, DB26), `removed`, `needsCode`, `disagreements` (section 11's columns), `reviews` (what the EN, cold EN, PL and mechanics reviewers still hold open after the one revision: null, or { verdict, points }) and `owner` (null, or { verdict: ok | correction | nikt tak nie mówi, text, date, page }: the owner's, on the page named).",
+    "Held by `node tools/check.mjs text` (tools/text-render.mjs batchSchema); rendered by `node tools/text-render.mjs --batch docs/dev/text-batch-B01a.json`. Nothing in lang/ or config.mjs changes with it until C7 lands the approved afters."
+  ],
+  "batch": "B01a",
+  "stage": "E66",
+  "texts": [
+    {
+      "key": "DRPG.Config.ACTIONS.search.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Search costs one action (ACTIONS.search cost 1), spent after the player has picked what to look for and before the Eye roll; a free Search (options.free) costs nothing.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSearch",
+          "note": null
+        },
+        {
+          "fact": "The player picks one of five kinds of thing (healing, comfort, a Murder Weapon, a cleaning tool, a tool) or names one specific thing; the specific request needs a GM online and an empty request is refused before anything is spent.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseSearchCategory",
+          "note": null
+        },
+        {
+          "fact": "A room with no Search Tokens left, or a sealed room, refuses the Search with a notice before the action is spent; a roll that reaches the table takes one of the room's Search Tokens (SearchTokens.claim).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSearch",
+          "note": null
+        },
+        {
+          "fact": "What turns up is drawn from the room's table at the tier the total reaches (8, 12, 18 in ACTIONS.search.thresholds; a critical adds one tier); below 8 nothing is found.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSearch",
+          "note": null
+        },
+        {
+          "fact": "A find leaves a Prep Remnant (Faint) only when the thing drawn is a Murder Weapon or a cleaning tool by its category or by a role it carries; a tool that is only a tool, healing and comfort leave none.",
+          "file": "scripts/inventory.mjs",
+          "fn": "leavesTraceFor",
+          "note": null
+        },
+        {
+          "fact": "The Remnant's visibility is the threshold row's (Hidden at 8, Subtle at 12, Evident at 18) and Obvious on a critical; it is not tied to the crime until the object is used.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "leaveSearchTrace",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it says the room is looted for whatever the player names, while the player mostly picks a kind of thing, and it calls the Remnant a trace.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseSearchCategory",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You loot the room for whatever you name. Taking a Murder Weapon or a cleaning tool leaves a trace behind.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przeszukujesz pokój pod kątem tego, co nazwiesz. Wzięcie narzędzia zbrodni albo narzędzia do sprzątania zostawia ślad.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.observe.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 2,
+      "facts": [
+        {
+          "fact": "Observe costs one action (ACTIONS.observe cost 1), spent before the roll; the roll is Eye against the OBSERVE_DC table.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A hit copies what the observer finds into their inventory as a Neutral Truth Bullet, and the original Remnant stays where it is.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A miss costs Sanity (OBSERVE_FAIL_STRESS, now 1) through chargeObserveMiss; a character who has no Sanity left to lose takes nothing.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Some Observes are scored on the GM's client with no human, and naming a target or asking the GM outright goes to a GM who judges it.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it leaves out the action's price and the Sanity a miss costs.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
+        "after": "Look for evidence in this room. It costs an action. On a hit, you note one Remnant here as a Truth Bullet in your inventory, and the Remnant stays where it is; on a miss, you lose Sanity."
+      },
+      "pl": {
+        "before": "Szukaj dowodów. Kopiuje Remnant do twojego ekwipunku jako Truth Bullet.",
+        "after": "Szukaj dowodów. Wydajesz akcję; przy trafieniu kopiujesz Remnant do ekwipunku jako Truth Bullet, przy pudle tracisz Sanity."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.observe.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Observe costs one action (ACTIONS.observe cost 1), spent before the Eye roll; the roll is scored on a GM's browser against the Remnant's difficulty (OBSERVE_DC).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeRanked",
+          "note": null
+        },
+        {
+          "fact": "The player first declares how they look: sweep the room, look past the obvious, follow their own Remnants, name something specific, or examine something that is not a Remnant.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askDeclaration",
+          "note": null
+        },
+        {
+          "fact": "A hit (or a critical) copies the chosen Remnant into the observer's inventory as a Truth Bullet, Neutral until analyzed (a critical identifies its type at once); the Remnant itself stays where it is.",
+          "file": "scripts/observe.mjs",
+          "fn": "scoreObserve",
+          "note": null
+        },
+        {
+          "fact": "A Remnant the observer already holds a copy of is no new find.",
+          "file": "scripts/observe.mjs",
+          "fn": "createFind",
+          "note": null
+        },
+        {
+          "fact": "A miss costs Sanity (OBSERVE_FAIL_STRESS, 1), never above the maximum, so a character at full Sanity loss takes nothing more.",
+          "file": "scripts/observe.mjs",
+          "fn": "chargeObserveMiss",
+          "note": null
+        },
+        {
+          "fact": "Looking past the obvious can also notice a secret project in the room, scored against the project's own difficulty.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it does not say a miss costs Sanity (the briefing prints that number from config).",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.observe",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You look for evidence here. A hit copies what you find into your inventory as a Neutral Truth Bullet and leaves the original in place.",
+        "after": null
+      },
+      "pl": {
+        "before": "Szukasz tu dowodów. Sukces kopiuje to, co znajdziesz, do ekwipunku jako Neutral Truth Bullet i zostawia oryginał na miejscu.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.analyze.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Analyze costs one action, paid before the Head roll; only in a Class Trial, with no action left, the price goes on to 1 Hope and then 1 Sanity (PRICE_CHAINS.analyze, stepsBeyondFirst classTrial).",
+          "file": "scripts/config.mjs",
+          "fn": "PRICE_CHAINS.analyze",
+          "note": null
+        },
+        {
+          "fact": "The window offers four uses: identify one of the character's Truth Bullets not yet analyzed, ask the GM for a hint, Find Stash and Find Passage; in a Class Trial only identifying a bullet is offered.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askWhatToAnalyze",
+          "note": null
+        },
+        {
+          "fact": "A bullet can be analyzed while it shows Neutral (or a Key or a Final whose reading is still to buy) and is not locked this chapter.",
+          "file": "scripts/truth-bullets.mjs",
+          "fn": "isAnalysable",
+          "note": null
+        },
+        {
+          "fact": "Asking for a hint sends the request and the roll to a GM, who answers: 14+ a subtle hint, 18+ a direct one, a critical one question the player may ask (ACTIONS.analyze.hintThresholds, hintCritical).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askForHint",
+          "note": null
+        },
+        {
+          "fact": "Every Analyze needs a GM online: with none, it is refused before anything is spent.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performAnalyze",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it names two of the four uses and no price.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.analyze",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zidentyfikuj Neutral Truth Bullet albo poproś GM-a o podpowiedź.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.analyze.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Analyze costs one action, paid before the Head roll; only in a Class Trial, with no action left, the price goes on to 1 Hope and then 1 Sanity (PRICE_CHAINS.analyze, stepsBeyondFirst classTrial).",
+          "file": "scripts/config.mjs",
+          "fn": "PRICE_CHAINS.analyze",
+          "note": null
+        },
+        {
+          "fact": "Identifying a bullet sends the Head total to a GM's browser, where it is scored against the bullet's real kind and how visible its Remnant was (ANALYZE_DC); the player's browser does not know that difficulty.",
+          "file": "scripts/analyze.mjs",
+          "fn": "resolveAnalyze",
+          "note": null
+        },
+        {
+          "fact": "A hit (or a critical) shows the bullet's real kind; a miss locks that bullet for this player until the chapter ends, and it stays Neutral and in play.",
+          "file": "scripts/analyze.mjs",
+          "fn": "lockOut",
+          "note": null
+        },
+        {
+          "fact": "Asking for a hint instead goes to a GM: 14+ a subtle hint, 18+ a direct one, a critical a question the player may ask.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askForHint",
+          "note": null
+        },
+        {
+          "fact": "Every Analyze needs a GM online: with none, it is refused before anything is spent.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performAnalyze",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it leaves out the price and that the locked bullet stays in play.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.analyze",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Identify what a Truth Bullet really is, or ask the GM for a hint. Failing locks that bullet until the chapter ends.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ustal, czym naprawdę jest Truth Bullet, albo poproś GM-a o podpowiedź. Porażka blokuje ten bullet do końca rozdziału.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.project.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The Projects window offers three rows: push a project in this room, propose a new one, and Sabotage (each greyed out with its reason when it has no target).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performProject",
+          "note": null
+        },
+        {
+          "fact": "Pushing a project costs one action, spent before the roll; only the unfinished projects tied to the room the character stands in can be pushed.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "workOnProject",
+          "note": null
+        },
+        {
+          "fact": "A Work's total of 12+ adds 1 progress, 18+ adds 2; a critical adds 2 and gives the action back (ACTIONS.project thresholds and critical).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "projectProgress",
+          "note": null
+        },
+        {
+          "fact": "Proposing a new project sends the GM a card with the player's description; no action is spent for it, and nothing exists until a GM approves it.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "startProject",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it does not say what pushing costs or that the room decides which projects can be pushed.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.project",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Push a project here, or propose a new one for the GM to approve.",
+        "after": null
+      },
+      "pl": {
+        "before": "Popchnij projekt tutaj albo zaproponuj nowy do zatwierdzenia przez GM-a.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.project.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A project needs a set amount of progress: Trivial 3, Standard 4, Complex 6, Desperate 8 (PROJECT_SCALE).",
+          "file": "scripts/config.mjs",
+          "fn": "PROJECT_SCALE",
+          "note": null
+        },
+        {
+          "fact": "Each Work costs one action and adds 1 or 2 progress at most (12+ and 18+; a critical 2 and the action back), so a project takes several actions, usually over several times of day.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "projectProgress",
+          "note": null
+        },
+        {
+          "fact": "Only the projects tied to the room the character stands in can be worked on there.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "workOnProject",
+          "note": null
+        },
+        {
+          "fact": "An indirect murder is a project: it adds a Shadow roll to hide the intent when others are in the room, and a roll to hide the Remnants each Work leaves.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "workOnProject",
+          "note": null
+        },
+        {
+          "fact": "Not found in code as a rule: \"the one thing that can change how this ends\" is the old text's framing; no function runs it.",
+          "file": null,
+          "fn": null,
+          "note": "not found in code"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "The slow game: many actions over many times of day, and the one thing that can change how this ends.",
+        "after": null
+      },
+      "pl": {
+        "before": "Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmienić to, jak to się skończy.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.rest.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 3,
+      "facts": [
+        {
+          "fact": "The Rest tile opens a window with two rows, Short Rest and Long Rest, each with its price and why it is unavailable.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A Short Rest costs one action and can be taken once per time of day; a Long Rest costs two actions and can be taken once per session (REST.short, REST.long).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Each rest needs a room the GM marked for that kind of rest in Room Setup; the window names the rooms that allow it.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The rest restores Health (Sleep), Sanity (Meal) or Hope (Breath); a Long Rest lets the player pick more options and gives more of each.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "When neither rest can be taken, the tile is dimmed and its tooltip gives both reasons, but it stays pressable.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
+        "after": "Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs more actions and recovers more, once each session. Each needs a room the GM has marked for it."
+      },
+      "pl": {
+        "before": "Odzyskaj Health, Sanity albo Hope. Long Rest kosztuje więcej i daje więcej.",
+        "after": "Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.rest.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 8,
+      "facts": [
+        {
+          "fact": "The options are Sleep, which restores Health, Meal, which restores Sanity, and Breath, which grants Hope (REST.options).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A Long Rest restores all Health or all Sanity and grants 2 Hope; a Short Rest restores half Health or half Sanity and grants 1 Hope.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The player picks options: two on a Long Rest, one on a Short Rest (REST.long.picks, REST.short.picks).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A Long Rest costs two actions and is once per session; a Short Rest costs one action and is once per time of day; each needs a room marked for it.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it says a Meal clears Sanity, where the code restores it as a reserve; it says Breath gives Hope in full or by half, where the code grants a set amount; and it leaves out that the player picks options.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope - in full on a Long Rest, by half on a Short.",
+        "after": "Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much and grants less Hope."
+      },
+      "pl": {
+        "before": "Sleep przywraca Health, Meal oczyszcza Sanity, Breath daje Hope - w całości przy Long Rest, o połowę przy Short.",
+        "after": "Do wyboru masz sen (Health), posiłek (Sanity) i oddech (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [
+        "The Polish before on this tree is not the pilot's before (changed since the pilot, read at d2538dac): the approved after replaces this tree's text in C7.",
+        "The approved Polish after writes the Rest options as common nouns (sen, posiłek, oddech); C5 made them names, Sleep, Meal and Breath in Polish too (Appendix A; Q-E66-2, approved 01.11.2026), as this tree's Polish before has them. Copied as approved (Q-E66-4); the owner settles it in C-owner."
+      ],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.listen.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Listen costs one action, spent after the player picks one neighbouring room and before the Shadow roll; with no neighbouring room it is refused before anything is spent.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performListen",
+          "note": null
+        },
+        {
+          "fact": "14+ tells how many people are in that room, or that it is empty; 18+ names them (ACTIONS.listen.thresholds).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performListen",
+          "note": null
+        },
+        {
+          "fact": "A critical names who is in every neighbouring room, not only the one picked.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performListen",
+          "note": null
+        },
+        {
+          "fact": "A miss tells nothing (\"You learn nothing.\"); no GM is asked at any point, and the result is whispered to the listener alone.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performListen",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it leaves out the price and the critical.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.listen",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You listen at the wall of a neighbouring room. A modest result gives you a headcount, a strong one gives you names.",
+        "after": null
+      },
+      "pl": {
+        "before": "Nasłuchujesz przy ścianie sąsiedniego pokoju. Skromny wynik daje liczbę osób, mocny - nazwiska.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.palm.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Palm needs another character in the same room; it costs one action.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "The window has three rows: take something out of their pockets, leave one of your own things there, and Frisk (see what they carry and take nothing).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "choosePalm",
+          "note": null
+        },
+        {
+          "fact": "Taking and leaving are two rolls after one action is spent: Shadow decides whether the other person notices (15 to take, 13 to leave), Hand whether it works (10 to take, 8 to leave) (ACTIONS.palm unseen, threshold, plant).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "Frisk openly asks first, and only after a refusal or no answer may the searcher make them turn out their pockets with Body 12, in front of the room; unseen it is Shadow 15, then Hand 10 (ACTIONS.palm frisk, rummage).",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.palm",
+          "note": null
+        },
+        {
+          "fact": "The Frisk row's Polish form is the glossary's see-what-they-carry (\"Zobacz, co ktoś nosi\", stage E71); R620 (tier 1) still pins the old \"zobacz, co nosi\" in this hint until E71.",
+          "file": "docs/glossary.json",
+          "fn": "see-what-they-carry",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Take something out of somebody's pocket, leave something in it, or see what they carry.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co nosi.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.palm.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Palm costs one action and needs another character in the same room.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "Taking and leaving are two rolls after one action is spent: Shadow decides whether the other person notices (15 to take, 13 to leave), Hand whether it works (10 to take, 8 to leave) (ACTIONS.palm unseen, threshold, plant).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "Noticed, the other person is told who reached into their pocket, and what was taken when something was; unnoticed, they are told nothing.",
+          "file": "scripts/vault.mjs",
+          "fn": "stealFromPerson",
+          "note": null
+        },
+        {
+          "fact": "A Frisk can instead ask the other person to turn out their pockets; after a refusal or no answer the searcher may force it with Body 12 in front of the room.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.palm",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it says \"simply\" (X10) and gives the asking as \"or you ask them\", leaving out that forcing it is a roll in front of the room.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.palm",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You get a hand into somebody's pocket. One roll decides whether they notice, another whether it works. Or you simply ask them to turn out their pockets.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy ktoś zauważy, drugi, czy się uda. Albo po prostu prosisz, żeby pokazali kieszenie.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.tamper.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 6,
+      "facts": [
+        {
+          "fact": "Tamper offers erasing a Remnant the character has found in this room (not a reinforced one), or planting a false Remnant that points at somebody else.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "On a critical, the erasing branch can reshape the Remnant instead of wiping it out.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Its price is a chain (PRICE_CHAINS.tamper): one action, and only when no action is left, one Sanity; the killer on their own night skips the action step.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A character holding the free clean-up from a critical Finishing blow pays nothing for the next attempt.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "With witnesses in the room a concealment roll comes first, and a character with no Sanity left is refused a watched attempt; the briefing says this separately.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it says trace where the glossary has Remnant, it offers reshaping without the critical, and it leaves out the price.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Wipe out, or reshape, a trace you know is here - or plant one pointing at somebody else.",
+        "after": "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity once you have no action left."
+      },
+      "pl": {
+        "before": "Wymaż albo przekształć ślad, o którym wiesz, że tu jest - albo podłóż taki, który wskazuje na kogoś innego.",
+        "after": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Płacisz akcją, a gdy nie masz już akcji - Sanity."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.tamper.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Tamper works only on the Remnants in this room that the character has found themselves (the list the GMs build for the Tamper road), or plants a false one (Misleading Trail).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanableTracesForPlayer",
+          "note": null
+        },
+        {
+          "fact": "A Tamper costs one action, and only with no action left 1 Sanity instead (PRICE_CHAINS.tamper); the killer cleaning up on their own night pays no action, so for them it starts at the Sanity.",
+          "file": "scripts/config.mjs",
+          "fn": "PRICE_CHAINS.tamper",
+          "note": null
+        },
+        {
+          "fact": "Erasing reads its number off how visible the Remnant is (CLEANUP.dc: Hidden 9, Subtle 12, Evident 15, Obvious 18), lowered by a readied cleaning tool's tier and by 3 while the scene is fresh, before the Investigation; a Reinforced Remnant cannot be erased or reshaped at all.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupDc",
+          "note": null
+        },
+        {
+          "fact": "A reshape is three lower than erasing (CLEANUP.transformAction.dcRelief) and turns the Remnant into a Tamper Remnant with the player's new name and description, which a GM must approve; a critical makes it one band quieter.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        },
+        {
+          "fact": "Planting a false Remnant points at another character and needs 15 (CLEANUP.actions.misleadingTrail.threshold).",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP.actions.misleadingTrail",
+          "note": null
+        },
+        {
+          "fact": "With somebody else in the room, a Shadow roll at 16 to hide what the character is doing comes first (CLEANUP.conceal): a success with Despair costs 1 Sanity, a miss with Hope 1 and with Despair 2, a critical gives 1 back; with no Sanity left to lose and others watching, the Tamper is refused before anything is spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "concealFromWitnesses",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: \"Being watched while you do it is its own problem\" stands for the cover roll and its Sanity, and it calls the Remnant a trace.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.tamper",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You go over a trace you know is here until it is gone or reads as something else, or you leave one that points at somebody else. Being watched while you do it is its own problem.",
+        "after": null
+      },
+      "pl": {
+        "before": "Pracujesz nad śladem, o którym wiesz, że tu jest, aż zniknie albo zacznie wyglądać na coś innego, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.directMurder.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 7,
+      "facts": [
+        {
+          "fact": "Direct Murder costs one action (ACTIONS.directMurder cost 1).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Outside an Eclipse it is refused (DRPG.Eclipse.murderOnlyInEclipse); during an Eclipse it declares a killing for later.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The one exception: in Stage 6, with the killer's partner still standing, the tile turns on that partner instead (performBetrayal).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "During a fight the tile opens the fight's own actions.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The config description adds that the killing is agreed with the GM beforehand, consented to by the victim's player, and needs the killer alone with the victim.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it leaves out that the action works only during an Eclipse, and its price.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Open a direct murder. Agreed with the GM beforehand.",
+        "after": "During an Eclipse, declare a Direct Murder that you have agreed with the GM beforehand. It costs an action."
+      },
+      "pl": {
+        "before": "Otwórz Direct Murder. Uzgodnione wcześniej z GM-em.",
+        "after": "Otwórz Direct Murder. Działa tylko podczas Eclipse: wydajesz akcję i zgłaszasz zabójstwo uzgodnione wcześniej z GM-em."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.directMurder.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Direct Murder costs one action and works only during an Eclipse; outside one it is refused before anything is spent (DRPG.Eclipse.murderOnlyInEclipse).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performAction",
+          "note": null
+        },
+        {
+          "fact": "Confirmed, it spends the action and declares the killing with the player's note; a GM online is needed, and the declaration is put to the GMs on a card (allow or refuse).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDirectMurder",
+          "note": null
+        },
+        {
+          "fact": "Whether it happens is settled when the Eclipse ends: it opens an incident only if exactly one other person is in the killer's room then; nobody there, or more than one, and the killer is told so and the GMs are told why.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "Only the first successful declaration of an Eclipse opens an incident; a second killer is told it was refused.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "judgePendingMurders",
+          "note": null
+        },
+        {
+          "fact": "A declaration the GMs have not ruled on yet is asked about at that moment, with the killer, the victim, the room and the note; a refusal is a refusal.",
+          "file": "scripts/eclipse.mjs",
+          "fn": "askAtTheLights",
+          "note": null
+        },
+        {
+          "fact": "Not found in code: the consent of the victim's player and the agreement with the GM beforehand are not checked by any function; the GM's allow stands for both (DRPG.Action.murderConfirm says them to the player).",
+          "file": null,
+          "fn": null,
+          "note": "not found in code"
+        },
+        {
+          "fact": "The old text differs: it leaves out that it works only during an Eclipse and that the outcome waits for the Eclipse's end; \"alone with them\" is measured then, not when it is declared.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.directMurder",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "A face-to-face killing, agreed with the GM beforehand and consented to by the victim's player. You have to be alone with them.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zabójstwo twarzą w twarz, uzgodnione wcześniej z GM-em i za zgodą gracza ofiary. Musisz być z nią sam na sam.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.move.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 4,
+      "facts": [
+        {
+          "fact": "Moving the token inside the room it stands in costs nothing; the price is taken when the token arrives in another room.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Each character has one Free Move per time of day (a flag, FLAGS.freeMoveUsed); the first crossing into another room uses it.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Once the Free Move is used, a crossing is paid either by a crossing bought earlier with the Sprint Hope Call or by one action; takeMove decides which, and the card names which paid.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "While the Overflow's Fog is in force, the Free Move is not available, and crossings are paid by Sprint crossings or actions.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "When none of these can pay, the token is put back where it was and the crossing does not happen.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it leaves out the Sprint crossings as a way to pay.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Crossing into another room costs your free Move, then an action each.",
+        "after": "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint."
+      },
+      "pl": {
+        "before": "Przejście do innego pokoju kosztuje Free Move, potem akcję za każde.",
+        "after": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a za każde kolejne płacisz przejściem kupionym wcześniej Callem Sprint albo akcją."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.move.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Moving the token inside the room it stands in costs nothing; the price is taken when the token arrives in another room.",
+          "file": "scripts/movement.mjs",
+          "fn": "crossingVerdict",
+          "note": null
+        },
+        {
+          "fact": "Each character has one Free Move per time of day; the first crossing into another room uses it.",
+          "file": "scripts/actions.mjs",
+          "fn": "hasFreeMove",
+          "note": null
+        },
+        {
+          "fact": "After the Free Move, a crossing is paid by a crossing bought earlier with the Sprint Hope Call or by one action; with neither, the token is put back and the crossing does not happen.",
+          "file": "scripts/actions.mjs",
+          "fn": "takeMove",
+          "note": null
+        },
+        {
+          "fact": "While an Overflow that blocks the Free Move is in force, the Free Move is not available.",
+          "file": "scripts/actions.mjs",
+          "fn": "hasFreeMove",
+          "note": null
+        },
+        {
+          "fact": "The GMs can switch the charge off with the world setting chargeMovement.",
+          "file": "scripts/movement.mjs",
+          "fn": "crossingVerdict",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it leaves out what a crossing after the Free Move costs.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.move",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Moving inside your own room is free. Crossing into a connected room spends this time of day's free Move.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ruch wewnątrz własnego pokoju jest darmowy. Przejście do połączonego pokoju zużywa Free Move tej pory dnia.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.sabotage.hint",
+      "group": "config",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 5,
+      "facts": [
+        {
+          "fact": "Sabotage costs one action (ACTIONS.sabotage cost 1), paid before the roll.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Only a project tied to the room the character stands in, on that room's scene, can be a target; a frozen project and a repair project cannot (sabotageTargetsIn).",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "A roll of 12 or more makes the target need a simple repair project, 18 or more a complex one, and a critical a hidden-difficulty one; below 12 nothing happens to the project.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Every Sabotage leaves a Remnant, a hidden one even on a failure, and a roll with Despair shows the saboteur to the room.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "The old text differs: it says trace where the glossary has Remnant, and it leaves out the action's price.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Break a project in this room so it needs a repair project. Always leaves a trace.",
+        "after": "Break a project in this room so that it needs a repair project. It costs an action, and you always leave a Remnant behind."
+      },
+      "pl": {
+        "before": "Zepsuj projekt w tym pokoju, by wymagał projektu naprawy. Zawsze zostawia ślad.",
+        "after": "Zepsuj projekt w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.ACTIONS.sabotage.description",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sabotage is the third row of the Projects window, not a tile of its own; it costs one action, spent before any roll.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSabotage",
+          "note": null
+        },
+        {
+          "fact": "Only a project tied to the room the character stands in can be broken (a Monokuma reaches any room); one already broken and waiting for its repair is withheld.",
+          "file": "scripts/projects.mjs",
+          "fn": "sabotageTargetsIn",
+          "note": null
+        },
+        {
+          "fact": "With other people in the room, a Shadow roll at 16 comes first (SABOTAGE_CONCEAL): a miss means they see roughly what the saboteur is doing; a success with Despair costs -1 on the sabotage roll.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "concealSabotage",
+          "note": null
+        },
+        {
+          "fact": "The sabotage roll uses the project's statistic: 12+ makes the project need a simple repair project, 18+ a complex one, a critical one of hidden difficulty; a miss does nothing.",
+          "file": "scripts/config.mjs",
+          "fn": "ACTIONS.sabotage",
+          "note": null
+        },
+        {
+          "fact": "Every attempt leaves a Prep Remnant (Faint): Subtle at 12+, Evident at 18+, Obvious on a critical, Hidden on a miss.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "dropSabotageTrace",
+          "note": null
+        },
+        {
+          "fact": "A sabotage roll with Despair, made while others are in the room, tells the room who was seen doing it (DRPG.Action.sabotageSeen).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "soundSabotage",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it says Despair shows the saboteur to the room without the condition that others are there, and it calls the Remnant a trace.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSabotage",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You break something the players made in the room you are standing in, so it needs a repair project. It always leaves a trace, and Despair shows you to the room.",
+        "after": null
+      },
+      "pl": {
+        "before": "Psujesz coś, co gracze zrobili w pokoju, w którym stoisz, by wymagało projektu naprawy. Zawsze zostawia ślad, a Despair pokazuje cię pokojowi.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.support.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Support costs 1 Hope (HOPE_CALLS.support cost) and grants advantage (grants \"advantage\") to another character.",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.support",
+          "note": null
+        },
+        {
+          "fact": "The target is picked from the other characters in the caller's room; with nobody else there the Call is refused (DRPG.Calls.nobodyHere).",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickPlayer",
+          "note": null
+        },
+        {
+          "fact": "A Call that grants something to a roll is armed for the next roll of the one it is for: the roll window has the grant switched on and locked, and it is used up by that roll.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "grantEffect",
+          "note": null
+        },
+        {
+          "fact": "A character who already holds an armed Support is refused before the Hope is paid (DRPG.Calls.alreadyArmed).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "refusalBeforePaying",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it says \"player\" for the character the advantage goes to (DB24: a student in the fiction).",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.support",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Give another player advantage on one roll. You have to be in the same room.",
+        "after": null
+      },
+      "pl": {
+        "before": "Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.experience.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Experience costs 1 Hope and is a needsGm Call.",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.experience",
+          "note": null
+        },
+        {
+          "fact": "A Call marked needsGm asks the player to write how it applies; a GM approves or refuses it, and the Hope is paid only on the GM's yes.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendHopeCall",
+          "note": null
+        },
+        {
+          "fact": "Armed, it unlocks the experiences in the caller's next roll window; the player picks one, and only one counts (a second pick moves the choice).",
+          "file": "scripts/roll-dialog.mjs",
+          "fn": "lockExperiences",
+          "note": null
+        },
+        {
+          "fact": "The experience adds its own value to the roll (Daggerheart's experience modifier); the module adds no number of its own.",
+          "file": "scripts/roll-dialog.mjs",
+          "fn": "capExperiences",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Add your experience level to a roll that experience genuinely applies to.",
+        "after": null
+      },
+      "pl": {
+        "before": "Dodaj poziom doświadczenia do rzutu, do którego to doświadczenie naprawdę się stosuje.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.ultimate.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Ultimate costs 1 Hope, is a needsGm Call and grants advantage on the caller's next roll.",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.ultimate",
+          "note": null
+        },
+        {
+          "fact": "A Call marked needsGm asks the player to write how it applies; a GM approves or refuses it, and the Hope is paid only on the GM's yes.",
+          "file": "scripts/calls.mjs",
+          "fn": "spendHopeCall",
+          "note": null
+        },
+        {
+          "fact": "A Call that grants something to a roll is armed for the next roll of the one it is for: the roll window has the grant switched on and locked, and it is used up by that roll.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "grantEffect",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Advantage on a roll your Ultimate genuinely applies to.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.contribution.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Contribution costs 2 Hope; {progress} is the entry's `progress` (1), filled by proseOf.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        },
+        {
+          "fact": "The project is picked from those in the caller's room; one that is complete, frozen or gone is refused before the Hope is paid (DRPG.Project.noneToMove).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "projectRefusal",
+          "note": null
+        },
+        {
+          "fact": "The progress is added at once (addProgress), with no roll and no action.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "progressEffect",
+          "note": null
+        },
+        {
+          "fact": "On an indirect murder, the progress also rolls to hide its Remnants, as a Work does.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "progressEffect",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: \"being worked on\" is not a condition the code checks; any project in the room that is not complete or frozen takes it.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "projectRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Add +{progress} progress to a project being worked on in the room you are in.",
+        "after": null
+      },
+      "pl": {
+        "before": "Dodaj +{progress} postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.reroll.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Reroll costs 3 Hope and acts at once, on the caller's single most recent roll and nothing older; it is not armed for a later roll.",
+          "file": "scripts/reroll.mjs",
+          "fn": "rerollOnGm",
+          "note": null
+        },
+        {
+          "fact": "The action is taken back and run again on a GM's browser against the new dice: progress, the item a Search drew, a Remnant left, a Sabotage's repair; Hope, Sanity and Despair move from the old result to the new one.",
+          "file": "scripts/reroll.mjs",
+          "fn": "rerollOnGm",
+          "note": null
+        },
+        {
+          "fact": "The roll's chat message is rewritten in place with the new dice; the action's old card is marked as replaced.",
+          "file": "scripts/reroll.mjs",
+          "fn": "rerollOnGm",
+          "note": null
+        },
+        {
+          "fact": "A GM answers it; a request a GM refuses, or one with no roll to redo, is said to the player and nothing is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "askReroll",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Reroll the action. It reverts the previous outcome.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przerzuć akcję. Cofa poprzedni wynik.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.sprint.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Sprint costs 2 Hope and banks crossings (HOPE_CALLS.sprint freeMoves, 1) on the character.",
+          "file": "scripts/call-effects.mjs",
+          "fn": "freeMovesEffect",
+          "note": null
+        },
+        {
+          "fact": "After the Free Move, a banked crossing pays a crossing into another room before an action does.",
+          "file": "scripts/actions.mjs",
+          "fn": "takeMove",
+          "note": null
+        },
+        {
+          "fact": "Banked crossings end at the next time of day (zeroed by the refill at its start).",
+          "file": "scripts/actions.mjs",
+          "fn": "resetActionsFor",
+          "note": null
+        },
+        {
+          "fact": "The number of crossings is the entry's freeMoves; PROSE_NUMBERS has no row for it, so a placeholder cannot carry it without code.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "One more room crossing this time of day, without paying an action for it.",
+        "after": null
+      },
+      "pl": {
+        "before": "Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia za nie akcją.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.burst.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Burst costs 4 Hope and banks one free action (HOPE_CALLS.burst freeActions, 1).",
+          "file": "scripts/call-effects.mjs",
+          "fn": "freeActionsEffect",
+          "note": null
+        },
+        {
+          "fact": "The next spend of actions uses it up whatever it charges: a Long Rest's two actions go on one Burst; a second spend in the same action pays normally.",
+          "file": "scripts/actions.mjs",
+          "fn": "spendAction",
+          "note": null
+        },
+        {
+          "fact": "A banked free action ends at the next time of day.",
+          "file": "scripts/actions.mjs",
+          "fn": "resetActionsFor",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: \"however many it would have cost\" means the whole of one spend, which the code covers once.",
+          "file": "scripts/actions.mjs",
+          "fn": "spendAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Your next action costs nothing - the whole action, however many it would have cost.",
+        "after": null
+      },
+      "pl": {
+        "before": "Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.relief.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "pilot",
+      "pilot": 10,
+      "facts": [
+        {
+          "fact": "Relief is a Hope Call priced at 4 Hope (HOPE_CALLS.relief cost); the price is shown on the Call's own tile.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "It takes a Short Rest at once with the same benefits as an ordinary one, costs no action and needs no marked room.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "It neither checks nor uses up the once-per-time-of-day Short Rest, so the character's ordinary Short Rest is still there afterwards.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        },
+        {
+          "fact": "Backing out of the picker of what to restore cancels the Call and the Hope comes back.",
+          "file": null,
+          "fn": null,
+          "note": "the pilot's fact (docs/dev/text-pilot.json), read off the code in E65 C14; copied with its approved after, not read again (Q-E66-4)"
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Take a Short Rest right now - no action, no marked room, and it does not use up this time of day's.",
+        "after": "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
+      },
+      "pl": {
+        "before": "Weź Short Rest od razu - bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia.",
+        "after": "Weź od razu Short Rest z tymi samymi korzyściami co zwykły; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca."
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": {
+        "verdict": "ok",
+        "text": "",
+        "date": "01.11.2026",
+        "page": "E65-PILOT-R1"
+      }
+    },
+    {
+      "key": "DRPG.Config.HOPE_CALLS.freeCrit.effect",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "calls",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Loaded Die costs 6 Hope and is armed for the caller's next roll (grants \"critical\").",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.freeCrit",
+          "note": null
+        },
+        {
+          "fact": "A coin decides which die, Hope or Fear, is set to its top face (12); the other die is thrown.",
+          "file": "scripts/forced-roll.mjs",
+          "fn": "loadDie",
+          "note": null
+        },
+        {
+          "fact": "The roll is a critical only when the thrown die also lands 12; otherwise a loaded Hope die makes it a roll with Hope and a loaded Fear die a roll with Despair.",
+          "file": "scripts/forced-roll.mjs",
+          "fn": "loadDie",
+          "note": null
+        },
+        {
+          "fact": "The 12 is the die's face, not a config number: it stays a digit in the text (no PROSE_NUMBERS row; C4's reading).",
+          "file": "scripts/config.mjs",
+          "fn": "HOPE_CALLS.freeCrit",
+          "note": null
+        },
+        {
+          "fact": "No Hope Call can be made during an Eclipse, while an Overflow silences Calls, by a dead character, or by one under Silence; the refusal comes before any Hope is paid.",
+          "file": "scripts/calls.mjs",
+          "fn": "hopeCallRefusal",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "One of the two dice, at random, is set to 12, the other is thrown. A critical only if that one is a 12 too.",
+        "after": null
+      },
+      "pl": {
+        "before": "Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.useItem.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Use an Item is either side's: Hand against 15; it is taken with an item row's Use button on the sheet during an incident, and the crisis menu does not list it (hidden).",
+          "file": "scripts/sheet.mjs",
+          "fn": "addUseButton",
+          "note": null
+        },
+        {
+          "fact": "The item takes effect on a critical or a success with Hope; a success with Despair leaves the item unused (DRPG.Murder.useItemFumbled) and only its Remnant.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A success leaves an Incident Remnant: Evident with Hope, Subtle with Despair, Obvious on a critical (Reinforced on a critical).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "A miss leaves the item in the pocket; a miss with Despair costs 1 more Sanity (failureExtraDrain).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "Not found in code: no screen read here shows this hint (the crisis menu filters hidden actions).",
+          "file": null,
+          "fn": null,
+          "note": "not found in code"
+        },
+        {
+          "fact": "The old text differs: it calls the Remnant a trace.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.useItem",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Get something out while this is happening. Works on a critical or a Hope success; a Despair success only leaves a trace.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wyciągnij coś, gdy to się dzieje. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia tylko ślad.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.leaveClue.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Leave a Clue is the victim's: 12 to beat (Hand, Leg or Shadow).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.leaveClue",
+          "note": null
+        },
+        {
+          "fact": "A success leaves an Incident Remnant tied to the crime at the scene: Evident with Hope, Subtle with Despair, Obvious and Reinforced on a critical; the victim of an indirect murder leaves a Reinforced one with Hope, and two on a critical.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "A miss with Hope leaves nothing but gives advantage on the next attempt.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A Pin Them Down puts it at disadvantage, or blocks it on a critical.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.pin",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it calls the Remnant a trace; \"meant to help the others\" is the victim's intent, which no rule reads.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.leaveClue",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Leave a trace at the scene meant to help the others.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zostaw na miejscu ślad, który ma pomóc innym.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.secureTrace.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Secure a Trace is the victim's: 15 to beat (Hand, Leg or Shadow).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.secureTrace",
+          "note": null
+        },
+        {
+          "fact": "A success leaves an Incident Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and Reinforced on a critical; the victim of an indirect murder leaves a Reinforced one with Hope, and two on a critical.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "A miss with Hope leaves nothing but gives advantage on the next attempt.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A Keep Your Distance puts it at disadvantage, or blocks it on a critical.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.keepDistance",
+          "note": null
+        },
+        {
+          "fact": "Not found in code: \"take something off the killer\" and \"tied to their identity\" are the fiction; the code drops an Incident Remnant tied to the crime, as Leave a Clue does, at a higher number.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Take something off the killer and turn it into a trace tied to their identity.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zabierz coś zabójcy i zamień to w ślad powiązany z jego tożsamością.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.selfDefence.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Self-Defense is the victim's: 18 to beat (Hand, Leg or Body); an item that can be used as a weapon gives advantage.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "crisisSituational",
+          "note": null
+        },
+        {
+          "fact": "With Hope it opens Survive and Role Reversal; with Despair only Role Reversal; a critical opens both, stops the drain, and lets the victim take one of them this turn without a roll.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyUnlocks",
+          "note": null
+        },
+        {
+          "fact": "Once it has opened what it opens, it cannot be taken again in this incident.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyUnlocks",
+          "note": null
+        },
+        {
+          "fact": "Every success leaves an Evident Incident Remnant (Reinforced on a critical); a miss leaves an Evident one, Obvious on a critical miss.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "A miss opens nothing; a miss with Despair costs the victim 1 more Sanity, then Health once Sanity runs out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You fight. Unlocks Survive and Role Reversal. An item usable as a weapon gives advantage.",
+        "after": null
+      },
+      "pl": {
+        "before": "Walczysz. Odblokowuje Survive i Role Reversal. Przedmiot nadający się na broń daje przewagę.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.survive.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Survive is the victim's, locked until Self-Defense opens it: Leg against 18.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.survive",
+          "note": null
+        },
+        {
+          "fact": "It is a resolution action: a rolled one costs 1 Sanity (RESOLUTION_STRESS_COST), or 1 Health once Sanity has run out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "spendStress",
+          "note": null
+        },
+        {
+          "fact": "A success ends the incident and the drain; with Despair the victim also gets a hint about who the killer was; a critical adds that hint and immunity for this chapter and the next.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.survive",
+          "note": null
+        },
+        {
+          "fact": "A miss keeps the incident going and costs the victim 1 more Sanity, then Health once Sanity runs out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A Pin Them Down puts it at disadvantage, or blocks it on a critical.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.pin",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Withdraw from the incident and stop losing Health and Sanity. Needs Self-Defense first.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wycofaj się z incydentu i przestań tracić Health i Sanity. Wymaga najpierw Self-Defense.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.roleReversal.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Role Reversal is the victim's, locked until Self-Defense opens it: 15 to beat (Hand, Leg or Body); an item usable as a weapon gives advantage.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.roleReversal",
+          "note": null
+        },
+        {
+          "fact": "It is a resolution action: a rolled one costs 1 Sanity (RESOLUTION_STRESS_COST), or 1 Health once Sanity has run out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "spendStress",
+          "note": null
+        },
+        {
+          "fact": "A success swaps the roles: the victim becomes the killer, and from then on the drain falls on the other side; with Hope (and on a critical) the new killer also recovers all Health and Sanity.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "swapRoles",
+          "note": null
+        },
+        {
+          "fact": "A critical kills the other side outright and leaves one Evident Reinforced Incident Remnant.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.roleReversal",
+          "note": null
+        },
+        {
+          "fact": "A miss does nothing; with Despair it costs 1 more Sanity, then Health. A Keep Your Distance puts it at disadvantage; a third party who joins the killer takes it away from the victim.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyThirdPartyChoice",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Tip the scales and become the killer yourself. From then on it is them losing Health and Sanity. Needs Self-Defense first.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przechyl szalę i to ty zostajesz zabójcą. Od tej pory to oni tracą Health i Sanity. Wymaga najpierw Self-Defense.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.strike.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Strike is the killer's: 15 to beat (Hand, Leg or Body).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.strike",
+          "note": null
+        },
+        {
+          "fact": "{hp} and {stress} are the entry's damage on a success (1 and 1), filled by proseOf: a success takes that much Health and Sanity off the victim.",
+          "file": "scripts/config.mjs",
+          "fn": "PROSE_NUMBERS",
+          "note": null
+        },
+        {
+          "fact": "On a critical the killer chooses Health or Sanity, and the victim loses 2 of it (criticalAmount).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyDamage",
+          "note": null
+        },
+        {
+          "fact": "A success with Hope leaves a Hidden Incident Remnant, with Despair a Subtle one; a critical leaves none.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "A miss with Hope does nothing; with Despair it still takes 1 Sanity off them and leaves an Evident Remnant, Obvious on a critical miss.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.strike",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: \"Costs ... from them\" says the victim's loss as a price.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.strike",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Speed up their decline. Costs {hp} Health and {stress} Sanity from them.",
+        "after": null
+      },
+      "pl": {
+        "before": "Przyspiesz ich upadek. Kosztuje ich {hp} Health i {stress} Sanity.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.pin.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Pin Them Down is the killer's: Body against 12.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.pin",
+          "note": null
+        },
+        {
+          "fact": "A success puts the victim's Leave a Clue and Survive at disadvantage; a critical blocks both instead.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyHindrance",
+          "note": null
+        },
+        {
+          "fact": "{turns} is the entry's hinders.turns (2) with its noun (DRPG.Unit.nextTurnAcc), filled by proseOf; the count drops when the victim's turn ends.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "passTurn",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, Obvious on a critical miss.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Disadvantage on Leave a Clue and Survive for the victim's {turns}.",
+        "after": null
+      },
+      "pl": {
+        "before": "Utrudnienie na Leave a Clue i Survive przez {turns} ofiary.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.keepDistance.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Keep Your Distance is the killer's: Leg against 12.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.keepDistance",
+          "note": null
+        },
+        {
+          "fact": "A success puts the victim's Secure a Trace and Role Reversal at disadvantage; a critical blocks both instead.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyHindrance",
+          "note": null
+        },
+        {
+          "fact": "{turns} is the entry's hinders.turns (2) with its noun (DRPG.Unit.nextTurnAcc), filled by proseOf; the count drops when the victim's turn ends.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "passTurn",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, Obvious on a critical miss.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Disadvantage on Secure a Trace and Role Reversal for the victim's {turns}.",
+        "after": null
+      },
+      "pl": {
+        "before": "Utrudnienie na Secure a Trace i Role Reversal przez {turns} ofiary.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.weaponAttack.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Attack with a Weapon is the killer's: 15 to beat (Body, Hand or Leg).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.weaponAttack",
+          "note": null
+        },
+        {
+          "fact": "A success takes Health off the victim by the weapon's tier: 1 + tier/2 rounded up, and 1 + tier on a critical; a Tier 0 item is rated by the GM (0 to 2).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyDamage",
+          "note": null
+        },
+        {
+          "fact": "Without a weapon the roll is at disadvantage, and a success also hands the killer an improvised weapon (Tier 2 with Hope or on a critical, Tier 1 with Despair).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "grantImprovisedWeapon",
+          "note": null
+        },
+        {
+          "fact": "The weapon used is recorded as swung, which ties its Remnants to the crime.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, an Obvious Reinforced one on a critical miss.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "Taking it uses the turn; a critical of an action marked criticalKeepsTurn keeps the turn.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Use a found item as a weapon. Unarmed works at disadvantage, and succeeds into an improvised tool.",
+        "after": null
+      },
+      "pl": {
+        "before": "Użyj znalezionego przedmiotu jako broni. Bez broni działa z utrudnieniem, a sukces daje improwizowane narzędzie.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.finishingBlow.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Finishing Blow is the killer's resolution action: the number to beat is the victim's remaining Health times {mult} (INCIDENT.finishingBlowPerHp, 5, filled by proseOf), so 0 when no Health is left.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "finishingBlowThreshold",
+          "note": null
+        },
+        {
+          "fact": "It is a resolution action: a rolled one costs 1 Sanity (RESOLUTION_STRESS_COST), or 1 Health once Sanity has run out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "spendStress",
+          "note": null
+        },
+        {
+          "fact": "A success ends the incident; with Despair it leaves an Evident Incident Remnant; a critical also makes the killer's first clean-up attempt cost no Sanity (spendFreeCleanup).",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.finishingBlow",
+          "note": null
+        },
+        {
+          "fact": "A miss with Despair leaves an Evident Remnant, an Obvious Reinforced one on a critical miss.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "End the incident now. Threshold is {mult} times their remaining Health - free at 0. A critical here also makes your first clean-up attempt cost no Sanity.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zakończ incydent teraz. Próg to {mult}-krotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.sharedEscape.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Escape Together is a third party's resolution action: Leg against 15.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.sharedEscape",
+          "note": null
+        },
+        {
+          "fact": "It is a resolution action: a rolled one costs 1 Sanity (RESOLUTION_STRESS_COST), or 1 Health once Sanity has run out.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "spendStress",
+          "note": null
+        },
+        {
+          "fact": "A success gets both out and ends the incident: with Hope the victim's Health and Sanity are restored; with Despair they are not; a critical restores them and gives both immunity for this chapter and the next.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.sharedEscape",
+          "note": null
+        },
+        {
+          "fact": "A miss gets only the third party out; their one free choice is spent and the incident goes on without them.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
+          "note": null
+        },
+        {
+          "fact": "A success leaves an Obvious (Hope) or Evident (Despair) Incident Remnant, a miss a Subtle one.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Get the victim out with you.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wyprowadź ofiarę ze sobą.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.doubleRoleReversal.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Double Role Reversal is a third party's choice, with no roll.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.doubleRoleReversal",
+          "note": null
+        },
+        {
+          "fact": "The roles swap: the victim and the third party become the killers and the original killer becomes the one losing Health and Sanity; the victim can no longer take Role Reversal.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "swapRoles",
+          "note": null
+        },
+        {
+          "fact": "It leaves an Evident Incident Remnant.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The third party has one free choice in an incident; after it they take no further action.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "availableCrisisActions",
+          "note": null
+        },
+        {
+          "fact": "The incident's card shows the entry's effect text, not this hint.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "announceCrisis",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "You and the victim turn on the attacker together. They become the victim.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.crimePartners.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Partners in Crime is a third party's choice, with no roll.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.crimePartners",
+          "note": null
+        },
+        {
+          "fact": "The third party joins the killer's side; the victim can no longer take Role Reversal.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyThirdPartyChoice",
+          "note": null
+        },
+        {
+          "fact": "It leaves a Subtle Incident Remnant.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyRemnant",
+          "note": null
+        },
+        {
+          "fact": "The third party has one free choice in an incident; after it they take no further action.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "availableCrisisActions",
+          "note": null
+        },
+        {
+          "fact": "Not found in code: \"the victim is unlikely to walk out\" is a reading of the odds; no rule sets it.",
+          "file": null,
+          "fn": null,
+          "note": "not found in code"
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Side with the attacker. The victim is unlikely to walk out.",
+        "after": null
+      },
+      "pl": {
+        "before": "Stań po stronie napastnika. Ofiara raczej stąd nie wyjdzie.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Config.CRISIS_ACTIONS.avertedEyes.hint",
+      "group": "config",
+      "surface": "config-description",
+      "screen": "murder-cards",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "Averted Eyes is a third party's choice, with no roll.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.avertedEyes",
+          "note": null
+        },
+        {
+          "fact": "The third party leaves the incident and does not intervene; no Remnant is left (the entry has no remnant).",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyThirdPartyChoice",
+          "note": null
+        },
+        {
+          "fact": "The third party has one free choice in an incident.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "availableCrisisActions",
+          "note": null
+        },
+        {
+          "fact": "The hint is shown in the crisis menu (the window of the turn in an incident) after the row's number to beat (\"{n}+ -\") or \"no roll\", and the menu lists beside it the statistic, the Sanity a resolution action costs and what a miss does; it is read by the one whose turn it is.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "openCrisisMenu",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it calls the Remnant a trace.",
+          "file": "scripts/config.mjs",
+          "fn": "CRISIS_ACTIONS.avertedEyes",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Walk away and stay out of it. Leaves no trace of you.",
+        "after": null
+      },
+      "pl": {
+        "before": "Odejdź i trzymaj się z daleka. Nie zostawia po tobie śladu.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Project.sabotageHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A plural family on {n}: {n} is the number of projects in this room that can be broken now (sabotageTargetsIn), the hint of the Sabotage row of the Projects window.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performProject",
+          "note": null
+        },
+        {
+          "fact": "The row is greyed out when {n} is 0 (DRPG.Project.nothingToSabotage); the project is picked in a list under the row.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performProject",
+          "note": null
+        },
+        {
+          "fact": "A success makes the project need a repair project (simple at 12+, complex at 18+, hidden difficulty on a critical); it costs one action.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performSabotage",
+          "note": null
+        },
+        {
+          "fact": "Every attempt, hit or miss, leaves a Prep Remnant.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "dropSabotageTrace",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it calls the Remnant a trace (C5 left the sentence to this batch).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performProject",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": {
+          "one": "Break the {n} project in this room so it needs repairing. Always leaves a trace.",
+          "other": "Break one of the {n} projects in this room so it needs repairing. Always leaves a trace."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Zepsuj {n} projekt w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad.",
+          "few": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad.",
+          "many": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad.",
+          "other": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad."
+        },
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.coverHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A plural family on {n}: {n} is the number of Remnants in this room that the character has found and that are not Reinforced, the hint of Erase a Trace's row in Tamper's window.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        },
+        {
+          "fact": "The row is greyed out when {n} is 0, with the reason that only Reinforced ones are left or that the character has found none here.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        },
+        {
+          "fact": "Erasing reads its number off how visible the Remnant is (CLEANUP.dc: Hidden 9, Subtle 12, Evident 15, Obvious 18), lowered by a readied cleaning tool's tier and by 3 while the scene is fresh, before the Investigation; a Reinforced Remnant cannot be erased or reshaped at all.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupDc",
+          "note": null
+        },
+        {
+          "fact": "A success with Hope or a critical removes it; a success with Despair removes it but leaves an Evident Remnant (Faint); a miss leaves a Subtle (with Hope) or an Evident (with Despair) Remnant and the original stays; a critical also gives back 1 Sanity (CLEANUP.outcome).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupVerdict",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it calls the Remnant a trace.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": {
+          "one": "Wipe out the {n} trace you know about in this room. The easier it is to see, the harder it is to erase.",
+          "other": "Wipe out one of the {n} traces you know about in this room. The easier one is to see, the harder it is to erase."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Wymaż {n} ślad, o którym wiesz w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
+          "few": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+          "many": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+          "other": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć."
+        },
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Cleanup.transformActionHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of Reshape a Trace's row in Tamper's window; the player then writes a new name and a description for the Remnant.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "runTamperChoice",
+          "note": null
+        },
+        {
+          "fact": "The number to beat is the erase number less 3 (CLEANUP.transformAction.dcRelief); a Reinforced Remnant cannot be reshaped.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanupVerdict",
+          "note": null
+        },
+        {
+          "fact": "The new name and description go to a GM, who approves or declines the reshape; a declined reshape keeps the roll and the price spent.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "proposeReshape",
+          "note": null
+        },
+        {
+          "fact": "A critical also makes the Remnant one band harder to spot (quieter 1) and gives back 1 Sanity (refundStress.critical).",
+          "file": "scripts/cleanup.mjs",
+          "fn": "resolveTransformRoad",
+          "note": null
+        },
+        {
+          "fact": "Approved, it becomes a Tamper Remnant (CLEANUP.transformAction.becomes \"resolution\", labelled Tamper Remnant).",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP.transformAction",
+          "note": null
+        },
+        {
+          "fact": "The old text writes the number \"three\" into the sentence; the code holds it as dcRelief, and no placeholder fills it.",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP.transformAction",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Rename it and describe it as something innocent. Threshold three lower than erasing; a critical also makes it quieter and hands back the Sanity. It always ends up a Tamper Remnant.",
+        "after": null
+      },
+      "pl": {
+        "before": "Nazwij go inaczej i opisz jako coś niewinnego. Próg o trzy niższy niż przy usuwaniu; krytyk dodatkowo go wycisza i oddaje Sanity. Zawsze kończy jako Tamper Remnant.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Tamper.frameHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of Misleading Trail's row in Tamper's window; {n} is CLEANUP.actions.misleadingTrail.threshold (15), read at the call; the target is another character, picked in a list.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        },
+        {
+          "fact": "A hit plants a Prep Remnant pointing at the target: Evident with Hope, Subtle with Despair, Obvious on a critical (which also gives back 1 Sanity).",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP.actions.misleadingTrail",
+          "note": null
+        },
+        {
+          "fact": "A miss with Hope still plants a Hidden one, Faint; a miss with Despair plants nothing.",
+          "file": "scripts/config.mjs",
+          "fn": "CLEANUP.actions.misleadingTrail",
+          "note": null
+        },
+        {
+          "fact": "The row is greyed out when there is nobody to point at (DRPG.Cleanup.trailNobody).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: it calls the planted Remnant a trace.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseTamper",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
+        "after": null
+      },
+      "pl": {
+        "before": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej. Chybienie z Hope i tak podkłada ślad Faint i Hidden; chybienie z Despair nie zostawia nic.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Steal.takeHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of the take row of Palm's window.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "choosePalm",
+          "note": null
+        },
+        {
+          "fact": "On a success the item comes out at random from what the other person carries (Truth Bullets aside); only a critical opens a list to choose from, and backing out of that list still takes one at random.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "chooseStolen",
+          "note": null
+        },
+        {
+          "fact": "The Hand roll is against 10 and the Shadow roll against 15 decides whether they notice; noticed, they are told who tried and what was taken.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "It costs one action, spent before the two rolls.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Lift one thing out of their pockets. What comes out is whatever comes out - a critical lets you choose.",
+        "after": null
+      },
+      "pl": {
+        "before": "Wyjmij jedną rzecz z czyjejś kieszeni. Wyjdzie, co wyjdzie - krytyk pozwala wybrać.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Steal.plantHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A plural family on {n}: {n} is the number of things the character carries that can be left (Truth Bullets aside), the hint of the leave row of Palm's window.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "choosePalm",
+          "note": null
+        },
+        {
+          "fact": "The row is greyed out when {n} is 0 (DRPG.Steal.nothingToPlant); the thing is picked in a list under the row.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "choosePalm",
+          "note": null
+        },
+        {
+          "fact": "Leaving is easier than taking on both rolls: Hand against 8, and Shadow against 13 decides whether they notice (ACTIONS.palm.plant).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        },
+        {
+          "fact": "It costs one action, spent before the two rolls.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performPalm",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": {
+          "one": "Put the one thing you are carrying into their pocket.",
+          "other": "Put one of the {n} things you are carrying into their pocket."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Włóż im do kieszeni tę jedną rzecz, którą nosisz.",
+          "few": "Włóż im do kieszeni jedną z {n} rzeczy, które nosisz.",
+          "many": "Włóż im do kieszeni jedną z {n} rzeczy, które nosisz.",
+          "other": "Włóż im do kieszeni jedną z {n} rzeczy, które nosisz."
+        },
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Analyze.analyseBulletHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "A plural family on {n}: {n} is the number of the character's Truth Bullets that can be analyzed now (analysableBullets), the hint of the first row of Analyze's window.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askWhatToAnalyze",
+          "note": null
+        },
+        {
+          "fact": "The row is greyed out when {n} is 0, with DRPG.Analyze.noBullets as its reason; the bullet itself is picked in a list below the rows.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askWhatToAnalyze",
+          "note": null
+        },
+        {
+          "fact": "A bullet counts while it shows Neutral (or a Key or a Final whose reading is still to buy) and is not locked this chapter by a failed Analyze.",
+          "file": "scripts/truth-bullets.mjs",
+          "fn": "isAnalysable",
+          "note": null
+        },
+        {
+          "fact": "The roll is Head, scored on a GM's browser against the bullet's real kind; a hit shows what the bullet really is, a miss locks it for this player until the chapter ends.",
+          "file": "scripts/analyze.mjs",
+          "fn": "resolveAnalyze",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": {
+          "one": "Work out what your one Truth Bullet not analysed yet really is.",
+          "other": "Work out what one of your {n} Truth Bullets not analysed yet really is."
+        },
+        "after": null
+      },
+      "pl": {
+        "before": {
+          "one": "Ustal, czym naprawdę jest twój jedyny nieprzeanalizowany Truth Bullet.",
+          "few": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+          "many": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+          "other": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów."
+        },
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Analyze.findStashHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of Analyze's Find Stash row; {n} is ACTIONS.analyze.stashThreshold (16) read at the call.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askWhatToAnalyze",
+          "note": null
+        },
+        {
+          "fact": "Find Stash is a Head roll scored on a GM's browser: a total of {n} or more, or a critical, finds one concealed stash of another character in this room that this character has not found yet, preferring one with something in it.",
+          "file": "scripts/vault.mjs",
+          "fn": "resolveStashSearch",
+          "note": null
+        },
+        {
+          "fact": "Found, the stash is remembered for this character, and the player is told whose it is; below {n}, or with no such stash here, the player reads that nothing was found.",
+          "file": "scripts/vault.mjs",
+          "fn": "resolveStashSearch",
+          "note": null
+        },
+        {
+          "fact": "It costs Analyze's price; it needs a GM online, and in a Class Trial the row is not offered and the GMs refuse it, with the price given back.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "locateStash",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Work out whether somebody has hidden something in this room. {n}+ opens one stash to you.",
+        "after": null
+      },
+      "pl": {
+        "before": "Ustal, czy ktoś coś schował w tym pokoju. {n}+ otwiera przed tobą jedną skrytkę.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Observe.generalHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "This is the hint of the first row of Observe's declaration window, \"general\".",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askDeclaration",
+          "note": null
+        },
+        {
+          "fact": "Sweeping the room takes the easiest Remnant on the most relevant shelf: Remnants tied to the crime come first, then by difficulty, and the first one is chosen.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        },
+        {
+          "fact": "It is settled by the number alone on a GM's browser: no GM reads anything and the player writes nothing.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeRanked",
+          "note": null
+        },
+        {
+          "fact": "A room with nothing to find, or a character in no room, sends the roll to a GM's ruling instead.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeRanked",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Sweep the room for whatever is easiest to spot.",
+        "after": null
+      },
+      "pl": {
+        "before": "Omieć pokój wzrokiem w poszukiwaniu tego, co najłatwiej zauważyć.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Observe.nonObviousHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "This is the hint of the second row of Observe's declaration window, \"nonObvious\".",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askDeclaration",
+          "note": null
+        },
+        {
+          "fact": "Looking past the obvious takes the hardest Remnant on the most relevant shelf (Remnants tied to the crime first), the last one of that shelf.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        },
+        {
+          "fact": "Only this declaration can also notice a secret project hidden in the room (PROJECT_OBSERVE), against the project's own difficulty; when the room holds no Remnant, that project is the target.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        },
+        {
+          "fact": "It is settled by the number alone, with no GM reading anything.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeRanked",
+          "note": null
+        },
+        {
+          "fact": "The old text differs: \"whatever does not belong in this room at all\" is not a rule the code runs; what it finds besides the hardest Remnant is a hidden project.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Look past the obvious: the hardest thing here, and whatever does not belong in this room at all.",
+        "after": null
+      },
+      "pl": {
+        "before": "Spójrz poza oczywiste: na najtrudniejszą rzecz tutaj i na to, czego w tym pokoju w ogóle nie powinno być.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Observe.specificHint",
+      "group": "window",
+      "surface": "tile-hint",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "This is the hint of the fourth row of Observe's declaration window, \"specific\", one of the two rows marked as going to a GM.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "askDeclaration",
+          "note": null
+        },
+        {
+          "fact": "The player writes what they are looking for in the window's box before the roll; the roll is thrown first and the request goes to the GMs without the total, so the GM picks blind.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeSpecific",
+          "note": null
+        },
+        {
+          "fact": "A GM picks which Remnant in the room the request lands on, on a card any GM can open; the total is then scored against that Remnant.",
+          "file": "scripts/observe.mjs",
+          "fn": "chooseObserveTarget",
+          "note": null
+        },
+        {
+          "fact": "With the box left empty it is scored as a sweep of the room (general), and a notice says so.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeSpecific",
+          "note": null
+        },
+        {
+          "fact": "No GM listening gives the action back; a request a GM refuses, an empty room or no room sends the roll already thrown to a GM's ruling, never a second roll.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "observeSpecific",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Say what you are looking for. The GM decides what your gaze lands on.",
+        "after": null
+      },
+      "pl": {
+        "before": "Powiedz, czego szukasz. GM decyduje, na czym zatrzyma się twój wzrok.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicHint",
+      "group": "named",
+      "surface": "tile-hint",
+      "screen": "sheet",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of the Dynamic Action tile in the action grid (the sheet builds it, since ACTIONS holds only the tile's place); the tile costs one action.",
+          "file": "scripts/sheet.mjs",
+          "fn": "dynamic",
+          "note": null
+        },
+        {
+          "fact": "The player describes what they do in a window (required); the description goes to a GM, who picks the difficulty band and the statistic, or refuses it.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "A refused Dynamic Action is told to the player (DRPG.Action.dynamicRefused) and spends nothing; the action is spent only once the GM has set the difficulty, before the roll.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "The bands are 8+, 13+, 16+ and 19+ (DYNAMIC_THRESHOLDS: Trivial, Takes practice, Foreign to most people, Demands very niche expertise); a success gets that band's tier, 0 to 3, for a find the GM may hand over.",
+          "file": "scripts/config.mjs",
+          "fn": "DYNAMIC_THRESHOLDS",
+          "note": null
+        },
+        {
+          "fact": "A success leaves a Prep Remnant (Faint) whose visibility goes the other way from the difficulty: Obvious at the easiest band, Hidden at the hardest; a miss leaves none.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "Not found in code as a rule: \"gentler thresholds than the universal actions\" compares two tables (8/13/16/19 against, for example, Project's 12/18); no function makes that comparison.",
+          "file": "scripts/config.mjs",
+          "fn": "DYNAMIC_THRESHOLDS",
+          "note": null
+        },
+        {
+          "fact": "The old text says \"standard actions\"; the glossary's term is universal actions / akcje uniwersalne (DB22, DB34), and \"that is the reward for inventing something\" is the design's reason (O9).",
+          "file": "docs/glossary.json",
+          "fn": "universal-actions",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Describe what you are doing; the GM sets the difficulty. Dynamic Actions have gentler thresholds than the standard ones - that is the reward for inventing something.",
+        "after": null
+      },
+      "pl": {
+        "before": "Opisz, co robisz; GM ustala trudność. Dynamic Actions mają łagodniejsze progi niż standardowe - to nagroda za wymyślenie czegoś.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Action.dynamicDescription",
+      "group": "named",
+      "surface": "config-description",
+      "screen": "action-tiles",
+      "readers": [
+        "both"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The description of the Dynamic Action, shown in its briefing in the description window (dynamicDef).",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "dynamicDef",
+          "note": null
+        },
+        {
+          "fact": "The player describes what they do in a window (required); the description goes to a GM, who picks the difficulty band and the statistic, or refuses it.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "A refused Dynamic Action is told to the player (DRPG.Action.dynamicRefused) and spends nothing; the action is spent only once the GM has set the difficulty, before the roll.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "The bands are 8+, 13+, 16+ and 19+ (DYNAMIC_THRESHOLDS: Trivial, Takes practice, Foreign to most people, Demands very niche expertise); a success gets that band's tier, 0 to 3, for a find the GM may hand over.",
+          "file": "scripts/config.mjs",
+          "fn": "DYNAMIC_THRESHOLDS",
+          "note": null
+        },
+        {
+          "fact": "A success leaves a Prep Remnant (Faint) whose visibility goes the other way from the difficulty: Obvious at the easiest band, Hidden at the hardest; a miss leaves none.",
+          "file": "scripts/action-rolls.mjs",
+          "fn": "performDynamic",
+          "note": null
+        },
+        {
+          "fact": "Not found in code as a rule: \"gentler thresholds than the universal actions\" compares two tables (8/13/16/19 against, for example, Project's 12/18); no function makes that comparison.",
+          "file": "scripts/config.mjs",
+          "fn": "DYNAMIC_THRESHOLDS",
+          "note": null
+        },
+        {
+          "fact": "The old text says \"standard actions\"; the glossary's term is universal actions / akcje uniwersalne (DB22, DB34), and \"that is the reward for inventing something\" is the design's reason (O9).",
+          "file": "docs/glossary.json",
+          "fn": "universal-actions",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Any action at all, provided you describe it in detail - the GM sets the difficulty and the statistic. The thresholds are gentler than the standard actions, as a deliberate reward for inventing something.",
+        "after": null
+      },
+      "pl": {
+        "before": "Dowolna akcja, byle opisana szczegółowo - GM ustala trudność i statystykę. Progi są łagodniejsze niż w akcjach standardowych, celowo, jako nagroda za pomysł.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Assign.footnote",
+      "group": "named",
+      "surface": "gm-diagnostics",
+      "screen": "gm-team",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The note under Despair Flow's assignment table in the GM panel, read by a GM.",
+          "file": "scripts/gm-team-dialog.mjs",
+          "fn": "buildContent",
+          "note": null
+        },
+        {
+          "fact": "Despair from a student's rolls goes to the pool of the Monokuma a GM assigned them to in Despair Flow.",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "A student nobody assigned falls back to the first pool (the list shows that choice as \"{name} (fallback)\", DRPG.Assign.fallbackOption).",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "A student set to \"- nobody -\" (NO_MONOKUMA) feeds no pool at all; an NPC or a template is the use the code names.",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "The assignments are the world setting gmAssignments, which every player's browser receives, so a player's browser can read who is set to nobody.",
+          "file": "scripts/assignments.mjs",
+          "fn": "assignments",
+          "note": null
+        },
+        {
+          "fact": "The old Polish says \"BN\" for NPC (DB32: NPC in Polish too).",
+          "file": "docs/glossary.json",
+          "fn": "npc",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "“(fallback)” = never assigned, so the student feeds the first pool. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it.",
+        "after": null
+      },
+      "pl": {
+        "before": "„(domyślnie)” = nieprzypisany, więc uczeń zasila pierwszą pulę. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    },
+    {
+      "key": "DRPG.Season.hint.assignments",
+      "group": "named",
+      "surface": "gm-diagnostics",
+      "screen": "season-setup",
+      "readers": [
+        "gm"
+      ],
+      "source": "written",
+      "pilot": null,
+      "facts": [
+        {
+          "fact": "The hint of the season checklist's row \"assignments\", read by a GM.",
+          "file": "scripts/season-setup.mjs",
+          "fn": "steps",
+          "note": null
+        },
+        {
+          "fact": "Despair from a student's rolls goes to the pool of the Monokuma a GM assigned them to in Despair Flow.",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "A student nobody assigned falls back to the first pool (the list shows that choice as \"{name} (fallback)\", DRPG.Assign.fallbackOption).",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "A student set to \"- nobody -\" (NO_MONOKUMA) feeds no pool at all; an NPC or a template is the use the code names.",
+          "file": "scripts/assignments.mjs",
+          "fn": "monokumaFor",
+          "note": null
+        },
+        {
+          "fact": "The assignments are the world setting gmAssignments, which every player's browser receives, so a player's browser can read who is set to nobody.",
+          "file": "scripts/assignments.mjs",
+          "fn": "assignments",
+          "note": null
+        },
+        {
+          "fact": "The row is done when every student is assigned by hand (explicitPool) or set to nobody; the students who fall back to the first pool are named under it until assigned.",
+          "file": "scripts/season-setup.mjs",
+          "fn": "steps",
+          "note": null
+        },
+        {
+          "fact": "The old Polish says \"BN\" for NPC (DB32).",
+          "file": "docs/glossary.json",
+          "fn": "npc",
+          "note": null
+        }
+      ],
+      "kept": null,
+      "en": {
+        "before": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+        "after": null
+      },
+      "pl": {
+        "before": "Despair z rzutów ucznia idzie do puli, do której GM przypisał go w Despair Flow; uczeń, którego nikt nie przypisał, trafia do pierwszej puli i jest tu wymieniony, dopóki nie zostanie przypisany. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
+        "after": null
+      },
+      "removed": [],
+      "needsCode": [],
+      "disagreements": [],
+      "reviews": {
+        "en": null,
+        "coldEn": null,
+        "pl": null,
+        "mechanics": null
+      },
+      "owner": null
+    }
+  ]
+}

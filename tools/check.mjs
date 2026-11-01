@@ -151,6 +151,17 @@
  *                reading and never red: still the before, the after landed
  *                (E66, E71), or changed since the pilot; with a control, a
  *                copy of pl.json with one after landed and one string edited.
+ *             6. The batches (E66 C6, E66-26; tools/text-render.mjs BATCH_FILES,
+ *                batchSchema; "batch: ..."): docs/dev/text-batch-B01a.json,
+ *                each text's fields, its key in both languages and outside
+ *                Appendix C's "Out", its facts each read in a function the file
+ *                named spells (or a note saying why not), its afters of the
+ *                before's shape with the same placeholders, no digit added and
+ *                within the surface's limit, the reviewers' verdicts, the pilot's
+ *                eight copies equal to the pilot's approved afters and verdicts,
+ *                and an owner's verdict only on a page; counted on one line; with
+ *                a control, a copy with seven faults planted. Then where its
+ *                texts stand in the files (batchState), a reading and never red.
  *             The last line: the detectors, how many hold their fixture, what
  *             was read, "FAIL found N beyond the baselines, report found M".
  *             Options: `--lang <dir>` reads en.json and pl.json from <dir>
@@ -1033,6 +1044,55 @@ async function text() {
                 if (unseen.length) problems.push(`pilot: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${PILOT_FILE} - it would pass a malformed pilot`);
             } else problems.push(`pilot: the schema's control has nothing to plant in (${strings.length} string(s), ${pair ? "a" : "no"} naturalness pair with a key in both files, ${Array.isArray(pilot.questions) ? pilot.questions.length : 0} question(s))`);
         }
+    }
+    /* The batches (E66 C6, E66-26): docs/dev/text-batch-B01a.json, held to its shape against this tree's files
+       (tools/text-render.mjs batchSchema; a fault is red: a text with no facts, a fact with no function, a key out of
+       Appendix C, an after that changes a placeholder, adds a digit or runs over its surface's limit, a pilot copy that is not
+       the approved after, an owner's verdict on no page), one line of its counts - the budgets' "over a limit" among them,
+       which the schema makes red - and where its texts stand in the files (batchState, a reading: C7 lands the afters). Its
+       control: a copy with seven faults planted must have each named, or a schema broken to pass everything would leave this
+       part green on a batch with no facts. */
+    const pilotDoc = (() => { try { return JSON.parse(read(PILOT_FILE)); } catch { return null; } })();
+    for (const BATCH_FILE of textRender.BATCH_FILES) {
+        if (!exists(BATCH_FILE)) { problems.push(`batch: ${BATCH_FILE} is missing - the batch has nothing to render`); continue; }
+        let batch = null;
+        try { batch = JSON.parse(read(BATCH_FILE)); } catch (err) { problems.push(`batch: ${BATCH_FILE} does not parse (${err.message})`); continue; }
+        const { pairs } = T.naturalnessPairs(exists(T.NATURALNESS_GUIDE) ? read(T.NATURALNESS_GUIDE) : "");
+        const against = { en: new Map([...en, ...prose]), pl, pairs, surfaces: budgets?.surfaces ?? null, pilot: pilotDoc,
+            source: f => (exists(f) ? read(f) : null), count: T.wordCount };
+        const faults = textRender.batchSchema(batch, against);
+        problems.push(...faults.map(p => `batch: ${BATCH_FILE}: ${p}`));
+        const c = textRender.batchCounts(batch, against);
+        console.log(`text: batch: ${BATCH_FILE}: ${c.texts} text(s) (written ${c.written}, the pilot's ${c.pilot}); facts ${c.facts} (read in a function ${c.inCode}, `
+            + `with a note ${c.notInCode}); afters written en ${c.afters.en}, pl ${c.afters.pl}; over the target ${c.overTarget}, over a limit ${c.overLimit}; `
+            + `reviews left open en ${c.reviews.en}, coldEn ${c.reviews.coldEn}, pl ${c.reviews.pl}, mechanics ${c.reviews.mechanics}; owner's verdicts ${c.owner}; ${faults.length} problem(s)`);
+        const state = textRender.batchState(batch, against);
+        console.log(`text: batch: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
+            + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the batch ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
+        const texts = Array.isArray(batch?.texts) ? batch.texts : [];
+        const copyOf = texts.findIndex(t => t?.source === "pilot" && typeof t?.en?.before === "string");
+        const marked = texts.findIndex(t => t?.source === "written" && typeof t?.en?.before === "string" && /\{\w+\}/.test(t.en.before));
+        const plain = texts.findIndex((t, i) => t?.source === "written" && typeof t?.en?.before === "string" && i !== marked);
+        if (copyOf >= 0 && marked >= 0 && plain >= 0 && texts.length >= 4) {
+            const copy = JSON.parse(JSON.stringify(batch));
+            const t0 = copy.texts.findIndex((t, i) => ![copyOf, marked, plain].includes(i));
+            const limit = budgets?.surfaces?.[copy.texts[plain].surface]?.limit ?? 45;
+            const name = copy.texts[marked].en.before.match(/\{(\w+)\}/)[1];
+            copy.texts[t0].facts = [];
+            copy.texts[marked] = { ...copy.texts[marked], kept: [0], en: { ...copy.texts[marked].en, after: copy.texts[marked].en.before.replace(`{${name}}`, "{planted}") } };
+            copy.texts[plain] = { ...copy.texts[plain], kept: [0], en: { ...copy.texts[plain].en, after: `${"word ".repeat(limit)}and 7 more` } };
+            copy.texts[copyOf] = { ...copy.texts[copyOf], pl: { ...copy.texts[copyOf].pl, after: `${copy.texts[copyOf].pl.after} (edited)` } };
+            const owned = copy.texts.findIndex((t, i) => t.owner && i !== copyOf);
+            if (owned >= 0) copy.texts[owned] = { ...copy.texts[owned], owner: { verdict: "ok", text: "", date: "01.11.2026" } };
+            copy.texts.push({ ...copy.texts[plain], key: "DRPG.Plant.noSuchKey", en: { ...copy.texts[plain].en, after: null }, kept: null });
+            const seen = textRender.batchSchema(copy, against);
+            const want = [`(${copy.texts[t0].key}): facts is not a non-empty list`, `(${copy.texts[marked].key}): en.after's placeholders`,
+                `(${copy.texts[plain].key}): en.after adds the digit(s) 7`, `(${copy.texts[plain].key}): en.after is ${limit + 3} words, over the`,
+                `(${copy.texts[copyOf].key}): pl.after is not the pilot's approved after`, "(DRPG.Plant.noSuchKey): not a key",
+                ...(owned >= 0 ? [`(${copy.texts[owned].key}): owner is neither null nor`] : [])];
+            const unseen = want.filter(w => !seen.some(p => p.includes(w)));
+            if (unseen.length) problems.push(`batch: the schema does not see ${unseen.map(w => JSON.stringify(w)).join(", ")} planted in a copy of ${BATCH_FILE} - it would pass a malformed batch`);
+        } else problems.push(`batch: the schema's control has nothing to plant in (${texts.length} text(s); a pilot copy ${copyOf >= 0 ? "found" : "missing"}, a written text with a placeholder ${marked >= 0 ? "found" : "missing"})`);
     }
     const held = Object.keys(T.MODES).filter(name => !fixtures.some(p => p.startsWith(`${name} `))).length;
     console.log(`text: ${Object.keys(T.MODES).length} detector(s), ${held} hold their fixture; ${where}: en ${en.size} keys, pl ${pl.size}; `
