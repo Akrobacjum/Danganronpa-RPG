@@ -61,22 +61,40 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        3,
+        4
+      ],
       "en": {
         "before": "You loot the room for whatever you name. Taking a Murder Weapon or a cleaning tool leaves a trace behind.",
-        "after": null
+        "after": "Roll Eye: the higher the total, the better the find, and a low total finds nothing. Naming one specific thing needs a GM online. If what you find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant."
       },
       "pl": {
         "before": "Przeszukujesz pokój pod kątem tego, co nazwiesz. Wzięcie narzędzia zbrodni albo narzędzia do sprzątania zostawia ślad.",
-        "after": null
+        "after": "Rzucasz Eye: im wyższy wynik, tym lepsze znalezisko, a przy zbyt niskim nie znajdujesz nic. Gdy nazywasz jedną konkretną rzecz, potrzebny jest GM online. Remnant zostaje tylko wtedy, gdy znajdziesz coś, co liczy się jako Narzędzie zbrodni albo narzędzie do sprzątania."
       },
-      "removed": [],
+      "removed": [
+        "\"You loot the room for whatever you name\": the player mostly picks a kind of thing, and naming one specific thing is the other choice (facts 1 and 6); both choices are on the tile hint, DRPG.Config.ACTIONS.search.hint (O3), and this text keeps only that naming one needs a GM online.",
+        "\"a trace\" becomes \"a Remnant\" (EN15); \"Taking a Murder Weapon or a cleaning tool\" widens to anything that counts as one, by its category or a role it carries (fact 4).",
+        "Not stated here: the action and the Search Token the roll uses (facts 0 and 2), on the tile hint (O3), in both languages now; the Remnant's visibility by the total and on a critical (fact 5), left out for length and said nowhere in this batch."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
-        "en": null,
+        "en": {
+          "verdict": "ok",
+          "points": [
+            "B2: 41 words, over the target of 30 and under the limit of 45; only the report sees it. (proposed, if the owner wants it at the target: \"Roll Eye: the higher the total, the better the find, and a low total finds nothing. A find that counts as a Murder Weapon or a cleaning tool leaves a Remnant.\") The pick between a kind of thing and a named thing is already on the approved tile hint (O3). - executor: Taken in part: the pick and the price go to the tile hint, as proposed, but the text keeps \"Naming one specific thing needs a GM online\" (fact 1), which the Polish states and the mechanics reviewer asks both languages to carry, so it stays over the target of 30 and under the limit of 45."
+          ]
+        },
         "coldEn": null,
-        "pl": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "glossary murder-weapon: „Narzędzia zbrodni” z wielkiej litery w środku zdania, obok „narzędzia do sprzątania” z małej, wygląda jak literówka; nazwa kategorii w zdaniu z małej albo obie spójnie (propozycja: „Remnant zostawia tylko znalezienie narzędzia zbrodni albo narzędzia do sprzątania.”) - executor: Kept: the glossary's murder-weapon entry gives the Polish name as „Narzędzie zbrodni”, capitalized as a name beside the English \"Murder Weapon\" (O14), and \"narzędzie do sprzątania\" has no entry. Whether the name keeps its capital inside a Polish sentence is for the owner or the glossary to decide."
+          ]
+        },
         "mechanics": null
       },
       "owner": null
@@ -202,16 +220,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        5
+      ],
       "en": {
         "before": "You look for evidence here. A hit copies what you find into your inventory as a Neutral Truth Bullet and leaves the original in place.",
-        "after": null
+        "after": "First you choose how you look. On a hit, you copy a Remnant in this room into your inventory as a Neutral Truth Bullet; a critical also shows its type. Looking past the obvious can also find a secret project."
       },
       "pl": {
         "before": "Szukasz tu dowodów. Sukces kopiuje to, co znajdziesz, do ekwipunku jako Neutral Truth Bullet i zostawia oryginał na miejscu.",
-        "after": null
+        "after": "Najpierw wybierasz, jak się rozglądasz. Przy trafieniu kopiujesz Remnant do ekwipunku jako Neutral Truth Bullet (krytyk od razu ujawnia jego rodzaj), a oryginał zostaje na miejscu. Patrząc poza oczywiste, możesz też wypatrzyć tajny projekt."
       },
-      "removed": [],
+      "removed": [
+        "\"You look for evidence here\": the tile hint, DRPG.Config.ACTIONS.observe.hint, opens with it.",
+        "Not stated here, in either language: the action (fact 0) and the miss's Sanity (fact 4), which the tile hint says (O3); the amount of Sanity, which the briefing prints from config (fact 6); that a Remnant already held is no new find (fact 3), left out for length."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -270,16 +295,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
-        "after": null
+        "after": "Identify an unanalyzed Truth Bullet, ask the GM for a hint, or try Find Stash or Find Passage. It costs an action. In a Class Trial you can only identify one; there, with no action left, you pay Hope, or Sanity once you have none."
       },
       "pl": {
         "before": "Zidentyfikuj Neutral Truth Bullet albo poproś GM-a o podpowiedź.",
-        "after": null
+        "after": "Zidentyfikuj swój nierozpoznany Truth Bullet, poproś GM-a o podpowiedź albo użyj Find Stash lub Find Passage. Płacisz akcją. W Class Trial zostaje tylko identyfikacja, a gdy nie masz tam już akcji, płacisz Hope, a jeśli nie masz Hope, Sanity."
       },
-      "removed": [],
+      "removed": [
+        "\"a Neutral Truth Bullet\" becomes \"an unanalyzed Truth Bullet\" / „nierozpoznany”, which also covers a Key or a Final whose reading is still to buy (fact 2).",
+        "Not stated here, in either language: that every Analyze needs a GM online (fact 4), left to the refusal, which says so before anything is spent (O13)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -314,7 +346,7 @@
           "note": null
         },
         {
-          "fact": "A hit (or a critical) shows the bullet's real kind; a miss locks that bullet for this player until the chapter ends, and it stays Neutral and in play.",
+          "fact": "A hit (or a critical) shows the bullet's real kind; a miss locks that bullet for this player until the chapter ends, and it stays in play showing what it showed before: Neutral, or the Key or Final it already read as (DRPG.Analyze.failedShown).",
           "file": "scripts/analyze.mjs",
           "fn": "lockOut",
           "note": null
@@ -338,22 +370,35 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        2,
+        3
+      ],
       "en": {
         "before": "Identify what a Truth Bullet really is, or ask the GM for a hint. Failing locks that bullet until the chapter ends.",
-        "after": null
+        "after": "Learn what a Truth Bullet really is. A miss locks it for you this chapter, and it stays in play as it was. Outside a Class Trial, you can ask the GM for a hint instead; a higher total gets a clearer one."
       },
       "pl": {
         "before": "Ustal, czym naprawdę jest Truth Bullet, albo poproś GM-a o podpowiedź. Porażka blokuje ten bullet do końca rozdziału.",
-        "after": null
+        "after": "Ustal, czym naprawdę jest twój Truth Bullet. Pudło blokuje ci go do końca rozdziału, ale zostaje on w grze i pokazuje to samo co wcześniej. Poza Class Trial możesz zamiast tego poprosić GM-a o podpowiedź: im wyższy wynik, tym wyraźniejsza."
       },
-      "removed": [],
+      "removed": [
+        "\"Failing locks that bullet until the chapter ends\" is kept as \"A miss locks it for you this chapter\", with what the old text left out: it stays in play, showing what it showed (fact 5; fact 2 as corrected, see disagreements).",
+        "Not stated here, in either language: the price (fact 0), which the tile hint, DRPG.Config.ACTIONS.analyze.hint, says (O3); the scoring on a GM's browser and the number the player does not know (fact 1); the GM online (fact 4), which the refusal says before anything is spent; of fact 3, the thresholds and the question a critical buys, which the GM answers on its own card - only \"a higher total gets a clearer one\" is kept."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 2 is false for a Key or a Final already showing its kind: those can be analyzed (their reading is still to buy), and a miss leaves them showing their kind, not Neutral (scripts/analyze.mjs lockOut, DRPG.Analyze.failed / failedShown; scripts/truth-bullets.mjs isAnalysable; mechanics reviewer). Correction: \"a miss locks that bullet for this player until the chapter ends, and it stays in play, showing what it showed\". The texts are written to the code."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
-        "pl": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "fakty (3, kept): „Możesz też poprosić GM-a o podpowiedź” nie mówi, że wynik decyduje o podpowiedzi (lepszy wynik - wyraźniejsza, krytyk - jedno pytanie) (propozycja: „Możesz też poprosić GM-a o podpowiedź: im lepszy wynik, tym wyraźniejsza, a krytyk pozwala ci zadać jedno pytanie.”) - executor: Taken in part: the text now says a higher total gets a clearer hint; the question a critical buys is left out so the English stays under the limit of 45, and the GM's own card answers it."
+          ]
+        },
         "mechanics": null
       },
       "owner": null
@@ -370,15 +415,15 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "The Projects window offers three rows: push a project in this room, propose a new one, and Sabotage (each greyed out with its reason when it has no target).",
+          "fact": "The Projects window offers three rows: push a project here, propose a new one, and Sabotage; Push and Sabotage are greyed out with their reason when there is nothing here for them, and Propose is always offered.",
           "file": "scripts/action-rolls.mjs",
           "fn": "performProject",
           "note": null
         },
         {
-          "fact": "Pushing a project costs one action, spent before the roll; only the unfinished projects tied to the room the character stands in can be pushed.",
-          "file": "scripts/action-rolls.mjs",
-          "fn": "workOnProject",
+          "fact": "Pushing a project costs one action, spent before the roll; the projects that can be pushed are the unfinished, unfrozen ones of the room the character stands in (on its scene) and any project with no room set, and a character standing in no room is offered none.",
+          "file": "scripts/projects.mjs",
+          "fn": "projectsListedIn",
           "note": null
         },
         {
@@ -400,18 +445,31 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Push a project here, or propose a new one for the GM to approve.",
-        "after": null
+        "after": "Work on an unfinished project here, propose a new one, or sabotage one. A Work or a Sabotage costs an action, and a critical Work gives it back; proposing costs none, and a new project is created only once a GM approves it."
       },
       "pl": {
         "before": "Popchnij projekt tutaj albo zaproponuj nowy do zatwierdzenia przez GM-a.",
-        "after": null
+        "after": "Pracuj tu nad niedokończonym projektem, zaproponuj nowy albo wybierz Sabotage. Praca i Sabotage kosztują akcję, a krytyk przy pracy ją oddaje. Propozycja trafia do GM-a i nic nie kosztuje; nowy projekt powstaje dopiero wtedy, gdy GM go zatwierdzi."
       },
-      "removed": [],
+      "removed": [
+        "\"for the GM to approve\" is kept as \"a new project is created only once a GM approves it\" (fact 3): the proposal exists when it is sent, the project only on the approval.",
+        "\"Push\" becomes \"Work on\", the name the description, the Contribution Call and the code use (see disagreements).",
+        "\"tied to this room\" becomes \"here\" / „tu”, which stays true whether or not a project with no room can be worked anywhere (fact 1, see disagreements)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 0 is false for the propose row: it has no disabled field and is always offered (scripts/action-rolls.mjs performProject, the \"start\" row; mechanics reviewer). Correction: \"Work and Sabotage are greyed out with their reason when there is nothing here for them; Propose is always offered.\" No text states the greying.",
+        "Fact 1 may be false for a project with no room: a proposal may set none (DRPG.Project.anyRoom), and the note on sabotageTargetsIn calls a roomless project work you can do anywhere; projectsListedIn, which decides, was not read (mechanics reviewer, not settled). The hint says \"here\", true either way; the fact is to be read and corrected by hand.",
+        "Name: en_before called the step \"Push\"; the description, item 17 and the code's note (\"Work on Project\") call it Work. Both hints now say Work; the owner confirms the name the Projects window shows."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -438,15 +496,15 @@
           "note": null
         },
         {
-          "fact": "Each Work costs one action and adds 1 or 2 progress at most (12+ and 18+; a critical 2 and the action back), so a project takes several actions, usually over several times of day.",
+          "fact": "Each Work costs one action and adds 1 progress at 12+ and 2 at 18+ (a critical 2 and the action back); an indirect murder adds 1 more whatever the roll when it is worked alone or its concealment succeeds with Despair, so a Work adds at most 3 and a project takes several actions, usually over several times of day.",
           "file": "scripts/action-rolls.mjs",
           "fn": "projectProgress",
           "note": null
         },
         {
-          "fact": "Only the projects tied to the room the character stands in can be worked on there.",
-          "file": "scripts/action-rolls.mjs",
-          "fn": "workOnProject",
+          "fact": "Only the projects of the room the character stands in, and those with no room set, can be worked on there; a project with no room can be worked on from any room.",
+          "file": "scripts/projects.mjs",
+          "fn": "projectsListedIn",
           "note": null
         },
         {
@@ -462,18 +520,32 @@
           "note": "not found in code"
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        3
+      ],
       "en": {
         "before": "The slow game: many actions over many times of day, and the one thing that can change how this ends.",
-        "after": null
+        "after": "A project takes several actions, usually over several times of day: each Work costs one and adds a little progress. An indirect murder is a project too, with rolls to hide your intent from anyone present and the Remnants each Work leaves."
       },
       "pl": {
         "before": "Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmienić to, jak to się skończy.",
-        "after": null
+        "after": "Każda praca nad projektem kosztuje akcję i daje niewiele postępu, więc projekt zwykle trwa kilka pór dnia. Pośrednie morderstwo też jest projektem: dochodzą w nim rzuty na ukrycie zamiaru przed świadkami i na ukrycie Remnantów, które zostawia każda praca."
       },
-      "removed": [],
-      "needsCode": [],
-      "disagreements": [],
+      "removed": [
+        "\"The slow game\" and \"the one thing that can change how this ends\": framing that no function runs (fact 4); dropped, nowhere.",
+        "\"many actions over many times of day\" is kept as \"several actions, usually over several times of day\" (fact 1).",
+        "The Polish „najwyżej dwa punkty postępu” becomes „niewiele postępu”, as the English \"a little progress\": the cap is false for an indirect murder (see disagreements).",
+        "Not stated here, in either language: where a Work can be done (fact 2), which the tile hint says as \"here\"; the room rule may not hold for a project with no room (see disagreements)."
+      ],
+      "needsCode": [
+        "How much progress a Work adds (1 at 12+, 2 at 18+) and how much a project needs by its scale (PROJECT_SCALE) have no placeholder in this text, so it says \"a little progress\"; a number would need PROSE_NUMBERS rows."
+      ],
+      "disagreements": [
+        "Fact 1 is false for an indirect murder: the concealment bonus is added to the band's progress on any outcome, so 18+ alone pays 3 (scripts/action-rolls.mjs projectProgress; mechanics reviewer). Correction: \"adds 1 at 12+, 2 at 18+; an indirect murder worked alone adds its bonus on top\".",
+        "Fact 2 may be false for a project with no room (as on the tile hint, item 05); projectsListedIn was not read. The text no longer states the room rule.",
+        "Name: the text says Work, as the tile hint now does (item 05); en_before's tile said Push."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -661,16 +733,25 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "You listen at the wall of a neighbouring room. A modest result gives you a headcount, a strong one gives you names.",
-        "after": null
+        "after": "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people there, a better one names them, and a critical names everyone in every neighboring room. A miss tells you nothing; with no neighboring room, you keep your action."
       },
       "pl": {
         "before": "Nasłuchujesz przy ścianie sąsiedniego pokoju. Skromny wynik daje liczbę osób, mocny - nazwiska.",
-        "after": null
+        "after": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji."
       },
-      "removed": [],
+      "removed": [
+        "\"You listen at the wall\": the fiction, folded into picking the room.",
+        "\"neighbouring\" becomes \"neighboring\" (EN1).",
+        "„Wynik znasz tylko ty” leaves the Polish: who reads the result rests on whisperToOwner's audience, which is not settled (fact 3)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -723,17 +804,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1
+      ],
       "en": {
         "before": "Take something out of somebody's pocket, leave something in it, or see what they carry.",
-        "after": null
+        "after": "Pick somebody in this room: take something out of their pockets, leave one of your things there, or see what they carry. It costs an action."
       },
       "pl": {
         "before": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co nosi.",
-        "after": null
+        "after": "Wyjmij coś z kieszeni kogoś w tym pokoju, podrzuć tam coś swojego albo zobacz, co ktoś nosi. Wydajesz akcję."
       },
-      "removed": [],
-      "needsCode": [],
+      "removed": [
+        "Not stated here, in either language: the two rolls of taking and leaving (fact 2) and how a Frisk asks first (fact 3), which the description, DRPG.Config.ACTIONS.palm.description, and the rows' own hints say (O3)."
+      ],
+      "needsCode": [
+        "The Polish uses the glossary's „zobacz, co ktoś nosi” (see-what-they-carry); R620 (tier 1) still pins the old „zobacz, co nosi” in this hint until E71 (fact 4), so R620 has to move with this text."
+      ],
       "disagreements": [],
       "reviews": {
         "en": null,
@@ -785,16 +873,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "You get a hand into somebody's pocket. One roll decides whether they notice, another whether it works. Or you simply ask them to turn out their pockets.",
-        "after": null
+        "after": "When you take or leave something, Shadow decides whether they notice, and Hand decides whether it works. If they catch you taking, they also learn what you took. You can force a Frisk they refuse or ignore with Body, in full view."
       },
       "pl": {
         "before": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy ktoś zauważy, drugi, czy się uda. Albo po prostu prosisz, żeby pokazali kieszenie.",
-        "after": null
+        "after": "Przy wyjmowaniu i podrzucaniu Shadow decyduje, czy druga osoba zauważy, a Hand, czy się uda. Gdy zauważy, że wyjmujesz, wie, kto to i co zniknęło. Możesz też poprosić tę osobę, żeby pokazała kieszenie. Po odmowie albo milczeniu spróbuj ją zmusić rzutem Body, przy wszystkich."
       },
-      "removed": [],
+      "removed": [
+        "\"You get a hand into somebody's pocket\": the tile hint says what Palm does.",
+        "\"Or you simply ask them to turn out their pockets\": \"simply\" goes (X10); the asking stays (\"a Frisk they refuse or ignore\"; „Możesz też poprosić ją”), and forcing it is said as the Body roll in front of the room (fact 4).",
+        "Not stated here, in either language: the action (fact 0), on the tile hint; what a noticed planting tells the other person, since fact 2 was read on the taking road only (plantOnPerson not read), so the notice is said for taking; \"they learn who it was\" is carried by \"If they catch you\"."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -890,7 +986,7 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "Tamper works only on the Remnants in this room that the character has found themselves (the list the GMs build for the Tamper road), or plants a false one (Misleading Trail).",
+          "fact": "Tamper works only on the Remnants in this room that the character knows of - those they hold a copy of, and the running incident's own Remnants if they are its killer, its victim or a third party who joined the killers; a killer of an incident in Stage 6 gets every Remnant in the room - or plants a false one (Misleading Trail).",
           "file": "scripts/cleanup.mjs",
           "fn": "cleanableTracesForPlayer",
           "note": null
@@ -932,22 +1028,41 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        2,
+        3,
+        5
+      ],
       "en": {
         "before": "You go over a trace you know is here until it is gone or reads as something else, or you leave one that points at somebody else. Being watched while you do it is its own problem.",
-        "after": null
+        "after": "A more visible Remnant is harder to erase. You can reshape it instead, if a GM approves its new name and description. With others present, you first roll Shadow, which can cost Sanity; a miss shows them what you are doing."
       },
       "pl": {
         "before": "Pracujesz nad śladem, o którym wiesz, że tu jest, aż zniknie albo zacznie wyglądać na coś innego, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem.",
-        "after": null
+        "after": "Im łatwiej zauważyć Remnant, tym trudniej go wymazać. Zamiast tego możesz go przekształcić, jeśli GM zatwierdzi nową nazwę i opis. Gdy ktoś patrzy, najpierw rzucasz Shadow, co może kosztować Sanity; po pudle obecni widzą, co robisz."
       },
-      "removed": [],
+      "removed": [
+        "\"or you leave one that points at somebody else\": planting is said on the tile hint, DRPG.Config.ACTIONS.tamper.hint, and in Misleading Trail's row, DRPG.Tamper.frameHint.",
+        "\"Being watched while you do it is its own problem\" becomes the Shadow roll, its Sanity and what a miss shows (fact 6); the details of that roll are on DRPG.Tamper.watched, shown when somebody watches.",
+        "\"a trace\" becomes \"the Remnant\" (EN15).",
+        "Not stated here, in either language: the targets, the price and the Reinforced exception (facts 0, 1 and 2), on the tile hint; what lowers the erase number, a readied cleaning tool and a fresh scene (fact 2), on Erase a Trace's row, DRPG.Tamper.coverHint (O3); the reshape's lower number and the Tamper Remnant it becomes (fact 3), on Reshape a Trace's row, DRPG.Cleanup.transformActionHint; the refusal with no Sanity left and others watching (fact 5), which says itself before anything is spent; the killer's own night, which starts at the Sanity."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 0 is false in part: the Tamper list also holds the running incident's Remnants for one who took part in it, and the whole room for the killer in Stage 6 (scripts/cleanup.mjs cleanableTracesForPlayer; mechanics reviewer). Correction: \"the Remnants here that the character holds a copy of or saw made in the running incident; in Stage 6 the killer, the whole room\". Neither text states the targets now.",
+        "Fact 5 leaves out what the excerpt shows: a missed cover is told to the people in the room and the GMs (scripts/cleanup.mjs concealFromWitnesses, DRPG.Cleanup.seenCleaning). Correction: add \"a miss shows the room what you were doing\"; both texts now say it."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
-        "pl": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "fakty (2, kept): brakuje tego, od czego zależy trudność wymazania - im łatwiej zauważyć Remnant, tym trudniej; pomaga narzędzie do sprzątania i świeże miejsce zbrodni przed Investigation (propozycja: „Im łatwiej zauważyć Remnant, tym trudniej go wymazać; pomaga narzędzie do sprzątania i świeże miejsce zbrodni, zanim zacznie się Investigation.”) - executor: Taken in part: „Im łatwiej zauważyć Remnant, tym trudniej go wymazać” is in; the readied cleaning tool and the fresh scene are on Erase a Trace's row, DRPG.Tamper.coverHint (O3), because the English cannot hold them under the limit of 45 with the cover roll's miss the mechanics reviewer asks for, and both languages say the same facts.",
+            "fakty (3, kept): brakuje warunków przekształcenia - niższy próg, nowa nazwa i opis zatwierdzane przez GM-a, wynik to Tamper Remnant (propozycja: „Przekształcenie ma niższy próg, ale nową nazwę i opis zatwierdza GM; Remnant zmienia się wtedy w Tamper Remnant.”) - executor: Taken in part: the GM's approval of the new name and description is in; the lower number and the Tamper Remnant it becomes are on Reshape a Trace's row, DRPG.Cleanup.transformActionHint (O3), for the same limit.",
+            "fakty (5, kept): brakuje odmowy przy świadkach, gdy nie masz już Sanity (propozycja: dopisać do ostatniego zdania „; bez Sanity przy świadkach nie spróbujesz.”) - executor: Kept out of both languages: the refusal with no Sanity left and others watching comes before anything is spent and says so itself (O13), and neither text has room for it under the limit."
+          ]
+        },
         "mechanics": null
       },
       "owner": null
@@ -1037,7 +1152,7 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "Direct Murder costs one action and works only during an Eclipse; outside one it is refused before anything is spent (DRPG.Eclipse.murderOnlyInEclipse).",
+          "fact": "Declaring a Direct Murder costs one action and works only during an Eclipse; outside one it is refused before anything is spent (DRPG.Eclipse.murderOnlyInEclipse), except that in an incident's fight the tile opens the crisis menu, and in Stage 6 an accomplice with the killer still standing uses it to betray them.",
           "file": "scripts/action-rolls.mjs",
           "fn": "performAction",
           "note": null
@@ -1079,22 +1194,40 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "A face-to-face killing, agreed with the GM beforehand and consented to by the victim's player. You have to be alone with them.",
-        "after": null
+        "after": "During an Eclipse, declare a face-to-face killing with a note the GMs allow or refuse; it costs an action either way. When the Eclipse ends, it opens an incident if you are alone with exactly one other person, unless another killing opened one first."
       },
       "pl": {
         "before": "Zabójstwo twarzą w twarz, uzgodnione wcześniej z GM-em i za zgodą gracza ofiary. Musisz być z nią sam na sam.",
-        "after": null
+        "after": "Zabójstwo zgłaszasz tylko podczas Eclipse: wydajesz akcję i dołączasz notatkę, a GM-owie dopuszczają je albo odrzucają. O tym, czy do niego dojdzie, decyduje koniec Eclipse: incydent zaczyna się tylko, gdy w twoim pokoju jest dokładnie jedna inna osoba. Liczy się tylko pierwsze udane zgłoszenie."
       },
-      "removed": [],
+      "removed": [
+        "\"agreed with the GM beforehand and consented to by the victim's player\": no function checks either; the GMs' allow stands for both, and DRPG.Action.murderConfirm says them to the player (fact 5).",
+        "\"You have to be alone with them\" is kept as measured when the Eclipse ends, not when it is declared (fact 6).",
+        "Not stated here, in either language: that a GM online is needed (fact 1), which the refusal says before anything is spent; the question put at the Eclipse's end on a declaration not yet ruled on (fact 4)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "The approved pilot text of DRPG.Config.ACTIONS.directMurder.hint says \"a Direct Murder that you have agreed with the GM beforehand\"; fact 5 finds no function that checks that agreement. This description leaves it out; the tile hint is not in this batch.",
+        "Fact 0 is false in two cases the same function runs before the Eclipse refusal: in a fight the tile opens the crisis menu, and in Stage 6 with a partner still standing it is the betrayal, outside an Eclipse (scripts/action-rolls.mjs performAction; mechanics reviewer). Correction: \"a declaration works only during an Eclipse; outside one the tile is the betrayal of a partner in Stage 6 or the fight's menu\". The texts say only the declaration's rule (\"During an Eclipse, declare\" / „Zabójstwo zgłaszasz tylko podczas Eclipse”)."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
-        "pl": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "fakty (1, kept): brakuje warunku, że potrzebny jest GM online (propozycja: „Działa tylko podczas Eclipse i tylko z GM-em online.”) - executor: Kept out of both languages: with no GM online the declaration is refused before anything is spent, and the refusal says so (O13); the English is at 44 of 45 words.",
+            "porównanie z PL przed: stary tekst mówił o uzgodnieniu z GM-em i zgodzie gracza ofiary; kod tego nie sprawdza (fakt 5), ale to zasada stołu, którą DRPG.Action.murderConfirm i tak mówi graczowi, a hint pilota (nr 7, zatwierdzony) zostawia „uzgodnione wcześniej z GM-em” - tu zniknęło całkiem (propozycja: „Wydajesz akcję i zgłaszasz zabójstwo uzgodnione wcześniej z GM-em i z graczem ofiary, z notatką; GM-owie je dopuszczają albo odrzucają.”) - executor: Kept out: no function checks the GM's agreement or the consent of the victim's player (fact 5, M2), and DRPG.Action.murderConfirm says both to the player before they confirm. The EN reviewer marks the same question as the owner's (a safety norm, O10); left for the owner."
+          ]
+        },
         "mechanics": null
       },
       "owner": null
@@ -1220,16 +1353,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
       "en": {
         "before": "Moving inside your own room is free. Crossing into a connected room spends this time of day's free Move.",
-        "after": null
+        "after": "Moving inside your room is free. Each time of day, crossing into another room uses your Free Move, then Sprint crossings, then actions; with none left, the crossing is undone. An Overflow can block the Free Move, and the GMs can turn the charge off."
       },
       "pl": {
         "before": "Ruch wewnątrz własnego pokoju jest darmowy. Przejście do połączonego pokoju zużywa Free Move tej pory dnia.",
-        "after": null
+        "after": "Ruch po pokoju jest darmowy. O każdej porze dnia pierwsze przejście do innego pokoju zużywa Free Move, a każde kolejne kosztuje przejście kupione Callem Sprint albo akcję; bez nich token wraca na miejsce. Overflow może zablokować Free Move, a GM-owie - wyłączyć opłaty za ruch."
       },
-      "removed": [],
+      "removed": [
+        "\"free Move\" becomes \"Free Move\" (the glossary's name)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1361,16 +1502,26 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        2,
+        3,
+        5
+      ],
       "en": {
         "before": "You break something the players made in the room you are standing in, so it needs a repair project. It always leaves a trace, and Despair shows you to the room.",
-        "after": null
+        "after": "Roll the project's statistic: the better the roll, the harder the repair; a miss does nothing. With others present, you roll Shadow first; a miss shows them roughly what you are doing. A sabotage roll with Despair shows them it was you."
       },
       "pl": {
         "before": "Psujesz coś, co gracze zrobili w pokoju, w którym stoisz, by wymagało projektu naprawy. Zawsze zostawia ślad, a Despair pokazuje cię pokojowi.",
-        "after": null
+        "after": "Rzucasz na statystykę projektu: im lepszy rzut, tym trudniejszej naprawy będzie wymagał, a przy pudle zostaje nietknięty. Gdy jest tu ktoś jeszcze, najpierw rzucasz Shadow: przy pudle obecni widzą mniej więcej, co robisz, a sabotaż z Despair zdradza im, kto to był."
       },
-      "removed": [],
+      "removed": [
+        "\"You break something the players made in the room you are standing in\": what Sabotage does and where is on the tile hint, DRPG.Config.ACTIONS.sabotage.hint, and on the row, DRPG.Project.sabotageHint.",
+        "\"It always leaves a trace\": kept on the tile hint (\"you always leave a Remnant behind\") and on DRPG.Project.sabotageHint.",
+        "\"Despair shows you to the room\" now carries its condition, others in the room (fact 6).",
+        "The three repair sizes (fact 3) are said as \"the better the roll, the harder the repair\"; the critical's repair of hidden difficulty is left out for length.",
+        "Not stated here, in either language: the action, the room rule and the Remnant every attempt leaves (facts 0, 1 and 4), on the tile hint and the row (O3); the -1 a cover with Despair costs (fact 2)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1429,16 +1580,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Give another player advantage on one roll. You have to be in the same room.",
-        "after": null
+        "after": "Give another student in your room advantage on their next roll; a student who already has an unused Support cannot get another, and you keep your Hope."
       },
       "pl": {
         "before": "Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju.",
-        "after": null
+        "after": "Daj przewagę na następny rzut innemu uczniowi w twoim pokoju; jego okno rzutu ma ją już włączoną. Jeśli na jego rzut czeka już Support, Call zostaje odrzucony, zanim wydasz Hope."
       },
-      "removed": [],
+      "removed": [
+        "\"another player\" becomes \"another student\" (DB24, fact 5).",
+        "\"on one roll\" becomes \"on their next roll\" (fact 2); \"You have to be in the same room\" is kept as \"in your room\"."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1491,16 +1650,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Add your experience level to a roll that experience genuinely applies to.",
-        "after": null
+        "after": "Write how one of your experiences applies to your next roll; a GM approves or refuses, and you pay the Hope only if it is approved. That roll then adds the value of one experience you pick."
       },
       "pl": {
         "before": "Dodaj poziom doświadczenia do rzutu, do którego to doświadczenie naprawdę się stosuje.",
-        "after": null
+        "after": "Opisz, jak twoje doświadczenie pasuje do rzutu. GM zatwierdza to albo odrzuca, a Hope płacisz dopiero po jego zgodzie. W następnym oknie rzutu wybierasz jedno doświadczenie i dodajesz jego wartość."
       },
-      "removed": [],
+      "removed": [
+        "\"your experience level\" becomes the experience's own value, chosen in the roll window (fact 3).",
+        "\"genuinely applies\" becomes the GM's approval of what the player writes (fact 1)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1547,16 +1713,22 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Advantage on a roll your Ultimate genuinely applies to.",
-        "after": null
+        "after": "Write how your Ultimate applies to your next roll; a GM approves or refuses, and you pay the Hope only if it is approved. That roll then has advantage."
       },
       "pl": {
         "before": "Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje.",
-        "after": null
+        "after": "Opisz, jak twój Ultimate pasuje do rzutu. GM zatwierdza to albo odrzuca, a Hope płacisz dopiero po jego zgodzie. Twój następny rzut dostaje przewagę, włączoną już w oknie rzutu."
       },
-      "removed": [],
+      "removed": [
+        "\"genuinely applies\" becomes the GM's approval of what the player writes (fact 1)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1585,9 +1757,9 @@
           "note": null
         },
         {
-          "fact": "The project is picked from those in the caller's room; one that is complete, frozen or gone is refused before the Hope is paid (DRPG.Project.noneToMove).",
-          "file": "scripts/call-effects.mjs",
-          "fn": "projectRefusal",
+          "fact": "The project is picked from the unfinished, unfrozen projects of the caller's room and those with no room set; with none of them the Call is refused before the Hope is paid (DRPG.Project.noneToMove, or DRPG.Project.none when there is no project at all).",
+          "file": "scripts/call-pickers.mjs",
+          "fn": "pickProject",
           "note": null
         },
         {
@@ -1615,18 +1787,29 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Add +{progress} progress to a project being worked on in the room you are in.",
-        "after": null
+        "after": "Add {progress} progress at once to a project in your room that is not finished or frozen; it takes no action and no Work roll. If the project is an indirect murder, you still roll to hide its Remnants."
       },
       "pl": {
         "before": "Dodaj +{progress} postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś.",
-        "after": null
+        "after": "Dodaj od razu +{progress} do postępu projektu w pokoju, w którym jesteś, bez rzutu i bez akcji. Do ukończonego ani zamrożonego projektu nic nie dodasz. Przy pośrednim morderstwie dochodzi rzut na ukrycie Remnantów, jak przy zwykłej pracy."
       },
-      "removed": [],
+      "removed": [
+        "\"being worked on\": no condition the code checks; any project in the room that is not complete or frozen takes it (fact 5).",
+        "\"Add +{progress}\" becomes \"Add {progress}\" in the English, so the plus is not doubled; the Polish keeps the plus as „+{progress} do postępu”.",
+        "„a Hope zostaje przy tobie” leaves the Polish: that a finished or frozen project is refused before the Hope is paid is not shown (see disagreements)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 1 is not settled: projectRefusal is asked before a Despair Call's pool is touched, and nothing read asks it before a Hope Call's Hope is paid; a project that is gone throws (refunded), while one complete or frozen may come back as applied.changed === false, a line and not a failure, so the Hope may stay spent; progressEffect's note says the picker stays unfiltered (scripts/call-effects.mjs projectRefusal, progressEffect; mechanics reviewer). Correction: read pickProject and the Hope Call's payment and say only what they settle. The texts keep only that such a project takes no progress."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -1677,21 +1860,36 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        3
+      ],
       "en": {
         "before": "Reroll the action. It reverts the previous outcome.",
-        "after": null
+        "after": "Reroll your most recent roll at once. Its action is undone and run again with the new dice, and the Hope, Sanity, and Despair it moved follow the new result. If the Reroll cannot be made, you pay nothing."
       },
       "pl": {
         "before": "Przerzuć akcję. Cofa poprzedni wynik.",
-        "after": null
+        "after": "Przerzuć swój ostatni rzut; starszego nie przerzucisz. Akcja rozgrywa się jeszcze raz z nowymi kośćmi: postęp, znaleziona rzecz, Remnant oraz Hope, Sanity i Despair liczą się od nowa. Jeśli przerzutu nie da się wykonać, nic nie płacisz."
       },
-      "removed": [],
+      "removed": [
+        "\"It reverts the previous outcome\" is kept as the action undone and run again (fact 1).",
+        "\"If a GM refuses\" / „Jeśli GM odmówi” becomes \"If the Reroll cannot be made\" / „Jeśli przerzutu nie da się wykonać”: no person rules on it, the GM's browser checks it (fact 3, see disagreements).",
+        "\"and only that one\" goes: \"your most recent roll\" already says it."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3 is false: no person approves a Reroll; the GM's browser checks, pays and makes it, and refuses on its checks - no such character, one already being made, nothing to redo (scripts/calls.mjs askReroll; scripts/reroll.mjs rerollOnGm, DRPG.Reroll.busy; mechanics reviewer). Correction: \"a request the GM's browser refuses, or one with no roll to redo, is said to the player and nothing is paid\"."
+      ],
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "unclear",
+          "points": [
+            "\"If a GM refuses, you keep your Hope\": the reader was not told a GM has to approve this (proposed: A GM must approve it; if the GM refuses, you keep your Hope) - executor: Not taken: the mechanics reviewer shows from the code that no person approves a Reroll - the GM's browser checks, pays and makes it (scripts/calls.mjs askReroll) - so the text names no approval and says \"If the Reroll cannot be made, you pay nothing\"."
+          ]
+        },
         "pl": null,
         "mechanics": null
       },
@@ -1739,17 +1937,25 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "One more room crossing this time of day, without paying an action for it.",
-        "after": null
+        "after": "Bank one more room crossing for this time of day: once your Free Move is used, your next crossing uses it instead of an action."
       },
       "pl": {
         "before": "Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia za nie akcją.",
-        "after": null
+        "after": "Kupujesz jeszcze jedno przejście między pokojami. Po zużyciu Free Move płacisz nim zamiast akcją; niewykorzystane przepada na początku następnej pory dnia."
       },
-      "removed": [],
-      "needsCode": [],
+      "removed": [
+        "\"without paying an action for it\" becomes the order the code pays in: the banked crossing before an action (fact 1)."
+      ],
+      "needsCode": [
+        "\"one more\" is the before's word for HOPE_CALLS.sprint freeMoves (1); PROSE_NUMBERS has no row for it, so the count cannot follow the config without a placeholder (fact 3)."
+      ],
       "disagreements": [],
       "reviews": {
         "en": null,
@@ -1801,18 +2007,27 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Your next action costs nothing - the whole action, however many it would have cost.",
-        "after": null
+        "after": "Bank a free action: the next time you would spend actions this time of day, even on a crossing or a Long Rest, it pays the whole price."
       },
       "pl": {
         "before": "Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała.",
-        "after": null
+        "after": "Dostajesz darmową akcję: pokrywa całą cenę najbliższego wydania akcji, także za przejście, nawet za Long Rest. Niewykorzystana przepada na początku następnej pory dnia."
       },
-      "removed": [],
+      "removed": [
+        "The dash and the aside \"- the whole action, however many it would have cost\" become one sentence (X4); \"however many\" now means the whole of one spend, as the code covers it once (fact 4).",
+        "„Kolejny koszt w tej samej akcji płacisz już normalnie” leaves the Polish: no action charges twice today, so no table can meet it (O13, see disagreements); „dwie akcje Long Rest” becomes „nawet za Long Rest”, with no number in the prose (M5)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 1's \"a second spend in the same action pays normally\" is a case no action reaches: the code's note says no action charges twice today (scripts/actions.mjs spendAction; mechanics reviewer). The fact should also say that the next spend may be a crossing paid with an action (takeMove), which the texts now say."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -1924,16 +2139,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "One of the two dice, at random, is set to 12, the other is thrown. A critical only if that one is a 12 too.",
-        "after": null
+        "after": "For your next roll, a random one of the two dice is set to 12 and the other is thrown. A 12 on the thrown die makes a critical; otherwise the roll is with Hope if the Hope die was set, with Despair if not."
       },
       "pl": {
         "before": "Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12.",
-        "after": null
+        "after": "Przy twoim następnym rzucie jedna z dwóch kości, losowo, staje na 12, a drugą rzucasz. Krytyk jest tylko wtedy, gdy i ona wypadnie 12; inaczej rzut jest z Hope albo z Despair, zależnie od tego, która kość stoi na 12."
       },
-      "removed": [],
+      "removed": [
+        "\"one die, Hope or Fear at random\" becomes \"one of the two dice, at random\", so the Fear die and Despair do not meet in one sentence (O14)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -1992,18 +2214,27 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Get something out while this is happening. Works on a critical or a Hope success; a Despair success only leaves a trace.",
-        "after": null
+        "after": "Use an item during the incident with its Use button on your sheet. A hit with Hope, or a critical, puts it to use; a hit with Despair does not. Every hit leaves a Remnant."
       },
       "pl": {
         "before": "Wyciągnij coś, gdy to się dzieje. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia tylko ślad.",
-        "after": null
+        "after": "Użyj przedmiotu w trakcie incydentu przyciskiem przy nim na arkuszu postaci. Działa przy krytyku albo przy trafieniu z Hope; przy trafieniu z Despair nie zadziała. Każde trafienie zostawia Remnant."
       },
-      "removed": [],
+      "removed": [
+        "\"Get something out while this is happening\" becomes the Use button the action is taken with (fact 0).",
+        "\"a trace\" becomes \"a Remnant\" (EN15, fact 5)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 4: no screen read shows this hint (the crisis menu filters hidden actions, and the Use button is how the action is taken), so the text is written for wherever the table is shown; whether anything should show it is a code question."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2066,20 +2297,34 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        5
+      ],
       "en": {
         "before": "Leave a trace at the scene meant to help the others.",
-        "after": null
+        "after": "On a hit, leave a Remnant tied to the crime at the scene: Evident with Hope, Subtle with Despair, Obvious and Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and a critical leaves two."
       },
       "pl": {
         "before": "Zostaw na miejscu ślad, który ma pomóc innym.",
-        "after": null
+        "after": "Zostaw na miejscu Remnant powiązany ze zbrodnią. Przy trafieniu z Hope Remnant jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa."
       },
-      "removed": [],
-      "needsCode": [],
+      "removed": [
+        "\"meant to help the others\": the victim's intent, which no rule reads (fact 6).",
+        "\"a trace\" becomes \"a Remnant\" (EN15).",
+        "Not stated here: the miss with Hope (fact 2) and the statistic, which the crisis menu lists beside the hint (fact 4, O3); a Pin Them Down's disadvantage (fact 3), which the menu marks on the row."
+      ],
+      "needsCode": [
+        "The count of Remnants a critical leaves in an indirect murder (CRISIS_ACTIONS.leaveClue indirectVictim count.critical, 2) is written as the word \"two\" / „dwa”; a placeholder would need a PROSE_NUMBERS row (O5)."
+      ],
       "disagreements": [],
       "reviews": {
-        "en": null,
+        "en": {
+          "verdict": "change",
+          "points": [
+            "M2: the facts give fact 5 only as a general rule (\"a critical of an action marked criticalKeepsTurn keeps the turn\"). They do not show that Leave a Clue is marked. Confirm it in CRISIS_ACTIONS.leaveClue before \"keeps your turn\" stands. Also, \"which also keeps your turn\" hangs after a list and can attach to \"Reinforced\". - executor: Kept: fact 5 is the facts' general rule, and the facts keep it for this action (kept [1, 5]); CRISIS_ACTIONS.leaveClue is not among the files of this revision, so whether it is marked criticalKeepsTurn cannot be confirmed here, and the mechanics reviewer did not contest it. The hanging \"which also keeps your turn\" is gone (\"and your turn goes on\")."
+          ]
+        },
         "coldEn": null,
         "pl": null,
         "mechanics": null
@@ -2140,20 +2385,37 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        6
+      ],
       "en": {
         "before": "Take something off the killer and turn it into a trace tied to their identity.",
-        "after": null
+        "after": "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and a critical leaves two."
       },
       "pl": {
         "before": "Zabierz coś zabójcy i zamień to w ślad powiązany z jego tożsamością.",
-        "after": null
+        "after": "Przy trafieniu zabezpieczasz Remnant powiązany ze zbrodnią: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa."
       },
-      "removed": [],
-      "needsCode": [],
-      "disagreements": [],
+      "removed": [
+        "\"Take something off the killer\" and \"tied to their identity\": the fiction, which no rule runs; the code drops an Incident Remnant tied to the crime (fact 4). The verb is now the name's, \"secure\" / „zabezpieczasz”, with no promise of the fiction.",
+        "\"a trace\" becomes \"a Remnant\" (EN15).",
+        "The Polish no longer gives the bands by reference to Leave a Clue; it names them, as the English does.",
+        "Not stated here: the miss with Hope (fact 2) and the number to beat, which the crisis menu shows (fact 5); a Keep Your Distance's disadvantage (fact 3), which the menu marks on the row."
+      ],
+      "needsCode": [
+        "The count of Remnants a critical leaves in an indirect murder (CRISIS_ACTIONS.secureTrace indirectVictim count.critical, 2) is written as the word \"two\" / „dwa”; a placeholder would need a PROSE_NUMBERS row (O5)."
+      ],
+      "disagreements": [
+        "Read off the code, Secure a Trace does what Leave a Clue does at a higher number (fact 4), so the two hints read nearly alike; a difference the players should see would have to come from the rules."
+      ],
       "reviews": {
-        "en": null,
+        "en": {
+          "verdict": "change",
+          "points": [
+            "M2: as on item 23, the facts do not show that Secure a Trace is marked criticalKeepsTurn (fact 6 is only the general rule). Confirm it. - executor: Kept: fact 6 is the facts' general rule, and the facts keep it for this action (kept [1, 6]); CRISIS_ACTIONS.secureTrace is not among the files of this revision, so whether it is marked criticalKeepsTurn cannot be confirmed here, and the mechanics reviewer did not contest it."
+          ]
+        },
         "coldEn": null,
         "pl": null,
         "mechanics": null
@@ -2190,9 +2452,9 @@
           "note": null
         },
         {
-          "fact": "Every success leaves an Evident Incident Remnant (Reinforced on a critical); a miss leaves an Evident one, Obvious on a critical miss.",
+          "fact": "Every success leaves an Evident Incident Remnant (Reinforced on a critical); a miss leaves an Evident one.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "applyRemnant",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2214,18 +2476,30 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1
+      ],
       "en": {
         "before": "You fight. Unlocks Survive and Role Reversal. An item usable as a weapon gives advantage.",
-        "after": null
+        "after": "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one this turn without a roll. A readied weapon gives advantage."
       },
       "pl": {
         "before": "Walczysz. Odblokowuje Survive i Role Reversal. Przedmiot nadający się na broń daje przewagę.",
-        "after": null
+        "after": "Trafienie z Hope odblokowuje Survive i Role Reversal, z Despair tylko Role Reversal, o ile incydent jej nie odebrał. Krytyk odblokowuje obie, zatrzymuje utratę Health i Sanity i pozwala ci w tej turze wziąć jedną z nich bez rzutu. Broń w ręku daje przewagę."
       },
-      "removed": [],
+      "removed": [
+        "\"You fight\" / „Walczysz” goes, and so does the after's \"Fight back\" / „Broń się”, for length; the label names the action.",
+        "\"the drain\" becomes \"your Health and Sanity loss\" (O4).",
+        "\"An item usable as a weapon\" becomes \"a readied weapon\" / „Broń w ręku” (see disagreements).",
+        "Not stated here: that it cannot be taken again once it has opened something (fact 2), which the menu shows as the row's \"spent\" reason; the Remnants and the miss (facts 3 and 4), which the menu lists (fact 5)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 0: the advantage is for a weapon the character holds readied (hasWeapon), not for any item usable as one (scripts/murder-rules.mjs crisisSituational; equippedWeapon; mechanics reviewer). Correction: \"a readied weapon gives advantage\".",
+        "Fact 1 is cut by the incident's denials: in a trap, or after a Despair opening against an accomplice, Role Reversal is denied, so a Despair success opens nothing and the attempt is not spent (scripts/murder-rules.mjs applyUnlocks; mechanics reviewer). Correction: \"with Despair only Role Reversal, where the incident has not taken it away\".",
+        "Fact 3: \"Obvious on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"a miss leaves an Evident one\". Neither text states it."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2282,21 +2556,32 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        2
+      ],
       "en": {
         "before": "Withdraw from the incident and stop losing Health and Sanity. Needs Self-Defense first.",
-        "after": null
+        "after": "Withdraw from the incident. A hit ends it and stops your Health and Sanity loss; with Despair, you also get a hint about who the killer is. A critical gives that hint and immunity for this chapter and the next."
       },
       "pl": {
         "before": "Wycofaj się z incydentu i przestań tracić Health i Sanity. Wymaga najpierw Self-Defense.",
-        "after": null
+        "after": "Wycofaj się z incydentu: trafienie go kończy i przestajesz tracić Health i Sanity. Z Despair dostajesz też podpowiedź, kto jest zabójcą, a krytyk daje podpowiedź i odporność do końca tego i następnego rozdziału."
       },
-      "removed": [],
+      "removed": [
+        "\"Needs Self-Defense first\": the menu shows the locked row with its reason, DRPG.Murder.actionLocked, naming Self-Defense (fact 5); the Polish drops it too.",
+        "\"the drain stops\" becomes \"stops your Health and Sanity loss\" (O4).",
+        "Not stated here: the Sanity it costs and the miss (facts 1 and 3), which the menu lists; a Pin Them Down's disadvantage (fact 4), which the menu marks."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"immunity for this chapter and the next\": immunity from what is not said (proposed: immunity from being attacked for this chapter and the next, if that is what it is) - executor: Kept: the facts do not say what the immunity is from (fact 2), so the text cannot name it without guessing."
+          ]
+        },
         "pl": null,
         "mechanics": null
       },
@@ -2350,23 +2635,39 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2,
+        3
+      ],
       "en": {
         "before": "Tip the scales and become the killer yourself. From then on it is them losing Health and Sanity. Needs Self-Defense first.",
-        "after": null
+        "after": "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; with Hope, you recover all yours. A critical kills your attacker, restores you, and leaves an Incident Remnant (Evident, Reinforced). A readied weapon gives advantage."
       },
       "pl": {
         "before": "Przechyl szalę i to ty zostajesz zabójcą. Od tej pory to oni tracą Health i Sanity. Wymaga najpierw Self-Defense.",
-        "after": null
+        "after": "Odwróć role: przy trafieniu stajesz się zabójcą, a odtąd Health i Sanity traci druga strona. Z Hope odzyskujesz całe Health i Sanity, a krytyk do tego od razu zabija drugą stronę i zostawia Incident Remnant (Evident, Reinforced). Broń w ręku daje przewagę."
       },
-      "removed": [],
+      "removed": [
+        "\"From then on it is them losing Health and Sanity\" is kept as \"your attacker loses Health and Sanity instead\", in plain words (O4).",
+        "\"Needs Self-Defense first\": the menu shows the locked row with its reason (fact 5); the Polish drops it too, so of fact 0 only the number, the statistics and the weapon's advantage stay with the menu and this text.",
+        "\"An item usable as a weapon\" becomes \"a readied weapon\" / „Broń w ręku” (see disagreements).",
+        "Not stated here: the Sanity it costs and the miss (facts 1 and 4), which the menu lists; a Keep Your Distance or a third party taking it away (fact 4), which the menu marks on the row."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 0: the advantage is for a readied weapon (hasWeapon), not for any item usable as one (scripts/murder-rules.mjs crisisSituational; mechanics reviewer). Correction: \"a readied weapon gives advantage\"."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
         "pl": null,
-        "mechanics": null
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "en: leaves out 'locked until Self-Defense opens it', which is in kept fact 0 and the Polish says ('Wymaga najpierw Self-Defense') (code: scripts/config.mjs CRISIS_ACTIONS.roleReversal: 'lockedUntil: \"selfDefence\"'; correction: add 'Needs Self-Defense first.'). - executor: Not taken as proposed: the parity is restored the other way - the Polish drops „Wymaga najpierw Self-Defense”, as on Survive, because the menu shows the locked row with its reason naming Self-Defense (DRPG.Murder.actionLocked, O3)."
+          ]
+        }
       },
       "owner": null
     },
@@ -2406,9 +2707,9 @@
           "note": null
         },
         {
-          "fact": "A miss with Hope does nothing; with Despair it still takes 1 Sanity off them and leaves an Evident Remnant, Obvious on a critical miss.",
-          "file": "scripts/config.mjs",
-          "fn": "CRISIS_ACTIONS.strike",
+          "fact": "A miss with Hope does nothing; with Despair it still takes 1 Sanity off them and leaves an Evident Remnant.",
+          "file": "scripts/murder-rules.mjs",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2430,18 +2731,31 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Speed up their decline. Costs {hp} Health and {stress} Sanity from them.",
-        "after": null
+        "after": "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant."
       },
       "pl": {
         "before": "Przyspiesz ich upadek. Kosztuje ich {hp} Health i {stress} Sanity.",
-        "after": null
+        "after": "Zadaj cios: przy trafieniu ofiara traci {hp} Health i {stress} Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu."
       },
-      "removed": [],
-      "needsCode": [],
-      "disagreements": [],
+      "removed": [
+        "\"Speed up their decline\": the fiction, dropped.",
+        "\"Costs ... from them\" said the victim's loss as a price; it is now what a hit takes off the victim (fact 5).",
+        "\"you choose Health or Sanity for a heavier blow\" becomes \"the whole blow lands on Health or on Sanity, as you choose\": a critical is the same marks, all on the track the killer chooses (CRISIS_ACTIONS.strike's note; applyDamage).",
+        "Not stated here: the miss (fact 4), which the menu lists (fact 6); that with no choice from the killer's window the critical marks nothing."
+      ],
+      "needsCode": [
+        "The critical's amount (criticalAmount, 2) has no placeholder, so the text says \"the whole blow\" / „cały cios”; a number would need a PROSE_NUMBERS row."
+      ],
+      "disagreements": [
+        "Fact 4: \"Obvious on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"with Despair it still takes 1 Sanity off them and leaves an Evident Remnant\". Neither text states it."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2480,9 +2794,9 @@
           "note": null
         },
         {
-          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, Obvious on a critical miss.",
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "applyRemnant",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2498,18 +2812,26 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Disadvantage on Leave a Clue and Survive for the victim's {turns}.",
-        "after": null
+        "after": "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one."
       },
       "pl": {
         "before": "Utrudnienie na Leave a Clue i Survive przez {turns} ofiary.",
-        "after": null
+        "after": "Przytrzymaj ofiarę: przez jej {turns} Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant."
       },
-      "removed": [],
+      "removed": [
+        "\"A success with Despair\" becomes \"With Despair, a hit\" (DB18); the miss with Despair's Evident Remnant (fact 3, as corrected) is now said in both languages."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3: \"Obvious on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"a miss with Despair an Evident one\"."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2548,9 +2870,9 @@
           "note": null
         },
         {
-          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, Obvious on a critical miss.",
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "applyRemnant",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2566,18 +2888,26 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Disadvantage on Secure a Trace and Role Reversal for the victim's {turns}.",
-        "after": null
+        "after": "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one."
       },
       "pl": {
         "before": "Utrudnienie na Secure a Trace i Role Reversal przez {turns} ofiary.",
-        "after": null
+        "after": "Trzymaj ofiarę na dystans: przez jej {turns} Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant."
       },
-      "removed": [],
+      "removed": [
+        "\"A success with Despair\" becomes \"With Despair, a hit\" (DB18); the miss with Despair's Evident Remnant (fact 3, as corrected) is now said in both languages."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3: \"Obvious on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"a miss with Despair an Evident one\"."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2610,9 +2940,9 @@
           "note": null
         },
         {
-          "fact": "Without a weapon the roll is at disadvantage, and a success also hands the killer an improvised weapon (Tier 2 with Hope or on a critical, Tier 1 with Despair).",
+          "fact": "Without a readied weapon the roll is at disadvantage; a success hands the killer an improvised weapon (Tier 2 with Hope or on a critical, Tier 1 with Despair) only when they carry no unbroken weapon at all.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "grantImprovisedWeapon",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2622,9 +2952,9 @@
           "note": null
         },
         {
-          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one, an Obvious Reinforced one on a critical miss.",
+          "fact": "A success with Despair leaves a Subtle Incident Remnant; a miss with Despair an Evident one.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "applyRemnant",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2640,22 +2970,38 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Use a found item as a weapon. Unarmed works at disadvantage, and succeeds into an improvised tool.",
-        "after": null
+        "after": "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's Remnants become tied to the crime."
       },
       "pl": {
         "before": "Użyj znalezionego przedmiotu jako broni. Bez broni działa z utrudnieniem, a sukces daje improwizowane narzędzie.",
-        "after": null
+        "after": "Zaatakuj bronią: trafienie odbiera ofierze Health, tym więcej, im wyższy tier broni, a przy krytyku jeszcze więcej. Bez broni w ręku rzucasz z utrudnieniem, a jeśli nie masz żadnej, trafienie daje ci improwizowaną. Remnanty broni, której użyjesz, zostają powiązane ze zbrodnią."
       },
-      "removed": [],
+      "removed": [
+        "\"Use a found item as a weapon\": the action's label says it (X19).",
+        "\"succeeds into an improvised tool\" becomes \"a hit gives you an improvised one\" (weapon), the item's name in the code, now only for a killer who carries no weapon (see disagreements).",
+        "Not stated here: the Remnants of a hit with Despair and of a miss (fact 4), which the menu lists with the miss (fact 5); the GM's rating of a Tier 0 item (fact 1)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 2 cuts two conditions: the disadvantage is for no readied weapon (hasWeapon), and the improvised weapon only for a killer who carries none at all - one carrying an unreadied weapon rolls at disadvantage and gets nothing (scripts/murder-rules.mjs crisisSituational, applyCrisisAction; mechanics reviewer). Correction: \"Without a readied weapon the roll is at disadvantage; a killer who carries none at all also gets an improvised weapon on a success\".",
+        "Fact 4: \"an Obvious Reinforced one on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"a miss with Despair an Evident one\". Neither text states it."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
-        "pl": null,
+        "pl": {
+          "verdict": "change",
+          "points": [
+            "fakty (1, kept): brakuje przypadku przedmiotu Tier 0, którego obrażenia ustala GM (propozycja: „...im wyższy tier broni; przedmiot Tier 0 ocenia GM.”) - executor: Not taken: \"Tier 0\" would add the digit 0, which neither before holds (M5); the GM's rating of a Tier 0 item needs a placeholder before a text can say it."
+          ]
+        },
         "mechanics": null
       },
       "owner": null
@@ -2690,9 +3036,9 @@
           "note": null
         },
         {
-          "fact": "A miss with Despair leaves an Evident Remnant, an Obvious Reinforced one on a critical miss.",
+          "fact": "A miss with Despair leaves an Evident Remnant.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "applyRemnant",
+          "fn": "applyCrisisAction",
           "note": null
         },
         {
@@ -2702,18 +3048,26 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2
+      ],
       "en": {
         "before": "End the incident now. Threshold is {mult} times their remaining Health - free at 0. A critical here also makes your first clean-up attempt cost no Sanity.",
-        "after": null
+        "after": "End the incident now. The number to beat is {mult} times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity."
       },
       "pl": {
         "before": "Zakończ incydent teraz. Próg to {mult}-krotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
-        "after": null
+        "after": "Zakończ incydent. Próg to pozostałe Health ofiary razy {mult}, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity."
       },
-      "removed": [],
+      "removed": [
+        "The dash and \"free at 0\" (X4) become \"so it is 0 once they have none\", in both languages; the menu prints the number to beat (fact 4).",
+        "Not stated here: the Sanity it costs and the miss (facts 1 and 3), which the menu lists."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3: \"an Obvious Reinforced one on a critical miss\" never happens - a critical is always a success (scripts/murder-rules.mjs applyCrisisAction; mechanics reviewer). Correction: \"A miss with Despair leaves an Evident Remnant\". Neither text states it."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2770,21 +3124,32 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        2
+      ],
       "en": {
         "before": "Get the victim out with you.",
-        "after": null
+        "after": "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next."
       },
       "pl": {
         "before": "Wyprowadź ofiarę ze sobą.",
-        "after": null
+        "after": "Wyprowadź ofiarę ze sobą: trafienie kończy incydent, a z Hope albo przy krytyku ofiara odzyskuje też Health i Sanity. Krytyk dodatkowo daje tobie i ofierze odporność do końca tego i następnego rozdziału."
       },
-      "removed": [],
+      "removed": [
+        "Not stated here: the Sanity it costs and the miss, which gets only you out (facts 1 and 3), which the menu lists (fact 5); the Remnants (fact 4)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 4 is incomplete: a critical success leaves no Remnant (CRISIS_ACTIONS.sharedEscape remnant has hope and despair only; mechanics reviewer). Correction: \"A success leaves an Obvious (Hope) or Evident (Despair) Incident Remnant, a critical none, a miss a Subtle one\". No text states the Remnant."
+      ],
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"immunity for this chapter and the next\": immunity from what is not said - executor: Kept: the facts do not say what the immunity is from (fact 2), so the text cannot name it without guessing."
+          ]
+        },
         "pl": null,
         "mechanics": null
       },
@@ -2820,9 +3185,9 @@
           "note": null
         },
         {
-          "fact": "The third party has one free choice in an incident; after it they take no further action.",
+          "fact": "The third party has one free choice in an incident; after Double Role Reversal they stay in on the killers' side, beside the old victim, and take a killer's turn after theirs each round.",
           "file": "scripts/murder-rules.mjs",
-          "fn": "availableCrisisActions",
+          "fn": "applyThirdPartyChoice",
           "note": null
         },
         {
@@ -2838,18 +3203,30 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "You and the victim turn on the attacker together. They become the victim.",
-        "after": null
+        "after": "Side with the victim against the killer: you both become killers, and the original killer now loses Health and Sanity and cannot take Role Reversal. This leaves an Evident Remnant, and you then take the killers' turns, except in an indirect murder."
       },
       "pl": {
         "before": "Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą.",
-        "after": null
+        "after": "Odwróć role razem z ofiarą: ty i ofiara stajecie się zabójcami, a dotychczasowy zabójca zaczyna tracić Health i Sanity i nie może już wziąć Role Reversal. Zostawiasz Evident Remnant. Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz."
       },
-      "removed": [],
+      "removed": [
+        "\"They become the victim\" is kept as the original killer losing Health and Sanity.",
+        "\"the attacker\" becomes \"the killer\", the side's name in the code.",
+        "\"after it you take no further action\" becomes \"you then take the killers' turns, except in an indirect murder\" / „Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz”, the condition whole (M4; see disagreements).",
+        "Not stated here: that it takes no roll (fact 0), which the menu prints as \"no roll\" (fact 5)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3 is false for this choice in a direct murder and true in a trap: the third party is put on the killers' side (thirdSide \"killer\"), and on a direct murder passTurn gives the killers' side its turns, so they act on the killers' turns (scripts/murder-rules.mjs applyThirdPartyChoice, passTurn; mechanics reviewer); in a trap (an indirect murder) nextTurn never gives the killers' side a turn (scripts/murder-rules.mjs nextTurn: \"if (state.indirect || !living.length) return { next: \\\"victim\\\" ... }\"), so there they act no more (checked against the whole code by the orchestrator). Correction: \"after it they act on the killers' turns, except in an indirect murder, where they take no further action\".",
+        "Fact 1's \"the victim can no longer take Role Reversal\": after the swap the denied side (deniedToVictim) is the original killer, now the one losing Health and Sanity; both texts say it of the original killer (mechanics reviewer's reading)."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2888,9 +3265,9 @@
           "note": null
         },
         {
-          "fact": "The third party has one free choice in an incident; after it they take no further action.",
+          "fact": "The third party has one free choice in an incident; after Partners in Crime they stay in on the killer's side and, in a direct murder, take a killer's turn after the original killer's each round (in a trap the killers' side takes no turns).",
           "file": "scripts/murder-rules.mjs",
-          "fn": "availableCrisisActions",
+          "fn": "applyThirdPartyChoice",
           "note": null
         },
         {
@@ -2906,18 +3283,28 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Side with the attacker. The victim is unlikely to walk out.",
-        "after": null
+        "after": "Join the killer's side; the victim can no longer take Role Reversal. This leaves a Subtle Remnant, and you then take the killers' turns, except in an indirect murder."
       },
       "pl": {
         "before": "Stań po stronie napastnika. Ofiara raczej stąd nie wyjdzie.",
-        "after": null
+        "after": "Stań po stronie zabójcy. Ofiara nie może już wziąć Role Reversal. Zostawiasz Subtle Remnant. Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz."
       },
-      "removed": [],
+      "removed": [
+        "\"The victim is unlikely to walk out\": a reading of the odds that no rule sets (fact 4).",
+        "\"the attacker\" becomes \"the killer\".",
+        "\"after it you take no further action\" becomes \"you then take the killers' turns, except in an indirect murder\" / „Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz”, the condition whole (M4; see disagreements)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 3 is false in a direct murder and true in a trap: joining puts the third party on the killer's side, and on a direct murder passTurn gives the next killer's turn to the accomplice, so they act on the killers' turns (scripts/murder-rules.mjs applyThirdPartyChoice, passTurn; mechanics reviewer); in a trap (an indirect murder) nextTurn never gives the killers' side a turn (scripts/murder-rules.mjs nextTurn: \"if (state.indirect || !living.length) return { next: \\\"victim\\\" ... }\"), so there they act no more (checked against the whole code by the orchestrator). Correction: \"after it they take the killers' turns, except in an indirect murder, where they take no further action\"."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -2968,16 +3355,20 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1
+      ],
       "en": {
         "before": "Walk away and stay out of it. Leaves no trace of you.",
-        "after": null
+        "after": "Walk away and stay out of the incident; you leave no Remnant."
       },
       "pl": {
         "before": "Odejdź i trzymaj się z daleka. Nie zostawia po tobie śladu.",
-        "after": null
+        "after": "Odejdź z incydentu i nie wtrącaj się. Nie zostawiasz Remnantu."
       },
-      "removed": [],
+      "removed": [
+        "\"Leaves no trace of you\" becomes \"you leave no Remnant\" (EN15, fact 4)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3000,7 +3391,7 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "A plural family on {n}: {n} is the number of projects in this room that can be broken now (sabotageTargetsIn), the hint of the Sabotage row of the Projects window.",
+          "fact": "A plural family on {n}: {n} is the number of projects that can be broken now (sabotageTargetsIn) - for a student those in the room they stand in, for a Monokuma every project they can see, whatever its room - the hint of the Sabotage row of the Projects window.",
           "file": "scripts/action-rolls.mjs",
           "fn": "performProject",
           "note": null
@@ -3030,13 +3421,20 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2,
+        3
+      ],
       "en": {
         "before": {
           "one": "Break the {n} project in this room so it needs repairing. Always leaves a trace.",
           "other": "Break one of the {n} projects in this room so it needs repairing. Always leaves a trace."
         },
-        "after": null
+        "after": {
+          "one": "This room has {n} project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
+          "other": "This room has {n} projects you can break. On a hit, the one you pick needs a repair project. It costs an action, and you always leave a Remnant."
+        }
       },
       "pl": {
         "before": {
@@ -3045,14 +3443,28 @@
           "many": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad.",
           "other": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy. Zawsze zostawia ślad."
         },
-        "after": null
+        "after": {
+          "one": "Zepsuj jedyny projekt w tym pokoju, który nadaje się do sabotażu, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
+          "few": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
+          "many": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
+          "other": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant."
+        }
       },
-      "removed": [],
+      "removed": [
+        "\"so it needs repairing\" now carries its condition, a hit, and the price (fact 2).",
+        "\"Always leaves a trace\" becomes \"you always leave a Remnant\" (EN15, fact 4).",
+        "Not stated here, in either language now: the repair's size by the total (fact 2), which the description, DRPG.Config.ACTIONS.sabotage.description, says (O3); the Polish drops „Im lepszy rzut, tym trudniejsza naprawa”."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"it needs a repair project\": understandable; \"it will need a repair project before it works again\" says more - executor: Not taken: \"before it works again\" is not a fact read in the code."
+          ]
+        },
         "pl": null,
         "mechanics": null
       },
@@ -3070,9 +3482,9 @@
       "pilot": null,
       "facts": [
         {
-          "fact": "A plural family on {n}: {n} is the number of Remnants in this room that the character has found and that are not Reinforced, the hint of Erase a Trace's row in Tamper's window.",
-          "file": "scripts/action-rolls.mjs",
-          "fn": "chooseTamper",
+          "fact": "A plural family on {n}: {n} is the number of Remnants on the character's Tamper list for this room that are not Reinforced - those they hold a copy of and, if they took part in the running incident, its Remnants; for a killer in Stage 6, every Remnant in the room - the hint of Erase a Trace's row in Tamper's window.",
+          "file": "scripts/cleanup.mjs",
+          "fn": "cleanableTracesForPlayer",
           "note": null
         },
         {
@@ -3088,9 +3500,9 @@
           "note": null
         },
         {
-          "fact": "A success with Hope or a critical removes it; a success with Despair removes it but leaves an Evident Remnant (Faint); a miss leaves a Subtle (with Hope) or an Evident (with Despair) Remnant and the original stays; a critical also gives back 1 Sanity (CLEANUP.outcome).",
+          "fact": "A success with Hope or a critical removes it; a success with Despair removes it but leaves an Evident Remnant (Faint); a miss leaves a Subtle (with Hope) or an Evident (with Despair) Remnant and the original stays; a critical also hands back what the attempt paid, the action or the Sanity mark, as far as the GMs saw it paid.",
           "file": "scripts/cleanup.mjs",
-          "fn": "cleanupVerdict",
+          "fn": "handBack",
           "note": null
         },
         {
@@ -3100,13 +3512,19 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2
+      ],
       "en": {
         "before": {
           "one": "Wipe out the {n} trace you know about in this room. The easier it is to see, the harder it is to erase.",
           "other": "Wipe out one of the {n} traces you know about in this room. The easier one is to see, the harder it is to erase."
         },
-        "after": null
+        "after": {
+          "one": "You know of {n} Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
+          "other": "You know of {n} Remnants here that you can erase. The more visible a Remnant is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier."
+        }
       },
       "pl": {
         "before": {
@@ -3115,13 +3533,29 @@
           "many": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
           "other": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć."
         },
-        "after": null
+        "after": {
+          "one": "Wymaż jedyny znany ci tu Remnant, który nie jest Reinforced. Im łatwiej go zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
+          "few": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
+          "many": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
+          "other": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation."
+        }
       },
-      "removed": [],
+      "removed": [
+        "\"Wipe out the {n} trace you know about\" becomes the Remnants you know of and can erase, which leaves the Reinforced ones out (facts 0 and 2); \"trace\" becomes \"Remnant\" (EN15).",
+        "Not stated here, in either language: the outcomes and the Sanity a critical gives back (fact 3); the Polish drops „Sukces z Despair i pudło zostawiają nowy Remnant, a po pudle stary też zostaje”, since CLEANUP.outcome was not read and the code's note does not match it (see disagreements)."
+      ],
       "needsCode": [],
-      "disagreements": [],
+      "disagreements": [
+        "Fact 0 is false in part: the list also holds the running incident's Remnants for one who took part, and the whole room for the killer in Stage 6 (scripts/cleanup.mjs cleanableTracesForPlayer; mechanics reviewer). Correction: \"the Remnants here the character knows of (holds a copy of, or saw made in the running incident; in Stage 6 the killer, all of them), not Reinforced\". The English now says \"You know of\", as the Polish „znany ci”.",
+        "Fact 3 is not settled: CLEANUP.outcome is not shown, and cleanupVerdict's note says a Hope failure just does not work while a Despair failure makes an Evident Resolution Remnant, which does not match \"a miss leaves a Subtle (with Hope) ... Remnant\" (scripts/cleanup.mjs cleanupVerdict; mechanics reviewer). Correction: read CLEANUP.outcome."
+      ],
       "reviews": {
-        "en": null,
+        "en": {
+          "verdict": "ok",
+          "points": [
+            "Observation for the batch: the Palm rows (items 41 and 42) state \"It costs an action\", and the Tamper rows (items 38-40) do not, although both windows' tile hints state their price. Pick one practice (O3). - executor: Left for the owner: the Palm rows (items 41 and 42) say their action, which is the whole price, while the Tamper rows' price is a chain - an action, or Sanity once none is left, and the killer's own night starts at the Sanity - that the tile hint states once (O3); the rows stay as they are until the owner picks one practice."
+          ]
+        },
         "coldEn": null,
         "pl": null,
         "mechanics": null
@@ -3158,7 +3592,7 @@
           "note": null
         },
         {
-          "fact": "A critical also makes the Remnant one band harder to spot (quieter 1) and gives back 1 Sanity (refundStress.critical).",
+          "fact": "A critical also makes the Remnant one band harder to spot (quieter 1) and hands back what the attempt paid, the action or the Sanity mark, as far as the GMs saw it paid.",
           "file": "scripts/cleanup.mjs",
           "fn": "resolveTransformRoad",
           "note": null
@@ -3176,18 +3610,33 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
       "en": {
         "before": "Rename it and describe it as something innocent. Threshold three lower than erasing; a critical also makes it quieter and hands back the Sanity. It always ends up a Tamper Remnant.",
-        "after": null
+        "after": "Give a non-Reinforced Remnant a new name and description, with an easier roll than Erase a Trace. If a GM approves, it becomes a Tamper Remnant; if not, you get nothing back. A critical also hides it better and refunds what you paid."
       },
       "pl": {
         "before": "Nazwij go inaczej i opisz jako coś niewinnego. Próg o trzy niższy niż przy usuwaniu; krytyk dodatkowo go wycisza i oddaje Sanity. Zawsze kończy jako Tamper Remnant.",
-        "after": null
+        "after": "Nadaj Remnantowi nową nazwę i opis; zatwierdza je GM, a po odmowie rzut i koszt przepadają. Próg jest niższy niż przy wymazywaniu, a Reinforced Remnantu nie przekształcisz. Po zatwierdzeniu zmienia się w Tamper Remnant. Krytyk sprawia, że trudniej go zauważyć, i zwraca ci koszt."
       },
-      "removed": [],
-      "needsCode": [],
-      "disagreements": [],
+      "removed": [
+        "\"as something innocent\": the player's choice of words, which no rule reads.",
+        "\"Threshold three lower than erasing\": the number goes, since the code holds it as dcRelief and no placeholder fills it (fact 5); \"an easier roll than Erase a Trace\" / „Próg jest niższy niż przy wymazywaniu” stays.",
+        "\"It always ends up a Tamper Remnant\" now carries its condition, a GM's approval (facts 2 and 4).",
+        "\"hands back the Sanity\" becomes \"refunds what you paid\" / „zwraca ci koszt”: the critical hands back the step that paid (see disagreements)."
+      ],
+      "needsCode": [
+        "How much lower the number is (CLEANUP.transformAction.dcRelief, 3) needs a placeholder to be said (fact 5)."
+      ],
+      "disagreements": [
+        "Fact 3 is false in part: the critical hands back the step of the price that paid - an action when an action paid - not a Sanity mark (scripts/cleanup.mjs resolveTransformRoad, handBack; mechanics reviewer). Correction: \"gives back what the attempt cost, the action or the Sanity\"."
+      ],
       "reviews": {
         "en": null,
         "coldEn": null,
@@ -3238,23 +3687,39 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
-        "after": null
+        "after": "Plant a false Remnant pointing at another student; you need {n} or more. On a hit it is Evident with Hope, Subtle with Despair, Obvious on a critical, which gives back Sanity. A miss with Hope still plants a Faint, Hidden one; with Despair, nothing."
       },
       "pl": {
         "before": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej. Chybienie z Hope i tak podkłada ślad Faint i Hidden; chybienie z Despair nie zostawia nic.",
-        "after": null
+        "after": "Podłóż fałszywy Remnant wskazujący na kogoś innego; potrzebujesz wyniku co najmniej {n}. Przy trafieniu Remnant jest Evident z Hope, Subtle z Despair, a przy krytyku Obvious; krytyk oddaje ci też Sanity. Pudło z Hope też podkłada Remnant Hidden i Faint, a z Despair nic."
       },
-      "removed": [],
+      "removed": [
+        "\"Leave something that points at somebody else\" becomes a false Remnant pointing at another student (DB24, fact 4)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
         "en": null,
-        "coldEn": null,
+        "coldEn": {
+          "verdict": "ok",
+          "points": [
+            "\"you need {n} or more\": slightly clipped (proposed: you need a total of {n} or more) - executor: Not taken: \"a total of\" takes the English over the limit of 45 words once the hit's qualities (the PL reviewer's point on fact 1) are in."
+          ]
+        },
         "pl": null,
-        "mechanics": null
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "fact 1: the critical's 'gives back 1 Sanity' is refundStress { critical: 1 }; how attemptStageSix hands it back is not shown, and the Tamper's own reshape road hands back the step that paid, not a Sanity mark (code: scripts/config.mjs CLEANUP.actions.misleadingTrail: 'refundStress: { critical: 1 }'; scripts/cleanup.mjs resolveTransformRoad (context 39): 'hands back the step that paid, not \"a Sanity mark\" (T-1)'; correction: read attemptStageSix; if it uses handBack, en 'A critical also gives back what it cost' / pl 'Krytyk oddaje ci to, czym zapłaciłeś'). - executor: Kept: the config reads refundStress { critical: 1 } (fact 1), and how attemptStageSix hands it back is not shown; the text keeps \"gives back Sanity\" until it is read, and the correction is conditional on that reading."
+          ]
+        }
       },
       "owner": null
     },
@@ -3294,16 +3759,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Lift one thing out of their pockets. What comes out is whatever comes out - a critical lets you choose.",
-        "after": null
+        "after": "Lift one thing, picked at random, out of their pockets; a critical lets you choose. It costs an action, and if they notice, they learn who it was and what you took."
       },
       "pl": {
         "before": "Wyjmij jedną rzecz z czyjejś kieszeni. Wyjdzie, co wyjdzie - krytyk pozwala wybrać.",
-        "after": null
+        "after": "Wyjmij coś z czyjejś kieszeni. Dostajesz losową rzecz; wybrać pozwala tylko krytyk. Wydajesz akcję, Hand decyduje, czy się uda, a Shadow, czy ta osoba zauważy; jeśli tak, dowie się, kto to był i co zniknęło."
       },
-      "removed": [],
+      "removed": [
+        "The dash and \"What comes out is whatever comes out\" (X4) become \"picked at random\".",
+        "Not stated here: the two rolls' statistics (fact 2), which the description, DRPG.Config.ACTIONS.palm.description, says."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3350,13 +3822,20 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2,
+        3
+      ],
       "en": {
         "before": {
           "one": "Put the one thing you are carrying into their pocket.",
           "other": "Put one of the {n} things you are carrying into their pocket."
         },
-        "after": null
+        "after": {
+          "one": "Slip the one thing you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does.",
+          "other": "Slip one of the {n} things you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does."
+        }
       },
       "pl": {
         "before": {
@@ -3365,7 +3844,12 @@
           "many": "Włóż im do kieszeni jedną z {n} rzeczy, które nosisz.",
           "other": "Włóż im do kieszeni jedną z {n} rzeczy, które nosisz."
         },
-        "after": null
+        "after": {
+          "one": "Podrzuć komuś do kieszeni jedyną rzecz, którą nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
+          "few": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
+          "many": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
+          "other": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami."
+        }
       },
       "removed": [],
       "needsCode": [],
@@ -3414,13 +3898,20 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        2,
+        3
+      ],
       "en": {
         "before": {
           "one": "Work out what your one Truth Bullet not analysed yet really is.",
           "other": "Work out what one of your {n} Truth Bullets not analysed yet really is."
         },
-        "after": null
+        "after": {
+          "one": "Roll Head to learn what the one Truth Bullet you can analyze now really is. On a miss, you cannot analyze it again until the chapter ends.",
+          "other": "Roll Head to learn what one of the {n} Truth Bullets you can analyze now really is. On a miss, you cannot analyze that one again until the chapter ends."
+        }
       },
       "pl": {
         "before": {
@@ -3429,9 +3920,17 @@
           "many": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
           "other": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów."
         },
-        "after": null
+        "after": {
+          "one": "Wybierz jedyny Truth Bullet, który możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "few": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "many": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
+          "other": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head, a wynik ocenia przeglądarka GM-a: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału."
+        }
       },
-      "removed": [],
+      "removed": [
+        "\"analysed\" becomes \"analyzed\" (EN1, the glossary's analyze).",
+        "\"not analysed yet\" becomes \"you can analyze now\" / „które możesz teraz przeanalizować”, which is what {n} counts: a bullet locked this chapter is not analyzed and not counted (facts 0 and 2)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3478,16 +3977,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Work out whether somebody has hidden something in this room. {n}+ opens one stash to you.",
-        "after": null
+        "after": "Look for a stash another student has hidden in this room. With a total of {n} or more, or a critical, you find one you have not found before and learn whose it is."
       },
       "pl": {
         "before": "Ustal, czy ktoś coś schował w tym pokoju. {n}+ otwiera przed tobą jedną skrytkę.",
-        "after": null
+        "after": "Szukaj w tym pokoju ukrytej skrytki innego ucznia. Przy wyniku co najmniej {n} albo krytyku znajdujesz jedną z tych, których jeszcze nie znasz, i wiesz, czyja jest."
       },
-      "removed": [],
+      "removed": [
+        "\"opens one stash to you\" becomes finding one not found before and learning whose it is (facts 1 and 2).",
+        "Not stated here, in either language now: the price (fact 3), Analyze's own, which the tile hint, DRPG.Config.ACTIONS.analyze.hint, says; the GM online and the Class Trial refusal, which the refusals say before anything is spent. The Polish drops „Płacisz jak za Analyze; GM musi być online”."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3534,16 +4040,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Sweep the room for whatever is easiest to spot.",
-        "after": null
+        "after": "Sweep the room for the easiest Remnant to spot, looking first among those tied to the crime. Your total alone decides what you find; you do not need to write anything. With nothing here to find, a GM rules on your roll."
       },
       "pl": {
         "before": "Omieć pokój wzrokiem w poszukiwaniu tego, co najłatwiej zauważyć.",
-        "after": null
+        "after": "Omieć pokój wzrokiem w poszukiwaniu Remnantu, który najłatwiej zauważyć; pierwszeństwo mają te powiązane ze zbrodnią. Rozstrzyga sam wynik, bez twojego opisu. Gdy nie ma tu nic do znalezienia, o rzucie decyduje GM."
       },
-      "removed": [],
+      "removed": [
+        "\"whatever is easiest to spot\" becomes the easiest Remnant, those tied to the crime first (fact 1).",
+        "„bez GM-a” leaves the Polish: with nothing to find, a GM rules on the roll (fact 3).",
+        "Not stated here: a character in no room, which also goes to a GM's ruling (fact 3)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3596,16 +4110,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3
+      ],
       "en": {
         "before": "Look past the obvious: the hardest thing here, and whatever does not belong in this room at all.",
-        "after": null
+        "after": "Aim for the hardest Remnant to spot, looking first among those tied to the crime. Only this way can you also notice a hidden secret project. Your total alone decides what you find; with nothing here to find, a GM rules on your roll."
       },
       "pl": {
         "before": "Spójrz poza oczywiste: na najtrudniejszą rzecz tutaj i na to, czego w tym pokoju w ogóle nie powinno być.",
-        "after": null
+        "after": "Spójrz poza oczywiste: szukasz Remnantu najtrudniejszego do zauważenia, w pierwszej kolejności wśród powiązanych ze zbrodnią. Tylko tak wypatrzysz też tajny projekt ukryty w pokoju. Rozstrzyga sam wynik, a gdy nie ma tu nic do znalezienia, o rzucie decyduje GM."
       },
-      "removed": [],
+      "removed": [
+        "\"Look past the obvious\" opened the hint as the row's own words (X19).",
+        "\"whatever does not belong in this room at all\": not a rule the code runs; what it finds besides the hardest Remnant is a hidden project (fact 4).",
+        "Not stated here: that with no Remnant in the room the secret project is the target (fact 2's second half), left out for length; a character in no room."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3658,16 +4180,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3,
+        4
+      ],
       "en": {
         "before": "Say what you are looking for. The GM decides what your gaze lands on.",
-        "after": null
+        "after": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds. With no GM online, your action comes back."
       },
       "pl": {
         "before": "Powiedz, czego szukasz. GM decyduje, na czym zatrzyma się twój wzrok.",
-        "after": null
+        "after": "Wpisz, czego szukasz. Rzucasz od razu, a GM, nie znając wyniku, wybiera Remnant, na którym zatrzymuje się twój wzrok. Jeśli nic nie wpiszesz, liczy się to jak omiecenie pokoju wzrokiem. Bez GM-a online akcja do ciebie wraca."
       },
-      "removed": [],
+      "removed": [
+        "\"The GM decides what your gaze lands on\" is kept as a GM picking the Remnant, blind to the total (facts 1 and 2).",
+        "Not stated here: that a refused request, an empty room or no room goes to a GM's ruling on the roll already thrown (fact 4)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3732,16 +4262,24 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2
+      ],
       "en": {
         "before": "Describe what you are doing; the GM sets the difficulty. Dynamic Actions have gentler thresholds than the standard ones - that is the reward for inventing something.",
-        "after": null
+        "after": "Describe what you want to do; a GM sets the difficulty and the statistic, or refuses. It costs an action, paid only once the GM has set the difficulty."
       },
       "pl": {
         "before": "Opisz, co robisz; GM ustala trudność. Dynamic Actions mają łagodniejsze progi niż standardowe - to nagroda za wymyślenie czegoś.",
-        "after": null
+        "after": "Opisz, co robisz; GM ustala trudność i statystykę albo odrzuca pomysł. Akcję wydajesz dopiero wtedy, gdy GM ustali trudność, więc odrzucona Dynamic Action nic nie kosztuje."
       },
-      "removed": [],
+      "removed": [
+        "\"Dynamic Actions have gentler thresholds than the standard ones\": a comparison of two tables that no function makes (fact 5), and \"standard\" is not the glossary's term (DB22).",
+        "The dash and \"that is the reward for inventing something\": the design's reason (O9, X4, fact 6).",
+        "Not stated here, in either language now: the Remnant a hit leaves (fact 4), which the description, DRPG.Action.dynamicDescription, says (O3); the Polish drops „Sukces zostawia Remnant: im łatwiejsze zadanie, tym widoczniejszy”."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3806,16 +4344,23 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        4
+      ],
       "en": {
         "before": "Any action at all, provided you describe it in detail - the GM sets the difficulty and the statistic. The thresholds are gentler than the standard actions, as a deliberate reward for inventing something.",
-        "after": null
+        "after": "Do anything you describe, if a GM accepts it; the GM picks the statistic and how hard it is. A hit leaves a Remnant, and the easier the task, the more visible it is; a miss leaves none."
       },
       "pl": {
         "before": "Dowolna akcja, byle opisana szczegółowo - GM ustala trudność i statystykę. Progi są łagodniejsze niż w akcjach standardowych, celowo, jako nagroda za pomysł.",
-        "after": null
+        "after": "Opisujesz, co robisz, a GM wybiera próg trudności i statystykę albo odrzuca pomysł. Trafienie zostawia Remnant, tym widoczniejszy, im łatwiejsze zadanie, a pudło nie zostawia nic."
       },
-      "removed": [],
+      "removed": [
+        "\"provided you describe it in detail\" becomes \"anything you describe, if a GM accepts it\": the window requires a description, no rule reads its detail, and a GM may refuse (fact 1).",
+        "\"The thresholds are gentler than the standard actions, as a deliberate reward for inventing something\": a comparison no function makes (fact 5), the design's reason (O9), and not the glossary's term (DB22, fact 6).",
+        "Not stated here, in either language now: the price and the refusal costing nothing (fact 2), which the tile hint, DRPG.Action.dynamicHint, says; the bands and their tier for a find (fact 3). The Polish drops „odrzucenie nic nie kosztuje”, „Akcję wydajesz po ustaleniu trudności, przed rzutem” and the find of the band's tier."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
@@ -3874,23 +4419,36 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
       "en": {
         "before": "“(fallback)” = never assigned, so the student feeds the first pool. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it.",
-        "after": null
+        "after": "Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody."
       },
       "pl": {
         "before": "„(domyślnie)” = nieprzypisany, więc uczeń zasila pierwszą pulę. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony.",
-        "after": null
+        "after": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”."
       },
-      "removed": [],
+      "removed": [
+        "The \"=\" and the dashes around \"an NPC, a template\" (X4, X6) become sentences."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
         "en": null,
         "coldEn": null,
         "pl": null,
-        "mechanics": null
+        "mechanics": {
+          "verdict": "change",
+          "points": [
+            "pl: '(domyślnie)' and '- nikt -' must be the Polish labels the table draws (pl.json DRPG.Assign.fallbackOption and the nobody option); neither Polish label is in the excerpts (correction: quote the pl.json labels exactly). - executor: Kept: pl.json is not among the files of this revision, so the labels stay the old Polish text's own, „(domyślnie)” and „- nikt -”; they are to be checked against DRPG.Assign.fallbackOption and the nobody option by hand."
+          ]
+        }
       },
       "owner": null
     },
@@ -3948,16 +4506,25 @@
           "note": null
         }
       ],
-      "kept": null,
+      "kept": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
       "en": {
         "before": "Despair from a student's rolls goes to the pool a GM assigned them to in Despair Flow; a student nobody assigned falls back to the first pool and is named here until assigned. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
-        "after": null
+        "after": "In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”."
       },
       "pl": {
         "before": "Despair z rzutów ucznia idzie do puli, do której GM przypisał go w Despair Flow; uczeń, którego nikt nie przypisał, trafia do pierwszej puli i jest tu wymieniony, dopóki nie zostanie przypisany. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
-        "after": null
+        "after": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”."
       },
-      "removed": [],
+      "removed": [
+        "\"and that is fine\": a reassurance (O10).",
+        "The dashes around \"an NPC, a template\" (X4)."
+      ],
       "needsCode": [],
       "disagreements": [],
       "reviews": {
