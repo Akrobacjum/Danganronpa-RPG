@@ -524,30 +524,30 @@ const INVARIANTS = [
          * touching the counter are the clock moving past the stamp and the
          * Eclipse flag flipping.
          *
-         * Read from source. Driving it needs a boundary on a live world, and
-         * what regresses here is one line in a switch: it is deleted by anyone
-         * tidying "the pools did not change, why redraw the pools".
+         * Read off the bus's table (E37 C5: sync.mjs `KIND_REFRESH`, a row of
+         * names a kind, where this read a `switch`'s cases until then; red at
+         * 2b2707ec, which has no table). Driving it needs a boundary on a live
+         * world, and what regresses here is one name in a row: it is deleted by
+         * anyone tidying "the pools did not change, why redraw the pools".
          */
-        const sources = new Map(await otherSources());
-        const sync = stripComments(sources.get("sync.mjs") ?? "");
-        ok(sync.length > 1000, "sync.mjs did not load");
-
-        // Cut with the kit (E30), which asks for each case with `must`, not `ok`.
-        const caseOf = (name, next) => bodyOf(sync, `case SYNC.${name}:`, { until: `case SYNC.${next}:` });
+        const S = await import("./sync.mjs");
+        must(S.KIND_REFRESH && S.REFRESHES, "sync.mjs has no KIND_REFRESH or REFRESHES - the rows this test reads");
+        must(/renderDespairBar/.test(String(S.REFRESHES.bar ?? "")), "REFRESHES.bar no longer draws the Despair caption (renderDespairBar)");
+        const draws = kind => (S.KIND_REFRESH[kind] ?? []).some(entry => entry === "bar");
 
         // The stamp stands still and the clock walks out from under it.
-        ok(/renderDespairBar/.test(caseOf("clock", "eclipse")),
+        ok(draws(S.SYNC.clock),
             "a time of day ending no longer redraws the Despair caption - "
             + "\"Darkened\" outlives the darkening, which is how this was reported");
 
-        // And the branch that reads `clock.eclipse` rather than the time of day.
-        ok(/renderDespairBar/.test(caseOf("eclipse", "visibility")),
+        // And the row that reads `clock.eclipse` rather than the time of day.
+        ok(draws(S.SYNC.eclipse),
             "an Eclipse starting or ending no longer redraws the Despair caption, "
             + "and overflowEffect() answers differently on both sides of it");
 
         // The road that was always there, so a tidy-up cannot move the redraw
         // out of the other two by putting it all here.
-        ok(/renderDespairBar/.test(caseOf("overflow", "searchTokens")),
+        ok(draws(S.SYNC.overflow),
             "the counter changing no longer redraws its own caption");
     }],
 
@@ -24790,26 +24790,35 @@ const INVARIANTS = [
         const heard = typeof S.clockNews === "function" ? S.clockNews(null, C0).heard : null;
         const news = c => {
             const n = S.clockNews(heard, c);
-            return [n.same, n.timeOfDay, n.phase, n.eclipse].map(Number).join("");
+            return [n.same, n.timeOfDay, n.phase, n.eclipse, n.moved].map(Number).join("");
         };
         got.news = heard ? [{ ...C0 }, { ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, timeOfDay: "noon" },
             { ...C0, chapter: 2 }, { ...C0, session: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }].map(news) : null;
+        /* E37 C5 (01.11.2026; E37-20): the clock's work is a row of sync.mjs `KIND_REFRESH`, each hook run by the field of
+           the reading that names it, and the visibility pass by `moved` - so a write that moves no calendar, phase or Eclipse
+           (a pause, a name) runs no pass, where the clock's case ran one on every run (scenario 81 at 2b2707ec: 1 a browser
+           for a pause). Red at 2b2707ec: no `moved`, no table. */
         const src = stripComments(new Map(await moduleSources()).get("sync.mjs") ?? "");
-        const clockCase = bodyOf(src, "case SYNC.clock:", { until: "case SYNC.eclipse:" });
-        const eclipseCase = bodyOf(src, "case SYNC.eclipse:", { until: "case SYNC.visibility:" });
-        got.source = [/const apply = coalescer\(/.test(src), /clockNews\(/.test(clockCase),
-            /if \(news\.timeOfDay\)[^]*?"drpgTimeOfDayChanged"/.test(clockCase), /"drpgPhaseChanged"/.test(clockCase),
-            /if \(news\.eclipse\)[^]*?"drpgEclipseChanged"/.test(clockCase), /heard\.eclipse/.test(eclipseCase),
-            typeof S.clockHeard === "function" && S.clockHeard() !== null];
+        const row = S.KIND_REFRESH?.[S.SYNC?.clock] ?? [];
+        const gate = name => row.find(entry => entry?.name === name)?.when ?? null;
+        // Read where it stands, so that the tree before C5 (a `case`, no reading) shows the whole of what it measured.
+        const eclipseNews = src.includes("[SYNC.eclipse]: data =>") ? bodyOf(src, "[SYNC.eclipse]: data =>", { until: "\n    }" }) : "";
+        const ran = c => (typeof S.refreshNames === "function" && heard ? S.refreshNames(S.SYNC.clock, S.clockNews(heard, c)) : null);
+        got.passes = [{ ...C0, pausedAt: 5 }, { ...C0, campaignName: "B" }, { ...C0, day: 2 }, { ...C0, phase: "investigation" }, { ...C0, eclipse: true }]
+            .map(c => ran(c)?.includes("visibility") ?? null);
+        got.source = [/const apply = coalescer\(/.test(src), gate("timeOfDayHook"), gate("phaseHook"), gate("eclipseHook"), gate("visibility"),
+            /heard\.eclipse/.test(eclipseNews), typeof S.clockHeard === "function" && S.clockHeard() !== null];
         equal(J(got), J({
             pair: [["clock", 150, { clock: { day: 2 }, summary: { rolledOver: false } }], ["eclipse", 150, { active: true }]],
             stream: [[360, 3], [760, 7], [1020, 9]],
-            news: ["1000", "0000", "0000", "0100", "0100", "0100", "0100", "0010", "0001"],
-            source: [true, true, true, true, true, true, true]
+            news: ["10000", "00000", "00000", "01001", "01001", "01001", "01001", "00101", "00011"],
+            passes: [false, false, true, true, true],
+            source: [true, "timeOfDay", "phase", "eclipse", "moved", true, true]
         }), "{pair: the runs of an onChange and its broadcast 30 ms apart, and another kind's; stream: [ms after the first, the run's n] for ten "
-            + "events 100 ms apart; news: [same, time of day, phase, Eclipse] for the clock unchanged, paused, renamed, day, time of day, chapter, "
-            + "session, phase, Eclipse; source: apply is the coalescer, the clock branch reads clockNews and fires the time of day's, the phase's and "
-            + "the Eclipse's hooks by it, the Eclipse branch reads what was heard, this browser holds what it heard of the clock since its ready}");
+            + "events 100 ms apart; news: [same, time of day, phase, Eclipse, moved] for the clock unchanged, paused, renamed, day, time of day, "
+            + "chapter, session, phase, Eclipse; passes: the clock's row runs the visibility pass for a pause, a name, a day, a phase, an Eclipse; "
+            + "source: apply is the coalescer, the clock's row runs the time of day's, the phase's and the Eclipse's hooks and the pass by the "
+            + "fields that name them, the Eclipse's reading reads what was heard, this browser holds what it heard of the clock since its ready}");
     }],
 
     ["R996 - the stopwatch's reading (E17 C6): a pause is frozen and then subtracted, the start of the time of day never moves, a reload and the gap since the primary's last beat add nothing, an Eclipse shows none, and no summary without a stamp", async () => {
@@ -31124,6 +31133,121 @@ const INVARIANTS = [
             + "boundary summed up already - by Next, by an Eclipse, and Next after an Eclipse ended without advancing; rewind: noon back to the "
             + "morning, a morning back to last night; calendar: a new season, a new chapter; pause; stampless: no stamp at a move and at an "
             + "Eclipse; putBack: a clock put back with an older stamp; none: no clock before, none after}");
+    }],
+    ["R1198 - the bus is a table (E37 C5, E37-19 to E37-23; audit S17-19, S07-26): sync.mjs `KIND_REFRESH` gives every `SYNC` kind a frozen row of names of `REFRESHES` and every refresh a row; `refresh` runs a kind's row and nothing else; the clock's row runs the visibility pass and the hooks only for what moved; `SYNC.despair` renders the Monokumas' sheets and no student's; the incident's world half and its cast copy reach `SYNC.incident`, whose row runs the pass; `trialQueue` and `trialProgress` reach the trial's row with the voice tile; visibility.mjs runs no pass of its own on the clock's hooks", async () => {
+        /*
+         * E37 C5, 01.11.2026. `refresh` was a `switch` of thirteen kinds whose cases each listed their redraws, the clock's
+         * ran the visibility pass on every run while visibility.mjs ran it again on the clock's two hooks, and the
+         * incident's world half travelled `SYNC.restrictions`, which runs no pass, so a participant's cast copy landing
+         * after a trace was drawn left it hidden from them (scenario 81 part G). Read here: the table's shape against `SYNC`
+         * and `REFRESHES`; `refresh` run on a stub table of the test's own (it reads no clock and writes nothing); the
+         * clock's row through `refreshNames` for readings `clockNews` makes of plain clocks; the Despair row's sheet
+         * refresh run on two stand-in sheets in `ui.windows` for the length of the test (a student's, a Monokuma's, each
+         * counting its renders; as R1013); and three tables of the source - `SETTING_KINDS`, settings.mjs's
+         * `onCastChange` and visibility.mjs's `registerVisibility` - cut with the kit. Nothing is written. Red at
+         * 2b2707ec: no table.
+         */
+        const J = stableJson;
+        const S = await import("./sync.mjs");
+        must(S.KIND_REFRESH && S.REFRESHES && typeof S.refreshNames === "function" && typeof S.refresh === "function",
+            "sync.mjs has no KIND_REFRESH, REFRESHES, refreshNames or refresh - the bus is still a switch (S17-19)");
+        const table = S.KIND_REFRESH, refreshes = S.REFRESHES;
+        const kinds = Object.values(S.SYNC);
+        const nameOf = entry => (typeof entry === "string" ? entry : entry?.name);
+        const rowNames = kind => (table[kind] ?? []).map(nameOf);
+        const got = {};
+        got.shape = {
+            rowless: kinds.filter(kind => !Array.isArray(table[kind])),
+            strangers: Object.keys(table).filter(kind => !kinds.includes(kind)),
+            frozen: Object.isFrozen(table) && Object.isFrozen(refreshes) && kinds.every(kind => !table[kind] || Object.isFrozen(table[kind])),
+            unknown: [...new Set(kinds.flatMap(rowNames))].filter(name => typeof refreshes[name] !== "function"),
+            unused: Object.keys(refreshes).filter(name => !kinds.some(kind => rowNames(kind).includes(name)))
+        };
+
+        // A row of stubs: run in its order with the burst's data, a `when` the reading does not name left out, nothing else.
+        const calls = [];
+        const stubs = {
+            first: data => { calls.push(["first", data.n]); return Promise.resolve(); },
+            second: data => { calls.push(["second", data.n]); },
+            gated: () => { calls.push(["gated"]); },
+            other: () => { calls.push(["other"]); }
+        };
+        const stub = Object.freeze({ "R1198 kind": Object.freeze(["first", "second", Object.freeze({ name: "gated", when: "moved" })]),
+            "R1198 other": Object.freeze(["other"]) });
+        got.stub = {
+            ran: S.refresh("R1198 kind", { n: 7 }, { table: stub, refreshes: stubs }),
+            calls: calls.splice(0),
+            unknown: S.refresh("R1198 no row", {}, { table: stub, refreshes: stubs }),
+            after: calls.splice(0),
+            gated: S.refreshNames("R1198 kind", { moved: true }, stub),
+            none: S.refreshNames("R1198 no row", {}, stub)
+        };
+
+        // The clock's row: the pass when the time of day, the phase or the Eclipse moved; each hook for what it names.
+        const C0 = { season: 1, chapter: 1, session: 1, day: 1, timeOfDay: "morning", phase: "dailyLife", eclipse: false, pausedAt: null, campaignName: "A" };
+        const heard = S.clockNews(null, C0).heard;
+        const HOOKS = ["timeOfDayHook", "phaseHook", "eclipseHook"];
+        const reading = names => [names.includes("visibility"), names.filter(name => HOOKS.includes(name))];
+        const clock = c => reading(S.refreshNames(S.SYNC.clock, S.clockNews(heard, c)));
+        got.clock = {
+            pause: clock({ ...C0, pausedAt: 5 }), name: clock({ ...C0, campaignName: "B" }), day: clock({ ...C0, day: 2 }),
+            phase: clock({ ...C0, phase: "investigation" }), eclipse: clock({ ...C0, eclipse: true }),
+            beforeReady: reading(S.refreshNames(S.SYNC.clock, S.clockNews(null, C0))),
+            always: rowNames(S.SYNC.clock).filter(name => !["visibility", ...HOOKS].includes(name))
+        };
+
+        // The Despair row on two stand-ins: the Monokuma's sheet rendered, the student's not.
+        const student = studentActors()[0];
+        must(student, "no student in this world - the Despair row would be run past nobody's sheet");
+        const renders = {};
+        const sheet = (id, doc) => ({ appId: id, id, document: doc, rendered: true, element: null, position: {},
+            render() { renders[id] = (renders[id] ?? 0) + 1; return this; }, bringToTop() {}, async close() {} });
+        const monokuma = { type: "character", name: "R1198 Monokuma", getFlag: (scope, key) => (key === FLAGS.monokuma ? true : undefined) };
+        const ids = ["R1198-student", "R1198-monokuma"];
+        const windows = ui.windows ?? {};
+        must(ids.every(id => !(id in windows)), "a window of this world already holds one of the stand-ins' ids");
+        const sheetNames = rowNames(S.SYNC.despair).filter(name => /sheets/i.test(name));
+        try {
+            windows[ids[0]] = sheet(ids[0], student);
+            windows[ids[1]] = sheet(ids[1], monokuma);
+            for (const name of sheetNames) await refreshes[name]({}, {});
+        } finally {
+            ids.forEach(id => { if (windows[id]?.appId === id) delete windows[id]; });
+        }
+        got.despair = { sheetNames, renders: ids.map(id => renders[id] ?? 0) };
+
+        // The incident (S07-26) and the trial, by the tables that route their settings.
+        const sources = new Map(await moduleSources());
+        const kindsOf = bodyOf(stripComments(sources.get("sync.mjs") ?? ""), "const SETTING_KINDS", { until: "};" });
+        const kindOf = key => kindsOf.match(new RegExp(`^\\s*${key}:\\s*SYNC\\.(\\w+)`, "m"))?.[1] ?? null;
+        const cast = bodyOf(stripComments(sources.get("settings.mjs") ?? ""), "const onCastChange", { until: "};" });
+        const listens = bodyOf(stripComments(sources.get("visibility.mjs") ?? ""), "export function registerVisibility", { until: "\n}\n" });
+        got.routes = {
+            murderState: kindOf("murderState"), trialQueue: kindOf("trialQueue"), trialProgress: kindOf("trialProgress"),
+            castCopy: /onWorldChange\(SETTINGS\.murderState\)/.test(cast) && /"drpgCastChanged"/.test(cast),
+            incident: ["sheets", "hud", "visibility"].map(name => rowNames(S.SYNC.incident).includes(name)),
+            trial: ["trialFloor", "hud", "voiceTile"].map(name => rowNames(S.SYNC.trial).includes(name)),
+            ownPasses: ["drpgTimeOfDayChanged", "drpgEclipseChanged"].filter(hook => listens.includes(`"${hook}"`))
+        };
+
+        equal(J(got), J({
+            shape: { rowless: [], strangers: [], frozen: true, unknown: [], unused: [] },
+            stub: { ran: ["first", "second"], calls: [["first", 7], ["second", 7]], unknown: [], after: [], gated: ["first", "second", "gated"], none: null },
+            clock: {
+                pause: [false, []], name: [false, []], day: [true, ["timeOfDayHook"]], phase: [true, ["phaseHook"]], eclipse: [true, ["eclipseHook"]],
+                beforeReady: [true, HOOKS], always: ["assembly", "bar", "hud", "sheets", "eclipse"]
+            },
+            despair: { sheetNames: ["monokumaSheets"], renders: [0, 1] },
+            routes: {
+                murderState: "incident", trialQueue: "trial", trialProgress: "trial", castCopy: true,
+                incident: [true, true, true], trial: [true, true, true], ownPasses: []
+            }
+        }), "{shape: SYNC kinds with no row, rows of no kind, all frozen, names no refresh holds, refreshes no row names; stub: a stub "
+            + "row run with {n: 7} - the names run, the calls, a kind with no row, the gated name when the reading names it, no row; clock: "
+            + "[the pass, the hooks] for a pause, a name, a day, a phase, an Eclipse, before ready, and the names every run of the clock "
+            + "runs; despair: the Despair row's sheet refreshes and the renders of [a student's sheet, a Monokuma's]; routes: the kinds of "
+            + "murderState, trialQueue, trialProgress, the cast copy through murderState's road with drpgCastChanged, the incident's row "
+            + "[sheets, hud, visibility], the trial's [floor, hud, voice tile], the clock's hooks visibility.mjs still runs a pass on}");
     }],
 ];
 

@@ -392,7 +392,7 @@ let lastPublicClock = null;
  * screen would tell each outsider that the GM is doing something at this hour.
  * So an outsider's HUD keeps showing the clock as it stood when the incident
  * began, and catches up the moment it ends - `murderState` clearing travels
- * the sync bus, which re-renders the HUD on every client (SYNC.restrictions).
+ * the sync bus, which re-renders the HUD on every client (SYNC.incident since E37 C5).
  *
  * The GM and the participants' owners see the truth throughout; they are the
  * people the incident is happening TO. Note the world SETTING still reaches

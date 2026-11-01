@@ -35,11 +35,12 @@
  *     as shown (Neutral, not read; the reading on no other student's sheet), Botan - dead with nobody told since D -
  *     none; then with the result: the second card reads it, and still one copy.
  *   M (E70 C13, what a turn's change costs; E70-83): a Testimony's turn passes from Aiko to Chie by p1's Done with the
- *     GM's console and Aiko's sheet open on p1: each browser draws its HUD once (`hud.renderHud`) and renders no sheet
- *     through the clock (`clock.refreshSheets.rendered`), the console stays one window whose live region is rebuilt by
- *     its one-second tick and the change (live.mjs `diagnoseLive`), and on p1 Aiko's sheet is not rendered while its
- *     row's Present is painted in place - held, "Only Chie Mori can present right now.". Measured 28.10.2026 at
- *     4c58d5a7+edits: hud 1 on each of the four, sheets 0, the console's region 2 in 1.5 s, the sheet's renders 0.
+ *     GM's console and Aiko's sheet open on p1: the console stays one window whose live region is rebuilt by its
+ *     one-second tick and the change (live.mjs `diagnoseLive`), and on p1 Aiko's sheet is not rendered while its row's
+ *     Present is painted in place - held, "Only Chie Mori can present right now.". Measured 28.10.2026 at
+ *     4c58d5a7+edits: hud 1 on each of the four, sheets 0, the console's region 2 in 1.5 s, the sheet's renders 0. The
+ *     two counts - the HUD drawn once on each browser, no sheet rendered through the clock's pass - are 81-render-budget
+ *     part F's since E37 C5 (E37-23), on sheets that register where the pass looks; M still records them in its log.
  * The canary's player scan runs after every phase (`canary.scan`) on a GM's Key Remnant plan planted at the start.
  *
  * What it cannot see: a round at a table of 14-15 people (LIVE-E70-07), a step over on a real server's latency
@@ -396,11 +397,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return true;`, { timeout: 60000 });
 
     /* ------------------------------ M. what a turn's change costs ------------------------------ */
-    /* E70-83 (81-render-budget's case until E37, on E88's counters): a Testimony's turn passing from Aiko to Chie, with
-       the GM's console open and Aiko's sheet open on p1, is read on every browser - the HUD drawn (`hud.renderHud`), the
-       console's live region rebuilt and whether its window was opened again (live.mjs `diagnoseLive`, the window's
-       element), and on p1 how often Aiko's sheet was rendered and whether its row's Present was painted in place. */
-    begin("M", "a turn's change: one console region, one HUD a browser, no sheet rendered beyond its Present button");
+    /* E70-83 (on E88's counters): a Testimony's turn passing from Aiko to Chie, with the GM's console open and Aiko's
+       sheet open on p1, is read on every browser - the console's live region rebuilt and whether its window was opened
+       again (live.mjs `diagnoseLive`, the window's element), and on p1 how often Aiko's sheet was rendered and whether its
+       row's Present was painted in place. The HUD's and the sheet pass's counts are logged, not judged: 81-render-budget
+       part F holds them since E37 C5 (E37-23). */
+    begin("M", "a turn's change: one console region, no sheet rendered beyond its Present button");
     const mItem = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
         const item = await T.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "S67 M evidence", realType: "incident", shownType: "incident",
             playerText: "S67 M the words" });
@@ -451,8 +453,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     console.log(`[67 M] ${J({ consoleOpen, sheetOpen, turned, mFloor, cost })}`);
     verdict("p1 calls Aiko's turn done with the GM's console and Aiko's sheet open: the floor is Chie's",
         consoleOpen && sheetOpen.button && !sheetOpen.held && turned.ok && mFloor?.holder === IDS.chie, J({ consoleOpen, sheetOpen, turned, mFloor }));
-    verdict("the turn's change draws the HUD once on each browser, and no sheet through the clock's pass",
-        ["gm", "p1", "p2", "p3"].every(w => cost[w].hud === 1 && cost[w].sheets === 0), J(cost));
     verdict("the GM's console stays the same window and rebuilds its live region no more than its one-second tick and the change itself",
         cost.gm.sameConsole === true && cost.gm.consoleRefreshes !== null && cost.gm.consoleRefreshes >= 1
             && cost.gm.consoleRefreshes <= Math.ceil(cost.gm.seconds) + 1, J(cost.gm));

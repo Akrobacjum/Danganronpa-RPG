@@ -24,7 +24,7 @@ import { getClock, isEclipse } from "./settings.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION = "sync";
 
-/** What can be announced. Add a kind here and a handler in `apply`. */
+/** What can be announced. Add a kind here and its row in `KIND_REFRESH` (R1198 holds every kind to one). */
 export const SYNC = {
     /** The clock moved: time of day, day, session, chapter, phase. */
     clock: "clock",
@@ -40,6 +40,13 @@ export const SYNC = {
     searchTokens: "searchTokens",
     /** A room was sealed or unsealed, or a player silenced or chained. */
     restrictions: "restrictions",
+    /**
+     * The incident's world half (`murderState`) or this browser's copy of its cast changed (E37 C5, 01.11.2026; audit
+     * S07-26, E37-22): the sheets and the HUD, as `restrictions` drew them until C5, and who sees the incident's
+     * Remnants - visibility.mjs `myIncidentTrace` reads the cast once a pass, and no pass ran when a participant's copy
+     * landed after a trace was drawn, so the participant did not see it until something else asked one (81 part G).
+     */
+    incident: "incident",
     /** The Class Trial's speaking floor moved. */
     trial: "trial",
     /** A killing game rule was introduced, reworded or revoked. */
@@ -95,8 +102,10 @@ const SETTING_KINDS = {
     searchTokens: SYNC.searchTokens,
     projectMeta: SYNC.projects,
     // An incident turn changes what both participants may do right now, so the
-    // sheets have to redraw the moment the state moves.
-    murderState: SYNC.restrictions,
+    // sheets have to redraw the moment the state moves - and its stage and its
+    // close change who sees its Remnants (`SYNC.incident`, E37 C5). The cast copy's
+    // client settings come this road too (settings.mjs `onCastChange`).
+    murderState: SYNC.incident,
     // The body card is a card on the Event panel, which `renderHud` redraws -
     // and the music state machine reads this too. `restrictions` already
     // redraws the HUD and every open sheet, which is the whole of what changes.
@@ -310,9 +319,12 @@ export async function syncIdle({ kinds = null, timeout = COALESCE_MAX_WAIT_MS * 
  * name, a phase, the Eclipse's flag - to listeners that read it as the time moving
  * (the owed Despair paid, the betrayal windows swept, the trace digest sent). Read at
  * `ready` (`registerSync`), so a browser that loads mid-Eclipse is not told the
- * Eclipse began (`clockHeard`, R995, reads that it was); the Eclipse branch reads
- * and writes its `eclipse` too, so whichever of the clock's write and
- * `broadcastEclipse` lands first tells the listeners, once.
+ * Eclipse began (`clockHeard`, R995, reads that it was); the Eclipse's reading
+ * (`KIND_NEWS`) reads and writes its `eclipse` too, so whichever of the clock's
+ * write and the Eclipse's own packet lands first tells the listeners, once. That
+ * packet is eclipse.mjs `broadcastEclipse` at a start, sent after the whispers, and
+ * clock.mjs `reconcileEclipseEnded` at an end, sent from the clock's write itself:
+ * since E37 C2 `endEclipse` sends none of its own (tier 2 E37-T2 counts one).
  */
 let heard = null;
 
@@ -329,18 +341,270 @@ export function clockNews(before, clock) {
     const calendar = JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.day ?? null,
         clock?.session ?? null, clock?.timeOfDay ?? null]);
     const next = { json: JSON.stringify(clock ?? null), calendar, phase: clock?.phase ?? null, eclipse: clock?.eclipse === true };
-    if (!before) return { same: false, timeOfDay: true, phase: true, eclipse: true, heard: next };
-    return {
-        same: next.json === before.json,
-        timeOfDay: next.calendar !== before.calendar,
-        phase: next.phase !== before.phase,
-        eclipse: next.eclipse !== before.eclipse,
-        heard: next
-    };
+    if (!before) return { same: false, timeOfDay: true, phase: true, eclipse: true, moved: true, heard: next };
+    const timeOfDay = next.calendar !== before.calendar, phase = next.phase !== before.phase, eclipse = next.eclipse !== before.eclipse;
+    // `moved` (E37 C5): one of the three a verdict of visibility.mjs can read moved - the clock row's pass (KIND_REFRESH).
+    return { same: next.json === before.json, timeOfDay, phase, eclipse, moved: timeOfDay || phase || eclipse, heard: next };
 }
 
-function refresh(kind, data = {}) {
+/*
+ * THE BUS AS A TABLE (E37 C5, 01.11.2026; audit S17-19, E37-19). Until C5 `refresh` was a `switch` of thirteen kinds,
+ * each case a list of `run(label, import().then(...))` lines, and what one kind redrew could be learnt only by reading
+ * its case. Now each piece of work is named once (`REFRESHES`), each kind is a row of those names (`KIND_REFRESH`), and
+ * `refresh` runs a kind's row and nothing else; R1198 holds every `SYNC` kind to a row and every name in a row to a
+ * refresh. The clock's and the Eclipse's readings (`KIND_NEWS`) are the cases' first lines as they stood: a run that
+ * finds nothing new does nothing, and the clock's row runs a piece only when what it names moved.
+ */
+
+/**
+ * The work the bus can do on a browser, by name: `(data, news) => Promise`, each the `import().then(...)` a case of
+ * `refresh` ran until E37 C5, the comments that chose it kept beside it. `data` is the burst's merged data (`apply`),
+ * `news` the kind's reading (`KIND_NEWS`; `{}` for a kind that reads none). Frozen: the bus's whole repertoire.
+ */
+export const REFRESHES = Object.freeze({
+    /*
+     * A CALLED ASSEMBLY IS HELD HERE, AND BY ONE CLIENT ONLY.
+     *
+     * `runPendingGather` refuses on anybody but the primary GM and on
+     * an order that is not ripe yet, then clears the order BEFORE it
+     * moves anybody - so the second arrival of this event (the socket
+     * and the setting's `onChange` both describe it) finds nothing to
+     * do. First in the clock's row, because a teleport that lands after the HUD
+     * redraw shows the cast a room they are no longer standing in.
+     */
+    assembly: () => import("./call-effects.mjs").then(m => m.runPendingGather()),
+    /*
+     * THE CLOCK IS WHAT ENDS A DARKENING (Dawid, 31.08).
+     *
+     * "Darkened - this time of day" stayed on the caption after the
+     * time of day it named had passed. Nothing was wrong with the
+     * mechanic: `overflowEffect()` compares the armed stamp against the
+     * clock, so it had already stopped answering - every reader that
+     * asks at the moment it acts was correct. It was the one reader
+     * that does NOT ask again, the pixels, and the pixels are the only
+     * place the table looks.
+     *
+     * Measured before the fix: stamp on `evening`, clock moved to
+     * `night`, `overflowStatus().active` false and the badge still in
+     * the DOM. A manual `renderDespairBar()` cleared it.
+     *
+     * The caption reads the CLOCK as much as it reads the counter, so
+     * it belongs on both roads. `SYNC.overflow` already redraws it when
+     * the counter or the stamp moves; the clock's row is the other half - the
+     * stamp standing still while the clock walks out from under it. It
+     * covers the arrival too: a stamp armed mid-hour for the hour ahead
+     * lights up when that hour begins, and until then that also waited
+     * for something unrelated to redraw the widget.
+     *
+     * The Eclipse's row has it for the same reason. `overflowEffect()` has an
+     * Eclipse branch: while one runs the clock has not moved yet, so a
+     * stamp armed for the time of day the Eclipse opens counts as
+     * running already. That answer flips when the Eclipse starts and
+     * when it ends, and neither of those is a counter change.
+     */
+    bar: () => import("./despair.mjs").then(m => m.renderDespairBar?.()),
+    hud: () => import("./hud.mjs").then(m => m.renderHud()),
+    sheets: () => import("./clock.mjs").then(m => m.refreshSheets()),
+    /* THE MONOKUMAS' SHEETS ONLY (E88 C4, 27.10.2026; E88-09, E37's line taken early). A pool, its name, who
+       holds one and which pool a Monokuma spends are read on a sheet by the Monokuma's Despair panel alone
+       (sheet.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of
+       them, and every one open was rendered on each Despair spent. Scenario 86 at 7baff238: a pass on every
+       browser for each write. A student's sheet is still rendered by its own actor's update (a Despair Call's
+       Hope, a Reroll's), which is not this road. `SYNC.despair`'s row (R1013, R1198; 81 part E). */
+    monokumaSheets: () => Promise.all([import("./clock.mjs"), import("./monokuma.mjs")])
+        .then(([clock, monokuma]) => clock.refreshSheets({ only: monokuma.isMonokuma })),
+    /* The body class only; the HUD and the visibility pass are their own names in the same rows (CORE-12). */
+    eclipse: () => import("./eclipse.mjs").then(m => m.refreshEclipse()),
+    /* The whole visibility pass (visibility.mjs `applyAll`): what this browser shows of every token, the incident's
+       Remnants and the projects' among them. Its own note says why it flags every token for Foundry's refresh - the
+       road that gives other people's hidden tokens back. */
+    visibility: () => import("./visibility.mjs").then(m => m.applyAll()),
+    projects: () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()),
+    /* The world setting has just landed, so it is authoritative again -
+       drop the player-side "GM just told me" cache rather than let it
+       outlive the value it was standing in for. */
+    searchCache: () => import("./search-tokens.mjs").then(m => m.SearchTokens.clearFreshCounts()),
+    trialFloor: () => import("./trial-floor.mjs").then(m => m.renderTrialFloor()),
+    /* The voice tile's microphone (E70 C5): the trial's list of the dead (`trialProgress.mutedDead`) and a Monocub's
+       line follow the floor and the record (voice.mjs `micHold`), and a client setting's or the user's own change does
+       not come here. */
+    voiceTile: () => import("./voice-tile.mjs").then(m => m.paintControls()),
+    /* The mirror first: a ledger that SHRANK (season reset, "hide
+       all") has to take this client's session mirror with it, or the
+       repaint redraws the stale union and the reset only shows after a
+       reload - see `reconcileMirror` in fog.mjs. */
+    fog: () => import("./fog.mjs").then(m => {
+        m.reconcileMirror();
+        return m.repaintFog();
+    }),
+    camera: data => import("./call-world.mjs").then(m => m.panToGathered(data)),
+    readyWindow: () => import("./boundary.mjs").then(m => m.renderReadyRound()),
+    /* Local listeners (other modules, macros) get their hooks on every client, which is what they always meant. A
+       listener is handed the clock as the setting holds it, never an empty object, and the summary when the burst held
+       the GM's broadcast. Each goes out through a module's import, as it did before E17 C6, so it comes after the
+       redraws the row queued before it. */
+    timeOfDayHook: (data, news) => import("./clock.mjs").then(() => Hooks.callAll("drpgTimeOfDayChanged", news.clock, data.summary ?? {})),
+    phaseHook: (data, news) => import("./clock.mjs").then(() => Hooks.callAll("drpgPhaseChanged", news.clock?.phase ?? null)),
+    eclipseHook: (data, news) => import("./clock.mjs").then(() => Hooks.callAll("drpgEclipseChanged", news.active === true))
+});
+
+/** A row's entry that runs only when its kind's reading names `when` (the clock's row). */
+const onlyWhen = (name, when) => Object.freeze({ name, when });
+
+/**
+ * WHAT EACH KIND REDRAWS, ONE ROW A KIND (E37 C5; R1198): the names of `REFRESHES` in the order they run, an entry
+ * `{ name, when }` run only when the kind's reading names `when`. Frozen, beside `SETTING_KINDS`, which says which
+ * setting means which kind.
+ */
+export const KIND_REFRESH = Object.freeze({
+    /*
+     * ONE VISIBILITY PASS A CHANGE OF THE CLOCK, AND NONE FOR A PAUSE (E37 C5, 01.11.2026; audit S17-19, S10-46,
+     * E37-20). This row ran `visibility` on every run, and visibility.mjs bound the same pass to
+     * `drpgTimeOfDayChanged` and `drpgEclipseChanged`, which this row fires: scenario 81 at 2b2707ec counted on each of
+     * the four browsers 2 passes for a time of day moved, 2 for an Eclipse's start, 3 or 4 for its end (the time of day
+     * moves with it) and 1 for a pause, which no verdict reads. Those listeners are gone and the pass is the row's, run
+     * when the clock's reading names the time of day, the phase or the Eclipse (`moved`; visibility.mjs reads only the
+     * Eclipse's flag of the clock, the other two kept as the plan words it). The pass the row keeps is the one that
+     * flags every token for Foundry's refresh, so other people's hidden tokens come back as before; 81 checks every
+     * browser's tokens against a whole pass after every event (E37-21).
+     */
+    [SYNC.clock]: Object.freeze(["assembly", "bar", "hud", "sheets", "eclipse", onlyWhen("visibility", "moved"),
+        onlyWhen("timeOfDayHook", "timeOfDay"), onlyWhen("phaseHook", "phase"), onlyWhen("eclipseHook", "eclipse")]),
+    /* Every other kind re-renders open character sheets, and this one did not: the action panel and the Calls panel
+       both read `isEclipse()` at render time (see sheet.mjs), so a sheet already open when the Eclipse starts or ends
+       was left showing the pre-Eclipse state - actions and Calls looking clickable when they are not, or still greyed
+       out a whole time of day after they came back. */
+    [SYNC.eclipse]: Object.freeze(["eclipse", "bar", "hud", "visibility", "sheets", "eclipseHook"]),
+    /* The only thing drawn through this kind is the Eclipse's crossings - the GMs' store and an owner's copy since
+       E05, which are no world settings and name the kind themselves (settings.mjs `onStoreChange`), and a death the GMs
+       keep (`onDeathsChange`) - and the crossings are printed on the sheet twice, the budget line and the Move tile's
+       own cost label. At most two writes per character per Eclipse, so not the per-frame cost its name suggests. */
+    [SYNC.visibility]: Object.freeze(["visibility", "sheets", "hud"]),
+    /* The tray, the sheets, the HUD's project row for this room - and the map. `projectMeta` is where a project's ROOM
+       and its SECRECY live, and both decide whether this client may see its token - so a reveal, or a project moved to
+       another room, has to re-ask `knowsProject` here. The token being dragged somewhere else is already covered: that
+       is an `updateToken`, which visibility.mjs hears directly. This is the case that has no document change to hang
+       off. */
+    [SYNC.projects]: Object.freeze(["projects", "sheets", "hud", "visibility"]),
+    [SYNC.despair]: Object.freeze(["bar", "monokumaSheets", "hud"]),
+    /* The room pips on the HUD. */
+    [SYNC.searchTokens]: Object.freeze(["searchCache", "sheets", "hud"]),
+    /* The seals, the silences, the body card and a called assembly: `SETTING_KINDS` says what each changes on the
+       sheets and the HUD (the body card is a card of the Event panel, which `renderHud` redraws). The incident left this
+       row for its own at E37 C5. */
+    [SYNC.restrictions]: Object.freeze(["sheets", "hud"]),
+    /* The HUD carries the incident line - whose turn it is and what the victim has left. That moves on every crisis
+       action, so it has to redraw here too; without it it only refreshed when the clock happened to move, which during
+       an incident it does not. And the incident's Remnants (E37 C5; S07-26): a participant's copy landing after a trace
+       was drawn shows it at once, a stage or a close is judged again (81 part G). */
+    [SYNC.incident]: Object.freeze(["sheets", "hud", "visibility"]),
+    /* The trial's three facts are three rows of the campaign HUD - which mode, how long is left, and the room - so the
+       floor moving is a HUD redraw. Without it the mode label was only ever refreshed when the clock happened to move,
+       which during a trial it does not, and the turn-over animation between one mode and the next never played at
+       all. A Truth Bullet's row on a sheet is Present only since 1.2.79 (E79 C16), so the floor moving repaints no
+       row and renders no sheet (81 part F, which holds the two counts 67 part M held until E37); the OBJECTION! that
+       took its place is the HUD's. `trialQueue` and `trialProgress` (with `mutedDead`) both come here. */
+    [SYNC.trial]: Object.freeze(["trialFloor", "hud", "voiceTile"]),
+    /* Every sheet carries the rules list. The motive travels this road and its countdown is a HUD row, so this kind
+       stopped being sheets-only at E14. Rules and motives change a handful of times per chapter. */
+    [SYNC.rules]: Object.freeze(["sheets", "hud"]),
+    /* WALKING INTO A ROOM FINDS THE PROJECT IN IT (stage 2).
+       ---------------------------------------------------------------
+       Discovery is what `knowsProject` reads, so the two surfaces that
+       ask it have to be redrawn when the ledger moves, or a player
+       walks into a room and the project appears only when something
+       else happens to redraw - which on a quiet table can be minutes.
+
+       Neither redraw can ride the client's own `updateToken` hook
+       instead: the ledger is written by the PRIMARY GM and comes back
+       round the socket, so by the time this client heard its token had
+       moved, the answer was still "no". This is the moment the answer
+       changes. */
+    [SYNC.fog]: Object.freeze(["fog", "projects", "visibility"]),
+    /* All three, in the order a reader's eye travels: the caption that says how close it is, the HUD row that says
+       what the world costs now, and the sheets that carry the shrunken action budget. */
+    [SYNC.overflow]: Object.freeze(["bar", "hud", "sheets"]),
+    [SYNC.gather]: Object.freeze(["camera"]),
+    [SYNC.ready]: Object.freeze(["readyWindow"])
+});
+
+/**
+ * What a kind reads before its row runs: `news` for the row, or null when the run has nothing to do. Only the clock
+ * and the Eclipse read anything; every other kind runs its row whole on every run.
+ */
+const KIND_NEWS = {
+    /*
+     * ONE RUN PER CHANGE OF THE CLOCK, AND EACH HOOK FOR WHAT IT NAMES (E17 C6, 26.10.2026; audit S01-30).
+     * The clock is the setting as it stands when the run comes, never the socket's copy: the copy can arrive
+     * before the setting lands here, and the setting's own `onChange` always follows it. A run that finds
+     * nothing moved since the last one this browser made (`clockNews`: the copy before its setting, the
+     * second of a pair the coalescer did not merge) redraws nothing. `drpgTimeOfDayChanged` only when the
+     * calendar moved - season, chapter, day, session, time of day; `drpgPhaseChanged` for the phase,
+     * whose readers of the old hook had other roads already (music.mjs and voice.mjs hear the clock's
+     * `updateSetting`, the visibility pass is the row's; a11y.mjs and live.mjs listen to it now); and
+     * `drpgEclipseChanged` when the flag flipped - here, at the clock's own write, so a GM gone before the Eclipse's
+     * own packet (`broadcastEclipse` at a start, sent after the whispers) leaves no browser dark without its fog,
+     * summary and voice told. The Eclipse's reading below reads the same `heard` and tells nobody twice.
+     */
+    [SYNC.clock]: () => {
+        const clock = getClock();
+        const news = clockNews(heard, clock);
+        if (news.same) return null;
+        heard = news.heard;
+        return { ...news, clock, active: clock?.eclipse === true };
+    },
+    /* ONCE PER CHANGE (E17 C6, 26.10.2026; audit S01-30). The clock's own write of the flag reaches the clock's row,
+       which redraws all of what follows and tells `drpgEclipseChanged`; the Eclipse's own packet comes later - at a
+       start eclipse.mjs `broadcastEclipse`, after the whispers; at an end clock.mjs `reconcileEclipseEnded`, after the
+       clock's write (E37 C2) - and finds the change told (`heard.eclipse`). Whichever lands first tells it. Before
+       `ready` (no `heard`) every one runs, as before.
+       AND A PACKET THAT FINDS THE CLOCK HERE ALREADY HOLDING THE FLAG HANDS OVER TO THE CLOCK'S READING (E37 C5,
+       01.11.2026; E37-20). An Eclipse's end that moves the clock is one write, and this row ran its pass and then the
+       clock's row ran its own, because the clock's reading still named the time of day: 2 passes on each of the four
+       browsers in scenario 81 part D before this, 1 after. The setting standing here means its `onChange` has pushed
+       the clock's run, so its row - the time of day's, the phase's and the Eclipse's work at once - runs now, and the
+       clock's own run finds nothing new. A packet ahead of its setting (a socket faster than the setting's update) still
+       runs this row, as before. */
+    [SYNC.eclipse]: data => {
+        const active = data.active ?? isEclipse();
+        if (heard && heard.eclipse === active) return null;
+        if (heard && (getClock()?.eclipse === true) === active) return CLOCK_READS_IT;
+        if (heard) heard = { ...heard, eclipse: active };
+        return { active };
+    }
+};
+
+/* `KIND_NEWS`'s answer for an Eclipse's packet the clock's row tells (above). */
+const CLOCK_READS_IT = Object.freeze({ clock: true });
+
+/**
+ * The names `kind`'s row runs for the reading `news` (pure; R1198): every name of the row whose `when`, if it has
+ * one, `news` names; null for a kind with no row.
+ */
+export function refreshNames(kind, news = {}, table = KIND_REFRESH) {
+    const row = table[kind];
+    if (!row) return null;
+    return row.filter(entry => typeof entry === "string" || Boolean(news?.[entry.when]))
+        .map(entry => (typeof entry === "string" ? entry : entry.name));
+}
+
+/**
+ * React to a change, wherever it came from: `kind`'s reading, then its row (E37 C5). Answers the names it ran. A kind
+ * with no row is a packet this build does not know (a GM's newer copy of the module): logged and ignored; every kind
+ * of `SYNC` has one (R1198). `table` and `refreshes` are the suite's, so R1198 can run a row of stubs.
+ *
+ * Every run is defensive: a client that cannot do one part of the refresh - no canvas yet, a sheet mid-render - still
+ * does the rest.
+ */
+export function refresh(kind, data = {}, { table = KIND_REFRESH, refreshes = REFRESHES } = {}) {
     debug(`sync: ${kind}`, data);
+    if (!table[kind]) {
+        debug(`sync: unknown kind "${kind}" ignored`);
+        return [];
+    }
+    const news = KIND_NEWS[kind] && table === KIND_REFRESH ? KIND_NEWS[kind](data) : {};
+    if (news === null) return [];
+    if (news === CLOCK_READS_IT) return refresh(SYNC.clock, data);
 
     const run = (label, fn) => {
         try {
@@ -355,249 +619,7 @@ function refresh(kind, data = {}) {
             error(`sync ${kind}/${label} failed`, err);
         }
     };
-
-    switch (kind) {
-        case SYNC.clock: {
-            /*
-             * ONE RUN PER CHANGE OF THE CLOCK, AND EACH HOOK FOR WHAT IT NAMES (E17 C6, 26.10.2026; audit S01-30).
-             * The clock is the setting as it stands when the run comes, never the socket's copy: the copy can arrive
-             * before the setting lands here, and the setting's own `onChange` always follows it. A run that finds
-             * nothing moved since the last one this browser made (`clockNews`: the copy before its setting, the
-             * second of a pair the coalescer did not merge) redraws nothing. `drpgTimeOfDayChanged` only when the
-             * calendar moved - season, chapter, day, session, time of day; `drpgPhaseChanged` (new) for the phase,
-             * whose readers of the old hook had other roads already (music.mjs and voice.mjs hear the clock's
-             * `updateSetting`, visibility is called below; a11y.mjs and live.mjs listen to it now); and
-             * `drpgEclipseChanged` when the flag flipped - here, at the clock's own write, so a GM gone before
-             * `broadcastEclipse` (sent after the whispers) leaves no browser dark without its fog, summary and voice
-             * told. The Eclipse branch below reads the same `heard` and tells nobody twice.
-             */
-            const clock = getClock();
-            const news = clockNews(heard, clock);
-            if (news.same) break;
-            heard = news.heard;
-            /*
-             * A CALLED ASSEMBLY IS HELD HERE, AND BY ONE CLIENT ONLY.
-             *
-             * `runPendingGather` refuses on anybody but the primary GM and on
-             * an order that is not ripe yet, then clears the order BEFORE it
-             * moves anybody - so the second arrival of this event (the socket
-             * and the setting's `onChange` both describe it) finds nothing to
-             * do. First, because a teleport that lands after the HUD redraw
-             * shows the cast a room they are no longer standing in.
-             */
-            run("assembly", () => import("./call-effects.mjs").then(m => m.runPendingGather()));
-            /*
-             * THE CLOCK IS WHAT ENDS A DARKENING (Dawid, 31.08).
-             *
-             * "Darkened - this time of day" stayed on the caption after the
-             * time of day it named had passed. Nothing was wrong with the
-             * mechanic: `overflowEffect()` compares the armed stamp against the
-             * clock, so it had already stopped answering - every reader that
-             * asks at the moment it acts was correct. It was the one reader
-             * that does NOT ask again, the pixels, and the pixels are the only
-             * place the table looks.
-             *
-             * Measured before the fix: stamp on `evening`, clock moved to
-             * `night`, `overflowStatus().active` false and the badge still in
-             * the DOM. A manual `renderDespairBar()` cleared it.
-             *
-             * The caption reads the CLOCK as much as it reads the counter, so
-             * it belongs on both roads. `SYNC.overflow` already redraws it when
-             * the counter or the stamp moves; this is the other half - the
-             * stamp standing still while the clock walks out from under it. It
-             * covers the arrival too: a stamp armed mid-hour for the hour ahead
-             * lights up when that hour begins, and until now that also waited
-             * for something unrelated to redraw the widget.
-             */
-            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            /* The body class only; the HUD and the visibility pass are the two
-               lines either side of it (CORE-12).
-               NOT "once each", which is what this said until 16.09. `applyAll`
-               is bound to `drpgTimeOfDayChanged` as well (visibility.mjs:61), and
-               that hook is fired below - so a change of the time of day runs the
-               visibility pass TWICE on every client, and an Eclipse change does
-               the same through `drpgEclipseChanged`. Left as it is rather than
-               fixed: dropping the direct call would make room visibility depend
-               on hook ordering, and coalescing `applyAll` touches the one path
-               that gives other people's hidden tokens back (see its own note).
-               It is once per time of day, not per frame, and it has not been
-               priced - but the claim had to stop being made. Since E17 C6 a
-               write of the clock that moves neither (a pause, a name) runs it
-               once, and a write already told runs nothing. */
-            run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
-            run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
-            // Local listeners (other modules, macros) still get their hook - but
-            // now they get it on every client, which is what they always meant.
-            // A listener is handed the clock as the setting holds it, never an
-            // empty object, and the summary when the burst held the GM's broadcast.
-            // Each hook goes out through a module's import, as it did before C6, so
-            // it comes after the redraws queued above it (`later`).
-            const later = fire => import("./clock.mjs").then(fire);
-            if (news.timeOfDay) run("hook", () => later(() => Hooks.callAll("drpgTimeOfDayChanged", clock, data.summary ?? {})));
-            if (news.phase) run("phase", () => later(() => Hooks.callAll("drpgPhaseChanged", clock.phase ?? null)));
-            if (news.eclipse) run("eclipseHook", () => later(() => Hooks.callAll("drpgEclipseChanged", clock.eclipse === true)));
-            break;
-        }
-
-        case SYNC.eclipse: {
-            /* ONCE PER CHANGE (E17 C6, 26.10.2026; audit S01-30). The clock's own write of the flag reaches the
-               clock branch above, which redraws all of what follows and tells `drpgEclipseChanged`; the GM's
-               `broadcastEclipse` comes later, after the whispers, and finds the change told (`heard.eclipse`).
-               Whichever lands first tells it. Before `ready` (no `heard`) every one runs, as before. */
-            const active = data.active ?? isEclipse();
-            if (heard && heard.eclipse === active) break;
-            if (heard) heard = { ...heard, eclipse: active };
-            run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
-            // The same caption, and the same reason. `overflowEffect()` has an
-            // Eclipse branch: while one runs the clock has not moved yet, so a
-            // stamp armed for the time of day the Eclipse opens counts as
-            // running already. That answer flips when the Eclipse starts and
-            // when it ends, and neither of those is a counter change.
-            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
-            // Every other sync kind re-renders open character sheets; this one
-            // did not. The action panel and Calls panel both read `isEclipse()`
-            // at render time (see sheet.mjs), so a sheet already open when the
-            // Eclipse starts or ends was left showing the pre-Eclipse state -
-            // actions and Calls looking normally clickable when they are not,
-            // or still greyed out a whole time of day after they came back.
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            run("hook", () => import("./eclipse.mjs").then(() => Hooks.callAll("drpgEclipseChanged", active)));
-            break;
-        }
-
-        case SYNC.visibility:
-            run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
-            // The only thing drawn through this kind is the Eclipse's crossings -
-            // the GMs' store and an owner's copy since E05, which are no world
-            // settings and name the kind themselves (settings.mjs `onStoreChange`)
-            // - and that number is printed on the sheet twice - the budget line
-            // and the Move tile's own cost label - so a crossing has to redraw them.
-            // At most two writes per character per Eclipse, so this is not the
-            // per-frame cost that its name suggests.
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            break;
-
-        case SYNC.projects:
-            run("tray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The HUD's project row for this room.
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            /* And the map. `projectMeta` is where a project's ROOM and its
-               SECRECY live, and both decide whether this client may see its
-               token - so a reveal, or a project moved to another room, has to
-               re-ask `knowsProject` here. The token being dragged somewhere
-               else is already covered: that is an `updateToken`, which
-               visibility.mjs hears directly. This is the case that has no
-               document change to hang off. */
-            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
-            break;
-
-        case SYNC.despair:
-            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
-            /* THE MONOKUMAS' SHEETS ONLY (E88 C4, 27.10.2026; E88-09, E37's line taken early). A pool, its name, who
-               holds one and which pool a Monokuma spends are read on a sheet by the Monokuma's Despair panel alone
-               (sheet.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of
-               them, and every one open was rendered on each Despair spent. Scenario 86 at 7baff238: a pass on every
-               browser for each write. A student's sheet is still rendered by its own actor's update (a Despair Call's
-               Hope, a Reroll's), which is not this road. */
-            run("sheets", () => Promise.all([import("./clock.mjs"), import("./monokuma.mjs")])
-                .then(([clock, monokuma]) => clock.refreshSheets({ only: monokuma.isMonokuma })));
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            break;
-
-        case SYNC.overflow:
-            // All three, in the order a reader's eye travels: the caption that
-            // says how close it is, the HUD row that says what the world costs
-            // now, and the sheets that carry the shrunken action budget.
-            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            break;
-
-        case SYNC.searchTokens:
-            // The world setting has just landed, so it is authoritative again -
-            // drop the player-side "GM just told me" cache rather than let it
-            // outlive the value it was standing in for.
-            run("cache", () => import("./search-tokens.mjs").then(m => m.SearchTokens.clearFreshCounts()));
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The room pips on the HUD.
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            break;
-
-        case SYNC.restrictions:
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The HUD carries the incident line - whose turn it is and what the
-            // victim has left. That moves on every crisis action, so it has to
-            // redraw here too; without this it only refreshed when the clock
-            // happened to move, which during an incident it does not.
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            break;
-
-        case SYNC.trial:
-            run("floor", () => import("./trial-floor.mjs").then(m => m.renderTrialFloor()));
-            // The trial's three facts are three rows of the campaign HUD now -
-            // which mode, how long is left, and the room - so the floor moving
-            // is a HUD redraw. Without this the mode label was only ever
-            // refreshed when the clock happened to move, which during a trial it
-            // does not, and the turn-over animation between one mode and the
-            // next never played at all.
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            // A Truth Bullet's row on a sheet is Present only since 1.2.79 (E79 C16), so the floor moving
-            // repaints no row; the OBJECTION! that took its place is the HUD's, redrawn above.
-            // The voice tile's microphone (E70 C5): the trial's list of the dead and a Monocub's line follow the floor
-            // and the record (voice.mjs `micHold`), and a client setting's or the user's own change does not come here.
-            run("voiceTile", () => import("./voice-tile.mjs").then(m => m.paintControls()));
-            break;
-
-        case SYNC.rules:
-            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The motive travels this road and its countdown is a HUD row, so
-            // this kind stopped being sheets-only at E14. Rules and motives
-            // change a handful of times per chapter, so the extra redraw costs
-            // nothing worth counting.
-            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
-            break;
-
-        case SYNC.fog:
-            // The mirror first: a ledger that SHRANK (season reset, "hide
-            // all") has to take this client's session mirror with it, or the
-            // repaint redraws the stale union and the reset only shows after a
-            // reload - see `reconcileMirror` in fog.mjs.
-            run("fog", () => import("./fog.mjs").then(m => {
-                m.reconcileMirror();
-                return m.repaintFog();
-            }));
-
-            /* WALKING INTO A ROOM FINDS THE PROJECT IN IT (stage 2).
-               ---------------------------------------------------------------
-               Discovery is what `knowsProject` reads, so the two surfaces that
-               ask it have to be redrawn when the ledger moves, or a player
-               walks into a room and the project appears only when something
-               else happens to redraw - which on a quiet table can be minutes.
-
-               Neither redraw can ride the client's own `updateToken` hook
-               instead: the ledger is written by the PRIMARY GM and comes back
-               round the socket, so by the time this client heard its token had
-               moved, the answer was still "no". This is the moment the answer
-               changes. */
-            run("projectTray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
-            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
-            break;
-
-        case SYNC.gather:
-            run("camera", () => import("./call-world.mjs").then(m => m.panToGathered(data)));
-            break;
-
-        case SYNC.ready:
-            run("window", () => import("./boundary.mjs").then(m => m.renderReadyRound()));
-            break;
-
-        default:
-            debug(`sync: unknown kind "${kind}" ignored`);
-    }
+    const names = refreshNames(kind, news, table);
+    for (const name of names) run(name, () => refreshes[name](data, news));
+    return names;
 }

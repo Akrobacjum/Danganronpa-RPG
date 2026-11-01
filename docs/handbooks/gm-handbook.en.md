@@ -1129,7 +1129,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `selection-controlled-colour` | token borders stay Foundry's orange |
 | `countdown-row-menu` | a project row's menu is Daggerheart's: Reveal and Hide are shown, and Delete removes only the countdown |
 | `door-controls` | every door control is shown as Foundry shows it |
-| `token-ruler` | a token's ruler keeps Foundry's colour |
+| `token-ruler` | a token's ruler keeps the colour that Foundry or another module gives it |
 | `actions-resource` | a character has no Actions resource |
 | `sidebar-calls` | Foundry's own calls neither show nor place the Foundry tools window |
 | `relay-guard` | requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load |

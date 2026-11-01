@@ -2295,7 +2295,10 @@ export function registerSettings() {
     /* A change of the cast repaints what the world half's change repaints, and since E32 C2
        says so as well (`drpgCastChanged`): a pass of the turn writes the cast alone, and a
        client setting's write fires no `updateSetting` - the GM's incident tracker and the
-       "your turn" chime (sfx.mjs) listened there for the turn. */
+       "your turn" chime (sfx.mjs) listened there for the turn. The repaint is sync.mjs
+       `SYNC.incident`'s row since E37 C5 (`SETTING_KINDS.murderState`, through `applyFor`):
+       the sheets, the HUD and the visibility pass that shows a participant the incident's
+       Remnants once its copy lands (audit S07-26; 81 part G). */
     const onCastChange = () => {
         onWorldChange(SETTINGS.murderState);
         Hooks.callAll("drpgCastChanged");

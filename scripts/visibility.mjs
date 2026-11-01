@@ -16,6 +16,13 @@
  * guide's Truth Bullet is a PERSONAL copy, not a public unveiling, so anyone
  * who has not found this exact trace themselves still needs it invisible.
  * `applyToRemnantToken` below is that second rule, running on the same hook.
+ *
+ * WHAT THE BUS ASKS OF THIS FILE (E37 C5, 01.11.2026; audit S17-19, S07-26). A whole pass (`applyAll`) for a change of
+ * the clock is the bus's: sync.mjs `KIND_REFRESH` runs it once when the time of day, the phase or the Eclipse's flag
+ * moved, and none for a pause; this file listened to `drpgTimeOfDayChanged` and `drpgEclipseChanged` as well, which
+ * the same row fires, and ran it twice (scenario 81 at 2b2707ec: 2 passes on every browser for a time of day, 2 for an
+ * Eclipse's start). A change of the incident or of this browser's copy of its cast asks one too (`SYNC.incident`), so
+ * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -50,8 +57,6 @@ export function registerVisibility() {
     Hooks.on("updateToken", (doc, changes) => passForTokenUpdate(doc, changes));
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());
-    Hooks.on("drpgTimeOfDayChanged", () => applyAll());
-    Hooks.on("drpgEclipseChanged", () => applyAll());
 
     // A new Truth Bullet is the other half of `myRemnantRefs()` going stale -
     // it can land on this user's actor from a socket reply with no token on
