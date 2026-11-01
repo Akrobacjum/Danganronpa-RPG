@@ -1302,8 +1302,8 @@
       "bar": {
         "label": "Sterowanie GM-a",
         "skip": "Pomiń",
-        "minus": "-30 s",
-        "plus": "+30 s",
+        "minus": "-{seconds} s",
+        "plus": "+{seconds} s",
         "overrule": "Oddalenie",
         "endMode": "Zakończ ten tryb",
         "notTrial": "Tylko w trakcie Class Trialu.",
@@ -1385,7 +1385,7 @@
         "many": "{n} uczniów ma na Class Trial akcje tej pory dnia.",
         "other": "{n} uczniów ma na Class Trial akcje tej pory dnia."
       },
-      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty.",
+      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +{step} s oddaje zegarowi {step} s.",
       "round": {
         "passes": "{name} pasuje.",
         "over": "Koniec: {mode}.",
@@ -1418,7 +1418,7 @@
       "startPanic": "Panic Round",
       "endRound": "Zakończ rundę",
       "closing": {
-        "opened": "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
+        "opened": "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu {seconds} s; GM zatwierdza mówcę.",
         "speaks": "Closing Argument wygłasza {name}.",
         "continues": "{name} kontynuuje Closing Argument ({time}).",
         "over": "Closing Argument dobiegł końca.",
@@ -1853,7 +1853,7 @@
       "reinforced": "{what} nie schodzi. Cokolwiek to zostawiło, zostawiło na dobre.",
       "vanished": "Tego śladu już nie ma. Wysiłek i tak cię kosztował.",
       "removed": "{what} zniknął.",
-      "freeTonight": "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.",
+      "freeTonight": "Twoja własna scena, tej nocy: bez akcji, {n} Sanity za każdy.",
       "stillThere": "Ślad wciąż tam jest.",
       "leftTrace": "Twoje sprzątanie zostawiło własny ślad.",
       "remnantNote": "Zostawiony przy sprzątaniu: {what}.",
@@ -1966,6 +1966,32 @@
         "other": "{n} Sanity"
       }
     },
+    "Unit": {
+      "action": {
+        "one": "{n} akcja",
+        "few": "{n} akcje",
+        "many": "{n} akcji",
+        "other": "{n} akcji"
+      },
+      "actionAcc": {
+        "one": "{n} akcję",
+        "few": "{n} akcje",
+        "many": "{n} akcji",
+        "other": "{n} akcji"
+      },
+      "actionGen": {
+        "one": "{n} akcji",
+        "few": "{n} akcji",
+        "many": "{n} akcji",
+        "other": "{n} akcji"
+      },
+      "nextTurnAcc": {
+        "one": "najbliższą turę",
+        "few": "najbliższe {n} tury",
+        "many": "najbliższych {n} tur",
+        "other": "najbliższe {n} tury"
+      }
+    },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",
       "openingReaskSent": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
@@ -1976,7 +2002,7 @@
       "killer": "Zabójca",
       "victim": "Ofiara",
       "indirect": "Morderstwo pośrednie - ofiara jest sama, a drenaż jest podwojony",
-      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej cztery do sześciu akcji, inaczej kosztuje więcej, niż jest warta.",
+      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej {fewest} do {actions}, inaczej kosztuje więcej, niż jest warta.",
       "openConfirm": "Otwórz",
       "needOne": "Musi być co najmniej jeden żywy uczeń.",
       "openSelfNote": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",
@@ -5288,8 +5314,14 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "Światła zgaszone. Każdy ustawia swój token - do dwóch połączonych pokoi albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
-        "dailyLife": "Zwykłe dni w szkole. Masz dwie akcje na każdą porę dnia, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
+        "eclipse": "Światła zgaszone. Każdy ustawia swój token - {reach} albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
+        "eclipseReach": {
+          "one": "do {n} połączonego pokoju",
+          "few": "do {n} połączonych pokoi",
+          "many": "do {n} połączonych pokoi",
+          "other": "do {n} połączonego pokoju"
+        },
+        "dailyLife": "Zwykłe dni w szkole. Masz {actions} na każdą porę dnia, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
         "investigation": "Znaleziono ciało. Używaj Observe na śladach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
         "classTrial": "Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali."
       },
@@ -5314,8 +5346,8 @@
       "status": {
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
-        "actionsWhat": "Dwie na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje jedną, Long Rest obie.",
-        "actionsWounded": "Z całym Health zaznaczonym dostajesz jedną zamiast dwóch, dopóki ktoś cię nie poskłada.",
+        "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
+        "actionsWounded": "Z całym Health zaznaczonym dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
         "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
@@ -5611,7 +5643,7 @@
       "PHASES": {
         "dailyLife": {
           "label": "Daily Life",
-          "hint": "Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia."
+          "hint": "Żyjecie w zamkniętym miejscu. {actions} na porę dnia."
         },
         "investigation": {
           "label": "Investigation",
@@ -6210,7 +6242,7 @@
           "label": "Zwiększ jedno doświadczenie o +1"
         },
         "experienceNew": {
-          "label": "Dodaj nowe doświadczenie warte +2"
+          "label": "Dodaj nowe doświadczenie warte +{worth}"
         }
       },
       "LEVEL_UP": {
@@ -6294,7 +6326,7 @@
           "hope": "Trzymasz się na nogach. Survive i Role reversal stoją teraz przed tobą otworem.",
           "despair": "Trzymasz się na nogach, ale ledwo - Role reversal stoi teraz przed tobą otworem.",
           "critical": "Tamujesz krwawienie. Obie drogi wyjścia są otwarte i możesz wybrać jedną w tej turze bez rzutu.",
-          "failure": "Nic się nie dzieje. Przy porażce z Despair tracisz dodatkowo 1 Health albo Sanity."
+          "failure": "Nic się nie dzieje. Przy porażce z Despair tracisz dodatkowo {drain} Health albo Sanity."
         },
         "survive": {
           "label": "Survive",
@@ -6302,7 +6334,7 @@
           "hope": "Incydent się kończy i drenaż ustaje.",
           "despair": "Incydent się kończy i drenaż ustaje. Dostajesz podpowiedź, kto to był.",
           "critical": "Incydent się kończy, dostajesz podpowiedź, kto to był, i nietykalność na ten i następny rozdział.",
-          "failure": "Incydent trwa. Tracisz dodatkowo 1 Health albo Sanity."
+          "failure": "Incydent trwa. Tracisz dodatkowo {drain} Health albo Sanity."
         },
         "roleReversal": {
           "label": "Role reversal",
@@ -6310,20 +6342,20 @@
           "hope": "Zostajesz zabójcą i odzyskujesz całe Health i Sanity.",
           "despair": "Zostajesz zabójcą.",
           "critical": "Zabijasz ich od razu. Nie mogą już nic zrobić. Odzyskujesz całe Health i Sanity i zostawiasz jeden Evident, Reinforced Incident Remnant.",
-          "failure": "Nic się nie dzieje. Przy porażce z Despair tracisz dodatkowo 1 Health albo Sanity."
+          "failure": "Nic się nie dzieje. Przy porażce z Despair tracisz dodatkowo {drain} Health albo Sanity."
         },
         "strike": {
           "label": "Strike",
-          "hint": "Przyspiesz ich upadek. Kosztuje ich 1 Health i 1 Sanity.",
-          "failure": "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 1 Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious."
+          "hint": "Przyspiesz ich upadek. Kosztuje ich {hp} Health i {stress} Sanity.",
+          "failure": "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im {stress} Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious."
         },
         "pin": {
           "label": "Pin them down",
-          "hint": "Utrudnienie na Zostaw trop i Survive przez dwie najbliższe tury ofiary."
+          "hint": "Utrudnienie na Zostaw trop i Survive przez {turns} ofiary."
         },
         "keepDistance": {
           "label": "Keep your distance",
-          "hint": "Utrudnienie na Zabezpiecz ślad i Role reversal przez dwie najbliższe tury ofiary."
+          "hint": "Utrudnienie na Zabezpiecz ślad i Role reversal przez {turns} ofiary."
         },
         "weaponAttack": {
           "label": "Atak bronią",
@@ -6334,7 +6366,7 @@
         },
         "finishingBlow": {
           "label": "Finishing blow",
-          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
+          "hint": "Zakończ incydent teraz. Próg to {mult}-krotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
           "hope": "Incydent się kończy.",
           "despair": "Incydent się kończy i zostawia jeden Incident Remnant.",
           "critical": "Incydent się kończy, a twoja pierwsza próba sprzątania nie kosztuje Sanity."

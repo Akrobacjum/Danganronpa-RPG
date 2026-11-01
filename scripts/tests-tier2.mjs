@@ -38594,7 +38594,7 @@ const SCENARIOS = [
         equal(stableJson(readings), stableJson({
             discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
             debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },
-            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0 })), isDebate: true, warning: true, notes: [objectionNote] },
+            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: true, notes: [objectionNote] },
             objection: { line: normal(game.i18n.format("DRPG.Floor.holdingObjection", { who: holder.name, target: target.name, seconds: 0 })),
                 isDebate: false, warning: false, notes: [modeNote] }
         }), "the console's debate line does not carry the debate's name (or the discussion's does), or a line that states the "
@@ -41277,7 +41277,8 @@ const SCENARIOS = [
             const [pin, attack, strike] = await lines();
             must(await C.armCall(killer, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed on the killer");
             const [, armed] = await lines();
-            const miss = game.i18n.format("DRPG.Murder.onAMiss", { text: CRISIS_ACTIONS.strike.failure }).replace(/\s+/g, " ").trim();
+            // The miss as the menu writes it, its numbers filled (E66 C4: utils.mjs `proseOf`).
+            const miss = game.i18n.format("DRPG.Murder.onAMiss", { text: (await import("./utils.mjs")).proseOf(CRISIS_ACTIONS.strike, "failure") }).replace(/\s+/g, " ").trim();
             equal(stableJson([has(pin, "DRPG.Action.usesTrait", { traits: TRAITS.body.label }), has(attack, "DRPG.Murder.gmPicksTrait", { traits: several }),
                 has(armed, "DRPG.Murder.youPickTrait", { traits: several }), strike.includes(miss)]),
             stableJson([true, true, true, true]),

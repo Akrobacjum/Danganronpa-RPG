@@ -2,7 +2,7 @@
  * Danganronpa RPG - shared helpers.
  */
 
-import { MODULE_ID, epochClock } from "./config.mjs";
+import { MODULE_ID, epochClock, fillProse } from "./config.mjs";
 import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -476,6 +476,18 @@ export function plural(key, data = {}, countOn = "n") {
     }
     const picked = game.i18n.has(`${key}.${form}`) ? form : "other";
     return game.i18n.format(`${key}.${picked}`, data);
+}
+
+/**
+ * A config sentence with its numbers in it (E66 C4, 01.11.2026; S18-37, E66-17): `entry[field]` - a table's English,
+ * or the Polish i18n.mjs `localizeConfig` put in its place - with each placeholder filled from config.mjs
+ * `PROSE_NUMBERS` (the entry's fields, or the constant the rule reads) and then from `extra`, the reader's own. A
+ * countable noun is written by its unit family, `DRPG.Unit.<unit>` through `plural()` in the page's language; a number
+ * before Health, Sanity, Hope, Despair or progress stands bare. config.mjs `fillProse` is the one fill (`callEffect` is
+ * its bare form); this hands it the words. Every reader of a config sentence that carries a placeholder calls this.
+ */
+export function proseOf(entry, field, extra = {}) {
+    return fillProse(entry, field, extra, (unit, n) => plural(`DRPG.Unit.${unit}`, { n }));
 }
 
 /**

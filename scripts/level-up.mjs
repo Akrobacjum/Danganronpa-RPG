@@ -14,7 +14,7 @@
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
-import { log, error, isPrimaryGm, ownerIdsOf, plural } from "./utils.mjs";
+import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 
@@ -651,7 +651,7 @@ function buildContent(picks, experiences, reasons, forName = null) {
             ${picks > 1 ? `<legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>` : ""}
             <select name="pick.${i}.option" data-pick="${i}" aria-label="${game.i18n.localize("DRPG.Advance.whichImprovement")}">
                 ${Object.entries(LEVEL_UP_OPTIONS)
-                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${opt.label}</option>`)
+                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${proseOf(opt, "label")}</option>`)
                     .join("")}
             </select>
             <div class="drpg-advance-detail" data-detail="${i}"></div>

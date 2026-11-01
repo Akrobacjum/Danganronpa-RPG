@@ -307,7 +307,7 @@ export const TIME_OF_DAY_LABELS = {
  * chapter when no murder has happened yet.
  */
 export const PHASES = {
-    dailyLife: { label: "Daily Life", hint: "You live inside a closed area. Two actions per time of day." },
+    dailyLife: { label: "Daily Life", hint: "You live inside a closed area. {actions} per time of day." },
     investigation: { label: "Investigation", hint: "A body was found. Observe and Analyze to build Truth Bullets." },
     classTrial: { label: "Class Trial", hint: "The moment of truth. Objections, testimony, the vote." }
 };
@@ -2627,29 +2627,76 @@ export const MOTIVE = {
  * Not `game.i18n.format` - these strings live in config.mjs, which is the
  * single source of truth about the rules and is deliberately not in the
  * language file (see the note at the top of this file).
+ *
+ * ONE TABLE FOR EVERY CONFIG SENTENCE SINCE E66 C4 (01.11.2026; S18-37, E66-17). The values above were this
+ * function's own until then, so a number in any other table's prose was a digit typed into it (29 strings in English
+ * with a digit and 51 with a number word, probe digits.mjs at 501d13eb). They are `PROSE_NUMBERS` now, read by this
+ * function and by utils.mjs `proseOf`, which every reader in the browser calls: this file loads in bare Node and
+ * imports nothing of utils.mjs, so the table and the fill live here (`fillProse`) and `proseOf` hands it the unit
+ * words. This function is the bare fill - a number with no unit word - for a caller with no language; the module's
+ * readers call `proseOf(call, "effect")`, which gives the same text for every Call (none of their placeholders has a
+ * unit).
  */
 export function callEffect(call) {
-    const text = call?.effect ?? "";
+    return fillProse(call, "effect");
+}
+
+/**
+ * THE NUMBERS A CONFIG SENTENCE TAKES FROM CONFIG (E66 C4, 01.11.2026; S18-37, E66-17). One row a placeholder: `of`
+ * reads its number - from the entry whose field the sentence is (`of(entry, field)`), or from a constant of this file
+ * when the rule's number is not the entry's - and `unit`, for a countable noun, names the family `DRPG.Unit.<unit>`
+ * that utils.mjs `proseOf` writes the number with in the page's language (the Polish four forms; the case is the
+ * family's, docs/text-style.md section 14). Without `unit` the number stands bare, before an uncountable word -
+ * Health, Sanity, Hope, Despair, progress (DB4) - or a sign. A placeholder whose number the entry does not carry
+ * stays as written, `{x}`, which the text lint reports (T15). Read where the rule runs (M1): `drain` is what
+ * murder-rules.mjs adds on a failure (`failureExtraDrain`), `hp` and `stress` what a Strike takes (`damage`, and on a
+ * failure `failureDamage.despair`), `turns` how long a hindrance lasts (`hinders.turns`), `mult` the finishing blow's
+ * threshold a point of Health (murder-rules.mjs `finishingBlowThreshold`), `actions` a time of day's budget
+ * (actions.mjs `actionBudget`), `worth` a new experience's value (level-up.mjs).
+ */
+export const PROSE_NUMBERS = Object.freeze({
+    cost: { of: entry => entry?.cost },
+    hp: { of: (entry, field) => proseDamage(entry, field)?.hitPoints ?? proseDamage(entry, field)?.hp },
+    stress: { of: (entry, field) => proseDamage(entry, field)?.stress },
+    hope: { of: entry => entry?.grantsHope },
+    // Written as a negative on the entry, because that is what it does to
+    // the project; read as a magnitude here, because "Remove -2 progress"
+    // is not a sentence.
+    progress: { of: entry => entry?.progress === undefined ? undefined : Math.abs(entry.progress) },
+    // Z14. Found on the live round reading "Pour {overflow} Despair" on the
+    // tile: this table is the ONLY place a config sentence gets its
+    // numbers, so a field added to an entry without a line here ships a
+    // placeholder to the panel and to the chat card both.
+    overflow: { of: entry => entry?.feedsOverflow },
+    drain: { of: entry => typeof entry?.failureExtraDrain === "number" ? entry.failureExtraDrain : entry?.failureExtraDrain?.despair },
+    turns: { of: entry => entry?.hinders?.turns, unit: "nextTurnAcc" },
+    mult: { of: () => INCIDENT.finishingBlowPerHp },
+    actions: { of: () => STARTING.actions, unit: "action" },
+    worth: { of: () => STARTING.experienceValue }
+});
+
+/** What a sentence's `{hp}` and `{stress}` read: a Call's `damage`, a crisis action's on a Hope roll, or on a failure its Despair's. */
+function proseDamage(entry, field) {
+    if (field === "failure") return entry?.failureDamage?.despair;
+    return entry?.damage?.hope ?? entry?.damage;
+}
+
+/**
+ * A config sentence, `entry[field]`, with its placeholders filled from `PROSE_NUMBERS` and then from `extra` (a
+ * reader's own values, which win). `unitWords(unit, n)` writes a countable number with its noun; without it (bare
+ * Node, `callEffect`) the number stands alone. A placeholder with no value stays as written.
+ */
+export function fillProse(entry, field, extra = {}, unitWords = null) {
+    const text = entry?.[field];
+    if (typeof text !== "string") return "";
     if (!text.includes("{")) return text;
-
-    const values = {
-        cost: call.cost,
-        hp: call.damage?.hitPoints,
-        stress: call.damage?.stress,
-        hope: call.grantsHope,
-        // Written as a negative on the entry, because that is what it does to
-        // the project; read as a magnitude here, because "Remove -2 progress"
-        // is not a sentence.
-        progress: call.progress === undefined ? undefined : Math.abs(call.progress),
-        // Z14. Found on the live round reading "Pour {overflow} Despair" on the
-        // tile: this table is the ONLY place a Call's sentence gets its
-        // numbers, so a field added to an entry without a line here ships a
-        // placeholder to the panel and to the chat card both.
-        overflow: call.feedsOverflow
-    };
-
-    return text.replace(/\{(\w+)\}/g, (whole, key) =>
-        values[key] === undefined ? whole : String(values[key]));
+    return text.replace(/\{(\w+)\}/g, (whole, key) => {
+        if (extra && Object.hasOwn(extra, key) && extra[key] !== undefined && extra[key] !== null) return String(extra[key]);
+        const row = Object.hasOwn(PROSE_NUMBERS, key) ? PROSE_NUMBERS[key] : null;
+        const n = row?.of(entry, field);
+        if (n === undefined || n === null) return whole;
+        return row.unit && unitWords ? unitWords(row.unit, n) : String(n);
+    });
 }
 
 /* ==========================================================================
@@ -2978,7 +3025,7 @@ export const LEVEL_UP_OPTIONS = {
     stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
-    experienceNew: { label: "Add a new experience worth +2" }
+    experienceNew: { label: "Add a new experience worth +{worth}" }
 };
 
 export const LEVEL_UP = {
@@ -3392,7 +3439,7 @@ export const CRISIS_ACTIONS = {
         despair: "You keep your feet, but only barely - Role reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
+        failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
         /**
          * The line above has said this since the action was written and nothing
          * was doing it - measured while rewriting the outcome cards. Despair
@@ -3417,7 +3464,7 @@ export const CRISIS_ACTIONS = {
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
             + "chapter and the next.",
-        failure: "The incident continues. You lose an extra 1 Health or Sanity.",
+        failure: "The incident continues. You lose an extra {drain} Health or Sanity.",
         failureExtraDrain: 1,
         endsIncident: true
     },
@@ -3432,7 +3479,7 @@ export const CRISIS_ACTIONS = {
         despair: "You become the killer.",
         critical: "You kill them outright. They can take no further action. You recover all Health "
             + "and Sanity and leave one Evident Reinforced Incident Remnant.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
+        failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
         /**
          * As on Self-defence, and for the same reason: the sentence above was
          * written from the guide and the code was doing none of it. A victim
@@ -3461,7 +3508,7 @@ export const CRISIS_ACTIONS = {
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
         threshold: 15, traits: ["hand", "leg", "body"],
-        hint: "Speed up their decline. Costs 1 Health and 1 Sanity from them.",
+        hint: "Speed up their decline. Costs {hp} Health and {stress} Sanity from them.",
         damage: {
             hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
             // A critical is the same two marks, but the killer says where both
@@ -3472,7 +3519,7 @@ export const CRISIS_ACTIONS = {
             critical: { choice: true }, criticalAmount: 2
         },
         remnant: { hope: "hidden", despair: "subtle", critical: null },
-        failure: "Nothing on a Hope failure. On Despair you still take 1 Sanity off them and "
+        failure: "Nothing on a Hope failure. On Despair you still take {stress} Sanity off them and "
             + "leave an Evident Remnant; a critical failure leaves an Obvious one.",
         failureDamage: { despair: { stress: 1 } },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3480,7 +3527,7 @@ export const CRISIS_ACTIONS = {
     pin: {
         side: "killer", label: "Pin them down", icon: "fa-down-long",
         threshold: 12, traits: ["body"],
-        hint: "Disadvantage on Leave a clue and Survive for the victim's next two turns.",
+        hint: "Disadvantage on Leave a clue and Survive for the victim's {turns}.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3488,7 +3535,7 @@ export const CRISIS_ACTIONS = {
     keepDistance: {
         side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
         threshold: 12, traits: ["leg"],
-        hint: "Disadvantage on Secure a trace and Role reversal for the victim's next two turns.",
+        hint: "Disadvantage on Secure a trace and Role reversal for the victim's {turns}.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3539,7 +3586,7 @@ export const CRISIS_ACTIONS = {
         // attempt. The owner's D13 (E32+E07 C13, 03.10.2026; audit S04-07): the first
         // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder.mjs
         // `finishIncident` writes `freeCleanup`, cleanup.mjs `consumeFreeCleanup` spends it).
-        hint: "End the incident now. Threshold is five times their remaining Health - free at 0. "
+        hint: "End the incident now. Threshold is {mult} times their remaining Health - free at 0. "
             + "A critical here also makes your first clean-up attempt cost no Sanity.",
         endsIncident: true,
         hope: "The incident ends.",

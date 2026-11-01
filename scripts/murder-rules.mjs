@@ -64,7 +64,7 @@
  */
 
 import {
-    MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, callEffect, TIMING,
+    MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
     USABLE_EFFECTS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -82,7 +82,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
@@ -4140,7 +4140,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // A FREE TAKE IS NO ROLL (E51 C1; E51-T7). Taken with no dice (`takeCrisisAction`, G-18), it was sent with total 0
     // and printed "0 ≥ 18 · with Hope" - a score nobody threw. It says it worked with no roll, as its menu row did.
     const score = def.noRoll
-        ? `<p><em>${foundry.utils.escapeHTML(callEffect(def) || def.hint || "")}</em></p>`
+        ? `<p><em>${foundry.utils.escapeHTML(proseOf(def, "effect") || proseOf(def, "hint"))}</em></p>`
         : !rolled
             ? `<p><em>${game.i18n.localize("DRPG.Murder.noRollItWorks")}</em></p>`
             : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${

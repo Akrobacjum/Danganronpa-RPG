@@ -15,7 +15,7 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
+    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
@@ -54,7 +54,7 @@ import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, n
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
-import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
+import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
@@ -72,7 +72,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural, markLanguage } from "./utils.mjs";
+import { debug, error, plural, proseOf, markLanguage } from "./utils.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
 /*
@@ -4123,7 +4123,7 @@ function callButton(call, monokuma, lockNote = null) {
         ? game.i18n.format("DRPG.Calls.gatherBody", {
             room: foundry.utils.escapeHTML(pending.room)
         })
-        : foundry.utils.escapeHTML(callEffect(call));
+        : foundry.utils.escapeHTML(proseOf(call, "effect"));
     // Same as the action tiles: `costLabel` is on the face of this button, so
     // the hover carries what the Call does and, when it applies, why it cannot
     // be taken (E3).
@@ -4755,7 +4755,7 @@ export function actionButton(actor, key, def) {
     // nobody can read is a discount nobody counts on (D3 + D12). Last, because
     // it is the only line here that is good news.
     const bonus = cleaningNow
-        ? `<br><em>${game.i18n.localize("DRPG.Cleanup.freeTonight")}</em>` : "";
+        ? `<br><em>${freeTonightText()}</em>` : "";
     /*
      * THE TOOLTIP DOES NOT REPEAT THE COST (E3).
      *

@@ -14,12 +14,12 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
+import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
-import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
+import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
 
@@ -193,7 +193,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         if (call.needsGm) {
             const ask = {
                 actorId: actor.id, actorName: actor.name, key,
-                callLabel: call.label, effect: callEffect(call), cost: call.cost, note, nonce
+                callLabel: call.label, effect: proseOf(call, "effect"), cost: call.cost, note, nonce
             };
 
             /*
@@ -327,7 +327,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 async function postHopeCallCard(actor, call, note, done, left) {
     await whisperToOwner(actor, `
         <h3>${esc(call.label)}</h3>
-        <p>${esc(callEffect(call))}</p>
+        <p>${esc(proseOf(call, "effect"))}</p>
         ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
         ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
         <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
@@ -498,7 +498,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
            the note there. Built after the refund branch above, so it is only ever
            posted for a purchase that held. `poolLabel` rather than the account's
            name, because that is what the Despair bar calls it. */
-        const body = `<p>${esc(callEffect(call))}</p>
+        const body = `<p>${esc(proseOf(call, "effect"))}</p>
                       ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
                       ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {

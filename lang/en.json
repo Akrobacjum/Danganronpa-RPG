@@ -1250,7 +1250,7 @@
         "closing": "Closing Argument"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
-      "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
+      "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +{step} s puts {step} s back on the clock.",
       "holdingDebate": "Nonstop Debate - {seconds} s left on your budget. Everyone may speak; a player's OBJECTION! takes the floor.",
       "holdingObjection": "{who} holds the debate, objecting to {target} - {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
       "holdingObjectionPending": "{who} objects to {target} and is choosing a Truth Bullet - {seconds} s. Withdrawn at zero.",
@@ -1258,8 +1258,8 @@
       "bar": {
         "label": "The GM's controls",
         "skip": "Skip",
-        "minus": "-30 s",
-        "plus": "+30 s",
+        "minus": "-{seconds} s",
+        "plus": "+{seconds} s",
         "overrule": "Overrule",
         "endMode": "End this mode",
         "notTrial": "Only during a Class Trial.",
@@ -1352,7 +1352,7 @@
       "startPanic": "Panic Round",
       "endRound": "End the round",
       "closing": {
-        "opened": "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
+        "opened": "The Closing Argument: who will sum up the case? Volunteer within {seconds} s; the GM confirms the speaker.",
         "speaks": "{name} gives the Closing Argument.",
         "continues": "{name} continues the Closing Argument ({time}).",
         "over": "The Closing Argument is over.",
@@ -1740,7 +1740,7 @@
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
-      "freeTonight": "Your own scene, tonight: no action, 1 Sanity each.",
+      "freeTonight": "Your own scene, tonight: no action, {n} Sanity each.",
       "stillThere": "The trace is still there.",
       "leftTrace": "Your cleaning left a trace of its own.",
       "remnantNote": "Left while cleaning up the {what}.",
@@ -1837,6 +1837,24 @@
         "other": "{n} Sanity"
       }
     },
+    "Unit": {
+      "action": {
+        "one": "{n} action",
+        "other": "{n} actions"
+      },
+      "actionAcc": {
+        "one": "{n} action",
+        "other": "{n} actions"
+      },
+      "actionGen": {
+        "one": "{n} action",
+        "other": "{n} actions"
+      },
+      "nextTurnAcc": {
+        "one": "next turn",
+        "other": "next {n} turns"
+      }
+    },
     "Murder": {
       "openingReask": "Ask for the opening roll again",
       "openingReaskSent": "The invitation to throw the opening roll was sent again.",
@@ -1847,7 +1865,7 @@
       "killer": "Killer",
       "victim": "Victim",
       "indirect": "Indirect murder - the victim is alone, and the drain is doubled",
-      "indirectCost": "A trap is built as projects. Budget about {low}-{high} progress across them, roughly four to six actions, or it costs more to set than it is worth.",
+      "indirectCost": "A trap is built as projects. Budget about {low}-{high} progress across them, roughly {fewest} to {actions}, or it costs more to set than it is worth.",
       "openConfirm": "Open it",
       "needOne": "There must be at least one living student.",
       "openSelfNote": "One name in both seats: this opens as a death by their own hand. There is no Stage 5 - the opening roll decides whether they go through with it, and the incident goes straight to Stage 6.",
@@ -4795,8 +4813,9 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "The lights are out. Everyone places their token - up to two connected rooms, or anywhere at night - and nobody can see who went where. Your actions are already refilled, but nothing spends them except a Direct Murder, and nobody makes a Call until the lights come up. It is the game's one moment of total cover, and it is where a murder usually starts.",
-        "dailyLife": "Ordinary days inside the school. You have two actions each time of day to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
+        "eclipse": "The lights are out. Everyone places their token - {reach}, or anywhere at night - and nobody can see who went where. Your actions are already refilled, but nothing spends them except a Direct Murder, and nobody makes a Call until the lights come up. It is the game's one moment of total cover, and it is where a murder usually starts.",
+        "eclipseReach": { "one": "up to {n} connected room", "other": "up to {n} connected rooms" },
+        "dailyLife": "Ordinary days inside the school. You have {actions} each time of day to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
         "investigation": "A body has been found. Observe traces on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
         "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."
       },
@@ -4821,8 +4840,8 @@
       "status": {
         "window": "Actions, Move and Hope",
         "actionsTitle": "Actions",
-        "actionsWhat": "Two each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs one, a Long Rest both.",
-        "actionsWounded": "With all your Health marked you get one instead of two, until somebody patches you up.",
+        "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
+        "actionsWounded": "With all your Health marked you get {wounded} instead of {actions}, until somebody patches you up.",
         "actionsNow": "You have {left} of {max} left this time of day.",
         "moveTitle": "Free Move",
         "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",

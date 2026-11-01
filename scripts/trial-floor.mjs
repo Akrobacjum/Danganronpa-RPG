@@ -486,7 +486,8 @@ async function postFloorCard(card, prev) {
         // The Closing's "{name} continues the Closing Argument ({time})." (E70 C8): the seconds the stretch starts with, m:ss.
         const seconds = Math.max(Math.round(Number(card.seconds) || 0), 0);
         const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time })) });
+        // `seconds` whole, for a card that names them as a number ("Volunteer within {seconds} s", E66 C4).
+        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time, seconds })) });
     } catch (err) {
         error("Could not post the card of the GM's change of the floor", err);
     }

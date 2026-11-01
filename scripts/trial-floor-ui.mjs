@@ -835,6 +835,16 @@ const BAR_LABELS = {
     repoint: "DRPG.Floor.repoint"
 };
 
+/**
+ * A bar button's label. -30 s and +30 s carry the step they move the clock by, `TRIAL.modes.gm.adjustSeconds` (a Panic
+ * Round's `panicAdjustSeconds` by the other pair of keys), not "30" written in (E66 C4, 01.11.2026; E66-18).
+ */
+export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds) {
+    if (op !== "minus" && op !== "plus") return game.i18n.localize(BAR_LABELS[op]);
+    const key = step === TRIAL.modes.gm.adjustSeconds ? BAR_LABELS[op] : op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds";
+    return game.i18n.format(key, { seconds: step });
+}
+
 /** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
 export function exchangeRuns(floor = trialFloor()) {
     return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
@@ -1047,10 +1057,7 @@ function trialBar({ floor, running, barNext }) {
     const now = serverNow();
     const buttons = BAR_OPS.map(op => {
         const refused = barRefusal(op, floor, { running, now });
-        const step = adjustStep(floor);
-        const label = (op === "minus" || op === "plus") && step !== TRIAL.modes.gm.adjustSeconds
-            ? game.i18n.format(op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds", { seconds: step })
-            : game.i18n.localize(BAR_LABELS[op]);
+        const label = barLabel(op, adjustStep(floor));
         const next = op === barNext ? " drpg-bar-next" : "";
         const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
         return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
@@ -1107,7 +1114,7 @@ export function trialConsoleHtml(view) {
             : floor.mode === FLOOR_MODES.debate
                 ? (over
                     ? `<p class="drpg-warning">${game.i18n.format(
-                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left) })}</p>`
+                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left), step: adjustStep(floor) })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
                 : isRoundMode(floor.mode)
                     // A round (E70 C7): its speaker, the turn's seconds and who is next in the frozen order.

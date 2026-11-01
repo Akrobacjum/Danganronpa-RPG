@@ -27,7 +27,7 @@
  * `DialogV2` line is its own copy of the alias, not an import.
  */
 
-import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER } from "./config.mjs";
+import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
 import { keepLive } from "./live.mjs";
@@ -736,9 +736,22 @@ function killerCleanup(killer, cleanup, named) {
  * their smallest scales and 10 at their largest, so a GM who approved the two smallest saw 6 could
  * not be met, and the table was read by nothing. The range is the parts' sums now: 7-10 with
  * config.mjs as it stands (D21: no number changes). R979 reads it.
+ *
+ * The actions too (E66 C4, 01.11.2026; E66-18): "roughly four to six actions" was written in, and config gives
+ * neither number. Each part is its own project, so a part takes its progress over what one Work makes when it
+ * lands at the lowest band of `ACTIONS.project` with the lone killer's `INDIRECT_MURDER.concealIntent.aloneBonus`
+ * (action-rolls.mjs `projectProgress`), rounded up: 1 + 1 = 2 a Work, 2 + 2 actions at the smallest scales and 3 + 2
+ * at the largest, so "4 to 5" with config.mjs as it stands. R1160 reads it.
  */
 export function indirectCostText() {
     const parts = INDIRECT_MURDER.subProjects ?? [];
     const sum = pick => parts.reduce((n, part) => n + (Number(pick(part.progress ?? [])) || 0), 0);
-    return game.i18n.format("DRPG.Murder.indirectCost", { low: sum(p => Math.min(...p)), high: sum(p => Math.max(...p)) });
+    const lowest = (ACTIONS.project?.thresholds ?? []).reduce((a, b) => (!a || b.min < a.min ? b : a), null);
+    const perWork = Math.max(1, (Number(lowest?.progress) || 0) + (Number(INDIRECT_MURDER.concealIntent?.aloneBonus) || 0));
+    const works = pick => parts.reduce((n, part) => n + Math.ceil((Number(pick(part.progress ?? [])) || 0) / perWork), 0);
+    return game.i18n.format("DRPG.Murder.indirectCost", {
+        low: sum(p => Math.min(...p)), high: sum(p => Math.max(...p)),
+        // Before "to" a bare number, after it the unit; in Polish "do" takes the genitive (docs/text-style.md section 14).
+        fewest: works(p => Math.min(...p)), actions: plural("DRPG.Unit.actionGen", { n: works(p => Math.max(...p)) })
+    });
 }

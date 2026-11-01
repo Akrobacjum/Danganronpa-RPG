@@ -91,6 +91,9 @@ etykiet)”]
   „pięć pór” and „jeden Free Move” - while the English afters of both keep none (M5).
   E66: a date, a time of day or a number reaches a text through utils.mjs `localeFormat(kind, value, options)`, in
   the language the page was built in - never `toLocale*String` or an `Intl` format of its own (T20, FAIL since E66).
+  E66 C4: a number in a config.mjs sentence is a placeholder filled by utils.mjs `proseOf(entry, field, extra)` from
+  config.mjs `PROSE_NUMBERS` (the entry's field, or the constant the rule reads), a countable noun by its `DRPG.Unit.*`
+  family (section 14).
 - **O6** Facts first, then text: write down the key's facts - what happens, to whom, what it costs, the exceptions -
   before the sentence (DB26 for the Polish). [rebuilt 30.10 from the plan's summary, „najpierw fakty, potem tekst”,
   number assigned 30.10, confirmed in the pilot 01.11.2026]
@@ -696,7 +699,15 @@ host with every fragment it takes, in English and Polish. Read on this tree on 0
 | `DRPG.Advance.kind.*` | names („Level Up”, „Reinforced Level Up”), after a colon or opening the sentence | `Advance.offered`, `Advance.offerTooltip`, `Advance.takeBack`, `Advance.takenBack`, `Vote.blackenedRewarded` | level-up.mjs, sheet.mjs, vote.mjs |
 | `DRPG.Overflow.name.*` | names, indeclinable | `Overflow.gmHintQueued`, `Overflow.currentDrawn` (after a colon), `Overflow.currentWaiting` | overflow.mjs |
 | `DRPG.Rolls.flagKind.*` | nominative, opening the line | `Rolls.flagLine` | roll-draw.mjs `flagText` |
+| `DRPG.Unit.action` | nominative („1 akcja”, „2 akcje”, „5 akcji”) | `Config.PHASES.dailyLife.hint` (opening the sentence), `Explain.status.actionsWhat` {actions} | utils.mjs `proseOf` (`PROSE_NUMBERS.actions`); explain.mjs `actionsExplained` |
+| `DRPG.Unit.actionAcc` | accusative („1 akcję”, „2 akcje”, „5 akcji”) | `Explain.status.actionsWhat` {short}, {long} (after „kosztuje”), `Explain.status.actionsWounded` {wounded} (after „dostajesz”), `Explain.phase.dailyLife` (after „Masz”) | explain.mjs `actionsExplained`, `phaseExplanation` |
+| `DRPG.Unit.actionGen` | genitive („1 akcji”, „2 akcji”, „5 akcji”) | `Explain.status.actionsWounded` {actions} (after „zamiast”), `Murder.indirectCost` {actions} (after „do”) | explain.mjs `actionsExplained`; murder-ui.mjs `indirectCostText` |
+| `DRPG.Unit.nextTurnAcc` | accusative with its adjective („najbliższą turę”, „najbliższe 2 tury”, „najbliższych 5 tur”) | `Config.CRISIS_ACTIONS.pin.hint`, `keepDistance.hint` (after „przez”) | utils.mjs `proseOf` (`PROSE_NUMBERS.turns`) |
+| `DRPG.Explain.phase.eclipseReach` | a whole phrase with its preposition („do 1 połączonego pokoju”, „do 2 połączonych pokoi”), so any host takes it | `Explain.phase.eclipse` {reach} | explain.mjs `eclipseExplanation` |
 
-English writes `Calls.grantsGen` and `Calls.grantsNom` with the same words as `Calls.grants`. The rows from
+English writes `Calls.grantsGen` and `Calls.grantsNom` with the same words as `Calls.grants`. The `DRPG.Unit.*` rows (E66 C4) are the
+numbers config.mjs `PROSE_NUMBERS` and the builders put into a sentence: the unit names its case, English writes every
+case alike, and a number before Health, Sanity, Hope, Despair or progress takes no unit (DB4); R1159 and R1160 render
+them. The rows from
 `Advance.kind` down were read in the code for this table and needed no split; they are not rendered by R1158. A new
 fragment is a row here and a case in its key's name before it is a placeholder in a host.

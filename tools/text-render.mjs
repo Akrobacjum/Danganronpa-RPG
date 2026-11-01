@@ -71,7 +71,9 @@ export const PLACEHOLDERS = Object.freeze({
         "cells", "dc", "bonus", "cap", "budget", "per", "want", "kept", "cut", "added", "removed", "created", "skipped", "returned", "issued", "majority", "high",
         "low", "objections", "objection", "rebuttal", "first", "second", "found", "back", "of", "a", "b", "hand", "force", "plant", "plantUnseen", "take", "picks",
         "session", "shown", "slider", "auto", "notices", "turn", "bodies", "actions", "traces", "placed", "living", "all", "s", "add", "refresh", "remove", "bar",
-        "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools"], values: both(RENDER_NS) },
+        "overflow", "rows", "set", "claimed", "expected", "legal", "projects", "plants", "x", "pools",
+        // E66 C4 (01.11.2026): the numbers config.mjs `PROSE_NUMBERS` and the builders put where a digit stood.
+        "drain", "mult", "worth", "fewest"], values: both(RENDER_NS) },
     action: { names: ["action", "stat"], from: "action" },
     trait: { names: ["trait"], from: "trait" },
     traits: { names: ["traits", "sources"], list: true, from: "traits" },
@@ -81,7 +83,9 @@ export const PLACEHOLDERS = Object.freeze({
     text: { names: ["why", "reason", "error", "message", "text", "summary", "line", "list", "lists", "outcome", "verdict", "result", "state", "stage", "band",
         "mode", "kind", "type", "role", "category", "group", "label", "word", "topic", "visibility", "side", "track", "trigger", "value", "was", "now", "old",
         "new", "before", "after", "other", "where", "relief", "moves", "length", "size", "duality", "formula", "eclipse", "paused", "opened", "faint", "key",
-        "keys", "carried", "forms", "step", "store", "system", "counted", "rules"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
+        "keys", "carried", "forms", "step", "store", "system", "counted", "rules",
+        // E66 C4: a number with its unit, written by a `DRPG.Unit.*` family or the Eclipse's reach.
+        "reach", "short", "long", "wounded"], values: Object.freeze({ en: ["something the code puts here"], pl: ["coś, co wstawia kod"] }),
         note: "a word or a sentence the code builds: its sense is in the key's own sentence" },
     version: { names: ["version", "required", "verified"], values: both(["1.2.95"]) },
     date: { names: ["date", "cleared", "picked"], values: both(["31.10.2026"]) },

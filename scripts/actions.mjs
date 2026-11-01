@@ -18,6 +18,17 @@ import { debug, plural } from "./utils.mjs";
 import { overflowActionPenalty, overflowFloor, overflowBlocksFreeMove } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
 
+/** The actions a Wounded student does without, each time of day (the guide's "-1 action per time of day"). */
+const WOUNDED_ACTIONS_LOST = 1;
+
+/**
+ * A time of day's actions before a darkened hour takes any: `STARTING.actions`, less what Wounded takes. One road for
+ * the budget below and for the sentences that state it (explain.mjs `actionsExplained`; E66 C4, 01.11.2026; E66-18).
+ */
+export function baseActions({ wounded = false } = {}) {
+    return STARTING.actions - (wounded ? WOUNDED_ACTIONS_LOST : 0);
+}
+
 /**
  * How many actions this character should get when a new time of day starts.
  * `wounded` is the sheet's unless the caller read it as the GMs hold it (`resetActionsFor`).
@@ -44,7 +55,7 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
      */
     const dark = overflowActionPenalty();
     const floor = dark ? overflowFloor("panic") : 0;
-    const total = Math.max(floor, STARTING.actions - (wounded ? 1 : 0) - dark);
+    const total = Math.max(floor, baseActions({ wounded }) - dark);
 
     return { total, wounded, darkened: dark > 0 };
 }

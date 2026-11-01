@@ -110,6 +110,8 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     };
     const named = await gm.eval(`
         const U = foundry.utils, LABELS = ${JSON.stringify(LABELS)};
+        // The bar's -/+ carry their step since E66 C4 ("-{seconds} s"): read with the step the bar draws them at.
+        const { TRIAL } = await import("${REPO}/scripts/config.mjs");
         const out = { read: 0, missing: [] };
         for (const lang of ["en", "pl"]) {
             const strings = U.expandObject(await (await fetch("modules/${MOD}/lang/" + lang + ".json")).json());
@@ -120,7 +122,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
                 for (const key of keys) {
                     const label = U.getProperty(strings, "DRPG." + key);
                     if (typeof label !== "string") { out.missing.push(lang + " has no DRPG." + key); continue; }
-                    const words = label.split("{")[0].replace(/[\\s(:]+$/, "");
+                    const words = label.replace("{seconds}", TRIAL.modes.gm.adjustSeconds).split("{")[0].replace(/[\\s(:]+$/, "");
                     out.read++;
                     if (!words || !text.includes("**" + words)) out.missing.push(book + "." + lang + " " + key + ": " + words);
                 }

@@ -39,7 +39,7 @@ import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel } from "./projects.mjs";
 import { callGm, promptAndCallGm, promptForRequest } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, proseOf, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
@@ -4380,7 +4380,7 @@ async function openCrisisMenu(actor) {
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
                     : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
-                def.hint ? ` - ${def.hint}` : ""}${
+                def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
             details: crisisDetails(def, {
                 free, brokenDown, youPick,
@@ -4438,7 +4438,7 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
             facts.push(game.i18n.format("DRPG.Action.usesTrait", { traits: named }));
         }
         if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
-        if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(def.failure) }));
+        if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
     return facts.length
         ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "";
