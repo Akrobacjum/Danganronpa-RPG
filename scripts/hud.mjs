@@ -24,7 +24,7 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING,
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, boundaryStamp } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, debug, serverNow, tickerRuns } from "./utils.mjs";
+import { isPrimaryGm, error, debug, serverNow, tickerRuns, markLanguage } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -579,6 +579,8 @@ export function renderHud() {
 
         const hud = outgoing ?? buildHudShell();
         hud.replaceChildren();
+        // Its language, the page's (E66 C1); a no-op on every redraw after the first.
+        markLanguage(hud);
 
         const clock = clockForDisplay(getClock());
         const isGM = game.user.isGM;

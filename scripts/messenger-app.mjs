@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -613,10 +613,12 @@ function emptyNotice() {
 
 /**
  * A bubble's time in the table's language (E18 C6; audit S11-61). It was `toLocaleTimeString([], ...)`, the
- * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850).
+ * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850). E18 gave it
+ * Foundry's language; since E66 C1 it is the module's, as the page was built in it (utils.mjs `localeFormat`), which
+ * is the language of the words around it.
  */
 export function bubbleTime(at) {
-    return new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+    return localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
 }
 
 function buildBubble(message) {

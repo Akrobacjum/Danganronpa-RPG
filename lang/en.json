@@ -308,6 +308,10 @@
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
       },
+      "documentLanguage": {
+        "name": "Document language",
+        "hint": "The language of the documents the module writes into this world, one for everyone. Windows, cards, and the sheet stay in the Language each browser sets. Set by the primary GM's first start, to their language."
+      },
       "moveAudit": {
         "name": "A player's token moved through a wall",
         "hint": "What happens when a player's token is moved through a wall its character could not pass: a line in the Debug log, or the token put back where it stood, its player told and the GMs warned.",

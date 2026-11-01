@@ -17068,7 +17068,8 @@ const REGRESSIONS = [
          * keys the code quotes, and so throws with no lexer) and T25 (bareLeft). C8 adds the two report detectors of E65-17
          * that read the scripts, and so throw with no lexer: T13 (uiLiterals, English literals in a script that draws UI,
          * on scripts of its own fixture - a dialog, a notification, markup, a class list, a refusal's reason, the console's
-         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers). C9 adds T27
+         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers; FAIL since E66 C1, with
+         * Intl.DateTimeFormat, NumberFormat and PluralRules and an allowance in its fixture: 8 flags where C8 had 4). C9 adds T27
          * (naturalnessBefore, E65-18): on a guide of its own fixture with five pairs, a pl copy holding two of their befores -
          * one in its key and in a second key, one a plan phrasing - is two findings, and the three whose before is gone (a
          * changed value, a missing key, another case) are listed apart, with the counts the fixture names; the guide's
@@ -17124,14 +17125,14 @@ const REGRESSIONS = [
                 "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
             modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
-                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "report"],
+                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
                 ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
-                ["localeCalls", 4, 4], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
+                ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
             baselines: [["dashesIn", 11], ["familyFormats", 1]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
@@ -17145,7 +17146,7 @@ const REGRESSIONS = [
             + "screen map's marks makes]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {
+    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
@@ -17154,7 +17155,8 @@ const REGRESSIONS = [
          * i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose is not there to read
          * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
          * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
-         * are taken from MODES, and the list is held to the four of C1 and C2, so another one is a change to this test;
+         * are taken from MODES, and the list is held to the four of C1 and C2 and E66 C1's T20 (localeCalls, which
+         * reads only the scripts), so another one is a change to this test;
          * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
          * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
          * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
@@ -17188,7 +17190,8 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []]]),
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []],
+            ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
     }],
@@ -17456,6 +17459,49 @@ const REGRESSIONS = [
         "[listeners of updateWall, createWall, deleteWall, createSetting and updateSetting that hand on to outlineAfterDoor or outlineAfterVeto; a "
             + "wall's c changed is judged anywhere on the room's scene; standingTouched answers the standing room for anywhere; outlineAfterVeto reads "
             + "the seal and the chain; each redraws by redrawOutline; a sound in either]");
+    }],
+    ["R1151 - utils.mjs `listOf` writes a list in the page's language by its type: English in \"en-US\" with the Oxford comma (\"A, B, and C\"; \"A, B, or C\" for a disjunction and after a negation), Polish \"A, B i C\", \"A, B lub C\" and after a negation \"A, B ani C\"; one item is itself, none is \"\", commas where Intl has no ListFormat; character.mjs `reserveNote` goes through it and says in English what it said before (E66 C1; S18-39, DB35, E66-04)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S18-39, DB35 ("przecinek oksfordzki w EN, także w listach z kodu (helper I9 z jawnym
+         * en-US)"), E66-04. E70 C8 left `listOf(items, { type })` minimal, on Foundry's language: no negated list, and
+         * "en" where DB35 names "en-US". Here the page's language (settings.mjs `setPageLanguage`, put back in a
+         * finally - module state, no world write) is stood in as English and as Polish, and each type is read at one,
+         * two and three items and none; then `Intl.ListFormat` is taken away for one call (put back in the same
+         * finally). The expected strings are written out, not derived from Intl. `reserveNote`'s English, for one
+         * reserve and for both (RESERVES has two: Health and Sanity), against the sentence c014681b's own
+         * `Intl.ListFormat("en", { type: "conjunction" })` built from the same parts. Red at c014681b: Polish read as
+         * English (Foundry's language) and "negated" fell back to bare commas.
+         */
+        const U = await import("./utils.mjs"), S = await import("./settings.mjs"), C = await import("./character.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const ITEMS = [["A"], ["A", "B"], ["A", "B", "C"], []];
+        const read = {}, reserves = {};
+        const realList = Intl.ListFormat;
+        const was = S.setPageLanguage("en");
+        try {
+            for (const lang of ["en", "pl"]) {
+                S.setPageLanguage(lang);
+                read[lang] = Object.fromEntries(["conjunction", "disjunction", "negated"].map(type => [type, ITEMS.map(items => U.listOf(items, { type }))]));
+            }
+            S.setPageLanguage("en");
+            Intl.ListFormat = undefined;
+            read.noIntl = U.listOf(["A", "B", "C"]);
+            Intl.ListFormat = realList;
+            const health = U.plural("DRPG.Reserve.health", { n: 1 }), sanity = U.plural("DRPG.Reserve.sanity", { n: 3 });
+            reserves.read = [C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }]),
+                C.reserveNote({ name: "R1151 Somebody" }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 3 }])];
+            reserves.before = [game.i18n.format("DRPG.Murder.youLose", { what: new Intl.ListFormat("en", { type: "conjunction" }).format([health]) }),
+                game.i18n.format("DRPG.Murder.theyLose", { name: "R1151 Somebody", what: new Intl.ListFormat("en", { type: "conjunction" }).format([health, sanity]) })];
+        } finally {
+            Intl.ListFormat = realList;
+            S.setPageLanguage(was);
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            en: { conjunction: ["A", "A and B", "A, B, and C", ""], disjunction: ["A", "A or B", "A, B, or C", ""], negated: ["A", "A or B", "A, B, or C", ""] },
+            pl: { conjunction: ["A", "A i B", "A, B i C", ""], disjunction: ["A", "A lub B", "A, B lub C", ""], negated: ["A", "A ani B", "A, B ani C", ""] },
+            noIntl: "A, B, C"
+        }), "[per language and type, a list of one, two and three items and of none; three items with no Intl.ListFormat]");
+        equal(JSON.stringify(reserves.read), JSON.stringify(reserves.before), "[reserveNote in English for one reserve and for two, against the sentence the old Intl.ListFormat(\"en\") built]");
     }],
 ];
 

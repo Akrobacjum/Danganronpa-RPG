@@ -106,7 +106,7 @@ import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility, removeModuleStyles } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
-import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
+import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm, markModuleWindow } from "./utils.mjs";
 
 /**
  * The system this layer is written for. Its versions - the minimum and the one
@@ -174,6 +174,8 @@ Hooks.once("init", () => {
     // Straight after, and before anything reads a string: the language file is
     // fetched now and merged the moment Foundry's own translations exist.
     safely("the language", registerLanguage);
+    // Every window the module opens says which language it is in (E66 C1; utils.mjs `markModuleWindow`).
+    safely("the windows' language", () => Hooks.on("renderApplicationV2", markModuleWindow));
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);

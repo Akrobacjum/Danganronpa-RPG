@@ -35,14 +35,17 @@
  * only passes in a foreground window is a suite that fails in CI and in a
  * backgrounded tab for reasons that have nothing to do with the module.
  *
- * SEVEN FILES (E30, audit S17-02). This file is the runner, and the only one the
- * module itself imports (api.mjs, lazily). The tests are in tests-tier0.mjs,
- * tests-tier1.mjs and tests-tier2.mjs, and what more than one tier uses is in
- * tests-kit.mjs. The kit takes the contract's detectors from tests-lint.mjs and
- * the flows from tests-flows.mjs; those two import nothing, so bare Node reads
- * them too - tests-lint.mjs in tools/check.mjs, tools/stages.mjs and
- * tools/registry.mjs, tests-flows.mjs in tools/registry.mjs and the harness's
- * cluster - and audit/live's runner imports the kit in the page, for worldDump.
+ * SEVEN FILES (E30, audit S17-02), NINE SINCE E65. This file is the runner, and
+ * the only one the module itself imports (api.mjs, lazily). The tests are in
+ * tests-tier0.mjs, tests-tier1.mjs and tests-tier2.mjs (with the incident's grid,
+ * tests-grid.mjs, E32), and what more than one tier uses is in tests-kit.mjs. The
+ * kit takes the contract's detectors from tests-lint.mjs, the flows from
+ * tests-flows.mjs and the text lint from tests-text.mjs (E65); those three import
+ * nothing, so bare Node reads them too - tests-lint.mjs in tools/check.mjs,
+ * tools/stages.mjs and tools/registry.mjs, tests-flows.mjs in tools/registry.mjs
+ * and the harness's cluster, tests-text.mjs in tools/check.mjs's `text` part (E66
+ * C1; E65 Open 99) - and audit/live's runner imports the kit in the page, for
+ * worldDump.
  * They sit flat in scripts/ because the source crawl -
  * moduleSources() here, loadedFiles() in diagnostics.mjs - only follows
  * "./x.mjs". A tier file imports no suite file but the kit, which writes nothing

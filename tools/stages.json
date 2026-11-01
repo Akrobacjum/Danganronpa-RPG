@@ -50,7 +50,7 @@
     {"id": "E50", "planned": "1.2.94", "version": "1.2.94", "shipped": "2026-10-31", "touches": ["sockets"], "drills": []},
     {"id": "E51", "planned": "1.2.94", "with": "E50", "version": "1.2.94", "shipped": "2026-10-31", "touches": ["sockets", "rolls", "scenes"], "drills": []},
     {"id": "E65", "planned": "1.2.95", "version": "1.2.95", "shipped": "2026-11-01", "touches": [], "drills": []},
-    {"id": "E66", "planned": "1.2.96", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E66", "planned": "1.2.96", "version": null, "shipped": null, "touches": ["scenes"], "drills": []},
     {"id": "E73", "planned": "1.2.97", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E37", "planned": "1.2.98", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E38", "planned": "1.2.99", "version": null, "shipped": null, "touches": null, "drills": []},

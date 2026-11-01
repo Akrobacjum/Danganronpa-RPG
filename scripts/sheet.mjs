@@ -72,7 +72,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural } from "./utils.mjs";
+import { debug, error, plural, markLanguage } from "./utils.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
 /*
@@ -798,6 +798,9 @@ function onRenderCharacterSheet(app, element, context, options) {
         // CSS keys off this to grey out the parts a Monokuma does not use.
         const root = element instanceof HTMLElement ? element : element?.[0];
         root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
+        // The sheet's language, the page's (E66 C1): the module draws most of what it shows, its renamed traits and
+        // resources included. Daggerheart's own words on it are in Foundry's language and carry no mark of their own.
+        markLanguage(root);
 
         settle(root, () => {
             frameTraits(element);

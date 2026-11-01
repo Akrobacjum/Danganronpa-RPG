@@ -50,7 +50,7 @@ import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanalysedType, secretOf } from "./truth-bullets.mjs";
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serialWrite, serverNow, esc } from "./utils.mjs";
+    whisperToOwner, serialWrite, serverNow, esc, localeFormat } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -1618,7 +1618,7 @@ export async function openObjectionLog() {
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>
             <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
-            <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
+            <td>${esc(localeFormat("time", e.timestamp))}</td>
         </tr>`).join("");
 
         return `<div class="drpg-objection-live">

@@ -10,8 +10,7 @@
  */
 
 import { MODULE_ID, FLAGS, STARTING, TRAITS, TRAIT_ARRAY } from "./config.mjs";
-import { log, plural, forcedDeletion } from "./utils.mjs";
-import { moduleLanguage } from "./settings.mjs";
+import { log, plural, forcedDeletion, listOf } from "./utils.mjs";
 
 /**
  * Does this character still need the starting maxima?
@@ -359,13 +358,8 @@ export function reserveNote({ name = "", you = false } = {}, changes = []) {
         .filter(change => RESERVES[change?.key] && change.landed > 0)
         .map(change => plural(RESERVES[change.key].label, { n: change.landed }));
     if (!parts.length) return "";
-    let what;
-    try {
-        what = new Intl.ListFormat(moduleLanguage(), { type: "conjunction" }).format(parts);
-    } catch {
-        // No ListFormat for the tag: the English list reads, and the amounts stay right.
-        what = parts.join(", ");
-    }
+    // The one road for a list (utils.mjs `listOf`, E66 C1): the page's language, commas where Intl has none.
+    const what = listOf(parts);
     return you
         ? game.i18n.format("DRPG.Murder.youLose", { what })
         : game.i18n.format("DRPG.Murder.theyLose", { name, what });

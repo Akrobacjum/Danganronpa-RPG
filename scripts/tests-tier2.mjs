@@ -59946,13 +59946,14 @@ const SCENARIOS = [
          * second Monokuma (made here) ticked as well. Read each time: what `enterTrialScene`'s stage answers as
          * `notPlaced`, and the words of every whisper it sent. The hall's `activate` is the suite's stub, so no browser
          * at the table is moved. The sentence is built here from the key's form for the module's language (Intl's rule,
-         * the English one and other, the Polish one and few), not through `plural`. Red at 4f4c24b: the whisper was
-         * `missingTokens`, and named no Monokuma.
+         * the English one and other, the Polish one and few), not through `plural` - the language the page was built in
+         * (settings.mjs `pageLanguage`), which `plural` reads since E66 C1, where both read the live setting. Red at
+         * 4f4c24b: the whisper was `missingTokens`, and named no Monokuma.
          */
         const T = await import("./trial-scene.mjs");
         const G = await import("./gm-store.mjs");
         const { ownerIdsOf } = await import("./utils.mjs");
-        const { moduleLanguage } = await import("./settings.mjs");
+        const { pageLanguage } = await import("./settings.mjs");
         const { wordsOf } = await import("./secret.mjs");
         const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
         const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
@@ -59960,7 +59961,7 @@ const SCENARIOS = [
         must(!/[&<>"']/.test(monokuma.name), "Monokuma's name needs escaping - the sentence built here would not be the whisper's");
         const key = "DRPG.TrialScene.notPlaced";
         const sentence = list => {
-            const n = list.length, form = new Intl.PluralRules(moduleLanguage()).select(n);
+            const n = list.length, form = new Intl.PluralRules(pageLanguage()).select(n);
             return `<p>${game.i18n.format(`${key}.${game.i18n.has(`${key}.${form}`) ? form : "other"}`, { n, names: list.map(a => a.name).join(", ") })}</p>`;
         };
         const said = new Set(game.messages.map(m => m.id));

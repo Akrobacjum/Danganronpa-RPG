@@ -89,6 +89,8 @@ etykiet)”]
   Pilot 01.11.2026: stays to confirm. Two approved Polish afters write a number the code knows into the prose -
   `DRPG.Settings.searchTokensPerRoom.hint` „od 0 do 10” (the setting's range) and `DRPG.Config.PHASES.dailyLife.hint`
   „pięć pór” and „jeden Free Move” - while the English afters of both keep none (M5).
+  E66: a date, a time of day or a number reaches a text through utils.mjs `localeFormat(kind, value, options)`, in
+  the language the page was built in - never `toLocale*String` or an `Intl` format of its own (T20, FAIL since E66).
 - **O6** Facts first, then text: write down the key's facts - what happens, to whom, what it costs, the exceptions -
   before the sentence (DB26 for the Polish). [rebuilt 30.10 from the plan's summary, „najpierw fakty, potem tekst”,
   number assigned 30.10, confirmed in the pilot 01.11.2026]
@@ -280,6 +282,8 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
 - **EN2** The Oxford comma, also in the lists the code builds. [survives: DB35 „przecinek oksfordzki w EN, także w
   listach z kodu (helper I9 z jawnym „en-US”)”]
   Example: `DRPG.Chapter.keepSecretUntilFound` “... no flag, no marker, and their Truth Bullets stay until then”.
+  E66: a list the code builds goes through utils.mjs `listOf(items, { type })` - “A, B, and C”, “A, B, or C” in
+  "en-US"; in Polish „A, B i C”, „A, B lub C”, and after a negation („nie ma ...”) `type: "negated"`, „A, B ani C”.
 - **EN3** Contractions by default in short messages; the full form for emphasis, a prohibition, safety and a rule.
   [survives: DB8 „domyślnie w krótkich komunikatach, pełna forma przy nacisku, zakazie, bezpieczeństwie i regule”]
   Example: `DAGGERHEART.UI.Notifications.notEnoughStress` “You don't have enough Sanity”.
@@ -663,7 +667,8 @@ number alone means that row.
   handbooks) written in the glossary's `$comment` and not in MODES (27) - E25 decides whether MODES grows a list.
 - **What E65 handed on**: T7's part fails from E25 (MODES `fail: "E25"`; E65 decision 44); the DB28 strings T11
   shows, Eclipse and Overflow agreed as masculine - E71 rewrites them (49); whether T20's FAIL also covers
-  DateTimeFormat, NumberFormat and PluralRules outside the helpers - E66, when it turns T20 to FAIL (60); T4's FAIL on
+  DateTimeFormat, NumberFormat and PluralRules outside the helpers (60) - decided in E66 C1: it does, with one
+  allowance written beside the helpers in `scripts/tests-text.mjs` (requirements.mjs `requirementsContent`); T4's FAIL on
   the window surfaces by reader and the readers of the screens SCREENS does not name - E71 (67); T13's file set,
   its own or the screen map's - E71, when it turns T13 to FAIL (69); whether a Polish handbook whose ids, kinds or
   lines differ from the English one is red - E57 (row 1.2.131), which owns the handbook facts (85); whether T4's FAIL

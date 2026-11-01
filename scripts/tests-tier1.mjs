@@ -23006,18 +23006,24 @@ const INVARIANTS = [
         }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
             + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
     }],
-    ["R850 - the time on a messenger bubble is written in the table's language, not the browser's (E18 C6; S11-61)", async () => {
+    ["R850 - the time on a messenger bubble is written in the language this page was built in, not the browser's and not Foundry's (E18 C6; S11-61; E66 C1, E66-05)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S11-61 (E18-28). The bubble's time was `toLocaleTimeString([], ...)`: the
-         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. One hour, read
-         * by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish and to English
-         * for the reading and put back, against what that language writes for it. The two must differ in this
-         * browser, or the test could not see the fault.
+         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. E18 gave it
+         * Foundry's language, and this test held that. E66 C1, 01.11.2026 (S18-40, E66-05): the words around the time
+         * are the module's, in the language the page was built in (i18n.mjs `pageLanguage`), and a Polish table on an
+         * English Foundry has the two differ - so the time is utils.mjs `localeFormat`'s, in the page's language. One
+         * hour, read by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish
+         * and to English for the reading and put back, against what the page's language writes for it ("en-US" for
+         * English, DB35). The two languages must write it differently in this browser, or the test could not see the
+         * fault. Rewritten first and red on c014681b's code: with Foundry's language Polish on an English page the
+         * bubble read Foundry's "14:15".
          */
-        const M = await import("./messenger-app.mjs");
+        const M = await import("./messenger-app.mjs"), I = await import("./i18n.mjs");
         const at = Date.UTC(2026, 9, 20, 14, 15);
-        const shape = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
-        must(shape("pl") !== shape([]) || shape("en") !== shape([]), "this browser writes an hour in its own locale as it does in Polish and in English - nothing to tell apart");
+        const page = I.pageLanguage();
+        const shape = lang => new Date(at).toLocaleTimeString(lang === "en" ? "en-US" : lang, { hour: "2-digit", minute: "2-digit" });
+        must(shape("pl") !== shape("en"), "this browser writes an hour in Polish as it does in English - nothing to tell apart");
         must(typeof M.bubbleTime === "function", "messenger-app.mjs has no bubbleTime to read the bubble's time with");
         const was = game.i18n.lang, read = {};
         try {
@@ -23028,7 +23034,8 @@ const INVARIANTS = [
         } finally {
             game.i18n.lang = was;
         }
-        equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
+        equal(stableJson(read), stableJson({ pl: shape(page), en: shape(page) }),
+            `[the bubble's time with Foundry's language Polish, then English, on a page built in "${page}"]`);
     }],
     ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window and the page visible, and neither a render nor a new bubble marks it without asking (E50 C1; S11-37, E50-01)", async () => {
         /*
@@ -23596,11 +23603,18 @@ const INVARIANTS = [
          * through `readersLines`, with Foundry's language set to Polish and to English for the time and put back; what
          * each line reads against what this browser writes for it; and, in the source, that the chat log's swap, the
          * messenger's bubble and its notice draw through it, and that `settleCall` and the ask's ends write their keys.
+         * E66 C1, 01.11.2026 (S18-40, E66-05): the reader's language is the module's as its page was built in (i18n.mjs
+         * `pageLanguage`, "en-US" for English), not Foundry's, which this test held until then; with Foundry's language
+         * set to either, the time is the page's. Rewritten first and red on c014681b's code: Foundry's Polish time on an
+         * English page.
          */
-        const S = await import("./secret.mjs");
+        const S = await import("./secret.mjs"), I = await import("./i18n.mjs");
         must(typeof S.readersLines === "function", "secret.mjs has no readersLines - a reader writes nothing of a card in its own clock");
         const at = Date.UTC(2026, 9, 24, 19, 20);
-        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) });
+        const page = I.pageLanguage();
+        const clock = lang => new Date(at).toLocaleTimeString(lang === "en" ? "en-US" : lang, { hour: "2-digit", minute: "2-digit" });
+        must(clock("pl") !== clock("en"), "this browser writes an hour in Polish as it does in English - nothing to tell apart");
+        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: clock(lang) });
         const words = `<p class="drpg-call-awaiting"><em>R852</em> <span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span></p>`
             + '<p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledApproved" data-drpg-name="R852 GM">Zatwierdził: R852 GM.</p>'
             + '<div class="drpg-gm-only"><p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledGone">Gracz już nie czekał.</p></div>'
@@ -23624,8 +23638,8 @@ const INVARIANTS = [
             /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
             /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
             /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
-        ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
-            "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
+        ]), stableJson([[shape(page), ...rest], [shape(page), ...rest], true, true, true, true, true]),
+            `[the drawn lines with Foundry's language Polish, then English, on a page built in "${page}": the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]`);
     }],
     ["R950 - a key put away in a stash opens no door: another's bedroom stays shut to a character whose only key to it is stashed, at the door and in game.drpg's answer (S08-31)", async () => {
         /*
@@ -30302,6 +30316,235 @@ const INVARIANTS = [
             small: [10 * M, 30]
         }), "{elapsed, readyRunning, readyPaused, unpause, trial, takeBack: [takeBackFor, liveMemory], small: [elapsedOf, trialTime's minutes on small stamps]} for a stamp the uptime clock wrote");
     }],
+    ["R1150 - one list of languages and one language a page is written in: settings.mjs `LANGUAGES` gives the language setting its choices and the documents' theirs, `moduleLanguage()` answers by `Object.hasOwn` (a stored \"xx\" reads \"en\"), i18n.mjs re-exports the leaf's own objects and no other file writes the list out; with the setting answering the other language and no reload, `plural()`, `listOf`, `localeFormat` and `handbookPath` keep the page's (E66 C1; S13-60, S13-62, E66-02, E66-03)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S13-60 (LANGUAGES in i18n.mjs and the setting's choices written out a second time in
+         * settings.mjs), S13-62 (the frozen language), E66-02, E66-03. Read as R1129 reads the handbooks: the setting is
+         * answered as the other language for the language key alone (game.settings.get stood in, put back in a finally)
+         * and `game.i18n.has` is watched (put back too), so the form `plural()` asks for is seen whichever file the page
+         * holds - n = 5 is "many" in Polish and "other" in English. Then "xx" stored: `moduleLanguage()` answers "en".
+         * The scan for `en: "English"` reads every module file with its comments stripped. Nothing is written. Red at
+         * c014681b: `plural()` asked for the setting's form, LANGUAGES lived in i18n.mjs beside a second list in
+         * settings.mjs, and utils.mjs had no `localeFormat`.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs"), U = await import("./utils.mjs"), H = await import("./handbooks.mjs");
+        const page = I.pageLanguage();
+        const other = page === "pl" ? "en" : "pl";
+        const tag = lang => (lang === "en" ? "en-US" : lang);
+        const at = Date.UTC(2026, 10, 1, 14, 15);
+        const KEY = "DRPG.Chapter.doneKeys";
+        const def = key => game.settings.settings.get(`${MODULE_ID}.${key}`) ?? {};
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const i18n = game.i18n, ownHas = Object.hasOwn(i18n, "has"), realHas = i18n.has;
+        let answer = other, asked = [];
+        const read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.language) return answer;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            i18n.has = function (key, ...rest) { asked.push(key); return realHas.call(this, key, ...rest); };
+            read.told = I.moduleLanguage();
+            read.forms = [2, 5].map(n => { asked = []; U.plural(KEY, { n }); return asked.find(k => k.startsWith(`${KEY}.`)) ?? null; });
+            read.list = U.listOf(["A", "B", "C"]);
+            read.time = typeof U.localeFormat === "function" ? U.localeFormat("time", at, { hour: "2-digit", minute: "2-digit" }) : null;
+            read.book = H.handbookPath("player-brochure").match(/\.(\w+)\.md$/)?.[1] ?? null;
+            answer = "xx";
+            read.unknown = S.moduleLanguage();
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownHas) i18n.has = realHas; else delete i18n.has;
+        }
+        const sources = await moduleSources();
+        const written = [...sources].filter(([, text]) => /\ben:\s*"English"/.test(stripComments(text))).map(([file]) => file).sort();
+        equal(stableJson({
+            same: [I.LANGUAGES === S.LANGUAGES, I.moduleLanguage === S.moduleLanguage, I.pageLanguage === S.pageLanguage],
+            frozen: Object.isFrozen(S.LANGUAGES ?? {}),
+            choices: [stableJson(def(SETTINGS.language).choices), stableJson(def(SETTINGS.documentLanguage ?? "documentLanguage").choices)],
+            reload: def(SETTINGS.language).requiresReload === true,
+            written, ...read
+        }), stableJson({
+            same: [true, true, true], frozen: true,
+            choices: [stableJson(S.LANGUAGES), stableJson(S.LANGUAGES)],
+            reload: true,
+            written: ["settings.mjs"],
+            told: other,
+            forms: [2, 5].map(n => `${KEY}.${new Intl.PluralRules(page).select(n)}`),
+            list: new Intl.ListFormat(tag(page), { style: "long", type: "conjunction" }).format(["A", "B", "C"]),
+            time: new Date(at).toLocaleTimeString(tag(page), { hour: "2-digit", minute: "2-digit" }),
+            book: page,
+            unknown: "en"
+        }), `[i18n.mjs's LANGUAGES, moduleLanguage and pageLanguage the leaf's; LANGUAGES frozen; the choices of the language and documents' settings; the language setting's reload; the files that write the list out; with the setting answering "${other}" on a page built in "${page}": the setting read as told, the plural forms asked for 2 and 5, a list, a time, the handbook's language; "xx" stored]`);
+    }],
+
+    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, gm-bridge.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S18-40, E66-05. T20 counted ten calls that wrote a date or a time in the browser's locale
+         * or in Foundry's language, and three Intl formats on their own: the case health check's dates in the browser's
+         * locale on every page, so a GM with an English system read "10/20/2026" in a Polish window. Here the page's
+         * language is stood in (settings.mjs `setPageLanguage`, put back in a finally) as whichever of English and Polish
+         * this browser's own locale does not write alike, and Foundry's language as "ar-EG", whose digits are neither's
+         * (put back too); the three shapes are held apart first, or the test could not see the fault. The case rows are
+         * read from `gmStoreHealth()` with the case's mark stood in for its setting alone (game.settings.get, put back):
+         * `lastBackup`'s `when`. The four that cannot be called alone are read in their source: each formats through
+         * `localeFormat` and none through a toLocale*String or Intl. Nothing is written. Red on the tree with the leaf
+         * and HEAD's sites: the case row in the browser's locale.
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), G = await import("./gm-stores.mjs");
+        const M = await import("./messenger-app.mjs"), P = await import("./secret.mjs"), N = await import("./notice-history.mjs");
+        must(typeof S.setPageLanguage === "function" && typeof U.localeFormat === "function", "settings.mjs has no setPageLanguage or utils.mjs no localeFormat - the page's language cannot be stood in");
+        must(game.user.isGM, "the case health check answers a GM only");
+        const at = Date.UTC(2026, 9, 20, 14, 15, 1);
+        const tag = lang => (lang === "en" ? "en-US" : lang);
+        const browserShape = new Date(at).toLocaleString();
+        const page = new Date(at).toLocaleString("pl") !== browserShape ? "pl" : "en";
+        const FOUNDRY = "ar-EG";
+        const full = lang => new Date(at).toLocaleString(lang);
+        const hm = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+        must(new Set([browserShape, full(tag(page)), full(FOUNDRY)]).size === 3 && new Set([new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), hm(tag(page)), hm(FOUNDRY)]).size === 3,
+            "this browser's locale, the page's language and Foundry's write a date or an hour alike - nothing to tell apart");
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const wasLang = game.i18n.lang;
+        const was = S.setPageLanguage(page);
+        const read = {};
+        try {
+            game.i18n.lang = FOUNDRY;
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.caseMark) return { ...(realGet.call(this, ns, key, ...rest) ?? {}), lastBackupAt: at, lastBackupBy: "R1152 GM" };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            read.caseRow = (await G.gmStoreHealth())?.rows?.find(r => r.id === "lastBackup")?.data?.when ?? null;
+            read.bubble = M.bubbleTime(at);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = `<span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span>`;
+            P.readersLines(wrap.content);
+            read.card = wrap.content.querySelector(".drpg-call-expires")?.textContent ?? null;
+            read.notice = N.noticeTime(at);
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            game.i18n.lang = wasLang;
+            S.setPageLanguage(was);
+        }
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const through = (body, call) => body.includes(call) && !/toLocale(?:Date|Time)?String|\bIntl\s*\./.test(body);
+        const pagePrefs = { hour: "2-digit", minute: "2-digit" };
+        equal(stableJson({ ...read,
+            expires: through(fn("gm-bridge.mjs", "expiresHtml"), 'localeFormat("time", expires'),
+            failures: through(fn("gm-panel.mjs", "openFailureLog"), 'localeFormat("time"'),
+            evidence: through(fn("trial.mjs", "openObjectionLog"), 'localeFormat("time", e.timestamp)'),
+            megabytes: through(fn("season-setup.mjs", "roomImagesSection"), 'localeFormat("number"')
+        }), stableJson({
+            caseRow: full(tag(page)),
+            bubble: hm(tag(page)),
+            card: game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(tag(page), pagePrefs) }),
+            notice: hm(tag(page)),
+            expires: true, failures: true, evidence: true, megabytes: true
+        }), `[on a page built in "${page}" with Foundry's language "${FOUNDRY}" and the browser's own locale writing "${browserShape}": the case row's backup date, the bubble's hour, an ask card's end, a notice's hour; expiresHtml, the failure log, the evidence log and the megabytes formatted through localeFormat and nothing else]`);
+    }],
+
+    ["R1153 - the module says it is in English and Polish, and its containers say which language they are in: module.json's description names Polish, and `lang` is the page's language on a window the module opens (its classes name `drpg-`), the HUD, the notice stack, the GM's launcher and, by its render hook's source, the character sheet - and not on a window that is not the module's (E66 C1; S13-62, E66-08)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S13-62, E66-08. A screen reader and the browser's own hyphenation and spelling read a
+         * container's `lang`; the module's windows inherited the page's, which is Foundry's language, so a Polish window
+         * on an English Foundry was read with English rules. module.mjs's render hook marks every ApplicationV2 the
+         * module opens - DialogV2 among them - by its classes (`drpg-` in `options.classes`, as the module builds every
+         * window it opens); the roots that are no window are marked where they are made. Two windows of the suite's
+         * own are rendered and closed here (no world write): one with the module's class, one without. Red at
+         * c014681b: no `lang` anywhere, and module.json's description named no language.
+         */
+        const I = await import("./i18n.mjs");
+        const page = I.pageLanguage();
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`, { cache: "no-cache" }).then(r => r.json());
+        const { ApplicationV2 } = foundry.applications.api;
+        class R1153Window extends ApplicationV2 {
+            async _renderHTML() { return "<p>R1153</p>"; }
+            _replaceHTML(result, content) { const box = content.querySelector?.(".window-content") ?? content; box.innerHTML = result; }
+        }
+        const own = new R1153Window({ id: `drpg-r1153-own-${foundry.utils.randomID(6)}`, classes: ["drpg-panel"], window: { title: "R1153" } });
+        const foreign = new R1153Window({ id: `r1153-foreign-${foundry.utils.randomID(6)}`, classes: ["r1153-not-the-module"], window: { title: "R1153" } });
+        const read = {};
+        try {
+            await own.render({ force: true });
+            await foreign.render({ force: true });
+            read.windows = [own.element?.getAttribute("lang") ?? null, foreign.element?.getAttribute("lang") ?? null];
+        } finally {
+            await own.close().catch(() => null);
+            await foreign.close().catch(() => null);
+        }
+        const attr = id => document.getElementById(id)?.getAttribute("lang") ?? (document.getElementById(id) ? null : "absent");
+        read.hud = attr("drpg-hud");
+        read.notices = attr("drpg-popups");
+        read.launcher = game.user.isGM ? attr("drpg-gm-launcher") : page;
+        const sheet = fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "onRenderCharacterSheet") ?? "";
+        read.sheet = /\bmarkLanguage\(\s*root\s*\)/.test(sheet);
+        read.description = [/\bEnglish\b/.test(manifest.description ?? ""), /\bPolish\b/.test(manifest.description ?? ""), /\bPolski\b/.test(manifest.description ?? "")];
+        equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true] }),
+            `[on a page built in "${page}": lang on the module's window and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"]`);
+    }],
+
+    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
+        /*
+         * E66 C1, 01.11.2026; decision 38 = D34 option 1 ("Nowe ustawienie świata 'Język dokumentów', domyślnie język
+         * primary GM-a przy pierwszym starcie; UI dalej w języku klienta"), E66-09. The setting's registration is read;
+         * i18n.mjs `seedDocumentLanguage` is run with the setting answered empty and then "pl" (game.settings.get stood
+         * in for that key alone) and its write recorded and not made (game.settings.set stood in, both put back in a
+         * finally): one write of the page's language, on the primary GM alone, and none into a setting that holds one.
+         * Then `worldLocalize` with the setting answered as the other language than the page's, as the page's, and
+         * empty, against that language's own file fetched here and against `game.i18n.format`. Nothing is written; the
+         * other file stays in `worldLocalize`'s cache, as it would at a table. Red at c014681b: no such setting.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs"), U = await import("./utils.mjs");
+        const { isPrimaryGm } = U;
+        const def = game.settings.settings.get(`${MODULE_ID}.documentLanguage`) ?? null;
+        must(def, "no world setting documentLanguage is registered - the documents have no language of their own");
+        must(typeof I.seedDocumentLanguage === "function" && typeof U.worldLocalize === "function", "i18n.mjs has no seedDocumentLanguage or utils.mjs no worldLocalize");
+        const page = I.pageLanguage();
+        const other = page === "pl" ? "en" : "pl";
+        const KEY = "DRPG.Bridge.openUntil", DATA = { time: "R1154" };
+        const file = await fetch(`/modules/${MODULE_ID}/lang/${other}.json`, { cache: "no-cache" }).then(r => r.json());
+        const theirs = String(foundry.utils.getProperty(file, KEY) ?? file[KEY] ?? "").replace("{time}", DATA.time);
+        must(theirs && theirs !== game.i18n.format(KEY, DATA), `the ${other} file writes ${KEY} as this page does - nothing to tell apart`);
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get, ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        let answer = "";
+        const writes = [], read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === "documentLanguage") return answer;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value, ...rest) {
+                if (ns === MODULE_ID && key === "documentLanguage") { writes.push([key, value]); return value; }
+                return realSet.call(this, ns, key, value, ...rest);
+            };
+            read.seeded = [await I.seedDocumentLanguage()];
+            answer = "pl";
+            read.seeded.push(await I.seedDocumentLanguage());
+            read.read = S.documentLanguage();
+            answer = other;
+            read.other = await U.worldLocalize(KEY, DATA);
+            answer = page;
+            read.same = await U.worldLocalize(KEY, DATA);
+            answer = "";
+            read.unset = await U.worldLocalize(KEY, DATA);
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownSet) settings.set = realSet; else delete settings.set;
+        }
+        const primary = isPrimaryGm();
+        equal(stableJson({
+            setting: def && { scope: def.scope, config: def.config === true, type: def.type?.name ?? null, choices: stableJson(def.choices), default: def.default },
+            writes, ...read
+        }), stableJson({
+            setting: { scope: "world", config: false, type: "String", choices: stableJson(S.LANGUAGES), default: "" },
+            writes: primary ? [["documentLanguage", page]] : [],
+            seeded: [primary, false],
+            read: "pl",
+            other: theirs,
+            same: game.i18n.format(KEY, DATA),
+            unset: game.i18n.format(KEY, DATA)
+        }), `[the setting's scope, window, type, choices and default; the writes seedDocumentLanguage made with the setting empty, then holding "pl" (this GM ${primary ? "is" : "is not"} the primary); what it answers; ${KEY} through worldLocalize with the documents in "${other}", in "${page}" (the page's) and unset]`);
+    }]
 ];
 
 /**

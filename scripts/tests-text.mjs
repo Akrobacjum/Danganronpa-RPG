@@ -88,7 +88,8 @@
  * English literals in a script that draws UI, the console's text, a refusal's
  * reason, a class list, a selector and CSS set aside) and T20 (`localeCalls`,
  * `Intl.ListFormat` and `toLocale*String` outside utils.mjs's `listOf` and
- * `plural`). At C9 T27 (`naturalnessBefore`, E65-18, report, and it stays one): a
+ * `plural`; FAIL since E66 C1, which adds `localeFormat` and holds
+ * `Intl.DateTimeFormat`, `Intl.NumberFormat` and `Intl.PluralRules` to them too). At C9 T27 (`naturalnessBefore`, E65-18, report, and it stays one): a
  * naturalness pair's "before" still in pl.json, the pairs read off the guide's own
  * table (docs/text-style.md section 12, through `naturalnessPairs`, so the guide is
  * their one source); the pairs whose before is gone are listed apart, and the table's
@@ -2057,9 +2058,21 @@ export function uiLiterals(bag = {}) {
     return { found, read: counts.literals, sources: ["script"], counts };
 }
 
-/* T20's helpers: the functions a list or a plural is formatted in, by file - utils.mjs's listOf (Intl.ListFormat) and
-   plural (Intl.PluralRules). */
-const LOCALE_HELPERS = Object.freeze({ "scripts/utils.mjs": Object.freeze(["listOf", "plural"]) });
+/* T20's helpers: the functions a list, a plural, a date, a time or a number is formatted in, by file - utils.mjs's
+   listOf (Intl.ListFormat), plural (Intl.PluralRules) and, since E66 C1, localeFormat (Intl.DateTimeFormat and
+   Intl.NumberFormat), each in the language the page was built in. */
+const LOCALE_HELPERS = Object.freeze({ "scripts/utils.mjs": Object.freeze(["listOf", "plural", "localeFormat"]) });
+/* The Intl formats T20 holds to the helpers (E66 C1, 01.11.2026; E65 Open 60 decided: all four). Every other Intl member
+   (Collator, Segmenter, ...) is counted by its name, not a finding. */
+const LOCALE_FORMATS = Object.freeze(["ListFormat", "DateTimeFormat", "NumberFormat", "PluralRules"]);
+/* T20's allowances, by file and function (E66 C1): a function outside the helpers that may format, with its reason and
+   the stage that let it. A new one needs a reason and this stage's or a later stage's name. */
+const LOCALE_ALLOWED = Object.freeze({
+    "scripts/requirements.mjs": Object.freeze([Object.freeze({ name: "requirementsContent", stage: "E66",
+        why: "the requirements window speaks where the module did not start: no setting is registered, so there is no page "
+            + "language for utils.mjs's helpers to read, and the window counts its missing modules in the language read raw "
+            + "from this browser's storage (requirementsLanguage) with Intl.PluralRules" })])
+});
 const TO_LOCALE = /\.\s*(toLocale(?:Date|Time)?String)\s*(?:\?\.\s*)?\(/g;
 
 /* A function's body in blanked code, `[open, close]` of its braces, or null. */
@@ -2075,24 +2088,27 @@ function bodyOf(lx, blank, name) {
 }
 
 /**
- * T20 (plan, S18-39 and S18-40; report, FAIL from E66): a list joined by
+ * T20 (plan, S18-39 and S18-40; FAIL since E66 C1): a list joined by
  * `new Intl.ListFormat` outside utils.mjs `listOf`, and a `toLocaleString`,
  * `toLocaleDateString` or `toLocaleTimeString` call outside the helpers - the
  * browser's locale where the call names none (`noLocale`), else the one it names
- * (Foundry's `game.i18n.lang`, `moduleLanguage()`), not one a helper picks (DB35's
- * helper is E66's). Read on blanked code: a call in a comment or a string is none, and
- * `toLocaleUpperCase` is no format. Every other `Intl.*` outside the helpers is
- * counted by its name (`Intl.DateTimeFormat`, `Intl.NumberFormat`, ...), not a
- * finding: the slice names these two.
+ * (Foundry's `game.i18n.lang`, `moduleLanguage()`), not the page's language a helper
+ * reads. Read on blanked code: a call in a comment or a string is none, and
+ * `toLocaleUpperCase` is no format. Since E66 C1 (E65 Open 60 decided) an
+ * `Intl.DateTimeFormat`, `Intl.NumberFormat` or `Intl.PluralRules` outside the helpers
+ * is a finding too (`intl-format`), and a function `LOCALE_ALLOWED` names is let
+ * stand (`allowed`); every other `Intl.*` is counted by its name.
  */
 export function localeCalls(bag = {}) {
     const lx = lexerOf(bag, "localeCalls");
-    const found = [], counts = { files: 0, inHelpers: 0, noLocale: 0 };
+    const found = [], counts = { files: 0, inHelpers: 0, allowed: 0, noLocale: 0 };
     for (const [file, text] of asMap(bag.scripts)) {
         counts.files++;
         const code = lx.blankComments(String(text ?? "")), blank = lx.blankLiterals(code);
         const helpers = (LOCALE_HELPERS[file] ?? []).map(name => bodyOf(lx, blank, name)).filter(Boolean);
         const inHelper = at => helpers.some(([a, b]) => at > a && at < b);
+        const allowances = (LOCALE_ALLOWED[file] ?? []).map(a => bodyOf(lx, blank, a.name)).filter(Boolean);
+        const allowed = at => allowances.some(([a, b]) => at > a && at < b);
         /* The locale the call names itself - its first argument as written - or null for none (the browser's). A lone
            literal blanks to spaces, which callArgs counts as no argument: then the text between the brackets is it. */
         const localeAt = open => {
@@ -2106,17 +2122,19 @@ export function localeCalls(bag = {}) {
             if (locale === null) counts.noLocale++;
             found.push({ key: `${file}:${line}`, kind, file, line,
                 what: `${file}:${line}: ${call} outside utils.mjs's helpers, in ${locale === null ? "the browser's locale" : `the locale its call names (${locale})`} `
-                    + `- not one the module's helpers pick (${kind === "list-format" ? "S18-39" : "S18-40"}; T20)` });
+                    + `- not the page's language the helpers read (${kind === "list-format" ? "S18-39" : "S18-40"}; T20)` });
         };
         for (const m of blank.matchAll(/(?<![\w$.])Intl\s*\??\.\s*(\w+)/g)) {
             if (inHelper(m.index)) { counts.inHelpers++; continue; }
-            if (m[1] !== "ListFormat") { counts[`Intl.${m[1]}`] = (counts[`Intl.${m[1]}`] ?? 0) + 1; continue; }
+            if (!LOCALE_FORMATS.includes(m[1])) { counts[`Intl.${m[1]}`] = (counts[`Intl.${m[1]}`] ?? 0) + 1; continue; }
+            if (allowed(m.index)) { counts.allowed++; continue; }
             let open = m.index + m[0].length;
             while (/\s/.test(blank[open] ?? "")) open++;
-            hit(m.index, "list-format", "new Intl.ListFormat", localeAt(open));
+            hit(m.index, m[1] === "ListFormat" ? "list-format" : "intl-format", `new Intl.${m[1]}`, localeAt(open));
         }
         for (const m of blank.matchAll(TO_LOCALE)) {
             if (inHelper(m.index)) { counts.inHelpers++; continue; }
+            if (allowed(m.index)) { counts.allowed++; continue; }
             hit(m.index, "to-locale", `${m[1]}()`, localeAt(m.index + m[0].length - 1));
         }
     }
@@ -2457,7 +2475,7 @@ export const MODES = Object.freeze({
     itemQuotes: Object.freeze({ test: "T23", mode: "report", fail: null, reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     bareLeft: Object.freeze({ test: "T25", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),
     uiLiterals: Object.freeze({ test: "T13", mode: "report", fail: "E71", reads: Object.freeze(["scripts"]), lexer: true }),
-    localeCalls: Object.freeze({ test: "T20", mode: "report", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
+    localeCalls: Object.freeze({ test: "T20", mode: "fail", fail: "E66", reads: Object.freeze(["scripts"]), lexer: true }),
     naturalnessBefore: Object.freeze({ test: "T27", mode: "report", fail: null, reads: Object.freeze(["docs", "lang"]) }),
     renderChecks: Object.freeze({ test: "T15", mode: "report", fail: "E71", reads: Object.freeze(["render", "lang"]), also: Object.freeze(["prose"]) }),
     secondPersonToMany: Object.freeze({ test: "T16", mode: "report", fail: "E71", reads: Object.freeze(["audience", "lang"]), also: Object.freeze(["prose"]) })
@@ -3184,7 +3202,9 @@ export const FIXTURES = Object.freeze({
         }
     },
     localeCalls: {
-        flags: ["scripts/fx-a.mjs:1 list-format", "scripts/fx-a.mjs:2 to-locale", "scripts/fx-a.mjs:7 to-locale", "scripts/utils.mjs:8 to-locale"],
+        flags: ["scripts/fx-a.mjs:1 list-format", "scripts/fx-a.mjs:2 to-locale", "scripts/fx-a.mjs:5 intl-format", "scripts/fx-a.mjs:7 to-locale",
+            "scripts/fx-a.mjs:8 intl-format", "scripts/fx-a.mjs:9 intl-format", "scripts/utils.mjs:8 to-locale", "scripts/requirements.mjs:4 intl-format"],
+        counts: { files: 3, inHelpers: 3, allowed: 2, "Intl.Collator": 1 },
         input: {
             scripts: {
                 "scripts/utils.mjs": [
@@ -3195,16 +3215,26 @@ export const FIXTURES = Object.freeze({
                     "    const form = new Intl.PluralRules(\"en\").select(data.n);",                                  // the helper: passes
                     "    return `${key}.${form}`;",
                     "}",
-                    "export const when = d => d.toLocaleDateString();"                                                // outside the helpers: flagged
+                    "export const when = d => d.toLocaleDateString();",                                               // outside the helpers: flagged
+                    "export function localeFormat(kind, value) { return new Intl.DateTimeFormat(\"en\").format(value); }" // the helper: passes
+                ].join("\n"),
+                "scripts/requirements.mjs": [
+                    "export function requirementsContent(missing, lang) {",
+                    "    return [new Intl.PluralRules(lang).select(missing.length), new Date(0).toLocaleString(lang)];", // the allowance: both pass
+                    "}",
+                    "export const other = new Intl.PluralRules(\"pl\");"                                            // outside the allowance: flagged
                 ].join("\n"),
                 "scripts/fx-a.mjs": [
                     "const names = new Intl.ListFormat(\"en\").format(list);",                                         // flagged
                     "const t = new Date().toLocaleTimeString();",                                                     // flagged
                     "// const old = n.toLocaleString();",                                                             // a comment: passes
                     "const s = \"x.toLocaleString() in a string\";",                                                  // a string: passes
-                    "const n = new Intl.NumberFormat(\"pl\").format(3);",                                             // another Intl: counted
+                    "const n = new Intl.NumberFormat(\"pl\").format(3);",                                             // a number format: flagged (E66)
                     "const u = name.toLocaleUpperCase();",                                                            // no format: passes
-                    "const v = (5).toLocaleString (\"pl\");"                                                          // a space before "(": flagged
+                    "const v = (5).toLocaleString (\"pl\");",                                                         // a space before "(": flagged
+                    "const w = new Intl.DateTimeFormat(\"pl\", { hour: \"2-digit\" }).format(d);",                    // a date format: flagged (E66)
+                    "const x = new Intl.PluralRules(\"pl\").select(2);",                                               // a plural rule: flagged (E66)
+                    "const y = new Intl.Collator(\"pl\").compare(a, b);"                                               // not a format: counted
                 ].join("\n")
             }
         }

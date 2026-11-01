@@ -1070,7 +1070,7 @@ export function traceClicks({ seconds = 20, toChat = true, onReport = null } = {
  * work of the last twenty releases actually changed. A GM told "the theme fix
  * is not there, run fileSizes()" got a report that looked complete and was
  * silent about exactly those. The stylesheets now come from the manifest's own
- * `styles`, the languages from `LANGUAGES` in i18n.mjs (the manifest lists only
+ * `styles`, the languages from `LANGUAGES` (settings.mjs's, which i18n.mjs re-exports since E66 C1; the manifest lists only
  * English: Polish is loaded by the module, not by Foundry), and R126 holds this
  * list to the manifest.
  */

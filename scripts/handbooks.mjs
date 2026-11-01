@@ -8,7 +8,7 @@
  * (`--drpg-launcher-book` and `--drpg-launch-b-bottom`, danganronpa.css; E81
  * fix r2-H4 restated this from them). It opens the Student Brochure and the Player Handbook for
  * everybody, and the GM Handbook for a GM, in the language this page was built in
- * (i18n.mjs `pageLanguage`): the module's language as this browser had it at its
+ * (`pageLanguage`, settings.mjs's since E66 C1 and re-exported by i18n.mjs): the module's language as this browser had it at its
  * last load.
  *
  * The text is the Markdown in docs/handbooks, the same files the repository

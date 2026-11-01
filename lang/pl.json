@@ -308,6 +308,10 @@
         "name": "Język",
         "hint": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu."
       },
+      "documentLanguage": {
+        "name": "Język dokumentów",
+        "hint": "Język dokumentów, które moduł zapisuje w tym świecie, jeden dla wszystkich. Okna, karty i arkusz zostają w języku ustawionym w każdej przeglądarce. Ustawia go pierwszy start głównego GM-a, na jego język."
+      },
       "moveAudit": {
         "name": "Żeton gracza przesunięty przez ścianę",
         "hint": "Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla MG.",

@@ -16,7 +16,7 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc, serverNow } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc, serverNow, localeFormat } from "./utils.mjs";
 import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall, guardCubAbility,
@@ -4804,7 +4804,8 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
  */
 function expiresHtml(expires) {
     if (!Number.isFinite(expires) || expires <= 0) return "";
-    const time = new Date(expires).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+    // In the posting GM's module language (utils.mjs `localeFormat`, E66 C1), until each reader writes its own.
+    const time = localeFormat("time", expires, { hour: "2-digit", minute: "2-digit" });
     return ` <span class="drpg-call-expires" data-expires="${Math.round(expires)}">${
         esc(game.i18n.format("DRPG.Bridge.openUntil", { time }))}</span>`;
 }

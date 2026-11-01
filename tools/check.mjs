@@ -36,7 +36,9 @@
  *             missing, no stray key (DRPG.Config.* and .few/.many aside), no
  *             placeholder dropped (`{a}` aside); and CLAUDE.md's plural rule -
  *             every English .one/.other family has its Polish .few and .many.
- *   prose     config.mjs's prose against lang/pl.json (tools/config-prose.mjs).
+ *   prose     config.mjs's prose against lang/pl.json (tools/config-prose.mjs), and
+ *             that tool's `--check` with no file: its usage and exit 2, red when it
+ *             throws or exits otherwise (E66 C1; S13-60).
  *   names     every name scripts/ takes from `./x.mjs` - static imports,
  *             re-exports, and the dynamic forms the module uses, a namespace
  *             held in a variable (`const m = await import(...)`, then `m.a`)
@@ -164,7 +166,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
@@ -311,7 +313,13 @@ async function prose() {
     const { proseCoverage } = await import(url.pathToFileURL(path.join(REPO, "tools", "config-prose.mjs")).href);
     const r = proseCoverage(path.join(REPO, "lang", "pl.json"));
     console.log(`prose: ${r.covered}/${r.wanted} of config.mjs's strings in lang/pl.json; missing ${r.missing.length}, extra ${r.extra.length}`);
-    return [...(r.wanted ? [] : ["config.mjs yielded no prose to cover"]),
+    /* The command with no file (E66 C1, 01.11.2026; S13-60): it threw in `path.resolve(undefined)` and exited 1. */
+    const bare = spawnSync(process.execPath, [path.join(REPO, "tools", "config-prose.mjs"), "--check"], { encoding: "utf8" });
+    const usage = /^usage: node tools\/config-prose\.mjs/m.test(bare.stderr ?? "");
+    console.log(`prose: config-prose.mjs --check with no file: exit ${bare.status}, ${usage ? "its usage" : "no usage"}${/\bat \S+:\d+:\d+/.test(bare.stderr ?? "") ? ", a stack" : ""}`);
+    const noFile = bare.status === 2 && usage && !/\bat \S+:\d+:\d+/.test(bare.stderr ?? "")
+        ? [] : [`config-prose.mjs --check with no file exits ${bare.status ?? bare.signal} ${usage ? "" : "without its usage "}- it should print its usage and exit 2 (S13-60)`];
+    return [...noFile, ...(r.wanted ? [] : ["config.mjs yielded no prose to cover"]),
         ...r.missing.map(k => `lang/pl.json lacks DRPG.Config.${k}`), ...r.extra.map(k => `lang/pl.json has DRPG.Config.${k}, which config.mjs does not`)];
 }
 

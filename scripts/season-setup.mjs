@@ -55,7 +55,7 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite, wholeNumber } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms, serialWrite, wholeNumber, localeFormat } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
@@ -1358,7 +1358,8 @@ export function checkMarks(html) {
 function roomImagesSection(found, esc, probeMs = ROOM_IMAGE_LIMITS.probeMs) {
     const where = entry => entry.rooms.map(r => game.i18n.format("DRPG.Panel.checksImagesWhere", r)).join(", ");
     const listOf = list => list.map(where).join("; ");
-    const mb = bytes => new Intl.NumberFormat(game.i18n.lang || undefined, { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024));
+    // The page's language (utils.mjs `localeFormat`, E66 C1), where it was Foundry's.
+    const mb = bytes => localeFormat("number", bytes / (1024 * 1024), { maximumFractionDigits: 1 });
     const sized = entry => game.i18n.format("DRPG.Panel.checksImagesSized", { rooms: where(entry), size: [
         entry.pixels && game.i18n.format("DRPG.Panel.checksImagesPixels", { width: entry.width, height: entry.height }),
         entry.heavy && game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: mb(entry.bytes) })].filter(Boolean).join(", ") });

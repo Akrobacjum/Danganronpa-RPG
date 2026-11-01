@@ -39,7 +39,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { MESSAGE_FLAG, plural, debug } from "./utils.mjs";
+import { MESSAGE_FLAG, plural, debug, markLanguage } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
@@ -113,6 +113,8 @@ export function ensureNoticeTile() {
         host = document.createElement("div");
         host.id = CONTAINER_ID;
     }
+    // The stack's language, the page's (E66 C1): every notice in it is the module's words.
+    markLanguage(host);
     let button = document.getElementById(CORNER_ID);
     if (button?.parentElement !== host) {
         button?.remove();
@@ -212,6 +214,7 @@ function evidenceStage() {
            The same role the notice stack carries (a11y.mjs). */
         el.setAttribute("role", "status");
         el.setAttribute("aria-live", "polite");
+        markLanguage(el);
         document.body.append(el);
     }
     return el;
