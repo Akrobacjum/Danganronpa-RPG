@@ -120,7 +120,7 @@ export const SCREENS = Object.freeze([
     row("projects", "projects and the countdown tray", "window", "both", ["scripts/projects-ui.mjs:*", "scripts/projects-tray.mjs:*", "scripts/projects.mjs:*"], { stage: "E15" }),
     row("betrayal", "the betrayal and a dynamic difficulty", "window", "both", ["scripts/action-rolls.mjs:performBetrayal", "scripts/action-rolls.mjs:askDynamicDifficulty"], { stage: "E16" }),
     row("roll-window", "the roll window", "window", "both", ["scripts/roll-dialog.mjs:*"], { stage: "E16" }),
-    row("eclipse-hud", "the Eclipse asked from the HUD", "window", "gm", ["scripts/hud.mjs:askEclipse"], { stage: "E17" }),
+    row("eclipse-hud", "the Eclipse asked and ended, from the HUD and the panel", "window", "gm", ["scripts/boundary.mjs:*"], { stage: "E17" }),
     row("bridge-request", "a player's request the GM is asked about", "window", "gm", ["scripts/gm-bridge.mjs:askForRequest"], { stage: "E18" }),
     row("item-effect", "an item's effect ruled from the messenger", "window", "gm", ["scripts/messenger-app.mjs:askItemEffect"], { stage: "E18" }),
     row("after-incident", "after an incident", "window", "gm", ["scripts/murder-rules.mjs:afterIncident"], { stage: "E18" }),

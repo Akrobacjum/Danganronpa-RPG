@@ -57,13 +57,20 @@ export function studentCensus(actors = studentActors()) {
 }
 
 /**
- * The students who still spend a budget: the living, and the dead who are
- * back as a Monocub. The one roster the panel's "Next" line, its table and
- * the status strip used to spell five ways (audit, hygiene).
+ * The students who still spend a budget: the living, and the dead back as a Monocub. A Monokuma is never one
+ * (`studentActors`). The one roster the panel's "Next" line, its table and the status strip used to spell five ways
+ * (audit, hygiene), and, since E37 C2 (S10-45, E37-08; tier 0 R1192, tier 1 R1193), the one the GM's strip, the
+ * Eclipse's placement and its whispers (eclipse.mjs) and the trial's ballots and size (vote.mjs) read too, where four
+ * definitions stood: player-status.mjs `trackedStudents` (the living without the Monocubs), eclipse.mjs `placingActors`
+ * and the trial's two walks of `studentActors()`.
+ *
+ * `dead` is the death the caller asks, the GMs' by default (`isDeadForGm`: the flag, or a death this browser holds); a
+ * card sent to each owner is a document and asks the table's fact (`isDeceased`, rule A), and the trial hands its own
+ * rule, which it filters again with the Monocub flag as the GMs hold it.
  */
-export function actingStudents() {
+export function actingStudents({ dead = isDeadForGm } = {}) {
     return studentActors().filter(a =>
-        !isDeadForGm(a) || a.getFlag(MODULE_ID, FLAGS.monocub));
+        !dead(a) || a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 
 /**

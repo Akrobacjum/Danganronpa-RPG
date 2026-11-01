@@ -24874,10 +24874,11 @@ const INVARIANTS = [
          * chevron's question still said "Everyone's actions refill", and the GM was told what the module then did not do.
          * Read pure: hud.mjs `eclipseQuestion(clock, name)`, the key and the words the question prints, for a clock whose
          * boundary refilled already and for one whose did not; and askEclipse's source asks it. Red at 3fa1f5b4: no
-         * `eclipseQuestion`.
+         * `eclipseQuestion`. E37 C2 moved both to boundary.mjs (the chevron's and the panel's one road, `toggleEclipse`): the
+         * import and the source read are boundary.mjs's, a guard that cannot be red on its own (a moved import).
          */
         const J = stableJson;
-        const H = await import("./hud.mjs");
+        const H = await import("./boundary.mjs");
         const { boundaryStamp } = await import("./clock.mjs");
         const base = { season: 1, chapter: 1, session: 2, day: 2, timeOfDay: "noon", eclipse: false, refilledFor: null };
         const refilled = { ...base, refilledFor: boundaryStamp(base) };
@@ -24886,7 +24887,7 @@ const INVARIANTS = [
         const got = has ? [base, refilled, other].map(c => H.eclipseQuestion(c, "Afternoon Eclipse").key) : null;
         const words = has ? H.eclipseQuestion(refilled, "Afternoon Eclipse").text : null;
         const sources = new Map(await moduleSources());
-        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        const hud = stripComments(sources.get("boundary.mjs") ?? "");
         equal(J({ got, named: typeof words === "string" && words.includes("Afternoon Eclipse"), asks: /eclipseQuestion\(/.test(fnSource(hud, "askEclipse")) }),
             J({ got: ["DRPG.Hud.eclipseAsk", "DRPG.Hud.eclipseAskRefilled", "DRPG.Hud.eclipseAsk"], named: true, asks: true }),
             "{got: [the question's key for a boundary not refilled, refilled already, another boundary refilled]; named: the words name the "
@@ -30921,6 +30922,71 @@ const INVARIANTS = [
         read.reported = reported.length;
         equal(stableJson(read), stableJson({ refused: [null, "en"], missing: [null, "en"], loaded: [["R1166"], "pl"], reported: 2 }),
             "[the file's answer and the page's language after a refused fetch, a 404 and a file that loads, on a page stood in as Polish; how many times the failure was reported]");
+    }],
+    ["R1193 - the GM's strip and the panel's Next line count one cast (E37 C2, E37-09; S10-45): with a Monocub holding an action and every other student spent, both say one student still has actions, \"Still placing\" counts the Monocub in an Eclipse, and the trial's ballots go to whom they went before", async () => {
+        /*
+         * E37 C2, 01.11.2026; E37-09, audit S10-45. The panel's Next line counted `actingStudents()` (the living, and the
+         * Monocubs) and the GM's strip chapter.mjs `livingStudents()`, so with a Monocub holding the only action left the
+         * line said "1 student still has actions to spend." over a strip reading "Still to act 0 / 2". Read on four
+         * stand-in students, nothing written: `game.actors.filter` answers them while the test reads, and the clock is
+         * read as an Eclipse for the second strip (`game.settings.get` of the clock), both put back in `finally` and the
+         * strip drawn again from the world. D is dead and not a Monocub (2 actions), A and B living and spent, C dead and
+         * back as a Monocub (1 action); A and C belong to one player, B and D to another, D listed first. Read:
+         * `nextStep` with no incident, no Eclipse and the season's rows held; the strip's two rows as
+         * `renderPlayerStatus` draws them on this GM; `trialParticipants({ connected: false })`, which E37 points at the
+         * roster with its own filter kept: what 84fdb5af's code answers on the same stand-ins (A's player and B's).
+         * Red at 84fdb5af: "Still to act 0 / 2" and "Still placing 2 / 2".
+         */
+        needs(world.atLeast("playerAccounts", 2), "two player accounts to own the stand-ins");
+        const PS = await import("./player-status.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const V = await import("./vote.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        must(game.user.isGM, "the strip's table view is a GM's - this would measure nothing");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const stand = (key, { dead = false, cub = false, actions = 0, owner }) => ({
+            id: `R1193${key}`, name: `R1193 ${key}`, type: "character", isOwner: false,
+            system: { resources: { actions: { value: actions, max: 3 } } },
+            getFlag: (scope, flag) => (scope === MODULE_ID ? { [FLAGS.deceased]: dead || undefined, [FLAGS.monocub]: cub || undefined }[flag] : undefined),
+            testUserPermission: (user, level) => level === "OWNER" && user?.id === owner.id
+        });
+        const D = stand("D", { dead: true, actions: 2, owner: two }), A = stand("A", { owner: one }), B = stand("B", { owner: two });
+        const C = stand("C", { dead: true, cub: true, actions: 1, owner: one });
+        const stands = [D, A, B, C];
+        const clock = { ...getClock(), phase: "dailyLife", eclipse: false };
+        const held = [{ key: "name", done: true, optional: false, missing: () => [] }];
+        const ownFilter = Object.getOwnPropertyDescriptor(game.actors, "filter");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const strip = () => {
+            PS.renderPlayerStatus();
+            const el = document.getElementById(PS.WIDGET_ID);
+            const value = cls => el?.querySelector(`.${cls} .drpg-status-value`)?.textContent?.trim() ?? null;
+            return [value("is-actions"), value("is-move")];
+        };
+        const read = {};
+        try {
+            game.actors.filter = fn => stands.filter(fn);
+            const line = GP.nextStep(clock, { setupList: held, incident: false, eclipse: false });
+            read.next = [line?.text ?? null, line?.action ?? null];
+            read.strip = strip();
+            read.trial = V.trialParticipants({ connected: false }).map(p => [p.actor.name, p.user.id]);
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase: "dailyLife", timeOfDay: "noon", eclipse: true, eclipseStartedAt: Date.now() } : value;
+            };
+            read.eclipse = strip();
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            if (ownFilter) Object.defineProperty(game.actors, "filter", ownFilter); else delete game.actors.filter;
+            PS.renderPlayerStatus();
+        }
+        must(read.strip[0] !== null && read.eclipse[1] !== null, `the GM's strip drew no row to read (${stableJson(read)}) - this would measure nothing`);
+        const ballots = TRIAL.deadCastBallots ? [[D.name, two.id], [A.name, one.id]] : [[A.name, one.id], [B.name, two.id]];
+        equal(stableJson(read), stableJson({
+            next: [plural("DRPG.Panel.nextStillActing", { n: 1 }), null], strip: ["1 / 3", null], trial: ballots, eclipse: [null, "3 / 3"]
+        }), "{next: the panel's Next line and its action; strip: [Still to act, Still placing] out of an Eclipse; trial: the ballots "
+            + "[student, player]; eclipse: [Still to act, Still placing] in one}");
     }]
 ];
 

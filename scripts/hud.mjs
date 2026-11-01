@@ -22,7 +22,7 @@
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING, staleStamp } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
-import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay, boundaryStamp } from "./clock.mjs";
+import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, debug, serverNow, tickerRuns, markLanguage, plural } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
@@ -1344,49 +1344,17 @@ function buildTimeRow(clock, isGM) {
         row.append(control(
             eclipseRunning ? "fa-play" : "fa-chevron-right",
             tooltip,
+            // ONE ROAD (E37 C2, D44b; S10-54): the GM panel's "Do it" calls the same function (R1194). A start is refused
+            // with its words when held, asked E17's question otherwise; an end asks nothing when everybody has crossed.
             async () => {
-                const { isEclipse, startEclipse, endEclipse } = await import("./eclipse.mjs");
-                if (isEclipse()) await endEclipse({ advance: true });
-                else if (held || await askEclipse(incoming)) await startEclipse();
+                const { toggleEclipse } = await import("./boundary.mjs");
+                await toggleEclipse();
             },
             { literal: true, held }
         ));
     }
 
     return row;
-}
-
-/**
- * THE CHEVRON ASKS FIRST, AND "NO" IS THE DEFAULT (E17 C7, 26.10.2026; audit S10-42). One press opened the Eclipse: the
- * refill, the grants and the seals gone and a card on every screen, from a control beside the rewind. The press now
- * asks, the Eclipse it opens named, and Enter or a closed window answers no. A held chevron (the body's hold, an
- * incident) does not ask: `startEclipse` refuses it with the words. The GM panel's "Do it" (gm-panel.mjs
- * `toggleEclipse`) starts the Eclipse without asking, as it did before this stage - the spec named the chevron, and
- * the five-minute take-back (End without advancing) is what a misclick there costs; whether the panel asks too is the
- * owner's (E17 fix p2-G2: this said the panel's press was a question already, which it is not).
- */
-async function askEclipse(incoming) {
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const name = game.i18n.format("DRPG.Eclipse.named", { time: timeOfDayLabel(incoming) });
-    return Boolean(await DialogV2.confirm({
-        classes: ["drpg-panel"],
-        window: { title: name },
-        content: `<p>${eclipseQuestion(getClock(), name).text}</p>`,
-        yes: { label: game.i18n.localize("DRPG.Hud.eclipseAskYes") },
-        no: { label: game.i18n.localize("DRPG.Hud.eclipseAskNo"), default: true },
-        rejectClose: false
-    }));
-}
-
-/**
- * WHAT THE CHEVRON'S QUESTION SAYS (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R4): `{ key, text }` for the
- * Eclipse `name` over `clock`. A boundary refilled already (`refilledFor`, an Eclipse for it ended without advancing
- * more than five minutes ago) refills nobody again (eclipse.mjs `startEclipse`), and the question said everyone's
- * actions refill: it says so now. Pure but for the words (R1004).
- */
-export function eclipseQuestion(clock, name) {
-    const key = clock?.refilledFor && clock.refilledFor === boundaryStamp(clock) ? "DRPG.Hud.eclipseAskRefilled" : "DRPG.Hud.eclipseAsk";
-    return { key, text: game.i18n.format(key, { name: foundry.utils.escapeHTML(String(name ?? "")) }) };
 }
 
 /* ==========================================================================

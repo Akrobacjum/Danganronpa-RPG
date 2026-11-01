@@ -24,8 +24,8 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
-import { isMonokuma } from "./monokuma.mjs";
-import { isDeadForGm, livingStudents } from "./chapter.mjs";
+import { isMonokuma, actingStudents } from "./monokuma.mjs";
+import { isDeadForGm } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -556,11 +556,6 @@ function field(className, label, value, tooltipKey, spent) {
     return wrap;
 }
 
-/** Living students, which is who the two counts below are about. */
-function trackedStudents() {
-    return livingStudents();
-}
-
 /**
  * The table's numbers, for an account with no character of its own.
  *
@@ -573,7 +568,10 @@ function trackedStudents() {
  * "Still to act", not "Actions". The label is the whole fix.
  */
 function buildTableView() {
-    const students = trackedStudents();
+    // The one cast (monokuma.mjs `actingStudents`, E37 C2; S10-45): the living and the Monocubs, as the panel's Next line
+    // counts them. Until E37 this was chapter.mjs `livingStudents()`, with no Monocub: a Monocub holding the last action
+    // read "1 student still has actions to spend." on the panel over "Still to act 0 / 2" here (R1193).
+    const students = actingStudents();
     if (!students.length) return null;
 
     const el = box();

@@ -359,7 +359,8 @@ const PANEL_SECTIONS = [
  * told, and the "Do it" beside it should work.
  */
 const EXTRA_ACTIONS = {
-    eclipse: { key: "eclipse", run: () => toggleEclipse() },
+    // One road (E37 C2, D44b): the HUD's chevron calls the same function (boundary.mjs `toggleEclipse`; R1194).
+    eclipse: { key: "eclipse", run: () => import("./boundary.mjs").then(m => m.toggleEclipse()) },
     /*
      * THE MOST REPEATED GESTURE OF A SESSION, IN ONE PRESS.
      *
@@ -577,10 +578,6 @@ function keepPanelFresh(dialog) {
     });
 }
 
-/**
- * Start the placement window, or close it and begin the time of day.
- * When closing, shows who has actually finished placing.
- */
 /**
  * Announce (or end) the Final Trial. World-scoped and public on purpose - the
  * table already knows the endgame trial is happening the moment it starts;
@@ -1128,46 +1125,6 @@ export async function applyAliveStates(chosen = {}) {
         }
     }
     return changed.size;
-}
-
-async function toggleEclipse() {
-    const { isEclipse, startEclipse, endEclipse, placementStatus, eclipseLabel } =
-        await import("./eclipse.mjs");
-
-    if (!isEclipse()) return startEclipse();
-
-    const rows = placementStatus().map(s => `
-        <tr${s.moved === 0 ? ' style="opacity:.55"' : ""}>
-            <td>${foundry.utils.escapeHTML(s.actor.name)}</td>
-            <td>${foundry.utils.escapeHTML(s.room ?? "-")}</td>
-            <td style="text-align:center">${
-                // A free-placement Eclipse has no budget, so the column reports
-                // whether they have placed at all - which is the question the GM
-                // is actually holding this dialog open to answer.
-                s.allowance === null ? s.moved : `${s.moved} / ${s.allowance}`
-            }</td>
-        </tr>`).join("");
-
-    const choice = await tableDialog({
-        window: { title: eclipseLabel() },
-        classes: ["drpg-panel"],
-        content: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
-            <table><thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-                <th>${game.i18n.localize("DRPG.Project.room")}</th>
-                <th>${game.i18n.localize("DRPG.Eclipse.movesColumn")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>`,
-        buttons: [
-            { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), default: true },
-            { action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        rejectClose: false
-    });
-
-    if (choice === "end") return endEclipse({ advance: true });
-    if (choice === "endOnly") return endEclipse({ advance: false });
-    return null;
 }
 
 /**

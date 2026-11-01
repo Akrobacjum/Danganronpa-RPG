@@ -78136,6 +78136,179 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(want),
             "[per browser and old word: the name the row stores, its label, whether the old word is neutral, the name the GM's describe window offered, the copy's name]");
     }],
+    ["E37-T2 - one road for the Eclipse (E37 C2, E37-10, E37-11; D44b): by the HUD's chevron and by the GM panel's \"Do it\" alike, a start asks E17's question with No the default and starts on a yes, an end over a student who has not crossed shows the placement table and End without advancing leaves the clock, an end with every placing student moved ends and advances with no window, and each end sends one SYNC.eclipse", async () => {
+        /*
+         * E37 C2, 01.11.2026; E37-10, E37-11, audit S10-54 (two roads to end an Eclipse) and S10-46 (two packets an end).
+         * The chevron ended an Eclipse at once (`endEclipse({ advance: true })`) over a student who had not placed; the
+         * panel's "Do it" started one without E17's question and showed the placement table at every end; and `endEclipse`
+         * sent `SYNC.eclipse` after the one `setClock` sends (clock.mjs `reconcileEclipseEnded`). Driven on this GM, each
+         * road in turn, from Daily Life at noon (its Eclipse counts crossings), every acting student's actions spent so the
+         * panel's Next line offers the Eclipse: the chevron as the HUD draws it, clicked; the panel as `openGmPanel` draws
+         * it, DialogV2.wait answered by the test (the panel handed its own content and render, its Next line's "Do it"
+         * clicked there; the placement table answered End without advancing; E17's question by DialogV2.confirm); the
+         * crossings written as the GMs' store holds them. Read per road: the question's buttons and the Eclipse after a
+         * no and a yes; the table's lede, its greyed rows' names, the Eclipse, the clock and the packets after End without
+         * advancing; the tables, the Eclipse, the clock and the packets after an end with everyone placed; and the panel's
+         * Next line's action at each press. Put back: the clock, every character's actions, the crossings' rows, the
+         * seals, the restrictions, the motive, the search tokens and the body's record. Red at 84fdb5af: the chevron
+         * ended at once over a student at 0, the panel started without asking, and each end sent two packets.
+         */
+        needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const H = await import("./hud.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const { setActions } = await import("./actions.mjs");
+        const { SYNC } = await import("./sync.mjs");
+        const [student] = cast(1);
+        must(!murderState() && !bodyDiscovery(), "an incident or a body's hold is open - no Eclipse starts there, and this would measure nothing");
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait"),
+            emit: Object.getOwnPropertyDescriptor(game.socket, "emit") };
+        const wait0 = D.wait, emit0 = game.socket.emit;
+        let answer = false, pressPanel = false, panels = 0, packets = 0;
+        const asked = [], tables = [], lines = [];
+        const read = {};
+        // Each acting student's crossings in the running Eclipse: one each, `but` none.
+        const place = async (but = null) => {
+            const id = E.eclipseId();
+            must(id, "no Eclipse is running - there is nothing to place in");
+            for (const actor of actingStudents()) await S.eclipseMoveStore.patch(actor.id, { used: actor.id === but ? 0 : 1, seen: 0, eclipse: id });
+        };
+        const press = {
+            chevron: async () => {
+                // The control as drawn now, once the last press has let go of the HUD's latch (hud.mjs `releaseControls`).
+                const find = () => document.querySelector(`#drpg-hud .${isEclipse() ? "fa-play" : "fa-chevron-right"}`)?.closest(".drpg-hud-button") ?? null;
+                H.renderHud();
+                await until(() => find() && !find().disabled, 12000);
+                const button = find();
+                must(button && !button.disabled, "the HUD's Eclipse control is not drawn, or stays disabled - this would measure nothing");
+                button.click();
+            },
+            panel: async () => {
+                pressPanel = true;
+                const from = panels;
+                openGmPanel();
+                await until(() => panels >= from + 2, 15000);
+            }
+        };
+        try {
+            D.confirm = async config => {
+                asked.push([config?.no?.default === true, config?.yes?.default === true]);
+                return answer;
+            };
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) {
+                    panels++;
+                    if (!pressPanel) return null;
+                    pressPanel = false;
+                    const element = config.content instanceof HTMLElement ? config.content
+                        : Object.assign(document.createElement("div"), { innerHTML: String(config.content ?? "") });
+                    config.render?.(new Event("render"), { element, close: async () => {} });
+                    const go = element.querySelector(".drpg-gmp-next > .drpg-gmp-next-go");
+                    lines.push(go?.dataset?.drpgRun ?? null);
+                    if (go?.dataset?.drpgRun === "eclipse") go.click(); else panels++;
+                    return null;
+                }
+                if (config?.classes?.includes?.("drpg-table-window")) {
+                    tables.push(config);
+                    return "endOnly";
+                }
+                return wait0.call(D, config);
+            };
+            game.socket.emit = function (event, packet, ...rest) {
+                if (packet?.kind === SYNC.eclipse) packets++;
+                return emit0.call(this, event, packet, ...rest);
+            };
+            for (const road of ["chevron", "panel"]) {
+                const r = read[road] = {};
+                if (isEclipse()) await E.endEclipse({ advance: false });
+                await setClock({ phase: "dailyLife", timeOfDay: "noon", refilledFor: null });
+                for (const actor of actingStudents()) await setActions(actor, 0);
+                await settle();
+                // A start, answered no; then yes.
+                answer = false;
+                let n = asked.length;
+                await press[road]();
+                await until(() => asked.length > n, 15000);
+                await settle();
+                r.no = [asked[n] ?? null, isEclipse()];
+                if (isEclipse()) await E.endEclipse({ advance: false });
+                answer = true;
+                n = asked.length;
+                await press[road]();
+                await until(() => isEclipse(), 15000);
+                await settle();
+                r.yes = [asked.length > n, isEclipse()];
+                // An end over a student who has not crossed: the table, answered End without advancing.
+                if (!isEclipse()) await E.startEclipse();
+                await place(student.id);
+                const noon = getClock().timeOfDay;
+                let t = tables.length;
+                packets = 0;
+                await press[road]();
+                await until(() => !isEclipse(), 15000);
+                await settle();
+                const table = tables[t] ?? null;
+                const holder = document.createElement("div");
+                holder.innerHTML = table ? String(table.content ?? "") : "";
+                r.short = [table ? holder.querySelector("p")?.textContent?.trim() === game.i18n.localize("DRPG.Eclipse.endPrompt") : null,
+                    table ? [...holder.querySelectorAll("tbody tr")].filter(tr => /opacity/.test(tr.getAttribute("style") ?? ""))
+                        .map(tr => tr.querySelector("td")?.textContent?.trim() ?? null) : null,
+                    isEclipse(), getClock().timeOfDay === noon, packets];
+                // An end with every placing student moved: no window, the clock moves.
+                if (isEclipse()) await E.endEclipse({ advance: false });
+                await setClock({ phase: "dailyLife", timeOfDay: "noon" });
+                n = asked.length;
+                await press[road]();
+                await until(() => isEclipse(), 15000);
+                await settle();
+                if (!isEclipse()) await E.startEclipse();
+                await place();
+                t = tables.length;
+                packets = 0;
+                await press[road]();
+                await until(() => !isEclipse() && getClock().timeOfDay !== "noon", 15000);
+                await settle();
+                r.placed = [tables.length - t, isEclipse(), getClock().timeOfDay, packets];
+            }
+            read.lines = lines;
+        } finally {
+            if (own.confirm) Object.defineProperty(D, "confirm", own.confirm); else delete D.confirm;
+            if (own.wait) Object.defineProperty(D, "wait", own.wait); else delete D.wait;
+            if (own.emit) Object.defineProperty(game.socket, "emit", own.emit); else delete game.socket.emit;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [id, row] of rowsWas) {
+                if (row) await S.eclipseMoveStore.patch(id, row);
+                else await S.eclipseMoveStore.drop(id);
+            }
+            for (const [key, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[key], value);
+            await settle();
+        }
+        const road = { no: [[true, false], false], yes: [true, true], short: [true, [student.name], false, true, 1], placed: [0, false, "afternoon", 1] };
+        equal(J(read), J({ chevron: road, panel: road, lines: ["eclipse", "eclipse", "eclipse", "eclipse", "eclipse"] }),
+            "{chevron, panel: {no: [E17's question's [No the default, Yes the default], an Eclipse after a no]; yes: [the question asked, "
+            + "an Eclipse after a yes]; short: [the placement table's lede is endPrompt, its greyed rows' names, an Eclipse after End "
+            + "without advancing, the clock where it was, SYNC.eclipse packets of that end]; placed: [placement tables shown, an Eclipse "
+            + "after the end, the time of day after it, SYNC.eclipse packets of that end]}; lines: the panel's Next line's action at each press}");
+    }],
     ...GRID
 ];
 

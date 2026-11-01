@@ -3360,7 +3360,7 @@
       },
       "noMovesLeft": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
       "actionsLocked": "Tylko ustawianie. Akcje już wróciły; nic ich nie wydaje poza Direct Murder, dopóki nie zapali się światło.",
-      "endPrompt": "Zakończyć Eclipse i zacząć następną porę dnia? Wszyscy ustawili się tak:",
+      "endPrompt": "Nie wszyscy się jeszcze ustawili: wyszarzone wiersze nie przeszły jeszcze żadnego pokoju. Zakończyć teraz Eclipse?",
       "endAndAdvance": "Zakończ i przesuń zegar",
       "endOnly": "Zakończ bez przesuwania zegara",
       "ended": "Eclipse się kończy.",

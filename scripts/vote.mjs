@@ -34,7 +34,7 @@
 import { MODULE_ID, TRIAL, FLAGS } from "./config.mjs";
 import { SETTINGS, isEclipse, isMutedDead } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { studentActors } from "./monokuma.mjs";
+import { studentActors, actingStudents } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, isDeadForGm, killCharacter, publishDeath } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
@@ -315,7 +315,9 @@ function resetInStep(seconds) {
  */
 export function trialSizeNow(listed = []) {
     const seated = new Set();
-    for (const actor of studentActors()) {
+    // The one cast (monokuma.mjs `actingStudents`, E37 C2), by this count's rule; filtered again below as before.
+    const out = actor => isDeceased(flagsHeldNow(actor)) || listed.includes(actor.id);
+    for (const actor of actingStudents({ dead: out })) {
         const held = flagsHeldNow(actor);
         if (held.getFlag(MODULE_ID, FLAGS.monocub) || isDeceased(held) || listed.includes(actor.id)) continue;
         const user = game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"));
@@ -783,7 +785,11 @@ function sendBallots(voters, picks, round) {
 export function trialParticipants({ connected = true } = {}) {
     const out = [];
     const seated = new Set();
-    for (const actor of studentActors()) {
+    // THE ONE CAST (E37 C2, 01.11.2026; S10-45, E37-08, the plan's amend of 27.10: "not a second list"): monokuma.mjs
+    // `actingStudents`, handed the trial's rule of the dead, and filtered again below by the flags as the GMs hold them,
+    // so the ballots go where they went when this walked `studentActors()` (R1193).
+    const outOfTrial = actor => !TRIAL.deadCastBallots && (isDeceased(flagsHeldNow(actor)) || isMutedDead(actor));
+    for (const actor of actingStudents({ dead: outOfTrial })) {
         // WHO TAKES PART (E70 C5, S18-79's list; TR33 = 1): no Monocub (DC4: it speaks only in the discussion and holds no
         // ballot), and nobody on the trial's list of the dead (settings.mjs `isMutedDead`) - a death nobody has found
         // among them, which the flag does not show and the primary lists after its deaths store has hydrated (TR30).

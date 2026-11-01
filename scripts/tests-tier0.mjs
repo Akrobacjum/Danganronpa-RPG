@@ -3348,7 +3348,8 @@ const REGRESSIONS = [
          * window is built out of several of the module's settings.
          */
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const body = bodyOf(panel, "export async function applyAliveStates", { until: "\nasync function" });
+        // E37 C2: `toggleEclipse`, the function that followed, left gm-panel.mjs for boundary.mjs; the body ends where `nextStep` begins.
+        const body = bodyOf(panel, "export async function applyAliveStates", { until: "export function nextStep" });
         ok(/Object\.entries\(chosen\)/.test(body),
             "the apply loop is driven by something other than the answer it was given");
         ok(!/\bstudents\b/.test(body),
@@ -3426,7 +3427,8 @@ const REGRESSIONS = [
         ok(died.indexOf("tieChapterTraces(") > 0 && died.indexOf("offerStageSix(") > died.indexOf("tieChapterTraces("),
             "incidentVictimDied no longer ties the chapter's traces before it offers Stage 6");
         const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
-        const repair = bodyOf(panel, "export async function applyAliveStates", { until: "async function toggleEclipse" });
+        // E37 C2: `toggleEclipse` left gm-panel.mjs for boundary.mjs; the body ends where `nextStep` begins.
+        const repair = bodyOf(panel, "export async function applyAliveStates", { until: "export function nextStep" });
         ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
             "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
 
@@ -7922,6 +7924,10 @@ const REGRESSIONS = [
          * 4 SOCKET, 1 CHAT, 34 SHEET, 9 STORE) against the 76 rows.
          * E15 part 2 C1 (25.10.2026) added one STORE, gm-stores.mjs `passageSeasonStore` (the projects' passages, D3),
          * cut by the reset's `passages` group: 77 places (10 STORE) against 77 rows, by arithmetic from the 76 above.
+         * E37 C2 (01.11.2026) struck one SHEET place, eclipse.mjs `placingActors`, gone into the one cast (monokuma.mjs
+         * `actingStudents`, a file this list does not read; R1192): the placement and its whispers hand it the death to
+         * ask, by name and with no call, so neither reads as a place here: 80 rows counted in the source (31 PACKET,
+         * 4 SOCKET, 1 CHAT, 34 SHEET, 10 STORE), 81 at its parent.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7989,7 +7995,6 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere. Since E13 C3b a caller may hand a held reader, and the return from the trial does: R432's row of this key judges it"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
-            ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
             ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks; since E14 part 1 C2 a key in hand only (bedroom-keys.mjs `keyRooms`), the stash's too when `grantBedroomKey` asks whether one is held (`stashed: true`) [1b.2]"],
@@ -18260,6 +18265,99 @@ const REGRESSIONS = [
         read.longest = words.tiles[0];
         equal(JSON.stringify(read), JSON.stringify({ tiles: [true, true], crisis: [true, true], cleanup: [true, true], built: [true, true, true, true, true], longest: "Contribution" }),
             `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
+    }],
+    ["R1192 - one cast (E37 C2, E37-08; S10-45): monokuma.mjs `actingStudents({ dead })` is the roster of the students who spend a budget, and the GM's strip, the panel's Next line, the Eclipse's placement and its whispers and the trial's ballots and size read it; no other module function walks the students filtering by death and the Monocub flag but those that ask another question", async () => {
+        /*
+         * E37 C2, 01.11.2026; E37-08, audit S10-45. The students who still spend a budget - the living, and the dead back
+         * as a Monocub - were spelled four ways: monokuma.mjs `actingStudents()` (the panel's Next line and its table),
+         * player-status.mjs `trackedStudents()`, which was chapter.mjs `livingStudents()` and left the Monocubs out (the
+         * GM's "Still to act" and "Still placing"), eclipse.mjs `placingActors(dead)`, and vote.mjs `trialParticipants`
+         * and `trialSizeNow` (E70), which walked `studentActors()` with their own rules; the trial's two keep those rules
+         * as a filter over the roster. Read off the source, comments stripped: the roster's head, body and doc; each
+         * reader's call; and every top-level function of every module file but the suite's that walks the students
+         * (`studentActors()`, `livingStudents()`, `game.actors`) and calls a death's predicate and reads the Monocub
+         * flag, held to ANOTHER, the functions that ask another question, each with its reason - a row the source no
+         * longer finds fails as well. It reads names, not data flow. Nothing is written. Red at 84fdb5af: `placingActors`,
+         * `trialParticipants` and `trialSizeNow` found, and the strip, the placement and the trial not reading the roster.
+         */
+        const sources = new Map(await otherSources());
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            must(text.length > 1000, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const ANOTHER = {
+            "gm-panel.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
+            "monocub.mjs#eligibleForMonocub": "the dead who are not a Monocub yet: who may become one",
+            "monocub.mjs#openMonocubDialog": "the Monocubs' window, drawn over the dead",
+            "season-setup.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
+            "trial-scene.mjs#leftBehind": "whom the trial's return carries, by the gather's rule as the GMs hold it",
+            "voice.mjs#deadForTrial": "the trial's dead, whose microphones are off: the other side of the cast",
+            "trial-scene.mjs#standingTwice": "the students the trial's return finds on two scenes, by `leftBehind`'s rule",
+            "actions.mjs#clearGrants": "the refill's reach, actor by actor as `resetActionsFor` skips the dead (the table's fact), for the grants a boundary opened again ends",
+            "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not"
+        };
+        const WALKS = /\bstudentActors\(\)|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
+        const DEATH = /\b(?:isDeceased|isDeadForGm|isMutedDead)\(|FLAGS\.deceased\b/;
+        const CUB = /FLAGS\.monocub\b|\bisMonocub\(/;
+        const found = [];
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            for (const m of src.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)) {
+                const body = topLevelFunction(src, m[1]) ?? "";
+                if (WALKS.test(body) && DEATH.test(body) && CUB.test(body)) found.push(`${file}#${m[1]}`);
+            }
+        }
+        must(found.length >= Object.keys(ANOTHER).length, `the scan found ${found.length} function(s) - it reads nothing until it is pointed at the code again`);
+        const mono = code("monokuma.mjs"), status = code("player-status.mjs"), eclipse = code("eclipse.mjs"), vote = code("vote.mjs");
+        const roster = fnSource(mono, "actingStudents");
+        const doc = bodyOf(sources.get("monokuma.mjs"), "export function actingStudents", { back: 1500 });
+        equal(JSON.stringify({
+            roster: [/^export function actingStudents\(\{ dead = isDeadForGm \} = \{\}\)/.test(roster), /\bstudentActors\(\)/.test(roster),
+                /!dead\(a\) \|\| a\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(roster),
+                /the students who still spend a budget: the living, and the dead back as a Monocub/i.test(doc)],
+            strip: [/\bactingStudents\(\)/.test(fnSource(status, "buildTableView")), topLevelFunction(status, "trackedStudents") === null],
+            next: /\bactingStudents\(\)/.test(fnSource(code("gm-panel.mjs"), "nextStep")),
+            placement: [/\bactingStudents\(\{ dead: isDeadForGm \}\)/.test(fnSource(eclipse, "placementStatus")),
+                /\bactingStudents\(\{ dead: isDeceased \}\)/.test(fnSource(eclipse, "startEclipse")), topLevelFunction(eclipse, "placingActors") === null],
+            trial: ["trialParticipants", "trialSizeNow"].map(name => /\bactingStudents\(\{ dead: /.test(fnSource(vote, name))),
+            others: found.filter(key => key !== "monokuma.mjs#actingStudents" && !Object.hasOwn(ANOTHER, key)),
+            stale: Object.keys(ANOTHER).filter(key => !found.includes(key))
+        }), JSON.stringify({
+            roster: [true, true, true, true], strip: [true, true], next: true, placement: [true, true, true], trial: [true, true], others: [], stale: []
+        }), "{roster: [its head takes `dead`, isDeadForGm by default; it walks studentActors(); the dead back only as a Monocub; its doc says whom]; "
+            + "strip: [the table view reads it, trackedStudents gone]; next: the panel's Next line reads it; placement: [the table by the GMs' "
+            + "deaths, the whispers by the table's, placingActors gone]; trial: [trialParticipants, trialSizeNow filter it]; others: functions "
+            + "that spell a cast of their own; stale: ANOTHER's rows the source no longer has}");
+    }],
+    ["R1194 - one road for the Eclipse (E37 C2, E37-10; D44b, S10-54): the HUD's chevron and the GM panel's \"Do it\" both call boundary.mjs `toggleEclipse`, neither starts or ends an Eclipse itself, and `toggleEclipse` is where the start's refusals, E17's question and the placement table are asked", async () => {
+        /*
+         * E37 C2, 01.11.2026; E37-10, audit S10-54, decision D44b ("Obie drogi (szewron i panel) tą samą funkcją
+         * toggleEclipse, z pytaniem tylko wtedy, gdy ktoś nie rozstawił postaci"). The chevron ended an Eclipse at once
+         * (`endEclipse({ advance: true })`) and asked E17's question before a start; the panel's "Do it" (gm-panel.mjs
+         * `toggleEclipse`, private) started one without it and showed the placement table at every end. Read off the
+         * source, comments stripped: the chevron's control in hud.mjs `buildTimeRow`, gm-panel.mjs `EXTRA_ACTIONS.eclipse`,
+         * and boundary.mjs `toggleEclipse`. E37-T2 drives both roads. Nothing is written. Red at 84fdb5af: the chevron's
+         * own `endEclipse` and `startEclipse`, the panel's own `toggleEclipse`, and no boundary.mjs.
+         */
+        const sources = new Map(await otherSources());
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        must(hud.length > 1000 && panel.length > 1000, "hud.mjs or gm-panel.mjs was not read - this test measured nothing");
+        const boundary = stripComments(sources.get("boundary.mjs") ?? "");
+        const chevron = bodyOf(fnSource(hud, "buildTimeRow"), "eclipseRunning ? \"fa-play\" : \"fa-chevron-right\"", { until: "\n        ));" });
+        const extra = bodyOf(panel, "const EXTRA_ACTIONS = {", { until: "\n    advance: {" });
+        const toggle = topLevelFunction(boundary, "toggleEclipse") ?? "";
+        const road = text => [/\bimport\("\.\/boundary\.mjs"\)/.test(text), /\btoggleEclipse\(\)/.test(text), /\b(?:startEclipse|endEclipse)\(/.test(text)];
+        equal(JSON.stringify({
+            chevron: road(chevron), panel: road(extra),
+            own: [topLevelFunction(panel, "toggleEclipse"), topLevelFunction(hud, "askEclipse"), topLevelFunction(hud, "eclipseQuestion")],
+            toggle: [/\bstartRefusal\(/, /\baskEclipse\(/, /\bstartEclipse\(\)/, /\bplacementStatus\(\)/, /\.every\(s => s\.moved > 0\)/,
+                /\bendEclipse\(\{ advance: true \}\)/, /\bendEclipse\(\{ advance: false \}\)/].map(re => re.test(toggle))
+        }), JSON.stringify({
+            chevron: [true, true, false], panel: [true, true, false], own: [null, null, null], toggle: [true, true, true, true, true, true, true]
+        }), "{chevron, panel: [imports boundary.mjs, calls toggleEclipse(), calls startEclipse or endEclipse itself]; own: [gm-panel.mjs's "
+            + "toggleEclipse, hud.mjs's askEclipse and eclipseQuestion]; toggle: [the start's refusals, E17's question, the start, the placement, "
+            + "no window when every placing student moved, End and move the clock, End without advancing]}");
     }],
 ];
 

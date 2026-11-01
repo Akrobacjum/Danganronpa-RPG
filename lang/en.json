@@ -3053,7 +3053,7 @@
       },
       "noMovesLeft": "Your Eclipse crossings are used up. Your token has been put back.",
       "actionsLocked": "Placement only. Actions are already back; nothing spends them but a Direct Murder until the lights come up.",
-      "endPrompt": "End the Eclipse and begin the next time of day? Everyone has placed as follows:",
+      "endPrompt": "Not everyone has placed yet: the grayed rows have not crossed a room. End the Eclipse now?",
       "endAndAdvance": "End and move the clock",
       "endOnly": "End without advancing",
       "ended": "The Eclipse ends.",

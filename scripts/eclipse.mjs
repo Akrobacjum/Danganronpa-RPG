@@ -28,6 +28,7 @@ import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogConte
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
+import { actingStudents } from "./monokuma.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 
@@ -114,6 +115,70 @@ export function movesLeft(actor, clock = getClock()) {
  * ========================================================================== */
 
 /**
+ * Why an Eclipse may not open over `clock`: the key of the words that say so, or null. The three refusals of
+ * `startEclipse`, moved out of it by E37 C2 (S10-54) and asked in the same order, so that boundary.mjs `toggleEclipse` -
+ * the HUD's chevron and the GM panel's "Do it" - refuses before E17's question with the same words, and `startEclipse`
+ * (the API's road too) still refuses itself. Each refusal keeps its record below.
+ */
+export async function startRefusal(clock = getClock()) {
+    /*
+     * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
+     * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
+     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (chapter.mjs `runDiscovery`) -
+     * but this was the other way round and nothing refused it: an Eclipse opened over the hold
+     * refilled every budget and moved the clock with the hold still standing, and the players
+     * read that a body had been found and "Drag your token" at once. Refused here, the one place
+     * the module opens an Eclipse (the only `setClock({ eclipse: true })` outside the tests, read
+     * 10.10.2026), which the HUD's chevron, the GM panel's "Do it" and the API's `startEclipse`
+     * all reach; the HUD also dims its chevron with the same words. Tier 2 "during the hold the Eclipse is refused
+     * and a Search is not"; scenario 65 B2.
+     * The hold is the record AND a phase that is not the Investigation, as the GM panel and the
+     * body card read it: a GM who moves the phase first and announces the body second writes the
+     * record with Stage 7 already running, and C3 read the record alone, so every Eclipse of that
+     * Investigation was refused with "start the Investigation first" (E11 fix r1-G3; early review
+     * EARLY-C3-1; tier 2 "a body announced in the Investigation holds no Eclipse").
+     */
+    if (bodyDiscovery() && clock.phase !== "investigation") return "DRPG.Eclipse.bodyFirst";
+
+    /*
+     * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
+     * incydent"). While an incident runs the clock moves in private (clock.mjs `announceTimeOfDay`, hud.mjs
+     * `clockForDisplay`), and an Eclipse told every screen at once that the GM was doing something: its public card
+     * with its sound, the dimming on every browser, a whisper to every student. Refused here, the one writer of
+     * `eclipse: true` the HUD's chevron, the GM panel's "Do it" and the API reach; the chevron is dimmed with the same
+     * words (hud.mjs). After the body's hold, whose words say what to do next when both stand (a body found at Stage 6). No
+     * incident opens during an Eclipse: murder-rules.mjs `openMurder` refuses one (`DRPG.Eclipse.murderLocked`; tier 2
+     * "openMurder refuses during an Eclipse, but not once one has actually ended"), and the direct murders declared in
+     * the dark open in `endEclipse`'s `judgePendingMurders`, after the flag is cleared (E17 fix p2-G2: this said an
+     * incident opened in an Eclipse ran on with it, a road that does not exist). Tier 2 "the Eclipse and the incident
+     * (E17-T10)".
+     * THE OPENING AND THE FIGHT, NOT STAGE 6. At Stage 6 every one of the incident's names is seated again and the
+     * scene is theirs to arrange, and the betrayal (D18) is declared in the Eclipse that follows it: the accomplice's
+     * offer is made at Stage 6 and the lights of that Eclipse close the incident (tier 2 "refused at the lights, the
+     * offer comes back and the betrayer is told" opens it there; measured 26.10.2026, it failed with "the Eclipse did
+     * not start" while the refusal took Stage 6 too). So the refusal holds while the stage is not `resolution`.
+     */
+    const { murderState } = await import("./murder.mjs");
+    if (murderState() && murderState().stage !== "resolution") return "DRPG.Eclipse.incidentFirst";
+
+    /*
+     * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
+     * put to the owner beside it). A trial puts everybody in one voice room (D8, voice.mjs
+     * `voiceClaim`), and an Eclipse's branch comes first there, so an Eclipse started in a trial
+     * split the table into a room each; opening a trial in an Eclipse was already refused on every
+     * road (clock.mjs `setClock`, E10 fix r2-G5), and this is the other half. Refused here, the one
+     * writer of `eclipse: true` outside the tests, which the API's `startEclipse`, the GM panel's
+     * "Do it" and the HUD's chevron (boundary.mjs `toggleEclipse`, E37 C2) all call; the HUD draws no chevron in a trial
+     * (its trial slot, hud.mjs `trialSlot`). Tier 2 "an Eclipse waits for the Class Trial's end". A
+     * clock written by hand with `eclipse: true` is refused by `setClock` itself with the same words
+     * (E13 fix r1-G1); this check stays first, so the refusal leaves nothing half done here.
+     */
+    if (clock.phase === "classTrial") return "DRPG.Eclipse.trialFirst";
+
+    return null;
+}
+
+/**
  * Begin the Eclipse. Everything goes dark and everyone gets two crossings.
  * The clock does not move - that happens when the Eclipse ends.
  *
@@ -154,66 +219,9 @@ export async function startEclipse() {
         return null;
     }
 
-    /*
-     * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
-     * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
-     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (chapter.mjs `runDiscovery`) -
-     * but this was the other way round and nothing refused it: an Eclipse opened over the hold
-     * refilled every budget and moved the clock with the hold still standing, and the players
-     * read that a body had been found and "Drag your token" at once. Refused here, the one place
-     * the module opens an Eclipse (the only `setClock({ eclipse: true })` outside the tests, read
-     * 10.10.2026), which the HUD's chevron, the GM panel's "Do it" and the API's `startEclipse`
-     * all reach; the HUD also dims its chevron with the same words. Tier 2 "during the hold the Eclipse is refused
-     * and a Search is not"; scenario 65 B2.
-     * The hold is the record AND a phase that is not the Investigation, as the GM panel and the
-     * body card read it: a GM who moves the phase first and announces the body second writes the
-     * record with Stage 7 already running, and C3 read the record alone, so every Eclipse of that
-     * Investigation was refused with "start the Investigation first" (E11 fix r1-G3; early review
-     * EARLY-C3-1; tier 2 "a body announced in the Investigation holds no Eclipse").
-     */
-    if (bodyDiscovery() && getClock().phase !== "investigation") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyFirst"));
-        return null;
-    }
-
-    /*
-     * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
-     * incydent"). While an incident runs the clock moves in private (clock.mjs `announceTimeOfDay`, hud.mjs
-     * `clockForDisplay`), and an Eclipse told every screen at once that the GM was doing something: its public card
-     * with its sound, the dimming on every browser, a whisper to every student. Refused here, the one writer of
-     * `eclipse: true` the HUD's chevron, the GM panel's "Do it" and the API reach; the chevron is dimmed with the same
-     * words (hud.mjs). After the body's hold, whose words say what to do next when both stand (a body found at Stage 6). No
-     * incident opens during an Eclipse: murder-rules.mjs `openMurder` refuses one (`DRPG.Eclipse.murderLocked`; tier 2
-     * "openMurder refuses during an Eclipse, but not once one has actually ended"), and the direct murders declared in
-     * the dark open in `endEclipse`'s `judgePendingMurders`, after the flag is cleared (E17 fix p2-G2: this said an
-     * incident opened in an Eclipse ran on with it, a road that does not exist). Tier 2 "the Eclipse and the incident
-     * (E17-T10)".
-     * THE OPENING AND THE FIGHT, NOT STAGE 6. At Stage 6 every one of the incident's names is seated again and the
-     * scene is theirs to arrange, and the betrayal (D18) is declared in the Eclipse that follows it: the accomplice's
-     * offer is made at Stage 6 and the lights of that Eclipse close the incident (tier 2 "refused at the lights, the
-     * offer comes back and the betrayer is told" opens it there; measured 26.10.2026, it failed with "the Eclipse did
-     * not start" while the refusal took Stage 6 too). So the refusal holds while the stage is not `resolution`.
-     */
-    const { murderState } = await import("./murder.mjs");
-    if (murderState() && murderState().stage !== "resolution") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.incidentFirst"));
-        return null;
-    }
-
-    /*
-     * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
-     * put to the owner beside it). A trial puts everybody in one voice room (D8, voice.mjs
-     * `voiceClaim`), and an Eclipse's branch comes first there, so an Eclipse started in a trial
-     * split the table into a room each; opening a trial in an Eclipse was already refused on every
-     * road (clock.mjs `setClock`, E10 fix r2-G5), and this is the other half. Refused here, the one
-     * writer of `eclipse: true` outside the tests, which the API's `startEclipse`, the GM panel's
-     * "Do it" (`toggleEclipse`) and the HUD's chevron all call; the HUD draws no chevron in a trial
-     * (its trial slot, hud.mjs `trialSlot`). Tier 2 "an Eclipse waits for the Class Trial's end". A
-     * clock written by hand with `eclipse: true` is refused by `setClock` itself with the same words
-     * (E13 fix r1-G1); this check stays first, so the refusal leaves nothing half done here.
-     */
-    if (getClock().phase === "classTrial") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
+    const refusal = await startRefusal(getClock());
+    if (refusal) {
+        ui.notifications.warn(game.i18n.localize(refusal));
         return null;
     }
 
@@ -327,7 +335,8 @@ export async function startEclipse() {
                   ${refillNote}`
     });
 
-    for (const actor of placingActors(isDeceased)) {
+    // The one cast (monokuma.mjs `actingStudents`, E37 C2), by the table's fact: each card is a document (rule A).
+    for (const actor of actingStudents({ dead: isDeceased })) {
         const room = foundry.utils.escapeHTML(roomOfActor(actor) ?? "-");
         // PLURALISED BECAUSE ONE IS NOW REACHABLE. A darkened Eclipse hands out
         // a single crossing (Z10), and until then no allowance was ever 1, so
@@ -375,9 +384,11 @@ export async function endEclipse({ advance = true } = {}) {
 
     log("Eclipse ended.");
 
-    // The broadcast comes AFTER the clock, for the same reason the flag does.
-    // It redraws the HUD on every other client, and sent first it redrew them
-    // into the half-finished state this function exists to skip past.
+    // The other clients are told by the clock's write itself, on both branches below (clock.mjs `setClock` ->
+    // `reconcileEclipseEnded`), AFTER the clock, for the same reason the flag goes with it: it redraws the HUD on every
+    // other client, and sent first it redrew them into the half-finished state this function exists to skip past. ONE
+    // PACKET (E37 C2, 01.11.2026; audit S10-46, E37-11): this function sent a second `SYNC.eclipse` after both branches,
+    // which the bus's `heard` ran as nothing on every browser (tier 2 E37-T2 counts one).
     if (advance) {
         const { advanceTimeOfDay } = await import("./clock.mjs");
         // NO REFILL HERE ANY MORE (Z2). The budget arrived when this Eclipse
@@ -428,8 +439,6 @@ export async function endEclipse({ advance = true } = {}) {
             content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
         });
     }
-
-    await broadcastEclipse(false);
 
     // LAST, and after the clock has moved. Everything a murder opened here needs
     // - the new time of day, unlocked Hope Calls - is put in place by the lines
@@ -897,7 +906,10 @@ async function askAtTheLights(killer, victim, room, parked) {
 export function placementStatus() {
     const used = eclipseMoves();
     const allowance = eclipseAllowance();
-    return placingActors(isDeadForGm).map(a => ({
+    // The one cast (monokuma.mjs `actingStudents`, E37 C2) by the GMs' record of who is dead (rule B): the dead cannot
+    // move, so the table counts nobody it would wait on for ever, and a Monocub, back on the board, stays. A Monokuma is
+    // never in it: they walk the map bound by none of the Eclipse's rules (movement.mjs `crossingVerdict`).
+    return actingStudents({ dead: isDeadForGm }).map(a => ({
         actor: a,
         room: roomOfActor(a),
         moved: used[a.id] ?? 0,
@@ -905,36 +917,6 @@ export function placementStatus() {
         left: allowance === null ? null : Math.max(0, allowance - (used[a.id] ?? 0)),
         allowance
     }));
-}
-
-/**
- * Who actually takes part in the placement window.
- *
- * Everybody who can cross a room during it, and nobody else. Both exclusions
- * matter in practice:
- *
- *   Monokumas  walk the map freely and are bound by none of the Eclipse's
- *              rules (see `crossingVerdict` in movement.mjs), so telling their GM
- *              "you have 2 crossings" states a limit that does not apply.
- *   the dead   cannot move at all. They were being counted in the GM's
- *              "who has finished placing" table, which meant the table could
- *              never read as finished - the GM was waiting on tokens that were
- *              never going to move.
- *
- * A Monocub stays: they are dead, but they are back on the board and they do
- * cross rooms. The Monocub and Monokuma flags are read directly rather than
- * through monocub.mjs - this file is imported by movement.mjs's hot path and
- * does not need the dependency; death is asked of settings.mjs (E05 C9), and the
- * caller says which answer: the card sent to each owner is a document, so it
- * goes by the table's fact (rule A); the GM's placement table by the truth (B).
- */
-function placingActors(dead) {
-    return game.actors.filter(a => {
-        if (a.type !== "character") return false;
-        if (a.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
-        if (dead(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)) return false;
-        return true;
-    });
 }
 
 /* ==========================================================================
