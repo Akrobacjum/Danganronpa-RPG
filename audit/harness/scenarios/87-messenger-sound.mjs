@@ -625,7 +625,12 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         dSetup.running === false && dSetup.tracks.length === 8 && dOpened.opened === "openingRoll" && dOpened.stage === "incident" && dHeld === 1
             && dSetup.tracks.includes(d1Track) && inIt.every(k => d1[k].witness === true && d1[k].playing === true && d1[k].track === d1Track)
             && d1.p3.witness === false && d1.p3.playing === false && d1.p3.track === null,
-        J({ dSetup, dOpened, dHeld, d1 }), { flow: "murder-incident" });
+        /* The readings that decide first, the eight track names last (E37 C5b, 01.11.2026): CI's annotation keeps 300
+           characters of these details, and three red D1s (FG2's quick run; CI runs 41270613334 and 41354325721) were cut
+           inside the track list, so none said which browser did not play: `off` names them. */
+        J({ dHeld, dOpened, off: Object.entries(d1).filter(([k, r]) => (inIt.includes(k)
+            ? !(r.witness === true && r.playing === true && r.track === d1Track) : !(r.witness === false && r.playing === false && r.track === null)))
+            .map(([k]) => k), d1, running: dSetup.running, tracks: dSetup.tracks.length, list: dSetup.tracks }), { flow: "murder-incident" });
 
     phase("D3: what p1's band names during the incident", { flow: "murder-incident" });
     const d3 = await p1.eval(`${DMUSIC} const was = game.settings.get("core", "globalPlaylistVolume");

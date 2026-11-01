@@ -36,9 +36,16 @@ import { showPopup } from "./popup.mjs";
  * `timeOfDayStartedAt` is the new time of day's, so the ended one's window is read off the clock this page saw before
  * it (`seen`): read at `ready`, so a page loaded mid-time-of-day sums up from what it found, and kept at every hook of
  * the clock and at every write of it that moves no boundary (a pause, a phase's restamp at the trial's edge, a
- * correction of the stamp). `shownFor` is the `boundaryStamp` of the last time of day this page summed up, so a
- * boundary is summed up once on each browser: an Eclipse ended without advancing and opened again, or a rewind and
- * Next again within it, show nothing new. Both are this page's own, in memory; nothing is written.
+ * correction of the stamp). `shownFor` is the stamp of the last window this page summed up - its boundary and its
+ * start - so a window is summed up once on each browser: an Eclipse ended without advancing and opened again, or Next
+ * after it, show nothing new. Both are this page's own, in memory; nothing is written.
+ *
+ * THE BOUNDARY ALONE WAS NOT THE WINDOW (E37 C5b, 01.11.2026). `shownFor` was the `boundaryStamp` alone, so Next, a
+ * rewind and Next again summed nothing up the second time: E37-T4 was red in suite shard 8/8 (CI run 41354325721) and
+ * green alone, and a trace of `sumUp` on the GM read `window` null at its Next with `shownFor` the same day's
+ * morning-to-noon, which a test earlier in the shard had summed up. A rewind restamps the time of day (clock.mjs
+ * `setClock`), so the second window holds only what was done after it and repeats no row; an Eclipse's end without
+ * advancing keeps the stamp, so its window is still the one summed up. R1197's `again`.
  */
 let seen = null;
 let shownFor = null;
@@ -72,7 +79,8 @@ const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapte
 
 /**
  * The window of the time of day that `after` closes, read against `before` (the clock this page saw) and `shownFor`
- * (the boundary it summed up last): `{ since, until, timeOfDay, stamp }`, or null with none to sum up. Pure (R1197).
+ * (the window it summed up last): `{ since, until, timeOfDay, stamp }`, or null with none to sum up. `stamp` is the
+ * boundary (`boundaryStamp`) and `since` together, as JSON. Pure (R1197).
  *
  * - A move of the clock forward in the same season and chapter, with no Eclipse open before it - Next time of day,
  *   `setTimeOfDay` to a later time, the night's wrap into the next day: `before`'s time of day ends, over [its
@@ -82,8 +90,8 @@ const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapte
  * - Nothing else: a move out of an Eclipse (its start summed it up; a page loaded in the dark saw no time of day of its
  *   own to close), a rewind (an earlier day, or an earlier time of the same day), a new season or chapter (the season's
  *   reset, the chapter's step), a write that moves neither (a pause), a clock with no stamp (R996's rule: no stamp, no
- *   summary), a window that closes before it opens (a clock put back with an older stamp), or a boundary `shownFor`
- *   names already.
+ *   summary), a window that closes before it opens (a clock put back with an older stamp), or a window `shownFor`
+ *   names already (the same boundary from the same start).
  */
 export function summaryWindow(before, after, shown = null) {
     if (!before || !after) return null;
@@ -94,10 +102,10 @@ export function summaryWindow(before, after, shown = null) {
     let window = null;
     if (before.eclipse !== true && (dayAfter > dayBefore || (dayAfter === dayBefore && timeAfter > timeBefore))) {
         window = { since: summarySinceOf(before), until: finite(after.timeOfDayStartedAt), timeOfDay: before.timeOfDay ?? null,
-            stamp: boundaryStamp(before) };
+            stamp: JSON.stringify([boundaryStamp(before), summarySinceOf(before)]) };
     } else if (after.eclipse === true && before.eclipse !== true && dayAfter === dayBefore && timeAfter === timeBefore) {
         window = { since: summarySinceOf(after), until: finite(after.eclipseStartedAt), timeOfDay: after.timeOfDay ?? null,
-            stamp: boundaryStamp(after) };
+            stamp: JSON.stringify([boundaryStamp(after), summarySinceOf(after)]) };
     }
     if (!window || window.since === null) return null;
     if (window.until !== null && window.until <= window.since) return null;

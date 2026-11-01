@@ -31077,7 +31077,7 @@ const INVARIANTS = [
             + "and A's covered by A's Done; the first row; stale: the clock moved on, ended, a start in the Eclipse, an end outside one, no "
             + "record, an unknown kind; who is asked: one row for the player with two students, no row for the Assistant GM");
     }],
-    ["R1197 - the summary at every boundary (E37 C4, E37-16; D44c, S10-79): day-summary.mjs `summaryWindow(before, after, shownFor)` gives an Eclipse's start and a move of the clock with no Eclipse open the same window - the ended time of day's start, the boundary, its name and the boundary's stamp - and none for a move out of an Eclipse, a boundary this page summed up already, a rewind, a new season or chapter, a pause, a clock with no stamp or one put back with an older stamp", async () => {
+    ["R1197 - the summary at every boundary (E37 C4, E37-16; D44c, S10-79): day-summary.mjs `summaryWindow(before, after, shownFor)` gives an Eclipse's start and a move of the clock with no Eclipse open the same window - the ended time of day's start, the boundary, its name and the boundary's stamp - and none for a move out of an Eclipse, a boundary this page summed up already, a rewind, a new season or chapter, a pause, a clock with no stamp or one put back with an older stamp; and the same boundary reached again from a time of day begun again is a window of its own", async () => {
         /*
          * E37 C4, 01.11.2026; E37-16, audit S10-79 (the summary only through an Eclipse). The day summary showed on
          * `drpgEclipseChanged(true)` alone, so "Next time of day", `setTimeOfDay` and the API closed a time of day with no
@@ -31088,6 +31088,14 @@ const INVARIANTS = [
          * B, a Night wrapping into the next day's morning, a jump to the evening (`setTimeOfDay`), and the cases that give
          * none. Pure; R996 holds the stamp's rule (no stamp, no summary). Red at 2230c1fa: day-summary.mjs has no
          * `summaryWindow`, and a move of the clock with no Eclipse showed nothing.
+         *
+         * THE SAME BOUNDARY FROM A TIME OF DAY BEGUN AGAIN (E37 C5b, 01.11.2026). The window's stamp was the boundary
+         * alone, so after Next, a rewind and Next again, the second Next summed nothing up - though a rewind restamps the
+         * time of day (clock.mjs `setClock`), so its window holds only what was done after the rewind and repeats no row.
+         * Found by E37-T4, red in suite shard 8/8 (CI run 41354325721) and green alone: E17-T10 before it in the shard
+         * had moved the GM's page through the same day's morning-to-noon and back. The stamp is the boundary and the
+         * window's start now: `again` is that second Next, and `shown` still holds the Eclipse ended without advancing
+         * (its time of day keeps its start). Red at 15f46794: `again` null.
          */
         const DS = await import("./day-summary.mjs");
         const { boundaryStamp } = await import("./clock.mjs");
@@ -31100,7 +31108,8 @@ const INVARIANTS = [
         const night = { ...morning, timeOfDay: "night" };
         const dawn = { ...morning, session: 4, day: 5, timeOfDay: "morning", timeOfDayStartedAt: B };
         const w = (before, after, shownFor = null) => DS.summaryWindow(before, after, shownFor);
-        const stamp = boundaryStamp(morning);
+        const stamp = JSON.stringify([boundaryStamp(morning), T]);
+        const R = B + 120_000, C = R + 3_600_000;
         const got = {
             next: w(morning, noon),
             eclipse: w(morning, dark),
@@ -31113,12 +31122,13 @@ const INVARIANTS = [
             pause: w(morning, { ...morning, pausedAt: T + 60_000 }),
             stampless: [w({ ...morning, timeOfDayStartedAt: null }, noon), w({ ...morning, timeOfDayStartedAt: null }, { ...dark, timeOfDayStartedAt: null })],
             putBack: w(morning, { ...noon, timeOfDayStartedAt: T - 60_000 }),
+            again: w({ ...morning, timeOfDayStartedAt: R }, { ...noon, timeOfDayStartedAt: C }, stamp),
             none: [w(null, noon), w(morning, null)]
         };
         const closed = { since: T, until: B, timeOfDay: "morning", stamp };
         equal(stableJson(got), stableJson({
             next: closed, eclipse: closed,
-            wrap: { since: T, until: B, timeOfDay: "night", stamp: boundaryStamp(night) },
+            wrap: { since: T, until: B, timeOfDay: "night", stamp: JSON.stringify([boundaryStamp(night), T]) },
             jump: closed,
             outOfEclipse: [null, null],
             shown: [null, null, null],
@@ -31127,12 +31137,14 @@ const INVARIANTS = [
             pause: null,
             stampless: [null, null],
             putBack: null,
+            again: { since: R, until: C, timeOfDay: "morning", stamp: JSON.stringify([boundaryStamp(morning), R]) },
             none: [null, null]
         }), "{next: morning moved to noon; eclipse: the same morning's Eclipse begun at the same moment - the same window; wrap: a Night into the "
             + "next day's morning; jump: setTimeOfDay to the evening; outOfEclipse: an Eclipse ended with the clock moved, and without; shown: the "
             + "boundary summed up already - by Next, by an Eclipse, and Next after an Eclipse ended without advancing; rewind: noon back to the "
             + "morning, a morning back to last night; calendar: a new season, a new chapter; pause; stampless: no stamp at a move and at an "
-            + "Eclipse; putBack: a clock put back with an older stamp; none: no clock before, none after}");
+            + "Eclipse; putBack: a clock put back with an older stamp; again: Next after a rewind restamped the morning, the boundary summed up before; "
+            + "none: no clock before, none after}");
     }],
     ["R1198 - the bus is a table (E37 C5, E37-19 to E37-23; audit S17-19, S07-26): sync.mjs `KIND_REFRESH` gives every `SYNC` kind a frozen row of names of `REFRESHES` and every refresh a row; `refresh` runs a kind's row and nothing else; the clock's row runs the visibility pass and the hooks only for what moved; `SYNC.despair` renders the Monokumas' sheets and no student's; the incident's world half and its cast copy reach `SYNC.incident`, whose row runs the pass; `trialQueue` and `trialProgress` reach the trial's row with the voice tile; visibility.mjs runs no pass of its own on the clock's hooks", async () => {
         /*

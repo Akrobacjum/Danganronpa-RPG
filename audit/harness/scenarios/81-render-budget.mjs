@@ -43,8 +43,9 @@
  * adapter gives (audit/live/sandbox-cluster.mjs `missingFrom`): no ids by constant, no harness-only page hook, no canary;
  * its own page state is `globalThis.drpg81` on each browser, taken away at the end. Put back: the clock, the Despair
  * pool, the trial's floor and phase, Botan's place and ledger, the incident, its Remnants and the chat cards written while
- * it ran. Not put back: what the Eclipse's start refilled and its end moved on (the action budgets, the rooms' Search
- * tokens) - the clock is written back, not taken back.
+ * it ran, and since E37 C5b what B's move and the Eclipse refilled and moved on - every student's budget, the rooms'
+ * Search tokens and the seals, read at A as `boundarySnapshot` gives them and written back at the end. The clock is
+ * written back, not taken back.
  */
 export const layers = ["ci", "local-gate"];
 /* Measured on the harness 01.11.2026 (E37 C5, under the harness lock): 44.4 s, 44.8 s and 47.2 s by the cluster's own
@@ -53,6 +54,9 @@ export const timeoutMs = 300000;
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
+/* Keys sorted at every depth: a store written back can hold its rooms in another order than it was read in. */
+const sortedJson = value => JSON.stringify(value, (key, v) => (v && typeof v === "object" && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v));
 const MOVE = `{ teleport: true, movementAction: "displace", animate: false }`;
 const NAMES = { aiko: "Aiko Hoshino", botan: "Botan Kage", chie: "Chie Mori" };
 const OWN = { gm: NAMES.aiko, p1: NAMES.aiko, p2: NAMES.botan, p3: NAMES.chie };
@@ -67,7 +71,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     phase("A: the table - four browsers, a sheet each");
     const start = await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs");
         const scene = canvas.scene;
-        return { clock: C.getClock(), messages: game.messages.map(m => m.id), scene: scene?.id ?? null,
+        /* What B's move of the time of day and D's Eclipse refill and move on - every student's budget, the rooms' Search
+           tokens, the seals (clock.mjs \`boundarySnapshot\`) - read before them and put back at the end, so the local gate's
+           whole-world diff around this scenario names nothing it changed (E37 C5b; STATUS Open 26). */
+        const boundary = await C.boundarySnapshot();
+        return { clock: C.getClock(), boundary, messages: game.messages.map(m => m.id), scene: scene?.id ?? null,
             ids: { aiko: ${actorId(NAMES.aiko)} ?? null, botan: ${actorId(NAMES.botan)} ?? null, chie: ${actorId(NAMES.chie)} ?? null },
             despair: game.drpg.getDespair(game.user.id), murder: Boolean(game.drpg.murderState()) };`, { timeout: 60000 });
     check("A1: the table is as seeded - Aiko, Botan and Chie, a scene on screen, Daily Life, no Eclipse and no incident",
@@ -336,8 +344,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const keep = new Set(${J(start.messages)});
         const fresh = game.messages.filter(m => !keep.has(m.id)).map(m => m.id);
         if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+        const b = ${J(start.boundary)};
+        const A = await import("${repoUrl}/scripts/actions.mjs");
+        const { SearchTokens } = await import("${repoUrl}/scripts/search-tokens.mjs");
+        const W = await import("${repoUrl}/scripts/call-world.mjs");
+        await A.putBackBudgets(b.actions);
+        await SearchTokens.putBack(b.tokens);
+        await W.putBackSeals({ sealed: b.sealed, restrictions: b.restrictions });
         return true;`, { timeout: 60000 });
     await settle(1200);
+    const boundaryNow = await gm.eval(`${CLOCK} return C.boundarySnapshot();`, { timeout: 60000 });
+    check("put back: every student's budget, the rooms' Search tokens and the seals as the scenario found them (E37 C5b)",
+        sortedJson(boundaryNow) === sortedJson(start.boundary), J({ was: start.boundary, now: boundaryNow }));
     const left = await all(() => `const S = globalThis.drpg81;
         for (const [name, id] of S.hooks) Hooks.off(name, id);
         for (const row of S.sheets) {
