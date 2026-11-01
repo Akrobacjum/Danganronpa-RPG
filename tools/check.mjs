@@ -90,91 +90,70 @@
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
  *             audit/AUDIT-1.2.42.md section 9.2, written once.
- *   text      the text lint (E65): every detector of scripts/tests-text.mjs on
- *             its fixture first (red when one does not flag exactly its
- *             fixture's items, or read nothing of it), then each over the
- *             language files and config.mjs's English prose (walkConfigProse),
- *             one line each - its T number, its mode, what it read and what it
- *             found. Red on a finding of a FAIL detector, on a detector that
- *             read nothing; a report detector's findings are printed, never red.
- *             At E65 C1: T1 (pluralForms, configPlaceholders) and T2
- *             (pairParity), all FAIL. `--lang <dir>` reads en.json and pl.json
- *             from <dir> instead of lang/ (config.mjs stays this tree's): how a
- *             scratch copy with a planted fault is shown red. E65 C2: T3
- *             (familyFormats) and T6 (dashesIn), FAIL with a baseline, read
- *             the module's scripts as well (git's list under scripts/, the
+ *   text      the text lint (E65): the guide (docs/text-style.md), the words
+ *             (docs/glossary.json) and the lengths (docs/text-budgets.json)
+ *             held against the module's texts. It reads lang/en.json and
+ *             lang/pl.json (or `--lang <dir>`'s), config.mjs's English prose
+ *             (walkConfigProse), the scripts git lists under scripts/ (the
  *             suite's own files out, through tests-lint.mjs's lexer) and every
- *             .md git lists under docs/; red on a finding the baseline does
- *             not hold, and on a baseline row nothing fills ("take it out of
- *             the baseline"). E65 C3: T14 (tableWordProblems), FAIL: config.mjs's
- *             TABLE_NAME_WORDS against the words of Base, with tables.mjs's two
- *             legacy lists read off its text (it does not load in Node). E65
- *             C4: docs/glossary.json held to its shape (glossarySchema, every
- *             `stage` a row of tools/stages.json: a fault is red), then T8
- *             (glossaryHits) and T28 (retiredHits), report: each row holds once
- *             its stage has shipped (tools/stages.mjs isShipped against
- *             module.json); printed are the debt, one line a finding, then the
- *             rows of a shipped stage that found nothing and what the rows not
- *             yet due find, by stage. E65 C5: docs/text-budgets.json held to
- *             its shape (budgetsSchema: the surfaces' targets and limits, the
- *             key-to-surface rules, the allow rows with their `why` and `until`;
- *             missing, unparsed or off-shape: red, "budgets: ..."), and a line
- *             of what it holds. E65 C6: five report detectors - T4
- *             (lengthOver, words against the budgets' surfaces, a key's
- *             surface read by its name or by the call that posts it), T5
- *             (patterns, the guide's X rules), T7's part (ruleNumberWords), T21
- *             (monokumaVoice) and T24 (colonChains) - each with its counts by
- *             surface and by top-level key group, and a report detector's
- *             findings one a line up to 25 (`--all`: every one). Two more
- *             controls: the self-check sees glossarySchema and budgetsSchema
- *             each stubbed to answer []. E65 C7: eight report detectors of
- *             the language rules - T11 (loanGender) and T12 (loanDeclension),
- *             the glossary's loanwords in pl.json and the Polish handbooks;
- *             T17 (oxfordComma), T18 (telegraph), T19 (contractions, with
- *             each surface's shares), T22 (mirror, the shares of EN/PL pairs
- *             alike), T23 (itemQuotes) and T25 (bareLeft). E65 C8: two
- *             report detectors that read the scripts - T13 (uiLiterals,
- *             English literals in a script that draws UI) and T20
- *             (localeCalls, a list or a date formatted outside utils.mjs's
- *             helpers) - each with its findings counted by file. E65 C9:
- *             T27 (naturalnessBefore, report), the naturalness pairs of
- *             docs/text-style.md section 12 whose "before" still stands in
- *             pl.json; the pairs whose before is gone are listed apart, and
- *             a fault of the guide's pairs table is red ("pairs: ..."), as a
- *             schema's is. Two more controls: the self-check sees the table's
- *             parser (naturalnessPairs) stubbed to read nothing, and T27 with
- *             its gone list and counts emptied. E65 C10: the screen map
- *             (tools/text-map.mjs, built in memory with espree: a SCREENS row
- *             that names no unit is red, "screens: ...") with its counts and
- *             decision 38's split of the window surfaces by reader, its marks
- *             handed to T19; and T15 (renderChecks, report) over a render made
- *             in memory (tools/text-render.mjs renderAll), with the
- *             placeholders it has no fixture for. The files themselves only by
- *             `node tools/text-map.mjs` and `node tools/text-render.mjs`. E65 C11:
- *             the audience map (tools/text-audience.mjs, the same parse: a
- *             problem of it is red, "audience: ...") with its counts by sender
- *             and by reader, handed to T16 (secondPersonToMany, report: "you"
- *             on a card the room, the incident or the table reads at once);
- *             and the map built once more on planted scripts, each sender and
- *             reader with the answer it must give. E65 C12: the handbook-facts
- *             tool's self-check (tools/handbook-facts.mjs; red, with a control
- *             that hands it a split cutting nothing), and every handbook split
- *             twice, one line each: units by kind, the second split the same
- *             (red when not, or when a handbook is missing), what split could
- *             not read (red since E65 decision 81: a row that runs into a
- *             blank line, a section number twice, a fence that never closes),
- *             and the Polish ids, kinds and lines as the English (a reading).
- *             E65 C14: the pilot's working file, docs/dev/text-pilot.json, held to
- *             its shape (tools/text-render.mjs pilotSchema; red, "pilot: ..."):
- *             40 strings, each entry's fields, its key one of lang/en.json or of
- *             config.mjs's English prose, its befores the files' text, its afters
- *             null or of the before's shape, none the key or "before" of a
- *             naturalness pair N1-N60; with a control, the schema shown a copy
- *             with those four faults planted. E65 C-pilot: the owner's answers
- *             in it, each string's `owner` and each question's (`default` or
- *             `other`, with the owner's note and the date), counted on the
- *             pilot's line; the control plants a fifth fault, a question's
- *             owner with a verdict the sheet does not offer.
+ *             .md git lists under docs/, the handbooks among them; `npm ci` in
+ *             audit/harness first, for espree. In this order:
+ *             1. The self-check (scripts/tests-text.mjs selfCheck): each of the
+ *                26 detectors on its fixture - red when one does not flag
+ *                exactly its fixture's items, or reads nothing of it - and its
+ *                controls, each a broken copy the self-check must see: a
+ *                detector stubbed to read nothing, T8 blind to its ledger,
+ *                glossarySchema and budgetsSchema answering [], the pairs'
+ *                parser reading nothing, T27's gone list and counts emptied,
+ *                T19 blind to the screen map's marks.
+ *             2. The files E65 writes, each held to its shape, a fault red:
+ *                docs/glossary.json (glossarySchema, every `stage` a row of
+ *                tools/stages.json; "glossary: ..."), docs/text-budgets.json
+ *                (budgetsSchema; "budgets: ..."), the screen map and
+ *                the audience map built in memory (tools/text-map.mjs,
+ *                tools/text-audience.mjs; "screens: ...", "audience: ...", the
+ *                audience map also on planted scripts with known answers).
+ *             3. Every detector over the files, one line each: its T number,
+ *                its mode, what it read, what it found and its counts. The six
+ *                FAIL ones - T1 (pluralForms, configPlaceholders), T2
+ *                (pairParity), T3 (familyFormats) and T6 (dashesIn), each with
+ *                a baseline that only shrinks, T14 (tableWordProblems) - are red
+ *                on a finding their baseline does not hold and on a baseline row
+ *                nothing fills ("take it out of the baseline"). The twenty
+ *                report ones print their findings, 25 a detector, never red;
+ *                each names in MODES the stage that turns it FAIL, or none. T8
+ *                and T28 hold a glossary row once its stage has shipped
+ *                (tools/stages.mjs isShipped against module.json) and count
+ *                the rows not yet due by stage; T15 reads a render made in
+ *                memory (tools/text-render.mjs renderAll), T16 the audience
+ *                map, T19 the screen map's marks, T27 the guide's naturalness
+ *                pairs N1-N60 (naturalnessPairs: a fault of that table is red,
+ *                "pairs: ..."). A detector that read nothing is red.
+ *             4. The handbook-facts tool (tools/handbook-facts.mjs): its
+ *                self-check with a control that hands it a split cutting
+ *                nothing, then each handbook split twice - red when one is
+ *                missing, when the second split differs, or on a split problem
+ *                (a row running into a blank line, a section number twice, a
+ *                fence that never closes; E65 decision 81); the Polish ids,
+ *                kinds and lines against the English are printed, a reading.
+ *             5. The pilot's file, docs/dev/text-pilot.json (tools/text-render.mjs
+ *                pilotSchema; "pilot: ..."): 40 strings, each entry's fields,
+ *                its key one of lang/en.json or of config.mjs's prose, its
+ *                befores the files' text, its afters null or of the before's
+ *                shape, none the key or "before" of a naturalness pair, and the
+ *                owner's answers (each string's `owner`, each question's:
+ *                `default` or `other`, the owner's note, the date), counted on
+ *                one line; with a control, a copy with five faults planted.
+ *             The last line: the detectors, how many hold their fixture, what
+ *             was read, "FAIL found N beyond the baselines, report found M".
+ *             Options: `--lang <dir>` reads en.json and pl.json from <dir>
+ *             (config.mjs stays this tree's), which is how a scratch copy with
+ *             a planted fault is shown red; `--all` prints every report
+ *             finding. `text` writes no file: the maps, the render, the pilot's
+ *             sheet and the handbook units are written by their own tools into
+ *             audit/harness/results/text/ (audit/harness/README.md, "The text
+ *             tools"). Measured 01.11.2026 at E65 C-pilot (47c18e2b), 4 cores:
+ *             16 s alone; 26 detectors, report found 3414.
  */
 
 import fs from "node:fs";
