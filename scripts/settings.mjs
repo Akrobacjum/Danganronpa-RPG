@@ -143,6 +143,8 @@ export const SETTINGS = {
     theme: "theme",
     /** This browser's language for the module's own strings - see i18n.mjs. */
     language: "language",
+    /** The world's language for the documents the module writes into it (D196, E66 C1) - see `documentLanguage`. */
+    documentLanguage: "documentLanguage",
     /** The slow darkening of the glass, separately from the glass itself. */
     glassPulse: "glassPulse",
     /** Whether the glass blurs the map behind it - the theme's largest single cost. */
@@ -214,7 +216,7 @@ export const SETTINGS = {
      */
     sfxVary: "sfxVary",
     /**
-     * How loud this module is on THIS browser: `{ sound }`, 0–1.
+     * How loud this module is on THIS browser: `{ sound }`, 0-1.
      *
      * Client-scoped, because volume is the one thing about sound that is
      * genuinely personal - a GM on headphones and a player on laptop speakers
@@ -1327,9 +1329,29 @@ export function registerSettings() {
         scope: "client",
         config: true,
         type: String,
-        choices: { en: "English", pl: "Polski" },
+        choices: { ...LANGUAGES },
         default: "en",
         requiresReload: true
+    });
+
+    /* ---- the language of the world's documents (D196, decision 38 = D34 option 1; E66 C1, 01.11.2026). One for
+       the world, beside each browser's own above: what the module writes into world documents is read by everyone,
+       and a document written in the language of whichever client made it (S02-74) reads in two languages at one
+       table. Empty until the primary GM's first start writes that page's language (i18n.mjs `seedDocumentLanguage`),
+       and only while empty, so a second GM joining never makes its own the world's. Read by utils.mjs
+       `worldLocalize`. Not in the settings window: in E66 no document is written through it (S02-74's documents are
+       E57's), and a setting that changes nothing on screen says something the code does not do (M2). */
+    game.settings.register(MODULE_ID, SETTINGS.documentLanguage, {
+        name: "DRPG.Settings.documentLanguage.name",
+        hint: "DRPG.Settings.documentLanguage.hint",
+        scope: "world",
+        config: false,
+        type: String,
+        /* "" is "not written yet", the default: a choice of its own, so the default is among the choices whatever a
+           Foundry holds a setting's default to (E66 fix r1 F12; STATUS Open 2; R1164). Its label is a dash: no window
+           shows this setting in E66. */
+        choices: { "": "-", ...LANGUAGES },
+        default: ""
     });
 
     /* ---- the look: theme, glass effects, UI scale. All three are this
@@ -3412,21 +3434,77 @@ export function settingsRegistered(settings = game.settings?.settings) {
     return settings?.has?.(`${MODULE_ID}.${SETTINGS.theme}`) === true;
 }
 
-/** Convenience reader. */
 /**
- * The language this browser asked the module for: `en` or `pl`, `en` when the
- * setting is unregistered or holds something unknown. Here rather than in
- * i18n.mjs because utils.mjs's `plural()` needs it and utils imports this leaf.
+ * The languages the module ships, code to its own name (E66 C1, 01.11.2026; S13-60, E66-02). The one list: the
+ * language setting's choices and the documents' are built from it, `moduleLanguage` answers one of its codes, and
+ * i18n.mjs re-exports this object for the Look window, the requirements window and the diagnostics' file list.
+ * Until E66 i18n.mjs held it and the setting wrote its choices out a second time. Here, in the leaf, because utils.mjs
+ * reads the language and must not import i18n.mjs (which imports utils.mjs's `log` and `error`).
+ */
+export const LANGUAGES = Object.freeze({ en: "English", pl: "Polski" });
+
+/**
+ * The language this browser asked the module for: a code of `LANGUAGES`, `en`
+ * when the setting is unregistered or holds something unknown (E66 C1: by
+ * `Object.hasOwn`, where it read `lang === "pl"`). The live setting: what the
+ * page is written in is `pageLanguage`, below.
  */
 export function moduleLanguage() {
     try {
         const lang = game.settings.get(MODULE_ID, SETTINGS.language);
-        return lang === "pl" ? "pl" : "en";
+        return Object.hasOwn(LANGUAGES, String(lang ?? "")) ? lang : "en";
     } catch {
         return "en";
     }
 }
 
+/*
+ * THE LANGUAGE THIS PAGE WAS BUILT IN (E51 C8, 31.10.2026; audit S12-38; E51-45). The setting changes the moment a
+ * player picks another language in the Look window, and the page does not: everything on it was built in the old one
+ * until the reload `confirmLanguageReload` offers, which a player may decline. A reader that asked the setting then
+ * mixed the two - an open handbook kept its English tabs and loaded the next book in Polish. Set by i18n.mjs
+ * `prefetchLanguage`, the first thing `init` does (`registerLanguage`), so after a reload it is the new one; and by an
+ * `applyModuleLanguage` that fetches a file, whose strings are then the page's. A first form kept the first reading
+ * for good (`??=`) and scenario 50 went red: its players switch to Polish on the page and apply the file without a
+ * reload, and that page is in Polish (26 checks, 455959de-26007).
+ *
+ * In the leaf since E66 C1 (01.11.2026; S13-62, E66-03), where it was i18n.mjs's: every helper that writes in the
+ * module's language reads it - utils.mjs `plural`, `listOf`, `localeFormat` and `worldLocalize`'s fallback, and
+ * handbooks.mjs `handbookPath` - and utils.mjs cannot import i18n.mjs. `plural` and `listOf` read the live setting
+ * until then, so a player who declined the reload had the next count in the other language's forms.
+ */
+let builtIn = null;
+
+/** The language this page was built in: the setting as `init` read it, the setting itself before that. */
+export function pageLanguage() {
+    return builtIn ?? moduleLanguage();
+}
+
+/**
+ * Record the language the page is built in: a code of `LANGUAGES`, or null to fall back to the setting. Answers
+ * what it held before, so a caller that stands one in can put it back. Called by i18n.mjs and nothing else of the
+ * module's.
+ */
+export function setPageLanguage(lang) {
+    const was = builtIn;
+    builtIn = lang !== null && Object.hasOwn(LANGUAGES, String(lang ?? "")) ? lang : null;
+    return was;
+}
+
+/**
+ * The world's language for the documents the module writes into it (D196; E66 C1, E66-09): a code of `LANGUAGES`,
+ * or "" until the primary GM's first start has written one (or where the setting is unregistered).
+ */
+export function documentLanguage() {
+    try {
+        const lang = game.settings.get(MODULE_ID, SETTINGS.documentLanguage);
+        return Object.hasOwn(LANGUAGES, String(lang ?? "")) ? lang : "";
+    } catch {
+        return "";
+    }
+}
+
+/** Convenience reader. */
 export function getSetting(key) {
     return game.settings.get(MODULE_ID, key);
 }

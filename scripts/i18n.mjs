@@ -31,55 +31,57 @@
  * PLURALS. `plural()` in utils.mjs picks a form with `Intl.PluralRules` for
  * THIS language, so a Polish file carries `one` / `few` / `many` / `other`
  * where the English one carries `one` / `other`.
+ *
+ * ONE ROAD (E66 C1, 01.11.2026). The languages, the setting's reader and the
+ * language the page was built in live in settings.mjs (`LANGUAGES`,
+ * `moduleLanguage`, `pageLanguage`), which this file re-exports and nothing
+ * more; utils.mjs's `plural`, `listOf`, `localeFormat` and `worldLocalize` read
+ * the page's, never the live setting. The world's language for documents
+ * (`documentLanguage`, D196) is written here, once.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import * as CONFIG_TABLES_SOURCE from "./config.mjs";
 import { walkConfigProse } from "./i18n-config.mjs";
-import { moduleLanguage } from "./settings.mjs";
-import { log, error } from "./utils.mjs";
+import { LANGUAGES, SETTINGS, moduleLanguage, pageLanguage, setPageLanguage, documentLanguage, setSetting } from "./settings.mjs";
+import { log, error, isPrimaryGm } from "./utils.mjs";
 
-/** The languages the module ships. The setting's own choices live in settings.mjs. */
-export const LANGUAGES = { en: "English", pl: "Polski" };
-
-export { moduleLanguage };
+/* The leaf's own objects, re-exported (E66 C1; E66-02): the Look window, the requirements window, the diagnostics and
+   the handbooks import them from here as before. Why the page's language is kept apart from the setting is written
+   beside `pageLanguage` in settings.mjs. */
+export { LANGUAGES, moduleLanguage, pageLanguage };
 
 let pending = null;
 let applied = false;
 
-/*
- * THE LANGUAGE THIS PAGE WAS BUILT IN (E51 C8, 31.10.2026; audit S12-38; E51-45). The setting changes the moment a
- * player picks another language in the Look window, and the page does not: everything on it was built in the old one
- * until the reload `confirmLanguageReload` offers, which a player may decline. A reader that asked the setting then
- * mixed the two - an open handbook kept its English tabs and loaded the next book in Polish. Set by
- * `prefetchLanguage`, the first thing `init` does (`registerLanguage`), so after a reload it is the new one; and by an
- * `applyModuleLanguage` that fetches a file, whose strings are then the page's. A first form kept the first reading
- * for good (`??=`) and scenario 50 went red: its players switch to Polish on the page and apply the file without a
- * reload, and that page is in Polish (26 checks, 455959de-26007).
- */
-let builtIn = null;
-
-/** The language this page was built in: the setting as `init` read it, the setting itself before that. */
-export function pageLanguage() {
-    return builtIn ?? moduleLanguage();
-}
-
 /** Start fetching the file. Called first thing at `init`; harmless to call twice. */
 export function prefetchLanguage() {
     const lang = moduleLanguage();
-    builtIn = lang;
+    setPageLanguage(lang);
     if (lang === "en" || pending) return pending;
+    pending = fetchLanguageFile(lang);
+    return pending;
+}
+
+/**
+ * The language file's fetch: its parsed JSON, or null with the page back in English (E66 fix r2, 01.11.2026; review
+ * correctness m3). `prefetchLanguage` sets the page's language before the fetch; when the file did not load, the
+ * module said "the module stays in English" and `pageLanguage()` stayed "pl", so `listOf`, `localeFormat` and
+ * `markLanguage` wrote Polish lists, dates and `lang` into English text. `fetchFile` and `report` are handed in by
+ * R1166.
+ */
+export function fetchLanguageFile(lang, { fetchFile = path => fetch(path), report = error } = {}) {
     const path = `modules/${MODULE_ID}/lang/${lang}.json`;
-    pending = fetch(path)
+    return fetchFile(path)
         .then(response => {
             if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
             return response.json();
         })
         .catch(err => {
-            error(`Could not load the ${lang} language file; the module stays in English`, err);
+            setPageLanguage("en");
+            report(`Could not load the ${lang} language file; the module stays in English`, err);
             return null;
         });
-    return pending;
 }
 
 /**
@@ -129,6 +131,20 @@ export function localizeConfig() {
 export function registerLanguage() {
     prefetchLanguage();
     Hooks.once("i18nInit", () => { applyModuleLanguage().catch(err => error("Language", err)); });
+    Hooks.once("ready", () => { seedDocumentLanguage().catch(err => error("Could not record the documents' language", err)); });
+}
+
+/**
+ * THE DOCUMENTS' LANGUAGE AT THE FIRST START (D196, decision 38 = D34 option 1: "domyślnie język primary GM-a przy
+ * pierwszym starcie"; E66 C1, E66-09). On the primary GM's browser, at ready, while the world setting is empty: that
+ * page's language, written once. A weak write - only into an empty setting and only by the primary - so a second GM
+ * who joins in another language does not make theirs the world's, and a GM who changes it later keeps the change.
+ * Answers whether it wrote.
+ */
+export async function seedDocumentLanguage() {
+    if (!game.user?.isGM || !isPrimaryGm() || documentLanguage()) return false;
+    await setSetting(SETTINGS.documentLanguage, pageLanguage());
+    return true;
 }
 
 /**

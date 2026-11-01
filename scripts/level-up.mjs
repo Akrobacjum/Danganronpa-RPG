@@ -14,7 +14,7 @@
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
-import { log, error, isPrimaryGm, ownerIdsOf, plural } from "./utils.mjs";
+import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 
@@ -58,7 +58,7 @@ export async function openAdvancementFor(actor) {
        spent. Each standing offer is a third choice here, oldest first. */
     const standing = standingOffers(actor).map(offer => ({
         value: `take:${offer.id}`, icon: "fa-rotate-left",
-        label: game.i18n.format("DRPG.Advance.takeBack", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) })
+        label: game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) })
     }));
 
     const picked = await chooseVariant({
@@ -69,10 +69,10 @@ export async function openAdvancementFor(actor) {
         }),
         options: [
             { value: "standard", icon: "fa-arrow-up",
-              label: game.i18n.localize("DRPG.Advance.kind.standard"),
+              label: advanceKindName("standard"),
               hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
             { value: "reinforced", icon: "fa-shield-halved",
-              label: game.i18n.localize("DRPG.Advance.kind.reinforced"),
+              label: advanceKindName("reinforced"),
               hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") },
             ...standing
         ]
@@ -185,6 +185,17 @@ export function offerList(row) {
                 at: Number(offer.at) || 0 }));
     }
     return LEVEL_UP[row.kind]?.picks ? [{ id: LEGACY_OFFER, kind: row.kind, extra: 0, deferred: 0, at: Number(row.at) || 0 }] : [];
+}
+
+/**
+ * A Level Up kind's name as the texts show it, "Level Up (pick 1)" / "Level Up (wybierz 1)": `DRPG.Advance.kind.<kind>`
+ * with `{picks}` the kind's own picks off config.mjs `LEVEL_UP` (E66 C7, 01.11.2026; STATUS Open 51), where the count was
+ * typed into both languages beside the number the code holds. The kind's, not an offer's: an offer's extra picks are
+ * `Advance.offered`'s {n} (`offerPicks`). A name in its hosts (docs/text-style.md section 14): opening the sentence, after a
+ * colon or standing alone, so one form serves them all.
+ */
+export function advanceKindName(kind) {
+    return game.i18n.format(`DRPG.Advance.kind.${kind}`, { picks: LEVEL_UP[kind]?.picks ?? 0 });
 }
 
 /** How many picks an offer buys: its kind's and its extra. */
@@ -408,7 +419,7 @@ export async function takeBackOffer(actor, offerId) {
         await deferAdvancement(actor, kind, null, { count: Math.max(1, Math.round(offer.deferred / (LEVEL_UP[kind]?.picks || 1))) });
     }
     ui.notifications.info(game.i18n.format("DRPG.Advance.takenBack", {
-        name: actor.name, kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
+        name: actor.name, kind: advanceKindName(offer.kind)
     }));
     actor.sheet?.render(false);
     log(`${actor.name}'s ${offer.kind} Level Up on offer was taken back.`);
@@ -473,8 +484,8 @@ export async function offerAdvancement(actor, kind = "standard", { extra = 0, de
     }
 
     const { whisperToOwner } = await import("./utils.mjs");
-    const line = game.i18n.format("DRPG.Advance.offered", {
-        kind: game.i18n.localize(`DRPG.Advance.kind.${kind}`),
+    const line = plural("DRPG.Advance.offered", {
+        kind: advanceKindName(kind),
         n: offerPicks(asked)
     });
     const waited = asked.deferred ? `<p>${game.i18n.localize("DRPG.Advance.reason.withClass")}</p>` : "";
@@ -651,7 +662,7 @@ function buildContent(picks, experiences, reasons, forName = null) {
             ${picks > 1 ? `<legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>` : ""}
             <select name="pick.${i}.option" data-pick="${i}" aria-label="${game.i18n.localize("DRPG.Advance.whichImprovement")}">
                 ${Object.entries(LEVEL_UP_OPTIONS)
-                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${opt.label}</option>`)
+                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${proseOf(opt, "label")}</option>`)
                     .join("")}
             </select>
             <div class="drpg-advance-detail" data-detail="${i}"></div>
@@ -1054,7 +1065,7 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
 
     const { whisperToOwner } = await import("./utils.mjs");
     await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p>
-        <p>${game.i18n.format("DRPG.Advance.deferred", { n: deferredPicks(row) })}</p>`, { veiled: true });
+        <p>${plural("DRPG.Advance.deferred", { n: deferredPicks(row) })}</p>`, { veiled: true });
     log(`${actor.name}'s ${kind} Level Up waits for the class's next one.`);
     return row;
 }

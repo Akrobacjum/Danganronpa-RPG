@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -613,10 +613,12 @@ function emptyNotice() {
 
 /**
  * A bubble's time in the table's language (E18 C6; audit S11-61). It was `toLocaleTimeString([], ...)`, the
- * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850).
+ * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850). E18 gave it
+ * Foundry's language; since E66 C1 it is the module's, as the page was built in it (utils.mjs `localeFormat`), which
+ * is the language of the words around it.
  */
 export function bubbleTime(at) {
-    return new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+    return localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
 }
 
 function buildBubble(message) {
@@ -1411,6 +1413,8 @@ export function renderLauncher() {
         const button = document.createElement("button");
         button.type = "button";
         button.id = LAUNCHER_ID;
+        // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+        markLanguage(button);
         button.dataset.tooltip = launcherTooltip();
         button.setAttribute("aria-label", launcherTooltip());
         button.innerHTML = `<i class="fa-solid fa-comments" inert></i>`;
@@ -1492,6 +1496,8 @@ function buildRoster(anchor) {
     for (const old of document.querySelectorAll("#drpg-messenger-roster")) closeRoster(old, { instant: true });
     const panel = document.createElement("div");
     panel.id = "drpg-messenger-roster";
+    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+    markLanguage(panel);
 
     const title = document.createElement("h4");
     title.textContent = game.i18n.localize("DRPG.Messenger.rosterTitle");

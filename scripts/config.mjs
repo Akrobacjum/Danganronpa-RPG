@@ -307,7 +307,7 @@ export const TIME_OF_DAY_LABELS = {
  * chapter when no murder has happened yet.
  */
 export const PHASES = {
-    dailyLife: { label: "Daily Life", hint: "You live inside a closed area. Two actions per time of day." },
+    dailyLife: { label: "Daily Life", hint: "You live inside a closed area. {actions} per time of day." },
     investigation: { label: "Investigation", hint: "A body was found. Observe and Analyze to build Truth Bullets." },
     classTrial: { label: "Class Trial", hint: "The moment of truth. Objections, testimony, the vote." }
 };
@@ -1471,8 +1471,8 @@ export const ACTIONS = {
         // states it in prose is a second copy, and the first GM to change the
         // setting turns it into a lie.
         hint: "Loot the room for something you name. Spends one of its search tokens.",
-        description: "You loot the room for whatever you name. Taking a crime tool or a cleaning "
-            + "tool leaves a trace behind.",
+        description: "Roll Eye: the higher the total, the better the find, and a low total finds nothing. If what you "
+            + "find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
             { min: 12, tier: 1, remnant: "subtle" },
@@ -1499,12 +1499,14 @@ export const ACTIONS = {
         // those are two of five - a red stripe on the tile promised a wait that
         // three of the five branches never have.
         callsGm: false,
-        hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
+        hint: "Look for evidence in this room. It costs an action. On a hit, you note one Remnant here as a Truth "
+            + "Bullet in your inventory, and the Remnant stays where it is; on a miss, you lose Sanity.",
         // The Sanity a miss costs is `failStress` two lines down, and the
         // briefing prints it from there. It was written out here as well, and
         // the two would part company the first time the number moved.
-        description: "You look for evidence here. A hit copies what you find into your inventory "
-            + "as a Neutral Truth Bullet and leaves the original in place.",
+        description: "First you choose how you look. On a hit, you copy a Remnant in this room into your inventory as "
+            + "a Neutral Truth Bullet; a critical also shows its type. Looking past the obvious can also find a secret "
+            + "project.",
         dcTable: "OBSERVE_DC",
         failStress: OBSERVE_FAIL_STRESS
     },
@@ -1538,9 +1540,12 @@ export const ACTIONS = {
                 return false;
             }
         },
-        hint: "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
-        description: "Identify what a Truth Bullet really is, or ask the GM for a hint. Failing "
-            + "locks that bullet until the chapter ends.",
+        hint: "Identify an unanalyzed Truth Bullet, ask the GM for a hint, or try Find Stash or Find Passage. It costs "
+            + "an action. In a Class Trial you can only identify one; there, with no action left, you pay Hope, or "
+            + "Sanity once you have none.",
+        description: "Learn what a Truth Bullet really is. A miss locks it for you this chapter, and it stays in play "
+            + "as it was. Outside a Class Trial, you can ask the GM for a hint instead; a higher total gets a clearer "
+            + "one.",
         dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
@@ -1589,15 +1594,19 @@ export const ACTIONS = {
                 return false;
             }
         },
-        hint: "Push a project here, or propose a new one for the GM to approve.",
-        // The room requirement is not written here any more. `roomBlockFor()`
-        // refuses the roll where it applies and says why, the tile greys out
-        // before that, and the project list in the window is already the list
-        // of what is workable from where you stand - three places that state it
-        // at the moment it binds, against one paragraph that stated it in
-        // advance and made this the longest text in the module.
-        description: "The slow game: many actions over many times of day, and the one thing that "
-            + "can change how this ends.",
+        hint: "Work on an unfinished project here, propose a new one, or sabotage one. A Work or a Sabotage costs an "
+            + "action, and a critical Work gives it back; proposing costs none, and a new project is created only once "
+            + "a GM approves it.",
+        // The room requirement is one word here, "here" (B01a, approved
+        // 01.11.2026), not the paragraph that stated it in advance and made
+        // this the longest text in the module. `roomBlockFor()` refuses the
+        // roll where it applies and says why, the tile greys out before that,
+        // and the project list in the window is already the list of what is
+        // workable from where you stand - three places that state it at the
+        // moment it binds.
+        description: "A project takes several actions, usually over several times of day: each Work costs one and adds "
+            + "a little progress. An indirect murder is a project too, with rolls to hide your intent from anyone "
+            + "present and the Remnants each Work leaves.",
         thresholds: [
             { min: 12, progress: 1 },
             { min: 18, progress: 2 }
@@ -1636,12 +1645,16 @@ export const ACTIONS = {
         cost: 1,
         // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
         // the GM flagged for it in Room Setup, which may be anybody's room or
-        // nobody's. The dialog prices Short against Long and names the rooms
-        // that allow each - see `DRPG.Rest.allowedIn` - so both the costs and
-        // the room live where they are checked.
-        hint: "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
-        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope - in full on a "
-            + "Long Rest, by half on a Short."
+        // nobody's. The hint says both in general words since B01a (the
+        // pilot's pair 3, approved 01.11.2026): a Short Rest costs an action, a
+        // Long Rest more, and each needs a room the GM marked. The numbers and
+        // the rooms' names live where they are checked: the dialog prices Short
+        // against Long and names the rooms that allow each (`DRPG.Rest.allowedIn`).
+        hint: "Recover Health, Sanity, or Hope. A Short Rest costs an action, once each time of day; a Long Rest costs "
+            + "more actions and recovers more, once each session. Each needs a room the GM has marked for it.",
+        description: "Choose from Sleep (Health), a Meal (Sanity), and a Breath (Hope). A Long Rest lets you pick more "
+            + "of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much "
+            + "and grants less Hope."
     },
     listen: {
         kind: "universal",
@@ -1650,8 +1663,9 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         hint: "Work out who is in a neighbouring room. No GM needed.",
-        description: "You listen at the wall of a neighbouring room. A modest result gives you a "
-            + "headcount, a strong one gives you names.",
+        description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
+            + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
+            + "you nothing; with no neighboring room, you keep your action.",
         thresholds: [
             { min: 14, result: "Pick one room; learn whether anyone is there." },
             { min: 18, result: "Pick one room; see the tokens of everyone in it." }
@@ -1684,9 +1698,11 @@ export const ACTIONS = {
         icon: "fa-hand-sparkles",
         traits: ["hand"],
         cost: 1,
-        hint: "Take something out of somebody's pocket, leave something in it, or see what they carry.",
-        description: "You get a hand into somebody's pocket. One roll decides whether they "
-            + "notice, another whether it works. Or you simply ask them to turn out their pockets.",
+        hint: "Pick somebody in this room: take something out of their pockets, leave one of your things there, or see "
+            + "what they carry. It costs an action.",
+        description: "When you take or leave something, Shadow decides whether they notice, and Hand decides whether "
+            + "it works. If they catch you taking, they also learn what you took. You can force a Frisk they refuse or "
+            + "ignore with Body, in full view.",
         /*
          * TWO NUMBERS NOW, AND THE OLD COMMENT'S ARGUMENT WAS WRONG (D10a).
          *
@@ -1758,13 +1774,18 @@ export const ACTIONS = {
         // A trace you KNOW is here (E09 C14, 08.10.2026; audit S13-18): since 31.08 the cover
         // list is the traces the player has found (`cleanableTracesForPlayer`), not the ones
         // they left, and its critical can reshape one instead of wiping it.
-        hint: "Wipe out, or reshape, a trace you know is here - or plant one pointing at somebody else.",
+        hint: "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it "
+            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity "
+            + "once you have no action left.",
         // No thresholds here on purpose: the erase branch reads its number off
-        // how visible the trace is (`CLEANUP.dc`) and the frame-up reads a flat
-        // 18 off `CLEANUP.actions.misleadingTrail`. One number written here as
-        // well would be a second copy of a rule this table does not own.
-        description: "You go over a trace you know is here until it is gone or reads as something else, "
-            + "or you leave one that points at somebody else. Being watched while you do it is its own problem."
+        // how visible the trace is (`CLEANUP.dc`) and the frame-up reads its
+        // flat `threshold` off `CLEANUP.actions.misleadingTrail`. One number
+        // written here as well would be a second copy of a rule this table does
+        // not own - as this comment's "a flat 18" was, from D7 (E18c) set the
+        // threshold lower until E66 C7 took the number out (STATUS Open 47).
+        description: "A more visible Remnant is harder to erase. You can reshape it instead, if a GM approves its new "
+            + "name and description. With others present, you first roll Shadow, which can cost Sanity; a miss shows "
+            + "them what you are doing."
     },
     directMurder: {
         kind: "universal",
@@ -1774,9 +1795,11 @@ export const ACTIONS = {
         cost: 1,
         // A FUNCTION, not a flag (E32+E07 C16) - see `murderParksForGm` below.
         callsGm: actor => murderParksForGm(actor),
-        hint: "Open a direct murder. Agreed with the GM beforehand.",
-        description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
-            + "the victim's player. You have to be alone with them."
+        hint: "During an Eclipse, declare a Direct Murder that you have agreed with the GM beforehand. It costs an "
+            + "action.",
+        description: "During an Eclipse, declare a face-to-face killing with a note the GMs allow or refuse; it costs "
+            + "an action either way. When the Eclipse ends, it opens an incident if you are alone with exactly one "
+            + "other person, unless another killing opened one first."
     },
 
     /* ----------------------------------------------------------------------
@@ -1792,9 +1815,11 @@ export const ACTIONS = {
         icon: "fa-shoe-prints",
         traits: [],
         cost: 0,
-        hint: "Crossing into another room costs your free Move, then an action each.",
-        description: "Moving inside your own room is free. Crossing into a connected room spends "
-            + "this time of day's free Move.",
+        hint: "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free "
+            + "Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint.",
+        description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
+            + "Move, then Sprint crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "block the Free Move, and the GMs can turn the charge off.",
         instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."
     },
@@ -1804,14 +1829,15 @@ export const ACTIONS = {
         icon: "fa-screwdriver-wrench",
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
-        hint: "Break a project in this room so it needs a repair project. Always leaves a trace.",
+        hint: "Break a project in this room so that it needs a repair project. It costs an action, and you always "
+            + "leave a Remnant behind.",
         // "In this room" is the rule, not a hint: sabotage is a physical act on
         // a physical object, and only projects tied to the room you are standing
         // in can be targets. It used to reach every project with no room set,
         // from anywhere on the map. See `sabotageTargetsIn` in projects.mjs.
-        description: "You break something the players made in the room you are standing in, so "
-            + "it needs a repair project. It always leaves a trace, and Despair shows you to "
-            + "the room.",
+        description: "Roll the project's statistic: the better the roll, the harder the repair; a miss does nothing. "
+            + "With others present, you roll Shadow first; a miss shows them roughly what you are doing. A sabotage "
+            + "roll with Despair shows them it was you.",
         thresholds: [
             { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
@@ -1879,7 +1905,7 @@ function murderParksForGm(actor) {
 export const INDIRECT_MURDER = {
     /** Hiding your intent when another player is in the room with you. */
     concealIntent: {
-        label: "Conceal your intent",
+        label: "Conceal Your Intent",
         trait: "shadow",
         threshold: 16,
         success: "The others cannot see that you are doing anything. You may lie freely.",
@@ -1890,7 +1916,7 @@ export const INDIRECT_MURDER = {
     },
     /** Every project action also rolls to hide the traces it leaves. */
     hideTraces: {
-        label: "Hide the traces",
+        label: "Hide the Traces",
         trait: "shadow",
         thresholds: [
             { min: 0, remnant: "obvious" },
@@ -1901,9 +1927,9 @@ export const INDIRECT_MURDER = {
     },
     /** The guide splits an indirect murder into at least two sub-projects. */
     subProjects: [
-        { label: "Prepare the weapon", scale: ["everyday", "complex"], progress: [4, 6],
+        { label: "Prepare the Weapon", scale: ["everyday", "complex"], progress: [4, 6],
           note: "May require a specific room with the right equipment, unless you obtained the tool." },
-        { label: "Set the trap", scale: ["trivial", "everyday"], progress: [3, 4],
+        { label: "Set the Trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]
 };
@@ -2061,14 +2087,16 @@ export const REST = {
 export const HOPE_CALLS = {
     support: {
         label: "Support", icon: "fa-hands-holding-circle", cost: 1, target: "player", grants: "advantage",
-        effect: "Give another player advantage on one roll. You have to be in the same room."
+        effect: "Give another student in your room advantage on their next roll; a student who already has an unused "
+            + "Support cannot get another, and you keep your Hope."
     },
     experience: {
         // Waits for the GM - see the note on Ultimate above. This is the Call
         // the "genuinely applies" gate was written for in the first place.
         needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
-        effect: "Add your experience level to a roll that experience genuinely applies to."
+        effect: "Write how one of your experiences applies to your next roll; a GM approves or refuses, and you pay "
+            + "the Hope only if it is approved. That roll then adds the value of one experience you pick."
     },
     ultimate: {
         /*
@@ -2103,17 +2131,21 @@ export const HOPE_CALLS = {
          */
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
-        effect: "Advantage on a roll your Ultimate genuinely applies to."
+        effect: "Write how your Ultimate applies to your next roll; a GM approves or refuses, and you pay the Hope "
+            + "only if it is approved. That roll then has advantage."
     },
     contribution: {
         label: "Contribution", icon: "fa-screwdriver-wrench", cost: 2, target: "project", progress: 1,
-        effect: "Add +{progress} progress to a project being worked on in the room you are in."
+        effect: "Add {progress} progress at once to a project in your room that is not finished or frozen; it takes no "
+            + "action and no Work roll. If the project is an indirect murder, you still roll to hide its Remnants."
     },
     reroll: {
         // Not a grant: this one looks backwards, not forwards. It re-rolls the
         // dice you already threw and replaces what they did to you.
         reroll: true, label: "Reroll", icon: "fa-rotate-left", cost: 3, target: "none",
-        effect: "Reroll the action. It reverts the previous outcome."
+        effect: "Reroll your most recent roll at once. Its action is undone and run again with the new dice, and the "
+            + "Hope, Sanity, and Despair it moved follow the new result. If the Reroll cannot be made, you pay "
+            + "nothing."
     },
     /*
      * THE THREE THAT BUY TIME RATHER THAN DICE.
@@ -2155,7 +2187,8 @@ export const HOPE_CALLS = {
         // general one - a Move you would otherwise pay an action for - and a
         // Call that says "a free Move" ought to hand over exactly one.
         freeMoves: 1,
-        effect: "One more room crossing this time of day, without paying an action for it."
+        effect: "Bank one more room crossing for this time of day: once your Free Move is used, your next crossing "
+            + "uses it instead of an action."
     },
     burst: {
         /*
@@ -2184,7 +2217,8 @@ export const HOPE_CALLS = {
          * on a single Burst.
          */
         freeActions: 1,
-        effect: "Your next action costs nothing - the whole action, however many it would have cost."
+        effect: "Bank a free action: the next time you would spend actions this time of day, even on a crossing or a "
+            + "Long Rest, it pays the whole price."
     },
     relief: {
         /*
@@ -2220,7 +2254,8 @@ export const HOPE_CALLS = {
          * table that agrees with the first until somebody edits one.
          */
         freeRest: "short",
-        effect: "Take a Short Rest right now - no action, no marked room, and it does not use up this time of day's."
+        effect: "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time "
+            + "of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
     },
     determination: {
         /*
@@ -2242,7 +2277,9 @@ export const HOPE_CALLS = {
         // the action pipeline recognise THIS Call by; what changes is what it
         // does to the dice.
         label: "Loaded Die", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
-        effect: "One of the two dice, at random, is set to 12, the other is thrown. A critical only if that one is a 12 too."
+        effect: "For your next roll, a random one of the two dice is set to 12 and the other is thrown. A 12 on the "
+            + "thrown die makes a critical; otherwise the roll is with Hope if the Hope die was set, with Despair if "
+            + "not."
     }
 };
 
@@ -2627,29 +2664,76 @@ export const MOTIVE = {
  * Not `game.i18n.format` - these strings live in config.mjs, which is the
  * single source of truth about the rules and is deliberately not in the
  * language file (see the note at the top of this file).
+ *
+ * ONE TABLE FOR EVERY CONFIG SENTENCE SINCE E66 C4 (01.11.2026; S18-37, E66-17). The values above were this
+ * function's own until then, so a number in any other table's prose was a digit typed into it (29 strings in English
+ * with a digit and 51 with a number word, probe digits.mjs at 501d13eb). They are `PROSE_NUMBERS` now, read by this
+ * function and by utils.mjs `proseOf`, which every reader in the browser calls: this file loads in bare Node and
+ * imports nothing of utils.mjs, so the table and the fill live here (`fillProse`) and `proseOf` hands it the unit
+ * words. This function is the bare fill - a number with no unit word - for a caller with no language; the module's
+ * readers call `proseOf(call, "effect")`, which gives the same text for every Call (none of their placeholders has a
+ * unit).
  */
 export function callEffect(call) {
-    const text = call?.effect ?? "";
+    return fillProse(call, "effect");
+}
+
+/**
+ * THE NUMBERS A CONFIG SENTENCE TAKES FROM CONFIG (E66 C4, 01.11.2026; S18-37, E66-17). One row a placeholder: `of`
+ * reads its number - from the entry whose field the sentence is (`of(entry, field)`), or from a constant of this file
+ * when the rule's number is not the entry's - and `unit`, for a countable noun, names the family `DRPG.Unit.<unit>`
+ * that utils.mjs `proseOf` writes the number with in the page's language (the Polish four forms; the case is the
+ * family's, docs/text-style.md section 14). Without `unit` the number stands bare, before an uncountable word -
+ * Health, Sanity, Hope, Despair, progress (DB4) - or a sign. A placeholder whose number the entry does not carry
+ * stays as written, `{x}`, which the text lint reports (T15). Read where the rule runs (M1): `drain` is what
+ * murder-rules.mjs adds on a failure (`failureExtraDrain`), `hp` and `stress` what a Strike takes (`damage`, and on a
+ * failure `failureDamage.despair`), `turns` how long a hindrance lasts (`hinders.turns`), `mult` the finishing blow's
+ * threshold a point of Health (murder-rules.mjs `finishingBlowThreshold`), `actions` a time of day's budget
+ * (actions.mjs `actionBudget`), `worth` a new experience's value (level-up.mjs).
+ */
+export const PROSE_NUMBERS = Object.freeze({
+    cost: { of: entry => entry?.cost },
+    hp: { of: (entry, field) => proseDamage(entry, field)?.hitPoints ?? proseDamage(entry, field)?.hp },
+    stress: { of: (entry, field) => proseDamage(entry, field)?.stress },
+    hope: { of: entry => entry?.grantsHope },
+    // Written as a negative on the entry, because that is what it does to
+    // the project; read as a magnitude here, because "Remove -2 progress"
+    // is not a sentence.
+    progress: { of: entry => entry?.progress === undefined ? undefined : Math.abs(entry.progress) },
+    // Z14. Found on the live round reading "Pour {overflow} Despair" on the
+    // tile: this table is the ONLY place a config sentence gets its
+    // numbers, so a field added to an entry without a line here ships a
+    // placeholder to the panel and to the chat card both.
+    overflow: { of: entry => entry?.feedsOverflow },
+    drain: { of: entry => typeof entry?.failureExtraDrain === "number" ? entry.failureExtraDrain : entry?.failureExtraDrain?.despair },
+    turns: { of: entry => entry?.hinders?.turns, unit: "nextTurnAcc" },
+    mult: { of: () => INCIDENT.finishingBlowPerHp },
+    actions: { of: () => STARTING.actions, unit: "action" },
+    worth: { of: () => STARTING.experienceValue }
+});
+
+/** What a sentence's `{hp}` and `{stress}` read: a Call's `damage`, a crisis action's on a Hope roll, or on a failure its Despair's. */
+function proseDamage(entry, field) {
+    if (field === "failure") return entry?.failureDamage?.despair;
+    return entry?.damage?.hope ?? entry?.damage;
+}
+
+/**
+ * A config sentence, `entry[field]`, with its placeholders filled from `PROSE_NUMBERS` and then from `extra` (a
+ * reader's own values, which win). `unitWords(unit, n)` writes a countable number with its noun; without it (bare
+ * Node, `callEffect`) the number stands alone. A placeholder with no value stays as written.
+ */
+export function fillProse(entry, field, extra = {}, unitWords = null) {
+    const text = entry?.[field];
+    if (typeof text !== "string") return "";
     if (!text.includes("{")) return text;
-
-    const values = {
-        cost: call.cost,
-        hp: call.damage?.hitPoints,
-        stress: call.damage?.stress,
-        hope: call.grantsHope,
-        // Written as a negative on the entry, because that is what it does to
-        // the project; read as a magnitude here, because "Remove -2 progress"
-        // is not a sentence.
-        progress: call.progress === undefined ? undefined : Math.abs(call.progress),
-        // Z14. Found on the live round reading "Pour {overflow} Despair" on the
-        // tile: this table is the ONLY place a Call's sentence gets its
-        // numbers, so a field added to an entry without a line here ships a
-        // placeholder to the panel and to the chat card both.
-        overflow: call.feedsOverflow
-    };
-
-    return text.replace(/\{(\w+)\}/g, (whole, key) =>
-        values[key] === undefined ? whole : String(values[key]));
+    return text.replace(/\{(\w+)\}/g, (whole, key) => {
+        if (extra && Object.hasOwn(extra, key) && extra[key] !== undefined && extra[key] !== null) return String(extra[key]);
+        const row = Object.hasOwn(PROSE_NUMBERS, key) ? PROSE_NUMBERS[key] : null;
+        const n = row?.of(entry, field);
+        if (n === undefined || n === null) return whole;
+        return row.unit && unitWords ? unitWords(row.unit, n) : String(n);
+    });
 }
 
 /* ==========================================================================
@@ -2978,7 +3062,7 @@ export const LEVEL_UP_OPTIONS = {
     stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
-    experienceNew: { label: "Add a new experience worth +2" }
+    experienceNew: { label: "Add a new experience worth +{worth}" }
 };
 
 export const LEVEL_UP = {
@@ -3137,7 +3221,7 @@ export const MURDER_OPENING = {
         keyRemnants: { hope: 5, despair: 4, critical: 3 },
         hope: "The incident begins.",
         despair: "The incident begins. The victim loses all their Sanity and loses access to "
-            + "Role reversal for this incident.",
+            + "Role Reversal for this incident.",
         critical: "The incident begins.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
             + "spent; the attempt can be made again in another time of day.",
@@ -3265,12 +3349,12 @@ export const CRISIS_ACTIONS = {
      * own rather than the generic success branch.
      */
     useItem: {
-        side: "both", label: "Use an item", icon: "fa-flask",
+        side: "both", label: "Use an Item", icon: "fa-flask",
         threshold: 15, traits: ["hand"],
         hidden: true,
         usesItem: true,
-        hint: "Get something out while this is happening. Works on a critical or a Hope success; "
-            + "a Despair success only leaves a trace.",
+        hint: "Use an item during the incident with its Use button on your sheet. A hit with Hope, or a critical, puts "
+            + "it to use; a hit with Despair does not. Every hit leaves a Remnant.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // The guide gives the direct victim a second action and the indirect one
@@ -3283,9 +3367,11 @@ export const CRISIS_ACTIONS = {
 
     /* ---- the victim ---------------------------------------------------- */
     leaveClue: {
-        side: "victim", label: "Leave a clue", icon: "fa-fingerprint",
+        side: "victim", label: "Leave a Clue", icon: "fa-fingerprint",
         threshold: 12, traits: ["hand", "leg", "shadow"],
-        hint: "Leave a trace at the scene meant to help the others.",
+        hint: "On a hit, leave a Remnant tied to the crime at the scene: Evident with Hope, Subtle with Despair, "
+            + "Obvious and Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced "
+            + "with Hope, and a critical leaves two.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17: a critical does not end the turn. Same field and same mechanism
@@ -3320,9 +3406,11 @@ export const CRISIS_ACTIONS = {
         }
     },
     secureTrace: {
-        side: "victim", label: "Secure a trace", icon: "fa-hand-holding",
+        side: "victim", label: "Secure a Trace", icon: "fa-hand-holding",
         threshold: 15, traits: ["hand", "leg", "shadow"],
-        hint: "Take something off the killer and turn it into a trace tied to their identity.",
+        hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
+            + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
+            + "a critical leaves two.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17, as on Leave a clue.
@@ -3355,10 +3443,11 @@ export const CRISIS_ACTIONS = {
      * what buys the chance to run or to turn the knife around.
      */
     selfDefence: {
-        side: "victim", label: "Self-defence", icon: "fa-shield-halved",
+        side: "victim", label: "Self-Defense", icon: "fa-shield-halved",
         threshold: 18, traits: ["hand", "leg", "body"],
-        hint: "You fight. Unlocks Survive and Role reversal. An item usable as a weapon gives "
-            + "advantage.",
+        hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
+            + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
+            + "this turn without a roll. A readied weapon gives advantage.",
         weaponAdvantage: true,
         /** Which resolution actions a success opens, per duality band. */
         unlocks: {
@@ -3388,11 +3477,11 @@ export const CRISIS_ACTIONS = {
         criticalKeepsTurn: true,
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
-        hope: "You keep your feet. Survive and Role reversal are open to you now.",
-        despair: "You keep your feet, but only barely - Role reversal is open to you now.",
+        hope: "You keep your feet. Survive and Role Reversal are open to you now.",
+        despair: "You keep your feet, but only barely - Role Reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
+        failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
         /**
          * The line above has said this since the action was written and nothing
          * was doing it - measured while rewriting the outcome cards. Despair
@@ -3412,27 +3501,30 @@ export const CRISIS_ACTIONS = {
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
-        hint: "Withdraw from the incident and stop losing Health and Sanity. Needs Self-defence first.",
+        hint: "Withdraw from the incident. A hit ends it and stops your Health and Sanity loss; with Despair, you also "
+            + "get a hint about who the killer is. A critical gives that hint and immunity for this chapter and the "
+            + "next.",
         hope: "The incident ends and the drain stops.",
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
             + "chapter and the next.",
-        failure: "The incident continues. You lose an extra 1 Health or Sanity.",
+        failure: "The incident continues. You lose an extra {drain} Health or Sanity.",
         failureExtraDrain: 1,
         endsIncident: true
     },
     roleReversal: {
-        side: "victim", label: "Role reversal", icon: "fa-arrows-rotate",
+        side: "victim", label: "Role Reversal", icon: "fa-arrows-rotate",
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
-        hint: "Tip the scales and become the killer yourself. From then on it is them losing "
-            + "Health and Sanity. Needs Self-defence first.",
+        hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
+            + "with Hope, you recover all yours. A critical kills your attacker, restores you, and leaves an Incident "
+            + "Remnant (Evident, Reinforced). A readied weapon gives advantage.",
         weaponAdvantage: true,
         hope: "You become the killer and recover all Health and Sanity.",
         despair: "You become the killer.",
         critical: "You kill them outright. They can take no further action. You recover all Health "
             + "and Sanity and leave one Evident Reinforced Incident Remnant.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
+        failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
         /**
          * As on Self-defence, and for the same reason: the sentence above was
          * written from the guide and the code was doing none of it. A victim
@@ -3461,7 +3553,9 @@ export const CRISIS_ACTIONS = {
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
         threshold: 15, traits: ["hand", "leg", "body"],
-        hint: "Speed up their decline. Costs 1 Health and 1 Sanity from them.",
+        hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
+            + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
+            + "leave no Remnant.",
         damage: {
             hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
             // A critical is the same two marks, but the killer says where both
@@ -3472,32 +3566,35 @@ export const CRISIS_ACTIONS = {
             critical: { choice: true }, criticalAmount: 2
         },
         remnant: { hope: "hidden", despair: "subtle", critical: null },
-        failure: "Nothing on a Hope failure. On Despair you still take 1 Sanity off them and "
-            + "leave an Evident Remnant; a critical failure leaves an Obvious one.",
+        failure: "Nothing on a Hope failure. On Despair you still take {stress} Sanity off them and "
+            + "leave an Evident Remnant.",
         failureDamage: { despair: { stress: 1 } },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     pin: {
-        side: "killer", label: "Pin them down", icon: "fa-down-long",
+        side: "killer", label: "Pin Them Down", icon: "fa-down-long",
         threshold: 12, traits: ["body"],
-        hint: "Disadvantage on Leave a clue and Survive for the victim's next two turns.",
+        hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
+            + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     keepDistance: {
-        side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
+        side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
         threshold: 12, traits: ["leg"],
-        hint: "Disadvantage on Secure a trace and Role reversal for the victim's next two turns.",
+        hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
+            + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     weaponAttack: {
-        side: "killer", label: "Attack with a weapon", icon: "fa-khanda",
+        side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
         threshold: 15, traits: ["body", "hand", "leg"],
-        hint: "Use a found item as a weapon. Unarmed works at disadvantage, and succeeds into "
-            + "an improvised tool.",
+        hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
+            + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
+            + "Remnants become tied to the crime.",
         /** 1 + tier/2 rounded up on a normal hit; 1 + full tier on a critical. */
         weaponDamage: { normal: tier => 1 + Math.ceil(tier / 2), critical: tier => 1 + tier },
         unarmedDisadvantage: true,
@@ -3526,7 +3623,7 @@ export const CRISIS_ACTIONS = {
         failureRemnantReinforced: { critical: true }
     },
     finishingBlow: {
-        side: "killer", label: "Finishing blow", icon: "fa-skull-crossbones",
+        side: "killer", label: "Finishing Blow", icon: "fa-skull-crossbones",
         traits: ["body", "leg", "hand"], kind: "resolution",
         // The old hint ended "without this the victim keeps taking turns at 0 Health
         // and 0 Sanity", which stopped being true when running out started
@@ -3539,8 +3636,9 @@ export const CRISIS_ACTIONS = {
         // attempt. The owner's D13 (E32+E07 C13, 03.10.2026; audit S04-07): the first
         // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder.mjs
         // `finishIncident` writes `freeCleanup`, cleanup.mjs `consumeFreeCleanup` spends it).
-        hint: "End the incident now. Threshold is five times their remaining Health - free at 0. "
-            + "A critical here also makes your first clean-up attempt cost no Sanity.",
+        hint: "End the incident now. The number to beat is {mult} times the victim's remaining Health, so it is 0 once "
+            + "they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up "
+            + "attempt cost no Sanity.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
@@ -3570,9 +3668,10 @@ export const CRISIS_ACTIONS = {
      * cycle, which the module already has.
      */
     sharedEscape: {
-        side: "third", label: "Escape together", icon: "fa-door-open",
+        side: "third", label: "Escape Together", icon: "fa-door-open",
         threshold: 15, traits: ["leg"], kind: "resolution",
-        hint: "Get the victim out with you.",
+        hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
+            + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
         hope: "Both of you escape. The victim's Health and Sanity are restored.",
         despair: "Both of you escape, but the victim's Health and Sanity are not restored.",
         critical: "Both of you escape with immunity for this chapter and the next, and the "
@@ -3608,9 +3707,11 @@ export const CRISIS_ACTIONS = {
      * beside the old victim rather than watching.
      */
     doubleRoleReversal: {
-        side: "third", label: "Double role reversal", icon: "fa-repeat",
+        side: "third", label: "Double Role Reversal", icon: "fa-repeat",
         kind: "resolution", noRoll: true,
-        hint: "You and the victim turn on the attacker together. They become the victim.",
+        hint: "Side with the victim against the killer: you both become killers, and the original killer now loses "
+            + "Health and Sanity and cannot take Role Reversal. This leaves an Evident Remnant, and you then take the "
+            + "killers' turns, except in an indirect murder.",
         effect: "The victim and the third party become the killers. The original killer "
             + "starts bleeding and their survival is close to impossible.",
         swapsRoles: true,
@@ -3627,9 +3728,10 @@ export const CRISIS_ACTIONS = {
      * killer side and closes the third party's free choice behind them.
      */
     crimePartners: {
-        side: "third", label: "Partners in crime", icon: "fa-handshake",
+        side: "third", label: "Partners in Crime", icon: "fa-handshake",
         kind: "resolution", noRoll: true,
-        hint: "Side with the attacker. The victim is unlikely to walk out.",
+        hint: "Join the killer's side; the victim can no longer take Role Reversal. This leaves a Subtle Remnant, and "
+            + "you then take the killers' turns, except in an indirect murder.",
         effect: "The third party joins the killer. The original victim's survival is "
             + "close to impossible.",
         joinsKiller: true,
@@ -3647,9 +3749,9 @@ export const CRISIS_ACTIONS = {
      * guide means by "koszt ruchu".
      */
     avertedEyes: {
-        side: "third", label: "Averted eyes", icon: "fa-eye-slash",
+        side: "third", label: "Averted Eyes", icon: "fa-eye-slash",
         kind: "resolution", noRoll: true,
-        hint: "Walk away and stay out of it. Leaves no trace of you.",
+        hint: "Walk away and stay out of the incident; you leave no Remnant.",
         effect: "The third party leaves the room and does not intervene. They may go and "
             + "fetch the others, though the cost of moving will probably stop them.",
         leavesIncident: true
@@ -4084,7 +4186,7 @@ export const CLEANUP = {
      */
     actions: {
         eraseTrace: {
-            label: "Erase a trace", icon: "fa-eraser",
+            label: "Erase a Trace", icon: "fa-eraser",
             /** DC comes from the trace itself - see `dc` above. */
             dcFromVisibility: true,
             targets: "remnant"
@@ -4116,7 +4218,7 @@ export const CLEANUP = {
              * one night now holds both the lie and the tidying. Eighteen was
              * the price of a thing nobody had an evening for.
              */
-            label: "Misleading trail", icon: "fa-signs-post",
+            label: "Misleading Trail", icon: "fa-signs-post",
             threshold: 15,
             targets: "player",
             remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
@@ -4136,7 +4238,7 @@ export const CLEANUP = {
          * Evident Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
-            label: "Move the body", icon: "fa-person-falling",
+            label: "Move the Body", icon: "fa-person-falling",
             threshold: 16,
             traits: ["body"],
             targets: "body",

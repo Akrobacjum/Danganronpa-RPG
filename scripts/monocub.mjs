@@ -571,7 +571,7 @@ export async function cubAbilityDialog(actor, key) {
         kind: "hope", title: row.label,
         header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
             effect: game.i18n.localize("DRPG.Monocub.meddleIntro"),
-            price: game.i18n.format("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost })
+            price: plural("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost }, "actions")
         }),
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>

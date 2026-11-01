@@ -1247,14 +1247,22 @@ export function publicOf(entry) {
 }
 
 /**
- * THE NEUTRAL WORD, READ AND NEVER STORED (E51 C5, 31.10.2026; audit S05-52). "Trace" in this browser's language and
+ * THE NEUTRAL WORD, READ AND NEVER STORED (E51 C5, 31.10.2026; audit S05-52). "Remnant" (until 1.2.96 "Trace") in this browser's language and
  * in its fallback's - the two words a row or a token written before 1.2.94 may hold as a name, in a world where one
  * GM's browser runs Polish and another's English (the word another language holds, read on a browser that loads
  * neither, is not known here). Read by `isNeutralName` and `traceLabel`, and by nothing else (R1120).
+ *
+ * AND THE WORDS IT WAS (E66 C5, 01.11.2026; I14, DB15). The word became "Remnant" in both languages at 1.2.96, and a row
+ * or a token written before then still holds "Trace" or "Ślad" as its name: read against today's word alone, either was
+ * a described name, and a finder's copy took it. `LEGACY_NEUTRAL_WORDS` is every word the key has held, frozen: when the
+ * word changes again, add the old one here, never edit or drop one (tier 2 E66-T3 reads both on an English and a
+ * Polish browser).
  */
+const LEGACY_NEUTRAL_WORDS = Object.freeze(["Trace", "Ślad"]);
+
 function neutralWords() {
     const key = "DRPG.Remnant.tokenName";
-    const words = [game.i18n.localize(key), foundry.utils.getProperty(game.i18n._fallback ?? {}, key)];
+    const words = [game.i18n.localize(key), foundry.utils.getProperty(game.i18n._fallback ?? {}, key), ...LEGACY_NEUTRAL_WORDS];
     return new Set(words.filter(word => typeof word === "string" && word && word !== key));
 }
 
@@ -2303,6 +2311,8 @@ export async function confirmClearFaint({ tokens = null } = {}) {
     }
 
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.localize("DRPG.Panel.clearFaint") },
         classes: ["drpg-panel"],
         content: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>

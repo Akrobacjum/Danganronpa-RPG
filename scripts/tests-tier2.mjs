@@ -13497,7 +13497,7 @@ const SCENARIOS = [
         const S = await import("./secret.mjs");
         const M = await import("./murder.mjs");
         const Mv = await import("./movement.mjs");
-        const { ownerIdsOf } = await import("./utils.mjs");
+        const { ownerIdsOf, plural } = await import("./utils.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const { deathStore } = await import("./gm-stores.mjs");
@@ -13546,7 +13546,9 @@ const SCENARIOS = [
             gmIncident: ["DRPG.Frisk.gmIncident", { s: Math.round(TIMING.friskAnswerMs / 1000) }], gmIncidentNow: ["DRPG.Frisk.gmIncidentNow", {}],
             withdrawn: ["DRPG.Frisk.withdrawn", {}]
         };
-        const toastOf = text => Object.entries(TOASTS).find(([, [key, data]]) => text === game.i18n.format(key, { who: theirs.name, target: other.name, ...data }))?.[0]
+        // gmKept and gmIncident are families on {s} since E66 C3; the others are flat.
+        const toast = (key, data) => game.i18n.has(`${key}.other`) ? plural(key, data, "s") : game.i18n.format(key, data);
+        const toastOf = text => Object.entries(TOASTS).find(([, [key, data]]) => text === toast(key, { who: theirs.name, target: other.name, ...data }))?.[0]
             ?? `other: ${String(text).slice(0, 120)}`;
         const packets = [], made = [], toasts = [];
         const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
@@ -22856,7 +22858,7 @@ const SCENARIOS = [
          * the card a table naming both.
          */
         const [a, b, c, d] = cast(4);
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which counts the ballots");
         const V = await import("./vote.mjs");
         const { ballotStore } = await import("./gm-stores.mjs");
@@ -22898,7 +22900,7 @@ const SCENARIOS = [
             el.innerHTML = String(card?.content ?? "");
             equal(stableJson([Boolean(card), el.querySelectorAll(".drpg-vote-row").length, Boolean(el.querySelector("table")),
                 el.querySelector(".drpg-vote-sentence")?.textContent ?? null]),
-            stableJson([true, 4, false, game.i18n.format("DRPG.Vote.noMajority", { majority: 4, total: 6 })]),
+            stableJson([true, 4, false, plural("DRPG.Vote.noMajority", { majority: 4, total: 6 }, "total")]),
             "the count's card is not one row per name and the one sentence that the room has no majority");
         } finally {
             if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
@@ -23309,7 +23311,8 @@ const SCENARIOS = [
                 played.map(a => L.offerList(S.offerStore.get(a.id)).length), nobody.filter(a => S.offerStore.has(a.id)).length]),
                 stableJson([living.length, played.map(() => 1), 0]),
                 "a picker the GM closed gave no offer to a student a player owns, or one to a student nobody plays (pickers, offers per played student, offers to nobody's)");
-            const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
+            // The kind's name as vote.mjs writes it (level-up.mjs `advanceKindName`, its picks from LEVEL_UP; E66 C7).
+            const kind = L.advanceKindName(TRIAL.correct.levelUp);
             const said = (lines ?? []).map(String);
             equal(stableJson([said.includes(plural("DRPG.Vote.levelUpGranted", { n: 0, kind })),
                 said.includes(plural("DRPG.Vote.levelUpWaiting", { n: played.length, kind })),
@@ -27327,7 +27330,7 @@ const SCENARIOS = [
         /*
          * A CHAPTER OF ITS OWN, ABOVE ANYTHING THE WORLD HOLDS.
          *
-         * The fixture used to stamp `chapter: 1` and days 1–3 and then assert
+         * The fixture used to stamp `chapter: 1` and days 1-3 and then assert
          * that "newest first" put its own D3 on top - which is only true on a
          * world with no traces later than day 3. The suite's own murder
          * scenarios leave incident traces stamped from the live clock, so on a
@@ -38588,11 +38591,13 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
             await settle();
         }
-        const modeNote = loc("DRPG.Floor.modeNote"), objectionNote = loc("DRPG.Floor.objectionNote");
+        // The footnote says the bar's step, `TRIAL`'s (E66 fix r1 F9; trial-floor-ui.mjs fills it with `adjustStep`).
+        const modeNote = game.i18n.format("DRPG.Floor.modeNote", { step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds }),
+            objectionNote = loc("DRPG.Floor.objectionNote");
         equal(stableJson(readings), stableJson({
             discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
             debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },
-            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0 })), isDebate: true, warning: true, notes: [objectionNote] },
+            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: true, notes: [objectionNote] },
             objection: { line: normal(game.i18n.format("DRPG.Floor.holdingObjection", { who: holder.name, target: target.name, seconds: 0 })),
                 isDebate: false, warning: false, notes: [modeNote] }
         }), "the console's debate line does not carry the debate's name (or the discussion's does), or a line that states the "
@@ -41275,7 +41280,8 @@ const SCENARIOS = [
             const [pin, attack, strike] = await lines();
             must(await C.armCall(killer, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed on the killer");
             const [, armed] = await lines();
-            const miss = game.i18n.format("DRPG.Murder.onAMiss", { text: CRISIS_ACTIONS.strike.failure }).replace(/\s+/g, " ").trim();
+            // The miss as the menu writes it, its numbers filled (E66 C4: utils.mjs `proseOf`).
+            const miss = game.i18n.format("DRPG.Murder.onAMiss", { text: (await import("./utils.mjs")).proseOf(CRISIS_ACTIONS.strike, "failure") }).replace(/\s+/g, " ").trim();
             equal(stableJson([has(pin, "DRPG.Action.usesTrait", { traits: TRAITS.body.label }), has(attack, "DRPG.Murder.gmPicksTrait", { traits: several }),
                 has(armed, "DRPG.Murder.youPickTrait", { traits: several }), strike.includes(miss)]),
             stableJson([true, true, true, true]),
@@ -59946,13 +59952,14 @@ const SCENARIOS = [
          * second Monokuma (made here) ticked as well. Read each time: what `enterTrialScene`'s stage answers as
          * `notPlaced`, and the words of every whisper it sent. The hall's `activate` is the suite's stub, so no browser
          * at the table is moved. The sentence is built here from the key's form for the module's language (Intl's rule,
-         * the English one and other, the Polish one and few), not through `plural`. Red at 4f4c24b: the whisper was
-         * `missingTokens`, and named no Monokuma.
+         * the English one and other, the Polish one and few), not through `plural` - the language the page was built in
+         * (settings.mjs `pageLanguage`), which `plural` reads since E66 C1, where both read the live setting. Red at
+         * 4f4c24b: the whisper was `missingTokens`, and named no Monokuma.
          */
         const T = await import("./trial-scene.mjs");
         const G = await import("./gm-store.mjs");
         const { ownerIdsOf } = await import("./utils.mjs");
-        const { moduleLanguage } = await import("./settings.mjs");
+        const { pageLanguage } = await import("./settings.mjs");
         const { wordsOf } = await import("./secret.mjs");
         const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
         const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
@@ -59960,7 +59967,7 @@ const SCENARIOS = [
         must(!/[&<>"']/.test(monokuma.name), "Monokuma's name needs escaping - the sentence built here would not be the whisper's");
         const key = "DRPG.TrialScene.notPlaced";
         const sentence = list => {
-            const n = list.length, form = new Intl.PluralRules(moduleLanguage()).select(n);
+            const n = list.length, form = new Intl.PluralRules(pageLanguage()).select(n);
             return `<p>${game.i18n.format(`${key}.${game.i18n.has(`${key}.${form}`) ? form : "other"}`, { n, names: list.map(a => a.name).join(", ") })}</p>`;
         };
         const said = new Set(game.messages.map(m => m.id));
@@ -70940,7 +70947,7 @@ const SCENARIOS = [
         const o = await import("./overflow.mjs");
         const { overflowStore } = await import("./gm-stores.mjs");
         const { OVERFLOW, TIMES_OF_DAY } = await import("./config.mjs");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, plural } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose migration clause trims the rules - this would measure nothing");
         const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
         const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
@@ -71021,7 +71028,7 @@ const SCENARIOS = [
             must(armed?.effect === "panic", `the overflow drew ${armed?.effect ?? "nothing"}, not Panic - this would measure nothing`);
             const card = cardsSince(at).map(m => m.content ?? "").join("");
             seen.trial = { next: armed.session === trial.session + 1 && armed.timeOfDay === TIMES_OF_DAY[0],
-                says: card.includes(game.i18n.format("DRPG.Overflow.cardBodyTrial", { n: o.overflowThreshold() })), now: o.overflowEffect() };
+                says: card.includes(plural("DRPG.Overflow.cardBodyTrial", { n: o.overflowThreshold() })), now: o.overflowEffect() };
             await o.resetOverflow();
             const kept = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
             seen.verdict = { count: o.overflowCount(), effect: o.overflowEffect(), waiting: kept?.pending === true && kept?.effect === "panic" };
@@ -76569,7 +76576,8 @@ const SCENARIOS = [
         must(response.ok, `pl.json: HTTP ${response.status}`);
         const plWord = foundry.utils.getProperty(foundry.utils.expandObject(await response.json()), "DRPG.Remnant.tokenName");
         const enWord = game.i18n.localize("DRPG.Remnant.tokenName");
-        must(typeof plWord === "string" && plWord && plWord !== enWord, "pl.json's neutral word is missing or the same as en.json's - this would measure nothing");
+        // Since E66 C5 the word is "Remnant" in both files: the two browsers read the same word, and E66-T3 holds the old ones.
+        must(typeof plWord === "string" && plWord, "pl.json's neutral word is missing - this would measure nothing");
         const family = foundry.utils.getProperty(game.i18n.translations, "DRPG.Remnant");
         const had = family.tokenName;
         const SUBJECT = "SUITE E51-T12 a smear on the sill";
@@ -77940,6 +77948,193 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([true, true, true, true]),
             "[drawn again: a room sealed, the seal put back, a chain written, the chain put back]");
+    }],
+    ["E66-T1 - a crisis Pin them down writes the hindrance and a critical Keep your distance the block on their cards, the actions by name and the turns counted, no \"DRPG.\", in English and in Polish (E66 C2; S13-19, E66-11)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S13-19, E66-11. murder-rules.mjs `applyHindrance` handed the two plural families to
+         * `game.i18n.format`, which returns a family's key, so every Pin them down and Keep your distance card read
+         * "DRPG.Murder.hinderedActions" or "DRPG.Murder.blockedActions" in both languages. Here an incident is opened
+         * between two connected players' students as the Pin test above opens it, and the killer takes a Pin them down
+         * with Hope and a critical Keep your distance, first in English, then with lang/pl.json's DRPG block put in place
+         * of this browser's and the page's language stood in as Polish (settings.mjs `setPageLanguage`), both put back in
+         * a finally. Read: each action's new cards, with `contentOf`, against the sentence written out here from
+         * config.mjs's labels. The victim's reserves are cleared before each action, as the Pin test clears them. Red at
+         * 8e9d40e9: the raw keys on the cards.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const S = await import("./settings.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const calm = () => victim.update({ "system.resources.stress.value": 0, "system.resources.hitPoints.value": 0 });
+        const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+        const card = async (key, isCritical) => {
+            for (let i = 0; i < 3 && !M.isTheirTurn(killer); i++) await M.passTurn();
+            await calm();
+            await settle();
+            must(M.murderState()?.stage === "incident" && M.isTheirTurn(killer), `the incident is not on the killer's turn before ${key} - this would measure nothing`);
+            const mark = new Set(game.messages.map(m => m.id));
+            await M.resolveCrisisAction({ actorId: killer.id, key, total: 20, isCritical, withHope: true });
+            await settle();
+            return game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).join("\n");
+        };
+        await calm();
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", "the fight did not start");
+        const own = game.i18n.translations;
+        const cards = {};
+        let was = null, swapped = false;
+        try {
+            cards.en = [await card("pin", false), await card("keepDistance", true)];
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            was = S.setPageLanguage("pl");
+            swapped = true;
+            cards.pl = [await card("pin", false), await card("keepDistance", true)];
+        } finally {
+            game.i18n.translations = own;
+            if (swapped) S.setPageLanguage(was);
+        }
+        const [lc, sv, st, rr] = ["leaveClue", "survive", "secureTrace", "roleReversal"].map(label);
+        const want = {
+            en: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`],
+            pl: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`]
+        };
+        const read = Object.fromEntries(["en", "pl"].map(code => [code, cards[code].map((text, i) => [text.includes(want[code][i]), text.includes("DRPG.")])]));
+        equal(stableJson(read), stableJson({ en: [[true, false], [true, false]], pl: [[true, false], [true, false]] }),
+            "[in English, then Polish: a Pin them down with Hope and a critical Keep your distance - the card says the sentence with the "
+            + `actions and the turns, the card holds a raw key] (cards: ${JSON.stringify(cards).slice(0, 600)})`);
+    }],
+
+    ["E66-T2 - price.mjs `refundPrice` says and answers only what landed: a receipt `refundAction` cannot give back (0 actions) whispers its owner nothing and answers false, moves nothing, and a refused Objection's line fed that answer says the price did not come back (E66 C2; S09-40, E66-13)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S09-40, E66-13. `refundPrice` ignored `refundAction`'s answer: it whispered "You get ...
+         * back" and answered true whatever came back, and its answer is what cleanup's give-back records (`paidBack`) and
+         * what a refused Objection's line says (trial.mjs `objectionRefusedLine`). Read in actions.mjs on this tree:
+         * `refundAction` answers false with no actor or an amount of 0 or less, and nowhere else - and both roads hand
+         * `refundPrice` the table's amount, 1, so neither meets a false on its own today (E66 STATUS, Open). Here a
+         * receipt of 0 actions on a cast student: the whispers posted, the answer, the actions before and after, and the
+         * line the Objection's refusal builds from that answer. The student's actions are put back and the test's own
+         * whisper, if one was posted, deleted. Red at 8e9d40e9: "You get 0 actions back." whispered and true.
+         */
+        const [who] = cast(1);
+        const P = await import("./price.mjs");
+        const trial = await import("./trial.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const receipt = { key: "objection", pay: "action", amount: 0, grant: false };
+        const back = game.i18n.format("DRPG.Price.refunded", { what: P.priceLabel(receipt) });
+        const why = game.i18n.localize("DRPG.Trial.objectionNoFloor");
+        const before = who.system.resources.actions.value;
+        const mark = new Set(game.messages.map(m => m.id));
+        const posted = () => game.messages.filter(m => !mark.has(m.id) && String(contentOf(m) ?? "").includes(back));
+        const read = {};
+        try {
+            read.answer = await P.refundPrice(who, receipt);
+            await settle();
+            read.told = posted().length;
+            read.moved = who.system.resources.actions.value - before;
+            read.line = trial.objectionRefusedLine(why, { receipt, refunded: read.answer }) === game.i18n.format("DRPG.Trial.objectionRefundLost", { why, what: P.priceLabel(receipt) });
+        } finally {
+            for (const m of posted()) { try { await m.delete(); } catch { /* already gone */ } }
+            if (who.system.resources.actions.value !== before) await who.update({ "system.resources.actions.value": before });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ answer: false, told: 0, moved: 0, line: true }),
+            "[refundPrice on a receipt of 0 actions: what it answers, the whispers saying it came back, the actions moved, the refused Objection's line says it did not come back]");
+    }],
+    ["E66-T3 - a trace a build before 1.2.96 named by the neutral word it had then reads as not described, on an English and on a Polish browser: a row and a token named \"Trace\" or \"Ślad\" store no name and are labelled with today's word, `isNeutralName` takes both old words, and the finder's Observe of the trace opens the GM's describe window on its subject and names the copy after it (E66 C5; E66-21, MARKED: the neutral word decides whether a trace's name is given to a finder)", async () => {
+        /*
+         * E66 C5, 01.11.2026; I14, DB15. `DRPG.Remnant.tokenName` was "Trace" in English and "Ślad" in Polish until this
+         * commit and is "Remnant" in both. A trace nobody described stored the word as its name before 1.2.94 (E51 C5), and
+         * its token still carries it; read against today's word alone, either old word is a name somebody gave the trace.
+         * remnants.mjs `neutralWords` adds the frozen `LEGACY_NEUTRAL_WORDS`. The harness's clients load en.json alone, so
+         * the Polish browser is the GM's own with pl.json's word laid over its translations (as E51-T12 lays it), put back
+         * after. For each browser and each old word: one trace where a connected player's character stands, left by that
+         * character, with a subject; its row and its token given the old word as their name, as a build before 1.2.96 left
+         * them; then what the row stores and how it is labelled, whether the word is neutral, and the character's Observe
+         * of its own traces with the GM's describe window closed unanswered (the name it offered read first) and the copy
+         * that made. Put back after each: the copy and its answer key, the trace and its row; the translation at the end.
+         * Red with the word changed and `LEGACY_NEUTRAL_WORDS` left out (the commit's red run and mutant c5-m1).
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const R = await import("./remnants.mjs");
+        const observe = await import("./observe.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor: finder, where } = await playerInRoom();
+        const response = await fetch(`modules/${MODULE_ID}/lang/pl.json`);
+        must(response.ok, `pl.json: HTTP ${response.status}`);
+        const plWord = foundry.utils.getProperty(foundry.utils.expandObject(await response.json()), "DRPG.Remnant.tokenName");
+        must(typeof plWord === "string" && plWord, "pl.json has no neutral word - this would measure nothing");
+        const family = foundry.utils.getProperty(game.i18n.translations, "DRPG.Remnant");
+        const had = family.tokenName;
+        const OLD = ["Trace", "Ślad"];
+        const items = new Set(finder.items.map(i => i.id));
+        const describe = game.i18n.localize("DRPG.Observe.describeTitle");
+        const D = foundry.applications.api.DialogV2;
+        const read = {}, want = {};
+        let trace = null;
+        const dropCopies = async () => {
+            for (const item of finder.items.filter(i => !items.has(i.id))) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+        };
+        const dropTrace = async () => {
+            if (!trace) return;
+            await R.dropRemnantSecret(trace);
+            if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            trace = null;
+            await settle();
+        };
+        try {
+            for (const [lang, word] of [["en", had], ["pl", plWord]]) {
+                family.tokenName = word;
+                for (const old of OLD) {
+                    const subject = `SUITE E66-T3 ${lang} ${old}: a smear on the sill`;
+                    trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y,
+                        sourceActor: finder.id, sourceName: finder.name, room: where.room, subject, action: "search", note: "SUITE E66-T3" });
+                    must(trace, "the trace was not placed - this would measure nothing");
+                    await R.setRemnantPublic(trace, { name: old }, { propagate: false });
+                    await trace.update({ name: old });
+                    await settle();
+                    const row = [R.remnantPublic(trace)?.name ?? null, R.traceLabel(R.remnantData(trace)), R.isNeutralName(old)];
+                    let offered = null;
+                    const own = Object.getOwnPropertyDescriptor(D, "wait");
+                    D.wait = cfg => {
+                        if (cfg?.window?.title === describe) offered = cfg?.content?.querySelector?.('input[name="name"]')?.value ?? null;
+                        return Promise.resolve(null);
+                    };
+                    try {
+                        const target = await observe.chooseObserveTarget({ actorId: finder.id, declaration: "followTraces", userId: player.id });
+                        must(target?.ok, `the Observe found nothing to aim at where the trace lies: ${stableJson(target)}`);
+                        await observe.resolveObserve({ key: target.key, total: 30, isCritical: false });
+                        await settle();
+                    } finally {
+                        if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+                    }
+                    const copy = finder.items.find(i => !items.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id) ?? null;
+                    must(copy, `the finder's Observe made no copy of the ${lang} trace named "${old}" - this would measure nothing`);
+                    read[`${lang} ${old}`] = [...row, offered, copy.name];
+                    want[`${lang} ${old}`] = ["", word, true, subject, subject];
+                    await dropCopies();
+                    await dropTrace();
+                }
+            }
+        } finally {
+            family.tokenName = had;
+            await dropCopies();
+            await dropTrace();
+        }
+        equal(stableJson(read), stableJson(want),
+            "[per browser and old word: the name the row stores, its label, whether the old word is neutral, the name the GM's describe window offered, the copy's name]");
     }],
     ...GRID
 ];

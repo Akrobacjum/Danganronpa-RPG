@@ -29,7 +29,7 @@ import { isDeadForGm, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { error, plural } from "./utils.mjs";
+import { error, plural, markLanguage } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -212,6 +212,8 @@ export function renderPlayerStatus() {
         if (!el) { document.getElementById(WIDGET_ID)?.remove(); return; }
 
         el.id = WIDGET_ID;
+        // Its language, the page's (E66 C3; C1's `lang` on the module's containers, STATUS Open 3).
+        markLanguage(el);
 
         /*
          * AND IF IT WOULD COME OUT THE SAME, IT STAYS WHERE IT IS.
@@ -389,7 +391,7 @@ export function eclipseMoveRow(moves) {
  */
 export function actionsTooltip({ eclipse, monocub, left, max }) {
     if (eclipse) return game.i18n.localize(monocub ? "DRPG.Eclipse.placementOnly" : "DRPG.Eclipse.actionsMurderOnly");
-    return left ? game.i18n.format("DRPG.Actions.pipReadOnly", { left, max }) : game.i18n.localize("DRPG.Actions.allSpent");
+    return left ? plural("DRPG.Actions.pipReadOnly", { left, max }, "max") : game.i18n.localize("DRPG.Actions.allSpent");
 }
 
 /**

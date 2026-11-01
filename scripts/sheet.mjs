@@ -15,12 +15,12 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
+    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
-import { standingOffers } from "./level-up.mjs";
+import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -54,7 +54,7 @@ import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, n
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
-import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
+import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
@@ -72,7 +72,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
-import { debug, error, plural } from "./utils.mjs";
+import { debug, error, plural, proseOf, markLanguage } from "./utils.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 
 /*
@@ -798,6 +798,16 @@ function onRenderCharacterSheet(app, element, context, options) {
         // CSS keys off this to grey out the parts a Monokuma does not use.
         const root = element instanceof HTMLElement ? element : element?.[0];
         root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
+        // The sheet's language, the page's (E66 C1): the module draws most of what it shows, its renamed traits and
+        // resources included. Daggerheart's own words on it are in Foundry's language and carry no mark of their own.
+        // ON THE ROOT, NOT ON THE MODULE'S PARTS (E66 fix r1 F2, STATUS Open 4; read 01.11.2026): lang/en.json and pl.json
+        // each override 94 of Daggerheart's own keys - among them its traits' names, short labels and verbs (30), Health
+        // (3), Sanity, Despair for Fear and the Actions tab - which Daggerheart's own markup draws, on the sheet as
+        // elsewhere, in the module's language; and `tidySidebar` writes the module's heading into Daggerheart's element in
+        // place. A `lang` on the blocks this hook injects alone would label those words with Foundry's language; which of
+        // Daggerheart's words come from its own keys cannot be told in its markup here (no template of its is in this
+        // repository or the harness). A table reads it: LIVE-E66-02.
+        markLanguage(root);
 
         settle(root, () => {
             frameTraits(element);
@@ -1294,7 +1304,7 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
                 set();
             });
         } else if (!viewer) {
-            pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipReadOnly", { left, max: budget });
+            pip.dataset.tooltip = plural("DRPG.Actions.pipReadOnly", { left, max: budget }, "max");
         }
         pips.push(pip);
     }
@@ -1373,11 +1383,12 @@ function pendingStack(actor) {
         // its badge. The armed entry has carried the call's key all along; the
         // phrase stays as the fallback for an entry old enough not to.
         const call = (despair ? DESPAIR_CALLS : HOPE_CALLS)[entry.key];
-        const label = call?.label ?? game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`);
+        // The nominative, standing alone on the badge and after the tooltip's colon (call-effects.mjs `grantWords`, E66 C3).
+        const label = call?.label ?? game.i18n.localize(`DRPG.Calls.grantsNom.${entry.grants}`);
         const badge = document.createElement("div");
         badge.className = `drpg-pending-call drpg-pending-${despair ? "despair" : "hope"}`;
         badge.dataset.tooltip = game.i18n.format("DRPG.Calls.pendingTooltip", {
-            what: game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
+            what: game.i18n.localize(`DRPG.Calls.grantsNom.${entry.grants}`)
         });
         badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
@@ -1530,6 +1541,8 @@ function injectInitButton(app, element) {
 
     button.addEventListener("click", async () => {
         const confirmed = await foundry.applications.api.DialogV2.confirm({
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             window: { title: game.i18n.localize("DRPG.Character.initTitle") },
             classes: ["drpg-panel", "drpg-narrow"],
             content: `<p>${game.i18n.format("DRPG.Character.initConfirm", {
@@ -1595,7 +1608,7 @@ function injectAdvanceButton(app, element) {
     const count = offers.length > 1 ? plural("DRPG.Advance.standing", { n: offers.length }) : "";
     const tip = game.user.isGM
         ? (offer ? plural("DRPG.Advance.standing", { n: offers.length }) : game.i18n.localize("DRPG.Advance.buttonTooltip"))
-        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) }), count]
+        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: advanceKindName(offer.kind) }), count]
             .filter(Boolean).join(" ");
     if (standing) {
         // A sheet re-rendered after the offer was taken must not keep the glow.
@@ -2761,6 +2774,9 @@ function buildOtherSection(box, actor, app) {
             button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
             button.addEventListener("click", async () => {
                 const sure = await foundry.applications.api.DialogV2.confirm({
+                    classes: ["drpg-panel"],
+                    yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+                    no: { label: game.i18n.localize("DRPG.Dialog.no") },
                     window: { title: tip },
                     content: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
                         item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,
@@ -3904,18 +3920,19 @@ function abilityButton(actor, key, def) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-action-button${affordable ? "" : " unaffordable"}`;
-    button.dataset.tooltip = `${game.i18n.format("DRPG.Monocub.meddleCost", {
+    // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
+    button.dataset.tooltip = `${plural("DRPG.Monocub.meddleCost", {
         actions: def.cost, hope: def.hopeCost
-    })}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
+    }, "actions")}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
     // Confusion is the only action in the game that costs two different things,
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${game.i18n.format("DRPG.Monocub.meddleCostShort", {
+        <span class="drpg-action-cost">${plural("DRPG.Monocub.meddleCostShort", {
             actions: def.cost, hope: def.hopeCost
-        })}</span>`;
+        }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
@@ -3944,9 +3961,9 @@ function budgetLine(actor) {
     line.className = "notes drpg-keep drpg-budget-line";
 
     const left = actionsLeft(actor);
-    const parts = [game.i18n.format("DRPG.Actions.leftOf", {
+    const parts = [plural("DRPG.Actions.leftOf", {
         left, max: actionsMax(actor)
-    })];
+    }, "max")];
 
     if (hasFreeMove(actor)) parts.push(game.i18n.localize("DRPG.Actions.freeMoveLeft"));
 
@@ -4118,7 +4135,7 @@ function callButton(call, monokuma, lockNote = null) {
         ? game.i18n.format("DRPG.Calls.gatherBody", {
             room: foundry.utils.escapeHTML(pending.room)
         })
-        : foundry.utils.escapeHTML(callEffect(call));
+        : foundry.utils.escapeHTML(proseOf(call, "effect"));
     // Same as the action tiles: `costLabel` is on the face of this button, so
     // the hover carries what the Call does and, when it applies, why it cannot
     // be taken (E3).
@@ -4750,7 +4767,7 @@ export function actionButton(actor, key, def) {
     // nobody can read is a discount nobody counts on (D3 + D12). Last, because
     // it is the only line here that is good news.
     const bonus = cleaningNow
-        ? `<br><em>${game.i18n.localize("DRPG.Cleanup.freeTonight")}</em>` : "";
+        ? `<br><em>${freeTonightText()}</em>` : "";
     /*
      * THE TOOLTIP DOES NOT REPEAT THE COST (E3).
      *
@@ -4903,13 +4920,13 @@ function costLabelFor(actor, key, def) {
         const left = eclipseMovesLeft(actor);
         return left === null
             ? game.i18n.localize("DRPG.Action.costAnyRoom")
-            : game.i18n.format("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES });
+            : plural("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES }, "max");
     }
 
     const cost = costOf(actor, key, def);
     return cost === 0
         ? game.i18n.localize("DRPG.Action.costFree")
-        : game.i18n.format("DRPG.Action.costActions", { n: cost });
+        : plural("DRPG.Action.costActions", { n: cost });
 }
 
 /* ==========================================================================

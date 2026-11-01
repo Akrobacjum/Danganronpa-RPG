@@ -22,7 +22,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { dialogContent, error, markFired, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { dialogContent, error, markFired, markLanguage, tableDialog, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
@@ -102,6 +102,8 @@ function onRenderCountdowns(app, element) {
         gear.dataset.tooltip = game.i18n.localize("DRPG.Project.manageTooltip");
         gear.setAttribute("aria-label", game.i18n.localize("DRPG.Project.manageTooltip"));
         gear.innerHTML = `<i class="fa-solid fa-gear" inert></i>`;
+        // The module's words in Daggerheart's header, whose own are in Foundry's language (E66 fix r2; R1153).
+        markLanguage(gear);
         gear.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
@@ -804,6 +806,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (result === "delete") {
         const sure = await DialogV2.confirm({
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             classes: ["drpg-panel"],
             window: { title: game.i18n.localize("DRPG.Project.delete") },
             content: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {

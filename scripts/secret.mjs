@@ -61,7 +61,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, warn, error, isPrimaryGm, log, forcedDeletion, gmIds, activeGmIds, MESSAGE_FLAG } from "./utils.mjs";
+import { debug, warn, error, isPrimaryGm, log, forcedDeletion, gmIds, activeGmIds, MESSAGE_FLAG, localeFormat } from "./utils.mjs";
 import { ownsActor } from "./bridge-guards.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -427,7 +427,8 @@ export function readersLines(root) {
     for (const el of root.querySelectorAll(".drpg-call-expires[data-expires]")) {
         const at = Number(el.getAttribute("data-expires"));
         if (!Number.isFinite(at) || at <= 0) continue;
-        const time = new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+        // The reader's module language, as its page was built in it (E66 C1), where it was Foundry's.
+        const time = localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
         el.textContent = game.i18n.format("DRPG.Bridge.openUntil", { time });
     }
     for (const el of root.querySelectorAll("[data-drpg-line]")) {

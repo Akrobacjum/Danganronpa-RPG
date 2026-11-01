@@ -12,7 +12,7 @@ import { getClock, setClock, advanceTimeOfDay, clockSummary, phaseLabel, campaig
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, tableDialog, esc, primaryGmId, wholeNumber } from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog, esc, primaryGmId, wholeNumber, markLanguage } from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
@@ -140,6 +140,8 @@ export function injectLauncher() {
         eye.setAttribute("inert", "");
         btn.append(eye);
         btn.addEventListener("click", () => openGmPanel());
+        // Its name is the module's words (E66 C1); the panel it opens is a module window, marked by module.mjs.
+        markLanguage(btn);
         document.body.append(btn);
     } catch (err) {
         error("Could not place the GM panel launcher", err);
@@ -624,9 +626,10 @@ async function openFailureLog() {
     // twice usually means the window is behind something.
     if (alreadyOpen("drpg-window-failures")) return null;
 
-    const { sessionFailures, clearSessionFailures } = await import("./utils.mjs");
+    const { sessionFailures, clearSessionFailures, localeFormat } = await import("./utils.mjs");
     const rows = sessionFailures();
-    const when = at => new Date(at).toLocaleTimeString();
+    // The page's language (E66 C1), where it was the browser's locale.
+    const when = at => localeFormat("time", at);
 
     const body = rows.length
         ? `<ul class="drpg-failure-log">${rows.map(r => `

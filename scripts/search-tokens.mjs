@@ -12,7 +12,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, debug, error, serialWrite } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, error, serialWrite, plural } from "./utils.mjs";
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
@@ -437,7 +437,7 @@ export class SearchTokens {
                     <th>${game.i18n.localize("DRPG.SearchTokens.roomColumn")}</th>
                     <th>${game.i18n.localize("DRPG.SearchTokens.tokensColumn")}</th>
                </tr></thead><tbody>${rows}</tbody></table>`
-            : `<p>${game.i18n.format("DRPG.SearchTokens.allFull", { max })}</p>`;
+            : `<p>${plural("DRPG.SearchTokens.allFull", { max }, "max")}</p>`;
 
         return whisperToGms(`<h3>${game.i18n.localize("DRPG.SearchTokens.title")}</h3>${content}`);
     }

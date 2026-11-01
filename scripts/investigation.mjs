@@ -38,7 +38,7 @@ import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
-    workingScene, esc, wireDashboardTabs, placeRoomOptions } from "./utils.mjs";
+    workingScene, esc, wireDashboardTabs, placeRoomOptions, listOf } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -1281,7 +1281,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
         window: { title: game.i18n.localize("DRPG.Investigation.createHereTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
-            <p class="notes">${game.i18n.localize("DRPG.Investigation.createHereIntro")}</p>
+            <p class="notes">${plural("DRPG.Investigation.createHereIntro", { n: plan.entries.length })}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
@@ -1554,6 +1554,8 @@ export async function confirmSweepBullets({ actors = null } = {}) {
     }
 
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: game.i18n.localize("DRPG.Panel.sweepBullets") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>
@@ -1952,14 +1954,25 @@ export function caseKeyRows({ plan, status, placed, limit }) {
 }
 
 /** The Key Remnants tab: the planner and its warnings. */
+/**
+ * The warning that the case is getting thin (E66 C3; S13-29, E66-14): a plural family on the Key Remnants found, and
+ * its own sentence for none, which the family's "Only 0 Key Remnants" was. Exported for R1156.
+ */
+export function tooThinLine(found) {
+    return found > 0
+        ? plural("DRPG.Investigation.tooThin", { found, min: KEY_REMNANTS.minimum }, "found")
+        : game.i18n.format("DRPG.Investigation.tooThinNone", { min: KEY_REMNANTS.minimum });
+}
+
 function caseKeyPanel({ plan, status, placed, limit }) {
     const keyRows = caseKeyRows({ plan, status, placed, limit });
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
     // actually unsolvable rather than at the moment it already is.
-    const thin = status.foundAny < KEY_REMNANTS.minimum + 1;
+    const bar = KEY_REMNANTS.minimum + 1;
+    const thin = status.foundAny < bar;
     return `<div data-drpg-panel="key" style="display:none">
-        <p>${game.i18n.format("DRPG.Investigation.plannerIntro", {
+        <p>${plural("DRPG.Investigation.plannerIntro", {
             chapter: plan.chapter, n: KEY_REMNANTS.prepared,
             min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
         })}</p>
@@ -1967,12 +1980,10 @@ function caseKeyPanel({ plan, status, placed, limit }) {
             found: status.found, placed: status.placed, total: status.entries.length
         })}</p>
         ${status.offPlan.length ? `<p class="notes">${plural("DRPG.Investigation.keyOffPlan", {
-            n: status.offPlan.length,
-            names: esc(status.offPlan.map(r => r.name || game.i18n.localize("DRPG.Remnant.cardTitle")).join(", "))
+            n: status.offPlan.length, bar,
+            names: esc(listOf(status.offPlan.map(r => r.name || game.i18n.localize("DRPG.Remnant.cardTitle"))))
         })}</p>` : ""}
-        ${thin ? `<p class="drpg-warning">${game.i18n.format("DRPG.Investigation.tooThin", {
-            found: status.foundAny, min: KEY_REMNANTS.minimum
-        })}</p>` : ""}
+        ${thin ? `<p class="drpg-warning">${tooThinLine(status.foundAny)}</p>` : ""}
         ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
             used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
         })}</p>

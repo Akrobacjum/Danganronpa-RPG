@@ -29,8 +29,8 @@
  * file imports none of them back statically, so no cycle closes (R161).
  */
 
-import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, callEffect } from "./config.mjs";
-import { dialogContent, esc, wholeNumber } from "./utils.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
+import { dialogContent, esc, wholeNumber, proseOf } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -191,7 +191,7 @@ export function callHeader(call, kind, { held = null, effect = null, price = nul
     const short = held !== null && held < call.cost;
     return `<div class="drpg-call-header">
         <h3>${esc(call.label)}</h3>
-        <p>${esc(effect ?? callEffect(call))}</p>
+        <p>${esc(effect ?? proseOf(call, "effect"))}</p>
         <p class="${short ? "drpg-warning" : "notes"}">${esc(priceLine)}</p>
     </div>`;
 }

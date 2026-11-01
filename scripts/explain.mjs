@@ -23,9 +23,11 @@
  * entitled to more from.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, ECLIPSE_MOVES, REST } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
-import { dialogContent, error, esc, plural } from "./utils.mjs";
+import { dialogContent, error, esc, plural, proseOf } from "./utils.mjs";
+import { overflowCrossings } from "./overflow.mjs";
+import { baseActions } from "./actions.mjs";
 import { isMonokuma, viewerNeedsAssigning } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
@@ -87,16 +89,45 @@ function subjectActor() {
  * it is the loudest thing on screen while it runs and the one a player is most
  * likely to be confused by, so it answers here first.
  */
-function phaseExplanation(clock) {
-    if (clock?.eclipse === true) return t("DRPG.Explain.phase.eclipse");
+export function phaseExplanation(clock) {
+    if (clock?.eclipse === true) return eclipseExplanation();
     const key = clock?.phase ?? "dailyLife";
     // The hint on the phase itself is the short form the GM panel shows; the
     // long form lives in the language file beside it. Both, in that order:
     // the hint names the thing, the paragraph explains it.
-    const hint = PHASES[key]?.hint ?? "";
+    // Their numbers read off config (E66 C4, 01.11.2026; E66-18): the hint's `{actions}` by utils.mjs `proseOf`, the
+    // paragraph's - Daily Life's, the one that names them - from actions.mjs `baseActions`, the budget's own road.
+    const hint = proseOf(PHASES[key], "hint");
     const long = game.i18n.has(`DRPG.Explain.phase.${key}`)
-        ? t(`DRPG.Explain.phase.${key}`) : "";
+        ? t(`DRPG.Explain.phase.${key}`, { actions: plural("DRPG.Unit.actionAcc", { n: baseActions() }) }) : "";
     return [hint, long].filter(Boolean).map(esc).join("<br>");
+}
+
+/**
+ * The Eclipse in its own words, with how far a token may go: the crossings an Eclipse allows as movement.mjs counts
+ * them (`overflowCrossings(ECLIPSE_MOVES)`, fewer under the Overflow's darkness), not "two" written in (E66 C4,
+ * 01.11.2026; E66-18). `crossings` is for a reader that has the number already.
+ */
+export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES) {
+    return t("DRPG.Explain.phase.eclipse", { reach: plural("DRPG.Explain.phase.eclipseReach", { n: crossings }) });
+}
+
+/**
+ * The status panel's two sentences on actions: a time of day's budget, what a Short and a Long Rest cost
+ * (`REST.*.actionCost`), and what Wounded leaves - each read off config and actions.mjs `baseActions`, the road the
+ * budget itself takes (E66 C4, 01.11.2026; E66-18). The units' cases are the Polish hosts' (docs/text-style.md
+ * section 14): the budget opens the sentence, a Rest's cost follows "kosztuje", Wounded's follows "dostajesz" and the
+ * budget after it "zamiast".
+ */
+export function actionsExplained() {
+    const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
+    const whole = baseActions(), hurt = Math.max(0, baseActions({ wounded: true }));
+    return [
+        t("DRPG.Explain.status.actionsWhat", {
+            actions: unit("action", whole), short: unit("actionAcc", REST.short.actionCost), long: unit("actionAcc", REST.long.actionCost)
+        }),
+        t("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", hurt), actions: unit("actionGen", whole) })
+    ];
 }
 
 /** "Evening - the 4th of 5", and the whole day listed with this one marked. */
@@ -298,8 +329,7 @@ export async function openStatusExplainer() {
 
         const body = [
             section(t("DRPG.Explain.status.actionsTitle"), [
-                esc(t("DRPG.Explain.status.actionsWhat")),
-                esc(t("DRPG.Explain.status.actionsWounded"))
+                ...actionsExplained().map(esc)
             ]),
             section(t("DRPG.Explain.status.moveTitle"), [esc(t("DRPG.Explain.status.moveWhat"))]),
             section(t("DRPG.Explain.status.hopeTitle"), [esc(t("DRPG.Explain.status.hopeWhat"))]),

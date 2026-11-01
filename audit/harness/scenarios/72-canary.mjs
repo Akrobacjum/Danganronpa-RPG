@@ -217,7 +217,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const KILLER_CHAT = { who: ["p1", "p2"], actorIds: [IDS.chie], names: [castNames[0]], userIds: [p3.userId], titles: TITLES };
     const INCIDENT_CHAT = { who: ["p1"], actorIds: [IDS.chie, IDS.botan], names: castNames, userIds: [p3.userId, p2.userId], titles: TITLES };
     check("gm: the secret actions' titles are read for the chat scan - the crisis actions, the openings, Stage 6's, the murder project's and Confusion",
-        TITLES.length >= 20 && ["Finishing blow", "Confusion"].every(t => TITLES.includes(t)) && castNames.every(Boolean), JSON.stringify({ TITLES, castNames }));
+        TITLES.length >= 20 && ["Finishing Blow", "Confusion"].every(t => TITLES.includes(t)) && castNames.every(Boolean), JSON.stringify({ TITLES, castNames }));
     await canary.chatScan({ phase: "rest", ...KILLER_CHAT });
 
     /* THE KEY REMNANT PLAN IS THE GMS' (E05 C5, 26.09.2026; audit S01-01, S05-02): a GM store since

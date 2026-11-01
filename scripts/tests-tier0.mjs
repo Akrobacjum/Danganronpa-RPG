@@ -11748,11 +11748,11 @@ const REGRESSIONS = [
         };
         const WORDS = {
             en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
-                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
+                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
                 daily: { player: /No roll is scored on the Daily Life row either: no trace is of that kind\. It is the ladder your Observe briefing/,
                     gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
-                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
+                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/,
                     gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
@@ -12624,7 +12624,7 @@ const REGRESSIONS = [
                     joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the seal and the bodies found neither, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
                         /Renaming one piece of a room of several takes the room's values off that piece the same way; the other pieces keep them\./],
                     oneScene: [/a project is listed, worked and sabotaged in its room on the scene of its map token/, /a trap built as a project springs only there/,
-                        /Move the body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
+                        /Move the Body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
                         /`placeRemnant` and `applySceneVisionMode` given none do nothing and say so, and `createProject` refuses a room no scene has and says so\./],
                     putBack: [/A player's change to the mark is put back to what a GM last left, and the GMs are told; when the GM's browser has no record of the mark from before the change, nothing is put back/],
                     witness: [/One student is one witness, however many of their tokens stand in the room\. A token a player drops onto the map is judged from where that student last stood on the scene; a student who had stood nowhere there yet counts where the token landed, and the GMs are whispered so\./]
@@ -12653,7 +12653,7 @@ const REGRESSIONS = [
                     joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, ani pieczęć, ani znalezione ciała, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
                         /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
                     oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
-                        /Move the body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
+                        /Move the Body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
                         /`placeRemnant` i `applySceneVisionMode` bez sceny nic nie robią i to mówią, a `createProject` odrzuca pokój, którego nie ma żadna scena, i mówi dlaczego\./],
                     putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GMowie dostają o tym szept; gdy przeglądarka GMa nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
                     witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GMowie dostają o tym szept\./]
@@ -13806,7 +13806,7 @@ const REGRESSIONS = [
                     doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
                         "The Mastermind passes a locked door and a sealed room this way too."],
                     landing: ["lands on the far end's square, or the nearest free square of that end's room, on that end's floor"],
-                    findPassage: ["Locate a hidden stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
+                    findPassage: ["Find Stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
                     findWhat: ["16 or a critical finds the oldest open secret passage of the student's room on their floor that they do not know",
                         "The Mastermind finds none: they know them all."],
                     reroll: ["A Reroll that beats 16 finds once, in the room its roll was thrown in, and only while the student still stands there - else the Reroll is given back whole;", "one that falls below takes back only what its own roll found."],
@@ -13827,7 +13827,7 @@ const REGRESSIONS = [
                     public: ["When a GM makes a passage public, every student knows it"]
                 },
                 brochure: {
-                    findPassage: ["find a hidden stash (16+) or find a secret passage (16+)"]
+                    findPassage: ["Find Stash (16+) or Find Passage (16+)"]
                 },
                 stale: ["Three things behind one tile", "wherever the student stands by then", "a Find Stash only while you still stand there", "A secret passage is one stretch of a plain wall between two rooms of one floor:",
                     "a secret door a player opens is shut again by the primary GM's browser"]
@@ -13841,7 +13841,7 @@ const REGRESSIONS = [
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
                     landing: ["ląduje na polu dalszego końca albo na najbliższym wolnym polu pokoju tego końca, na jego piętrze"],
-                    findPassage: ["Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16", "**Znajdź tajne przejście.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
+                    findPassage: ["Find Stash: 16. Find Passage: 16", "**Find Passage.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
                     findWhat: ["16 albo krytyk znajduje najstarsze otwarte tajne przejście pokoju ucznia na jego piętrze, którego uczeń nie zna",
                         "Mastermind nie znajduje żadnego: zna wszystkie."],
                     reroll: ["Reroll powyżej 16 znajduje raz, w pokoju, w którym padł jego rzut, i tylko wtedy, gdy uczeń wciąż tam stoi - inaczej Reroll wraca w całości;", "taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
@@ -13857,14 +13857,14 @@ const REGRESSIONS = [
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
                     goThrough: ["Przeciągnij token na znacznik tego końca, żeby przejść", "naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
                     landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
-                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
-                    reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],
+                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Find Passage.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
+                    reroll: ["Reroll Find Passage albo Find Stash szuka jeszcze raz nowymi kośćmi"],
                     public: ["Gdy GM ujawni przejście, zna je każdy uczeń"]
                 },
                 brochure: {
-                    findPassage: ["znajdź ukrytą skrytkę (16+) albo znajdź tajne przejście (16+)"]
+                    findPassage: ["Find Stash (16+) albo Find Passage (16+)"]
                 },
-                stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Znajdź ukrytą skrytkę tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
+                stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Find Stash tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
                     "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"]
             }
         };
@@ -13896,7 +13896,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
             /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
             JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
-                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
     }],
@@ -17068,7 +17068,8 @@ const REGRESSIONS = [
          * keys the code quotes, and so throws with no lexer) and T25 (bareLeft). C8 adds the two report detectors of E65-17
          * that read the scripts, and so throw with no lexer: T13 (uiLiterals, English literals in a script that draws UI,
          * on scripts of its own fixture - a dialog, a notification, markup, a class list, a refusal's reason, the console's
-         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers). C9 adds T27
+         * text) and T20 (localeCalls, Intl.ListFormat and toLocale*String outside utils.mjs's helpers; FAIL since E66 C1, with
+         * Intl.DateTimeFormat, NumberFormat and PluralRules and an allowance in its fixture: 8 flags where C8 had 4). C9 adds T27
          * (naturalnessBefore, E65-18): on a guide of its own fixture with five pairs, a pl copy holding two of their befores -
          * one in its key and in a second key, one a plan phrasing - is two findings, and the three whose before is gone (a
          * changed value, a missing key, another case) are listed apart, with the counts the fixture names; the guide's
@@ -17124,16 +17125,16 @@ const REGRESSIONS = [
                 "renderChecks", "retiredHits", "ruleNumberWords", "secondPersonToMany", "tableWordProblems", "telegraph", "uiLiterals"],
             modes: [["bareLeft", "T25", "report"], ["colonChains", "T24", "report"], ["configPlaceholders", "T1", "fail"], ["contractions", "T19", "report"],
                 ["dashesIn", "T6", "fail"], ["familyFormats", "T3", "fail"], ["glossaryHits", "T8", "report"], ["itemQuotes", "T23", "report"],
-                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "report"],
+                ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
-                ["localeCalls", 4, 4], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
+                ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 11], ["familyFormats", 1]],
+            baselines: [["dashesIn", 11], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -17145,7 +17146,7 @@ const REGRESSIONS = [
             + "screen map's marks makes]");
     }],
 
-    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself but murder-rules.mjs's hindrance (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65 (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08)", async () => {
+    ["R1059 - the text lint's FAIL detectors over the files the module serves find nothing their baselines do not hold, fill every baseline row they can read and read something: every English plural family has its four Polish forms; every key in both files fills the same placeholders and holds the same HTML tags in each, a Polish .few and .many the placeholders of its .other; no plural family reaches game.i18n.format or localize itself, murder-rules.mjs's hindrance included since E66 C2 (S13-19); no en dash, em dash or minus sign in the language files, the scripts' strings or the handbooks but the sites written before E65; no Intl format and no toLocale*String outside utils.mjs's helpers but requirements.mjs's one allowance (E65 C1, C2; T1's language half, T2, T3, T6, E65-04 to E65-08; E66 C1, T20, E66-06; E66 C2, E66-11)", async () => {
         /*
          * E65 C1, 31.10.2026; C2 the same day. The functions `node tools/check.mjs text` runs in Node over lang/,
          * scripts/ and docs/, here over the files this Foundry serves - a table's own install, which CI never sees:
@@ -17154,11 +17155,13 @@ const REGRESSIONS = [
          * i18nInit a Polish client puts the Polish into config.mjs's tables, so the English prose is not there to read
          * at a table - which is also why T6's four prose rows of its baseline are not judged here (`sources`), while
          * the same strings as config.mjs's literals are. The FAIL detectors that need nothing but what a table serves
-         * are taken from MODES, and the list is held to the four of C1 and C2, so another one is a change to this test;
+         * are taken from MODES, and the list is held to the four of C1 and C2 and E66 C1's T20 (localeCalls, which
+         * reads only the scripts), so another one is a change to this test;
          * each baseline is held whole: a finding it does not hold is red, and so is a row nothing fills ("take it out
          * of the baseline"), with the number of sites judged. Read on 52eacb9c in Node: 168 families and 4774 pairs
          * found nothing; T3 3498 calls in 146 scripts, the baseline's two keys; T6 the eleven baseline sites, nothing
-         * else. Nothing is written.
+         * else. Nothing is written. Since E66 C2 T3's baseline is empty (the hindrance goes through `plural()`), so T3
+         * judges no site and finds nothing.
          */
         const lang = {};
         for (const code of ["en", "pl"]) {
@@ -17188,7 +17191,8 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 2, [], []], ["dashesIn", true, 9, [], []]]),
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 9, [], []],
+            ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
     }],
@@ -17456,6 +17460,806 @@ const REGRESSIONS = [
         "[listeners of updateWall, createWall, deleteWall, createSetting and updateSetting that hand on to outlineAfterDoor or outlineAfterVeto; a "
             + "wall's c changed is judged anywhere on the room's scene; standingTouched answers the standing room for anywhere; outlineAfterVeto reads "
             + "the seal and the chain; each redraws by redrawOutline; a sound in either]");
+    }],
+    ["R1151 - utils.mjs `listOf` writes a list in the page's language by its type: English in \"en-US\" with the Oxford comma (\"A, B, and C\"; \"A, B, or C\" for a disjunction and after a negation), Polish \"A, B i C\", \"A, B lub C\" and after a negation \"A, B ani C\"; one item is itself, none is \"\", commas where Intl has no ListFormat; character.mjs `reserveNote` goes through it and says in English what it said before (E66 C1; S18-39, DB35, E66-04)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S18-39, DB35 ("przecinek oksfordzki w EN, także w listach z kodu (helper I9 z jawnym
+         * en-US)"), E66-04. E70 C8 left `listOf(items, { type })` minimal, on Foundry's language: no negated list, and
+         * "en" where DB35 names "en-US". Here the page's language (settings.mjs `setPageLanguage`, put back in a
+         * finally - module state, no world write) is stood in as English and as Polish, and each type is read at one,
+         * two and three items and none; then `Intl.ListFormat` is taken away for one call (put back in the same
+         * finally). The expected strings are written out, not derived from Intl. `reserveNote`'s English, for one
+         * reserve and for both (RESERVES has two: Health and Sanity), against the sentence c014681b's own
+         * `Intl.ListFormat("en", { type: "conjunction" })` built from the same parts. Red at c014681b: Polish read as
+         * English (Foundry's language) and "negated" fell back to bare commas.
+         */
+        const U = await import("./utils.mjs"), S = await import("./settings.mjs"), C = await import("./character.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const ITEMS = [["A"], ["A", "B"], ["A", "B", "C"], []];
+        const read = {}, reserves = {};
+        const realList = Intl.ListFormat;
+        const was = S.setPageLanguage("en");
+        try {
+            for (const lang of ["en", "pl"]) {
+                S.setPageLanguage(lang);
+                read[lang] = Object.fromEntries(["conjunction", "disjunction", "negated"].map(type => [type, ITEMS.map(items => U.listOf(items, { type }))]));
+            }
+            S.setPageLanguage("en");
+            Intl.ListFormat = undefined;
+            read.noIntl = U.listOf(["A", "B", "C"]);
+            Intl.ListFormat = realList;
+            const health = U.plural("DRPG.Reserve.health", { n: 1 }), sanity = U.plural("DRPG.Reserve.sanity", { n: 3 });
+            reserves.read = [C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }]),
+                C.reserveNote({ name: "R1151 Somebody" }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 3 }])];
+            reserves.before = [game.i18n.format("DRPG.Murder.youLose", { what: new Intl.ListFormat("en", { type: "conjunction" }).format([health]) }),
+                game.i18n.format("DRPG.Murder.theyLose", { name: "R1151 Somebody", what: new Intl.ListFormat("en", { type: "conjunction" }).format([health, sanity]) })];
+        } finally {
+            Intl.ListFormat = realList;
+            S.setPageLanguage(was);
+        }
+        equal(JSON.stringify(read), JSON.stringify({
+            en: { conjunction: ["A", "A and B", "A, B, and C", ""], disjunction: ["A", "A or B", "A, B, or C", ""], negated: ["A", "A or B", "A, B, or C", ""] },
+            pl: { conjunction: ["A", "A i B", "A, B i C", ""], disjunction: ["A", "A lub B", "A, B lub C", ""], negated: ["A", "A ani B", "A, B ani C", ""] },
+            noIntl: "A, B, C"
+        }), "[per language and type, a list of one, two and three items and of none; three items with no Intl.ListFormat]");
+        equal(JSON.stringify(reserves.read), JSON.stringify(reserves.before), "[reserveNote in English for one reserve and for two, against the sentence the old Intl.ListFormat(\"en\") built]");
+    }],
+    ["R1156 - the counters of the plan's I2 list are plural families with the predicate in the family, in English and Polish, each at n = 0, 1, 2, 5, 12, 22, 25, 112 with nothing left of \"{\" or \"DRPG.\": `Move.costAction` (\"zostały 2 akcje\", \"zostało 5 akcji\"), `Hud.startEclipseNamed` and `startEclipseNewSession` on {n}, `Summary.totals` as three families with a GM's own lede (day-summary.mjs `summaryLede`, `summaryTotals`), `Advance.offered`, `Sound.fileCount`, `Tables.allPresent`, `Tables.deleteConfirm`, `Motive.migrated`, `Investigation.tooThin` with its own sentence for none (`tooThinLine`), `keyOffPlan` on {bar}, `createHereIntro` on {n}, `Overflow.what.darkness/shift/panic` through overflow.mjs `overflowWhat` for its three readers; `Calls.hopeSpent` and `Items.woreOnDespair` as the owner's approved Polish (N53, N58); `Floor.startTrialNote` names the time of day's stopwatch (E66 C3; S18-36, S13-29, S10-69, S09-42, E66-14)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-36, S13-29, S10-69, S09-42, E66-14. The flat counters wrote "zostało 2 akcji" and
+         * "pick(s)", the last time of day's Eclipse "(2 crossings)" whatever the count, a GM's summary "What you did"
+         * over the table's rows, "Only 0 Key Remnants", "the four" and "five clues" written into the prose, and three
+         * readers formatted `DRPG.Overflow.what.*` by a template key each. Each language is read with its file's DRPG
+         * block put in place of this browser's and the page's language stood in (settings.mjs `setPageLanguage`), both
+         * put back in a finally. The helpers are called; the three readers of `overflowWhat` are read in their source
+         * (comments out). Nothing is written. Red at 900b1b99: the flat values rendered their raw keys, the helpers did
+         * not exist, and the English said "(2 crossings)".
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs");
+        const DS = await import("./day-summary.mjs"), O = await import("./overflow.mjs"), I = await import("./investigation.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const NS = [0, 1, 2, 5, 12, 22, 25, 112];
+        const FAMILIES = [["DRPG.Move.costAction", "left"], ["DRPG.Hud.startEclipseNamed", "n"], ["DRPG.Hud.startEclipseNewSession", "n"],
+            ["DRPG.Summary.totals", "actions"], ["DRPG.Summary.totalsFound", "found"], ["DRPG.Summary.totalsTraces", "traces"],
+            ["DRPG.Advance.offered", "n"], ["DRPG.Sound.fileCount", "n"], ["DRPG.Tables.allPresent", "n"], ["DRPG.Tables.deleteConfirm", "n"],
+            ["DRPG.Motive.migrated", "n"], ["DRPG.Investigation.tooThin", "found"], ["DRPG.Investigation.keyOffPlan", "n"],
+            ["DRPG.Investigation.createHereIntro", "n"], ["DRPG.Overflow.what.darkness", "n"], ["DRPG.Overflow.what.shift", "n"],
+            ["DRPG.Overflow.what.panic", "n"]];
+        const fill = n => ({ n, left: n, actions: n, found: n, traces: n, time: "T", kind: "K", name: "N", min: 3, bar: 4, names: "A" });
+        const first = text => String(text ?? "").split(/[.:] /)[0].replace(/\.$/, "");
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                read[code] = {
+                    broken: FAMILIES.flatMap(([key, on]) => NS.map(n => [key, n, U.plural(key, fill(n), on)]))
+                        .filter(([, , text]) => /[{}]|DRPG\./.test(String(text))).map(([key, n]) => `${key} ${n}`),
+                    move: [1, 2, 5].map(left => U.plural("DRPG.Move.costAction", { left }, "left")),
+                    eclipse: [1, 2].map(n => U.plural("DRPG.Hud.startEclipseNewSession", { time: "T", n }).split("(").pop()),
+                    summary: typeof DS.summaryLede === "function" && typeof DS.summaryTotals === "function"
+                        ? [DS.summaryLede("P", false), DS.summaryLede("P", true), DS.summaryTotals({ actions: 2, found: 1, traces: 5 })] : null,
+                    thin: typeof I.tooThinLine === "function" ? [first(I.tooThinLine(0)), first(I.tooThinLine(2))] : null,
+                    overflow: typeof O.overflowWhat === "function"
+                        ? [first(O.overflowWhat("panic", { by: 2 }).replace(/^[^:]*: /, "")), O.overflowWhat("despair", {}) === game.i18n.localize("DRPG.Overflow.what.despair")] : null,
+                    approved: [game.i18n.format("DRPG.Calls.hopeSpent", { cost: 2, left: 5 }), first(game.i18n.format("DRPG.Items.woreOnDespair", { item: "I", left: 1, total: 3 }))]
+                };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = await moduleSources();
+        const src = file => stripComments(sources.get(file) ?? "");
+        read.readers = [/announceOverflow[\s\S]*?overflowWhat\(drawn/.test(src("overflow.mjs")), /overflowWhat\(key, rule\)\)/.test(src("overflow.mjs")),
+            /overflowWhat\(key, rule\)/.test(src("events.mjs")),
+            ["overflow.mjs", "events.mjs"].map(f => (src(f).match(/DRPG\.Overflow\.what\.\$\{/g) ?? []).length)];
+        read.note = [files.en.DRPG.Floor.startTrialNote.includes("campaign"), files.en.DRPG.Floor.startTrialNote.includes("stopwatch")];
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                broken: [],
+                move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
+                eclipse: ["1 crossing)", "2 crossings)"],
+                summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
+                thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
+                overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
+                approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
+            },
+            pl: {
+                broken: [],
+                move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
+                eclipse: ["1 przejście)", "2 przejścia)"],
+                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnants"],
+                overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
+                approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
+            },
+            readers: [true, true, true, [1, 0]],
+            note: [false, true]
+        }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Move.costAction at 1, 2 and 5; the new "
+            + "session's Eclipse at 1 and 2; the lede as a player and as a GM and the totals; the thin warning at 0 and at 2; Panic's words "
+            + "by overflowWhat and Despair's sentence through it; the two approved afters; then overflowWhat in announceOverflow, in "
+            + "overflowSection, in events.mjs, and the template key's count in overflow.mjs and events.mjs; the trial's note names the "
+            + "campaign, the stopwatch]");
+    }],
+
+    ["R1157 - the census of the counts (E66-15): every value of lang/en.json and lang/pl.json outside a plural family that puts a count before a countable noun, a unit or a counting word, or after a Polish predicate that agrees with it, is a family, or is in this test's allow table with its reason - uncountable in both languages, a unit symbol, a ratio with nothing agreeing, a decimal, the owner's approved after; no allow row is stale, and the rule flags a planted flat counter in each language and not a family or a name (E66 C3; S18-36, S13-29, E66-15)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-36 ("17 tekstów z rozpoznania PL": the list was lost, rebuilt by this census),
+         * E66-15. The rule: a placeholder that holds a count (not a name, a room, an item or a label - NOT_COUNTS)
+         * followed in English by a noun or a counting word of COUNTED_EN, in Polish by one of COUNTED_PL, or in Polish
+         * after a predicate that agrees with it (AGREES_PL: "zostało", "wróciło", "wszystkie" ...), in a value whose key
+         * is no family. Run in Node first (S/stages/E66/scratch/c3/census.mjs): 140 at 8e9d40e9, 138 at 900b1b99 with
+         * the Polish rule; this commit made 45 of them families and left 93 (Calls.hopeSpent and Items.woreOnDespair
+         * with new values, N53's and N58's), each in ALLOW. Reasons: U uncountable in both languages (Hope, Sanity, Health, Despair,
+         * progress: DB4), S a unit symbol (s, min) with no word agreeing, R a ratio "{a} of {b}" with nothing agreeing,
+         * D a quotient written with one decimal (English takes the plural and Polish the genitive singular for every
+         * decimal), P the owner's approved Polish after (N58), which reads "z {total} punktów" for every total of its one
+         * road (use-items.mjs whispers it only for a tool that did not break, so 2 or more). Nothing is written. Red at
+         * 900b1b99: 45 flat values the allow table does not hold (the families this commit made). E66 C4 (01.11.2026) put
+         * numbers where digits stood (R1159, R1160): six before Health or Sanity (U) and three before "s" (S), 102 rows; its fix round r1
+         * (F9) put two more seconds on `TRIAL` (S), 104 rows.
+         */
+        const COUNTED_EN = "actions?|crossings?|turns?|times?|tokens?|Search Tokens?|Remnants?|Key Remnants?|files?|entries|entry|tables?|students?|players?|items?|projects?|rooms?|seconds?|minutes?|s|min|days?|points?|marks?|Hope|Sanity|Health|Despair|picks?|ballots?|cards?|clues?|traces?|bullets?|Truth Bullets?|messages?|rows?|progress|uses?|dice|die|GMs?|copies|copy|steps?|rolls?|votes?|keys?|doors?|walls?|notices?|names?|people|persons?|others?|fewer|more|left|of";
+        const W = "[\\w\\u00c0-\\u017f]*";
+        const COUNTED_PL = [`akcj${W}`, `przejś${W}`, `przejści${W}`, "tokeny?", "tokenów", "Tokeny?", "Tokenów", `sekund${W}`, `minut${W}`, `tur${W}`,
+            "razy?", `punkt${W}`, "pory", "pór", "porę", `plik${W}`, `wpis${W}`, `tabel${W}`, `kart${W}`, `głos${W}`, `zdarze${W}`, "kości?", "osób",
+            "osoby", "tropów", `trop${W}`, "pokoi", "pokoju", "pokoje", "pokój", `przedstawion${W}`, "nowych", "nowe", "nowy", `wybor${W}`, "wybór",
+            "Key Remnants?", `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
+        const AGREES_PL = `został${W}|zostaje|wróci${W}|znalazł${W}|rozlał${W}|wszystkie|wszystkich`;
+        const NOT_COUNTS = new Set(["name", "names", "who", "target", "room", "rooms", "item", "what", "actor", "call", "project", "phase", "time", "tier",
+            "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat"]);
+        const EN_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_EN})(?![\\w\\u00c0-\\u017f])`, "g");
+        const PL_RE = new RegExp(`\\{(\\w+)\\}\\s+(?:${COUNTED_PL})(?![\\w\\u00c0-\\u017f])|(?:${AGREES_PL})\\s+(?:ci\\s+)?\\{(\\w+)\\}|\\{(\\w+)\\}\\s+z\\s+\\{\\w+\\}\\s+(?:${AGREES_PL})`, "g");
+        const familyOf = key => key.replace(/\.(one|few|many|other)$/, "");
+        const census = (en, pl) => {
+            const families = new Set([...en.keys()].filter(k => /\.(one|other)$/.test(k)).map(familyOf));
+            const hit = new Set();
+            for (const [map, re] of [[en, EN_RE], [pl, PL_RE]]) {
+                for (const [key, value] of map) {
+                    if (typeof value !== "string" || !key.startsWith("DRPG.") || families.has(familyOf(key))) continue;
+                    if ([...value.matchAll(re)].some(m => !NOT_COUNTS.has(m[1] ?? m[2] ?? m[3]))) hit.add(key);
+                }
+            }
+            return [...hit].sort();
+        };
+        const ALLOW = new Map([
+            ...[
+                "Action.failStress", "Action.observeGm", "Action.progressOn", "Calls.approveCost",
+                "Calls.costsDespair", "Calls.costsDespairShort", "Calls.costsHope", "Calls.costsHopeShort",
+                "Calls.hopeGranted", "Calls.hopeSpent", "Calls.newRuleNote", "Calls.notEnoughHope",
+                "Calls.overflowFed", "Calls.progressSent", "Calls.send", "Character.initConfirm",
+                "Character.initTooltip", "Cleanup.intro", "Cleanup.moveHint", "Cleanup.moveIntro",
+                "Cleanup.stressBack", "Cleanup.stressSpent", "Config.DESPAIR_CALLS.favoriteProject.effect",
+                "Config.DESPAIR_CALLS.feedOverflow.effect", "Config.DESPAIR_CALLS.fuelTheCub.effect",
+                "Config.DESPAIR_CALLS.gameProtection.effect", "Config.DESPAIR_CALLS.paranoia.effect",
+                "Config.DESPAIR_CALLS.thisWillHurt.effect",
+                // E66 C7: Config.HOPE_CALLS.contribution.effect left the table - B01a's Polish puts no count before a noun.
+                "Despair.hopeConverted", "Despair.notEnough", "Despair.notEnoughPool", "Despair.removePoolAsk",
+                "Despair.spent", "Diagnostics.cast.starting", "Items.choiceBonus", "Monocub.hopeShort",
+                "Murder.briefCostStress", "Murder.indirectCost", "Observe.failedStress", "Overflow.what.earthquake",
+                "Project.customScale", "Remnant.projectNote", "Remnant.projectNoteUncovered",
+                "Reroll.interruptedGivingBack", "Reroll.interruptedPaying", "Reroll.sabotageRedone", "Rolls.awayHope",
+                // E66 C4: a number put where a digit stood, before Health or Sanity (`{n}`, `{drain}`, `{hp}`, `{stress}`).
+                "Cleanup.freeTonight", "Config.CRISIS_ACTIONS.roleReversal.failure", "Config.CRISIS_ACTIONS.selfDefence.failure",
+                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure"
+            ].map(key => [key, "U"]),
+            ...[
+                "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
+                "Floor.holdingDebate", "Floor.holdingDebateOver", "Floor.holdingObjection",
+                "Floor.holdingObjectionPending", "Floor.holdingRebuttal", "Floor.holdingRound",
+                "Floor.holdingRoundLast", "Floor.round.startedLine", "Floor.round.tooLongSeconds",
+                "Floor.round.tooShortSeconds", "Floor.roundWindow.range", "Floor.trialTimeNoBudget",
+                "GmStore.notOpen", "Hud.elapsed", "Trial.claim.body", "Trial.turn.title",
+                // E66 C4: the trial's seconds read off `TRIAL` where "30 s" stood.
+                "Floor.bar.minus", "Floor.bar.plus", "Floor.closing.opened",
+                // E66 fix r1 F9: the Closing's early Pass and the console's footnote, "30 s" and "half a minute" before.
+                "Trial.turn.closingPassEarly", "Floor.modeNote"
+            ].map(key => [key, "S"]),
+            ...[
+                "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
+                "Explain.status.actionsNow", "Explain.status.hopeNow", "Explain.time.position", "Floor.trialTime",
+                "Investigation.filterCount", "Investigation.keyLimitLine", "Investigation.keySummary",
+                "Overflow.clearAsk", "Overflow.current", "Overflow.currentDrawn", "Overflow.currentWaiting",
+                "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
+                "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable"
+            ].map(key => [key, "R"]),
+            ...[
+                "Vault.roomRatio"
+            ].map(key => [key, "D"]),
+            ...[
+                "Items.woreOnDespair"
+            ].map(key => [key, "P"])
+        ].map(([key, why]) => [`DRPG.${key}`, why]));
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const found = census(lang.en, lang.pl);
+        const fixture = census(new Map([["DRPG.Fx.a", "{n} actions left"], ["DRPG.Fx.b", "{who} turns away"], ["DRPG.Fx.c.one", "{n} action"], ["DRPG.Fx.c.other", "{n} actions"]]),
+            new Map([["DRPG.Fx.d", "Zostało {seconds} s."], ["DRPG.Fx.e", "zostały {left} akcje"], ["DRPG.Fx.f", "{name} odwraca się"], ["DRPG.Fx.c.few", "{n} akcje"]]));
+        const reasons = {};
+        for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
+        equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 53, S: 25, R: 23, D: 1, P: 1 } }),
+            "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
+            + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
+            + "the allow rows by reason]");
+    }],
+
+    ["R1158 - every fragment inserted into a sentence stands in the case its host needs (E66-16): `Calls.grants` the accusative in `armedByMonokuma`, `armedForYou`, `armedByNobody`, `grantsGen` the genitive in `armed`, `grantsNom` the nominative in `pendingTooltip` and `waitsNextRoll` (a list by `listOf`), through call-effects.mjs `grantWords`; `Price.label.*` the nominative after a colon or in brackets (`Price.refunded`, `Trial.objectionRefunded`, `Trial.objectionRefundLost`, `Cleanup.refundUnheld`), Hope alone in `Price.refundLost`; the reserves in `Murder.youLose` and `theyLose`; every host renders with every fragment it takes in English and Polish; the accusative is read by a template key only in gm-bridge.mjs `tellBeneficiary`, the nominative in roll-dialog.mjs and sheet.mjs (E66 C3; S18-38, I4, E66-16)", async () => {
+        /*
+         * E66 C3, 01.11.2026; S18-38 (I4), E66-16. `DRPG.Calls.grants.*` are Polish accusatives ("przewagę", "stałą premię
+         * albo karę") and were put into `Calls.armed`, "może teraz użyć {what}", which wants the genitive, and after the
+         * colons of `pendingTooltip` and `waitsNextRoll`, which want the nominative; roll-dialog.mjs joined several with
+         * ", ". The contract is docs/text-style.md's section 14. Each language is read with its file's DRPG block put in
+         * place of this browser's and the page's language stood in, both put back in a finally; the hosts are formatted
+         * as their callers format them. The readers of the keys are read in the module's source, comments out. Nothing is
+         * written. Red at 900b1b99: no `grantWords`, and `Calls.armed` with "przewagę".
+         * E66 C7, 01.11.2026 (STATUS Open 50, 51): a Level Up kind's name carried its picks typed in, "(pick 1)", "(wybierz
+         * 3)", beside config.mjs `LEVEL_UP`; it is level-up.mjs `advanceKindName`, `{picks}` from the kind's entry, read here
+         * with both counts set and put back in a finally. roll-draw.mjs `rollerLine` joined what the GM counted and what it
+         * did not with ", ", and `awayMoves` its moves; both go through `listOf`. Red at dbb92462: no advanceKindName, and the
+         * roller's line ", "-joined in both languages.
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), CE = await import("./call-effects.mjs");
+        const P = await import("./price.mjs"), C = await import("./character.mjs"), D = await import("./roll-draw.mjs");
+        const LU = await import("./level-up.mjs");
+        const { LEGAL_ROLL_MODIFIERS, LEVEL_UP } = await import("./config.mjs");
+        const kindName = k => (typeof LU.advanceKindName === "function" ? LU.advanceKindName(k) : game.i18n.localize(`DRPG.Advance.kind.${k}`));
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        /* E66 fix r1 F6 (STATUS Open 16): section 14's rows from `Advance.kind` down - read in the code for the table and
+           not rendered until this round - each fragment in each host the table names, filled as its caller fills it
+           (level-up.mjs, sheet.mjs, vote.mjs; overflow.mjs, despair.mjs; roll-draw.mjs `flagText`; murder-rules.mjs
+           `applyHindrance`); and `flagText`'s list of what the GM counted by `listOf`, where it was joined with ", ". */
+        const HINDERING = Object.values(CRISIS_ACTIONS).filter(def => def.hinders?.actions?.length);
+        must(HINDERING.length >= 2, "fewer than two crisis actions hinder - this would measure little");
+        const FROM = LEGAL_ROLL_MODIFIERS.slice(0, 3).map(row => row.key);
+        const fragmentHosts = () => {
+            const fmt = (key, data) => game.i18n.format(key, data), loc = key => game.i18n.localize(key);
+            const advance = ["standard", "reinforced"].map(kindName);
+            const overflow = Object.keys(files.en.DRPG.Overflow.name).map(k => loc(`DRPG.Overflow.name.${k}`));
+            const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+            return [
+                ...advance.flatMap(kind => [U.plural("DRPG.Advance.offered", { kind, n: 3 }), fmt("DRPG.Advance.offerTooltip", { kind }), fmt("DRPG.Advance.takeBack", { kind }),
+                    fmt("DRPG.Advance.takenBack", { name: "Aiko", kind }), U.plural("DRPG.Vote.blackenedRewarded", { n: 1, kind }), U.plural("DRPG.Vote.blackenedRewarded", { n: 2, kind })]
+                    .map(text => ["Advance.kind", text, [kind]])),
+                ...overflow.flatMap(what => ["DRPG.Overflow.gmHintQueued", "DRPG.Overflow.currentDrawn", "DRPG.Overflow.currentWaiting"]
+                    .map(host => ["Overflow.name", fmt(host, { count: 4, max: 10, what }), [what]])),
+                ...["trait", "pick", "modifier", "dice", "advantage", "stash"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
+                ...HINDERING.flatMap(def => {
+                    const names = def.hinders.actions.map(label);
+                    return [["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.hinderedActions", { turns: def.hinders.turns, actions: U.listOf(names) }, "turns"), names],
+                        ["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.blockedActions", { turns: def.hinders.turns, actions: U.listOf(names, { type: "negated" }) }, "turns"), names]];
+                })
+            ];
+        };
+        const KINDS = Object.keys(files.en.DRPG.Calls.grants).filter(k => typeof files.en.DRPG.Calls.grants[k] === "string");
+        must(KINDS.length >= 6, "lang/en.json carries fewer than six grants - this would measure little");
+        const words = (kind, kase) => (typeof CE.grantWords === "function" ? CE.grantWords(kind, kase) : game.i18n.localize(`DRPG.Calls.grants.${kind}`));
+        const HOSTS = { acc: ["DRPG.Calls.armedByMonokuma", "DRPG.Calls.armedForYou", "DRPG.Calls.armedByNobody"], gen: ["DRPG.Calls.armed"],
+            nom: ["DRPG.Calls.pendingTooltip", "DRPG.Calls.waitsNextRoll"] };
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const all = Object.entries(HOSTS).flatMap(([kase, hosts]) => hosts.flatMap(host => KINDS.map(kind =>
+                    [host, kind, game.i18n.format(host, { name: "Aiko", what: words(kind, kase) }), words(kind, kase)])));
+                read[code] = {
+                    broken: all.filter(([, , text, what]) => /[{}]|DRPG\./.test(text) || !text.includes(what)).map(([host, kind]) => `${host} ${kind}`),
+                    armed: ["advantage", "bonus"].map(kind => game.i18n.format("DRPG.Calls.armed", { name: "Aiko", what: words(kind, "gen") })),
+                    forYou: game.i18n.format("DRPG.Calls.armedForYou", { what: words("advantage", "acc") }),
+                    pending: game.i18n.format("DRPG.Calls.pendingTooltip", { what: words("bonus", "nom") }),
+                    waits: game.i18n.format("DRPG.Calls.waitsNextRoll", { what: U.listOf(["advantage", "bonus"].map(kind => words(kind, "nom"))) }),
+                    price: [game.i18n.format("DRPG.Price.refunded", { what: P.priceLabel({ pay: "action", amount: 2 }) }),
+                        game.i18n.format("DRPG.Trial.objectionRefunded", { why: "W.", what: P.priceLabel({ pay: "action", amount: 1 }) }).includes(`(${P.priceLabel({ pay: "action", amount: 1 })})`),
+                        game.i18n.format("DRPG.Price.refundLost", { what: P.priceLabel({ pay: "hope", amount: 1 }) }).includes(P.priceLabel({ pay: "hope", amount: 1 }))],
+                    reserves: C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 2 }])
+                };
+                const hosts = fragmentHosts();
+                read[code].fragments = {
+                    read: hosts.length,
+                    broken: hosts.filter(([, text, parts]) => /[{}]|DRPG\./.test(text) || !parts.every(part => text.includes(part))).map(([row, text]) => `${row}: ${text.slice(0, 70)}`),
+                    advance: U.plural("DRPG.Advance.offered", { kind: kindName("reinforced"), n: 3 }),
+                    overflow: game.i18n.format("DRPG.Overflow.currentWaiting", { count: 4, max: 10, what: game.i18n.localize("DRPG.Overflow.name.darkness") }),
+                    flag: D.flagText({ kind: "dice", claimed: "3", expected: "1" }),
+                    from: D.flagText({ kind: "modifier", claimed: "3", expected: "1", from: FROM })
+                        === game.i18n.format("DRPG.Rolls.flagFrom", { line: D.flagText({ kind: "modifier", claimed: "3", expected: "1" }),
+                            list: U.listOf(FROM.map(key => game.i18n.localize(LEGAL_ROLL_MODIFIERS.find(row => row.key === key).label))) })
+                };
+                const flag = k => game.i18n.localize(`DRPG.Rolls.flagKind.${k}`);
+                const picksWere = [LEVEL_UP.standard.picks, LEVEL_UP.reinforced.picks];
+                try {
+                    LEVEL_UP.standard.picks = 4; LEVEL_UP.reinforced.picks = 7;
+                    read[code].picks = ["standard", "reinforced"].map(kindName);
+                } finally {
+                    [LEVEL_UP.standard.picks, LEVEL_UP.reinforced.picks] = picksWere;
+                }
+                read[code].roller = D.rollerLine({ scored: { trait: "eye", advantage: 1, uncounted: 2, modifiers: [{ label: "Eye", value: 1 }, { label: "Ally", value: 2 }] },
+                    claim: { trait: "head", dice: 2, advantage: 0 } })
+                    === game.i18n.format("DRPG.Rolls.notCounted", {
+                        counted: game.i18n.format("DRPG.Rolls.counted", { list: U.listOf(["Eye +1", "Ally +2", `${flag("advantage")} +1`]) }),
+                        list: U.listOf([`${flag("trait")} Head`, `${flag("modifier")} +2`, `${flag("dice")} 2`]) });
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = await moduleSources();
+        const reading = re => [...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => file).sort();
+        const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
+        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2;
+        read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
+            joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog),
+            away: /return listOf\(moves\);/.test(stripComments(fnSource(sources.get("roll-draw.mjs") ?? "", "awayMoves") ?? "")),
+            kinds: reading(/DRPG\.Advance\.kind\.(?:(?:standard|reinforced)(?!\w)|\$\{)/) };
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                broken: [],
+                armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
+                forYou: "Another student spent Hope on you: your next roll has advantage. It applies by itself.",
+                pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
+                waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
+                price: ["You get 2 actions back.", true, true],
+                reserves: "You lose 1 Health and 2 Sanity.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (pick 3). Press the button beside your name on your sheet and choose - you have 3 picks.",
+                    overflow: "Right now: 4 of 10. Darkness was announced in the trial and waits for the next time of day.", flag: "dice 3, expected 1", from: true },
+                picks: ["Level Up (pick 4)", "Reinforced Level Up (pick 7)"], roller: true
+            },
+            pl: {
+                broken: [],
+                armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
+                forYou: "Inny uczeń wydał na ciebie Hope: twój następny rzut ma przewagę. Działa samo.",
+                pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
+                waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
+                price: ["Odzyskujesz: 2 akcje.", true, true],
+                reserves: "Tracisz 1 Health i 2 Sanity.",
+                fragments: { read: FRAGMENT_HOSTS, broken: [], advance: "Reinforced Level Up (wybierz 3). Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - masz 3 wybory.",
+                    overflow: "Teraz: 4 z 10. Darkness ogłoszono w procesie i czeka na następną porę dnia.", flag: "kości 3, oczekiwano 1", from: true },
+                picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true
+            },
+            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true, away: true, kinds: ["level-up.mjs"] }
+        }), "[in English, then Polish: each host with each grant in its case - those that leave a brace or a key or lose the fragment; "
+            + "Calls.armed with advantage and a bonus; armedForYou; pendingTooltip; waitsNextRoll with a list of two; a price given back, the "
+            + "Objection's bracket, the lost Hope; a loss of two reserves; then the scripts that read the accusative by a template key, the "
+            + "nominative so, the one that holds the three cases' keys (grantWords), and roll-dialog.mjs's join through listOf; "
+            + "and (E66 fix r1 F6) section 14's Advance.kind, Overflow.name, Rolls.flagKind and crisis labels in each host they take: "
+            + "how many were rendered, those that leave a brace or a key or lose the fragment, one of each, and flagText's list through listOf; "
+            + "and (E66 C7) the Level Up kinds with LEVEL_UP's picks set to 4 and 7, the roller's line with its two lists through listOf, "
+            + "awayMoves's join through listOf, and the scripts that name a kind's key - level-up.mjs's advanceKindName alone]");
+    }],
+
+    ["R1159 - utils.mjs `proseOf(entry, field, extra)` fills a config sentence's numbers from config (E66-17): each placeholder from config.mjs `PROSE_NUMBERS` - the entry's field (`{hp}`, `{stress}`, `{drain}`, `{turns}`, the Calls' `{cost}`, `{hope}`, `{progress}`, `{overflow}`) or the constant the rule reads (`{mult}`, `{actions}`, `{worth}`) - a countable noun through its `DRPG.Unit.*` family, Health and Sanity after the bare number; a copy of the entry, or of the constant, with its number changed changes the English and the Polish; `callEffect` is the same fill; every reader of such a sentence calls `proseOf`; no config sentence, English or Polish, holds a digit its entry carries but the one the allow table names; a placeholder with no value stays, `extra` wins (E66 C4; S18-37, E66-17)", async () => {
+        /*
+         * E66 C4, 01.11.2026; S18-37, E66-17. config.mjs `callEffect` filled six numbers for the Calls alone; every
+         * other config sentence carried its number as a digit or a word typed in - "Costs 1 Health and 1 Sanity",
+         * "the victim's next two turns", "five times their remaining Health", "Two actions per time of day", "worth
+         * +2" - beside the field or constant the rule reads. Each language is read with its file's DRPG block in place
+         * of this browser's and the page's language stood in (settings.mjs `setPageLanguage`); the Polish sentence is
+         * the file's, put into a copy of the entry. A changed number is a copy of the entry, or the constant set and
+         * put back in a finally. The digit rule: a run of digits in a sentence equal to a number anywhere in its entry
+         * (the object whose field it is), English as this browser holds the table and Polish as lang/pl.json carries
+         * it. The readers are read in their source (comments out). Nothing is written. Red at a9c0bfae: utils.mjs
+         * had no proseOf. E66 C7, 01.11.2026: Strike's, Pin's, Keep Your Distance's and the finishing blow's hints are
+         * B01a's approved texts, read whole (the finishing blow's has no " - " left to cut at); red on C7's landed tree
+         * with the old renders expected, as its numbers moved into the new sentences.
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), C = await import("./config.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        must(typeof U.proseOf === "function", "utils.mjs has no proseOf - a config sentence's numbers are typed into it");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const at = (o, path) => path.split(".").reduce((a, k) => a?.[k], o);
+        // [table path, field, a copy with its number changed (null: the constant below is changed instead)]
+        const CASES = [
+            ["CRISIS_ACTIONS.strike", "hint", e => ({ ...e, damage: { ...e.damage, hope: { hp: 2, stress: 3 } } })],
+            ["CRISIS_ACTIONS.strike", "failure", e => ({ ...e, failureDamage: { despair: { stress: 4 } } })],
+            ["CRISIS_ACTIONS.selfDefence", "failure", e => ({ ...e, failureExtraDrain: { despair: 3 } })],
+            ["CRISIS_ACTIONS.survive", "failure", e => ({ ...e, failureExtraDrain: 2 })],
+            ["CRISIS_ACTIONS.roleReversal", "failure", e => ({ ...e, failureExtraDrain: { despair: 2 } })],
+            ["CRISIS_ACTIONS.pin", "hint", e => ({ ...e, hinders: { ...e.hinders, turns: 5 } })],
+            ["CRISIS_ACTIONS.keepDistance", "hint", e => ({ ...e, hinders: { ...e.hinders, turns: 1 } })],
+            ["CRISIS_ACTIONS.finishingBlow", "hint", null],
+            ["PHASES.dailyLife", "hint", null],
+            ["LEVEL_UP_OPTIONS.experienceNew", "label", null]
+        ];
+        const CONSTANTS = [[C.INCIDENT, "finishingBlowPerHp", 7], [C.STARTING, "actions", 5], [C.STARTING, "experienceValue", 3]];
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const kept = CONSTANTS.map(([o, k]) => o[k]);
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const textOf = (path, field) => code === "en" ? at(C, path)?.[field] : at(files.pl, `DRPG.Config.${path}.${field}`);
+                const render = (entry, path, field) => U.proseOf({ ...entry, [field]: textOf(path, field) }, field);
+                const now = CASES.map(([path, field]) => render(at(C, path), path, field));
+                CONSTANTS.forEach(([o, k, v]) => { o[k] = v; });
+                const moved = CASES.map(([path, field, change]) => render(change ? change(at(C, path)) : at(C, path), path, field));
+                CONSTANTS.forEach(([o, k], i) => { o[k] = kept[i]; });
+                read[code] = {
+                    left: [...now, ...moved].filter(text => /[{}]|DRPG\./.test(String(text))).length,
+                    same: CASES.map(([path, field], i) => `${path}.${field}`).filter((key, i) => now[i] === moved[i]),
+                    now: [now[0], now[5], now[7], now[8], now[9]],
+                    moved: [moved[0], moved[1], moved[5], moved[6], moved[7], moved[8], moved[9]]
+                };
+            }
+            read.calls = Object.entries({ ...C.HOPE_CALLS, ...C.DESPAIR_CALLS }).filter(([, call]) => String(call.effect ?? "").includes("{"))
+                .filter(([, call]) => U.proseOf(call, "effect") !== C.callEffect(call) || /[{}]/.test(U.proseOf(call, "effect"))).map(([key]) => key);
+            read.callCount = Object.values({ ...C.HOPE_CALLS, ...C.DESPAIR_CALLS }).filter(call => String(call.effect ?? "").includes("{")).length;
+            read.planted = [U.proseOf({ hint: "a {nope} b" }, "hint"), U.proseOf({ hint: "{turns}" }, "hint", { turns: "T" }), U.proseOf(null, "hint")];
+        } finally {
+            CONSTANTS.forEach(([o, k], i) => { o[k] = kept[i]; });
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        // The digit rule, over every config sentence and its Polish.
+        const ALLOW = new Map([
+            ["INDIRECT_MURDER.concealIntent.successWithDespair", "the +1 is action-rolls.mjs CONCEALED_WITH_DESPAIR, a constant of that file; the entry's 1 is `aloneBonus`, the other bonus"]
+        ]);
+        const carried = entry => {
+            const out = new Set();
+            const walk = v => { if (typeof v === "number" && Number.isFinite(v)) out.add(Math.abs(v)); else if (v && typeof v === "object") Object.values(v).forEach(walk); };
+            walk(entry);
+            return out;
+        };
+        const flagged = new Set();
+        let sentences = 0;
+        walkConfigProse(C, (key, value) => {
+            sentences++;
+            const path = key.slice("DRPG.Config.".length);
+            const nums = carried(at(C, path.split(".").slice(0, -1).join(".")));
+            for (const text of [value, at(files.pl, key)]) {
+                if ([...String(text ?? "").matchAll(/\d+/g)].some(m => nums.has(Number(m[0])))) flagged.add(path.split(".").slice(0, -1).join(".") + "." + path.split(".").at(-1));
+            }
+        });
+        read.digits = { read: sentences > 400, flagged: [...flagged].filter(k => !ALLOW.has(k)).sort(), stale: [...ALLOW.keys()].filter(k => !flagged.has(k)) };
+        /*
+         * E66 fix r2, 01.11.2026; the goal review's M3. The same rule for a number written as a word: B01a's approved
+         * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
+         * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
+         * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.128).
+         */
+        const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
+            pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
+                "osiem|ośmiu", "dziewięć|dziewięciu", "dziesięć|dziesięciu", "jedenaście|jedenastu", "dwanaście|dwunastu"] };
+        const ALLOW_WORDS = new Map(["CRISIS_ACTIONS.leaveClue.hint", "CRISIS_ACTIONS.secureTrace.hint"].map(k => [k,
+            "B01a's approved text, approved 01.11.2026: the count of Remnants an indirect murder's critical leaves, as a word; a placeholder is E71's (docs/text-style.md section 13)"]));
+        const worded = new Set();
+        walkConfigProse(C, (key, value) => {
+            const path = key.slice("DRPG.Config.".length);
+            const nums = [...carried(at(C, path.split(".").slice(0, -1).join(".")))].filter(n => n >= 2 && n <= 12);
+            const texts = { en: value, pl: at(files.pl, key) };
+            for (const code of ["en", "pl"]) {
+                if (nums.some(n => new RegExp(`(?<!\\p{L})(?:${NUMBER_WORDS[code][n]})(?!\\p{L})`, "iu").test(String(texts[code] ?? "")))) worded.add(path);
+            }
+        });
+        read.words = { flagged: [...worded].filter(k => !ALLOW_WORDS.has(k)).sort(), stale: [...ALLOW_WORDS.keys()].filter(k => !worded.has(k)) };
+        const sources = await moduleSources();
+        const src = file => stripComments(sources.get(file) ?? "");
+        read.readers = {
+            callEffect: [...sources.keys()].filter(f => f.endsWith(".mjs") && !f.startsWith("tests") && f !== "config.mjs" && /\bcallEffect\(/.test(src(f))),
+            proseOf: [["calls.mjs", /proseOf\(call, "effect"\)/g, 3], ["call-pickers.mjs", /proseOf\(call, "effect"\)/g, 1], ["despair.mjs", /proseOf\(call, "effect"\)/g, 1],
+                ["sheet.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
+                ["action-rolls.mjs", /proseOf\(def, "(hint|failure)"\)/g, 2], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
+                .filter(([file, re, n]) => (src(file).match(re) ?? []).length !== n).map(([file]) => file),
+            raw: [/\bdef\.failure\b(?![^\n]*proseOf)/.test(fnSource(src("action-rolls.mjs"), "crisisDetails") ?? "x def.failure"),
+                /PHASES\[key\]\?\.hint/.test(src("explain.mjs"))]
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                left: 0, same: [],
+                now: ["A hit takes 1 Health and 1 Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant.", "Put the victim's Leave a Clue and Survive at disadvantage for their next 2 turns, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+                    "End the incident now. The number to beat is 5 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 2 actions per time of day.",
+                    "Add a new experience worth +2"],
+                moved: ["A hit takes 2 Health and 3 Sanity off the victim and leaves a Remnant, Hidden with Hope and Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you leave no Remnant.",
+                    "Nothing on a Hope failure. On Despair you still take 4 Sanity off them and leave an Evident Remnant.",
+                    "Put the victim's Leave a Clue and Survive at disadvantage for their next 5 turns, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.", "Put the victim's Secure a Trace and Role Reversal at disadvantage for their next turn, or block both on a critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+                    "End the incident now. The number to beat is 7 times the victim's remaining Health, so it is 0 once they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up attempt cost no Sanity.", "You live inside a closed area. 5 actions per time of day.",
+                    "Add a new experience worth +3"]
+            },
+            pl: {
+                left: 0, same: [],
+                now: ["Zadaj cios: przy trafieniu ofiara traci 1 Health i 1 Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.", "Przytrzymaj ofiarę: przez jej najbliższe 2 tury Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+                    "Zakończ incydent. Próg to pozostałe Health ofiary razy 5, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 2 akcje na porę dnia.",
+                    "Dodaj nowe doświadczenie warte +2"],
+                moved: ["Zadaj cios: przy trafieniu ofiara traci 2 Health i 3 Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.",
+                    "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 4 Sanity i zostawiasz Evident Remnant.",
+                    "Przytrzymaj ofiarę: przez jej najbliższych 5 tur Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.", "Trzymaj ofiarę na dystans: przez jej najbliższą turę Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+                    "Zakończ incydent. Próg to pozostałe Health ofiary razy 7, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
+                    "Dodaj nowe doświadczenie warte +3"]
+            },
+            calls: [], callCount: 7,
+            planted: ["a {nope} b", "T", ""],
+            digits: { read: true, flagged: [], stale: [] },
+            words: { flagged: [], stale: [] },
+            readers: { callEffect: [], proseOf: [], raw: [false, false] }
+        }), "[in English, then Polish: the renders that leave a brace or a key; the sentences a changed number did not move; Strike's hint, Pin's, "
+            + "the finishing blow's threshold, Daily Life's hint and the new experience's label as config holds them; then with the numbers changed "
+            + "(Strike 2 and 3, its miss 4, Pin 5 turns, Keep your distance 1, the finishing blow 7, the budget 5, an experience 3); the Calls whose "
+            + "proseOf is not callEffect's or leaves a brace, and how many carry a placeholder; a missing value, extra, no entry; the config "
+            + "sentences holding a digit their entry carries outside the allow table, and stale allow rows; the same for a number of 2 to 12 "
+            + "written as an English or a Polish word (E66 fix r2); the files still calling callEffect, "
+            + "the readers not calling proseOf as many times as they read, a raw read left in crisisDetails or explain.mjs]");
+    }],
+
+    ["R1160 - the numbers from outside an entry are read off config where the text is made (E66-18): explain.mjs's Eclipse (`overflowCrossings(ECLIPSE_MOVES)`), the actions' two sentences (`STARTING.actions`, `REST.*.actionCost`, Wounded's by actions.mjs `baseActions`) and Daily Life's paragraph, murder-ui.mjs `indirectCostText` (the parts' sums and the Works they take), cleanup.mjs `freeTonightText` (`PRICE_CHAINS.tamper`), trial-floor-ui.mjs `barLabel` (`TRIAL.modes.gm.adjustSeconds`) and the overrun debate's step, and floor-machine.mjs's Closing card (`volunteerSeconds`) - a stubbed config value moves each, in English and Polish (E66 C4; S18-37, E66-18)", async () => {
+        /*
+         * E66 C4, 01.11.2026; S18-37, E66-18. Written in until this commit: "up to two connected rooms", "Two each time
+         * of day ... a Long Rest both", "one instead of two", "You have two actions", "roughly four to six actions",
+         * "1 Sanity each", "-30 s" / "+30 s", "within 30 s", "+30 seconds puts half a minute back". Each builder is
+         * called with config as it is and again with the config value stubbed (put back in a finally), in each language
+         * with its file's DRPG block in place of this browser's. `ECLIPSE_MOVES` is a primitive export and cannot be
+         * stubbed: the Eclipse is called with the crossings given and its default read in the source. Nothing is written.
+         * Red at a9c0bfae: none of the builders existed and the keys held the numbers.
+         */
+        const S = await import("./settings.mjs"), C = await import("./config.mjs");
+        const E = await import("./explain.mjs"), MU = await import("./murder-ui.mjs"), CL = await import("./cleanup.mjs");
+        const TU = await import("./trial-floor-ui.mjs"), FM = await import("./floor-machine.mjs");
+        const missing = [["explain.mjs", E, ["eclipseExplanation", "actionsExplained", "phaseExplanation"]], ["cleanup.mjs", CL, ["freeTonightText"]],
+            ["trial-floor-ui.mjs", TU, ["barLabel"]]].flatMap(([file, mod, names]) => names.filter(n => typeof mod[n] !== "function").map(n => `${file} ${n}`));
+        must(!missing.length, `no builder reads the number off config: ${missing.join(", ")}`);
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const stress = C.PRICE_CHAINS.tamper.steps.find(step => step.pay === "stress");
+        const STUBS = [[C.STARTING, "actions", 3], [C.REST.short, "actionCost", 2], [C.REST.long, "actionCost", 3], [C.INDIRECT_MURDER.subProjects[0], "progress", [6, 10]],
+            [stress, "amount", 2], [C.TRIAL.modes.gm, "adjustSeconds", 45], [C.TRIAL.modes.closing, "volunteerSeconds", 40]];
+        const kept = STUBS.map(([o, k]) => o[k]);
+        const closingCard = () => (FM.nextFloor(null, { type: "closing" }, { now: 1000 }).cards ?? []).find(c => c.key === "DRPG.Floor.closing.opened");
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const take = () => {
+                    const card = closingCard();
+                    const reach = n => E.eclipseExplanation(n).match(/(?:up to|do) \d+ [^\s,]+ [^\s,]+/)?.[0];
+                    return [reach(1), reach(5), ...E.actionsExplained(),
+                        E.phaseExplanation({ phase: "dailyLife" }).match(/(?:You have|Masz) \d+ \S+/)?.[0], MU.indirectCostText(),
+                        CL.freeTonightText(), TU.barLabel("minus"), TU.barLabel("plus"), TU.barLabel("minus", C.TRIAL.modes.gm.panicAdjustSeconds),
+                        game.i18n.format(card?.key ?? "-", { seconds: card?.seconds }),
+                        game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 3, step: C.TRIAL.modes.gm.adjustSeconds })];
+                };
+                const now = take();
+                STUBS.forEach(([o, k, v]) => { o[k] = v; });
+                const moved = take();
+                STUBS.forEach(([o, k], i) => { o[k] = kept[i]; });
+                read[code] = { now, moved, left: [...now, ...moved].filter(text => typeof text !== "string" || /[{}]|DRPG\./.test(text)).length };
+            }
+        } finally {
+            STUBS.forEach(([o, k], i) => { o[k] = kept[i]; });
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = await moduleSources();
+        const src = file => stripComments(sources.get(file) ?? "");
+        read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
+            /baseActions\(\{ wounded \}\) - dark/.test(src("actions.mjs")),
+            /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
+            /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
+            /barLabel\(op, adjustStep\(floor\)\)/.test(fnSource(src("trial-floor-ui.mjs"), "trialBar") ?? "")];
+        equal(JSON.stringify(read), JSON.stringify({
+            en: {
+                now: ["up to 1 connected room", "up to 5 connected rooms",
+                    "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
+                    "With all your Health marked you get 1 action instead of 2 actions, until somebody patches you up.",
+                    "You have 2 actions", "A trap is built as projects. Budget about 7-10 progress across them, roughly 4 to 5 actions, or it costs more to set than it is worth.",
+                    "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
+                    "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
+                moved: ["up to 1 connected room", "up to 5 connected rooms",
+                    "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
+                    "With all your Health marked you get 2 actions instead of 3 actions, until somebody patches you up.",
+                    "You have 3 actions", "A trap is built as projects. Budget about 9-14 progress across them, roughly 5 to 7 actions, or it costs more to set than it is worth.",
+                    "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
+                    "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
+                left: 0
+            },
+            pl: {
+                now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
+                    "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
+                    "Z całym Health zaznaczonym dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
+                    "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
+                    "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
+                moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
+                    "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
+                    "Z całym Health zaznaczonym dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
+                    "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
+                    "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
+                left: 0
+            },
+            roads: [true, true, true, true, true]
+        }), "[in English, then Polish, with config as it is and again stubbed (the budget 3, a Short Rest 2, a Long Rest 3, the trap's first part 6-10, "
+            + "the clean-up's Sanity 2, the bar's step 45, the volunteering 40): the Eclipse's reach at 1 and 5 crossings, the actions' two sentences, "
+            + "Daily Life's budget, the trap's budget, the free clean-up, -/+ and a Panic Round's step, the Closing's card, the overrun debate's "
+            + "step; renders left with a brace or a key; then the roads read in the source: the Eclipse's default, the budget's, the card's "
+            + "seconds, the debate's step, the bar's labels]");
+    }],
+
+    ["R1161 - one name per action, option and Call, the same in English and in Polish (E66-19, E66-20, E66-22): the names table of E66's Appendix A in config.mjs's English, en.json and pl.json, each name in Title Case; every label of the tiles', crisis, clean-up, Indirect Murder and Rest tables Polish as it is English; \"Trace\" capitalised only inside the five names; no retired Polish name left in pl.json; T20 and T28 of the text lint in FAIL (E66 C5; S18-41, D33a, DB3, DB9, DB16, DB33, DB37)", async () => {
+        /*
+         * E66 C5, 01.11.2026; S18-41. Until this commit an action had up to three names - "Clean up a trace", "Cover your
+         * tracks" and "Erase a trace" for one choice, "Locate a hidden stash" on the tile and "Find a stash" on the GM's
+         * card - Polish names beside English ones ("Zostaw trop", "Akcja dynamiczna", "Projekty"), names in sentence case
+         * ("Role reversal") and British spelling ("Self-defence"). The table below is E66's Appendix A as the owner's
+         * defaults read it (Q-E66-1: "Projects"; Q-E66-2: the roll prompts are no names), with the names the rename met on
+         * the way (Find Passage, Testimony). config.mjs is read as written, from its source, not as this browser's language
+         * swapped it at i18nInit (i18n.mjs `localizeConfig`); en.json and pl.json from the module's files. Nothing is
+         * written. Red at ce17b850 (C4), measured: 85 places of the two tables holding another form, 15 labels of the
+         * tables whose Polish is not their English, 20 names not in Title Case, 9 texts with a capital Trace outside the
+         * five names, 56 pl.json keys with a retired Polish name, and T28 in report.
+         */
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const source = (await moduleSources()).get("config.mjs");
+        must(typeof source === "string" && source.length > 10000, "config.mjs's source was not read - this test measured nothing");
+        const fresh = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
+        const english = new Map();
+        walkConfigProse(fresh, (key, value) => english.set(key, value));
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = flatLang(await res.json());
+        }
+        must(english.size > 400 && files.en.size > 1000 && files.pl.size > 1000, "config.mjs's prose or a language file read as nearly empty - this test measured nothing");
+        const CONFIG_NAMES = {
+            "CRISIS_ACTIONS.useItem": "Use an Item", "CRISIS_ACTIONS.leaveClue": "Leave a Clue", "CRISIS_ACTIONS.secureTrace": "Secure a Trace",
+            "CRISIS_ACTIONS.selfDefence": "Self-Defense", "CRISIS_ACTIONS.survive": "Survive", "CRISIS_ACTIONS.roleReversal": "Role Reversal",
+            "CRISIS_ACTIONS.strike": "Strike", "CRISIS_ACTIONS.pin": "Pin Them Down", "CRISIS_ACTIONS.keepDistance": "Keep Your Distance",
+            "CRISIS_ACTIONS.weaponAttack": "Attack with a Weapon", "CRISIS_ACTIONS.finishingBlow": "Finishing Blow", "CRISIS_ACTIONS.sharedEscape": "Escape Together",
+            "CRISIS_ACTIONS.doubleRoleReversal": "Double Role Reversal", "CRISIS_ACTIONS.crimePartners": "Partners in Crime", "CRISIS_ACTIONS.avertedEyes": "Averted Eyes",
+            "CLEANUP.actions.eraseTrace": "Erase a Trace", "CLEANUP.actions.misleadingTrail": "Misleading Trail", "CLEANUP.actions.moveBody": "Move the Body",
+            "INDIRECT_MURDER.concealIntent": "Conceal Your Intent", "INDIRECT_MURDER.hideTraces": "Hide the Traces",
+            "INDIRECT_MURDER.subProjects.0": "Prepare the Weapon", "INDIRECT_MURDER.subProjects.1": "Set the Trap",
+            "REST.options.sleep": "Sleep", "REST.options.meal": "Meal", "REST.options.breath": "Breath", "ACTIONS.project": "Projects"
+        };
+        const KEY_NAMES = {
+            "DRPG.Cleanup.action": "Erase a Trace", "DRPG.Tamper.cover": "Erase a Trace", "DRPG.Tamper.coverAction": "Erase a Trace",
+            "DRPG.Cleanup.transformAction": "Reshape a Trace", "DRPG.Roll.hideTraces": "Hide the Traces", "DRPG.Observe.followTraces": "Follow My Traces",
+            "DRPG.Cleanup.trailAction": "Misleading Trail", "DRPG.Tamper.frame": "Misleading Trail", "DRPG.Tamper.trailAction": "Misleading Trail",
+            "DRPG.Cleanup.moveAction": "Move the Body", "DRPG.Cleanup.moveTitle": "Move the Body",
+            "DRPG.Analyze.findStash": "Find Stash", "DRPG.Bridge.what.vault.findStash": "Find Stash", "DRPG.Analyze.findPassage": "Find Passage",
+            "DRPG.Action.dynamicLabel": "Dynamic Action", "DRPG.Action.dynamicTitle": "Dynamic Action", "DRPG.Remnant.action.dynamic": "Dynamic Action",
+            "DRPG.Project.manageTitle": "Projects", "DRPG.Explain.projects.window": "Projects", "DAGGERHEART.UI.Countdowns.title": "Projects",
+            "DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns": "Projects", "DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle": "Projects",
+            "DRPG.Floor.mode.testimony": "Testimony", "DRPG.Floor.startTestimony": "Testimony", "DRPG.Hud.trial.testimony": "Testimony"
+        };
+        // DB16: every word capitalised but a, an, the, and, or, of, with, in, on, to, for, by, at after the first; a hyphen's parts each.
+        const SMALL = new Set(["a", "an", "the", "and", "or", "of", "with", "in", "on", "to", "for", "by", "at"]);
+        const titleCase = name => name.split(" ").every((word, i) => word.split("-").every(part => /^[\p{Lu}\d]/u.test(part) || (i > 0 && SMALL.has(part))));
+        const wrong = [];
+        for (const [path, name] of Object.entries(CONFIG_NAMES)) {
+            const key = `DRPG.Config.${path}.label`;
+            if (english.get(key) !== name) wrong.push(`config.mjs ${path}: ${JSON.stringify(english.get(key) ?? null)}`);
+            if (files.pl.get(key) !== name) wrong.push(`pl.json ${key}: ${JSON.stringify(files.pl.get(key) ?? null)}`);
+        }
+        for (const [key, name] of Object.entries(KEY_NAMES)) {
+            for (const code of ["en", "pl"]) if (files[code].get(key) !== name) wrong.push(`${code}.json ${key}: ${JSON.stringify(files[code].get(key) ?? null)}`);
+        }
+        const TABLES = /^DRPG\.Config\.(?:ACTIONS|HOPE_CALLS|DESPAIR_CALLS|MONOCUB\.abilities|CRISIS_ACTIONS|CLEANUP\.actions|INDIRECT_MURDER(?:\.subProjects)?|REST\.options)\.[^.]+\.label$/;
+        const labels = [...english].filter(([key]) => TABLES.test(key));
+        must(labels.length >= 60, `only ${labels.length} labels of the name tables were read - this test measured too little`);
+        const notPolish = labels.filter(([key, name]) => files.pl.get(key) !== name).map(([key]) => `${key}: ${JSON.stringify(files.pl.get(key) ?? null)}`);
+        const untitled = [...new Set([...labels.map(([, name]) => name), ...Object.values(KEY_NAMES)])].filter(name => !titleCase(name));
+        // DB15, DB33, DB37: "Trace" stands only inside the five names; the thing is a Remnant.
+        const FIVE = /Secure a Trace|Erase a Trace|Reshape a Trace|Hide the Traces|Follow My Traces/g;
+        const capital = [...[...files.en].map(([k, v]) => [`en.json ${k}`, v]), ...[...english].map(([k, v]) => [`config.mjs ${k}`, v]), ...[...files.pl].map(([k, v]) => [`pl.json ${k}`, v])]
+            .filter(([, v]) => typeof v === "string" && /(?<!\p{L})Traces?(?!\p{L})/u.test(v.replace(FIVE, ""))).map(([where]) => where);
+        /* E66 fix r1 F10 (STATUS Open 35; Q-E66-3, approved): the English handbooks a line at a time - the column heads
+           "Trace it leaves" and the sentences a capital "Traces" opened were the rest of the capital "Trace" outside the
+           five names. A trace in lower case in a longer sentence is E71's (the glossary's `remnant` entry). */
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.en.md`, { cache: "no-cache" });
+            must(res.ok, `docs/handbooks/${book}.en.md: HTTP ${res.status}`);
+            const lines = (await lfText(res)).split("\n");
+            must(lines.length > 50, `docs/handbooks/${book}.en.md has ${lines.length} lines - this would measure nothing`);
+            lines.forEach((line, i) => { if (/(?<!\p{L})Traces?(?!\p{L})/u.test(line.replace(FIVE, ""))) capital.push(`${book}.en.md:${i + 1}`); });
+        }
+        // The Polish names the rename retired (D33a, DB3, DB38; the reviewer's Testimony and Reroll rows), in any case but Projekty and Zeznanie,
+        // which a sentence may still open with as words: they are held as names only.
+        const RETIRED_PL = [/użyj przedmiotu/iu, /zostaw trop/iu, /zabezpiecz ślad/iu, /atak bronią/iu, /usuń ślad/iu, /zatrzyj ślady/iu, /przerób ślad/iu,
+            /mylny trop/iu, /przenieś ciało/iu, /ukryj zamiar/iu, /ukryj ślady/iu, /przygotuj broń/iu, /zastaw pułapkę/iu, /znajdź ukrytą skrytkę/iu,
+            /szukanie skrytki/iu, /znajdź tajne przejście/iu, /podążaj za własnymi śladami/iu, /akcj\p{L}* dynamiczn/iu, /akcji Dynamic/u,
+            /(?<!\p{L})Projekty(?!\p{L})/u, /(?<!\p{L})Zeznanie(?!\p{L})/u, /(?<!\p{L})przerzu/iu];
+        // A retired phrase that stands in a sentence as its own words, not as the name (E66 C7, 01.11.2026; STATUS Open 57).
+        const RETIRED_WORDS = new Map([
+            ["DRPG.Config.CRISIS_ACTIONS.useItem.hint", "B01a's approved hint opens on „Użyj przedmiotu” as its verb and object, as the approved English's "
+                + "lower-case \"Use an item during the incident\" does; the option's name, Use an Item, is its label's"]
+        ]);
+        const retired = [...files.pl].filter(([key, v]) => typeof v === "string" && RETIRED_PL.some(re => re.test(v)) && !RETIRED_WORDS.has(key)).map(([key]) => key);
+        const wordsStale = [...RETIRED_WORDS.keys()].filter(key => !RETIRED_PL.some(re => re.test(String(files.pl.get(key) ?? ""))));
+        /* E66 fix r2 (the owner, 01.11.2026, page Q-R2 #1 and in chat after it: „uzywaj w pl reroll”, „Tak, "zrob reroll"”): in
+           Polish the reroll is said through the Call's name, verbs included - "przerzu" with any ending, noun or verb (przerzut,
+           przerzucić, przerzucono, Przerzucone), is held out of pl.json above and of the Polish handbooks here, a line at a time.
+           Red before fix r2 C: 9 pl.json keys and 2 handbook lines. */
+        const rerollWords = [];
+        for (const book of ["gm-handbook", "player-handbook", "player-brochure"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.pl.md`, { cache: "no-cache" });
+            must(res.ok, `docs/handbooks/${book}.pl.md: HTTP ${res.status}`);
+            const lines = (await lfText(res)).split("\n");
+            must(lines.length > 50, `docs/handbooks/${book}.pl.md has ${lines.length} lines - this would measure nothing`);
+            lines.forEach((line, i) => { if (/(?<!\p{L})przerzu/iu.test(line)) rerollWords.push(`${book}.pl.md:${i + 1}`); });
+        }
+        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, wordsStale, rerollWords, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
+            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], wordsStale: [], rerollWords: [], modes: ["fail", "fail"] }),
+            "[the names table's places that hold another form; the tables' labels whose Polish is not their English; names not in Title Case; "
+                + "texts with a capital Trace outside the five names, the English handbooks' lines among them; pl.json keys with a retired Polish name; "
+                + "the allow rows of a retired phrase as words that no longer hold one (E66 C7); the Polish handbooks' lines saying przerzu- (E66 fix r2); "
+                + "T20's and T28's modes]");
+    }],
+
+    ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
+        /*
+         * E66 C5, 01.11.2026; E66-24, the plan's risk "longer names may overflow a tile". A tile's type is sized by the
+         * longest unbreakable word any tile carries (sheet.mjs `LONGEST_TILE_WORD`, read at import from the English labels
+         * of ACTIONS, HOPE_CALLS, DESPAIR_CALLS and MONOCUB.abilities), and the crisis menu and the clean-up window lay their
+         * buttons out for the words they had. Measured at E66's Base (501d13eb, probe longest.mjs): the tiles' longest word
+         * "Contribution" (12) in both languages, the crisis labels' "Self-defence" (12), the clean-up's "Misleading" (10).
+         * The rename keeps each grid's longest word within its Base length; a word split at a space or kept whole at its
+         * hyphen ("Self-Defense", `softWrap`) is the same word here. Read: config.mjs as written (its source, as R1161) and
+         * pl.json's labels. Nothing is written. Red on a copy of this tree with the clean-up's "Misleading Trail" planted as
+         * "Misleadingly Trail" (12 letters).
+         */
+        const source = (await moduleSources()).get("config.mjs");
+        must(typeof source === "string" && source.length > 10000, "config.mjs's source was not read - this test measured nothing");
+        const fresh = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" });
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const pl = flatLang(await res.json());
+        const longest = labels => labels.flatMap(label => String(label).split(/\s+/)).reduce((a, w) => (w.length > a.length ? w : a), "");
+        const GRIDS = {
+            tiles: [12, ["ACTIONS", fresh.ACTIONS], ["HOPE_CALLS", fresh.HOPE_CALLS], ["DESPAIR_CALLS", fresh.DESPAIR_CALLS], ["MONOCUB.abilities", fresh.MONOCUB?.abilities]],
+            crisis: [12, ["CRISIS_ACTIONS", fresh.CRISIS_ACTIONS]],
+            cleanup: [10, ["CLEANUP.actions", fresh.CLEANUP?.actions]]
+        };
+        const read = {}, words = {};
+        for (const [grid, [cap, ...tables]] of Object.entries(GRIDS)) {
+            const rows = tables.flatMap(([path, table]) => Object.entries(table ?? {}).filter(([, def]) => def?.label).map(([id, def]) => [def.label, pl.get(`DRPG.Config.${path}.${id}.label`)]));
+            must(rows.length >= 3, `the ${grid} grid read ${rows.length} labels - this test measured nothing`);
+            const en = longest(rows.map(([label]) => label)), polish = longest(rows.map(([, label]) => label ?? ""));
+            words[grid] = [en, polish];
+            read[grid] = [en.length <= cap, polish.length <= cap];
+        }
+        const sheet = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const built = bodyOf(sheet, "const LONGEST_TILE_WORD = (() => {", { until: "})();" });
+        read.built = ["Object.values(ACTIONS ?? {})", "Object.values(HOPE_CALLS ?? {})", "Object.values(DESPAIR_CALLS ?? {})", "Object.values(MONOCUB?.abilities ?? {})",
+            "String(label).split(/\\s+/)"].map(part => built.includes(part));
+        read.longest = words.tiles[0];
+        equal(JSON.stringify(read), JSON.stringify({ tiles: [true, true], crisis: [true, true], cleanup: [true, true], built: [true, true, true, true, true], longest: "Contribution" }),
+            `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
     }],
 ];
 

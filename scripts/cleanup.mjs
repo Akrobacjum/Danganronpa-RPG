@@ -1924,6 +1924,15 @@ export function witnessesTo(actor, present) {
 }
 
 /**
+ * The Tamper tile's line while the killer's own clean-up is free of the action economy (D3): no action, and the chain's
+ * Sanity step, read off `PRICE_CHAINS.tamper` (`RESOLUTION_STRESS_COST`), not "1" written in (E66 C4, 01.11.2026; E66-18).
+ */
+export function freeTonightText() {
+    const stress = (PRICE_CHAINS.tamper?.steps ?? []).find(step => step.pay === "stress");
+    return game.i18n.format("DRPG.Cleanup.freeTonight", { n: stress?.amount ?? RESOLUTION_STRESS_COST });
+}
+
+/**
  * Which step of Tamper's chain this character has already settled.
  *
  * D3 SURVIVES T-1 (Dawid, 17.09: "Zabojca w swoim Stage 6 placi za Tamper bez

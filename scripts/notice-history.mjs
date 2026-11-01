@@ -53,8 +53,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
-import { debug, warn, error, forgeAsset } from "./utils.mjs";
+import { SETTINGS, getClock } from "./settings.mjs";
+import { debug, warn, error, forgeAsset, localeFormat } from "./utils.mjs";
 import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 
@@ -1228,10 +1228,11 @@ export function noticeSecretStored(message) {
 
 /**
  * A notice's time of day as the module's language writes it. The interface E66 takes over: its date
- * helper replaces this body, and every caller keeps the call.
+ * helper replaces this body, and every caller keeps the call - done in E66 C1 (A7): utils.mjs
+ * `localeFormat`, in the language the page was built in, where it read the live setting.
  */
 export function noticeTime(at) {
-    return new Intl.DateTimeFormat(moduleLanguage(), { hour: "2-digit", minute: "2-digit" }).format(new Date(at));
+    return localeFormat("time", at, { hour: "2-digit", minute: "2-digit" });
 }
 
 /**

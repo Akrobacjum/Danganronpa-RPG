@@ -224,6 +224,8 @@ async function askRevoke({ name, room, title, isPublic = false }) {
 
 async function confirmDelete({ title }) {
     return Boolean(await foundry.applications.api.DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         window: { title: t("DRPG.Passage.tab.deleteTitle") },
         classes: ["drpg-panel"],
         content: `<p>${esc(tf("DRPG.Passage.tab.deleteAsk", { passage: title }))}</p>`,

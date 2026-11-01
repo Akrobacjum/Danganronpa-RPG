@@ -8,7 +8,7 @@
  * (`--drpg-launcher-book` and `--drpg-launch-b-bottom`, danganronpa.css; E81
  * fix r2-H4 restated this from them). It opens the Student Brochure and the Player Handbook for
  * everybody, and the GM Handbook for a GM, in the language this page was built in
- * (i18n.mjs `pageLanguage`): the module's language as this browser had it at its
+ * (`pageLanguage`, settings.mjs's since E66 C1 and re-exported by i18n.mjs): the module's language as this browser had it at its
  * last load.
  *
  * The text is the Markdown in docs/handbooks, the same files the repository
@@ -21,7 +21,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { pageLanguage } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { error } from "./utils.mjs";
+import { error, markLanguage } from "./utils.mjs";
 
 const LAUNCHER_ID = "drpg-book-launcher";
 const WINDOW_CLASS = "drpg-handbook";
@@ -385,6 +385,8 @@ export function renderBookLauncher() {
         const button = document.createElement("button");
         button.type = "button";
         button.id = LAUNCHER_ID;
+        // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+        markLanguage(button);
         const tip = game.i18n.localize("DRPG.Handbooks.launcherTooltip");
         button.dataset.tooltip = tip;
         button.setAttribute("aria-label", tip);

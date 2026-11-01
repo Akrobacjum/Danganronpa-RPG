@@ -2,8 +2,8 @@
  * Danganronpa RPG - shared helpers.
  */
 
-import { MODULE_ID, epochClock } from "./config.mjs";
-import { SETTINGS, moduleLanguage } from "./settings.mjs";
+import { MODULE_ID, epochClock, fillProse } from "./config.mjs";
+import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -23,17 +23,133 @@ import { count } from "./perf-counters.mjs";
  */
 export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+/* THE MODULE'S LANGUAGES AS INTL READS THEM (E66 C1, 01.11.2026; DB35: "helper I9 z jawnym en-US"). English is
+   American English (EN1), so its lists take the Oxford comma and its dates the US order whatever the browser's own
+   English is; a code with no row here (none ships) is written as English. */
+const INTL_TAGS = Object.freeze({ en: "en-US", pl: "pl" });
+const intlTag = lang => INTL_TAGS[lang] ?? INTL_TAGS.en;
+
 /**
- * Names as one list in the table's language - "Aiko, Botan and Chie" / "Aiko, Botan i Chie" - through `Intl.ListFormat`
- * (E70 C8, minimal: the signature E66 is to keep), joined by commas where the browser has none. Not escaped.
+ * Items as one list in the language this page was built in (settings.mjs `pageLanguage`) - the one road for a list a
+ * text inserts (E70 C8 wrote the signature; E66 C1, 01.11.2026, S18-39 and E66-04, the body). `type`: "conjunction"
+ * (EN "A, B, and C", PL "A, B i C"), "disjunction" (EN "A, B, or C", PL "A, B lub C") or "negated", a list after a
+ * negation (EN "A, B, or C"; PL "A, B ani C", two items "A ani B" - Intl has no such type, so the Polish one is
+ * written here); one item is itself and none is "". Through `Intl.ListFormat` in "en-US" or "pl", joined by commas
+ * where the browser has none. Not escaped.
  */
 export function listOf(items = [], { type = "conjunction" } = {}) {
     const list = (Array.isArray(items) ? items : []).map(item => String(item ?? ""));
+    const lang = pageLanguage();
+    if (type === "negated" && lang === "pl") return list.length < 2 ? list.join("") : `${list.slice(0, -1).join(", ")} ani ${list.at(-1)}`;
     try {
-        return new Intl.ListFormat(game.i18n?.lang || "en", { style: "long", type }).format(list);
+        return new Intl.ListFormat(intlTag(lang), { style: "long", type: type === "negated" ? "disjunction" : type }).format(list);
     } catch {
         return list.join(", ");
     }
+}
+
+/* What `toLocaleString()` and `toLocaleTimeString()` write with no options, as `Intl.DateTimeFormat` parts: measured
+   equal on 01.11.2026 for en-US, pl, de and ja at five moments, with these parts and with { hour, minute } "2-digit". */
+const DATE_PARTS = Object.freeze({
+    dateTime: Object.freeze({ year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" }),
+    time: Object.freeze({ hour: "numeric", minute: "numeric", second: "numeric" })
+});
+
+/**
+ * A date, a time of day or a number as the language this page was built in writes it (E66 C1, 01.11.2026; S18-40,
+ * E66-05): the one road for every date, time and number a text shows, so a Polish page reads "14:15" and "1,5"
+ * whatever the browser's locale and Foundry's language are. Until E66 the case rows wrote the browser's locale and
+ * the messenger, an ask's card and the megabytes Foundry's language.
+ *
+ * `kind`: "dateTime" (what `toLocaleString()` wrote), "time" (`toLocaleTimeString()`) or "number"; `value` a Date,
+ * the milliseconds or a number; `options` Intl's, in place of the kind's defaults. A date that is no date writes
+ * "Invalid Date", as `toLocaleString` did, and never throws; a kind not named here writes the value as text.
+ */
+export function localeFormat(kind, value, options = null) {
+    const tag = intlTag(pageLanguage());
+    if (kind === "number") {
+        const n = Number(value);
+        try { return new Intl.NumberFormat(tag, options ?? {}).format(n); } catch { return String(n); }
+    }
+    const parts = DATE_PARTS[kind];
+    if (!parts) return String(value ?? "");
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return String(date);
+    try { return new Intl.DateTimeFormat(tag, options ?? parts).format(date); } catch { return String(date); }
+}
+
+/**
+ * Say which language a container the module draws is in: `lang` = the page's language (E66 C1, 01.11.2026; S13-62,
+ * E66-08). A screen reader picks its voice by it, and the browser its hyphenation and spelling; without it a container
+ * inherited the page's `lang`, which is Foundry's, so a Polish window on an English Foundry was read with English
+ * rules. Written only when it differs, so a redraw that calls this again touches nothing an observer hears. Answers
+ * `el`.
+ */
+export function markLanguage(el) {
+    const lang = pageLanguage();
+    if (el?.getAttribute && el.getAttribute("lang") !== lang) el.setAttribute("lang", lang);
+    return el;
+}
+
+/**
+ * module.mjs's `renderApplicationV2` hook (E66 C1): a window the module opened - an ApplicationV2 or a DialogV2 whose
+ * classes name `drpg-`, as every window the module builds does (`drpg-panel`, `drpg-messenger`, `drpg-room-image`,
+ * `drpg-table-window`) - gets `markLanguage`. By the classes it was opened with (`options.classes`), not the element's:
+ * the module decorates Daggerheart's own windows with `drpg-` classes of its own (the roll dialog's), and their words
+ * are Daggerheart's, in Foundry's language. The character sheet is marked by its own render hook (sheet.mjs).
+ *
+ * THE CONTENT AND THE TITLE, NOT THE FRAME (E66 fix r2, 01.11.2026; review correctness m1). A framed window's header
+ * holds Foundry's controls - Close, the menu - whose labels are Foundry's, in Foundry's language; C1 marked the whole
+ * element, so a Polish module on an English Foundry had "Close Window" read with Polish rules. So `.window-content` and
+ * the header's `.window-title` (the module's own title) are marked, as fix r1 F1 marked foundry-windows.mjs's header
+ * alone; a window with no `.window-content` - a frameless one, whose element is its content - is marked whole. A
+ * `DialogV2.confirm`'s buttons sit inside the content, so every confirm the module opens passes its own Yes and No
+ * (`DRPG.Dialog.yes`, `.no`) rather than Foundry's defaults - the smaller sound change than marking each footer
+ * button by whose word it is, which would rest on Foundry's default labels being the keys "Yes" and "No", read from
+ * v13 and not from v14. R1153 holds both, and that every DialogV2 the module opens names a `drpg-` class.
+ */
+export function markModuleWindow(app) {
+    const classes = app?.options?.classes;
+    if (!Array.isArray(classes) || !classes.some(name => typeof name === "string" && name.startsWith("drpg-"))) return;
+    const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+    const content = el?.querySelector?.(":scope > .window-content");
+    if (!content) { markLanguage(el); return; }
+    markLanguage(content);
+    markLanguage(el.querySelector(":scope > .window-header .window-title"));
+}
+
+/* The language files `worldLocalize` has read, by code: a promise of the parsed file, or of null for one that would
+   not load (dropped, so the next call asks again). */
+const worldFiles = new Map();
+
+/**
+ * A key formatted in the world's language for documents (settings.mjs `documentLanguage`, D196: decision 38 = D34
+ * option 1; E66 C1, 01.11.2026, E66-09), not this browser's: what the module writes into a world document is read by
+ * everyone at the table. That language's file is fetched once and kept; where the setting is empty, names the page's
+ * own language, or its file lacks the key (config.mjs's prose, `DRPG.Config.*`, is not in lang/en.json: a Polish page
+ * has only its Polish), this is `game.i18n.format` in the page's language. `{name}` placeholders are filled from
+ * `data` as `game.i18n.format` fills them; a placeholder `data` lacks stays as written.
+ *
+ * NO SITE CALLS IT IN E66. The helper and its setting are D196's, pinned here; the documents that should be written
+ * through it - S02-74, config prose written into world documents in the creating client's language - are E57's
+ * (row 1.2.131), which switches them over. The interface windows, cards and the sheet stay in each browser's own
+ * language and never go through it.
+ */
+export async function worldLocalize(key, data = {}) {
+    const lang = documentLanguage();
+    if (!lang || lang === pageLanguage()) return game.i18n.format(key, data);
+    let file = worldFiles.get(lang);
+    if (!file) {
+        file = fetch(`modules/${MODULE_ID}/lang/${lang}.json`)
+            .then(response => (response.ok ? response.json() : null))
+            .catch(() => null);
+        worldFiles.set(lang, file);
+    }
+    const json = await file;
+    if (!json) worldFiles.delete(lang);
+    const template = json ? (json[key] ?? foundry.utils.getProperty(json, key)) : undefined;
+    if (typeof template !== "string") return game.i18n.format(key, data);
+    return template.replace(/{[^}]+}/g, k => (Object.hasOwn(data ?? {}, k.slice(1, -1)) ? String(data[k.slice(1, -1)]) : k));
 }
 
 /** The window event camera-view.mjs `measureCameraDock` sends when the camera dock's lift (`--drpg-av-lift`) changes,
@@ -359,8 +475,10 @@ export function plural(key, data = {}, countOn = "n") {
     let form = "other";
     try {
         // The MODULE's language, not Foundry's: the strings come from our
-        // file, and a Polish file carries one/few/many/other.
-        form = new Intl.PluralRules(moduleLanguage()).select(n);
+        // file, and a Polish file carries one/few/many/other. The language the
+        // page was built in, not the live setting (E66 C1; S13-62): a player
+        // who changed it and declined the reload still reads this page's file.
+        form = new Intl.PluralRules(pageLanguage()).select(n);
     } catch {
         // An unknown language tag is the only way this throws, and the answer is
         // not to give up on the sentence - English's own rule is one/other, and
@@ -371,6 +489,18 @@ export function plural(key, data = {}, countOn = "n") {
     }
     const picked = game.i18n.has(`${key}.${form}`) ? form : "other";
     return game.i18n.format(`${key}.${picked}`, data);
+}
+
+/**
+ * A config sentence with its numbers in it (E66 C4, 01.11.2026; S18-37, E66-17): `entry[field]` - a table's English,
+ * or the Polish i18n.mjs `localizeConfig` put in its place - with each placeholder filled from config.mjs
+ * `PROSE_NUMBERS` (the entry's fields, or the constant the rule reads) and then from `extra`, the reader's own. A
+ * countable noun is written by its unit family, `DRPG.Unit.<unit>` through `plural()` in the page's language; a number
+ * before Health, Sanity, Hope, Despair or progress stands bare. config.mjs `fillProse` is the one fill (`callEffect` is
+ * its bare form); this hands it the words. Every reader of a config sentence that carries a placeholder calls this.
+ */
+export function proseOf(entry, field, extra = {}) {
+    return fillProse(entry, field, extra, (unit, n) => plural(`DRPG.Unit.${unit}`, { n }));
 }
 
 /**

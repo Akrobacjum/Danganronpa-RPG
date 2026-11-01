@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms, localeFormat } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
@@ -1790,6 +1790,9 @@ export async function backupCase({ ask = false } = {}) {
         const waiting = gmStoreHydration().waiting.map(id => game.users.get(id)?.name ?? id);
         const early = !gmStoresHydrated() && waiting.length;
         const yes = await DialogV2.confirm({
+            classes: ["drpg-panel"],
+            yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+            no: { label: game.i18n.localize("DRPG.Dialog.no") },
             window: { title: game.i18n.localize("DRPG.Case.backupTitle") },
             content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Case.backupWhat"))}</p>${early
                 ? `<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.backupEarly", { names: waiting.join(", ") }))}</p>` : ""}`),
@@ -2115,9 +2118,10 @@ export async function gmStoreHealth() {
     const undecided = mastermindUndecided();
     if (undecided) {
         const { pick, clearedAt, pickedAt } = undecided;
-        // `shown`: what the window puts to the GM, which Keep and Clear act on and nothing else (DS-m7).
-        add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: new Date(clearedAt).toLocaleString(),
-            name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString(), shown: { pick, clearedAt, pickedAt } });
+        // `shown`: what the window puts to the GM, which Keep and Clear act on and nothing else (DS-m7). The dates in the
+        // page's language (utils.mjs `localeFormat`, E66 C1): until then the browser's locale, whatever the window's.
+        add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: localeFormat("dateTime", clearedAt),
+            name: game.actors.get(pick)?.name ?? pick, picked: localeFormat("dateTime", pickedAt), shown: { pick, clearedAt, pickedAt } });
     }
 
     /* THE MASTERMIND OUT OF EVERY POOL (E05 C15, 27.09.2026; audit S03-03, S10-12): Despair
@@ -2129,7 +2133,7 @@ export async function gmStoreHealth() {
 
     const since = caseMark().since;
     const holdsNothing = gmStoreHandles().every(h => !Object.keys(h.entries()).length && !(h.census()?.claimed));
-    if (since && holdsNothing) add("neverHeld", "missing", "DRPG.Case.row.neverHeld", { date: new Date(since).toLocaleString() });
+    if (since && holdsNothing) add("neverHeld", "missing", "DRPG.Case.row.neverHeld", { date: localeFormat("dateTime", since) });
 
     for (const handle of gmStoreHandles()) {
         if (handle.legacyChanged()) add(`legacy.${handle.name}`, "conflict", "DRPG.Case.row.legacyChanged", { store: game.i18n.localize(`DRPG.Case.store.${handle.name}`) });
@@ -2152,7 +2156,7 @@ export async function gmStoreHealth() {
     add("notices", "info", "DRPG.Case.row.notices", { notices: Math.round(status.notices / 1024) });
     const mark = caseMark();
     add("lastBackup", "info", mark.lastBackupAt ? "DRPG.Case.row.lastBackup" : "DRPG.Case.row.neverBackedUp",
-        { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
+        { when: mark.lastBackupAt ? localeFormat("dateTime", mark.lastBackupAt) : "", who: mark.lastBackupBy ?? "" });
 
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },

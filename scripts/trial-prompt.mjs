@@ -24,7 +24,7 @@
  * round, and the volunteers' 30 s too (E70 fix p2-G3).
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error, ownerOf, dialogContent } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -120,8 +120,10 @@ async function promptTurn(floor) {
     const closing = closingIn(floor, "speak");
     const { secondsLeft } = await import("./trial-floor.mjs");
     const seconds = closing ? Math.max(secondsLeft(floor), 0) : floor.seconds;
-    const passLine = closing ? `<p class="notes">${game.i18n.localize(Number(closing.resignUntil) > 0
-        ? "DRPG.Trial.turn.closingPassEarly" : "DRPG.Trial.turn.closingPass")}</p>` : "";
+    // The early Pass's seconds are the window floor-machine.mjs gives it (E66 fix r1 F9; STATUS Open 26).
+    const passLine = closing ? `<p class="notes">${Number(closing.resignUntil) > 0
+        ? game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: TRIAL.modes.closing.passWindowSeconds })
+        : game.i18n.localize("DRPG.Trial.turn.closingPass")}</p>` : "";
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Trial.turn.title", { seconds }) },
         classes: ["drpg-panel", WINDOW_CLASS],

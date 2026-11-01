@@ -22,7 +22,7 @@
 
 import { getClock, timeOfDayLabel } from "./clock.mjs";
 import { secretSummaries } from "./secret.mjs";
-import { error, esc} from "./utils.mjs";
+import { error, esc, plural } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 
 export function registerDaySummary() {
@@ -56,6 +56,25 @@ export function entriesSince(startedAt) {
  * pauses are `pausedTotalMs`), so what was done before a pause stays in "What you did". Pure (R996).
  */
 export function summarySince(clock) {
+    return summarySinceOf(clock);
+}
+
+/**
+ * The card's lede and its totals (E66 C3, 01.11.2026; S13-29, S10-69, E66-14). A GM's summary lists every student's
+ * rows under who did them, and its lede said "What you did" over the table's: a GM reads `Summary.ledeGm`. The totals
+ * are three plural families joined, each counted on its own number; `Summary.lede` was handed an `n` it never wrote.
+ * Pure, so R1156 reads both as a player and as a GM.
+ */
+export function summaryLede(phase, gm = false) {
+    return game.i18n.format(gm ? "DRPG.Summary.ledeGm" : "DRPG.Summary.lede", { phase });
+}
+
+export function summaryTotals({ actions = 0, found = 0, traces = 0 } = {}) {
+    return [plural("DRPG.Summary.totals", { actions }, "actions"), plural("DRPG.Summary.totalsFound", { found }, "found"),
+        plural("DRPG.Summary.totalsTraces", { traces }, "traces")].join(" · ");
+}
+
+function summarySinceOf(clock) {
     const started = Number(clock?.timeOfDayStartedAt);
     return clock?.timeOfDayStartedAt && Number.isFinite(started) ? started : null;
 }
@@ -110,11 +129,9 @@ export async function showDaySummary() {
 
     const content = `
         <div class="drpg-day-summary">
-            <p class="drpg-sum-lede">${game.i18n.format("DRPG.Summary.lede", {
-                phase: esc(timeOfDayLabel(clock?.timeOfDay)), n: mine.length })}</p>
+            <p class="drpg-sum-lede">${summaryLede(esc(timeOfDayLabel(clock?.timeOfDay)), game.user.isGM)}</p>
             <ul class="drpg-sum-list">${rows.join("")}</ul>
-            <p class="drpg-sum-totals">${game.i18n.format("DRPG.Summary.totals", {
-                actions: mine.length, found, traces })}</p>
+            <p class="drpg-sum-totals">${summaryTotals({ actions: mine.length, found, traces })}</p>
         </div>`;
 
     /*

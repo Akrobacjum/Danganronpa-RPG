@@ -64,7 +64,7 @@
  */
 
 import {
-    MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, callEffect, TIMING,
+    MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
     USABLE_EFFECTS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -82,7 +82,7 @@ import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
-    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, debug, esc, cardHead, markFired
+    ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
@@ -2587,10 +2587,17 @@ async function applyHindrance(state, def, band, done) {
     for (const key of def.hinders.actions) next[target][key] = def.hinders.turns;
 
     await writeState({ [store]: next });
-    done.push(game.i18n.format(
-        band === "critical" ? "DRPG.Murder.blockedActions" : "DRPG.Murder.hinderedActions",
-        { n: def.hinders.actions.length, turns: def.hinders.turns }
-    ));
+    /*
+     * THE ACTIONS BY NAME AND THE TURNS COUNTED (E66 C2, 01.11.2026; S13-19, E66-11). Both keys are plural families,
+     * and `game.i18n.format` handed a family returns the key itself: every Pin them down and Keep your distance card
+     * read "DRPG.Murder.hinderedActions" in both languages. The family is counted on `turns`; the actions are their
+     * localized labels (config.mjs's, swapped in place by i18n.mjs `localizeConfig`) joined by `listOf` - "and" for a
+     * hindrance, the negated list for a block ("cannot use A or B", Polish "A ani B").
+     */
+    const critical = band === "critical";
+    const names = def.hinders.actions.map(key => esc(CRISIS_ACTIONS[key]?.label ?? key));
+    done.push(plural(critical ? "DRPG.Murder.blockedActions" : "DRPG.Murder.hinderedActions",
+        { turns: def.hinders.turns, actions: listOf(names, { type: critical ? "negated" : "conjunction" }) }, "turns"));
 }
 
 /**
@@ -2753,7 +2760,7 @@ async function swapRoles(state, done, { restores = false } = {}) {
     // the one thing about the old plan that survives, so it is also the one
     // thing the GM does not have to decide again.
     await whisperToGms(`<p class="drpg-warning">${
-        game.i18n.format("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
+        plural("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
 }
 
 async function finishIncident(state, key, band, done, killed = null, actorId = null) {
@@ -3022,6 +3029,8 @@ async function killerFell({ pass = true } = {}) {
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
     const sure = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
         content: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
@@ -4062,7 +4071,7 @@ async function afterNoBody(state, victim, killer) {
 
 async function tellGms(text, extra = {}) {
     await whisperToGms(`<p>${foundry.utils.escapeHTML(text)}</p>${
-        extra.keys ? `<p><strong>${game.i18n.format("DRPG.Murder.keyCount", {
+        extra.keys ? `<p><strong>${plural("DRPG.Murder.keyCount", {
             n: extra.keys
         })}</strong></p>` : ""
     }`);
@@ -4113,16 +4122,18 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     //
     // `def.failure` is one string covering every branch at once: "Nothing on a
     // Hope failure. On Despair you still take 1 Sanity off them and leave an
-    // Evident Remnant; a critical failure leaves an Obvious one." That is a
-    // reference table, and the player has to work out which third of it applies
-    // to the roll they just made - while the line directly under it already
-    // lists what the module actually did.
+    // Evident Remnant." That is a reference table, and the player has to work
+    // out which half of it applies to the roll they just made - while the line
+    // directly under it already lists what the module actually did.
     //
-    // Worse, three of those strings had drifted from the code: Self-defence and
-    // Role reversal both promise an extra point of drain on a Despair failure
-    // and neither has `failureExtraDrain` set, and Escape together promises the
-    // newcomer becomes a second victim, which nothing implements. Printing the
-    // receipt instead of the promise cannot drift.
+    // Worse, three of those strings had drifted from the code when this was
+    // written: Self-defence and Role reversal promised an extra point of drain
+    // on a Despair failure that neither carried (both carry `failureExtraDrain:
+    // { despair: 1 }` in config.mjs now, read 01.11.2026), and Escape together
+    // promised the newcomer becomes a second victim, which nothing implemented;
+    // Strike's promised an Obvious Remnant on a critical failure, which no roll
+    // reaches, until E66 fix r2 took the clause out. Printing the receipt
+    // instead of the promise cannot drift.
     // Nor the band's sentence when it promises a door the incident took away (`applyUnlocks`).
     const outcome = success && promised ? (def[band] ?? "") : "";
     const state = murderState();
@@ -4133,7 +4144,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // A FREE TAKE IS NO ROLL (E51 C1; E51-T7). Taken with no dice (`takeCrisisAction`, G-18), it was sent with total 0
     // and printed "0 ≥ 18 · with Hope" - a score nobody threw. It says it worked with no roll, as its menu row did.
     const score = def.noRoll
-        ? `<p><em>${foundry.utils.escapeHTML(callEffect(def) || def.hint || "")}</em></p>`
+        ? `<p><em>${foundry.utils.escapeHTML(proseOf(def, "effect") || proseOf(def, "hint"))}</em></p>`
         : !rolled
             ? `<p><em>${game.i18n.localize("DRPG.Murder.noRollItWorks")}</em></p>`
             : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${

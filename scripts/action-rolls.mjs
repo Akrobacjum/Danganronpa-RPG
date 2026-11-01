@@ -39,7 +39,7 @@ import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, projectsListedIn, buildsOwnMurder, projectLabel } from "./projects.mjs";
 import { callGm, promptAndCallGm, promptForRequest } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, proseOf, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
@@ -430,7 +430,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
             // will really take.
             actionKey === "tamper" ? tamperQuote(actor) : quotePrice(actor, actionKey)));
     } else if (cost > 0) {
-        facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
+        facts.push(plural("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
 
     // Not for a project's roll (E32+E07 C11d): Projects and Sabotage list the four a
@@ -4380,7 +4380,7 @@ async function openCrisisMenu(actor) {
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
                     : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
-                def.hint ? ` - ${def.hint}` : ""}${
+                def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
             details: crisisDetails(def, {
                 free, brokenDown, youPick,
@@ -4438,7 +4438,7 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
             facts.push(game.i18n.format("DRPG.Action.usesTrait", { traits: named }));
         }
         if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
-        if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(def.failure) }));
+        if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
     return facts.length
         ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "";
@@ -5956,6 +5956,8 @@ async function performBetrayal(actor, partner, def, options = {}) {
     const cost = dark && !options.free ? def.cost : 0;
     if (cost > 0 && !canAfford(actor, cost)) return null;
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
@@ -6013,6 +6015,8 @@ async function performDirectMurder(actor, def, options) {
     const room = roomOfActor(actor);
 
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}

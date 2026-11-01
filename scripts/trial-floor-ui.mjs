@@ -550,6 +550,8 @@ export async function endClassTrial() {
         return closeTrial(exit);
     }
     const confirmed = await DialogV2.confirm({
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        no: { label: game.i18n.localize("DRPG.Dialog.no") },
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
         content: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}`,
@@ -835,6 +837,16 @@ const BAR_LABELS = {
     repoint: "DRPG.Floor.repoint"
 };
 
+/**
+ * A bar button's label. -30 s and +30 s carry the step they move the clock by, `TRIAL.modes.gm.adjustSeconds` (a Panic
+ * Round's `panicAdjustSeconds` by the other pair of keys), not "30" written in (E66 C4, 01.11.2026; E66-18).
+ */
+export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds) {
+    if (op !== "minus" && op !== "plus") return game.i18n.localize(BAR_LABELS[op]);
+    const key = step === TRIAL.modes.gm.adjustSeconds ? BAR_LABELS[op] : op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds";
+    return game.i18n.format(key, { seconds: step });
+}
+
 /** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
 export function exchangeRuns(floor = trialFloor()) {
     return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
@@ -1047,10 +1059,7 @@ function trialBar({ floor, running, barNext }) {
     const now = serverNow();
     const buttons = BAR_OPS.map(op => {
         const refused = barRefusal(op, floor, { running, now });
-        const step = adjustStep(floor);
-        const label = (op === "minus" || op === "plus") && step !== TRIAL.modes.gm.adjustSeconds
-            ? game.i18n.format(op === "minus" ? "DRPG.Floor.bar.minusSeconds" : "DRPG.Floor.bar.plusSeconds", { seconds: step })
-            : game.i18n.localize(BAR_LABELS[op]);
+        const label = barLabel(op, adjustStep(floor));
         const next = op === barNext ? " drpg-bar-next" : "";
         const target = op === "overrule" && !refused ? overruleTargetId(floor) : null;
         return `<button type="button" class="drpg-trial-bar-op${next}" data-drpg-bar="${op}"${target ? ` data-drpg-target="${esc(target)}"` : ""}${refused
@@ -1107,7 +1116,7 @@ export function trialConsoleHtml(view) {
             : floor.mode === FLOOR_MODES.debate
                 ? (over
                     ? `<p class="drpg-warning">${game.i18n.format(
-                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left) })}</p>`
+                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left), step: adjustStep(floor) })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
                 : isRoundMode(floor.mode)
                     // A round (E70 C7): its speaker, the turn's seconds and who is next in the frozen order.
@@ -1120,7 +1129,7 @@ export function trialConsoleHtml(view) {
                 : floor.mode === FLOOR_MODES.closing
                     // The Closing Argument (E70 C8): its speaker and seconds, or its phase's line for the table.
                     ? `<p>${floor.holderId
-                        ? game.i18n.format("DRPG.Floor.closing.holding", { who: esc(holder?.name ?? "-"), seconds: Math.max(left, 0) })
+                        ? plural("DRPG.Floor.closing.holding", { who: esc(holder?.name ?? "-"), seconds: Math.max(left, 0) }, "seconds")
                         : esc(game.i18n.localize("DRPG.Floor.mode.closing"))}</p>`
                 : floor.mode === FLOOR_MODES.objection
                     // E79 C16: an Objection raised and still waiting for its Truth Bullet runs the seconds to pick.
@@ -1215,8 +1224,8 @@ export function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
-            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${game.i18n.localize(restrictive
-                ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
+            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${restrictive
+                ? game.i18n.format("DRPG.Floor.modeNote", { step: adjustStep(floor) }) : game.i18n.localize("DRPG.Floor.objectionNote")}</p>` : ""}
             ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p>${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
@@ -1282,8 +1291,8 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         // After an Overrule (E70 C2): the same button, the debate again with the time it had.
                         // The seconds it opens with, at least 30 (`debateSeconds`, E51 C6), as `openAgain` opens it.
                         ? { action: "openAgain", default: isDefault("openAgain"),
-                            label: game.i18n.format("DRPG.Floor.againAfterOverrule", { seconds: Number(progress.againAfterOverrule.seconds) > 0
-                                ? debateSeconds(progress.againAfterOverrule.seconds) : 0 }) }
+                            label: plural("DRPG.Floor.againAfterOverrule", { seconds: Number(progress.againAfterOverrule.seconds) > 0
+                                ? debateSeconds(progress.againAfterOverrule.seconds) : 0 }, "seconds") }
                         : progress.debateAgain
                             // After its exchange closed it (E70 C3): the same question and budget, no window.
                             ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }
@@ -1785,6 +1794,8 @@ export async function openVoteDialog() {
         const unseen = ballotCopyStatus() !== null;
         if (returned || unseen) {
             const sure = await DialogV2.confirm({
+                yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+                no: { label: game.i18n.localize("DRPG.Dialog.no") },
                 classes: ["drpg-panel"],
                 window: { title: game.i18n.localize("DRPG.Vote.sendAgain") },
                 content: `<p>${unseen ? game.i18n.localize("DRPG.Vote.resendUnseen")

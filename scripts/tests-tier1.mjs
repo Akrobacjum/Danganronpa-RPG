@@ -81,16 +81,26 @@ const INVARIANTS = [
          * itself - so nothing else in the suite would notice a chain whose refusal
          * has no sentence, or a sentence for a currency that no longer exists.
          */
+        /* Since E66 C2 (S18-36) the counted lines are plural families, read by their `.other`; a gated chain has its
+           one-step refusal (`nothingLeft.<key>OneStep`, S09-40). */
+        const WILL_FAMILIES = ["action", "actionsLeft", "burst", "hope", "hopeHeld", "stressAfterHope", "stressAfterAction", "skippedAction"];
+        const WILL_LINES = ["breakdown", "free"];
+        const oneStep = Object.keys(PRICE_CHAINS).filter(key => PRICE_CHAINS[key].stepsBeyondFirst).map(key => `${key}OneStep`);
+        /* E66 fix r1 F3: a refusal with the action step skipped, for the one chain a caller skips it of (cleanup.mjs
+           `tamperPriceSkip`, a cleaner in their own Stage 6). */
+        oneStep.push("tamperSkippedAction");
         for (const kind of kinds) {
             ok(game.i18n.has(`DRPG.Price.label.${kind}.other`), `no plural label for ${kind}`);
-            ok(game.i18n.has(`DRPG.Price.paid.${kind}`), `no "paid" line for ${kind}`);
+            ok(game.i18n.has(`DRPG.Price.paid.${kind}.other`), `no "paid" family for ${kind}`);
         }
-        for (const key of Object.keys(PRICE_CHAINS)) {
+        for (const key of [...Object.keys(PRICE_CHAINS), ...oneStep]) {
             ok(game.i18n.has(`DRPG.Price.nothingLeft.${key}`),
                 `${key} has no sentence for running out of everything`);
         }
-        for (const name of ["action", "burst", "hope", "stressAfterHope",
-            "stressAfterAction", "breakdown", "free"]) {
+        for (const name of WILL_FAMILIES) {
+            ok(game.i18n.has(`DRPG.Price.will.${name}.other`), `DRPG.Price.will.${name} is no plural family`);
+        }
+        for (const name of WILL_LINES) {
             ok(game.i18n.has(`DRPG.Price.will.${name}`), `DRPG.Price.will.${name} is missing`);
         }
         for (const name of ["label.free", "paid.burst", "refunded", "refundLost", "noPrice"]) {
@@ -102,9 +112,8 @@ const INVARIANTS = [
                 const known = family === "label" || family === "paid"
                     ? [...kinds, "free", "burst"]
                     : family === "nothingLeft"
-                        ? Object.keys(PRICE_CHAINS)
-                        : ["action", "burst", "hope", "stressAfterHope",
-                            "stressAfterAction", "breakdown", "free"];
+                        ? [...Object.keys(PRICE_CHAINS), ...oneStep]
+                        : [...WILL_FAMILIES, ...WILL_LINES];
                 ok(known.includes(name),
                     `DRPG.Price.${family}.${name} is a sentence nothing can reach`);
             }
@@ -301,8 +310,8 @@ const INVARIANTS = [
 
         const dent = DESPAIR_CALLS.gameProtection;
         const boost = DESPAIR_CALLS.favoriteProject;
-        equal(dent?.label, "Game Integrity", "Game Integrity is not the name on the −2 Call");
-        equal(dent?.progress, -2, "Game Integrity is not −2 progress");
+        equal(dent?.label, "Game Integrity", "Game Integrity is not the name on the -2 Call");
+        equal(dent?.progress, -2, "Game Integrity is not -2 progress");
         equal(boost?.progress, 2, "Patronage is not +2 progress");
         equal(dent?.cost, boost?.cost,
             `the project Calls are no longer a pair: ${dent?.cost} against ${boost?.cost}`);
@@ -619,9 +628,12 @@ const INVARIANTS = [
 
         // Every entry needs a name and a sentence, or the card that announces a
         // draw has nothing to say about what was drawn.
+        // The words through overflow.mjs `overflowWhat`, the one road of its three readers since E66 C3 (Darkness, Shift and
+        // Panic are plural families there).
+        const { overflowWhat } = await import("./overflow.mjs");
         for (const key of Object.keys(OVERFLOW.effects)) {
             const name = game.i18n.localize(`DRPG.Overflow.name.${key}`);
-            const what = game.i18n.localize(`DRPG.Overflow.what.${key}`);
+            const what = overflowWhat(key, OVERFLOW.effects[key]);
             ok(name && !name.startsWith("DRPG."), `${key} has no name for the card`);
             ok(what && !what.startsWith("DRPG."), `${key} has no sentence for the card`);
         }
@@ -15862,7 +15874,7 @@ const INVARIANTS = [
             ["DRPG.Voice.held.connected", "DRPG.Voice.tile.nobody", "DRPG.Voice.held.gmBlock"],
             ["Connecting", "Disconnected", "Connected", "Eclipsed", "Blocked", "Own window", "Joining your voice channel.", "You are not connected to voice.",
                 "Connected to your voice channel."],
-            ["Łączenie", "Rozłączono", "Połączono", "Eclipsed", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem.",
+            ["Łączenie", "Rozłączono", "Połączono", "Eclipse", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem.",
                 "Połączono z kanałem głosowym."]]),
         "[the word, its run, title and live text: no Room; connecting; connected; reconnecting; signalReconnecting; connected; the module moving "
             + "the Room (the hook); the move over; a GM's block; the block, lost; the Eclipse, lost; the Eclipse heard; own window while moving; "
@@ -18024,6 +18036,8 @@ const INVARIANTS = [
         for (const key of keys) {
             for (const lang of ["en", "pl"]) {
                 const words = flats[lang][key];
+                // A Polish family's .few and .many have no English twin: English has .one and .other (E66 C3).
+                if (words === undefined && lang === "en" && /\.(few|many)$/.test(key) && typeof flats.en[key.replace(/\.(few|many)$/, ".other")] === "string") continue;
                 if (typeof words !== "string" || !words.trim()) { wrong.push(`${lang} ${key}: missing`); continue; }
                 if (/\d/.test(words.replace(/\{[^}]*\}/g, ""))) wrong.push(`${lang} ${key}: a number not by placeholder`);
                 if (/consent/i.test(words)) wrong.push(`${lang} ${key}: 'Consent'`);
@@ -18088,13 +18102,20 @@ const INVARIANTS = [
         // One form of the row's words wherever the Palm's three ways are listed (H81 fix r1): the row's own, first letter lowered.
         const lowered = text => (typeof text === "string" && text ? text[0].toLowerCase() + text.slice(1) : null);
         const hints = { en: palm.hint ?? "", pl: flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "" };
+        // E66 C7, 01.11.2026 (B01a, STATUS Open 43): the Polish Palm hint is B01a's approved text and says the glossary's
+        // form, docs/glossary.json `see-what-they-carry` "zobacz, co ktoś nosi" (stage E71), ahead of the row, the brochure
+        // and the GM handbook, which E71 moves; so the Polish hint is read for that form, and for none of the row's words.
+        // The English hint says the row's words, as before. Red on C7's landed tree with the row's words asked of it.
+        const HINT_WORDS = { pl: "zobacz, co ktoś nosi" };
         const oneForm = lang => {
             const words = lowered(flats[lang]["DRPG.Frisk.rowLabel"]);
-            return [words, ...[hints[lang], passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
+            const hint = HINT_WORDS[lang] ?? words;
+            return [words, Boolean(hint) && hints[lang].includes(hint) && (hint === words || !hints[lang].includes(words)),
+                ...[passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
         };
         equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, oneForm("en"), oneForm("pl"), /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
             J(["Zobacz, co nosi", ["see what they carry", true, true, true], ["zobacz, co nosi", true, true, true], false]),
-            "[the Polish row; in English and in Polish the row's words and whether the Palm hint, the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
+            "[the Polish row; in English and in Polish the row's words and whether the Palm hint (in Polish the glossary's 'zobacz, co ktoś nosi', since B01a), the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
         const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
         equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,
             /title:\s*game\.i18n\.localize\("DRPG\.Frisk\.noticeTitle"\)/.test(toast), toast.includes("DRPG.Frisk.rowLabel")]),
@@ -18580,9 +18601,9 @@ const INVARIANTS = [
             tab.draw();
         }
         const START = ["Known again after each season reset. Adding a student here does not give them the passage now.",
-            "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu przejścia teraz."];
+            "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu tajnego przejścia teraz."];
         const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
-            "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Przejście w ścianie zawsze prowadzi w obie strony."];
+            "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Tajne przejście w ścianie zawsze prowadzi w obie strony."];
         const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
         equal(J([drawn.slice(0, 3), ends(drawn[3], 0), written, polish?.slice(0, 2), ends(polish?.[2], 1)]),
             J([[[["both", "Both ways", true], ["0", "Only from R902 Dorm to R902 Lab", false], ["1", "Only from R902 Lab to R902 Dorm", false]], false, START[0]], true,
@@ -18645,9 +18666,9 @@ const INVARIANTS = [
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
         equal(J([drawn, en?.DRPG?.Bridge?.why?.notAtPassage, pl?.DRPG?.Bridge?.why?.notAtPassage, pl?.DRPG?.Passage?.list?.walk, pl?.DRPG?.Passage?.list?.oneWay]),
             J([[["R904 Dorm - R904 Lab", null, null, false], ["R904 Gym - R904 Pool", "oneWay", "One way only: from R904 Pool to R904 Gym.", false],
-                ["R904 Hall - R904 Kitchen", "walk", "Walk through the gap in the wall.", null]],
+                ["R904 Hall - R904 Kitchen", "walk", "Walk through the secret passage.", null]],
                 "Stand on the passage's mark, or a square next to it, first.",
-                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez przerwę w ścianie.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
+                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez tajne przejście.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
             "[each row as [its rooms, its line's kind, its line, 'Go through' disabled (null: no button)], the refusal away from an end in English, in Polish, the walk line and the way line in Polish]");
     }],
     ["R908 - a token moved onto a tunnel's end goes through it as 'Go through' does (H81-13, H81-14, H81-16): a knower's own move - a player's of their student or a GM's - that ends with the token's centre square on an end, on one floor or onto stairs to another, having started off it, names that tunnel, a one-way tunnel's way out included (its refusal is the button's); the crossing's own landing on the far end, a put-back, a teleport or a displace, a move that ends beside the end or runs across it, one that only climbs, turns or changes floor, another user's move and a character that knows no tunnel name none; the primary GM's landing write carries the crossing's mark", async () => {
@@ -23006,18 +23027,24 @@ const INVARIANTS = [
         }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
             + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
     }],
-    ["R850 - the time on a messenger bubble is written in the table's language, not the browser's (E18 C6; S11-61)", async () => {
+    ["R850 - the time on a messenger bubble is written in the language this page was built in, not the browser's and not Foundry's (E18 C6; S11-61; E66 C1, E66-05)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S11-61 (E18-28). The bubble's time was `toLocaleTimeString([], ...)`: the
-         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. One hour, read
-         * by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish and to English
-         * for the reading and put back, against what that language writes for it. The two must differ in this
-         * browser, or the test could not see the fault.
+         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. E18 gave it
+         * Foundry's language, and this test held that. E66 C1, 01.11.2026 (S18-40, E66-05): the words around the time
+         * are the module's, in the language the page was built in (i18n.mjs `pageLanguage`), and a Polish table on an
+         * English Foundry has the two differ - so the time is utils.mjs `localeFormat`'s, in the page's language. One
+         * hour, read by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish
+         * and to English for the reading and put back, against what the page's language writes for it ("en-US" for
+         * English, DB35). The two languages must write it differently in this browser, or the test could not see the
+         * fault. Rewritten first and red on c014681b's code: with Foundry's language Polish on an English page the
+         * bubble read Foundry's "14:15".
          */
-        const M = await import("./messenger-app.mjs");
+        const M = await import("./messenger-app.mjs"), I = await import("./i18n.mjs");
         const at = Date.UTC(2026, 9, 20, 14, 15);
-        const shape = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
-        must(shape("pl") !== shape([]) || shape("en") !== shape([]), "this browser writes an hour in its own locale as it does in Polish and in English - nothing to tell apart");
+        const page = I.pageLanguage();
+        const shape = lang => new Date(at).toLocaleTimeString(lang === "en" ? "en-US" : lang, { hour: "2-digit", minute: "2-digit" });
+        must(shape("pl") !== shape("en"), "this browser writes an hour in Polish as it does in English - nothing to tell apart");
         must(typeof M.bubbleTime === "function", "messenger-app.mjs has no bubbleTime to read the bubble's time with");
         const was = game.i18n.lang, read = {};
         try {
@@ -23028,7 +23055,8 @@ const INVARIANTS = [
         } finally {
             game.i18n.lang = was;
         }
-        equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
+        equal(stableJson(read), stableJson({ pl: shape(page), en: shape(page) }),
+            `[the bubble's time with Foundry's language Polish, then English, on a page built in "${page}"]`);
     }],
     ["R1061 - a messenger window marks its thread read only when it shows it to its reader: drawn, on the Chat tab, the frontmost window and the page visible, and neither a render nor a new bubble marks it without asking (E50 C1; S11-37, E50-01)", async () => {
         /*
@@ -23596,11 +23624,18 @@ const INVARIANTS = [
          * through `readersLines`, with Foundry's language set to Polish and to English for the time and put back; what
          * each line reads against what this browser writes for it; and, in the source, that the chat log's swap, the
          * messenger's bubble and its notice draw through it, and that `settleCall` and the ask's ends write their keys.
+         * E66 C1, 01.11.2026 (S18-40, E66-05): the reader's language is the module's as its page was built in (i18n.mjs
+         * `pageLanguage`, "en-US" for English), not Foundry's, which this test held until then; with Foundry's language
+         * set to either, the time is the page's. Rewritten first and red on c014681b's code: Foundry's Polish time on an
+         * English page.
          */
-        const S = await import("./secret.mjs");
+        const S = await import("./secret.mjs"), I = await import("./i18n.mjs");
         must(typeof S.readersLines === "function", "secret.mjs has no readersLines - a reader writes nothing of a card in its own clock");
         const at = Date.UTC(2026, 9, 24, 19, 20);
-        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) });
+        const page = I.pageLanguage();
+        const clock = lang => new Date(at).toLocaleTimeString(lang === "en" ? "en-US" : lang, { hour: "2-digit", minute: "2-digit" });
+        must(clock("pl") !== clock("en"), "this browser writes an hour in Polish as it does in English - nothing to tell apart");
+        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: clock(lang) });
         const words = `<p class="drpg-call-awaiting"><em>R852</em> <span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span></p>`
             + '<p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledApproved" data-drpg-name="R852 GM">Zatwierdził: R852 GM.</p>'
             + '<div class="drpg-gm-only"><p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledGone">Gracz już nie czekał.</p></div>'
@@ -23624,8 +23659,8 @@ const INVARIANTS = [
             /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
             /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
             /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
-        ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
-            "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
+        ]), stableJson([[shape(page), ...rest], [shape(page), ...rest], true, true, true, true, true]),
+            `[the drawn lines with Foundry's language Polish, then English, on a page built in "${page}": the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]`);
     }],
     ["R950 - a key put away in a stash opens no door: another's bedroom stays shut to a character whose only key to it is stashed, at the door and in game.drpg's answer (S08-31)", async () => {
         /*
@@ -24908,7 +24943,7 @@ const INVARIANTS = [
                 { available: true, feet: 2, solid: true, tooltip: n(2) }],
             drawn: [[true, false, 1, 0, free], [false, true, 0, 1, n(0)], [true, false, 2, 0, n(2)]],
             tips: [L("DRPG.Eclipse.actionsMurderOnly"), L("DRPG.Eclipse.placementOnly"),
-                game.i18n.format("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }), L("DRPG.Actions.allSpent")],
+                plural("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }, "max"), L("DRPG.Actions.allSpent")],
             placing: [2, 2],
             source: [true, true, true]
         }), "{rows: the Move row's reading in free placement, with no crossing left, with two; drawn: [available, spent, solid feet, outlined "
@@ -27999,6 +28034,7 @@ const INVARIANTS = [
          */
         let RT = null, C = null, SS = null;
         try { [RT, C, SS] = await Promise.all([import("./room-tile.mjs"), import("./config.mjs"), import("./season-setup.mjs")]); } catch { RT = null; }
+        const { plural } = await import("./utils.mjs");  // checksImagesLate is a family on {s} (E66 C3)
         const fx = await e20Fixture();
         const MB = 1024 * 1024;
         const pics = { ok: ["load", 200, MB], broken: ["fail", 200, MB], gone: ["load", 404, null], slow: ["hang", 200, 2 * MB],
@@ -28033,8 +28069,8 @@ const INVARIANTS = [
         equal(stableJson({
             missing: rooms(found?.missing), late: rooms(found?.late), large: (found?.large ?? []).map(e => [e.rooms[0].room.replace("R1536 ", ""), e.pixels, e.heavy]),
             unknownSize: rooms(found?.unknownSize), most, atOnce: C?.ROOM_IMAGE_LIMITS?.atOnce ?? null,
-            said: game.i18n.has("DRPG.Panel.checksImagesLate") && String(line).includes(game.i18n.format("DRPG.Panel.checksImagesLate",
-                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }))
+            said: game.i18n.has("DRPG.Panel.checksImagesLate.other") && String(line).includes(plural("DRPG.Panel.checksImagesLate",
+                { s: 0.03, rooms: ["slow", "slowheavy", "slownohead", "slownolength"].map(n => game.i18n.format("DRPG.Panel.checksImagesWhere", { room: `R1536 ${n}`, scene: "R1536 pictures" })).join("; ") }, "s"))
         }), stableJson({
             missing: ["broken", "gone"], late: ["slow", "slowheavy", "slownohead", "slownolength"], large: [["slowheavy", false, true]],
             unknownSize: [], most: 3, atOnce: 3, said: true
@@ -30302,6 +30338,589 @@ const INVARIANTS = [
             small: [10 * M, 30]
         }), "{elapsed, readyRunning, readyPaused, unpause, trial, takeBack: [takeBackFor, liveMemory], small: [elapsedOf, trialTime's minutes on small stamps]} for a stamp the uptime clock wrote");
     }],
+    ["R1150 - one list of languages and one language a page is written in: settings.mjs `LANGUAGES` gives the language setting its choices and the documents' theirs, `moduleLanguage()` answers by `Object.hasOwn` (a stored \"xx\" reads \"en\"), i18n.mjs re-exports the leaf's own objects and no other file writes the list out; with the setting answering the other language and no reload, `plural()`, `listOf`, `localeFormat` and `handbookPath` keep the page's (E66 C1; S13-60, S13-62, E66-02, E66-03)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S13-60 (LANGUAGES in i18n.mjs and the setting's choices written out a second time in
+         * settings.mjs), S13-62 (the frozen language), E66-02, E66-03. Read as R1129 reads the handbooks: the setting is
+         * answered as the other language for the language key alone (game.settings.get stood in, put back in a finally)
+         * and `game.i18n.has` is watched (put back too), so the form `plural()` asks for is seen whichever file the page
+         * holds - n = 5 is "many" in Polish and "other" in English. Then "xx" stored: `moduleLanguage()` answers "en".
+         * The scan for `en: "English"` reads every module file with its comments stripped. Nothing is written. Red at
+         * c014681b: `plural()` asked for the setting's form, LANGUAGES lived in i18n.mjs beside a second list in
+         * settings.mjs, and utils.mjs had no `localeFormat`.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs"), U = await import("./utils.mjs"), H = await import("./handbooks.mjs");
+        const page = I.pageLanguage();
+        const other = page === "pl" ? "en" : "pl";
+        const tag = lang => (lang === "en" ? "en-US" : lang);
+        const at = Date.UTC(2026, 10, 1, 14, 15);
+        const KEY = "DRPG.Chapter.doneKeys";
+        const def = key => game.settings.settings.get(`${MODULE_ID}.${key}`) ?? {};
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const i18n = game.i18n, ownHas = Object.hasOwn(i18n, "has"), realHas = i18n.has;
+        let answer = other, asked = [];
+        const read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.language) return answer;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            i18n.has = function (key, ...rest) { asked.push(key); return realHas.call(this, key, ...rest); };
+            read.told = I.moduleLanguage();
+            read.forms = [2, 5].map(n => { asked = []; U.plural(KEY, { n }); return asked.find(k => k.startsWith(`${KEY}.`)) ?? null; });
+            read.list = U.listOf(["A", "B", "C"]);
+            read.time = typeof U.localeFormat === "function" ? U.localeFormat("time", at, { hour: "2-digit", minute: "2-digit" }) : null;
+            read.book = H.handbookPath("player-brochure").match(/\.(\w+)\.md$/)?.[1] ?? null;
+            answer = "xx";
+            read.unknown = S.moduleLanguage();
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownHas) i18n.has = realHas; else delete i18n.has;
+        }
+        const sources = await moduleSources();
+        const written = [...sources].filter(([, text]) => /\ben:\s*"English"/.test(stripComments(text))).map(([file]) => file).sort();
+        equal(stableJson({
+            same: [I.LANGUAGES === S.LANGUAGES, I.moduleLanguage === S.moduleLanguage, I.pageLanguage === S.pageLanguage],
+            frozen: Object.isFrozen(S.LANGUAGES ?? {}),
+            choices: [stableJson(def(SETTINGS.language).choices), stableJson(def(SETTINGS.documentLanguage ?? "documentLanguage").choices)],
+            reload: def(SETTINGS.language).requiresReload === true,
+            written, ...read
+        }), stableJson({
+            same: [true, true, true], frozen: true,
+            // E66 fix r1 F12: the documents' setting offers its empty default, "not written yet", beside the languages (R1164).
+            choices: [stableJson(S.LANGUAGES), stableJson({ "": "-", ...S.LANGUAGES })],
+            reload: true,
+            written: ["settings.mjs"],
+            told: other,
+            forms: [2, 5].map(n => `${KEY}.${new Intl.PluralRules(page).select(n)}`),
+            list: new Intl.ListFormat(tag(page), { style: "long", type: "conjunction" }).format(["A", "B", "C"]),
+            time: new Date(at).toLocaleTimeString(tag(page), { hour: "2-digit", minute: "2-digit" }),
+            book: page,
+            unknown: "en"
+        }), `[i18n.mjs's LANGUAGES, moduleLanguage and pageLanguage the leaf's; LANGUAGES frozen; the choices of the language and documents' settings; the language setting's reload; the files that write the list out; with the setting answering "${other}" on a page built in "${page}": the setting read as told, the plural forms asked for 2 and 5, a list, a time, the handbook's language; "xx" stored]`);
+    }],
+
+    ["R1152 - a date, a time and a number on screen are the page's language through utils.mjs `localeFormat`, with the browser's locale and Foundry's language both different: gm-stores.mjs's case rows, messenger-app.mjs `bubbleTime`, secret.mjs `readersLines`, notice-history.mjs `noticeTime` by a call each, gm-bridge.mjs `expiresHtml`, gm-panel.mjs's failure log, trial.mjs's evidence log and season-setup.mjs's megabytes by their source (E66 C1; S18-40, E66-05)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S18-40, E66-05. T20 counted ten calls that wrote a date or a time in the browser's locale
+         * or in Foundry's language, and three Intl formats on their own: the case health check's dates in the browser's
+         * locale on every page, so a GM with an English system read "10/20/2026" in a Polish window. Here the page's
+         * language is stood in (settings.mjs `setPageLanguage`, put back in a finally) as whichever of English and Polish
+         * this browser's own locale does not write alike, and Foundry's language as "ar-EG", whose digits are neither's
+         * (put back too); the three shapes are held apart first, or the test could not see the fault. The case rows are
+         * read from `gmStoreHealth()` with the case's mark stood in for its setting alone (game.settings.get, put back):
+         * `lastBackup`'s `when`. The four that cannot be called alone are read in their source: each formats through
+         * `localeFormat` and none through a toLocale*String or Intl. Nothing is written. Red on the tree with the leaf
+         * and HEAD's sites: the case row in the browser's locale.
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), G = await import("./gm-stores.mjs");
+        const M = await import("./messenger-app.mjs"), P = await import("./secret.mjs"), N = await import("./notice-history.mjs");
+        must(typeof S.setPageLanguage === "function" && typeof U.localeFormat === "function", "settings.mjs has no setPageLanguage or utils.mjs no localeFormat - the page's language cannot be stood in");
+        must(game.user.isGM, "the case health check answers a GM only");
+        const at = Date.UTC(2026, 9, 20, 14, 15, 1);
+        const tag = lang => (lang === "en" ? "en-US" : lang);
+        const browserShape = new Date(at).toLocaleString();
+        const page = new Date(at).toLocaleString("pl") !== browserShape ? "pl" : "en";
+        const FOUNDRY = "ar-EG";
+        const full = lang => new Date(at).toLocaleString(lang);
+        const hm = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+        must(new Set([browserShape, full(tag(page)), full(FOUNDRY)]).size === 3 && new Set([new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), hm(tag(page)), hm(FOUNDRY)]).size === 3,
+            "this browser's locale, the page's language and Foundry's write a date or an hour alike - nothing to tell apart");
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        const wasLang = game.i18n.lang;
+        const was = S.setPageLanguage(page);
+        const read = {};
+        try {
+            game.i18n.lang = FOUNDRY;
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.caseMark) return { ...(realGet.call(this, ns, key, ...rest) ?? {}), lastBackupAt: at, lastBackupBy: "R1152 GM" };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            read.caseRow = (await G.gmStoreHealth())?.rows?.find(r => r.id === "lastBackup")?.data?.when ?? null;
+            read.bubble = M.bubbleTime(at);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = `<span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span>`;
+            P.readersLines(wrap.content);
+            read.card = wrap.content.querySelector(".drpg-call-expires")?.textContent ?? null;
+            read.notice = N.noticeTime(at);
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            game.i18n.lang = wasLang;
+            S.setPageLanguage(was);
+        }
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const through = (body, call) => body.includes(call) && !/toLocale(?:Date|Time)?String|\bIntl\s*\./.test(body);
+        const pagePrefs = { hour: "2-digit", minute: "2-digit" };
+        equal(stableJson({ ...read,
+            expires: through(fn("gm-bridge.mjs", "expiresHtml"), 'localeFormat("time", expires'),
+            failures: through(fn("gm-panel.mjs", "openFailureLog"), 'localeFormat("time"'),
+            evidence: through(fn("trial.mjs", "openObjectionLog"), 'localeFormat("time", e.timestamp)'),
+            megabytes: through(fn("season-setup.mjs", "roomImagesSection"), 'localeFormat("number"')
+        }), stableJson({
+            caseRow: full(tag(page)),
+            bubble: hm(tag(page)),
+            card: game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(tag(page), pagePrefs) }),
+            notice: hm(tag(page)),
+            expires: true, failures: true, evidence: true, megabytes: true
+        }), `[on a page built in "${page}" with Foundry's language "${FOUNDRY}" and the browser's own locale writing "${browserShape}": the case row's backup date, the bubble's hour, an ask card's end, a notice's hour; expiresHtml, the failure log, the evidence log and the megabytes formatted through localeFormat and nothing else]`);
+    }],
+
+    ["R1153 - the module says it is in English and Polish, and its containers say which language they are in: module.json's description names Polish, and `lang` is the page's language on a window the module opens (its classes name `drpg-`), the HUD, the notice stack, the GM's launcher and, by its render hook's source, the character sheet - and not on a window that is not the module's (E66 C1; S13-62, E66-08)", async () => {
+        /*
+         * E66 C1, 01.11.2026; S13-62, E66-08. A screen reader and the browser's own hyphenation and spelling read a
+         * container's `lang`; the module's windows inherited the page's, which is Foundry's language, so a Polish window
+         * on an English Foundry was read with English rules. module.mjs's render hook marks every ApplicationV2 the
+         * module opens - DialogV2 among them - by its classes (`drpg-` in `options.classes`, as the module builds every
+         * window it opens); the roots that are no window are marked where they are made. Two windows of the suite's
+         * own are rendered and closed here (no world write): one with the module's class, one without. Red at
+         * c014681b: no `lang` anywhere, and module.json's description named no language.
+         */
+        const I = await import("./i18n.mjs");
+        const page = I.pageLanguage();
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`, { cache: "no-cache" }).then(r => r.json());
+        const { ApplicationV2 } = foundry.applications.api;
+        class R1153Window extends ApplicationV2 {
+            async _renderHTML() { return "<p>R1153</p>"; }
+            _replaceHTML(result, content) { const box = content.querySelector?.(".window-content") ?? content; box.innerHTML = result; }
+        }
+        const own = new R1153Window({ id: `drpg-r1153-own-${foundry.utils.randomID(6)}`, classes: ["drpg-panel"], window: { title: "R1153" } });
+        const foreign = new R1153Window({ id: `r1153-foreign-${foundry.utils.randomID(6)}`, classes: ["r1153-not-the-module"], window: { title: "R1153" } });
+        const read = {};
+        try {
+            await own.render({ force: true });
+            await foreign.render({ force: true });
+            // A window's language is its content's (E66 fix r2: the frame holds Foundry's words), or the element's where there is no frame.
+            const marked = app => ((app.element?.querySelector?.(":scope > .window-content")) ?? app.element)?.getAttribute("lang") ?? null;
+            read.windows = [marked(own), marked(foreign)];
+        } finally {
+            await own.close().catch(() => null);
+            await foreign.close().catch(() => null);
+        }
+        const attr = id => document.getElementById(id)?.getAttribute("lang") ?? (document.getElementById(id) ? null : "absent");
+        read.hud = attr("drpg-hud");
+        read.notices = attr("drpg-popups");
+        read.launcher = game.user.isGM ? attr("drpg-gm-launcher") : page;
+        const sheet = fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "onRenderCharacterSheet") ?? "";
+        read.sheet = /\bmarkLanguage\(\s*root\s*\)/.test(sheet);
+        read.description = [/\bEnglish\b/.test(manifest.description ?? ""), /\bPolish\b/.test(manifest.description ?? ""), /\bPolski\b/.test(manifest.description ?? "")];
+        /*
+         * E66 fix r1 F1 (STATUS Open 3, 19), 01.11.2026: the roots built outside C1's files. Each by its builder's source
+         * (comments out) - a call of `markLanguage` on the element it builds - since several are drawn only on some
+         * pages (the voice tile with voice on, the roster and the floors on a click, the Foundry windows on a GM); and
+         * each that this page has drawn by the element itself. A Foundry window's frame is marked on its header alone:
+         * its body holds Foundry's own sidebar or scene controls, whose words are Foundry's. Red at dd7176ec: the
+         * builders of voice-tile.mjs, messenger-app.mjs, handbooks.mjs, foundry-windows.mjs and fog.mjs marked nothing.
+         */
+        const rootSources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(rootSources.get(file) ?? ""), name) ?? "";
+        const ROOTS = [["player-status.mjs", "renderPlayerStatus", "el"], ["room-tile.mjs", "ensureRoomTile", "tile"],
+            ["sfx.mjs", "renderSoundLauncher", "button"], ["voice-tile.mjs", "buildVoiceTile", "tile"], ["voice-tile.mjs", "buildVoiceList", "list"],
+            ["messenger-app.mjs", "renderLauncher", "button"], ["messenger-app.mjs", "buildRoster", "panel"], ["handbooks.mjs", "renderBookLauncher", "button"],
+            ["foundry-windows.mjs", "buildFrame", "head"], ["foundry-windows.mjs", "buildLauncher", "btn"], ["fog.mjs", "renderFloorSwitcher", "nav"],
+            // E66 fix r2: the two buttons the module puts into Daggerheart's countdown window's header, whose other words are Daggerheart's.
+            ["projects-ui.mjs", "onRenderCountdowns", "gear"], ["projects-tray.mjs", "addCollapseControl", "button"]];
+        read.roots = ROOTS.filter(([file, name, el]) => !new RegExp(`\\bmarkLanguage\\(\\s*${el}\\s*\\)`).test(fn(file, name))).map(([file, name]) => `${file} ${name}`);
+        read.frameMarked = /\bmarkLanguage\(\s*frame\s*\)/.test(fn("foundry-windows.mjs", "buildFrame"));
+        const DRAWN = ["drpg-player-status", "drpg-room-tile", "drpg-sound-launcher", "drpg-voice-tile", "drpg-voice-list", "drpg-messenger-launcher",
+            "drpg-messenger-roster", "drpg-book-launcher", "drpg-foundry-tools", "drpg-floors"];
+        const drawn = DRAWN.filter(id => document.getElementById(id));
+        read.drawn = drawn.filter(id => document.getElementById(id).getAttribute("lang") !== page);
+        read.frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id)).filter(Boolean)
+            .filter(frame => frame.hasAttribute("lang") || frame.querySelector(":scope > header")?.getAttribute("lang") !== page).map(frame => frame.id);
+        /*
+         * E66 fix r2 (review correctness m1, m2), 01.11.2026. A framed window holds Foundry's words beside the module's:
+         * its header's controls (Close, the menu) are Foundry's, in Foundry's language. So the hook marks the module's
+         * title and `.window-content`, not the frame, as fix r1 F1 marked foundry-windows.mjs's header alone; a window
+         * with no `.window-content` (a frameless one, whose element is its content, and every window in the harness,
+         * which draws no frame) is marked whole. A third window of the suite's own draws Foundry's frame itself where the
+         * page drew none (Foundry hands `_replaceHTML` the `.window-content`; the harness the element). A
+         * `DialogV2.confirm`'s footer is inside the content, so every confirm the module opens passes its own Yes and
+         * No (`DRPG.Dialog.yes`, `.no`): Foundry's default labels are Foundry's words. And every DialogV2 the module
+         * opens names a `drpg-` class, or the hook never sees it. Both by source (comments out), each call's object read
+         * to its closing brace. Red at 33662b90: the frame marked whole (its header inside the page's lang), 3 dialogs
+         * with no class (gm-stores.mjs, sheet.mjs, tables.mjs), 17 confirms with Foundry's Yes and No.
+         */
+        class R1153Framed extends ApplicationV2 {
+            async _renderHTML() { return "<p>R1153</p>"; }
+            _replaceHTML(result, content) {
+                if (content.classList?.contains("window-content")) { content.innerHTML = result; return; }
+                content.innerHTML = `<header class="window-header"><h1 class="window-title">R1153</h1><button type="button" class="header-control" `
+                    + `data-action="close" aria-label="Close Window"></button></header><section class="window-content">${result}</section>`;
+            }
+        }
+        const framed = new R1153Framed({ id: `drpg-r1153-framed-${foundry.utils.randomID(6)}`, classes: ["drpg-panel"], window: { title: "R1153" } });
+        try {
+            await framed.render({ force: true });
+            const el = framed.element, header = el?.querySelector?.(":scope > .window-header") ?? null;
+            const inside = node => { const at = node?.closest?.("[lang]"); return at && el.contains(at) ? at.getAttribute("lang") : "inherited"; };
+            read.frame = { element: el?.getAttribute("lang") ?? null, header: header ? inside(header) : "absent",
+                title: header?.querySelector(".window-title")?.getAttribute("lang") ?? null,
+                content: el?.querySelector?.(":scope > .window-content")?.getAttribute("lang") ?? null };
+        } finally {
+            await framed.close().catch(() => null);
+        }
+        let dialogs = 0;
+        read.unclassed = [];
+        read.foundryWords = [];
+        for (const [file, text] of rootSources) {
+            if (/^tests/.test(file)) continue;
+            const src = stripComments(text);
+            const calls = /\bDialogV2\s*\.\s*(confirm|wait|prompt|input)\s*\(\s*\{|\bnew\s+(?:foundry\.applications\.api\.)?DialogV2\s*\(\s*\{/g;
+            for (let m; (m = calls.exec(src));) {
+                let depth = 0, end = m.index + m[0].length - 1;
+                for (; end < src.length; end++) {
+                    if (src[end] === "{") depth += 1;
+                    else if (src[end] === "}") { depth -= 1; if (!depth) break; }
+                }
+                const body = src.slice(m.index, end + 1), at = `${file}:${src.slice(0, m.index).split("\n").length}`;
+                dialogs += 1;
+                if (!/\bclasses\s*:[^\n]*["'`]drpg-/.test(body)) read.unclassed.push(at);
+                if (m[1] === "confirm" && !(/\byes\s*:\s*\{[^}]*\blabel\s*:/.test(body) && /\bno\s*:\s*\{[^}]*\blabel\s*:/.test(body))) read.foundryWords.push(at);
+            }
+        }
+        must(dialogs >= 100, `only ${dialogs} DialogV2 call(s) with an object read in the module's source - the reader is broken`);
+        equal(stableJson(read), stableJson({ windows: [page, null], hud: page, notices: page, launcher: page, sheet: true, description: [true, true, true],
+            roots: [], frameMarked: false, drawn: [], frames: [], frame: { element: null, header: "inherited", title: page, content: page }, unclassed: [], foundryWords: [] }),
+            `[on a page built in "${page}": lang on the module's window (its content, or the element where it has no frame) and on a window not the module's; on the HUD, the notice stack and the GM's launcher; the sheet's render hook marks its root; module.json's description names English, Polish and "Polski"; the builders of the other roots that mark nothing; the Foundry window's frame marked whole; of the ${drawn.length} roots this page has drawn (${drawn.join(", ")}), those whose lang is not the page's; the Foundry windows' frames with a lang of their own or a header without the page's; a module window with Foundry's frame: the element's lang, the language its header inherits, the title's and the content's; of the ${dialogs} DialogV2 calls in the module's source, those that name no drpg- class, and the confirms that leave Foundry's Yes or No]`);
+    }],
+
+    ["R1154 - the documents' language is the world's (D196): a world setting `documentLanguage` with the module's languages for choices, not in the settings window, empty by default and written once by the primary GM's first start while empty; utils.mjs `worldLocalize` formats a key from that language's file with the page in the other, and in the page's language where the setting is empty (E66 C1; decision 38 = D34, E66-09)", async () => {
+        /*
+         * E66 C1, 01.11.2026; decision 38 = D34 option 1 ("Nowe ustawienie świata 'Język dokumentów', domyślnie język
+         * primary GM-a przy pierwszym starcie; UI dalej w języku klienta"), E66-09. The setting's registration is read;
+         * i18n.mjs `seedDocumentLanguage` is run with the setting answered empty and then "pl" (game.settings.get stood
+         * in for that key alone) and its write recorded and not made (game.settings.set stood in, both put back in a
+         * finally): one write of the page's language, on the primary GM alone, and none into a setting that holds one.
+         * Then `worldLocalize` with the setting answered as the other language than the page's, as the page's, and
+         * empty, against that language's own file fetched here and against `game.i18n.format`. Nothing is written; the
+         * other file stays in `worldLocalize`'s cache, as it would at a table. Red at c014681b: no such setting.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs"), U = await import("./utils.mjs");
+        const { isPrimaryGm } = U;
+        const def = game.settings.settings.get(`${MODULE_ID}.documentLanguage`) ?? null;
+        must(def, "no world setting documentLanguage is registered - the documents have no language of their own");
+        must(typeof I.seedDocumentLanguage === "function" && typeof U.worldLocalize === "function", "i18n.mjs has no seedDocumentLanguage or utils.mjs no worldLocalize");
+        const page = I.pageLanguage();
+        const other = page === "pl" ? "en" : "pl";
+        const KEY = "DRPG.Bridge.openUntil", DATA = { time: "R1154" };
+        const file = await fetch(`/modules/${MODULE_ID}/lang/${other}.json`, { cache: "no-cache" }).then(r => r.json());
+        const theirs = String(foundry.utils.getProperty(file, KEY) ?? file[KEY] ?? "").replace("{time}", DATA.time);
+        must(theirs && theirs !== game.i18n.format(KEY, DATA), `the ${other} file writes ${KEY} as this page does - nothing to tell apart`);
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get, ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        let answer = "";
+        const writes = [], read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === "documentLanguage") return answer;
+                return realGet.call(this, ns, key, ...rest);
+            };
+            settings.set = async function (ns, key, value, ...rest) {
+                if (ns === MODULE_ID && key === "documentLanguage") { writes.push([key, value]); return value; }
+                return realSet.call(this, ns, key, value, ...rest);
+            };
+            read.seeded = [await I.seedDocumentLanguage()];
+            answer = "pl";
+            read.seeded.push(await I.seedDocumentLanguage());
+            read.read = S.documentLanguage();
+            answer = other;
+            read.other = await U.worldLocalize(KEY, DATA);
+            answer = page;
+            read.same = await U.worldLocalize(KEY, DATA);
+            answer = "";
+            read.unset = await U.worldLocalize(KEY, DATA);
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            if (ownSet) settings.set = realSet; else delete settings.set;
+        }
+        const primary = isPrimaryGm();
+        equal(stableJson({
+            setting: def && { scope: def.scope, config: def.config === true, type: def.type?.name ?? null, choices: stableJson(def.choices), default: def.default },
+            writes, ...read
+        }), stableJson({
+            setting: { scope: "world", config: false, type: "String", choices: stableJson({ "": "-", ...S.LANGUAGES }), default: "" },
+            writes: primary ? [["documentLanguage", page]] : [],
+            seeded: [primary, false],
+            read: "pl",
+            other: theirs,
+            same: game.i18n.format(KEY, DATA),
+            unset: game.i18n.format(KEY, DATA)
+        }), `[the setting's scope, window, type, choices and default; the writes seedDocumentLanguage made with the setting empty, then holding "pl" (this GM ${primary ? "is" : "is not"} the primary); what it answers; ${KEY} through worldLocalize with the documents in "${other}", in "${page}" (the page's) and unset]`);
+    }],
+    ["R1155 - the price road's counts are plural families with the predicate in the family, in English and Polish: price.mjs `priceLine` and `paidLine`, `Price.paid.*`, `Price.will.*` (a sentence with two counts two families joined), `Action.costActions`, `Monocub.meddleCost(Short)`, each at n = 0, 1, 2, 5, 12, 22, 25, 112 with nothing left of \"{\" or \"DRPG.\" (\"Kosztuje 2 akcje. Masz 5 akcji.\"); a quote carries the steps it skipped and the skipped action step says it is not needed, never \"No actions left\"; Analyze outside the Class Trial is refused with its one-step line; the four keys of S13-19 render a 2-turn hindrance, a block and an action back (E66 C2; S18-36, S09-40, S13-19, E66-11 to E66-13)", async () => {
+        /*
+         * E66 C2, 01.11.2026; S18-36, S09-40, S13-19, E66-11 to E66-13. The price lines were flat strings: a Polish
+         * window read "Kosztuje 2 akcję. Masz 5." and a card "Zapłacono 2 akcją.", and a cleaner's Tamper in their own
+         * Stage 6, whose action step `skip` takes out, said "No actions left, so this costs 1 Sanity" with actions in
+         * hand. Each language is read with its file's DRPG block put in place of this browser's and the page's
+         * language stood in (settings.mjs `setPageLanguage`), both put back in a finally (R1507's and R1152's way), so
+         * `plural()` picks the language's forms. The quotes are plain objects, but for two: `quotePrice` on a living
+         * student, which only reads, for `skipped`; and on a stand-in with no action, no Hope and a full Sanity track,
+         * with the clock answered as Daily Life and then as the Class Trial (game.settings.get stood in for the clock
+         * alone, put back). The hindrance's actions are config.mjs's labels joined by utils.mjs `listOf`, as
+         * murder-rules.mjs `applyHindrance` joins them (tier 2's E66-T1 reads the card itself). Nothing is written.
+         * Red at 8e9d40e9: the families rendered their raw keys, priceLine wrote "Kosztuje 2 akcję. Masz 5." and a
+         * skipped step "No actions left", and Analyze outside the trial named Hope and Sanity.
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student to quote a Tamper with its action step skipped");
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), P = await import("./price.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const student = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased)) ?? null;
+        must(student, "no living student among the students - this would measure nothing");
+        const NS = [0, 1, 2, 5, 12, 22, 25, 112];
+        const FAMILIES = [
+            ["DRPG.Price.paid.action", "n"], ["DRPG.Price.paid.hope", "n"], ["DRPG.Price.paid.stress", "n"],
+            ["DRPG.Price.will.action", "n"], ["DRPG.Price.will.actionsLeft", "left"], ["DRPG.Price.will.burst", "n"],
+            ["DRPG.Price.will.hope", "n"], ["DRPG.Price.will.hopeHeld", "held"], ["DRPG.Price.will.stressAfterHope", "n"],
+            ["DRPG.Price.will.stressAfterAction", "n"], ["DRPG.Price.will.skippedAction", "n"], ["DRPG.Action.costActions", "n"],
+            ["DRPG.Monocub.meddleCost", "actions"], ["DRPG.Monocub.meddleCostShort", "actions"],
+            ["DRPG.Murder.hinderedActions", "turns"], ["DRPG.Murder.blockedActions", "turns"], ["DRPG.Cleanup.actionBack", "n"]
+        ];
+        const label = key => CRISIS_ACTIONS[key]?.label ?? key;
+        const stuck = {
+            id: "R1155stuck", name: "R1155 stuck", type: "character", items: [], getFlag: () => undefined,
+            system: { resources: { actions: { value: 0, max: 3 }, hope: { value: 0, max: 6 }, stress: { value: 6, max: 6 }, hitPoints: { value: 0, max: 6 } } }
+        };
+        const settings = game.settings, ownGet = Object.hasOwn(settings, "get"), realGet = settings.get;
+        let phase = "dailyLife";
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            settings.get = function (ns, key, ...rest) {
+                if (ns === MODULE_ID && key === SETTINGS.clock) return { ...(realGet.call(this, ns, key, ...rest) ?? {}), phase };
+                return realGet.call(this, ns, key, ...rest);
+            };
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                const r = read[code] = {};
+                r.broken = FAMILIES.flatMap(([key, on]) => NS.map(n => [key, n, U.plural(key, { n, left: n, held: n, hope: 1, actions: n, turns: n }, on)]))
+                    .filter(([, , text]) => /[{}]|DRPG\./.test(String(text))).map(([key, n]) => `${key} ${n}`);
+                r.cost = [1, 2, 5, 22, 25].map(n => U.plural("DRPG.Price.will.action", { n }));
+                r.lines = [
+                    P.priceLine(null, { key: "objection", pay: "action", amount: 2, left: 5, grant: false }),
+                    P.priceLine(null, { key: "objection", pay: "hope", amount: 1, held: 2 }),
+                    P.paidLine({ pay: "action", amount: 2 }),
+                    U.plural("DRPG.Action.costActions", { n: 2 }),
+                    U.plural("DRPG.Monocub.meddleCost", { hope: 1, actions: 2 }, "actions")
+                ];
+                r.skipped = P.priceLine(null, { key: "tamper", pay: "stress", amount: 1, skipped: ["action"], lastSanity: false });
+                phase = "dailyLife";
+                r.analyze = [P.quotePrice(stuck, "analyze").blocked];
+                phase = "classTrial";
+                r.analyze.push(P.quotePrice(stuck, "analyze").blocked);
+                phase = "dailyLife";
+                // E66 fix r1 F3 (STATUS Open 11): with nothing left, a Tamper whose action step was skipped names the Sanity alone.
+                r.tamperStuck = [P.quotePrice(stuck, "tamper", { skip: ["action"] }).blocked, P.quotePrice(stuck, "tamper").blocked];
+                r.raw = [
+                    U.plural("DRPG.Murder.hinderedActions", { turns: 2, actions: U.listOf([label("leaveClue"), label("survive")]) }, "turns"),
+                    U.plural("DRPG.Murder.blockedActions", { turns: 2, actions: U.listOf([label("secureTrace"), label("roleReversal")], { type: "negated" }) }, "turns"),
+                    U.plural("DRPG.Murder.blockedActions", { turns: 1, actions: U.listOf([label("survive")], { type: "negated" }) }, "turns"),
+                    U.plural("DRPG.Cleanup.actionBack", { n: 1 }),
+                    game.i18n.format("DRPG.Cleanup.stressBack", { n: 1 })
+                ];
+            }
+            read.quoted = [P.quotePrice(student, "tamper", { skip: ["action"] }).skipped ?? null, P.quotePrice(student, "tamper").skipped ?? null];
+        } finally {
+            if (ownGet) settings.get = realGet; else delete settings.get;
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const [lc, sv, st, rr] = ["leaveClue", "survive", "secureTrace", "roleReversal"].map(label);
+        equal(stableJson(read), stableJson({
+            en: {
+                broken: [],
+                cost: ["Costs 1 action.", "Costs 2 actions.", "Costs 5 actions.", "Costs 22 actions.", "Costs 25 actions."],
+                lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
+                skipped: "No action is needed here. This costs 1 Sanity.",
+                analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
+                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and no Sanity to give instead."],
+                raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
+                    `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
+            },
+            pl: {
+                broken: [],
+                cost: ["Kosztuje 1 akcję.", "Kosztuje 2 akcje.", "Kosztuje 5 akcji.", "Kosztuje 22 akcje.", "Kosztuje 25 akcji."],
+                lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
+                skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
+                analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
+                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji ani Sanity, które można by dać w zamian."],
+                raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
+                    `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
+            },
+            quoted: [["action"], []]
+        }), "[in English, then Polish: the families at the eight n that leave a brace or a key; Price.will.action at 1, 2, 5, 22 and 25; "
+            + "priceLine for 2 actions with 5 held and for 1 Hope with 2 held, paidLine for 2 actions, a tile's cost, the Confusion's; "
+            + "priceLine for a Sanity step with the action skipped; Analyze refused with nothing left in Daily Life and in the Class Trial; "
+            + "a Tamper refused with nothing left, its action step skipped and not; "
+            + "the hindrance, the block, a block of one action, the action and the Sanity given back; then a living student's Tamper quoted "
+            + "with its action step skipped and without]");
+    }],
+
+    ["R1163 - the fix round's numbers reach their texts by the road, in English and Polish (E66 fix r1 F4, F7, F8, F9): vault.mjs `roomRatioLine` writes its quotient and the season's rooms per student through `localeFormat` (\"1,5\" on a Polish page); events.mjs `voteMetaLine` agrees with both its counts - the noun with the total, the Polish predicate with the ballots back - a total of 1 included; `Trial.turn.closingPassEarly` and `Floor.modeNote` say the seconds `TRIAL` holds, filled where they are drawn; the Rest's \"half\" is the half rest.mjs heals", async () => {
+        /*
+         * E66 fix r1, 01.11.2026; STATUS Open 13 (F4), 17 (F7), 24 and 49 (F8), 26 (F9). `roomRatioLine` wrote its
+         * quotient by `toFixed(1)`, "1.5" on a Polish page, and the 1.5 rooms per student as it is; `Events.voteMetaGm`
+         * was counted on the ballots back while its noun follows the total, so a total of 1 read "0 of 1 ballots back"
+         * and "1 z 1 głosów wrócił"; the Closing Argument's Pass said "first 30 s" and the console's footnote "half a
+         * minute" beside `TRIAL.modes.closing.passWindowSeconds` and the bar's step. The Rest's "half" is no number
+         * config holds - rest.mjs heals `Math.ceil(marks / 2)` for a short Sleep or Meal - so it stays a word, and this
+         * holds the word to that code: a change of the half in rest.mjs fails here, beside the sentences that say it.
+         * Each language is read with its file's DRPG block in place of this browser's and the page's language stood in
+         * (settings.mjs `setPageLanguage`), both put back in a finally; the readers are read in their source (comments
+         * out). Nothing is written. Red at dd7176ec: "1.5" in Polish, voteMetaLine absent, "30 s" and "half a minute".
+         */
+        const S = await import("./settings.mjs"), U = await import("./utils.mjs"), V = await import("./vault.mjs"), E = await import("./events.mjs");
+        const { TRIAL, ROOMS_PER_PLAYER } = await import("./config.mjs");
+        must(typeof S.setPageLanguage === "function", "settings.mjs has no setPageLanguage - the page's language cannot be stood in");
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = await res.json();
+        }
+        const pass = TRIAL.modes.closing.passWindowSeconds, step = TRIAL.modes.gm.adjustSeconds;
+        must(Number.isFinite(pass) && Number.isFinite(step) && ROOMS_PER_PLAYER === 1.5, `TRIAL's seconds or ROOMS_PER_PLAYER are not what this reads: ${stableJson({ pass, step, ROOMS_PER_PLAYER })}`);
+        const BALLOTS = [[0, 1], [1, 1], [2, 3], [5, 7]];
+        const own = game.i18n.translations;
+        const was = S.setPageLanguage("en");
+        const read = {};
+        try {
+            for (const code of ["en", "pl"]) {
+                game.i18n.translations = { ...own, DRPG: files[code].DRPG };
+                S.setPageLanguage(code);
+                read[code] = {
+                    ratio: V.roomRatioLine({ count: 3, locked: [] }, 2).replace(U.plural("DRPG.Vault.roomCensus", { n: 3 }), "{rooms}"),
+                    ballots: typeof E.voteMetaLine === "function" ? BALLOTS.map(([back, total]) => E.voteMetaLine(back, total)) : null,
+                    pass: game.i18n.format("DRPG.Trial.turn.closingPassEarly", { seconds: pass }),
+                    note: game.i18n.format("DRPG.Floor.modeNote", { step }),
+                    // The Polish of config.mjs's prose is pl.json's; the English is config.mjs's own, read in its source below.
+                    ...(code === "pl" ? { half: ["sleep", "meal"].map(key => files.pl.DRPG.Config?.REST?.options?.[key]?.short ?? null) } : {})
+                };
+            }
+        } finally {
+            game.i18n.translations = own;
+            S.setPageLanguage(was);
+        }
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name) ?? "";
+        const rest = stripComments(sources.get("rest.mjs") ?? "");
+        const config = sources.get("config.mjs") ?? "";
+        read.sources = {
+            ratio: /localeFormat\("number",\s*census\.count \/ living/.test(fn("vault.mjs", "roomRatioLine")) && /localeFormat\("number",\s*ROOMS_PER_PLAYER\)/.test(fn("vault.mjs", "roomRatioLine"))
+                && !/toFixed/.test(fn("vault.mjs", "roomRatioLine")),
+            ballots: /voteMetaLine\(back,\s*back \+ out\)/.test(fn("events.mjs", "trialCard")),
+            pass: /"DRPG\.Trial\.turn\.closingPassEarly"[^]{0,160}seconds:\s*TRIAL\.modes\.closing\.passWindowSeconds/.test(fn("trial-prompt.mjs", "promptTurn")),
+            note: /"DRPG\.Floor\.modeNote"[^]{0,200}step:\s*adjustStep\(floor\)/.test(stripComments(sources.get("trial-floor-ui.mjs") ?? "")),
+            half: (rest.match(/full \? marks : Math\.ceil\(marks \/ 2\)/g) ?? []).length,
+            restProse: [/short: "Restores half Health"/.test(config), /short: "Restores half Sanity"/.test(config)]
+        };
+        equal(stableJson(read), stableJson({
+            en: {
+                ratio: "{rooms}. Living students: 2 (1.5 rooms each). This season was built on 1.5 per student, so this cast wants 3.",
+                ballots: ["0 of 1 ballot back", "1 of 1 ballot back", "2 of 3 ballots back", "5 of 7 ballots back"],
+                pass: `Pass in your first ${pass} s hands the choice back to the GM; after that it ends the Closing Argument.`,
+                note: `This runs out on its own. The bar below cuts it short (Skip), takes or gives ${step} s, or drops straight back to the open debate.`
+            },
+            pl: {
+                ratio: "{rooms}. Żyjący uczniowie: 2 (1,5 pokoju na głowę). Sezon zbudowano na 1,5 na ucznia, więc ta obsada potrzebuje 3.",
+                ballots: ["0 z 1 głosu wróciło", "1 z 1 głosu wrócił", "2 z 3 głosów wróciły", "5 z 7 głosów wróciło"],
+                pass: `Pasuję w pierwszych ${pass} s oddaje wybór GM-owi; potem kończy Closing Argument.`,
+                note: `To kończy się samo. Pasek poniżej skraca to (Pomiń), odejmuje lub dodaje ${step} s albo wraca od razu do otwartej debaty.`,
+                half: ["Przywraca połowę Health", "Przywraca połowę Sanity"]
+            },
+            sources: { ratio: true, ballots: true, pass: true, note: true, half: 2, restProse: [true, true] }
+        }), "[in English, then Polish: the room ratio of 3 rooms for 2 living students; the vote's meta at 0 and 1 of 1, 2 of 3, 5 of 7; "
+            + "the Closing's early Pass and the console's footnote with TRIAL's seconds; the Polish Rest's short Sleep and Meal; then the readers: "
+            + "roomRatioLine through localeFormat and no toFixed, the trial card through voteMetaLine, promptTurn and the console filling the "
+            + "seconds from TRIAL, rest.mjs's two halves and config.mjs's English that says them]");
+    }],
+
+    ["R1164 - every setting of the module that offers choices has its default among them (E66 fix r1 F12; STATUS Open 2): `documentLanguage`'s empty default is a choice of its own, so a Foundry that holds a setting's default to its choices finds it there, and the documents' language is still written once, by the primary GM, while empty", async () => {
+        /*
+         * E66 fix r1, 01.11.2026; STATUS Open 2. C1 registered `documentLanguage` with the module's languages for its
+         * choices and "" for its default, the value that says "not written yet" (i18n.mjs `seedDocumentLanguage` writes
+         * the primary GM's page language while it is empty). Whether Foundry v14 holds a setting's default to its choices
+         * is not read in this repository's notes, and the harness's settings keep whatever they are given; a default
+         * among the choices needs no answer to that. Read: every registration of this module, as Foundry holds it.
+         * Nothing is written. Red at dd7176ec: documentLanguage's "" outside its choices.
+         */
+        const S = await import("./settings.mjs");
+        const rows = [...game.settings.settings.entries()].filter(([key, def]) => key.startsWith(`${MODULE_ID}.`) && def?.choices && typeof def.choices === "object");
+        must(rows.length >= 4, `only ${rows.length} setting(s) of the module offer choices - this would measure little`);
+        const outside = rows.filter(([, def]) => !Object.hasOwn(def.choices, String(def.default))).map(([key, def]) => `${key}: ${JSON.stringify(def.default)}`);
+        const doc = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.documentLanguage}`);
+        equal(stableJson({ outside, documents: doc ? [doc.default, Object.keys(doc.choices ?? {}).filter(code => code !== "")] : null }),
+            stableJson({ outside: [], documents: ["", Object.keys(S.LANGUAGES)] }),
+            `[of the ${rows.length} settings of the module with choices, those whose default is not one of them; the documents' language's default and its choices beside the empty one]`);
+    }],
+
+    ["R1165 - Check rooms writes its squares by the page's language (E66 fix r2; the goal review's m4, S18-40, E66-05): fog-diagnostics.mjs `squaresText` writes one decimal through `localeFormat` - \"1,5\" and \"2,0\" on a Polish page, \"1.5\" and \"2.0\" on an English one - and the overlap's squares and depth and a border's squares adrift go through it, with no `toFixed` left in the file", async () => {
+        /*
+         * E66 fix r2, 01.11.2026; the goal review's m4. `finding()` was handed `squares.toFixed(1)` and
+         * `(depth / grid).toFixed(1)` for `DRPG.Fog.check.overlap` and `.adrift`, so a Polish GM read "Około 1.5 kratki" -
+         * the class of `Vault.roomRatio` (fix r1 F4), which T20 does not see (it reads Intl and toLocale*, not toFixed).
+         * The writer is run with the page's language stood in (settings.mjs `setPageLanguage`, put back in a finally);
+         * the callers are read in their source (comments out). Nothing is written. Red at 33662b90 with the writer
+         * taken out of the three calls as it stood (`toFixed(1)`): "1.5" and "2.0" on the Polish page.
+         */
+        const S = await import("./settings.mjs"), F = await import("./fog-diagnostics.mjs");
+        must(typeof F.squaresText === "function", "fog-diagnostics.mjs has no squaresText - Check rooms' squares have no writer to read");
+        const read = {};
+        const was = S.setPageLanguage("pl");
+        try {
+            for (const code of ["pl", "en"]) {
+                S.setPageLanguage(code);
+                read[code] = [F.squaresText(1.5), F.squaresText(2), F.squaresText(0.25)];
+            }
+        } finally {
+            S.setPageLanguage(was);
+        }
+        const src = stripComments((await moduleSources()).get("fog-diagnostics.mjs") ?? "");
+        must(src.length > 1000, "fog-diagnostics.mjs was not read");
+        read.toFixed = (src.match(/\.toFixed\(/g) ?? []).length;
+        read.through = (src.match(/\bsquaresText\(/g) ?? []).length;
+        equal(stableJson(read), stableJson({ pl: ["1,5", "2,0", "0,3"], en: ["1.5", "2.0", "0.3"], toFixed: 0, through: 3 }),
+            "[squaresText of 1.5, 2 and 0.25 on a Polish and on an English page; the toFixed calls left in fog-diagnostics.mjs; its calls of squaresText (the overlap's squares and depth, the border adrift)]");
+    }],
+
+    ["R1166 - a language file that does not load leaves the page in English: i18n.mjs `fetchLanguageFile`, handed a fetch that is refused, one that answers 404 and one that answers a file, on a page stood in as Polish - the first two answer null with the page \"en\" and say so once each, the third answers the file with the page still \"pl\" (E66 fix r2; review correctness m3)", async () => {
+        /*
+         * E66 fix r2, 01.11.2026; review correctness m3. `prefetchLanguage` sets the page's language before the file's
+         * fetch, and a fetch that failed said "the module stays in English" while `pageLanguage()` stayed "pl"; since
+         * E66 `listOf`, `localeFormat` and `markLanguage` read it, so the same failure wrote "A, B i C", Polish dates and
+         * `lang="pl"` into English text. The fetch is handed in, and so is the reporter (no error is logged here); the
+         * page's language is stood in and put back in a finally. Nothing is written. Red at 33662b90 with the fetch moved
+         * into `fetchLanguageFile` as it stood: the page "pl" after the refused and the missing file.
+         */
+        const S = await import("./settings.mjs"), I = await import("./i18n.mjs");
+        must(typeof I.fetchLanguageFile === "function", "i18n.mjs has no fetchLanguageFile - the language file's fetch cannot be run apart from init's");
+        const read = {}, reported = [];
+        const report = message => reported.push(String(message));
+        const ROADS = [["refused", () => Promise.reject(new Error("R1166"))],
+            ["missing", async () => ({ ok: false, status: 404, json: async () => ({}) })],
+            ["loaded", async () => ({ ok: true, status: 200, json: async () => ({ R1166: "R1166" }) })]];
+        const was = S.setPageLanguage("pl");
+        try {
+            for (const [name, fetchFile] of ROADS) {
+                S.setPageLanguage("pl");
+                const json = await I.fetchLanguageFile("pl", { fetchFile, report });
+                read[name] = [json === null ? null : Object.keys(json), S.pageLanguage()];
+            }
+        } finally {
+            S.setPageLanguage(was);
+        }
+        read.reported = reported.length;
+        equal(stableJson(read), stableJson({ refused: [null, "en"], missing: [null, "en"], loaded: [["R1166"], "pl"], reported: 2 }),
+            "[the file's answer and the page's language after a refused fetch, a 404 and a file that loads, on a page stood in as Polish; how many times the failure was reported]");
+    }]
 ];
 
 /**

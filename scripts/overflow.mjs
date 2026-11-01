@@ -880,20 +880,33 @@ async function shakeProjects(amount) {
     return { moved };
 }
 
+/**
+ * What a darkening or a one-off does, in words (E66 C3, 01.11.2026; S09-42, E66-14): the one road for its three
+ * readers - this file's card and GM section, and events.mjs's panel row. Darkness, Shift and Panic count what they
+ * take away and are plural families on {n}; the rest are sentences. A template key, so T3 cannot read it: this helper
+ * is the one that knows which are families (the file's own `.other`).
+ */
+export function overflowWhat(key, rule = null) {
+    const id = `DRPG.Overflow.what.${key}`;
+    const data = { n: rule?.by ?? 1 };
+    return game.i18n.has(`${id}.other`) ? plural(id, data) : game.i18n.format(id, data);
+}
+
 /** The card the whole table gets. Public by design - this is weather, not a secret. */
 async function announceOverflow(drawn, left, paid) {
     const rule = overflowRules().effects[drawn];
     const name = game.i18n.localize(`DRPG.Overflow.name.${drawn}`);
-    const what = game.i18n.format(`DRPG.Overflow.what.${drawn}`, { n: rule?.by ?? 1 });
+    const what = overflowWhat(drawn, rule);
     // In a Class Trial a darkening waits for the time of day after it (S09-07, D16): the card says
     // so. Rot and Earthquake happen now, in the trial as anywhere.
     const body = getClock().phase === "classTrial" && rule?.kind === "state"
         ? "DRPG.Overflow.cardBodyTrial" : "DRPG.Overflow.cardBody";
+    // Both are plural families on {n}, the points spent (E66 C3, the census).
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } },
         content: `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
-            <p>${game.i18n.format(body, { n: paid })}</p>
+            <p>${plural(body, { n: paid })}</p>
             <p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${what}</p>
             <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`
     });
@@ -1045,7 +1058,7 @@ export function overflowSection({ suggestion = "" } = {}) {
     const row = key => {
         const rule = status.rules.effects[key];
         const name = esc(game.i18n.localize(`DRPG.Overflow.name.${key}`));
-        const what = esc(game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 }));
+        const what = esc(overflowWhat(key, rule));
         // Only some of the eight have a size. Despair, Silence and Fog are on
         // or off, and a spin box beside them would be a control that does
         // nothing - which is worse than no control at all.

@@ -119,7 +119,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { warn } from "./utils.mjs";
+import { warn, markLanguage } from "./utils.mjs";
 
 const FRAME_CLASS = "drpg-foundry-window";
 const BODY_CLASS = "drpg-foundry-windows";
@@ -223,6 +223,9 @@ function buildFrame(row) {
     frame.setAttribute("aria-label", title);
     const head = document.createElement("header");
     head.className = "drpg-foundry-window-header";
+    /* The page's language on the frame's own header - its title and close button (E66 fix r1 F1, STATUS Open 19) - and
+       not on the frame: its body holds Foundry's own sidebar or scene controls, whose words are in Foundry's language. */
+    markLanguage(head);
     const name = document.createElement("h2");
     name.className = "drpg-foundry-window-title";
     name.textContent = title;
@@ -408,6 +411,8 @@ function buildLauncher() {
     const label = game.i18n.localize("DRPG.FoundryTools.toggle");
     const btn = document.createElement("button");
     btn.id = LAUNCHER_ID;
+    // Its language, the page's (E66 fix r1 F1; C1's `lang` on the module's containers, STATUS Open 3 and 19).
+    markLanguage(btn);
     btn.type = "button";
     btn.dataset.drpgCluster = "";
     btn.setAttribute("aria-label", label);

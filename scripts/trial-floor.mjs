@@ -53,7 +53,7 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, isDeceased, isMutedDead, seasonEpoch } from "./settings.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { cubVoice } from "./voice.mjs";
-import { isPrimaryGm, error, serverNow, serialWrite } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow, serialWrite, plural } from "./utils.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
@@ -486,7 +486,8 @@ async function postFloorCard(card, prev) {
         // The Closing's "{name} continues the Closing Argument ({time})." (E70 C8): the seconds the stretch starts with, m:ss.
         const seconds = Math.max(Math.round(Number(card.seconds) || 0), 0);
         const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time })) });
+        // `seconds` whole, for a card that names them as a number ("Volunteer within {seconds} s", E66 C4).
+        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time, seconds })) });
     } catch (err) {
         error("Could not post the card of the GM's change of the floor", err);
     }
@@ -1240,12 +1241,12 @@ export async function overruleObjection(messageId = null) {
 function overruledState(floor) {
     const seconds = Math.max(leftAt(floor, serverNow()), 0);
     if (floor?.mode === FLOOR_MODES.rebuttal) {
-        return game.i18n.format("DRPG.Floor.overrule.stateRebuttal", {
+        return plural("DRPG.Floor.overrule.stateRebuttal", {
             who: game.actors.get(floor.holderId ?? "")?.name ?? "-", target: game.actors.get(floor.targetId ?? "")?.name ?? "-", seconds
-        });
+        }, "seconds");
     }
     if (floor?.mode === FLOOR_MODES.objection) return game.i18n.localize("DRPG.Floor.mode.objection");
-    return game.i18n.format("DRPG.Floor.overrule.stateDebate", { seconds });
+    return plural("DRPG.Floor.overrule.stateDebate", { seconds }, "seconds");
 }
 
 /**

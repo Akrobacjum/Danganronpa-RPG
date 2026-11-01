@@ -29,6 +29,10 @@
 export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 
 /**
+ * A module world setting with no row of its own here holds nothing the rule
+ * keeps out, and `everySetting` reads it still: `documentLanguage` (E66 C1) holds a
+ * language code alone.
+ *
  * The rule. `settings` is keyed by a module world setting's key, without the
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at
  * all), or `only` (the top-level keys it may hold). `everySetting` holds for every

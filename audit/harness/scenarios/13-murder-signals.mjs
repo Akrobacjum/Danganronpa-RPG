@@ -534,11 +534,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* THE GM'S PICK OF A STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). The card asking
        it is veiled in Aiko's thread: its words reach the victim's browser and no other
        player's, and its document names nobody on the bystander's. Each browser reads the
-       words it was sent (`__diceNet`) for the card's title, and the bystander the document. */
+       words it was sent (`__diceNet`) for the card's title, and the bystander the document. The action's name is
+       looked for in any case (E66 C5, 01.11.2026: "Leave a clue" became "Leave a Clue", and a case-exact look for the
+       old form would find nothing whatever the card said). */
     const RULING_READ = `const title = game.i18n.localize("DRPG.TraitRuling.title");
         const d = game.messages.get(${JSON.stringify(ruled[0]?.message ?? "")})?.toObject() ?? null;
         return { words: globalThis.__diceNet.words.filter(h => h.includes(title)).length, veiled: d?.flags?.["${MOD}"]?.veiled === true,
-            named: d ? JSON.stringify([d.speaker, d.system, d.flags, d.content]).match(/${ids.aiko}|Aiko Hoshino|${p1.userId}|Leave a clue/) !== null : null };`;
+            named: d ? JSON.stringify([d.speaker, d.system, d.flags, d.content]).match(/${ids.aiko}|Aiko Hoshino|${p1.userId}|Leave a Clue/i) !== null : null };`;
     const rulingSeen = { victim: await p1.eval(RULING_READ), bystander: await p2.eval(RULING_READ), killer: await p3.eval(RULING_READ) };
     check("dice: the victim's Leave a clue waits for the GM's pick on a veiled card in her thread, and rolls the pick - Shadow, not the first listed",
         ruled.length === 1 && JSON.stringify(ruled[0].offered) === JSON.stringify(["hand", "leg", "shadow"]) && ruled[0].picked === "shadow"

@@ -32,7 +32,7 @@
 import { MODULE_ID, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { allProjects, knowsProject } from "./projects.mjs";
-import { error } from "./utils.mjs";
+import { error, markLanguage } from "./utils.mjs";
 
 /**
  * Redraw the project tray on this client.
@@ -322,6 +322,8 @@ export function addCollapseControl(root) {
     button.type = "button";
     button.className = "drpg-projects-fold";
     button.innerHTML = `<i class="fa-solid fa-chevron-down" inert></i>`;
+    // The module's words in Daggerheart's header, whose own are in Foundry's language (E66 fix r2; R1153).
+    markLanguage(button);
     button.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();

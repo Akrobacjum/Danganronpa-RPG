@@ -464,7 +464,7 @@ const CLAUSES = [
                 return null;
             }
 
-            await whisperToGms(`<p>${game.i18n.format("DRPG.Motive.migrated", {
+            await whisperToGms(`<p>${plural("DRPG.Motive.migrated", {
                 n: MOTIVE.defaultTimesOfDay
             })}</p>`);
 

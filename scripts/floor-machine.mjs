@@ -235,9 +235,10 @@ function closingStep(floor, event, ctx, now) {
             if (ctx?.closingDone) return { refused: "DRPG.Floor.closing.already" };
             if (floor && floor.mode !== MODES.debate) return { refused: "DRPG.Floor.closing.busy" };
             const base = { active: true, pending: false, messageId: null, before: [], gmNote: null, topic: null, order: null, current: null };
-            const opened = closingFloor(base, "volunteer", now, { step: 1, openedAt: now, count: 0 },
-                { seconds: Number(TRIAL.modes?.closing?.volunteerSeconds) || 30 });
-            return { floor: opened, cards: [{ key: "DRPG.Floor.closing.opened", title: "DRPG.Floor.mode.closing" }], record: { start: true } };
+            const volunteer = Number(TRIAL.modes?.closing?.volunteerSeconds) || 30;
+            const opened = closingFloor(base, "volunteer", now, { step: 1, openedAt: now, count: 0 }, { seconds: volunteer });
+            // The card says the seconds the volunteering runs, `volunteerSeconds` (E66 C4, 01.11.2026; E66-18).
+            return { floor: opened, cards: [{ key: "DRPG.Floor.closing.opened", title: "DRPG.Floor.mode.closing", seconds: volunteer }], record: { start: true } };
         }
         case "claim":
             if (phase !== "volunteer") return { refused: "DRPG.Floor.closing.notVolunteering" };

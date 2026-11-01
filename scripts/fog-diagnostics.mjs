@@ -46,7 +46,7 @@ import {
 } from "./fog-doorways.mjs";
 import { roomOutline } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
-import { plural } from "./utils.mjs";
+import { plural, localeFormat } from "./utils.mjs";
 import { VAULT_FLAGS } from "./vault.mjs";
 
 /** Depth-first, by display-object name. */
@@ -380,8 +380,8 @@ function overlapCheck(named, grid, add) {
             if (hit.area <= 0) continue;
             if (hit.depth !== null && hit.depth < tolerance) continue;
             const squares = hit.area / (grid * grid);
-            add("error", named[i].region.name, finding("overlap", { other: named[j].region.name, squares: squares.toFixed(1),
-                depth: hit.depth !== null ? (hit.depth / grid).toFixed(1) : null }, hit.depth !== null ? "deep" : "fact"),
+            add("error", named[i].region.name, finding("overlap", { other: named[j].region.name, squares: squaresText(squares),
+                depth: hit.depth !== null ? squaresText(hit.depth / grid) : null }, hit.depth !== null ? "deep" : "fact"),
                 pointOf(named[i].region));
         }
     }
@@ -424,7 +424,7 @@ function adriftCheck(region, edges, walls, grid, add) {
         }
     }
     if (adrift > grid * ADRIFT_WARN_RUN) {
-        add("warning", region.name, finding("adrift", { squares: (adrift / grid).toFixed(1) }, "fact"), adriftAt);
+        add("warning", region.name, finding("adrift", { squares: squaresText(adrift / grid) }, "fact"), adriftAt);
     }
 }
 
@@ -636,6 +636,10 @@ export function secretDoorRows(scene) {
  * `data.n` is a count) and the explanation of the kind (`why`), which `roomCheckHtml` says once above the list.
  * Until then each row carried the whole two-sentence explanation, in English, with raw coordinates after it.
  */
+/* Check rooms' squares, one decimal in the page's language (E66 fix r2, 01.11.2026; the goal review's m4, S18-40): they
+   went by `toFixed(1)`, so a Polish GM read "Około 1.5 kratki". R1165. */
+export const squaresText = value => localeFormat("number", value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
 function finding(kind, data = {}, fact = null) {
     const key = `DRPG.Fog.check.${kind}`;
     const detail = !fact ? "" : Number.isFinite(data.n) ? plural(`${key}.${fact}`, data) : game.i18n.format(`${key}.${fact}`, data);

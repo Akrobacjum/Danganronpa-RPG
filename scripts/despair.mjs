@@ -16,10 +16,10 @@
  * DESPAIR" below).
  */
 
-import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
+import { MODULE_ID, STARTING, DESPAIR_CALLS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, warn, error, isPrimaryGm, primaryGmId, plural, serialWrite, wholeNumber } from "./utils.mjs";
+import { announce, whisperToOwner, log, warn, error, isPrimaryGm, primaryGmId, plural, proseOf, serialWrite, wholeNumber } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -786,7 +786,7 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
         const user = game.users?.get?.(userId) ?? game.users?.find?.(u => u.id === userId);
         await announce({
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")}</h3>
-                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(callEffect(call))}</p>
+                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(proseOf(call, "effect"))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
                           // The pool's label, not the account name; and no
                           // "left": the bar beside it shows every pool's count

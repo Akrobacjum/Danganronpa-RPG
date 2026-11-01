@@ -6,7 +6,8 @@
  * A translation cannot edit that file, so at `i18nInit` the module walks the
  * same tables this tool walks and swaps each sentence for
  * `DRPG.Config.<TABLE>.<path>` when the language file carries it - see
- * scripts/i18n.mjs, which shares `PROSE_KEYS` and `CONFIG_TABLES` with this.
+ * scripts/i18n.mjs, which walks them through the same `walkConfigProse`
+ * (scripts/i18n-config.mjs) as this.
  *
  * Run it to see what a language file has to cover:
  *
@@ -15,6 +16,9 @@
  *                                            # what that file is missing / has extra
  *
  * `proseCoverage(file)` is the same count as a value, for tools/check.mjs.
+ * `--check` with no file prints the usage and exits 2 (E66 C1, 01.11.2026;
+ * S13-60): it threw in `path.resolve(undefined)` until then, and
+ * `node tools/check.mjs prose` runs that case.
  *
  * Node only; nothing here runs inside Foundry.
  */
@@ -27,8 +31,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, "..");
 
 const config = await import(url.pathToFileURL(path.join(REPO, "scripts/config.mjs")).href);
-const { CONFIG_TABLES, PROSE_KEYS, isProse, walkConfigProse } = await import(
-    url.pathToFileURL(path.join(REPO, "scripts/i18n-config.mjs")).href);
+const { walkConfigProse } = await import(url.pathToFileURL(path.join(REPO, "scripts/i18n-config.mjs")).href);
 
 const tree = {};
 walkConfigProse(config, (key, value) => {
@@ -62,6 +65,10 @@ const runAsCommand = () => { try { return fs.realpathSync(process.argv[1]) === f
 if (process.argv[1] && runAsCommand()) {
     const args = process.argv.slice(2);
     if (args[0] === "--check") {
+        if (!args[1]) {
+            console.error("usage: node tools/config-prose.mjs [--check <language file>]");
+            process.exit(2);
+        }
         const { wanted, covered, missing, extra } = proseCoverage(args[1]);
         console.log(`config prose: ${wanted} strings; ${args[1]} covers ${covered}, missing ${missing.length}, extra ${extra.length}`);
         for (const k of missing.slice(0, 40)) console.log("  missing", k);
@@ -70,4 +77,3 @@ if (process.argv[1] && runAsCommand()) {
     }
     console.log(JSON.stringify(tree, null, 2));
 }
-void CONFIG_TABLES; void PROSE_KEYS; void isProse;
