@@ -1471,7 +1471,7 @@ export const ACTIONS = {
         // states it in prose is a second copy, and the first GM to change the
         // setting turns it into a lie.
         hint: "Loot the room for something you name. Spends one of its search tokens.",
-        description: "You loot the room for whatever you name. Taking a crime tool or a cleaning "
+        description: "You loot the room for whatever you name. Taking a Murder Weapon or a cleaning "
             + "tool leaves a trace behind.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
@@ -1879,7 +1879,7 @@ function murderParksForGm(actor) {
 export const INDIRECT_MURDER = {
     /** Hiding your intent when another player is in the room with you. */
     concealIntent: {
-        label: "Conceal your intent",
+        label: "Conceal Your Intent",
         trait: "shadow",
         threshold: 16,
         success: "The others cannot see that you are doing anything. You may lie freely.",
@@ -1890,7 +1890,7 @@ export const INDIRECT_MURDER = {
     },
     /** Every project action also rolls to hide the traces it leaves. */
     hideTraces: {
-        label: "Hide the traces",
+        label: "Hide the Traces",
         trait: "shadow",
         thresholds: [
             { min: 0, remnant: "obvious" },
@@ -1901,9 +1901,9 @@ export const INDIRECT_MURDER = {
     },
     /** The guide splits an indirect murder into at least two sub-projects. */
     subProjects: [
-        { label: "Prepare the weapon", scale: ["everyday", "complex"], progress: [4, 6],
+        { label: "Prepare the Weapon", scale: ["everyday", "complex"], progress: [4, 6],
           note: "May require a specific room with the right equipment, unless you obtained the tool." },
-        { label: "Set the trap", scale: ["trivial", "everyday"], progress: [3, 4],
+        { label: "Set the Trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]
 };
@@ -3184,7 +3184,7 @@ export const MURDER_OPENING = {
         keyRemnants: { hope: 5, despair: 4, critical: 3 },
         hope: "The incident begins.",
         despair: "The incident begins. The victim loses all their Sanity and loses access to "
-            + "Role reversal for this incident.",
+            + "Role Reversal for this incident.",
         critical: "The incident begins.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
             + "spent; the attempt can be made again in another time of day.",
@@ -3312,7 +3312,7 @@ export const CRISIS_ACTIONS = {
      * own rather than the generic success branch.
      */
     useItem: {
-        side: "both", label: "Use an item", icon: "fa-flask",
+        side: "both", label: "Use an Item", icon: "fa-flask",
         threshold: 15, traits: ["hand"],
         hidden: true,
         usesItem: true,
@@ -3330,7 +3330,7 @@ export const CRISIS_ACTIONS = {
 
     /* ---- the victim ---------------------------------------------------- */
     leaveClue: {
-        side: "victim", label: "Leave a clue", icon: "fa-fingerprint",
+        side: "victim", label: "Leave a Clue", icon: "fa-fingerprint",
         threshold: 12, traits: ["hand", "leg", "shadow"],
         hint: "Leave a trace at the scene meant to help the others.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
@@ -3367,7 +3367,7 @@ export const CRISIS_ACTIONS = {
         }
     },
     secureTrace: {
-        side: "victim", label: "Secure a trace", icon: "fa-hand-holding",
+        side: "victim", label: "Secure a Trace", icon: "fa-hand-holding",
         threshold: 15, traits: ["hand", "leg", "shadow"],
         hint: "Take something off the killer and turn it into a trace tied to their identity.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
@@ -3402,9 +3402,9 @@ export const CRISIS_ACTIONS = {
      * what buys the chance to run or to turn the knife around.
      */
     selfDefence: {
-        side: "victim", label: "Self-defence", icon: "fa-shield-halved",
+        side: "victim", label: "Self-Defense", icon: "fa-shield-halved",
         threshold: 18, traits: ["hand", "leg", "body"],
-        hint: "You fight. Unlocks Survive and Role reversal. An item usable as a weapon gives "
+        hint: "You fight. Unlocks Survive and Role Reversal. An item usable as a weapon gives "
             + "advantage.",
         weaponAdvantage: true,
         /** Which resolution actions a success opens, per duality band. */
@@ -3435,8 +3435,8 @@ export const CRISIS_ACTIONS = {
         criticalKeepsTurn: true,
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
-        hope: "You keep your feet. Survive and Role reversal are open to you now.",
-        despair: "You keep your feet, but only barely - Role reversal is open to you now.",
+        hope: "You keep your feet. Survive and Role Reversal are open to you now.",
+        despair: "You keep your feet, but only barely - Role Reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
         failure: "Nothing happens. On a Despair failure you lose an extra {drain} Health or Sanity.",
@@ -3459,7 +3459,7 @@ export const CRISIS_ACTIONS = {
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
-        hint: "Withdraw from the incident and stop losing Health and Sanity. Needs Self-defence first.",
+        hint: "Withdraw from the incident and stop losing Health and Sanity. Needs Self-Defense first.",
         hope: "The incident ends and the drain stops.",
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
@@ -3469,11 +3469,11 @@ export const CRISIS_ACTIONS = {
         endsIncident: true
     },
     roleReversal: {
-        side: "victim", label: "Role reversal", icon: "fa-arrows-rotate",
+        side: "victim", label: "Role Reversal", icon: "fa-arrows-rotate",
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
         hint: "Tip the scales and become the killer yourself. From then on it is them losing "
-            + "Health and Sanity. Needs Self-defence first.",
+            + "Health and Sanity. Needs Self-Defense first.",
         weaponAdvantage: true,
         hope: "You become the killer and recover all Health and Sanity.",
         despair: "You become the killer.",
@@ -3525,23 +3525,23 @@ export const CRISIS_ACTIONS = {
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     pin: {
-        side: "killer", label: "Pin them down", icon: "fa-down-long",
+        side: "killer", label: "Pin Them Down", icon: "fa-down-long",
         threshold: 12, traits: ["body"],
-        hint: "Disadvantage on Leave a clue and Survive for the victim's {turns}.",
+        hint: "Disadvantage on Leave a Clue and Survive for the victim's {turns}.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     keepDistance: {
-        side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
+        side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
         threshold: 12, traits: ["leg"],
-        hint: "Disadvantage on Secure a trace and Role reversal for the victim's {turns}.",
+        hint: "Disadvantage on Secure a Trace and Role Reversal for the victim's {turns}.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
     },
     weaponAttack: {
-        side: "killer", label: "Attack with a weapon", icon: "fa-khanda",
+        side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
         threshold: 15, traits: ["body", "hand", "leg"],
         hint: "Use a found item as a weapon. Unarmed works at disadvantage, and succeeds into "
             + "an improvised tool.",
@@ -3573,7 +3573,7 @@ export const CRISIS_ACTIONS = {
         failureRemnantReinforced: { critical: true }
     },
     finishingBlow: {
-        side: "killer", label: "Finishing blow", icon: "fa-skull-crossbones",
+        side: "killer", label: "Finishing Blow", icon: "fa-skull-crossbones",
         traits: ["body", "leg", "hand"], kind: "resolution",
         // The old hint ended "without this the victim keeps taking turns at 0 Health
         // and 0 Sanity", which stopped being true when running out started
@@ -3617,7 +3617,7 @@ export const CRISIS_ACTIONS = {
      * cycle, which the module already has.
      */
     sharedEscape: {
-        side: "third", label: "Escape together", icon: "fa-door-open",
+        side: "third", label: "Escape Together", icon: "fa-door-open",
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you.",
         hope: "Both of you escape. The victim's Health and Sanity are restored.",
@@ -3655,7 +3655,7 @@ export const CRISIS_ACTIONS = {
      * beside the old victim rather than watching.
      */
     doubleRoleReversal: {
-        side: "third", label: "Double role reversal", icon: "fa-repeat",
+        side: "third", label: "Double Role Reversal", icon: "fa-repeat",
         kind: "resolution", noRoll: true,
         hint: "You and the victim turn on the attacker together. They become the victim.",
         effect: "The victim and the third party become the killers. The original killer "
@@ -3674,7 +3674,7 @@ export const CRISIS_ACTIONS = {
      * killer side and closes the third party's free choice behind them.
      */
     crimePartners: {
-        side: "third", label: "Partners in crime", icon: "fa-handshake",
+        side: "third", label: "Partners in Crime", icon: "fa-handshake",
         kind: "resolution", noRoll: true,
         hint: "Side with the attacker. The victim is unlikely to walk out.",
         effect: "The third party joins the killer. The original victim's survival is "
@@ -3694,7 +3694,7 @@ export const CRISIS_ACTIONS = {
      * guide means by "koszt ruchu".
      */
     avertedEyes: {
-        side: "third", label: "Averted eyes", icon: "fa-eye-slash",
+        side: "third", label: "Averted Eyes", icon: "fa-eye-slash",
         kind: "resolution", noRoll: true,
         hint: "Walk away and stay out of it. Leaves no trace of you.",
         effect: "The third party leaves the room and does not intervene. They may go and "
@@ -4131,7 +4131,7 @@ export const CLEANUP = {
      */
     actions: {
         eraseTrace: {
-            label: "Erase a trace", icon: "fa-eraser",
+            label: "Erase a Trace", icon: "fa-eraser",
             /** DC comes from the trace itself - see `dc` above. */
             dcFromVisibility: true,
             targets: "remnant"
@@ -4163,7 +4163,7 @@ export const CLEANUP = {
              * one night now holds both the lie and the tidying. Eighteen was
              * the price of a thing nobody had an evening for.
              */
-            label: "Misleading trail", icon: "fa-signs-post",
+            label: "Misleading Trail", icon: "fa-signs-post",
             threshold: 15,
             targets: "player",
             remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
@@ -4183,7 +4183,7 @@ export const CLEANUP = {
          * Evident Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
-            label: "Move the body", icon: "fa-person-falling",
+            label: "Move the Body", icon: "fa-person-falling",
             threshold: 16,
             traits: ["body"],
             targets: "body",

@@ -57,7 +57,7 @@
  * glossary's two, both report: T8 (`glossaryHits`, a forbidden variant where a
  * docs/glossary.json entry holds) and T28 (`retiredHits`, a retired name where it
  * is retired, with the owner's A10 and A11 rules as `passageWords` and
- * `friskWords`), each splitting what it finds by the stage of the row that finds
+ * `friskWords`; FAIL since E66 C5, when its last rows were fixed), each splitting what it finds by the stage of the row that finds
  * it - debt where that stage has shipped, the rest not yet due - and
  * `glossarySchema`, which holds the file itself (red in `text`: a file E65 writes).
  * Their bag: `glossary` (the parsed file) and `shipped` (the ids of the stages that
@@ -2460,7 +2460,7 @@ export const MODES = Object.freeze({
     dashesIn: Object.freeze({ test: "T6", mode: "fail", fail: "E65", reads: Object.freeze(["lang", "scripts", "docs"]), also: Object.freeze(["prose"]), lexer: true }),
     tableWordProblems: Object.freeze({ test: "T14", mode: "fail", fail: "E65", reads: Object.freeze(["tables"]) }),
     glossaryHits: Object.freeze({ test: "T8", mode: "report", fail: "E25", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
-    retiredHits: Object.freeze({ test: "T28", mode: "report", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
+    retiredHits: Object.freeze({ test: "T28", mode: "fail", fail: "E66", reads: Object.freeze(["glossary", "lang", "docs"]), also: Object.freeze(["prose"]) }),
     lengthOver: Object.freeze({ test: "T4", mode: "report", fail: "E71", reads: Object.freeze(["budgets", "lang"]), also: Object.freeze(["prose", "scripts"]), lexer: true }),
     patterns: Object.freeze({ test: "T5", mode: "report", fail: "E71", reads: Object.freeze(["lang"]), also: Object.freeze(["prose", "budgets", "scripts"]), lexer: true }),
     ruleNumberWords: Object.freeze({ test: "T7", mode: "report", fail: "E25", reads: Object.freeze(["lang"]), also: Object.freeze(["prose"]) }),

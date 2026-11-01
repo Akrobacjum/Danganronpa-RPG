@@ -125,7 +125,7 @@ You are turned back by:
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
 | **somebody else's bedroom** | when you hold no key to it |
 | being **dead** | the body stays where it fell |
-| being in a **murder** while it runs | nobody walks out of an incident until a crisis action lets them: Survive, Escape together, a Finishing blow, or Averted eyes if you only walked in on it |
+| being in a **murder** while it runs | nobody walks out of an incident until a crisis action lets them: Survive, Escape Together, a Finishing Blow, or Averted Eyes if you only walked in on it |
 | a **Class Trial** in session | nobody leaves the courtroom |
 
 These are checked on your screen and again by the GM's browser: a move into a room they shut is put back to where your token last stood, and you are told which rule turned you back; a token dropped from the sidebar into such a room is removed. The GM can also give your last crossing back (**Refund last crossing**): your token goes back where it stood, and what the crossing cost is yours again.
@@ -210,7 +210,7 @@ You choose how you are looking:
 |---|---|
 | Sweep the room | whatever is easiest to spot in this room; in a room with nothing of the kind, the GM decides what you see |
 | Look past the obvious | the hardest thing here, and whatever does not belong in this room at all; with nothing of the kind, the GM decides |
-| Follow my traces | retrace your own steps and find what you left behind |
+| Follow My Traces | retrace your own steps and find what you left behind |
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
 | Examine point of interest | something that is not a trace - a person, a machine, the weather; the GM rules |
 
@@ -222,7 +222,7 @@ Four things behind one tile:
 
 - **Identify a Truth Bullet.** Turns a Neutral Truth Bullet into its real category. **A failure locks that bullet for you until the chapter ends** - hand a copy to somebody else and their copy is not bound by your failure.
 - **Ask for a hint.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
-- **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not. Not in a Class Trial.
+- **Find Stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not. Not in a Class Trial.
 - **Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet: a stretch of its wall or a tunnel's end, on your floor. Below 16, or when there is none, your card says "You find no hidden passage here." The GMs see the same card. Not in a Class Trial.
 
 ### Projects - the project's statistic, 1 action
@@ -262,7 +262,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 > [!WARNING]
 > Sabotage **always leaves a trace**, even on a failure, and a roll with Despair shows you to the room.
 
-### Dynamic action - any statistic, 1 action
+### Dynamic Action - any statistic, 1 action
 
 Anything at all, provided you describe it in detail. The GM sets the difficulty and the statistic, or refuses (nothing is spent). Your roll window says the number to beat: a band is passed from its lower number. On a success your card reads "Success - the GM decides what a Tier N result gives you", and the GM gets a card that makes the item. Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
 
@@ -323,7 +323,7 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 Three things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
 
-**Cover your tracks.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
+**Erase a Trace.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
 
 | Visibility | Needs |
 |---|---|
@@ -343,9 +343,9 @@ Each is 3 lower while no body has been found. A Cleaning Tool in hand gives adva
 
 Reinforced traces never come off.
 
-**Reshape a trace.** Leave one of the same traces where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant - it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the trace reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the trace afterwards reads yours.
+**Reshape a Trace.** Leave one of the same traces where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant - it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the trace reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the trace afterwards reads yours.
 
-**Misleading trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
+**Misleading Trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
 
 > [!WARNING]
 > If anybody else is in the room you first roll Shadow against **16** to cover what you are doing, and being caught at it costs Sanity: 1 on a success with Despair, 1 on a failure, 2 on a failure with Despair. The briefing warns you how many people are watching. Walking into an empty room first is a real alternative.
@@ -369,7 +369,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Support** | 1 | Give another player advantage on one roll. You have to be in the same room. |
 | **Experience** | 1 | Add your experience level to a roll that experience genuinely applies to. Waits for the GM - you write what you intend, the Hope is charged only on a yes. |
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
-| **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. On a murder plan it also rolls to hide the traces, like working on it. |
+| **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. On a murder plan it also rolls to Hide the Traces, like working on it. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
 | **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. A Reroll of a Find Passage or a Find Stash searches again with the new dice (in the room its roll was thrown in, and only while you still stand there - else the Reroll is given back whole): going up, it finds once; going down, a stash it opened stays open, and a passage only that roll found is taken back. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
@@ -464,7 +464,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given. Only a key in your hand opens the door: one in your stash opens nothing. When the GM gives a bedroom to somebody else, its old owner's keys go; a copy somebody else was given stays, and opens the new owner's door. In an Investigation the bedroom of someone whose death is known stands open.
 - Your bedroom comes with a **stash**. A stash holds **3** things, and you have to be standing in the room to put things in or take them out. Truth Bullets cannot be stashed.
 - An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing from it, once each time of day. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
-- A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Locate a hidden stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
+- A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Find Stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
 - Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
 - The GM may give you a stash in another room. It does not come with a key to that room.
 - Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
@@ -475,9 +475,9 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 ### Remnants
 
-A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
+A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the trace itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the trace itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -485,7 +485,7 @@ A trace appears on your map <ins>only once you hold a Truth Bullet copied from i
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a misleading trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 
@@ -524,7 +524,7 @@ Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladde
 
 ## 9. Traps and projects that kill
 
-An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
+An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the Weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the Trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
 
 Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
 
@@ -560,7 +560,7 @@ There is exactly one, and the kind of murder decides whose it is.
 |---|---|
 | Failure | nothing happens and the victim never learns anything was attempted |
 | Success | the incident begins |
-| With Despair | the victim loses all their Sanity on the spot and loses Role reversal for this incident |
+| With Despair | the victim loses all their Sanity on the spot and loses Role Reversal for this incident |
 | Critical | the incident begins, and leaves the fewest Key Remnants |
 
 The victim sees nothing while the killer rolls - no card, no music, nothing on the Event panel. When the roll succeeds they are told at once that the incident has begun, and who is moving on them: a direct murder is face to face. A failure leaves them nothing at all.
@@ -587,14 +587,14 @@ The incident is turn-based. **You go first**. Alone with a trap, you roll every 
 
 | Crisis action | Roll | What it does |
 |---|---|---|
-| **Leave a clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and Hope leaves a Reinforced trace, a critical two. |
-| **Secure a trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
-| **Self-defence** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role reversal, Despair opens Role reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role reversal you cannot take, it is not spent and you may try again. |
-| **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-defence first. |
-| **Role reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-defence first. Not available against a trap, or once somebody has joined the killer. |
-| **Use an item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. |
+| **Leave a Clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and Hope leaves a Reinforced trace, a critical two. |
+| **Secure a Trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
+| **Self-Defense** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role Reversal, Despair opens Role Reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role Reversal you cannot take, it is not spent and you may try again. |
+| **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-Defense first. |
+| **Role Reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-Defense first. Not available against a trap, or once somebody has joined the killer. |
+| **Use an Item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. |
 
-Survive and Role reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. Nothing the killer does can take Reinforced traces off the map.
+Survive and Role Reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. Nothing the killer does can take Reinforced traces off the map.
 
 > [!CAUTION]
 > A victim who runs out of both Health and Sanity dies.
@@ -606,29 +606,29 @@ Your side of the same table, behind the **Crisis actions** tile:
 | Action | Roll | What it does |
 |---|---|---|
 | Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical puts both marks on the one track you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
-| Pin them down | Body, 12 | Disadvantage on Leave a clue and Survive for the victim's next two turns. |
-| Keep your distance | Leg, 12 | Disadvantage on Secure a trace and Role reversal for the victim's next two turns. |
-| Attack with a weapon | Body / Hand / Leg, 15 | Damage 1 + half the weapon's tier (rounded up); 1 + the full tier on a critical. Unarmed: disadvantage, and a success snatches an improvised weapon (Tier 2 on Hope, Tier 1 on Despair). A Tier 0 object is rated by the GM. |
-| Finishing blow | Body / Leg / Hand | Threshold is five times their remaining Health - free at 0. Ends the incident; a critical makes your first clean-up attempt cost no Sanity, whether it works or not. |
-| Use an item | Hand, 15 | As the victim's. |
+| Pin Them Down | Body, 12 | Disadvantage on Leave a Clue and Survive for the victim's next two turns. |
+| Keep Your Distance | Leg, 12 | Disadvantage on Secure a Trace and Role Reversal for the victim's next two turns. |
+| Attack with a Weapon | Body / Hand / Leg, 15 | Damage 1 + half the weapon's tier (rounded up); 1 + the full tier on a critical. Unarmed: disadvantage, and a success snatches an improvised weapon (Tier 2 on Hope, Tier 1 on Despair). A Tier 0 object is rated by the GM. |
+| Finishing Blow | Body / Leg / Hand | Threshold is five times their remaining Health - free at 0. Ends the incident; a critical makes your first clean-up attempt cost no Sanity, whether it works or not. |
+| Use an Item | Hand, 15 | As the victim's. |
 
-Finishing blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
+Finishing Blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
 
 Then the **clean-up**. Your Tamper tile now lists every trace in the room you are standing in - not only yours - and you can spend **1 Sanity** per attempt:
 
 | Option | Roll, and what it does |
 |---|---|
-| **Erase a trace** | the Tamper table, chapter 4 |
-| **Reshape a trace** | three lower than erasing - rename it and describe it as something innocent; the GM approves your words before they land, it always ends up a Tamper Remnant, and a critical makes it quieter and hands the Sanity back |
-| **Misleading trail** | 15 |
-| **Move the body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
+| **Erase a Trace** | the Tamper table, chapter 4 |
+| **Reshape a Trace** | three lower than erasing - rename it and describe it as something innocent; the GM approves your words before they land, it always ends up a Tamper Remnant, and a critical makes it quieter and hands the Sanity back |
+| **Misleading Trail** | 15 |
+| **Move the Body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
 
-A misleading trail or a moved body that succeeds puts the Truth Bullet of the trace it left on your sheet at once, as if you had found it (*You know this trace: it is on your sheet.*); a failure, an erased trace and a reshaped one give you none, and a Reroll of that roll takes the Truth Bullet back.
+A Misleading Trail or a moved body that succeeds puts the Truth Bullet of the trace it left on your sheet at once, as if you had found it (*You know this trace: it is on your sheet.*); a failure, an erased trace and a reshaped one give you none, and a Reroll of that roll takes the Truth Bullet back.
 
-Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the misleading trail list Shadow, Hand and Head: the GM picks one from what you say you do. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment.
+Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the Misleading Trail list Shadow, Hand and Head: the GM picks one from what you say you do. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the Body, which rolls no concealment.
 
 > [!WARNING]
-> Every Murder Weapon you swung in the fight is destroyed when an incident that reached the clean-up closes (a Finishing blow swings nothing); every Cleaning Tool you wore for a clean-up attempt is destroyed when your victim's body is found, even if you have put it away since - not if you stashed it; if you never cleaned up, the Cleaning Tool in your hand at that moment is destroyed instead. Both stay in your inventory as broken evidence.
+> Every Murder Weapon you swung in the fight is destroyed when an incident that reached the clean-up closes (a Finishing Blow swings nothing); every Cleaning Tool you wore for a clean-up attempt is destroyed when your victim's body is found, even if you have put it away since - not if you stashed it; if you never cleaned up, the Cleaning Tool in your hand at that moment is destroyed instead. Both stay in your inventory as broken evidence.
 
 ### If you walk in on it
 
@@ -636,17 +636,17 @@ Crossing into a room where a direct murder is running gives you **one free choic
 
 | Choice | Roll | What it does |
 |---|---|---|
-| Escape together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out, and you do not come back in. |
-| Double role reversal | no roll | You and the victim turn on the attacker together. They become the victim. Nobody is healed. |
-| Partners in crime | no roll | You side with the attacker. The victim is unlikely to walk out. |
-| Averted eyes | no roll | You leave and take no part, and do not come back in. It leaves no trace of you. |
+| Escape Together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out, and you do not come back in. |
+| Double Role Reversal | no roll | You and the victim turn on the attacker together. They become the victim. Nobody is healed. |
+| Partners in Crime | no roll | You side with the attacker. The victim is unlikely to walk out. |
+| Averted Eyes | no roll | You leave and take no part, and do not come back in. It leaves no trace of you. |
 
-Escape together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free. Use an item is not one of your choices.
+Escape Together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free. Use an Item is not one of your choices.
 
-If the incident leaves a body, you may afterwards **turn on the killer** - if you sided with them, or, in a direct murder, if you stayed and chose nothing; not if you walked away or tried Escape together, and never as a third on the victim's side of a trap. The offer is open until the day ends, the Investigation included, but not during a Class Trial. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared like any action there - it costs an action and opens when the Eclipse ends. If it cannot open when its time comes, you are told why and keep the offer while the day lasts. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
+If the incident leaves a body, you may afterwards **turn on the killer** - if you sided with them, or, in a direct murder, if you stayed and chose nothing; not if you walked away or tried Escape Together, and never as a third on the victim's side of a trap. The offer is open until the day ends, the Investigation included, but not during a Class Trial. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared like any action there - it costs an action and opens when the Eclipse ends. If it cannot open when its time comes, you are told why and keep the offer while the day lasts. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
 
 > [!NOTE]
-> The module applies the damage, the traces, the turns, and a Role reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role reversal's kill, the Health and Sanity that Escape together restores, every immunity, and Survive's hint about who they were.
+> The module applies the damage, the traces, the turns, and a Role Reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role Reversal's kill, the Health and Sanity that Escape Together restores, every immunity, and Survive's hint about who they were.
 
 ### The morning after
 
@@ -763,13 +763,13 @@ Monokumas themselves - the GM side - have no actions and no Hope, walk through w
 
 The largest of the three buttons in the bottom-right corner, the one on top, opens **GM Chat**: one thread between you and every GM. There is no player-to-player text channel - in-room talk is voice.
 
-Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. With no GM connected nothing is posted: you are told "No GM is connected." and what the action cost you comes back.
+Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic Action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. With no GM connected nothing is posted: you are told "No GM is connected." and what the action cost you comes back.
 
 **Read only when you look** (since 1.2.94). A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
 
-**A question you wait on** - an Experience or Ultimate Call, a Dynamic action, the statistic a roll lists two of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
+**A question you wait on** - an Experience or Ultimate Call, a Dynamic Action, the statistic a roll lists two of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic Action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic Action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
 
-**Private cards.** A card meant for you alone - a Listen's answer, a find, a ruling's line - is read by every player who owns your character and by the GMs, never by a player who only observes it. So do your character's private rolls. GM Chat's thread is one account's: a question you ask and wait on - a Call, a Dynamic action, the statistic a roll lists two of, an Observe aimed at a point of interest - lands in your own thread, and the other cards to the GM about your character land in one owner's thread only. If you were away when a private card was sent, or open the game in another browser, its words come back once a GM is connected. A card no GM can fill reads "A private card - its words were sent to another browser and are not kept on the server."
+**Private cards.** A card meant for you alone - a Listen's answer, a find, a ruling's line - is read by every player who owns your character and by the GMs, never by a player who only observes it. So do your character's private rolls. GM Chat's thread is one account's: a question you ask and wait on - a Call, a Dynamic Action, the statistic a roll lists two of, an Observe aimed at a point of interest - lands in your own thread, and the other cards to the GM about your character land in one owner's thread only. If you were away when a private card was sent, or open the game in another browser, its words come back once a GM is connected. A card no GM can fill reads "A private card - its words were sent to another browser and are not kept on the server."
 
 The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
 

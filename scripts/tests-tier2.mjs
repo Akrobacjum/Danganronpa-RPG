@@ -76573,7 +76573,8 @@ const SCENARIOS = [
         must(response.ok, `pl.json: HTTP ${response.status}`);
         const plWord = foundry.utils.getProperty(foundry.utils.expandObject(await response.json()), "DRPG.Remnant.tokenName");
         const enWord = game.i18n.localize("DRPG.Remnant.tokenName");
-        must(typeof plWord === "string" && plWord && plWord !== enWord, "pl.json's neutral word is missing or the same as en.json's - this would measure nothing");
+        // Since E66 C5 the word is "Remnant" in both files: the two browsers read the same word, and E66-T3 holds the old ones.
+        must(typeof plWord === "string" && plWord, "pl.json's neutral word is missing - this would measure nothing");
         const family = foundry.utils.getProperty(game.i18n.translations, "DRPG.Remnant");
         const had = family.tokenName;
         const SUBJECT = "SUITE E51-T12 a smear on the sill";
@@ -78043,6 +78044,94 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ answer: false, told: 0, moved: 0, line: true }),
             "[refundPrice on a receipt of 0 actions: what it answers, the whispers saying it came back, the actions moved, the refused Objection's line says it did not come back]");
+    }],
+    ["E66-T3 - a trace a build before 1.2.96 named by the neutral word it had then reads as not described, on an English and on a Polish browser: a row and a token named \"Trace\" or \"Ślad\" store no name and are labelled with today's word, `isNeutralName` takes both old words, and the finder's Observe of the trace opens the GM's describe window on its subject and names the copy after it (E66 C5; E66-21, MARKED: the neutral word decides whether a trace's name is given to a finder)", async () => {
+        /*
+         * E66 C5, 01.11.2026; I14, DB15. `DRPG.Remnant.tokenName` was "Trace" in English and "Ślad" in Polish until this
+         * commit and is "Remnant" in both. A trace nobody described stored the word as its name before 1.2.94 (E51 C5), and
+         * its token still carries it; read against today's word alone, either old word is a name somebody gave the trace.
+         * remnants.mjs `neutralWords` adds the frozen `LEGACY_NEUTRAL_WORDS`. The harness's clients load en.json alone, so
+         * the Polish browser is the GM's own with pl.json's word laid over its translations (as E51-T12 lays it), put back
+         * after. For each browser and each old word: one trace where a connected player's character stands, left by that
+         * character, with a subject; its row and its token given the old word as their name, as a build before 1.2.96 left
+         * them; then what the row stores and how it is labelled, whether the word is neutral, and the character's Observe
+         * of its own traces with the GM's describe window closed unanswered (the name it offered read first) and the copy
+         * that made. Put back after each: the copy and its answer key, the trace and its row; the translation at the end.
+         * Red with the word changed and `LEGACY_NEUTRAL_WORDS` left out (the commit's red run and mutant c5-m1).
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const R = await import("./remnants.mjs");
+        const observe = await import("./observe.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor: finder, where } = await playerInRoom();
+        const response = await fetch(`modules/${MODULE_ID}/lang/pl.json`);
+        must(response.ok, `pl.json: HTTP ${response.status}`);
+        const plWord = foundry.utils.getProperty(foundry.utils.expandObject(await response.json()), "DRPG.Remnant.tokenName");
+        must(typeof plWord === "string" && plWord, "pl.json has no neutral word - this would measure nothing");
+        const family = foundry.utils.getProperty(game.i18n.translations, "DRPG.Remnant");
+        const had = family.tokenName;
+        const OLD = ["Trace", "Ślad"];
+        const items = new Set(finder.items.map(i => i.id));
+        const describe = game.i18n.localize("DRPG.Observe.describeTitle");
+        const D = foundry.applications.api.DialogV2;
+        const read = {}, want = {};
+        let trace = null;
+        const dropCopies = async () => {
+            for (const item of finder.items.filter(i => !items.has(i.id))) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+        };
+        const dropTrace = async () => {
+            if (!trace) return;
+            await R.dropRemnantSecret(trace);
+            if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            trace = null;
+            await settle();
+        };
+        try {
+            for (const [lang, word] of [["en", had], ["pl", plWord]]) {
+                family.tokenName = word;
+                for (const old of OLD) {
+                    const subject = `SUITE E66-T3 ${lang} ${old}: a smear on the sill`;
+                    trace = await R.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y,
+                        sourceActor: finder.id, sourceName: finder.name, room: where.room, subject, action: "search", note: "SUITE E66-T3" });
+                    must(trace, "the trace was not placed - this would measure nothing");
+                    await R.setRemnantPublic(trace, { name: old }, { propagate: false });
+                    await trace.update({ name: old });
+                    await settle();
+                    const row = [R.remnantPublic(trace)?.name ?? null, R.traceLabel(R.remnantData(trace)), R.isNeutralName(old)];
+                    let offered = null;
+                    const own = Object.getOwnPropertyDescriptor(D, "wait");
+                    D.wait = cfg => {
+                        if (cfg?.window?.title === describe) offered = cfg?.content?.querySelector?.('input[name="name"]')?.value ?? null;
+                        return Promise.resolve(null);
+                    };
+                    try {
+                        const target = await observe.chooseObserveTarget({ actorId: finder.id, declaration: "followTraces", userId: player.id });
+                        must(target?.ok, `the Observe found nothing to aim at where the trace lies: ${stableJson(target)}`);
+                        await observe.resolveObserve({ key: target.key, total: 30, isCritical: false });
+                        await settle();
+                    } finally {
+                        if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+                    }
+                    const copy = finder.items.find(i => !items.has(i.id) && bullets.secretOf(i.uuid)?.remnantId === trace.id) ?? null;
+                    must(copy, `the finder's Observe made no copy of the ${lang} trace named "${old}" - this would measure nothing`);
+                    read[`${lang} ${old}`] = [...row, offered, copy.name];
+                    want[`${lang} ${old}`] = ["", word, true, subject, subject];
+                    await dropCopies();
+                    await dropTrace();
+                }
+            }
+        } finally {
+            family.tokenName = had;
+            await dropCopies();
+            await dropTrace();
+        }
+        equal(stableJson(read), stableJson(want),
+            "[per browser and old word: the name the row stores, its label, whether the old word is neutral, the name the GM's describe window offered, the copy's name]");
     }],
     ...GRID
 ];

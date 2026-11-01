@@ -18,7 +18,7 @@
         "stage": "E66",
         "source": ["D33a"],
         "rule": "Action and Call names stay English in Polish: \"Project\", \"Find Stash\" (D33a).",
-        "note": "The one Polish tile label on this tree is DRPG.Config.ACTIONS.project.label, \"Projekty\" (31.10); the variant is that label, read wherever it stands."
+        "note": "The one Polish tile label on this tree is DRPG.Config.ACTIONS.project.label, \"Projekty\" (31.10); the variant is that label, read wherever it stands. E66 C5 (01.11.2026, Q-E66-1's default): the name is \"Projects\" in Polish as in English, per key - the tile (DRPG.Config.ACTIONS.project.label), the Projects window (DRPG.Project.manageTitle, DRPG.Project.cardOpenManager, DRPG.Explain.projects.window) and the four Daggerheart countdown titles the module overrides (DAGGERHEART.UI.Countdowns.title, DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns, DAGGERHEART.APPLICATIONS.Countdown.title, DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle); a sentence about projects in general keeps the common noun in lower case and was reworded where \"Projekty\" opened it (DRPG.Project.secretNote, DRPG.Project.saved, DRPG.Project.savedWithDeletions, DRPG.Season.group.projects)."
       },
       {
         "id": "ordinary-polish-words",
@@ -93,11 +93,10 @@
         "gender": "m",
         "inflection": "Inflected as a countable noun: Truth Bulletu (DB4).",
         "declension": {"countable": true, "gen": "Truth Bulletu"},
-        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
-        "stage": "E65",
+        "forbidden": {"en": {"variants": ["truth bullet", "Truth bullet", "truth-bullet"], "scope": ["ui"], "otherCase": true}, "pl": {"variants": ["truth bullet", "Truth bullet", "truth-bullet"], "scope": ["ui"], "otherCase": true}},
+        "stage": "E66",
         "source": ["DB4", "DB16", "DB28", "S18-31"],
-        "open": true,
-        "note": "S18-31 names four variants of the name and no source read lists them; DB16 gives Title Case only."
+        "note": "S18-31 names four variants of the name and no source read lists them; DB16 gives Title Case. Closed in E66 C5 (01.11.2026): the name in its one form, every other case of it forbidden; measured then, no \"truth bullet\" or \"Truth bullet\" in lang/ and \"truth-bullet\" only as the file name truth-bullets.mjs in the GM handbooks, outside the scope."
       },
       {
         "id": "remnant",
@@ -1093,7 +1092,40 @@
         "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": ["Znajdź tajne przejście"], "scope": ["ui", "handbooks"], "case": "any"}},
         "stage": "E80",
         "source": ["A10", "D33a"],
-        "note": "English in Polish (A10); the variant is the Polish label DRPG.Analyze.findPassage carries on this tree (31.10)."
+        "note": "English in Polish (A10); the variant is the Polish label DRPG.Analyze.findPassage carried on this tree (31.10), \"Find Passage\" since E66 C5 (01.11.2026)."
+      },
+      {
+        "id": "find-stash",
+        "en": "Find Stash",
+        "pl": "Find Stash",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": ["Locate a hidden stash", "Find a stash"], "scope": ["ui", "handbooks"], "case": "any", "otherCase": true}, "pl": {"variants": ["Znajdź ukrytą skrytkę", "Szukanie skrytki"], "scope": ["ui", "handbooks"], "case": "any", "otherCase": true}},
+        "stage": "E66",
+        "source": ["D33a", "A10"],
+        "note": "Analyze's option, English in Polish, the pair of E80's Find Passage (A10). The old forms are DRPG.Analyze.findStash's and DRPG.Bridge.what.vault.findStash's at E66's Base (01.11.2026)."
+      },
+      {
+        "id": "dynamic-action",
+        "en": "Dynamic Action",
+        "pl": "Dynamic Action",
+        "gender": null,
+        "inflection": "A name: indeclinable in Polish; several are \"Dynamic Actions\".",
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"], "otherCase": true}, "pl": {"variants": ["akcja dynamiczna", "akcji dynamicznej", "akcję dynamiczną", "akcją dynamiczną", "akcje dynamiczne", "akcji dynamicznych", "akcjom dynamicznym", "akcjami dynamicznymi", "akcjach dynamicznych", "akcji Dynamic"], "scope": ["ui", "handbooks"], "case": "any", "otherCase": true}},
+        "stage": "E66",
+        "source": ["D33a", "DB3", "DB16"],
+        "note": "One name for the action, Title Case (DB16), English in Polish (D33a, DB3); E66 C5 (01.11.2026) renamed \"Dynamic action\" (six en.json values) and \"Akcja dynamiczna\" with its cases."
+      },
+      {
+        "id": "self-defense",
+        "en": "Self-Defense",
+        "pl": "Self-Defense",
+        "gender": null,
+        "inflection": "A name: indeclinable in Polish (PL-k).",
+        "forbidden": {"en": {"variants": ["Self-defence", "Self-defense", "Self-Defence"], "scope": ["ui", "handbooks"], "case": "any", "otherCase": true}, "pl": {"variants": ["Self-defence", "Self-defense", "Self-Defence"], "scope": ["ui", "handbooks"], "case": "any", "otherCase": true}},
+        "stage": "E66",
+        "source": ["DB9", "DB16"],
+        "note": "American spelling (DB9) and Title Case (DB16): the crisis action CRISIS_ACTIONS.selfDefence, \"Self-defence\" until E66 C5 (01.11.2026); its hyphen is the one break softWrap keeps whole."
       },
       {
         "id": "secret-passage",
@@ -1174,14 +1206,13 @@
       {
         "id": "murder-weapon",
         "en": "Murder Weapon",
-        "pl": null,
+        "pl": "Narzędzie zbrodni",
         "gender": null,
         "inflection": null,
-        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
-        "stage": "E65",
+        "forbidden": {"en": {"variants": ["crime tool", "crime tools"], "scope": ["ui"], "case": "any"}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E66",
         "source": ["S18-31"],
-        "open": true,
-        "note": "\"crime tool\" or \"Murder Weapon\": S18-31 names the split and no source read decides it."
+        "note": "Closed in E66 C5 (01.11.2026) on the category's own label, a table-name key that stays as it is (ITEM_CATEGORIES.crimeTool.label \"Murder Weapon\", pl.json \"Narzędzie zbrodni\"): \"crime tool\" in an English text is the category under another name (four en.json values and ACTIONS.search.description at E66's Base, renamed there)."
       },
       {
         "id": "gm-bar-buttons",

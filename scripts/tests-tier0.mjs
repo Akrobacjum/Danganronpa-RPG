@@ -11748,11 +11748,11 @@ const REGRESSIONS = [
         };
         const WORDS = {
             en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
-                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
+                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
                 daily: { player: /No roll is scored on the Daily Life row either: no trace is of that kind\. It is the ladder your Observe briefing/,
                     gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
-                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
+                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Reshape a Trace\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
                 daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/,
                     gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
@@ -12624,7 +12624,7 @@ const REGRESSIONS = [
                     joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the seal and the bodies found neither, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
                         /Renaming one piece of a room of several takes the room's values off that piece the same way; the other pieces keep them\./],
                     oneScene: [/a project is listed, worked and sabotaged in its room on the scene of its map token/, /a trap built as a project springs only there/,
-                        /Move the body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
+                        /Move the Body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
                         /`placeRemnant` and `applySceneVisionMode` given none do nothing and say so, and `createProject` refuses a room no scene has and says so\./],
                     putBack: [/A player's change to the mark is put back to what a GM last left, and the GMs are told; when the GM's browser has no record of the mark from before the change, nothing is put back/],
                     witness: [/One student is one witness, however many of their tokens stand in the room\. A token a player drops onto the map is judged from where that student last stood on the scene; a student who had stood nowhere there yet counts where the token landed, and the GMs are whispered so\./]
@@ -12653,7 +12653,7 @@ const REGRESSIONS = [
                     joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, ani pieczęć, ani znalezione ciała, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
                         /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
                     oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
-                        /Move the body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
+                        /Move the Body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
                         /`placeRemnant` i `applySceneVisionMode` bez sceny nic nie robią i to mówią, a `createProject` odrzuca pokój, którego nie ma żadna scena, i mówi dlaczego\./],
                     putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GMowie dostają o tym szept; gdy przeglądarka GMa nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
                     witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GMowie dostają o tym szept\./]
@@ -13806,7 +13806,7 @@ const REGRESSIONS = [
                     doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
                         "The Mastermind passes a locked door and a sealed room this way too."],
                     landing: ["lands on the far end's square, or the nearest free square of that end's room, on that end's floor"],
-                    findPassage: ["Locate a hidden stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
+                    findPassage: ["Find Stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
                     findWhat: ["16 or a critical finds the oldest open secret passage of the student's room on their floor that they do not know",
                         "The Mastermind finds none: they know them all."],
                     reroll: ["A Reroll that beats 16 finds once, in the room its roll was thrown in, and only while the student still stands there - else the Reroll is given back whole;", "one that falls below takes back only what its own roll found."],
@@ -13827,7 +13827,7 @@ const REGRESSIONS = [
                     public: ["When a GM makes a passage public, every student knows it"]
                 },
                 brochure: {
-                    findPassage: ["find a hidden stash (16+) or find a secret passage (16+)"]
+                    findPassage: ["Find Stash (16+) or Find Passage (16+)"]
                 },
                 stale: ["Three things behind one tile", "wherever the student stands by then", "a Find Stash only while you still stand there", "A secret passage is one stretch of a plain wall between two rooms of one floor:",
                     "a secret door a player opens is shut again by the primary GM's browser"]
@@ -13841,7 +13841,7 @@ const REGRESSIONS = [
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
                     landing: ["ląduje na polu dalszego końca albo na najbliższym wolnym polu pokoju tego końca, na jego piętrze"],
-                    findPassage: ["Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16", "**Znajdź tajne przejście.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
+                    findPassage: ["Find Stash: 16. Find Passage: 16", "**Find Passage.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
                     findWhat: ["16 albo krytyk znajduje najstarsze otwarte tajne przejście pokoju ucznia na jego piętrze, którego uczeń nie zna",
                         "Mastermind nie znajduje żadnego: zna wszystkie."],
                     reroll: ["Reroll powyżej 16 znajduje raz, w pokoju, w którym padł jego rzut, i tylko wtedy, gdy uczeń wciąż tam stoi - inaczej Reroll wraca w całości;", "taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
@@ -13857,14 +13857,14 @@ const REGRESSIONS = [
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
                     goThrough: ["Przeciągnij token na znacznik tego końca, żeby przejść", "naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
                     landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
-                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
-                    reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],
+                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Find Passage.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
+                    reroll: ["Reroll Find Passage albo Find Stash szuka jeszcze raz nowymi kośćmi"],
                     public: ["Gdy GM ujawni przejście, zna je każdy uczeń"]
                 },
                 brochure: {
-                    findPassage: ["znajdź ukrytą skrytkę (16+) albo znajdź tajne przejście (16+)"]
+                    findPassage: ["Find Stash (16+) albo Find Passage (16+)"]
                 },
-                stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Znajdź ukrytą skrytkę tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
+                stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Find Stash tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
                     "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"]
             }
         };
@@ -13896,7 +13896,7 @@ const REGRESSIONS = [
         equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
             /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
             JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
-                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Find Passage", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
     }],
@@ -17128,7 +17128,7 @@ const REGRESSIONS = [
                 ["lengthOver", "T4", "report"], ["loanDeclension", "T12", "report"], ["loanGender", "T11", "report"], ["localeCalls", "T20", "fail"],
                 ["mirror", "T22", "report"],
                 ["monokumaVoice", "T21", "report"], ["naturalnessBefore", "T27", "report"], ["oxfordComma", "T17", "report"], ["pairParity", "T2", "fail"], ["patterns", "T5", "report"],
-                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "report"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
+                ["pluralForms", "T1", "fail"], ["renderChecks", "T15", "report"], ["retiredHits", "T28", "fail"], ["ruleNumberWords", "T7", "report"], ["secondPersonToMany", "T16", "report"], ["tableWordProblems", "T14", "fail"],
                 ["telegraph", "T18", "report"], ["uiLiterals", "T13", "report"]],
             flagged: [["bareLeft", 5, 5], ["colonChains", 4, 4], ["configPlaceholders", 4, 4], ["contractions", 5, 5], ["dashesIn", 13, 13],
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
@@ -17568,7 +17568,7 @@ const REGRESSIONS = [
                 broken: [],
                 move: ["That cost an action - 1 action left.", "That cost an action - 2 actions left.", "That cost an action - 5 actions left."],
                 eclipse: ["1 crossing)", "2 crossings)"],
-                summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 traces left behind"],
+                summary: ["What you did during the P.", "What the table did during the P.", "2 actions · 1 item found · 5 Remnants left behind"],
                 thin: ["No Key Remnant has been found yet", "Only 2 Key Remnants have been found"],
                 overflow: ["2 fewer actions each, on top of anything Wounded already took", true],
                 approved: ["You spend 2 Hope; you have 5 Hope left.", "“I” loses durability to Despair"]
@@ -17577,7 +17577,7 @@ const REGRESSIONS = [
                 broken: [],
                 move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
-                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych śladów"],
+                summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
                 thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnants"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
@@ -17876,23 +17876,23 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             en: {
                 left: 0, same: [],
-                now: ["Speed up their decline. Costs 1 Health and 1 Sanity from them.", "Disadvantage on Leave a clue and Survive for the victim's next 2 turns.",
+                now: ["Speed up their decline. Costs 1 Health and 1 Sanity from them.", "Disadvantage on Leave a Clue and Survive for the victim's next 2 turns.",
                     "End the incident now. Threshold is 5 times their remaining Health", "You live inside a closed area. 2 actions per time of day.",
                     "Add a new experience worth +2"],
                 moved: ["Speed up their decline. Costs 2 Health and 3 Sanity from them.",
                     "Nothing on a Hope failure. On Despair you still take 4 Sanity off them and leave an Evident Remnant; a critical failure leaves an Obvious one.",
-                    "Disadvantage on Leave a clue and Survive for the victim's next 5 turns.", "Disadvantage on Secure a trace and Role reversal for the victim's next turn.",
+                    "Disadvantage on Leave a Clue and Survive for the victim's next 5 turns.", "Disadvantage on Secure a Trace and Role Reversal for the victim's next turn.",
                     "End the incident now. Threshold is 7 times their remaining Health", "You live inside a closed area. 5 actions per time of day.",
                     "Add a new experience worth +3"]
             },
             pl: {
                 left: 0, same: [],
-                now: ["Przyspiesz ich upadek. Kosztuje ich 1 Health i 1 Sanity.", "Utrudnienie na Zostaw trop i Survive przez najbliższe 2 tury ofiary.",
+                now: ["Przyspiesz ich upadek. Kosztuje ich 1 Health i 1 Sanity.", "Utrudnienie na Leave a Clue i Survive przez najbliższe 2 tury ofiary.",
                     "Zakończ incydent teraz. Próg to 5-krotność ich pozostałego Health", "Żyjecie w zamkniętym miejscu. 2 akcje na porę dnia.",
                     "Dodaj nowe doświadczenie warte +2"],
                 moved: ["Przyspiesz ich upadek. Kosztuje ich 2 Health i 3 Sanity.",
                     "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im 4 Sanity i zostawiasz Evident Remnant; porażka krytyczna zostawia Obvious.",
-                    "Utrudnienie na Zostaw trop i Survive przez najbliższych 5 tur ofiary.", "Utrudnienie na Zabezpiecz ślad i Role reversal przez najbliższą turę ofiary.",
+                    "Utrudnienie na Leave a Clue i Survive przez najbliższych 5 tur ofiary.", "Utrudnienie na Secure a Trace i Role Reversal przez najbliższą turę ofiary.",
                     "Zakończ incydent teraz. Próg to 7-krotność ich pozostałego Health", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
                     "Dodaj nowe doświadczenie warte +3"]
             },
@@ -18006,6 +18006,129 @@ const REGRESSIONS = [
             + "Daily Life's budget, the trap's budget, the free clean-up, -/+ and a Panic Round's step, the Closing's card, the overrun debate's "
             + "step; renders left with a brace or a key; then the roads read in the source: the Eclipse's default, the budget's, the card's "
             + "seconds, the debate's step, the bar's labels]");
+    }],
+
+    ["R1161 - one name per action, option and Call, the same in English and in Polish (E66-19, E66-20, E66-22): the names table of E66's Appendix A in config.mjs's English, en.json and pl.json, each name in Title Case; every label of the tiles', crisis, clean-up, Indirect Murder and Rest tables Polish as it is English; \"Trace\" capitalised only inside the five names; no retired Polish name left in pl.json; T20 and T28 of the text lint in FAIL (E66 C5; S18-41, D33a, DB3, DB9, DB16, DB33, DB37)", async () => {
+        /*
+         * E66 C5, 01.11.2026; S18-41. Until this commit an action had up to three names - "Clean up a trace", "Cover your
+         * tracks" and "Erase a trace" for one choice, "Locate a hidden stash" on the tile and "Find a stash" on the GM's
+         * card - Polish names beside English ones ("Zostaw trop", "Akcja dynamiczna", "Projekty"), names in sentence case
+         * ("Role reversal") and British spelling ("Self-defence"). The table below is E66's Appendix A as the owner's
+         * defaults read it (Q-E66-1: "Projects"; Q-E66-2: the roll prompts are no names), with the names the rename met on
+         * the way (Find Passage, Testimony). config.mjs is read as written, from its source, not as this browser's language
+         * swapped it at i18nInit (i18n.mjs `localizeConfig`); en.json and pl.json from the module's files. Nothing is
+         * written. Red at ce17b850 (C4), measured: 85 places of the two tables holding another form, 15 labels of the
+         * tables whose Polish is not their English, 20 names not in Title Case, 9 texts with a capital Trace outside the
+         * five names, 56 pl.json keys with a retired Polish name, and T28 in report.
+         */
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const source = (await moduleSources()).get("config.mjs");
+        must(typeof source === "string" && source.length > 10000, "config.mjs's source was not read - this test measured nothing");
+        const fresh = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
+        const english = new Map();
+        walkConfigProse(fresh, (key, value) => english.set(key, value));
+        const files = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" });
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            files[code] = flatLang(await res.json());
+        }
+        must(english.size > 400 && files.en.size > 1000 && files.pl.size > 1000, "config.mjs's prose or a language file read as nearly empty - this test measured nothing");
+        const CONFIG_NAMES = {
+            "CRISIS_ACTIONS.useItem": "Use an Item", "CRISIS_ACTIONS.leaveClue": "Leave a Clue", "CRISIS_ACTIONS.secureTrace": "Secure a Trace",
+            "CRISIS_ACTIONS.selfDefence": "Self-Defense", "CRISIS_ACTIONS.survive": "Survive", "CRISIS_ACTIONS.roleReversal": "Role Reversal",
+            "CRISIS_ACTIONS.strike": "Strike", "CRISIS_ACTIONS.pin": "Pin Them Down", "CRISIS_ACTIONS.keepDistance": "Keep Your Distance",
+            "CRISIS_ACTIONS.weaponAttack": "Attack with a Weapon", "CRISIS_ACTIONS.finishingBlow": "Finishing Blow", "CRISIS_ACTIONS.sharedEscape": "Escape Together",
+            "CRISIS_ACTIONS.doubleRoleReversal": "Double Role Reversal", "CRISIS_ACTIONS.crimePartners": "Partners in Crime", "CRISIS_ACTIONS.avertedEyes": "Averted Eyes",
+            "CLEANUP.actions.eraseTrace": "Erase a Trace", "CLEANUP.actions.misleadingTrail": "Misleading Trail", "CLEANUP.actions.moveBody": "Move the Body",
+            "INDIRECT_MURDER.concealIntent": "Conceal Your Intent", "INDIRECT_MURDER.hideTraces": "Hide the Traces",
+            "INDIRECT_MURDER.subProjects.0": "Prepare the Weapon", "INDIRECT_MURDER.subProjects.1": "Set the Trap",
+            "REST.options.sleep": "Sleep", "REST.options.meal": "Meal", "REST.options.breath": "Breath", "ACTIONS.project": "Projects"
+        };
+        const KEY_NAMES = {
+            "DRPG.Cleanup.action": "Erase a Trace", "DRPG.Tamper.cover": "Erase a Trace", "DRPG.Tamper.coverAction": "Erase a Trace",
+            "DRPG.Cleanup.transformAction": "Reshape a Trace", "DRPG.Roll.hideTraces": "Hide the Traces", "DRPG.Observe.followTraces": "Follow My Traces",
+            "DRPG.Cleanup.trailAction": "Misleading Trail", "DRPG.Tamper.frame": "Misleading Trail", "DRPG.Tamper.trailAction": "Misleading Trail",
+            "DRPG.Cleanup.moveAction": "Move the Body", "DRPG.Cleanup.moveTitle": "Move the Body",
+            "DRPG.Analyze.findStash": "Find Stash", "DRPG.Bridge.what.vault.findStash": "Find Stash", "DRPG.Analyze.findPassage": "Find Passage",
+            "DRPG.Action.dynamicLabel": "Dynamic Action", "DRPG.Action.dynamicTitle": "Dynamic Action", "DRPG.Remnant.action.dynamic": "Dynamic Action",
+            "DRPG.Project.manageTitle": "Projects", "DRPG.Explain.projects.window": "Projects", "DAGGERHEART.UI.Countdowns.title": "Projects",
+            "DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns": "Projects", "DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle": "Projects",
+            "DRPG.Floor.mode.testimony": "Testimony", "DRPG.Floor.startTestimony": "Testimony", "DRPG.Hud.trial.testimony": "Testimony"
+        };
+        // DB16: every word capitalised but a, an, the, and, or, of, with, in, on, to, for, by, at after the first; a hyphen's parts each.
+        const SMALL = new Set(["a", "an", "the", "and", "or", "of", "with", "in", "on", "to", "for", "by", "at"]);
+        const titleCase = name => name.split(" ").every((word, i) => word.split("-").every(part => /^[\p{Lu}\d]/u.test(part) || (i > 0 && SMALL.has(part))));
+        const wrong = [];
+        for (const [path, name] of Object.entries(CONFIG_NAMES)) {
+            const key = `DRPG.Config.${path}.label`;
+            if (english.get(key) !== name) wrong.push(`config.mjs ${path}: ${JSON.stringify(english.get(key) ?? null)}`);
+            if (files.pl.get(key) !== name) wrong.push(`pl.json ${key}: ${JSON.stringify(files.pl.get(key) ?? null)}`);
+        }
+        for (const [key, name] of Object.entries(KEY_NAMES)) {
+            for (const code of ["en", "pl"]) if (files[code].get(key) !== name) wrong.push(`${code}.json ${key}: ${JSON.stringify(files[code].get(key) ?? null)}`);
+        }
+        const TABLES = /^DRPG\.Config\.(?:ACTIONS|HOPE_CALLS|DESPAIR_CALLS|MONOCUB\.abilities|CRISIS_ACTIONS|CLEANUP\.actions|INDIRECT_MURDER(?:\.subProjects)?|REST\.options)\.[^.]+\.label$/;
+        const labels = [...english].filter(([key]) => TABLES.test(key));
+        must(labels.length >= 60, `only ${labels.length} labels of the name tables were read - this test measured too little`);
+        const notPolish = labels.filter(([key, name]) => files.pl.get(key) !== name).map(([key]) => `${key}: ${JSON.stringify(files.pl.get(key) ?? null)}`);
+        const untitled = [...new Set([...labels.map(([, name]) => name), ...Object.values(KEY_NAMES)])].filter(name => !titleCase(name));
+        // DB15, DB33, DB37: "Trace" stands only inside the five names; the thing is a Remnant.
+        const FIVE = /Secure a Trace|Erase a Trace|Reshape a Trace|Hide the Traces|Follow My Traces/g;
+        const capital = [...[...files.en].map(([k, v]) => [`en.json ${k}`, v]), ...[...english].map(([k, v]) => [`config.mjs ${k}`, v]), ...[...files.pl].map(([k, v]) => [`pl.json ${k}`, v])]
+            .filter(([, v]) => typeof v === "string" && /(?<!\p{L})Traces?(?!\p{L})/u.test(v.replace(FIVE, ""))).map(([where]) => where);
+        // The Polish names the rename retired (D33a, DB3, DB38; the reviewer's Testimony and Reroll rows), in any case but Projekty and Zeznanie,
+        // which a sentence may still open with as words: they are held as names only.
+        const RETIRED_PL = [/użyj przedmiotu/iu, /zostaw trop/iu, /zabezpiecz ślad/iu, /atak bronią/iu, /usuń ślad/iu, /zatrzyj ślady/iu, /przerób ślad/iu,
+            /mylny trop/iu, /przenieś ciało/iu, /ukryj zamiar/iu, /ukryj ślady/iu, /przygotuj broń/iu, /zastaw pułapkę/iu, /znajdź ukrytą skrytkę/iu,
+            /szukanie skrytki/iu, /znajdź tajne przejście/iu, /podążaj za własnymi śladami/iu, /akcj\p{L}* dynamiczn/iu, /akcji Dynamic/u,
+            /(?<!\p{L})Projekty(?!\p{L})/u, /(?<!\p{L})Zeznanie(?!\p{L})/u, /(?<!\p{L})przerzut/iu];
+        const retired = [...files.pl].filter(([, v]) => typeof v === "string" && RETIRED_PL.some(re => re.test(v))).map(([key]) => key);
+        equal(JSON.stringify({ wrong, notPolish, untitled, capital, retired, modes: [TEXT_MODES.localeCalls?.mode ?? null, TEXT_MODES.retiredHits?.mode ?? null] }),
+            JSON.stringify({ wrong: [], notPolish: [], untitled: [], capital: [], retired: [], modes: ["fail", "fail"] }),
+            "[the names table's places that hold another form; the tables' labels whose Polish is not their English; names not in Title Case; "
+                + "texts with a capital Trace outside the five names; pl.json keys with a retired Polish name; T20's and T28's modes]");
+    }],
+
+    ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
+        /*
+         * E66 C5, 01.11.2026; E66-24, the plan's risk "longer names may overflow a tile". A tile's type is sized by the
+         * longest unbreakable word any tile carries (sheet.mjs `LONGEST_TILE_WORD`, read at import from the English labels
+         * of ACTIONS, HOPE_CALLS, DESPAIR_CALLS and MONOCUB.abilities), and the crisis menu and the clean-up window lay their
+         * buttons out for the words they had. Measured at E66's Base (501d13eb, probe longest.mjs): the tiles' longest word
+         * "Contribution" (12) in both languages, the crisis labels' "Self-defence" (12), the clean-up's "Misleading" (10).
+         * The rename keeps each grid's longest word within its Base length; a word split at a space or kept whole at its
+         * hyphen ("Self-Defense", `softWrap`) is the same word here. Read: config.mjs as written (its source, as R1161) and
+         * pl.json's labels. Nothing is written. Red on a copy of this tree with the clean-up's "Misleading Trail" planted as
+         * "Misleadingly Trail" (12 letters).
+         */
+        const source = (await moduleSources()).get("config.mjs");
+        must(typeof source === "string" && source.length > 10000, "config.mjs's source was not read - this test measured nothing");
+        const fresh = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(source)}`);
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" });
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const pl = flatLang(await res.json());
+        const longest = labels => labels.flatMap(label => String(label).split(/\s+/)).reduce((a, w) => (w.length > a.length ? w : a), "");
+        const GRIDS = {
+            tiles: [12, ["ACTIONS", fresh.ACTIONS], ["HOPE_CALLS", fresh.HOPE_CALLS], ["DESPAIR_CALLS", fresh.DESPAIR_CALLS], ["MONOCUB.abilities", fresh.MONOCUB?.abilities]],
+            crisis: [12, ["CRISIS_ACTIONS", fresh.CRISIS_ACTIONS]],
+            cleanup: [10, ["CLEANUP.actions", fresh.CLEANUP?.actions]]
+        };
+        const read = {}, words = {};
+        for (const [grid, [cap, ...tables]] of Object.entries(GRIDS)) {
+            const rows = tables.flatMap(([path, table]) => Object.entries(table ?? {}).filter(([, def]) => def?.label).map(([id, def]) => [def.label, pl.get(`DRPG.Config.${path}.${id}.label`)]));
+            must(rows.length >= 3, `the ${grid} grid read ${rows.length} labels - this test measured nothing`);
+            const en = longest(rows.map(([label]) => label)), polish = longest(rows.map(([, label]) => label ?? ""));
+            words[grid] = [en, polish];
+            read[grid] = [en.length <= cap, polish.length <= cap];
+        }
+        const sheet = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const built = bodyOf(sheet, "const LONGEST_TILE_WORD = (() => {", { until: "})();" });
+        read.built = ["Object.values(ACTIONS ?? {})", "Object.values(HOPE_CALLS ?? {})", "Object.values(DESPAIR_CALLS ?? {})", "Object.values(MONOCUB?.abilities ?? {})",
+            "String(label).split(/\\s+/)"].map(part => built.includes(part));
+        read.longest = words.tiles[0];
+        equal(JSON.stringify(read), JSON.stringify({ tiles: [true, true], crisis: [true, true], cleanup: [true, true], built: [true, true, true, true, true], longest: "Contribution" }),
+            `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
     }],
 ];
 
